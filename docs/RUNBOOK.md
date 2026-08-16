@@ -12,6 +12,22 @@ Et git-repo er ikke en database du kan miste halvparten av. Hver klon er
 en fullstendig kopi med hele historikken. Det er den viktigste grunnen
 til at git ble valgt over Supabase her.
 
+## Lokalt oppsett
+
+Actions kjører Python 3.12. Kjør samme versjon lokalt, ellers finner du
+versjonsforskjeller i produksjon mandag morgen i stedet for på skjermen din.
+`.python-version` i rota sier hvilken versjon som gjelder; pyenv og de fleste
+verktøy plukker den opp automatisk.
+
+    brew install python@3.12          # om nødvendig
+    python3.12 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements-dev.txt
+    python -m pytest tests/ -q        # skal være grønt før du pusher
+
+Avhengighetene er pinnet eksakt. Oppgradering er en bevisst handling:
+bump versjonen i `requirements.txt`, kjør testene, commit.
+
 ## Sikring — det som faktisk kan gå galt
 
 Rangert etter sannsynlighet, ikke etter hvor dramatisk det høres ut.

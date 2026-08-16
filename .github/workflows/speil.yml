@@ -4,6 +4,8 @@ name: Speiling til backup-remote
 # Krever to hemmeligheter under Settings -> Secrets -> Actions:
 #   SPEIL_URL    f.eks. https://codeberg.org/<bruker>/havbruk-radar.git
 #   SPEIL_TOKEN  access token hos speil-tjenesten
+# Og én variabel under Settings -> Variables -> Actions:
+#   SPEILING_AKTIV = true
 # Sett dem opp selv — de skal aldri stå i koden.
 
 on:
@@ -20,10 +22,21 @@ jobs:
         with:
           fetch-depth: 0     # hele historikken, ikke bare siste commit
 
+      - name: Hent alle grener og tagger
+        run: |
+          git fetch origin '+refs/heads/*:refs/heads/*' --tags --force
+
       - name: Push til speil
         env:
           SPEIL_URL: ${{ secrets.SPEIL_URL }}
           SPEIL_TOKEN: ${{ secrets.SPEIL_TOKEN }}
         run: |
-          git remote add speil "$(echo "$SPEIL_URL" | sed "s#https://#https://oauth2:${SPEIL_TOKEN}@#")"
-          git push --mirror speil
+          # Tokenet gis til git via URL-en i selve kommandoen, ikke via
+          # `git remote add`. Da havner det aldri i .git/config på runneren.
+          fjern="$(printf '%s' "$SPEIL_URL" | sed "s#https://#https://oauth2:${SPEIL_TOKEN}@#")"
+
+          # --mirror ville slettet alt på speilet som ikke finnes lokalt,
+          # inkludert refs actions/checkout aldri hentet ned. Speilet skal
+          # være en trygg kopi, ikke et sted som kan tømmes av en feil her.
+          git push --force "$fjern" 'refs/heads/*:refs/heads/*'
+          git push --force --tags "$fjern"
