@@ -25,14 +25,26 @@ def _matches(rule: dict, row: dict) -> bool:
         return False
 
     terskel = rule.get("min_endring_prosent")
-    if terskel is not None:
+    retning = rule.get("retning", "begge")
+
+    if terskel is not None or retning != "begge":
         try:
             old, new = float(row["old_value"]), float(row["new_value"])
         except (TypeError, ValueError):
             return False
         if old == 0:
             return False
-        if abs((new - old) / old) * 100 < terskel:
+
+        endring = (new - old) / old * 100
+
+        # Uten dette scores et KUTT på ti prosent under regelen som
+        # heter "økning", og endringsloggen lyver om hva som skjedde.
+        if retning == "opp" and endring <= 0:
+            return False
+        if retning == "ned" and endring >= 0:
+            return False
+
+        if terskel is not None and abs(endring) < terskel:
             return False
 
     return True

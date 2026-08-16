@@ -38,6 +38,22 @@ def write(observations: list[Observation], observed_at: str) -> list[Path]:
     return written
 
 
+def finnes_allerede(observed_at: str) -> list[str]:
+    """Kilder som allerede har skrevet snapshot for denne datoen.
+
+    Kjører du to ganger samme dag, sammenligner diffen mot forrige UKE
+    på nytt og fører de samme endringene inn i changeloggen en gang til.
+    run.py bruker denne til å nekte, i stedet for å doble tallene dine.
+    """
+    if not RAW_DIR.exists():
+        return []
+    return sorted(
+        katalog.name
+        for katalog in RAW_DIR.iterdir()
+        if katalog.is_dir() and (katalog / f"{observed_at}.parquet").exists()
+    )
+
+
 def previous(source: str, before: str) -> pl.DataFrame | None:
     """Siste snapshot fra denne kilden før gitt dato."""
     target_dir = RAW_DIR / source

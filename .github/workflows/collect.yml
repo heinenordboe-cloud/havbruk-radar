@@ -8,15 +8,22 @@ on:
 permissions:
   contents: write             # minste rettighet som trengs. Ikke utvid.
 
+# To kjøringer som pusher samtidig gir en tapt push og en falsk rød jobb.
+# Køing i stedet for parallellitet: den andre venter til den første er ferdig.
+concurrency:
+  group: innsamling
+  cancel-in-progress: false
+
 jobs:
   samle:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
-          fetch-depth: 0      # full historikk, kreves for speiling
+          fetch-depth: 1      # innsamlingen trenger bare siste commit.
+                              # Speilingen har sin egen checkout med depth 0.
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -35,10 +42,20 @@ jobs:
           git config user.name "havbruk-radar"
           git config user.email "actions@github.com"
           git add data/
-          git diff --staged --quiet || git commit -m "Snapshot $(date -u +%Y-%m-%d)"
-          git push
+          git diff --staged --quiet && exit 0
 
-  
+          git commit -m "Snapshot $(date -u +%Y-%m-%d)"
+
+          # Main kan ha flyttet seg mens vi samlet — du redigerer README
+          # fra telefonen, eller en annen kjøring rakk å pushe. Uten rebase
+          # blir pushen avvist og jobben rød uten at noe faktisk er galt.
+          for forsok in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push && exit 0
+            echo "Push-forsøk $forsok feilet, prøver igjen om 5s"
+            sleep 5
+          done
+          echo "::error::Klarte ikke pushe snapshot etter tre forsøk."
+          exit 1
 
       # Egen jobb ville skjult feilen. Denne kjører kun ved feil og
       # gjør at GitHub sender deg e-post — som igjen er varselet ditt

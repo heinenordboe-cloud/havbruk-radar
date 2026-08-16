@@ -8,5 +8,3 @@ venv/
 .pytest_cache/
 dashboard/node_modules/
 dashboard/.evidence/
-
-.env

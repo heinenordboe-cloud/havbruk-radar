@@ -6,14 +6,16 @@
 """
 
 import argparse
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import polars as pl
-
-from core import diff, health, registry, runner, signals, snapshot
-
 ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
+
+import polars as pl  # noqa: E402
+
+from core import diff, health, registry, runner, signals, snapshot  # noqa: E402
 CHANGELOG = ROOT / "data" / "changelog.parquet"
 COMMIT_MSG = ROOT / "data" / "siste_kjoring.txt"
 
@@ -46,9 +48,22 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bare", help="kjør kun én kilde")
     parser.add_argument("--torrkjor", action="store_true", help="ikke skriv filer")
+    parser.add_argument("--tving", action="store_true",
+                        help="kjør selv om dagens snapshot finnes (overskriver)")
     args = parser.parse_args()
 
     observed_at = datetime.now(timezone.utc).date().isoformat()
+
+    # 0. Er dagen allerede samlet? Da fører en ny kjøring de samme
+    #    endringene inn i changeloggen på nytt. Nekt heller.
+    if not args.torrkjor and not args.tving:
+        alt_skrevet = snapshot.finnes_allerede(observed_at)
+        if alt_skrevet:
+            print(f"Snapshot for {observed_at} finnes allerede: "
+                  f"{', '.join(alt_skrevet)}")
+            print("Ingenting gjort. Bruk --tving for å overskrive, "
+                  "eller --torrkjor for å bare se dataene.")
+            return 0
 
     # 1. Finn kilder
     kilder = registry.discover()

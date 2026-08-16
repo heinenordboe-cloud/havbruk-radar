@@ -1,11 +1,25 @@
 # Signalregler. Redigerbare uten kode.
 # Første regel som treffer, vinner. Sorter fra mest til minst spesifikk.
+#
+# felt                 hvilket observasjonsfelt regelen gjelder
+# endringstype         ny | endret | borte
+# min_endring_prosent  krever tallverdier; sammenligner absolutt endring
+# retning              opp | ned | begge (standard: begge)
+# vekt                 sorteringsrekkefølge i commit-meldingen
 
 regler:
   - navn: "Kapasitetsøkning over 10 %"
     felt: "kapasitet"
     endringstype: "endret"
     min_endring_prosent: 10
+    retning: "opp"
+    vekt: 10
+
+  - navn: "Kapasitetskutt over 10 %"
+    felt: "kapasitet"
+    endringstype: "endret"
+    min_endring_prosent: 10
+    retning: "ned"
     vekt: 10
 
   - navn: "Konkurs eller avvikling"
@@ -18,11 +32,19 @@ regler:
     endringstype: "ny"
     vekt: 7
 
-  - navn: "Bemanningsendring over 20 %"
+  - navn: "Nedbemanning over 20 %"
     felt: "antall_ansatte"
     endringstype: "endret"
     min_endring_prosent: 20
+    retning: "ned"
     vekt: 6
+
+  - navn: "Bemanningsvekst over 20 %"
+    felt: "antall_ansatte"
+    endringstype: "endret"
+    min_endring_prosent: 20
+    retning: "opp"
+    vekt: 5
 
   - navn: "Navneendring"
     felt: "navn"

@@ -5,6 +5,7 @@ to sekunder vite om du ødela noe.
 """
 
 import polars as pl
+import pytest
 
 from core import diff, runner, signals, snapshot
 from core.contract import Observation, Source
@@ -158,3 +159,72 @@ def test_kilde_som_aldri_har_fungert_varsler_ikke(tmp_path, monkeypatch):
     monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
     _, nede = health.oppdater([runner.Result("ny_kilde", False, 0, "ikke ferdig")], "2026-01-01")
     assert nede == []
+
+
+def test_retning_skiller_okning_fra_kutt():
+    """En regel som heter 'økning' skal ikke score et kutt."""
+    def endring(gammel, ny):
+        return {
+            "entity_id": "1", "entity_type": "lokalitet", "entity_name": "Lok",
+            "field": "kapasitet", "old_value": gammel, "new_value": ny,
+            "change_type": "endret", "source": "falsk", "observed_at": "2026-01-08",
+        }
+
+    opp = {"navn": "økning", "felt": "kapasitet", "endringstype": "endret",
+           "min_endring_prosent": 10, "retning": "opp"}
+    ned = {"navn": "kutt", "felt": "kapasitet", "endringstype": "endret",
+           "min_endring_prosent": 10, "retning": "ned"}
+
+    assert signals._matches(opp, endring("100", "120"))
+    assert not signals._matches(opp, endring("100", "80"))
+    assert signals._matches(ned, endring("100", "80"))
+    assert not signals._matches(ned, endring("100", "120"))
+
+    begge = {"navn": "begge", "felt": "kapasitet", "endringstype": "endret",
+             "min_endring_prosent": 10}
+    assert signals._matches(begge, endring("100", "80"))
+    assert signals._matches(begge, endring("100", "120"))
+
+
+def test_reglene_i_repoet_er_gyldige():
+    """Fanger skrivefeil i signals.yml før de blir stille manglende signaler."""
+    for regel in signals.load_rules():
+        assert "navn" in regel, regel
+        assert regel.get("endringstype") in (None, "ny", "endret", "borte"), regel
+        assert regel.get("retning") in (None, "opp", "ned", "begge"), regel
+
+
+def test_samme_dag_oppdages(tmp_path, monkeypatch):
+    """Dagens snapshot skal kjennes igjen, ellers dobbeltføres changeloggen."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    assert snapshot.finnes_allerede("2026-01-01") == []
+
+    snapshot.write(list(FalskKilde().collect("2026-01-01")), "2026-01-01")
+
+    assert snapshot.finnes_allerede("2026-01-01") == ["falsk"]
+    assert snapshot.finnes_allerede("2026-01-08") == []
+
+
+def test_manglende_miljovariabel_kaster_ved_bruk(tmp_path, monkeypatch):
+    """Tom streng gir kryptisk 401 senere. Vi vil ha feilen med en gang."""
+    from core import config
+
+    (tmp_path / "config.yml").write_text(
+        "kilder:\n"
+        "  test:\n"
+        "    aktiv: true\n"
+        "    nokkel: \"${FINNES_IKKE_XYZ}\"\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "CONFIG_PATH", tmp_path / "config.yml")
+    monkeypatch.delenv("FINNES_IKKE_XYZ", raising=False)
+    config.load.cache_clear()
+
+    # Nøkler uten miljøvariabel skal fortsatt virke — feilen er lokal.
+    assert config.get("kilder.test.aktiv") is True
+
+    with pytest.raises(RuntimeError, match="FINNES_IKKE_XYZ"):
+        config.get("kilder.test.nokkel")
+
+    config.load.cache_clear()
