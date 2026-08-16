@@ -30,6 +30,7 @@ jobs:
         run: python run.py
 
       - name: Commit snapshot
+        if: always()
         run: |
           git config user.name "havbruk-radar"
           git config user.email "actions@github.com"
@@ -37,13 +38,7 @@ jobs:
           git diff --staged --quiet || git commit -m "Snapshot $(date -u +%Y-%m-%d)"
           git push
 
-      # Speiling til et repo utenfor GitHub. Hopper over seg selv hvis
-      # hemmeligheten ikke er satt, så workflowen virker uansett.
-      - name: Speil til backup-remote
-        if: ${{ env.MIRROR_URL != '' }}
-        env:
-          MIRROR_URL: ${{ secrets.MIRROR_URL }}
-        run: git push --mirror "$MIRROR_URL"
+  
 
       # Egen jobb ville skjult feilen. Denne kjører kun ved feil og
       # gjør at GitHub sender deg e-post — som igjen er varselet ditt
