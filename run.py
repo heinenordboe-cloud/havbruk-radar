@@ -90,7 +90,7 @@ def main() -> int:
         samlet.write_parquet(CHANGELOG)
 
     # 7. Oppdater helsetilstand
-    tilstand, regresjoner = health.oppdater(resultater, observed_at)
+    tilstand, nede = health.oppdater(resultater, observed_at)
     health.skriv(tilstand)
 
     # 8. Skriv commit-melding
@@ -106,9 +106,9 @@ def main() -> int:
         print(f"    · {rad['entity_name']}: {rad['field']} "
               f"{rad['old_value']} → {rad['new_value']}  [{rad['signal']}]")
 
-    if regresjoner:
-        print(f"\n  REGRESJON: {', '.join(regresjoner)} fungerte forrige uke og feiler nå.")
-        return 1   # -> rød jobb -> e-post fra GitHub
+    if nede:
+        print(f"\n  NEDE: {', '.join(nede)} har fungert før og leverer ikke nå.")
+        return 1   # -> rød jobb -> e-post fra GitHub, hver uke til det er fikset
 
     return 0
 

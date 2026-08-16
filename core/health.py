@@ -4,9 +4,13 @@ Det farligste feilmodus i dette systemet er ikke at noe krasjer.
 Det er at én kilde slutter å levere, feilen isoleres pent, jobben
 går grønt, og du oppdager i februar at du mangler ni uker med data.
 
-Derfor: vi husker forrige kjøring, og hvis en kilde som fungerte
-i forrige uke feiler nå, avsluttes jobben med feilkode. Da sender
-GitHub deg e-post.
+Derfor: vi husker forrige kjøring, og så lenge en kilde som HAR
+fungert er nede, avsluttes jobben med feilkode. Hver uke, ikke bare
+den første. Da sender GitHub deg e-post helt til det er fikset.
+
+Alternativet — å varsle kun ved overgangen fungerte->feiler — gir
+nøyaktig feilmodusen beskrevet over, bare forskjøvet én uke: mister
+du den ene e-posten, er alt grønt igjen mens datatapet fortsetter.
 """
 
 import json
@@ -24,10 +28,15 @@ def les() -> dict:
 
 
 def oppdater(resultater: list[Result], observed_at: str) -> tuple[dict, list[str]]:
-    """Returnerer ny helsetilstand og liste over kilder som nettopp brakk."""
+    """Returnerer ny helsetilstand og liste over kilder som er nede.
+
+    "Nede" = kilden har fungert minst én gang før, og feiler nå. En kilde
+    som aldri har levert (nyskrevet, ikke ferdig) varsler ikke — den ser
+    du på skjermen mens du jobber med den.
+    """
     forrige = les()
     ny: dict = {}
-    regresjoner: list[str] = []
+    nede: list[str] = []
 
     for r in resultater:
         gammel = forrige.get(r.source, {})
@@ -41,11 +50,11 @@ def oppdater(resultater: list[Result], observed_at: str) -> tuple[dict, list[str
             "siste_feil": "" if r.ok else r.error.strip().splitlines()[-1][:300],
         }
 
-        # Fungerte forrige uke, feiler nå -> dette skal vekke deg.
-        if not r.ok and gammel.get("feil_paa_rad", 0) == 0 and gammel.get("sist_ok"):
-            regresjoner.append(r.source)
+        # Har fungert før, er nede nå -> dette skal vekke deg. Hver uke.
+        if not r.ok and gammel.get("sist_ok"):
+            nede.append(f"{r.source} (uke {strekk})")
 
-    return ny, regresjoner
+    return ny, nede
 
 
 def skriv(tilstand: dict) -> None:

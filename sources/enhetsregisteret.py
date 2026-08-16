@@ -15,6 +15,12 @@ from core.contract import Observation, Source
 
 BASE = "https://data.brreg.no/enhetsregisteret/api/enheter"
 
+# Brreg avviser page*size over 10 000. Med sidestorrelse 100 er taket
+# side 100. Vi ligger langt under i dag, men en bredere NACE-kode kan
+# treffe det, og da skal du få vite det i stedet for en 400 midt i en
+# kjøring.
+MAKS_DYBDE = 10_000
+
 
 class Enhetsregisteret(Source):
     name = "enhetsregisteret"
@@ -44,6 +50,11 @@ class Enhetsregisteret(Source):
                     total_sider = payload.get("page", {}).get("totalPages", 1)
                     side += 1
                     if side >= total_sider or not batch:
+                        break
+                    if side * sidestorrelse >= MAKS_DYBDE:
+                        print(f"    ADVARSEL: naeringskode {kode} har flere treff "
+                              f"enn Brreg lar oss paginere gjennom "
+                              f"({MAKS_DYBDE}). Del opp filteret.")
                         break
 
         return enheter
