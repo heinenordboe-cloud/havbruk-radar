@@ -1,0 +1,55 @@
+name: Ukentlig innsamling
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"      # mandag 05:00 UTC
+  workflow_dispatch:          # og manuelt når du vil
+
+permissions:
+  contents: write             # minste rettighet som trengs. Ikke utvid.
+
+jobs:
+  samle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # full historikk, kreves for speiling
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Samle inn
+        env:
+          # Nøkler kommer fra GitHub Secrets, aldri fra config.yml.
+          BARENTSWATCH_KEY: ${{ secrets.BARENTSWATCH_KEY }}
+        run: python run.py
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "havbruk-radar"
+          git config user.email "actions@github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "Snapshot $(date -u +%Y-%m-%d)"
+          git push
+
+      # Speiling til et repo utenfor GitHub. Hopper over seg selv hvis
+      # hemmeligheten ikke er satt, så workflowen virker uansett.
+      - name: Speil til backup-remote
+        if: ${{ env.MIRROR_URL != '' }}
+        env:
+          MIRROR_URL: ${{ secrets.MIRROR_URL }}
+        run: git push --mirror "$MIRROR_URL"
+
+      # Egen jobb ville skjult feilen. Denne kjører kun ved feil og
+      # gjør at GitHub sender deg e-post — som igjen er varselet ditt
+      # om at 60-dagersklokka har begynt å tikke.
+      - name: Marker feil tydelig
+        if: failure()
+        run: |
+          echo "::error::Innsamlingen feilet $(date -u +%Y-%m-%d). Ingen commit betyr ingen aktivitet."
+          exit 1

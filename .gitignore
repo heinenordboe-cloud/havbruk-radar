@@ -1,0 +1,12 @@
+# MERK: data/ er IKKE ignorert. Datamengden er hele poenget med repoet.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.DS_Store
+.pytest_cache/
+dashboard/node_modules/
+dashboard/.evidence/
+
+.env

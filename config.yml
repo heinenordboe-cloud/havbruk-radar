@@ -1,0 +1,25 @@
+# Alt som kan justeres uten å røre kode ligger her.
+
+kilder:
+  enhetsregisteret:
+    # NACE-koder. Start smalt — utvid når du ser hva som er nyttig.
+    naeringskoder:
+      - "03.211"   # Havbruk med fisk, hav og fjord
+      - "03.212"   # Havbruk med skalldyr, hav og fjord
+      - "03.221"   # Havbruk med fisk, ferskvann
+      - "10.201"   # Produksjon av saltfisk, tørrfisk og klippfisk
+      - "10.202"   # Frysing av fisk, fiskefilet, skalldyr og bløtdyr
+      - "10.209"   # Bearbeiding og konservering av fisk ellers
+    sidestorrelse: 100
+
+  akvakultur:
+    aktiv: false            # sett true når du har bekreftet stien under
+    base_url: "https://api.fiskeridir.no/pub-aqua/api/v1"
+    sti: ""                 # fyll inn fra Swagger, se sources/akvakulturregisteret.py
+    id_felt: "siteNr"
+    navn_felt: "name"
+    feltkart:               # kildens feltnavn -> vårt feltnavn
+      capacity: "kapasitet"
+      capacityUnit: "kapasitet_enhet"
+      municipality: "kommune"
+      species: "art"

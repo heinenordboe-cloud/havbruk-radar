@@ -1,0 +1,30 @@
+# Signalregler. Redigerbare uten kode.
+# Første regel som treffer, vinner. Sorter fra mest til minst spesifikk.
+
+regler:
+  - navn: "Kapasitetsøkning over 10 %"
+    felt: "kapasitet"
+    endringstype: "endret"
+    min_endring_prosent: 10
+    vekt: 10
+
+  - navn: "Konkurs eller avvikling"
+    felt: "konkurs"
+    endringstype: "endret"
+    vekt: 9
+
+  - navn: "Nytt selskap i bransjen"
+    felt: "navn"
+    endringstype: "ny"
+    vekt: 7
+
+  - navn: "Bemanningsendring over 20 %"
+    felt: "antall_ansatte"
+    endringstype: "endret"
+    min_endring_prosent: 20
+    vekt: 6
+
+  - navn: "Navneendring"
+    felt: "navn"
+    endringstype: "endret"
+    vekt: 3

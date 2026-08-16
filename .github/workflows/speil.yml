@@ -1,0 +1,29 @@
+name: Speiling til backup-remote
+
+# Andre kopi av historikken, uavhengig av GitHub-kontoen din.
+# Krever to hemmeligheter under Settings -> Secrets -> Actions:
+#   SPEIL_URL    f.eks. https://codeberg.org/<bruker>/havbruk-radar.git
+#   SPEIL_TOKEN  access token hos speil-tjenesten
+# Sett dem opp selv — de skal aldri stå i koden.
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"      # to timer etter innsamlingen
+  workflow_dispatch:
+
+jobs:
+  speil:
+    runs-on: ubuntu-latest
+    if: vars.SPEILING_AKTIV == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # hele historikken, ikke bare siste commit
+
+      - name: Push til speil
+        env:
+          SPEIL_URL: ${{ secrets.SPEIL_URL }}
+          SPEIL_TOKEN: ${{ secrets.SPEIL_TOKEN }}
+        run: |
+          git remote add speil "$(echo "$SPEIL_URL" | sed "s#https://#https://oauth2:${SPEIL_TOKEN}@#")"
+          git push --mirror speil
