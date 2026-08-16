@@ -2,6 +2,7 @@ Norsk havbruk er en næring der kapasitet, eierskap og lokaliteter er i konstant
 
 Jeg har hatt en sterk tilknytning til havet og til oppdrett hele oppveksten, og min første jobb var på et lakseslakteri. Der fikk jeg se hele veien fra merd til ferdig pakket og lastet i lastebil. Det finnes aktører som gir innsyn i deler av havbruksnæringa, men fra det jeg har sett selv er det mye mer å ta tak i. Derfor startet jeg dette.
 
+## In English.
 
 Norwegian aquaculture is an industry where capacity, ownership and sites are in constant motion. Public registries show what things look like right now, but not what has changed along the way. That difference is what this project collects.
 
