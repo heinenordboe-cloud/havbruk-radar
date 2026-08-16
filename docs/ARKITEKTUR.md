@@ -31,6 +31,19 @@ kjøring, committet. Git gir versjonering og diff gratis og permanent.
 Konsekvensen er at `data/` aldri skal i `.gitignore`. Det føles feil
 første gang — dataene *er* repoet her.
 
+## Append-only, aldri omskriving
+
+Både `data/raw/<kilde>/<dato>.parquet` og `data/changelog/<dato>.parquet`
+skrives én gang og røres aldri igjen.
+
+Grunnen er git, ikke minne. Komprimert parquet delta-komprimerer elendig,
+så en fil som skrives om hver uke lagres som en ny nesten-full kopi hver
+gang — repoet vokser kvadratisk i stedet for lineært. Målt over 104
+simulerte uker: 1,9 MB mot 340 KB.
+
+Analyselaget leser hele loggen med `changelog.les_alt()` og skal ikke
+vite at den er delt i filer.
+
 ## Rekkefølgen i `run.py`
 
 Diffen kjøres **før** dagens snapshot skrives. Skriver du først, finner

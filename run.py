@@ -13,10 +13,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
-import polars as pl  # noqa: E402
+from core import (  # noqa: E402
+    changelog, diff, health, registry, runner, signals, snapshot,
+)
 
-from core import diff, health, registry, runner, signals, snapshot  # noqa: E402
-CHANGELOG = ROOT / "data" / "changelog.parquet"
 COMMIT_MSG = ROOT / "data" / "siste_kjoring.txt"
 
 
@@ -96,13 +96,8 @@ def main() -> int:
     # 5. Scor endringene
     scoret = signals.score(endringer)
 
-    # 6. Legg til i endringsloggen
-    if endringer.height:
-        samlet = (
-            pl.concat([pl.read_parquet(CHANGELOG), endringer], how="diagonal_relaxed")
-            if CHANGELOG.exists() else endringer
-        )
-        samlet.write_parquet(CHANGELOG)
+    # 6. Legg til i endringsloggen (egen fil per kjøring, aldri omskriving)
+    changelog.skriv(endringer, observed_at)
 
     # 7. Oppdater helsetilstand
     tilstand, nede = health.oppdater(resultater, observed_at)

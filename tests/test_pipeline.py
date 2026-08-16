@@ -228,3 +228,73 @@ def test_manglende_miljovariabel_kaster_ved_bruk(tmp_path, monkeypatch):
         config.get("kilder.test.nokkel")
 
     config.load.cache_clear()
+
+
+def _endring(dato, ny_verdi):
+    return pl.DataFrame([{
+        "entity_id": "1", "entity_type": "selskap", "entity_name": "Testlaks AS",
+        "field": "antall_ansatte", "old_value": "10", "new_value": ny_verdi,
+        "change_type": "endret", "source": "falsk", "observed_at": dato,
+    }])
+
+
+def test_changelog_skriver_en_fil_per_kjoring(tmp_path, monkeypatch):
+    """Ingen omskriving av samlefil — git skal ikke lagre alt på nytt hver uke."""
+    from core import changelog
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    changelog.skriv(_endring("2026-01-08", "20"), "2026-01-08")
+    changelog.skriv(_endring("2026-01-15", "30"), "2026-01-15")
+
+    filer = sorted(p.name for p in (tmp_path / "changelog").glob("*.parquet"))
+    assert filer == ["2026-01-08.parquet", "2026-01-15.parquet"]
+
+    alt = changelog.les_alt()
+    assert alt.height == 2
+    assert alt["observed_at"].to_list() == ["2026-01-08", "2026-01-15"]
+
+
+def test_changelog_rekjoring_dobbeltforer_ikke(tmp_path, monkeypatch):
+    """Samme dato skrevet to ganger skal gi én rad, ikke to."""
+    from core import changelog
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    changelog.skriv(_endring("2026-01-08", "20"), "2026-01-08")
+    changelog.skriv(_endring("2026-01-08", "20"), "2026-01-08")
+
+    assert changelog.les_alt().height == 1
+
+
+def test_changelog_tom_gir_riktig_skjema(tmp_path, monkeypatch):
+    from core import changelog
+    from core.diff import CHANGE_SCHEMA
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    tom = changelog.les_alt()
+    assert tom.height == 0
+    assert tom.columns == list(CHANGE_SCHEMA)
+
+    assert changelog.skriv(tom, "2026-01-08") is None
+    assert not (tmp_path / "changelog").exists()
+
+
+def test_changelog_leser_gammel_samlefil(tmp_path, monkeypatch):
+    """Historikk fra før omleggingen skal ikke forsvinne."""
+    from core import changelog
+
+    gammel = tmp_path / "changelog.parquet"
+    _endring("2025-12-01", "15").write_parquet(gammel)
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", gammel)
+
+    changelog.skriv(_endring("2026-01-08", "20"), "2026-01-08")
+
+    alt = changelog.les_alt()
+    assert alt["observed_at"].to_list() == ["2025-12-01", "2026-01-08"]
