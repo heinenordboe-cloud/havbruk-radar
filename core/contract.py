@@ -25,6 +25,10 @@ class Observation:
     source: str         # navnet på kilden som observerte
     observed_at: str    # ISO-dato for kjøringen
 
+    fetched_at: str = ""     # UTC-tidsstempel for hentingen
+    source_version: str = ""  # source.version på hentetidspunktet
+    raw_hash: str = ""        # sha256 fra raw_arkiv.arkiver()
+
     def as_dict(self) -> dict:
         return asdict(self)
 
@@ -39,6 +43,7 @@ class Source:
     name: str = "ukjent"
     entity_type: str = "selskap"
     enabled: bool = True
+    version: str = "1"
 
     # Hvor ofte kilden skal hentes, i dager. Ikke alle kilder beveger seg
     # like fort, og noen straffes for å hentes for sjelden:

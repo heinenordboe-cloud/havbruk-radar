@@ -13,7 +13,18 @@ import polars as pl
 from core.contract import Observation
 from core.paths import RAW_DIR  # noqa: F401  (monkeypatches i testene treffer her)
 
-SCHEMA = ["entity_id", "entity_type", "entity_name", "field", "value", "source", "observed_at"]
+SCHEMA = [
+    "entity_id",
+    "entity_type",
+    "entity_name",
+    "field",
+    "value",
+    "source",
+    "observed_at",
+    "fetched_at",
+    "source_version",
+    "raw_hash",
+]
 
 
 def to_frame(observations: list[Observation]) -> pl.DataFrame:
@@ -22,15 +33,42 @@ def to_frame(observations: list[Observation]) -> pl.DataFrame:
     return pl.DataFrame([o.as_dict() for o in observations]).select(SCHEMA)
 
 
+def _ledig_sti(target_dir: Path, observed_at: str) -> Path:
+    """Neste ledige filnavn for denne datoen. Samme mønster som
+    raw_arkiv.arkiver(): kollisjon løser seg med løpenummer, ikke
+    overskriving."""
+    sti = target_dir / f"{observed_at}.parquet"
+    if not sti.exists():
+        return sti
+
+    n = 2
+    while True:
+        sti = target_dir / f"{observed_at}.{n}.parquet"
+        if not sti.exists():
+            return sti
+        n += 1
+
+
+def _dato_og_versjon(stem: str) -> tuple[str, int]:
+    """'2026-08-17.3' -> ('2026-08-17', 3). Uten løpenummer: versjon 1.
+
+    Datoen inneholder ingen punktum, så første del er alltid datoen —
+    uansett hvor mange løpenumre som følger.
+    """
+    dato, _, versjon = stem.partition(".")
+    return dato, int(versjon) if versjon else 1
+
+
 def write(observations: list[Observation], observed_at: str) -> list[Path]:
-    """Én parquet-fil per kilde per kjøring."""
+    """Én parquet-fil per kilde per kjøring. Skriver aldri om — kolliderer
+    filnavnet med et som finnes, får den neste et løpenummer."""
     frame = to_frame(observations)
     written = []
 
     for (source,), group in frame.group_by(["source"]):
         target_dir = RAW_DIR / str(source)
         target_dir.mkdir(parents=True, exist_ok=True)
-        path = target_dir / f"{observed_at}.parquet"
+        path = _ledig_sti(target_dir, observed_at)
         group.write_parquet(path)
         written.append(path)
 
@@ -54,12 +92,16 @@ def finnes_allerede(observed_at: str) -> list[str]:
 
 
 def siste_dato(source: str) -> str | None:
-    """Datoen for siste snapshot fra denne kilden, eller None."""
+    """Datoen for siste snapshot fra denne kilden, eller None.
+
+    Flere filer kan dele dato (løpenummer ved kollisjon) — det er
+    datoen som teller her, ikke hvilken fil som var sist alfabetisk.
+    """
     target_dir = RAW_DIR / source
     if not target_dir.exists():
         return None
-    datoer = sorted(p.stem for p in target_dir.glob("*.parquet"))
-    return datoer[-1] if datoer else None
+    filer = sorted(target_dir.glob("*.parquet"), key=lambda p: _dato_og_versjon(p.stem))
+    return _dato_og_versjon(filer[-1].stem)[0] if filer else None
 
 
 def dager_siden(source: str, observed_at: str) -> int | None:
@@ -79,12 +121,20 @@ def dager_siden(source: str, observed_at: str) -> int | None:
 
 
 def previous(source: str, before: str) -> pl.DataFrame | None:
-    """Siste snapshot fra denne kilden før gitt dato."""
+    """Siste snapshot fra denne kilden før gitt dato.
+
+    Ved flere filer på samme (siste) dato — kollisjon løst med
+    løpenummer — velges den med høyest løpenummer, ikke den som
+    sorterer sist alfabetisk (".10" < ".2" alfabetisk, ikke tallmessig).
+    """
     target_dir = RAW_DIR / source
     if not target_dir.exists():
         return None
 
-    earlier = sorted(p for p in target_dir.glob("*.parquet") if p.stem < before)
+    earlier = sorted(
+        (p for p in target_dir.glob("*.parquet") if _dato_og_versjon(p.stem)[0] < before),
+        key=lambda p: _dato_og_versjon(p.stem),
+    )
     if not earlier:
         return None
 

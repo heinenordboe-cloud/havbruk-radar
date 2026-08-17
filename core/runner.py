@@ -5,7 +5,8 @@ Med den mister du én kilde én uke, og resten kjører videre.
 """
 
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 
 from core import raw as raw_arkiv
 
@@ -65,9 +66,19 @@ def run_all(
             # åpner dem og arkiverer imellom — uten det er hver feil i
             # parse() permanent datatap.
             rawdata = source.fetch()
+            raw_hash = ""
             if arkiver:
-                raw_arkiv.arkiver(source.name, observed_at, rawdata)
-            batch = list(source.parse(rawdata, observed_at))
+                raw_hash = raw_arkiv.arkiver(source.name, observed_at, rawdata)
+            fetched_at = datetime.now(timezone.utc).isoformat()
+            batch = [
+                replace(
+                    obs,
+                    fetched_at=fetched_at,
+                    source_version=source.version,
+                    raw_hash=raw_hash,
+                )
+                for obs in source.parse(rawdata, observed_at)
+            ]
             observations.extend(batch)
             results.append(Result(source.name, True, len(batch)))
         except Exception:

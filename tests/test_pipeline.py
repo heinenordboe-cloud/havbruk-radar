@@ -504,3 +504,50 @@ def test_dager_siden_leser_siste_snapshot(tmp_path, monkeypatch):
 
     assert snapshot.siste_dato("falsk") == "2026-01-05"
     assert snapshot.dager_siden("falsk", "2026-01-08") == 3
+
+
+def test_to_kjoringer_samme_dag_gir_to_filer(tmp_path, monkeypatch):
+    """--tving skal aldri overskrive dagens snapshot — kollisjon løses med
+    løpenummer, som i raw_arkiv.arkiver()."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    forste = [Observation("999999999", "selskap", "Testlaks AS",
+                          "antall_ansatte", "12", "falsk", "2026-01-01")]
+    andre = [Observation("999999999", "selskap", "Testlaks AS",
+                         "antall_ansatte", "13", "falsk", "2026-01-01")]
+
+    snapshot.write(forste, "2026-01-01")
+    filer_2 = snapshot.write(andre, "2026-01-01")
+
+    filer = sorted((tmp_path / "falsk").glob("*.parquet"))
+    assert [p.name for p in filer] == ["2026-01-01.2.parquet", "2026-01-01.parquet"]
+    assert filer_2[0].name == "2026-01-01.2.parquet"
+
+    # Den første fila skal fortsatt ha den første verdien — ikke overskrevet.
+    original = pl.read_parquet(tmp_path / "falsk" / "2026-01-01.parquet")
+    assert original["value"][0] == "12"
+
+
+def test_siden_og_diff_plukker_nyeste_ved_kollisjon(tmp_path, monkeypatch):
+    """dager_siden() og diff.compare() må lese den siste versjonen for
+    dagen, ikke feiltolke løpenummeret som at kilden aldri er hentet."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    snapshot.write(list(FalskKilde().collect("2026-01-01")), "2026-01-01")
+    snapshot.write(
+        [Observation("999999999", "selskap", "Testlaks AS",
+                     "antall_ansatte", "20", "falsk", "2026-01-01")],
+        "2026-01-01",
+    )
+
+    # siste_dato/dager_siden skal fortsatt lese datoen riktig, ikke
+    # snuble på løpenummeret og tro kilden aldri er hentet.
+    assert snapshot.siste_dato("falsk") == "2026-01-01"
+    assert snapshot.dager_siden("falsk", "2026-01-08") == 7
+
+    # diff mot uka etter skal sammenligne mot den SISTE versjonen (20),
+    # ikke den første (12) som ellers ville gitt en falsk "endring".
+    naa = [Observation("999999999", "selskap", "Testlaks AS",
+                       "antall_ansatte", "20", "falsk", "2026-01-08")]
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
+    assert endringer.height == 0

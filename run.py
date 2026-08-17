@@ -55,7 +55,7 @@ def main() -> int:
     parser.add_argument("--bare", help="kjør kun én kilde")
     parser.add_argument("--torrkjor", action="store_true", help="ikke skriv filer")
     parser.add_argument("--tving", action="store_true",
-                        help="kjør selv om dagens snapshot finnes (overskriver)")
+                        help="kjør selv om dagens snapshot finnes (skriver ny fil med løpenummer)")
     args = parser.parse_args()
 
     observed_at = datetime.now(timezone.utc).date().isoformat()
