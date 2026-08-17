@@ -14,10 +14,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
 from core import (  # noqa: E402
-    changelog, diff, health, registry, runner, signals, snapshot,
+    changelog, diff, health, paths, registry, runner, signals, snapshot,
 )
-
-COMMIT_MSG = ROOT / "data" / "siste_kjoring.txt"
 
 
 def bygg_commitmelding(observed_at: str, resultater, endringer, scoret) -> str:
@@ -105,7 +103,8 @@ def main() -> int:
 
     # 8. Skriv commit-melding
     melding = bygg_commitmelding(observed_at, resultater, endringer, scoret)
-    COMMIT_MSG.write_text(melding, encoding="utf-8")
+    paths.COMMIT_MSG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    paths.COMMIT_MSG_PATH.write_text(melding, encoding="utf-8")
 
     # 9. Oppsummer
     print(f"\n  {len(filer)} snapshot skrevet")

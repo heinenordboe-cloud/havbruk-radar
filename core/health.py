@@ -14,11 +14,9 @@ du den ene e-posten, er alt grønt igjen mens datatapet fortsetter.
 """
 
 import json
-from pathlib import Path
 
+from core.paths import HEALTH_PATH  # noqa: F401
 from core.runner import Result
-
-HEALTH_PATH = Path(__file__).resolve().parent.parent / "data" / "health.json"
 
 
 def les() -> dict:

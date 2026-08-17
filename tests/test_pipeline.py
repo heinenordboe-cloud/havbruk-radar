@@ -389,3 +389,22 @@ def test_akvakultur_lagrer_ingen_persondata():
                        Akvakulturregisteret().parse([rad], "2026-08-17"))
     assert "394" not in verdier.split("; ")
     assert verdier.count("H-KM-0018") == 1
+
+
+def test_datamappe_kan_flyttes_med_miljovariabel(tmp_path, monkeypatch):
+    """Koden ligger offentlig, dataene privat. Da må stien være flyttbar."""
+    import importlib
+
+    monkeypatch.setenv("HAVBRUK_DATA_DIR", str(tmp_path / "annensteds"))
+
+    from core import paths
+    importlib.reload(paths)
+
+    assert paths.DATA_DIR == (tmp_path / "annensteds").resolve()
+    assert paths.RAW_DIR == paths.DATA_DIR / "raw"
+    assert paths.CHANGELOG_DIR == paths.DATA_DIR / "changelog"
+    assert paths.HEALTH_PATH == paths.DATA_DIR / "health.json"
+
+    monkeypatch.delenv("HAVBRUK_DATA_DIR")
+    importlib.reload(paths)
+    assert paths.DATA_DIR == (paths.ROT / "data").resolve()

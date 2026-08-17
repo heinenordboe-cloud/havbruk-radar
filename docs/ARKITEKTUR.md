@@ -23,13 +23,31 @@ enkelt kilde. Med ett format kjenner de null.
 Prisen er at alt lagres som tekst og typing skjer i analysen. Det er en
 god byttehandel når kildene er uforutsigbare.
 
-## 3. Git som database
+## 3. To repo: kode offentlig, data privat
+
+`havbruk-radar` er koden. `havbruk-radar-data` er historikken.
+
+Registerdataene er NLOD-lisensiert og kan hentes av hvem som helst i
+morgen. Det som ikke kan hentes i morgen, er snapshotet fra en gitt
+mandag. Tid er den eneste ressursen som ikke lar seg kopiere i
+etterkant — derfor ligger historikken privat, ikke tallene.
+
+Innsamlingen kjøres FRA datarepoet, som henter denne koden ved hver
+kjøring. Retningen er et sikkerhetsvalg: et privat repo som leser
+offentlig kode trenger ingen hemmelighet. Motsatt vei ville krevd et
+skrivetoken tilgjengelig i et repo hvem som helst kan lese.
+
+`core/paths.py` er det eneste stedet datamappa defineres.
+`HAVBRUK_DATA_DIR` overstyrer den.
+
+## 4. Git som database
 
 Ingen server, ingen migrasjoner, ingen drift. Én parquet per kilde per
 kjøring, committet. Git gir versjonering og diff gratis og permanent.
 
-Konsekvensen er at `data/` aldri skal i `.gitignore`. Det føles feil
-første gang — dataene *er* repoet her.
+Konsekvensen er at `data/` aldri skal i `.gitignore` i DATAREPOET —
+dataene *er* det repoet. I kodrepoet er den derimot ignorert, slik at
+en lokal kjøring ikke committer historikk til feil sted.
 
 ## Append-only, aldri omskriving
 

@@ -10,9 +10,7 @@ from pathlib import Path
 import polars as pl
 
 from core.contract import Observation
-
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-RAW_DIR = DATA_DIR / "raw"
+from core.paths import RAW_DIR  # noqa: F401  (monkeypatches i testene treffer her)
 
 SCHEMA = ["entity_id", "entity_type", "entity_name", "field", "value", "source", "observed_at"]
 

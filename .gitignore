@@ -1,4 +1,8 @@
-# MERK: data/ er IKKE ignorert. Datamengden er hele poenget med repoet.
+# Dataene bor i havbruk-radar-data (privat). Registerdataene er NLOD og
+# kan hentes av hvem som helst; historikken fra 17.08.2026 kan ikke.
+# Kjører du lokalt uten HAVBRUK_DATA_DIR, havner snapshotene her — og
+# skal ikke committes til det offentlige repoet.
+data/
 __pycache__/
 *.py[cod]
 .venv/

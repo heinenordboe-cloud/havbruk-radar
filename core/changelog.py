@@ -20,11 +20,7 @@ from pathlib import Path
 
 import polars as pl
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-CHANGELOG_DIR = DATA_DIR / "changelog"
-
-# Fra da alt lå i én fil. Beholdes lesbar, skrives aldri til igjen.
-GAMMEL_FIL = DATA_DIR / "changelog.parquet"
+from core.paths import CHANGELOG_DIR, GAMMEL_CHANGELOG as GAMMEL_FIL  # noqa: F401
 
 
 def skriv(endringer: pl.DataFrame, observed_at: str) -> Path | None:
