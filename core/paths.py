@@ -23,6 +23,7 @@ ROT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("HAVBRUK_DATA_DIR") or (ROT / "data")).resolve()
 
 RAW_DIR = DATA_DIR / "raw"
+ARKIV_DIR = DATA_DIR / "arkiv"
 CHANGELOG_DIR = DATA_DIR / "changelog"
 HEALTH_PATH = DATA_DIR / "health.json"
 COMMIT_MSG_PATH = DATA_DIR / "siste_kjoring.txt"

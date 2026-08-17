@@ -7,6 +7,8 @@ Med den mister du én kilde én uke, og resten kjører videre.
 import traceback
 from dataclasses import dataclass
 
+from core import raw as raw_arkiv
+
 from core import snapshot
 from core.contract import Observation, Source
 
@@ -49,13 +51,23 @@ def velg_forfalte(
     return forfalt, venter
 
 
-def run_all(sources: list[Source], observed_at: str) -> tuple[list[Observation], list[Result]]:
+def run_all(
+    sources: list[Source],
+    observed_at: str,
+    arkiver: bool = True,
+) -> tuple[list[Observation], list[Result]]:
     observations: list[Observation] = []
     results: list[Result] = []
 
     for source in sources:
         try:
-            batch = source.collect(observed_at)
+            # collect() kollapset fetch() og parse() til ett kall. Kjernen
+            # åpner dem og arkiverer imellom — uten det er hver feil i
+            # parse() permanent datatap.
+            rawdata = source.fetch()
+            if arkiver:
+                raw_arkiv.arkiver(source.name, observed_at, rawdata)
+            batch = list(source.parse(rawdata, observed_at))
             observations.extend(batch)
             results.append(Result(source.name, True, len(batch)))
         except Exception:

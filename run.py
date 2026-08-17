@@ -83,8 +83,9 @@ def main() -> int:
             return 0
 
     # 3. Kjør dem, isoler feil
-    observasjoner, resultater = runner.run_all(kilder, observed_at)
-
+    observasjoner, resultater = runner.run_all(
+        kilder, observed_at, arkiver=not args.torrkjor
+    )
     for r in resultater:
         print(f"  [{'ok  ' if r.ok else 'FEIL'}] {r.source:<20} {r.count:>6} observasjoner")
         if not r.ok:
