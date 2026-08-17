@@ -28,6 +28,13 @@ def compare(current: pl.DataFrame, observed_at: str) -> pl.DataFrame:
         if old is None:
             continue  # første kjøring for denne kilden: alt er "nytt", ikke interessant
 
+        # Felter som ikke fantes i forrige snapshot i det hele tatt er en
+        # SKJEMAUTVIDELSE, ikke en hendelse. Utvider du kilden med 24 nye
+        # felter, er 23 000 "ny"-rader den uka støy som drukner de ekte
+        # endringene. Entiteter som er nye telles fortsatt — det er bare
+        # nye FELTNAVN som filtreres.
+        gamle_felter = set(old["field"].unique().to_list())
+
         key = ["entity_id", "field"]
         joined = group.join(
             old.select(key + ["value"]).rename({"value": "old_value"}),
@@ -42,6 +49,8 @@ def compare(current: pl.DataFrame, observed_at: str) -> pl.DataFrame:
                 continue
 
             if old_value is None:
+                if row["field"] not in gamle_felter:
+                    continue   # nytt felt i kilden, ikke ny opplysning
                 change_type = "ny"
             elif new_value is None:
                 change_type = "borte"

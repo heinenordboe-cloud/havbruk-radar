@@ -298,3 +298,31 @@ def test_changelog_leser_gammel_samlefil(tmp_path, monkeypatch):
 
     alt = changelog.les_alt()
     assert alt["observed_at"].to_list() == ["2025-12-01", "2026-01-08"]
+
+
+def test_nytt_felt_i_kilden_er_ikke_en_endring(tmp_path, monkeypatch):
+    """Utvider du en kilde med nye felter, er ikke det 23 000 hendelser."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    forrige = [Observation("999999999", "selskap", "Testlaks AS",
+                           "antall_ansatte", "12", "falsk", "2026-01-01")]
+    snapshot.write(forrige, "2026-01-01")
+
+    # Uka etter: samme verdi, men kilden lagrer nå to felter til.
+    naa = [
+        Observation("999999999", "selskap", "Testlaks AS",
+                    "antall_ansatte", "12", "falsk", "2026-01-08"),
+        Observation("999999999", "selskap", "Testlaks AS",
+                    "aksjekapital", "100000", "falsk", "2026-01-08"),
+        Observation("999999999", "selskap", "Testlaks AS",
+                    "er_i_konsern", "True", "falsk", "2026-01-08"),
+    ]
+    assert diff.compare(snapshot.to_frame(naa), "2026-01-08").height == 0
+
+    # Men en NY entitet skal fortsatt telles, på et felt som fantes før.
+    ny_entitet = naa + [Observation("888888888", "selskap", "Nylaks AS",
+                                    "antall_ansatte", "3", "falsk", "2026-01-08")]
+    endringer = diff.compare(snapshot.to_frame(ny_entitet), "2026-01-08")
+    assert endringer.height == 1
+    assert endringer["entity_id"][0] == "888888888"
+    assert endringer["change_type"][0] == "ny"

@@ -1,6 +1,14 @@
 # Signalregler. Redigerbare uten kode.
 # Første regel som treffer, vinner. Sorter fra mest til minst spesifikk.
 #
+# MERK: vektene under er kvalifiserte gjetninger, ikke validerte tall.
+# Ingen av dem er testet mot faktiske endringer, fordi det ikke finnes
+# endringshistorikk ennå. De er et LESEFILTER, ikke en del av dataene:
+# data/changelog/ lagrer rå endringer uten signal og vekt, så hele
+# scoringen kan kjøres på nytt retroaktivt når vektene revideres.
+# Revider dem når endringsloggen har nok rader til å si hva som faktisk
+# beveger seg og hvor ofte.
+#
 # felt                 hvilket observasjonsfelt regelen gjelder
 # endringstype         ny | endret | borte
 # min_endring_prosent  krever tallverdier; sammenligner absolutt endring
@@ -45,6 +53,45 @@ regler:
     min_endring_prosent: 20
     retning: "opp"
     vekt: 5
+
+  - navn: "Tvangsavvikling"
+    felt: "under_tvangsavvikling"
+    endringstype: "endret"
+    vekt: 10
+
+  - navn: "Aksjekapital økt"
+    felt: "aksjekapital"
+    endringstype: "endret"
+    retning: "opp"
+    min_endring_prosent: 1
+    vekt: 8
+
+  - navn: "Aksjekapital redusert"
+    felt: "aksjekapital"
+    endringstype: "endret"
+    retning: "ned"
+    min_endring_prosent: 1
+    vekt: 8
+
+  - navn: "Inn i eller ut av konsern"
+    felt: "er_i_konsern"
+    endringstype: "endret"
+    vekt: 8
+
+  - navn: "Sluttet å rapportere ansatte"
+    felt: "ansatte_er_registrert"
+    endringstype: "endret"
+    vekt: 4
+
+  - navn: "Endret vedtektsfestet formål"
+    felt: "vedtektsfestet_formaal_hash"
+    endringstype: "endret"
+    vekt: 4
+
+  - navn: "Flyttet kommune"
+    felt: "kommunenummer"
+    endringstype: "endret"
+    vekt: 4
 
   - navn: "Navneendring"
     felt: "navn"
