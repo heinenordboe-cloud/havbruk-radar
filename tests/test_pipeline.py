@@ -8,6 +8,7 @@ import polars as pl
 import pytest
 
 from core import diff, runner, signals, snapshot
+from core import raw as raw_arkiv
 from core.contract import Observation, Source
 
 
@@ -41,7 +42,9 @@ class KnustKilde(Source):
         return []
 
 
-def test_feil_isoleres():
+def test_feil_isoleres(tmp_path, monkeypatch):
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
+
     obs, res = runner.run_all([FalskKilde(), KnustKilde()], "2026-01-01")
     assert len(obs) == 1
     assert [r.ok for r in res] == [True, False]
@@ -109,6 +112,7 @@ def test_knekt_kildefil_stopper_ikke_de_andre(tmp_path, monkeypatch):
 
     monkeypatch.setattr(registry, "SOURCES_DIR", tmp_path)
     monkeypatch.setattr(registry.importlib, "import_module", last)
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path / "arkiv")
 
     kilder = registry.discover()
     assert sorted(k.name for k in kilder) == ["frisk", "knekt"]
