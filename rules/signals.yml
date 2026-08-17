@@ -30,6 +30,27 @@ regler:
     retning: "ned"
     vekt: 10
 
+  - navn: "Trafikklys endret i produksjonsområde"
+    felt: "prodomraade_status"
+    endringstype: "endret"
+    vekt: 10
+
+  - navn: "Tillatelser flyttet til eller fra lokalitet"
+    felt: "tillatelser"
+    endringstype: "endret"
+    vekt: 9
+
+  - navn: "Ny lokalitet i registeret"
+    felt: "navn"
+    endringstype: "ny"
+    vekt: 8
+
+  - navn: "Midlertidig kapasitet endret"
+    felt: "kapasitet_midlertidig"
+    endringstype: "endret"
+    min_endring_prosent: 5
+    vekt: 7
+
   - navn: "Konkurs eller avvikling"
     felt: "konkurs"
     endringstype: "endret"

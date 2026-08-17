@@ -326,3 +326,66 @@ def test_nytt_felt_i_kilden_er_ikke_en_endring(tmp_path, monkeypatch):
     assert endringer.height == 1
     assert endringer["entity_id"][0] == "888888888"
     assert endringer["change_type"][0] == "ny"
+
+
+def _akva_rad(site_nr=10029, kapasitet=2340.0, tillatelser=("B", "A")):
+    return {
+        "siteNr": site_nr, "name": "TUHOLMANE Ø",
+        "capacity": kapasitet, "capacityUnitType": "TN", "tempCapacity": kapasitet,
+        "placement": {"municipalityName": "KARMØY", "municipalityCode": "1149",
+                      "countyName": "ROGALAND", "countyCode": "11",
+                      "prodAreaCode": "3", "prodAreaName": "Karmøy til Sotra",
+                      "prodAreaStatus": "RØD"},
+        "latitude": 59.371233, "longitude": 5.216333,
+        "speciesTypes": ["SALMON"], "speciesLimitations": [],
+        "placementType": "Offshore", "waterType": "Salt",
+        "isSlaughtery": False, "hasCommercialActivity": True,
+        "hasColocation": True, "hasJointOperation": False,
+        "connections": [{"licenseNr": n} for n in tillatelser],
+        "obsoleteConnections": [],
+        "version": {"status": "APPROVED", "versionCauseType": "COORDINATES",
+                    "validFrom": "2020-05-13T22:00:00Z"},
+    }
+
+
+def test_akvakultur_parser_ekte_respons():
+    """Feltnavnene er verifisert mot levende API — dette låser dem."""
+    from sources.akvakulturregisteret import Akvakulturregisteret
+
+    obs = {o.field: o.value
+           for o in Akvakulturregisteret().parse([_akva_rad()], "2026-08-17")}
+
+    assert obs["kapasitet"] == "2340.0"
+    assert obs["kapasitet_enhet"] == "TN"          # enhet ALLTID med tallet
+    assert obs["prodomraade_status"] == "RØD"      # trafikklyset
+    assert obs["kommunenummer"] == "1149"
+
+    alle = list(Akvakulturregisteret().parse([_akva_rad()], "2026-08-17"))
+    assert {o.entity_id for o in alle} == {"10029"}   # siteNr, ikke siteId
+    assert {o.entity_type for o in alle} == {"lokalitet"}
+
+
+def test_akvakultur_tillatelser_sorteres():
+    """Uten sortering gir vilkårlig rekkefølge fra API-et falsk endring hver uke."""
+    from sources.akvakulturregisteret import Akvakulturregisteret
+
+    def tillatelser(rekkefolge):
+        rad = _akva_rad(tillatelser=rekkefolge)
+        return next(o.value for o in Akvakulturregisteret().parse([rad], "2026-08-17")
+                    if o.field == "tillatelser")
+
+    assert tillatelser(("B", "A", "C")) == tillatelser(("C", "B", "A"))
+
+
+def test_akvakultur_lagrer_ingen_persondata():
+    """connections skal kun gi tillatelsesnumre — aldri innehaver."""
+    from sources.akvakulturregisteret import Akvakulturregisteret
+
+    rad = _akva_rad()
+    rad["connections"] = [{"licenseNr": "H-KM-0018", "siteName": "TUHOLMANE Ø",
+                           "licenseId": 394, "registeredTime": "2025-08-28"}]
+
+    verdier = " ".join(o.value for o in
+                       Akvakulturregisteret().parse([rad], "2026-08-17"))
+    assert "394" not in verdier.split("; ")
+    assert verdier.count("H-KM-0018") == 1

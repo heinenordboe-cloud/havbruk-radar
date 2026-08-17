@@ -13,13 +13,9 @@ kilder:
     sidestorrelse: 100
 
   akvakultur:
-    aktiv: false            # sett true når du har bekreftet stien under
+    # Endepunkt og paginering er verifisert mot levende API 17.08.2026.
+    # Feltvalget ligger i sources/akvakulturregisteret.py, ikke her —
+    # feltnavn er en kontrakt mot historikken og skal ikke kunne endres
+    # ved et uhell i en YAML-fil.
+    aktiv: true
     base_url: "https://api.fiskeridir.no/pub-aqua/api/v1"
-    sti: ""                 # fyll inn fra Swagger, se sources/akvakulturregisteret.py
-    id_felt: "siteNr"
-    navn_felt: "name"
-    feltkart:               # kildens feltnavn -> vårt feltnavn
-      capacity: "kapasitet"
-      capacityUnit: "kapasitet_enhet"
-      municipality: "kommune"
-      species: "art"
