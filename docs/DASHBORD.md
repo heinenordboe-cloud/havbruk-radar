@@ -6,7 +6,7 @@ Poenget med denne fila: du skal kunne vente fire måneder uten å tape noe.
 
 Dashbordet er et rent leselag. Det eier ingen data, og innsamlingen vet
 ikke at det finnes. Dagen du legger til `dashboard/`, peker du den mot
-`data/` og har all historikken som allerede ligger der.
+datarepoets `data/` og har all historikken som allerede ligger der.
 
 Det er den eneste grunnen til at rekkefølgen «samle først, vise senere»
 fungerer. Hadde dashbordet eid dataene, ville ventingen kostet deg fire
@@ -18,7 +18,7 @@ måneder med historikk.
     cd dashboard && npm install
 
 I `dashboard/evidence.plugins.yaml` peker du DuckDB på parquet-filene i
-`../data/`. DuckDB leser dem direkte — ingen import, ingen database.
+datarepoet (`../havbruk-radar-data/data/`). DuckDB leser dem direkte — ingen import, ingen database.
 
 En side er en markdown-fil med SQL i:
 

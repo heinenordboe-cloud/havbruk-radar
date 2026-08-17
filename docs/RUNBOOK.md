@@ -2,15 +2,27 @@
 
 ## Hvor dataene faktisk ligger
 
-Etter første push finnes historikken tre steder uten at du gjør noe mer:
+To repo:
 
-1. GitHub (opprinnelsen)
-2. Din egen maskin (klonen)
-3. Hver GitHub Actions-kjøring sjekker ut hele repoet
+    havbruk-radar        offentlig — koden. Dette repoet.
+    havbruk-radar-data   privat — historikken. Snapshotene.
 
-Et git-repo er ikke en database du kan miste halvparten av. Hver klon er
-en fullstendig kopi med hele historikken. Det er den viktigste grunnen
-til at git ble valgt over Supabase her.
+Innsamlingen kjøres FRA datarepoet, som henter denne koden ved hver
+kjøring. Retningen er et sikkerhetsvalg: et privat repo som leser
+offentlig kode trenger ingen hemmelighet.
+
+Historikken finnes dermed på minst tre steder uten at du gjør noe:
+GitHub, klonen på din egen maskin, og hver Actions-kjøring. Et git-repo
+er ikke en database du kan miste halvparten av — hver klon er en
+fullstendig kopi. Det er den viktigste grunnen til at git ble valgt
+over en database her.
+
+Kjøre innsamlingen lokalt:
+
+    HAVBRUK_DATA_DIR=../havbruk-radar-data/data python run.py
+
+Uten miljøvariabelen skrives det til `data/` i dette repoet, som er
+gitignorert nettopp for at en lokal kjøring ikke skal havne i kodrepoet.
 
 ## Lokalt oppsett
 
@@ -41,28 +53,43 @@ telefonen din. Ti minutter, én gang.
 gjør jobben grønn selv når en kilde er død. `core/health.py` løser dette:
 regresjon gir rød jobb og e-post fra GitHub.
 
-**3. Actions deaktiveres.** GitHub slår av planlagte kjøringer etter
-60 dager uten aktivitet i repoet. Siden hver kjøring committer, nullstilles
-telleren selv. Men får du e-post om deaktivering: åpne repoet og trykk
-enable, ellers står innsamlingen stille.
+**3. Actions deaktiveres.** GitHub slår av planlagte kjøringer etter 60
+dager uten commit-aktivitet på default branch. Kun commits teller — ikke
+tagger, issues eller PR-er.
+
+To ting gjør at dette trolig ikke rammer deg: innsamlingen committer et
+snapshot hver uke, og GitHubs egen formulering gjelder eksplisitt
+*offentlige* repo. Datarepoet er privat og er sannsynligvis ikke omfattet.
+
+"Trolig" og "sannsynligvis" er med vilje — dette er ikke verifisert i
+praksis. Får du e-post om deaktivering: åpne datarepoet og trykk enable,
+ellers står innsamlingen stille.
 
 **4. Du ødelegger historikken selv.** `git push --force` etter en rebase.
 → Slå på branch protection på `main` i repo-innstillingene.
 
-**5. GitHub forsvinner.** Minst sannsynlig, men speilingen i
-`.github/workflows/speil.yml` dekker det. Codeberg eller GitLab, gratis.
+**5. GitHub forsvinner.** Minst sannsynlig, men speilingen dekker det.
+Speilworkflowen hører hjemme i DATAREPOET, ikke her — koden er allerede
+offentlig og finnes i enhver klone, mens historikken er det eneste som
+ikke kan skaffes på nytt. Codeberg eller GitLab, begge gratis.
+
+Hemmelighetene heter `SPEIL_URL` og `SPEIL_TOKEN`, og variabelen som slår
+det på heter `SPEILING_AKTIV`. Ingen andre navn — en tidligere versjon av
+dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
 
 ## Månedlig sjekk (to minutter)
 
+Alt i datarepoet:
+
 - Åpne `data/health.json`. Har alle kilder `feil_paa_rad: 0`?
 - Se på commit-loggen. Er det commits hver mandag?
-- `du -sh data/` lokalt. Under 200 MB? Ingen bekymring.
+- `du -sh data/`. Under 200 MB? Ingen bekymring.
 
 ## Størrelse
 
-Én kjøring med Enhetsregisteret er i størrelsesorden 100–200 KB komprimert
-parquet. Femtito kjøringer i året blir rundt 5–10 MB. GitHub anbefaler å
-holde repoer under 1 GB og har hard grense på 100 MB per fil.
+Målt 17.08.2026: Enhetsregisteret 118 KB, Akvakulturregisteret 148 KB.
+266 KB i uka blir ca. 14 MB i året med dagens to kilder. GitHub anbefaler
+å holde repoer under 1 GB og har hard grense på 100 MB per fil.
 
 Du har altså flere tiår med hodehøyde. Skulle det en dag bli trangt, er
 løsningen å komprimere gamle snapshots til én fil per år — ikke å slette
@@ -89,12 +116,17 @@ faktisk fanger noe interessant — som er det du bør bruke høsten på.
 ## Når nettsiden skal opp
 
 Ingenting i innsamlingen endres. Dette er hele poenget med å skille
-`core/`, `sources/` og `data/`.
+`core/`, `sources/` og datalagringen.
 
 1. `npx degit evidence-dev/template dashboard`
-2. Pek Evidence på `data/` via DuckDB — den leser parquet direkte, ingen import.
-3. Koble repoet til Vercel. Vercel bygger på hver push.
-4. Actions committer mandag → Vercel bygger automatisk → siden er oppdatert.
+2. Pek Evidence på datarepoets `data/` via DuckDB — den leser parquet
+   direkte, ingen import.
+3. Koble til en byggetjeneste som kan lese private repo. Vercel, Netlify
+   og Cloudflare Pages gjør alle det på gratisplanen. GitHub Pages gjør
+   det IKKE — Pages fra privat repo krever GitHub Pro.
+4. Actions committer mandag → siden bygges automatisk.
+
+Nettsiden viser avledede tall. Rådataene forblir i det private repoet.
 
 Det finnes ingen server å drifte i den kjeden. Innsamlingen dytter ikke
 til nettsiden; nettsiden bygges av den samme committen som allerede skjer.
@@ -102,15 +134,16 @@ til nettsiden; nettsiden bygges av den samme committen som allerede skjer.
 Fire måneder med data først gjør dessuten dashbordet mye lettere å designe:
 du vet da hvilke felter som faktisk endrer seg, og slipper å gjette.
 
-## Offentlig eller privat repo
+## Offentlig og privat
 
-Alt her er offentlige registerdata. Offentlig repo gir ubegrensede
-Actions-minutter og er samtidig CV-en — commit-historikken er beviset
-på at systemet har kjørt siden 2026.
+Koden er offentlig: ubegrensede Actions-minutter, og commit-historikken
+er CV-en.
 
-Privat repo har 2000 gratis minutter i måneden, som også holder rikelig.
-Bytt til offentlig senere hvis du vil; historikken følger med.
+Dataene er private: 2000 gratis Actions-minutter i måneden, mot et
+faktisk forbruk på under fem. Registerdataene i seg selv er åpne og kan
+hentes av hvem som helst — det som ligger privat er tidsserien, fordi
+den ikke kan rekonstrueres i etterkant.
 
-Uansett valg: aldri nøkler eller tokens i koden. De hører hjemme i
-GitHub Secrets. `config.yml` skal bare inneholde ting du er komfortabel
-med at andre ser.
+Uansett: aldri nøkler eller tokens i koden. De hører hjemme i GitHub
+Secrets. `config.yml` skal bare inneholde ting du er komfortabel med at
+andre ser.

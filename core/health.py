@@ -33,7 +33,12 @@ def oppdater(resultater: list[Result], observed_at: str) -> tuple[dict, list[str
     du på skjermen mens du jobber med den.
     """
     forrige = les()
-    ny: dict = {}
+
+    # Kilder som IKKE kjørte i dag (fordi de ikke var forfalt) skal beholde
+    # tilstanden sin. Bygde vi dicten fra bare dagens resultater, forsvant
+    # `sist_ok` for dem — og da ville alarmen "har fungert før, er nede nå"
+    # aldri kunne utløses for en kilde som hoppes over en uke.
+    ny: dict = dict(forrige)
     nede: list[str] = []
 
     for r in resultater:

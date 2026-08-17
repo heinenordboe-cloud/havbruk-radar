@@ -408,3 +408,99 @@ def test_datamappe_kan_flyttes_med_miljovariabel(tmp_path, monkeypatch):
     monkeypatch.delenv("HAVBRUK_DATA_DIR")
     importlib.reload(paths)
     assert paths.DATA_DIR == (paths.ROT / "data").resolve()
+
+
+class DagligKilde(FalskKilde):
+    name = "daglig"
+    min_dager_mellom = 1
+
+
+def test_forfalte_kilder_velges_hver_for_seg(tmp_path, monkeypatch):
+    """Én kilde hentet i dag skal ikke blokkere de andre.
+
+    Dette er scenarioet hver gang en ny kilde aktiveres midt i uka.
+    """
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    ukentlig, daglig, ny = FalskKilde(), DagligKilde(), KnustKilde()
+    ny.name = "helt_ny"
+
+    # Begge etablerte kilder hentet i går.
+    for kilde in (ukentlig, daglig):
+        snapshot.write(
+            [Observation("1", "selskap", "X", "f", "v", kilde.name, "2026-01-07")],
+            "2026-01-07",
+        )
+
+    forfalt, venter = runner.velg_forfalte([ukentlig, daglig, ny], "2026-01-08")
+
+    # Ukentlig må vente (1 dag < 7). Daglig er forfalt (1 >= 1).
+    # En kilde som aldri er hentet er alltid forfalt.
+    assert sorted(k.name for k in forfalt) == ["daglig", "helt_ny"]
+    assert [(k.name, d) for k, d in venter] == [("falsk", 1)]
+
+
+def test_kilde_hentet_i_dag_er_ikke_forfalt(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    snapshot.write(list(FalskKilde().collect("2026-01-08")), "2026-01-08")
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-08")
+    assert forfalt == []
+    assert venter[0][1] == 0
+
+
+def test_forfalt_igjen_etter_full_periode(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    snapshot.write(list(FalskKilde().collect("2026-01-01")), "2026-01-01")
+
+    forfalt, _ = runner.velg_forfalte([FalskKilde()], "2026-01-08")   # nøyaktig 7
+    assert [k.name for k in forfalt] == ["falsk"]
+
+
+def test_snapshot_datert_fram_i_tid_overskrives_ikke(tmp_path, monkeypatch):
+    """Klokkerot skal ikke føre til at noe skrives over."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    snapshot.write(list(FalskKilde().collect("2026-02-01")), "2026-02-01")
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-08")
+    assert forfalt == []
+    assert venter[0][1] < 0
+
+
+def test_health_beholder_kilder_som_ikke_kjorte(tmp_path, monkeypatch):
+    """En kilde som hoppes over skal ikke miste sin sist_ok-historikk.
+
+    Uten dette ville alarmen "har fungert før, er nede nå" aldri kunne
+    utløses for en kilde som ventet én uke.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    begge = [runner.Result("falsk", True, 5), runner.Result("daglig", True, 3)]
+    health.skriv(health.oppdater(begge, "2026-01-01")[0])
+
+    # Uke etter: bare "daglig" kjørte.
+    tilstand, _ = health.oppdater([runner.Result("daglig", True, 3)], "2026-01-02")
+    health.skriv(tilstand)
+
+    assert tilstand["falsk"]["sist_ok"] == "2026-01-01"
+
+    # Og når "falsk" senere feiler, skal alarmen fortsatt gå.
+    _, nede = health.oppdater([runner.Result("falsk", False, 0, "nede")], "2026-01-08")
+    assert nede == ["falsk (uke 1)"]
+
+
+def test_dager_siden_leser_siste_snapshot(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    assert snapshot.dager_siden("falsk", "2026-01-08") is None
+
+    snapshot.write(list(FalskKilde().collect("2026-01-01")), "2026-01-01")
+    snapshot.write(list(FalskKilde().collect("2026-01-05")), "2026-01-05")
+
+    assert snapshot.siste_dato("falsk") == "2026-01-05"
+    assert snapshot.dager_siden("falsk", "2026-01-08") == 3

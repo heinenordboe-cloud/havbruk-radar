@@ -1,8 +1,16 @@
-"""Inngangspunkt. Én ukentlig kjøring, ni steg.
+"""Inngangspunkt. Én kjøring, åtte steg.
 
-    python run.py                 # alle aktive kilder
+    python run.py                 # alle kilder som er forfalt
     python run.py --bare enhetsregisteret
-    python run.py --torrkjor      # hent og vis, ikke skriv noe
+    python run.py --torrkjor      # hent og vis alt, skriv ingenting
+    python run.py --tving         # kjør selv om kilden ble hentet nylig
+
+Hver kilde har sin egen `min_dager_mellom`. Kjøringen henter bare de som
+er forfalt, slik at en ny kilde kan aktiveres midt i uka uten å skrive
+dagens snapshot for de andre på nytt.
+
+`--torrkjor` hopper over forfallssjekken med vilje: en tørrkjøring er til
+for å inspisere data, og da vil du se alt.
 """
 
 import argparse
@@ -52,17 +60,6 @@ def main() -> int:
 
     observed_at = datetime.now(timezone.utc).date().isoformat()
 
-    # 0. Er dagen allerede samlet? Da fører en ny kjøring de samme
-    #    endringene inn i changeloggen på nytt. Nekt heller.
-    if not args.torrkjor and not args.tving:
-        alt_skrevet = snapshot.finnes_allerede(observed_at)
-        if alt_skrevet:
-            print(f"Snapshot for {observed_at} finnes allerede: "
-                  f"{', '.join(alt_skrevet)}")
-            print("Ingenting gjort. Bruk --tving for å overskrive, "
-                  "eller --torrkjor for å bare se dataene.")
-            return 0
-
     # 1. Finn kilder
     kilder = registry.discover()
     if args.bare:
@@ -71,10 +68,23 @@ def main() -> int:
         print("Ingen aktive kilder funnet.")
         return 1
 
-    # 2. Kjør dem, isoler feil
+    print(f"\nKjøring {observed_at}")
+
+    # 2. Hopp over kilder som ble hentet nylig nok
+    if not args.torrkjor and not args.tving:
+        kilder, venter = runner.velg_forfalte(kilder, observed_at)
+        for kilde, dager in venter:
+            nar = "i dag" if dager == 0 else f"for {dager} dag(er) siden"
+            print(f"  [vent] {kilde.name:<20} hentet {nar}, "
+                  f"går hver {kilde.min_dager_mellom}. dag")
+
+        if not kilder:
+            print("\n  Ingen kilder er forfalt. --tving overstyrer.")
+            return 0
+
+    # 3. Kjør dem, isoler feil
     observasjoner, resultater = runner.run_all(kilder, observed_at)
 
-    print(f"\nKjøring {observed_at}")
     for r in resultater:
         print(f"  [{'ok  ' if r.ok else 'FEIL'}] {r.source:<20} {r.count:>6} observasjoner")
         if not r.ok:
@@ -84,29 +94,29 @@ def main() -> int:
         print(f"\nTørrkjøring — {len(observasjoner)} observasjoner, ingenting skrevet.")
         return 0
 
-    # 3. Diff mot forrige snapshot (må skje FØR dagens skrives)
+    # 4. Diff mot forrige snapshot (må skje FØR dagens skrives)
     naa = snapshot.to_frame(observasjoner)
     endringer = diff.compare(naa, observed_at)
 
-    # 4. Skriv dagens snapshot
+    # 5. Skriv dagens snapshot
     filer = snapshot.write(observasjoner, observed_at)
 
-    # 5. Scor endringene
+    # 6. Scor endringene
     scoret = signals.score(endringer)
 
-    # 6. Legg til i endringsloggen (egen fil per kjøring, aldri omskriving)
+    # 7. Legg til i endringsloggen (egen fil per kjøring, aldri omskriving)
     changelog.skriv(endringer, observed_at)
 
-    # 7. Oppdater helsetilstand
+    # 8. Oppdater helsetilstand
     tilstand, nede = health.oppdater(resultater, observed_at)
     health.skriv(tilstand)
 
-    # 8. Skriv commit-melding
+    # 9. Skriv commit-melding
     melding = bygg_commitmelding(observed_at, resultater, endringer, scoret)
     paths.COMMIT_MSG_PATH.parent.mkdir(parents=True, exist_ok=True)
     paths.COMMIT_MSG_PATH.write_text(melding, encoding="utf-8")
 
-    # 9. Oppsummer
+    # 10. Oppsummer
     print(f"\n  {len(filer)} snapshot skrevet")
     print(f"  {endringer.height} endringer siden forrige kjøring")
     print(f"  {scoret.height} av dem traff en signalregel")

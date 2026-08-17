@@ -10,22 +10,34 @@ I've had a strong connection to the sea and to fish farming my whole life, and m
 
 ## Data og lisens
 
-Datasettene under `data/` er hentet fra **Enhetsregisteret**, Brønnøysundregistrene,
-og er tilgjengeliggjort under [Norsk lisens for offentlige data (NLOD)](https://data.norge.no/nlod/no/).
-Brønnøysundregistrene har ikke medvirket til, og innestår ikke for, bearbeidingen
-eller tolkningene som er gjort her.
+Dette repoet inneholder koden. Snapshotene samles inn i et eget, privat repo —
+registerdataene er åpne og kan hentes av hvem som helst, men historikken fra en
+gitt dato kan ikke hentes i etterkant.
 
-Registeret inneholder kun opplysninger om virksomheter — organisasjonsnummer, navn,
-næringskode, kommune, ansatte og status. **Roller og andre personopplysninger hentes
-bevisst ikke inn**, slik at dette repoet ikke er et personregister.
+Kilder:
+
+- **Enhetsregisteret**, Brønnøysundregistrene
+- **Akvakulturregisteret**, Fiskeridirektoratet
+
+Begge er tilgjengeliggjort under
+[Norsk lisens for offentlige data (NLOD)](https://data.norge.no/nlod/no/).
+Etatene har ikke medvirket til, og innestår ikke for, bearbeidingen eller
+tolkningene som er gjort her. Samme attribusjon følger med overalt hvor data
+herfra publiseres.
+
+Det hentes kun opplysninger om virksomheter og lokaliteter. **Roller,
+gateadresser og andre personopplysninger hentes bevisst ikke inn**, slik at
+verken dette repoet eller datarepoet er et personregister.
 
 Koden er lisensiert under MIT, se `LICENSE`.
 
 ---
 
-The data under `data/` comes from the **Central Coordinating Register for Legal
-Entities** (Enhetsregisteret), operated by the Brønnøysund Register Centre, and is
-made available under the [Norwegian Licence for Open Government Data (NLOD)](https://data.norge.no/nlod/en/).
-The Register Centre has not contributed to, and does not vouch for, the processing
-or interpretations made here. Only company-level data is collected; roles and
-personal data are deliberately excluded. Code is MIT licensed.
+This repository holds the code; snapshots are collected into a separate private
+repository. Data comes from the **Central Coordinating Register for Legal Entities**
+(Brønnøysund Register Centre) and the **Aquaculture Register** (Norwegian Directorate
+of Fisheries), both under the
+[Norwegian Licence for Open Government Data (NLOD)](https://data.norge.no/nlod/en/).
+Neither agency has contributed to, or vouches for, the processing or interpretations
+made here. Only company- and site-level data is collected; roles, street addresses
+and personal data are deliberately excluded. Code is MIT licensed.

@@ -40,6 +40,21 @@ class Source:
     entity_type: str = "selskap"
     enabled: bool = True
 
+    # Hvor ofte kilden skal hentes, i dager. Ikke alle kilder beveger seg
+    # like fort, og noen straffes for å hentes for sjelden:
+    #
+    #   7   registre der endringer er forvaltningsvedtak (Brreg, Fiskeridir)
+    #   1-2 kilder der oppføringer FORSVINNER (stillingsannonser). Henter du
+    #       ukentlig, finnes ikke annonsen som ble lagt ut tirsdag og fylt
+    #       fredag. Det er tapt historikk, ikke tapt ferskhet.
+    #   30  årlige kilder (regnskap) — de kommer inn løpende, men ingenting
+    #       skjer på ukesskala.
+    #
+    # Kjøringen hopper over kilder som er hentet nylig nok. Det er også det
+    # som gjør at du kan aktivere en ny kilde midt i uka uten å skrive
+    # dagens snapshot for de andre på nytt.
+    min_dager_mellom: int = 7
+
     def fetch(self) -> Any:
         """Hent rådata. Ingen rensing, ingen tolkning her."""
         raise NotImplementedError

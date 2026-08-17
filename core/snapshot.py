@@ -5,6 +5,7 @@ Filnavnet er datoen. Det er hele versjonssystemet — git tar resten.
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import polars as pl
@@ -50,6 +51,31 @@ def finnes_allerede(observed_at: str) -> list[str]:
         for katalog in RAW_DIR.iterdir()
         if katalog.is_dir() and (katalog / f"{observed_at}.parquet").exists()
     )
+
+
+def siste_dato(source: str) -> str | None:
+    """Datoen for siste snapshot fra denne kilden, eller None."""
+    target_dir = RAW_DIR / source
+    if not target_dir.exists():
+        return None
+    datoer = sorted(p.stem for p in target_dir.glob("*.parquet"))
+    return datoer[-1] if datoer else None
+
+
+def dager_siden(source: str, observed_at: str) -> int | None:
+    """Dager siden kilden sist ble hentet. None = aldri hentet.
+
+    Negativt tall (snapshot datert fram i tid) returneres som det er, og
+    behandles av kalleren som "ikke forfalt" — det er tryggere enn å
+    overskrive noe som allerede finnes.
+    """
+    sist = siste_dato(source)
+    if sist is None:
+        return None
+    try:
+        return (date.fromisoformat(observed_at) - date.fromisoformat(sist)).days
+    except ValueError:
+        return None   # filnavn som ikke er en dato: behandles som aldri hentet
 
 
 def previous(source: str, before: str) -> pl.DataFrame | None:
