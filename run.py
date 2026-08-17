@@ -4,6 +4,7 @@
     python run.py --bare enhetsregisteret
     python run.py --torrkjor      # hent og vis alt, skriv ingenting
     python run.py --tving         # kjør selv om kilden ble hentet nylig
+    python run.py --planlagt      # den ukentlige cron-kjøringen
 
 Hver kilde har sin egen `min_dager_mellom`. Kjøringen henter bare de som
 er forfalt, slik at en ny kilde kan aktiveres midt i uka uten å skrive
@@ -11,6 +12,13 @@ dagens snapshot for de andre på nytt.
 
 `--torrkjor` hopper over forfallssjekken med vilje: en tørrkjøring er til
 for å inspisere data, og da vil du se alt.
+
+`--planlagt` er for workflowen, ikke for deg ved tastaturet. En manuell
+kjøring som ikke finner noe forfalt skal være stille — det er riktig at
+en kilde hentet i går ikke hentes på nytt. Men den SAME hendelsen på den
+ukentlige cron-kjøringen betyr at uka gikk uten et snapshot, usynlig for
+alt annet enn denne linjen. `--planlagt` gjør det skillet eksplisitt:
+null forfalte kilder er da en feil, ikke en stille exit.
 """
 
 import argparse
@@ -56,6 +64,9 @@ def main() -> int:
     parser.add_argument("--torrkjor", action="store_true", help="ikke skriv filer")
     parser.add_argument("--tving", action="store_true",
                         help="kjør selv om dagens snapshot finnes (skriver ny fil med løpenummer)")
+    parser.add_argument("--planlagt", action="store_true",
+                        help="dette er den ukentlige cron-kjøringen: null forfalte "
+                             "kilder er en feil, ikke en stille exit")
     args = parser.parse_args()
 
     observed_at = datetime.now(timezone.utc).date().isoformat()
@@ -79,6 +90,11 @@ def main() -> int:
                   f"går hver {kilde.min_dager_mellom}. dag")
 
         if not kilder:
+            if args.planlagt:
+                print("\n::error::Planlagt kjøring samlet ingenting — alle kilder "
+                      "ble hoppet over av frekvensvakten. Uka er tapt hvis dette "
+                      "ikke undersøkes.")
+                return 1
             print("\n  Ingen kilder er forfalt. --tving overstyrer.")
             return 0
 
