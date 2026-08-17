@@ -4,12 +4,18 @@ Poenget er ikke testdekning. Poenget er at du kan endre core/ og på
 to sekunder vite om du ødela noe.
 """
 
+import subprocess
+import sys
+from pathlib import Path
+
 import polars as pl
 import pytest
 
 from core import diff, runner, signals, snapshot
 from core import raw as raw_arkiv
 from core.contract import Observation, Source
+
+ROT = Path(__file__).resolve().parent.parent
 
 
 class FalskKilde(Source):
@@ -555,3 +561,16 @@ def test_siden_og_diff_plukker_nyeste_ved_kollisjon(tmp_path, monkeypatch):
                        "antall_ansatte", "20", "falsk", "2026-01-08")]
     endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
     assert endringer.height == 0
+
+
+def test_run_py_kan_importeres():
+    """Ingen test importerer run.py ellers — en syntaksfeil der ville
+    sluppet gjennom hele suiten. --help kjører uten nett og uten å
+    røre data/, og tvinger en reell import av hele modulen."""
+    resultat = subprocess.run(
+        [sys.executable, str(ROT / "run.py"), "--help"],
+        capture_output=True, text=True, timeout=10,
+    )
+    assert resultat.returncode == 0, resultat.stderr
+    assert "--planlagt" in resultat.stdout
+    assert "--tving" in resultat.stdout
