@@ -68,6 +68,37 @@ Diffen kjøres **før** dagens snapshot skrives. Skriver du først, finner
 `snapshot.previous()` dagens egen fil og diffen blir tom. Det er den ene
 subtile rekkefølgeavhengigheten i systemet, og den er verdt å huske.
 
+## Volumvaktens referanse ligger i `health.json`, ikke i forrige snapshot
+
+Volumvakten i `core/health.py` feller jobben når en kilde leverer
+vesentlig færre observasjoner enn normalt — den stille feilen der et
+feltnavn endres, `parse()` ikke finner det, og jobben likevel er grønn.
+
+Den måler mot et referansenivå lagret i `health.json`: det siste
+volumet som ble godkjent som friskt. Fristelsen er å regne det ut på
+stedet i stedet, fra `snapshot.previous()`. Ikke gjør det. To grunner,
+i rekkefølge etter hvor stille de feiler:
+
+1. **Referansen ville flyttet seg med bruddet.** Måler du mot forrige
+   snapshot, blir det ødelagte tallet neste ukes normal. Alarmen fyrer
+   uken bruddet skjer og tier deretter, mens datatapet fortsetter — og
+   det er nøyaktig feilmodusen `health.py` finnes for å hindre. Målt i
+   simulering over fem uker med vedvarende brudd: rød i uke 3, grønn i
+   uke 4 og 5. Et rullende snitt har samme feil, bare i sakte film.
+
+2. **`health.oppdater()` kalles ETTER `snapshot.write()`** (steg 8 mot
+   steg 5). Dagens fil ligger altså allerede på disk når vakten kjører.
+   En `previous()`-basert vakt overlever bare fordi `previous()`
+   filtrerer på strengt tidligere *dato* og dermed utelukker dagens
+   `.N`-filer. Løsner den koblingen — f.eks. hvis noen lar `previous()`
+   ta med samme dato for å få en «ferskere» baseline — sammenligner
+   vakten dagen mot seg selv, får alltid 100 %, og dør uten et eneste
+   feilsignal.
+
+Kvitteringen for et reelt fall er `run.py --godta-volum <kilde>`, som
+setter et nytt referansenivå. Commiten av `health.json` i datarepoet er
+sporet: git log viser når nivået ble godtatt og hvorfor.
+
 ## Det som bevisst mangler
 
 Ingen database, ingen kø, ingen orkestrator, ingen agenter. Systemet

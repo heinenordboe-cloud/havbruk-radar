@@ -504,6 +504,201 @@ def test_health_beholder_kilder_som_ikke_kjorte(tmp_path, monkeypatch):
     assert nede == ["falsk (uke 1)"]
 
 
+def _helse(tmp_path, monkeypatch):
+    """Isolert health.json. Volumvakten leser ikke snapshots i det hele
+    tatt — referansenivået ligger i health.json (se ARKITEKTUR.md)."""
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    return health
+
+
+def test_volumfall_utloser_rodt(tmp_path, monkeypatch):
+    """Et stort fall skal felle jobben selv om kilden rapporterer ok —
+    scenarioet der et feltnavn endres og parse() stille returnerer færre
+    rader uten å kaste."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, nede = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-01")
+    health.skriv(tilstand)
+    assert nede == []   # første kjøring etablerer nivået
+
+    _, nede = health.oppdater([runner.Result("falsk", True, 500)], "2026-01-08")
+    assert nede == ["falsk (volum 50% av referanse 1000: 500 observasjoner, uke 1)"]
+
+
+def test_volumvakt_forste_kjoring_varsler_ikke(tmp_path, monkeypatch):
+    """Ingen referanse å måle mot: ikke varsle, uansett hvor lavt tallet er."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, nede = health.oppdater([runner.Result("helt_ny", True, 1)], "2026-01-01")
+    assert nede == []
+    assert tilstand["helt_ny"]["volum_referanse"] == 1
+
+
+def test_volumokning_varsler_ikke_og_hever_referansen(tmp_path, monkeypatch):
+    """En økning er ikke tapt historikk, og skal ikke felle jobben. Men
+    den nye normalen blir referansen, slik at et senere fall måles mot
+    det faktiske nivået."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater([runner.Result("falsk", True, 100)], "2026-01-01")
+    health.skriv(tilstand)
+
+    tilstand, nede = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-08")
+    health.skriv(tilstand)
+    assert nede == []
+    assert tilstand["falsk"]["volum_referanse"] == 1000
+
+    # Tilbake til 100 er nå et fall på 90 %, ikke en normal verdi.
+    # Strekken er 1: de to foregående ukene var friske og nullstilte den.
+    _, nede = health.oppdater([runner.Result("falsk", True, 100)], "2026-01-15")
+    assert nede == ["falsk (volum 10% av referanse 1000: 100 observasjoner, uke 1)"]
+
+
+def test_volumalarm_holder_seg_rod_i_fem_uker(tmp_path, monkeypatch):
+    """Kjernen i vakten: et vedvarende brudd skal varsle HVER uke.
+
+    Sammenlignet vakten mot forrige snapshot i stedet for et lagret
+    referansenivå, ville det ødelagte tallet blitt neste ukes normal —
+    rødt i uke 1, grønt i uke 2 og utover, mens datatapet fortsetter.
+    Det er nøyaktig feilmodusen health.py finnes for å hindre.
+    """
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-01")
+    health.skriv(tilstand)
+
+    for uke, dato in enumerate(
+        ["2026-01-08", "2026-01-15", "2026-01-22", "2026-01-29", "2026-02-05"], start=1
+    ):
+        tilstand, nede = health.oppdater([runner.Result("falsk", True, 250)], dato)
+        health.skriv(tilstand)
+        assert nede == [
+            f"falsk (volum 25% av referanse 1000: 250 observasjoner, uke {uke})"
+        ], f"stille i uke {uke} — bruddet varer fortsatt"
+
+    # Referansen skal IKKE ha flyttet seg nedover underveis.
+    assert tilstand["falsk"]["volum_referanse"] == 1000
+
+
+def test_godta_volum_stopper_alarmen(tmp_path, monkeypatch):
+    """Kvitteringen for et reelt fall: godta nivået, og vakten tier —
+    men først etter et bevisst valg, ikke av seg selv."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-01")
+    health.skriv(tilstand)
+    tilstand, nede = health.oppdater([runner.Result("falsk", True, 400)], "2026-01-08")
+    health.skriv(tilstand)
+    assert nede != []
+
+    ok, melding = health.godta_volum("falsk")
+    assert ok
+    assert "1000 -> 400" in melding
+
+    # Samme nivå er nå friskt.
+    _, nede = health.oppdater([runner.Result("falsk", True, 400)], "2026-01-15")
+    assert nede == []
+
+    # Men et NYTT fall under det godtatte nivået varsler igjen.
+    _, nede = health.oppdater([runner.Result("falsk", True, 100)], "2026-01-22")
+    assert nede == ["falsk (volum 25% av referanse 400: 100 observasjoner, uke 1)"]
+
+
+def test_godta_volum_ukjent_kilde(tmp_path, monkeypatch):
+    health = _helse(tmp_path, monkeypatch)
+
+    ok, melding = health.godta_volum("finnes_ikke")
+    assert not ok
+    assert "Ukjent kilde" in melding
+
+
+def test_null_observasjoner_uten_exception_varsler(tmp_path, monkeypatch):
+    """En kilde kan returnere 0 observasjoner uten å kaste — endepunktet
+    svarer 200 med tom liste, eller parse() finner ingenting. r.ok er
+    True, så bare volumvakten kan fange det."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-01")
+    health.skriv(tilstand)
+
+    tilstand, nede = health.oppdater([runner.Result("falsk", True, 0)], "2026-01-08")
+    health.skriv(tilstand)
+
+    assert nede == ["falsk (volum 0% av referanse 1000: 0 observasjoner, uke 1)"]
+    # 0 skal ikke bli den nye normalen — da ville alt vært "friskt" igjen.
+    assert tilstand["falsk"]["volum_referanse"] == 1000
+
+
+def test_null_referanse_gir_ikke_divisjon_paa_null(tmp_path, monkeypatch):
+    """Leverer kilden 0 på aller første kjøring, blir referansen 0.
+    Vakten skal da ligge i dvale (ikke krasje, ikke varsle) til et ekte
+    volum kommer inn og etablerer nivået."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, nede = health.oppdater([runner.Result("ny", True, 0)], "2026-01-01")
+    health.skriv(tilstand)
+    assert nede == []
+    assert tilstand["ny"]["volum_referanse"] == 0
+
+    # Fortsatt 0, med referanse 0: her ville en naiv andel-utregning
+    # kastet ZeroDivisionError og felt hele kjøringen.
+    tilstand, nede = health.oppdater([runner.Result("ny", True, 0)], "2026-01-08")
+    health.skriv(tilstand)
+    assert nede == []
+
+    # Første ekte leveranse etablerer nivået, uten å varsle underveis.
+    tilstand, nede = health.oppdater([runner.Result("ny", True, 500)], "2026-01-15")
+    health.skriv(tilstand)
+    assert nede == []
+    assert tilstand["ny"]["volum_referanse"] == 500
+
+
+def test_godta_volum_uten_levert_volum_dreper_ikke_vakten(tmp_path, monkeypatch):
+    """--godta-volum på en kilde som aldri har levert skal AVVISES.
+
+    Satte den referansen til 0, ville vakten vært permanent død for den
+    kilden: alt er "friskt" når normalen er null.
+    """
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater([runner.Result("tom", True, 0)], "2026-01-01")
+    health.skriv(tilstand)
+
+    ok, melding = health.godta_volum("tom")
+    assert not ok
+    assert "ikke noe registrert volum" in melding
+    assert health.les()["tom"]["volum_referanse"] == 0
+
+    # Vakten er fortsatt i live: et ekte nivå kan fortsatt etableres,
+    # og et fall fra det varsler som normalt.
+    tilstand, _ = health.oppdater([runner.Result("tom", True, 1000)], "2026-01-08")
+    health.skriv(tilstand)
+    _, nede = health.oppdater([runner.Result("tom", True, 100)], "2026-01-15")
+    assert nede == ["tom (volum 10% av referanse 1000: 100 observasjoner, uke 1)"]
+
+
+def test_nede_kilde_odelegger_ikke_referansen(tmp_path, monkeypatch):
+    """En kilde som er nede leverer 0 observasjoner. Det skal ikke bli
+    det nye referansenivået — da ville alt vært "friskt" igjen straks
+    kilden kom opp med en brøkdel av dataene."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-01")
+    health.skriv(tilstand)
+
+    tilstand, _ = health.oppdater(
+        [runner.Result("falsk", False, 0, "RuntimeError: nede")], "2026-01-08"
+    )
+    health.skriv(tilstand)
+    assert tilstand["falsk"]["volum_referanse"] == 1000
+
+    # Oppe igjen, men bare 20 % av dataene: fortsatt et volumvarsel.
+    _, nede = health.oppdater([runner.Result("falsk", True, 200)], "2026-01-15")
+    assert nede == ["falsk (volum 20% av referanse 1000: 200 observasjoner, uke 1)"]
+
+
 def test_dager_siden_leser_siste_snapshot(tmp_path, monkeypatch):
     monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
 

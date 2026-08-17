@@ -67,7 +67,17 @@ def main() -> int:
     parser.add_argument("--planlagt", action="store_true",
                         help="dette er den ukentlige cron-kjøringen: null forfalte "
                              "kilder er en feil, ikke en stille exit")
+    parser.add_argument("--godta-volum", metavar="KILDE",
+                        help="godta kildens siste volum som nytt friskt nivå, og "
+                             "avslutt. Kvitteringen for et reelt fall — bruk den "
+                             "når volumvarselet er riktig, ikke for å dempe det")
     args = parser.parse_args()
+
+    # Kvittering, ikke innsamling: skriver health.json og avslutter.
+    if args.godta_volum:
+        ok, melding = health.godta_volum(args.godta_volum)
+        print(melding)
+        return 0 if ok else 1
 
     observed_at = datetime.now(timezone.utc).date().isoformat()
 
@@ -143,7 +153,11 @@ def main() -> int:
               f"{rad['old_value']} → {rad['new_value']}  [{rad['signal']}]")
 
     if nede:
-        print(f"\n  NEDE: {', '.join(nede)} har fungert før og leverer ikke nå.")
+        # To ulike årsaker havner her: kilden er nede (har fungert før,
+        # feiler nå), eller den leverte for lite (volumvakten). Meldingen
+        # sier derfor ikke lenger "leverer ikke" — halvparten av tilfellene
+        # leverte, bare ikke nok. Hver enkelt streng sier hvilken det er.
+        print(f"\n  KREVER TILSYN: {', '.join(nede)}")
         return 1   # -> rød jobb -> e-post fra GitHub, hver uke til det er fikset
 
     return 0

@@ -6,6 +6,26 @@ ukene før. Med arkivet er samme feil en re-parse.
 
 Filnavnet er datoen. Kjøres samme dato flere ganger, får de neste et
 løpenummer — ingenting overskrives.
+
+VIKTIG: `raw_hash` på en Observation er INNHOLDSADRESSERT, ikke
+filnavnsadressert. Den sier hvilket råsvar observasjonen kom fra, ikke
+hvilken fil det ligger i.
+
+Vil du finne arkivfila for en observasjon, hash arkivfilene og match på
+innhold:
+
+    gzip.open(fil, "rb").read()  ->  hashlib.sha256(...).hexdigest()
+
+Ikke match løpenummer mot løpenummer. De to tellerne teller forskjellige
+ting og vil aldri holde tritt: arkivet skrives før parse(), snapshotet
+etter, så hver henting som ikke ender i et snapshot (parse-feil, et
+snapshot som forkastes) legger igjen en arkivfil uten motstykke. Målt i
+datarepoet 17.08.2026 var forskyvningen allerede én: snapshot `.2`
+tilhørte arkiv `.3`, `.3` tilhørte `.4`, `.4` tilhørte `.5`.
+
+Flere arkivfiler kan dele hash når råsvaret er byte-identisk mellom
+kjøringer. Det er ikke flertydighet som betyr noe — innholdet er det
+samme, og en re-parse gir samme resultat uansett hvilken du åpner.
 """
 
 import gzip
