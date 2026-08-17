@@ -77,6 +77,52 @@ Hemmelighetene heter `SPEIL_URL` og `SPEIL_TOKEN`, og variabelen som slår
 det på heter `SPEILING_AKTIV`. Ingen andre navn — en tidligere versjon av
 dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
 
+## Når volumvarselet fyrer
+
+Du har fått rød jobb og en linje som denne:
+
+    enhetsregisteret (volum 62% av referanse 27074: 16786 observasjoner, uke 1)
+
+**Hva det betyr:** kilden svarte uten feil, men leverte 62 % av det
+volumet som sist ble godkjent som friskt. Ingen exception, ingen nedetid
+— nettopp derfor finnes vakten. Det typiske er at etaten har endret et
+feltnavn, `parse()` finner det ikke lenger, og resten av kjeden går
+grønt videre med et hull i dataene. "uke 1" er hvor mange uker på rad
+nivået har vært lavt; tallet vokser til noen gjør noe.
+
+**Ødelagt kilde eller krympet register?** Rå-arkivet svarer. Råsvaret
+fra hver henting ligger i `data/arkiv/<kilde>/<dato>.json.gz`, så
+sammenlign denne uka mot forrige:
+
+    cd ../havbruk-radar-data
+    zcat data/arkiv/enhetsregisteret/2026-12-14.json.gz | head -c 2000
+    zcat data/arkiv/enhetsregisteret/2026-12-07.json.gz | head -c 2000
+
+Er råsvaret omtrent like stort begge uker, men snapshotet skrumpet, er
+det VÅR parse som er ødelagt — feltnavn eller struktur er endret. Er
+råsvaret selv blitt mindre, har registeret faktisk krympet.
+
+**Når kvittering er riktig:** bare i det andre tilfellet — nivået er
+reelt og skal bli den nye normalen. Da:
+
+    HAVBRUK_DATA_DIR=../havbruk-radar-data/data python run.py --godta-volum enhetsregisteret
+
+**Når det er å skjule en feil:** hvis råsvaret er uendret. Da er
+kvittering å gjøre datatapet permanent og usynlig — vakten slutter å
+mase, og hullet fortsetter uke etter uke. Fiks kilden i stedet.
+Kvittering er ikke en måte å få innboksen stille på; den er en påstand
+om at det lave tallet er sant.
+
+**Etterpå:** `--godta-volum` skriver `data/health.json` i datarepoet.
+Commit den — uten commit er kvitteringen borte neste gang Actions
+sjekker ut repoet på nytt, og alarmen fyrer igjen mandag.
+
+    git commit -am "Godtar volum 16786 for enhetsregisteret: NACE 10.209 flyttet til eget register"
+
+Skriv HVORFOR nivået ble godtatt, ikke bare at det ble det. Om fire
+måneder er den commit-meldingen eneste sted som skiller "registeret
+krympet" fra "vi ga opp en tirsdag".
+
 ## Månedlig sjekk (to minutter)
 
 Alt i datarepoet:
