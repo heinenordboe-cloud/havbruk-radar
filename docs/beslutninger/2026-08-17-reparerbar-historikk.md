@@ -2,7 +2,7 @@
 dato: 2026-08-17
 tittel: Historikken skal kunne repareres og kryssrefereres bakover
 status: gjeldende
-commit: 
+commit: 95938d7
 ---
 
 # Historikken skal kunne repareres og kryssrefereres bakover
@@ -59,11 +59,22 @@ er fortsatt én ny fil.
 
 **Presisering om hva som arkiveres:** `fetch()` i Enhetsregisteret
 returnerte opprinnelig enheter med pagineringskonvolutten strippet og
-seks NACE-søk slått sammen til én liste. Da var `totalPages` og hvilket
-søk som fant hver enhet tapt før arkivering. `fetch()` returnerer nå
-sidene med konvolutt intakt. Arkivet er dermed reparerbart også mot
-pagineringsfeil, ikke bare mot felttolkningsfeil. Standarden gjelder
-alle framtidige kilder.
+seks NACE-søk slått sammen til én liste. Da var `totalPages` og
+hvilket søk som fant hver enhet tapt før arkivering. Beslutningen ble
+skrevet før koden var i den tilstanden — den beskrev en intensjon, og
+koden tok den igjen senere samme dag.
+
+`fetch()` returnerer nå sidene med konvolutt intakt. Arkivet er
+dermed reparerbart mot pagineringsfeil, ikke bare mot
+felttolkningsfeil. Og en NACE-kode som gir null treff kan oppdages i
+ettertid ved re-parse, ikke bare i sanntid — vakten på tomme søk er
+ikke eneste forsvarslinje.
+
+Bakoverkompatibilitet: `parse()` leser begge arkivformater. Et
+formatskifte som gjorde eksisterende arkiver uleselige ville fjernet
+hele poenget med arkivet.
+
+Standarden gjelder alle framtidige kilder.
 
 **Prisen:** Repovekst fra rå-arkivet og tre nye kolonner på ~8 000
 observasjoner per kjøring. Proveniensfeltene er identiske innenfor én
