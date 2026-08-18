@@ -20,6 +20,12 @@ for en gitt dato skrives, og røres aldri igjen — kollisjon løses med
 løpenummer, ikke overskriving. Grunnen er git: en fil som skrives om
 hver uke vokser repoet kvadratisk i stedet for lineært.
 
+Unntaket er changelog: den overskriver sin egen fil for samme dato
+med vilje. `les_alt()` konkatenerer filene, så en ekstra fil ville
+dobbeltført hver endring i loggen. Append-only gjelder rådata —
+changelog er avledet og kan regnes ut på nytt fra snapshotene.
+Vil du endre det, må `les_alt()` deduplisere først.
+
 ## 3. Ingen roller eller persondata fra Enhetsregisteret
 
 Bare virksomhets- og lokalitetsdata hentes. Roller, gateadresser og
