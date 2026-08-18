@@ -67,6 +67,10 @@ def main() -> int:
     parser.add_argument("--planlagt", action="store_true",
                         help="dette er den ukentlige cron-kjøringen: null forfalte "
                              "kilder er en feil, ikke en stille exit")
+    parser.add_argument("--godta-felt", metavar="KILDE",
+                        help="godta kildens nåværende feltsett som nytt normalt, "
+                             "og avslutt. Kvitteringen for et felt som legitimt "
+                             "er borte — uavhengig av --godta-volum")
     parser.add_argument("--godta-volum", metavar="KILDE",
                         help="godta kildens siste volum som nytt friskt nivå, og "
                              "avslutt. Kvitteringen for et reelt fall — bruk den "
@@ -76,6 +80,13 @@ def main() -> int:
     # Kvittering, ikke innsamling: skriver health.json og avslutter.
     if args.godta_volum:
         ok, melding = health.godta_volum(args.godta_volum)
+        print(melding)
+        return 0 if ok else 1
+
+    # Egen kvittering med vilje: at totalen legitimt er lavere er ikke
+    # det samme som at et felt legitimt er borte.
+    if args.godta_felt:
+        ok, melding = health.godta_felt(args.godta_felt)
         print(melding)
         return 0 if ok else 1
 
@@ -135,7 +146,9 @@ def main() -> int:
     changelog.skriv(endringer, observed_at)
 
     # 8. Oppdater helsetilstand
-    tilstand, nede = health.oppdater(resultater, observed_at)
+    # `naa` sendes med: feltvakten teller rader per (kilde, felt) og ser
+    # et felt forsvinne som volumvakten er for grovkornet til å merke.
+    tilstand, nede = health.oppdater(resultater, observed_at, naa)
     health.skriv(tilstand)
 
     # 9. Skriv commit-melding

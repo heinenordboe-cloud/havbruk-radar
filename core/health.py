@@ -110,6 +110,83 @@ def _vurder_volum(kilde: str, antall: int, gammel: dict) -> tuple[int, int, str 
     return max(antall, referanse), 0, None
 
 
+def _vurder_felter(
+    kilde: str, felt_naa: dict[str, int], gammel: dict
+) -> tuple[dict, str | None]:
+    """Returnerer (ny feltreferanse, varsel eller None).
+
+    Volumvakten måler totalen per kilde, og det er for grovt til å se et
+    enkelt felt forsvinne. Målt på akvakultur 17.08.2026: 29 felter,
+    største enkeltfelt 1779 av 48236 rader = 3,7 %. Terskelen er 10 %, så
+    INGEN enkeltfelt kan utløse volumvakten — et felt kan slutte å komme
+    hver uke i det uendelige mens jobben er grønn. Det er SCHEMA-buggen i
+    mindre skala, og SCHEMA-buggen er grunnen til at vakten finnes.
+
+    Bevisst smal: varsler kun når et felt som FANTES i referansen har null
+    rader nå. Ingen prosentterskel per felt — det finnes ingen ukesvarians
+    å kalibrere mot ennå, og felt varierer legitimt (prodomraade_* finnes
+    for 970 av 1779 lokaliteter).
+
+    Referansen er et høyvannsmerke, som volumreferansen: den stiger med
+    nye og voksende felter, men et felt som forsvinner beholder tallet
+    sitt. Derfor fyrer varselet på nytt hver uke til feltet er tilbake
+    eller kvittert med godta_felt().
+    """
+    referanse = dict(gammel.get("felt_referanse") or {})
+
+    # Ingen observasjoner denne kjøringen: ikke rør referansen. Kilden er
+    # enten nede eller tom, og begge deler er volumvaktens bord. Uten
+    # dette ville hvert eneste felt blitt meldt borte samtidig.
+    if not felt_naa:
+        return referanse, None
+
+    borte = sorted(
+        felt for felt, antall in referanse.items()
+        if antall > 0 and felt_naa.get(felt, 0) == 0
+    )
+
+    for felt, antall in felt_naa.items():
+        referanse[felt] = max(antall, referanse.get(felt, 0))
+
+    if borte:
+        return referanse, (
+            f"{kilde} (felt borte: {', '.join(borte)} — fantes forrige "
+            f"kjøring, null rader nå)"
+        )
+    return referanse, None
+
+
+def godta_felt(kilde: str) -> tuple[bool, str]:
+    """Godta kildens nåværende feltsett som det nye normale.
+
+    Egen kvittering, uavhengig av godta_volum(). De to besvarer ulike
+    spørsmål: «totalen er legitimt lavere» er ikke «dette feltet finnes
+    legitimt ikke lenger». Slår man dem sammen, blir den ene en stille
+    aksept av den andre — og et felt som forsvant i samme uke som et
+    legitimt volumfall ville blitt svelget med i kjøpet.
+    """
+    tilstand = les()
+    post = tilstand.get(kilde)
+    if post is None:
+        kjente = ", ".join(sorted(tilstand)) or "(ingen)"
+        return False, f"Ukjent kilde '{kilde}'. Kjente kilder: {kjente}"
+
+    sist = post.get("felt_sist")
+    if not sist:
+        return False, f"'{kilde}' har ikke noe registrert feltsett å godta ennå."
+
+    fjernet = sorted(set(post.get("felt_referanse") or {}) - set(sist))
+    post["felt_referanse"] = dict(sist)
+    skriv(tilstand)
+
+    if not fjernet:
+        return True, f"{kilde}: feltreferansen er allerede lik dagens feltsett."
+    return True, (
+        f"{kilde}: godtok at {', '.join(fjernet)} er borte. "
+        f"Commit health.json i datarepoet for å feste kvitteringen."
+    )
+
+
 def godta_volum(kilde: str) -> tuple[bool, str]:
     """Godta kildens siste volum som det nye friske nivået.
 
@@ -150,7 +227,24 @@ def les() -> dict:
     return json.loads(HEALTH_PATH.read_text(encoding="utf-8"))
 
 
-def oppdater(resultater: list[Result], observed_at: str) -> tuple[dict, list[str]]:
+def _felt_per_kilde(observasjoner) -> dict[str, dict[str, int]]:
+    """{kilde: {felt: antall}} fra observasjonsrammen.
+
+    Kjernen teller selv. En kilde trenger ikke vite at feltvakten finnes
+    — dette er tall kjøringen allerede har i hånda.
+    """
+    if observasjoner is None or observasjoner.is_empty():
+        return {}
+    telling: dict[str, dict[str, int]] = {}
+    for rad in observasjoner.group_by(["source", "field"]).len().iter_rows():
+        kilde, felt, antall = rad
+        telling.setdefault(str(kilde), {})[str(felt)] = int(antall)
+    return telling
+
+
+def oppdater(
+    resultater: list[Result], observed_at: str, observasjoner=None
+) -> tuple[dict, list[str]]:
     """Returnerer ny helsetilstand og liste over kilder som trenger tilsyn.
 
     To uavhengige grunner havner i samme liste, med samme konsekvens
@@ -167,6 +261,7 @@ def oppdater(resultater: list[Result], observed_at: str) -> tuple[dict, list[str
     # aldri kunne utløses for en kilde som hoppes over en uke.
     ny: dict = dict(forrige)
     nede: list[str] = []
+    felt_per_kilde = _felt_per_kilde(observasjoner)
 
     for r in resultater:
         gammel = forrige.get(r.source, {})
@@ -194,6 +289,23 @@ def oppdater(resultater: list[Result], observed_at: str) -> tuple[dict, list[str
             "volum_lavt_paa_rad": volum_strekk,
         }
 
+        # Feltvakt: kun når kilden faktisk leverte. En nede kilde har
+        # ingen felter, og skal ikke få referansen sin rasert.
+        felt_varsel = None
+        if r.ok:
+            felt_naa = felt_per_kilde.get(r.source, {})
+            felt_referanse, felt_varsel = _vurder_felter(r.source, felt_naa, gammel)
+            ny[r.source]["felt_referanse"] = felt_referanse
+            if felt_naa:
+                ny[r.source]["felt_sist"] = felt_naa
+            elif gammel.get("felt_sist"):
+                ny[r.source]["felt_sist"] = gammel["felt_sist"]
+        else:
+            if gammel.get("felt_referanse"):
+                ny[r.source]["felt_referanse"] = gammel["felt_referanse"]
+            if gammel.get("felt_sist"):
+                ny[r.source]["felt_sist"] = gammel["felt_sist"]
+
         # Har fungert før, er nede nå -> dette skal vekke deg. Hver uke.
         if not r.ok and gammel.get("sist_ok"):
             nede.append(f"{r.source} (uke {strekk})")
@@ -202,6 +314,10 @@ def oppdater(resultater: list[Result], observed_at: str) -> tuple[dict, list[str
         # Fyrer hver uke så lenge nivået er brutt, ikke bare uka det skjedde.
         if volum_varsel:
             nede.append(volum_varsel)
+
+        # Et felt som forsvant er egen sak, med egen kvittering.
+        if felt_varsel:
+            nede.append(felt_varsel)
 
     return ny, nede
 

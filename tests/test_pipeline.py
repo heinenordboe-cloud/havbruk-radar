@@ -641,6 +641,136 @@ def test_godta_volum_stopper_alarmen(tmp_path, monkeypatch):
     assert nede == ["falsk (volum 25% av referanse 400: 100 observasjoner, uke 1)"]
 
 
+def _felt_frame(felter, n=100, kilde="akvakultur"):
+    return snapshot.to_frame([
+        Observation(str(i), "lokalitet", "X", f, "v", kilde, "2026-01-01")
+        for f in felter for i in range(n)
+    ])
+
+
+def test_felt_som_forsvinner_varsler_der_volumvakten_er_stille(tmp_path, monkeypatch):
+    """Kjernepåstanden: feltvakten dekker et område volumvakten ikke når.
+
+    Med 29 felter er det største enkeltfeltet 3,7 % av radene, og
+    terskelen er 10 %. Målt på ekte akvakultur-data ga et bortfall av
+    prodomraade_status 2,0 % fall — volumvakten stille, feltvakten fyrte.
+    """
+    health = _helse(tmp_path, monkeypatch)
+    felter = [f"felt_{i}" for i in range(29)]
+
+    full = _felt_frame(felter)
+    tilstand, nede = health.oppdater(
+        [runner.Result("akvakultur", True, full.height)], "2026-01-01", full
+    )
+    health.skriv(tilstand)
+    assert nede == []
+
+    uten = _felt_frame(felter[:-1])
+    fall = 1 - uten.height / full.height
+    assert fall < 0.10, "fikstur må ligge under volumterskelen for å bevise poenget"
+
+    tilstand, nede = health.oppdater(
+        [runner.Result("akvakultur", True, uten.height)], "2026-01-08", uten
+    )
+    health.skriv(tilstand)
+
+    assert not [v for v in nede if "volum" in v]      # volumvakten er stille
+    assert len(nede) == 1 and "felt borte: felt_28" in nede[0]
+
+    # Fyrer på nytt uke etter uke, som volumvakten.
+    _, nede = health.oppdater(
+        [runner.Result("akvakultur", True, uten.height)], "2026-01-15", uten
+    )
+    assert len(nede) == 1 and "felt borte" in nede[0]
+
+
+def test_nytt_felt_lofter_referansen(tmp_path, monkeypatch):
+    """Skjemautvidelse er normalt — Enhetsregisteret gikk fra 9 til 32
+    felter på ett døgn. Nye felter skal tas inn uten varsel."""
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater(
+        [runner.Result("akvakultur", True, 200)], "2026-01-01", _felt_frame(["a", "b"])
+    )
+    health.skriv(tilstand)
+
+    utvidet = _felt_frame(["a", "b", "c"])
+    tilstand, nede = health.oppdater(
+        [runner.Result("akvakultur", True, utvidet.height)], "2026-01-08", utvidet
+    )
+    assert nede == []
+    assert set(tilstand["akvakultur"]["felt_referanse"]) == {"a", "b", "c"}
+
+
+def test_nede_kilde_nullstiller_ikke_feltreferansen(tmp_path, monkeypatch):
+    """En kilde som er nede leverer null felter. Det skal ikke slette alt
+    den har lært — ellers ville første kjøring etter nedetid sett et
+    tomt feltsett som normalen, og feltvakten vært død for den kilden."""
+    health = _helse(tmp_path, monkeypatch)
+
+    full = _felt_frame(["a", "b", "c"])
+    tilstand, _ = health.oppdater(
+        [runner.Result("akvakultur", True, full.height)], "2026-01-01", full
+    )
+    health.skriv(tilstand)
+
+    # Uke 2: kilden er nede. Ingen observasjoner i det hele tatt.
+    tom = snapshot.to_frame([])
+    tilstand, _ = health.oppdater(
+        [runner.Result("akvakultur", False, 0, "RuntimeError: nede")], "2026-01-08", tom
+    )
+    health.skriv(tilstand)
+    assert set(tilstand["akvakultur"]["felt_referanse"]) == {"a", "b", "c"}
+
+    # Uke 3: oppe igjen, men ett felt mangler. Skal fortsatt fanges.
+    delvis = _felt_frame(["a", "b"])
+    _, nede = health.oppdater(
+        [runner.Result("akvakultur", True, delvis.height)], "2026-01-15", delvis
+    )
+    assert any("felt borte: c" in v for v in nede)
+
+
+def test_godta_felt_er_uavhengig_av_godta_volum(tmp_path, monkeypatch):
+    """To kvitteringer, to spørsmål. Kvitterer du volumet, skal et
+    forsvunnet felt fortsatt varsle — ellers blir den ene en stille
+    aksept av den andre."""
+    health = _helse(tmp_path, monkeypatch)
+
+    full = _felt_frame(["a", "b", "c"])
+    tilstand, _ = health.oppdater(
+        [runner.Result("akvakultur", True, full.height)], "2026-01-01", full
+    )
+    health.skriv(tilstand)
+
+    delvis = _felt_frame(["a", "b"])
+    tilstand, nede = health.oppdater(
+        [runner.Result("akvakultur", True, delvis.height)], "2026-01-08", delvis
+    )
+    health.skriv(tilstand)
+    assert any("felt borte" in v for v in nede)
+
+    # Kvitterer volumet: feltvarselet skal IKKE forsvinne med det.
+    health.godta_volum("akvakultur")
+    _, nede = health.oppdater(
+        [runner.Result("akvakultur", True, delvis.height)], "2026-01-15", delvis
+    )
+    assert any("felt borte" in v for v in nede), "volumkvittering svelget feltvarselet"
+
+    # Egen kvittering rydder det.
+    ok, melding = health.godta_felt("akvakultur")
+    assert ok and "c" in melding
+    _, nede = health.oppdater(
+        [runner.Result("akvakultur", True, delvis.height)], "2026-01-22", delvis
+    )
+    assert not [v for v in nede if "felt borte" in v]
+
+
+def test_godta_felt_ukjent_kilde(tmp_path, monkeypatch):
+    health = _helse(tmp_path, monkeypatch)
+    ok, melding = health.godta_felt("finnes_ikke")
+    assert not ok and "Ukjent kilde" in melding
+
+
 def test_godta_volum_ukjent_kilde(tmp_path, monkeypatch):
     health = _helse(tmp_path, monkeypatch)
 
