@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-08-17** — [Backfill kommer etter de forsvinnende kildene, ikke før](2026-08-17-backfill-rekkefolge.md) — gjeldende
 - **2026-08-17** — [Beslutningsloggen flyttes til repoet, én fil per beslutning](2026-08-17-beslutningslogg-i-repoet.md) — gjeldende
 - **2026-08-17** — [Volumvakt, og hvorfor den måtte skrives om samme dag](2026-08-17-volumvakt.md) — gjeldende
 - **2026-08-17** — [Volumvakt: en kilde kan feile uten å være nede](2026-08-17-volumvakt-forste-versjon.md) — erstattet av [2026-08-17-volumvakt.md](2026-08-17-volumvakt.md)
