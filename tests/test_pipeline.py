@@ -582,6 +582,41 @@ def test_volumalarm_holder_seg_rod_i_fem_uker(tmp_path, monkeypatch):
     assert tilstand["falsk"]["volum_referanse"] == 1000
 
 
+def test_referansen_driver_ikke_nedover_ved_gradvise_fall(tmp_path, monkeypatch):
+    """Hullet de andre volumtestene ikke dekket: fall som hver for seg er
+    INNENFOR terskelen, uke etter uke.
+
+    Senker referansen seg til siste friske verdi, måles neste uke mot et
+    allerede senket nivå. Da passerer 8 % fall i uka hver gang, og kilden
+    kan drive til under halvparten uten ett varsel — rullende snitt i
+    praksis, som er nøyaktig det health.py sier den ikke er.
+    """
+    health = _helse(tmp_path, monkeypatch)
+
+    tilstand, _ = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-01")
+    health.skriv(tilstand)
+
+    # 8 % fall: 920/1000 = 92 %, godt innenfor terskelen på 90 %.
+    tilstand, nede = health.oppdater([runner.Result("falsk", True, 920)], "2026-01-08")
+    health.skriv(tilstand)
+    assert nede == []                                    # riktig: ett fall er ikke alarm
+    assert tilstand["falsk"]["volum_referanse"] == 1000  # men nivået skal stå
+
+    # Uke to måles mot 1000, ikke mot 920. 846/1000 = 85 % -> alarm.
+    tilstand, nede = health.oppdater([runner.Result("falsk", True, 846)], "2026-01-15")
+    health.skriv(tilstand)
+    assert nede == ["falsk (volum 85% av referanse 1000: 846 observasjoner, uke 1)"]
+
+    # Og driften stanser ikke opp av seg selv: nivået står til noen tar tak.
+    for uke, antall in enumerate([778, 716, 659], start=2):
+        tilstand, nede = health.oppdater(
+            [runner.Result("falsk", True, antall)], f"2026-02-{uke:02d}"
+        )
+        health.skriv(tilstand)
+        assert nede, f"stille i uke {uke} med {antall} mot referanse 1000"
+    assert tilstand["falsk"]["volum_referanse"] == 1000
+
+
 def test_godta_volum_stopper_alarmen(tmp_path, monkeypatch):
     """Kvitteringen for et reelt fall: godta nivået, og vakten tier —
     men først etter et bevisst valg, ikke av seg selv."""

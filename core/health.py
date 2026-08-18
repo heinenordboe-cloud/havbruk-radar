@@ -35,8 +35,12 @@ historikk (det er tapet av historikk denne fila finnes for å hindre),
 og er allerede synlig andre steder — diff.compare() flagger hver ny
 entitet, og endringer.height havner i commit-tittelen du leser på
 telefonen. En stille dobling fins ikke; en stille halvering gjør.
-Et friskt volum over referansen løfter referansen med seg, slik at
-neste ukes fall måles mot det nye, høyere nivået.
+
+Referansen er derfor et HØYVANNSMERKE: et friskt volum over referansen
+løfter den med seg, men et volum under den senker den aldri — heller
+ikke når det er innenfor terskelen. Senket den seg, ville et fall på
+8 % i uka passert hver gang, og kilden kunne drive til 43 % av
+opprinnelig volum uten ett varsel. Eneste vei ned er godta_volum().
 """
 
 import json
@@ -90,9 +94,20 @@ def _vurder_volum(kilde: str, antall: int, gammel: dict) -> tuple[int, int, str 
             f"{antall} observasjoner, uke {strekk})"
         )
 
-    # Friskt. Nivået følger med opp, slik at neste ukes fall måles mot
-    # det som faktisk er normalen nå.
-    return antall, 0, None
+    # Friskt. Referansen er et HØYVANNSMERKE: den følger med opp, men
+    # aldri ned. `max` er hele forskjellen på en vakt og et rullende
+    # snitt.
+    #
+    # Uten max blir siste friske verdi den nye referansen, også når den
+    # er lavere. Da måles neste uke mot et allerede senket nivå, og en
+    # kilde som mister 8 % i uka passerer terskelen hver eneste gang:
+    # målt over ti uker havnet den på 43 % av opprinnelig volum uten ett
+    # varsel. Det er nøyaktig degraderingen i sakte film som docstringen
+    # over sier vakten ikke skal tillate.
+    #
+    # Skal referansen ned, er det --godta-volum som gjør det. Det er
+    # også den eneste veien ned, og det er meningen.
+    return max(antall, referanse), 0, None
 
 
 def godta_volum(kilde: str) -> tuple[bool, str]:
