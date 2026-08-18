@@ -167,3 +167,32 @@ def previous(source: str, before: str) -> pl.DataFrame | None:
         return None
 
     return pl.read_parquet(earlier[-1])
+
+
+def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]]:
+    """Alle snapshots fra denne kilden i intervallet [fra, til], eldst først.
+
+    `previous()` svarer på "hva sto her sist". Prediksjonsloggen trenger
+    noe annet: hele forløpet gjennom et vindu, fordi et anslag treffer
+    den uka terskelen passeres — ikke bare hvis verdien tilfeldigvis
+    fortsatt er over den når vinduet lukker. Leser man kun endepunktene,
+    scores en kapasitetsøkning som ble reversert i uke ni som bom, og
+    anslaget var riktig.
+
+    Begge endepunkter er inklusive. `fra` må være med: det er der
+    utgangsverdien hentes.
+
+    Flere filer på samme dato (løpenummer ved kollisjon) gir flere
+    innslag med samme dato, sortert slik at høyeste løpenummer kommer
+    sist — samme rekkefølge som `previous()` velger etter.
+    """
+    target_dir = RAW_DIR / source
+    if not target_dir.exists():
+        return []
+
+    aktuelle = sorted(
+        (p for p in target_dir.glob("*.parquet")
+         if fra <= _dato_og_versjon(p.stem)[0] <= til),
+        key=lambda p: _dato_og_versjon(p.stem),
+    )
+    return [(_dato_og_versjon(p.stem)[0], pl.read_parquet(p)) for p in aktuelle]

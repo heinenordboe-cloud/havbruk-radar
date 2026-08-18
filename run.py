@@ -1,10 +1,11 @@
-"""Inngangspunkt. Én kjøring, åtte steg.
+"""Inngangspunkt. Én kjøring, elleve steg.
 
     python run.py                 # alle kilder som er forfalt
     python run.py --bare enhetsregisteret
     python run.py --torrkjor      # hent og vis alt, skriv ingenting
     python run.py --tving         # kjør selv om kilden ble hentet nylig
     python run.py --planlagt      # den ukentlige cron-kjøringen
+    python run.py --fasit         # treffrate på avgjorte prediksjoner
 
 Hver kilde har sin egen `min_dager_mellom`. Kjøringen henter bare de som
 er forfalt, slik at en ny kilde kan aktiveres midt i uka uten å skrive
@@ -30,11 +31,13 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
 from core import (  # noqa: E402
-    changelog, diff, health, paths, registry, runner, signals, snapshot,
+    changelog, diff, health, paths, predictions, registry, runner, signals,
+    snapshot,
 )
 
 
-def bygg_commitmelding(observed_at: str, resultater, endringer, scoret) -> str:
+def bygg_commitmelding(observed_at: str, resultater, endringer, scoret,
+                       fasit=None) -> str:
     """Commit-meldingen er nyhetsbrevet ditt de neste fire månedene.
 
     Du leser den i GitHub-appen på telefonen. Ingen nettside nødvendig.
@@ -50,6 +53,18 @@ def bygg_commitmelding(observed_at: str, resultater, endringer, scoret) -> str:
 
     if scoret.height == 0 and endringer.height:
         linjer.append("* ingen endringer traff en signalregel")
+
+    # Fasit på anslag som forfalt denne uka. Dette er den eneste delen av
+    # meldingen som sier noe om DEG og ikke om registrene.
+    if fasit is not None and fasit.height:
+        linjer.append("")
+        linjer.append(f"Prediksjoner avgjort: {fasit.height}")
+        for rad in fasit.iter_rows(named=True):
+            merke = {"traff": "TRAFF", "bom": "bom  "}.get(rad["utfall"], "?    ")
+            linjer.append(
+                f"* [{merke}] {rad['id']} {rad['entitet']}.{rad['felt']}"
+                f" — {rad['begrunnelse']}"
+            )
 
     linjer.append("")
     for r in resultater:
@@ -75,7 +90,21 @@ def main() -> int:
                         help="godta kildens siste volum som nytt friskt nivå, og "
                              "avslutt. Kvitteringen for et reelt fall — bruk den "
                              "når volumvarselet er riktig, ikke for å dempe det")
+    parser.add_argument("--fasit", action="store_true",
+                        help="vis treffrate for avgjorte prediksjoner, og avslutt")
     args = parser.parse_args()
+
+    # Lesing, ikke innsamling: viser fasit og avslutter.
+    if args.fasit:
+        feil = predictions.valider()
+        for f in feil:
+            print(f"  FORMATFEIL {f}")
+        rate = predictions.treffrate()
+        if rate.height == 0:
+            print("Ingen avgjorte prediksjoner ennå.")
+        else:
+            print(rate)
+        return 1 if feil else 0
 
     # Kvittering, ikke innsamling: skriver health.json og avslutter.
     if args.godta_volum:
@@ -151,15 +180,35 @@ def main() -> int:
     tilstand, nede = health.oppdater(resultater, observed_at, naa)
     health.skriv(tilstand)
 
-    # 9. Skriv commit-melding
-    melding = bygg_commitmelding(observed_at, resultater, endringer, scoret)
+    # 9. Avgjør prediksjoner hvis vinduet er ute
+    #
+    # REKKEFØLGE: må skje ETTER snapshot.write(). Et anslag med vindu som
+    # lukker i dag skal se dagens observasjon. Flyttes dette opp foran
+    # skrivingen, dømmes anslaget på forrige ukes tall og taper en uke —
+    # stille, fordi utfallet blir et fullt gyldig "bom".
+    #
+    # Et formatavvik felles IKKE kjøringen. Innsamlingen er viktigere enn
+    # prediksjonene: mister du uka, kan den ikke hentes igjen, mens en
+    # feilskrevet YAML kan rettes i morgen. Avviket går i tilsyn-lista og
+    # gjør jobben rød i stedet.
+    formatfeil = predictions.valider()
+    fasit = predictions.evaluer(observed_at)
+    predictions.skriv(fasit, observed_at)
+
+    # 10. Skriv commit-melding
+    melding = bygg_commitmelding(observed_at, resultater, endringer, scoret, fasit)
     paths.COMMIT_MSG_PATH.parent.mkdir(parents=True, exist_ok=True)
     paths.COMMIT_MSG_PATH.write_text(melding, encoding="utf-8")
 
-    # 10. Oppsummer
+    # 11. Oppsummer
     print(f"\n  {len(filer)} snapshot skrevet")
     print(f"  {endringer.height} endringer siden forrige kjøring")
     print(f"  {scoret.height} av dem traff en signalregel")
+
+    if fasit.height:
+        print(f"  {fasit.height} prediksjon(er) avgjort:")
+        for rad in fasit.iter_rows(named=True):
+            print(f"    · [{rad['utfall']}] {rad['id']} — {rad['begrunnelse']}")
 
     for rad in scoret.head(15).iter_rows(named=True):
         print(f"    · {rad['entity_name']}: {rad['field']} "
@@ -171,7 +220,9 @@ def main() -> int:
     # f.eks. et NACE-søk uten treff). Meldingen sier derfor ikke lenger
     # "leverer ikke" — to av tre tilfeller leverte. Hver enkelt streng
     # sier hvilken det er.
-    tilsyn = nede + [a for r in resultater for a in r.advarsler]
+    tilsyn = (nede
+              + [a for r in resultater for a in r.advarsler]
+              + [f"prediksjonsformat: {f}" for f in formatfeil])
 
     if tilsyn:
         print(f"\n  KREVER TILSYN: {', '.join(tilsyn)}")
