@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-08-17** — [Feltnivåvakt — volumvakten er for grovkornet til å se ett felt forsvinne](2026-08-17-feltnivaavakt.md) — gjeldende
 - **2026-08-17** — [Volumreferansen er et høyvannsmerke](2026-08-17-volumreferanse-er-hoyvannsmerke.md) — gjeldende
 - **2026-08-17** — [Én verdi per (entity_id, field, source) per kjøring](2026-08-17-en-verdi-per-nokkel.md) — gjeldende
 - **2026-08-17** — [Backfill kommer etter de forsvinnende kildene, ikke før](2026-08-17-backfill-rekkefolge.md) — gjeldende
