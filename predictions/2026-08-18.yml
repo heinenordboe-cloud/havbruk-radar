@@ -1,0 +1,56 @@
+# Første anslag. Opphav: utledet av Claude fra offentlige vedtak sammenholdt
+# med registeret, ikke fra Heines bransjevurdering. Se grunnlaget under hvert.
+#
+# Alle tre entiteter er verifisert mot snapshot 2026-08-17.
+
+prediksjoner:
+  - id: "2026-08-18-1"
+    entitet: "26295"
+    kilde: "akvakultur"
+    felt: "prodomraade_status"
+    type: "verdi"
+    verdi: "GUL"
+    vindu:
+      fra: "2026-08-18"
+      til: "2027-08-18"
+    grunnlag: >
+      LANGØY i Alver ligger i PO4 Nordhordland til Stadt. Departementet
+      satte PO4 til gult i trafikklysvedtaket 19.06.2026, men registeret
+      viser fortsatt RØD 17.08.2026 — to måneder etter. Ni av tretten
+      produksjonsområder stemmer med vedtaket, så feltet ER trafikklyset;
+      det henger bare igjen på en eldre runde. Registeret må følge etter.
+
+  - id: "2026-08-18-2"
+    entitet: "17077"
+    kilde: "akvakultur"
+    felt: "prodomraade_status"
+    type: "verdi"
+    verdi: "GUL"
+    vindu:
+      fra: "2026-08-18"
+      til: "2027-08-18"
+    grunnlag: >
+      TRETTEVIK i Senja ligger i PO10 Andøya til Senja, som samme vedtak
+      satte ned fra grønt til gult. Motsatt retning av anslag 1 — en
+      innstramming, ikke en lettelse. Tas begge, skyldes det etterslep i
+      registeret og ikke at ett enkelt område ble rettet.
+
+  - id: "2026-08-18-3"
+    entitet: "11488"
+    kilde: "akvakultur"
+    felt: "kapasitet"
+    type: "endring"
+    retning: "ned"
+    terskel_prosent: 5
+    vindu:
+      fra: "2026-08-18"
+      til: "2027-08-18"
+    grunnlag: >
+      BRATTAVIKA i Austevoll ligger i PO3 Karmøy til Sotra, det eneste
+      røde området i vedtaket, med 6 prosent nedtrekk anslått til 5300
+      tonn. Åpent spørsmål om nedtrekket slår ut på lokalitetens
+      registrerte kapasitet eller bare på tillatelsene knyttet til den.
+      Anslaget er derfor også et forsøk: bommer det, ligger mekanikken på
+      tillatelsesnivå, og da må licenses-kilden bygges for å se den.
+      Terskel 5 og ikke 6, fordi nedtrekket fordeles og ikke nødvendigvis
+      treffer hver lokalitet likt.
