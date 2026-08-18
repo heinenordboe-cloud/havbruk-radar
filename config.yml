@@ -17,8 +17,14 @@ kilder:
       - "10.201"   # Produksjon av saltfisk, tørrfisk og klippfisk
       - "10.202"   # Slakting av fisk, skalldyr og bløtdyr  (SLAKTING — het "frysing" før 2025)
       - "10.203"   # Frysing og videre bearbeiding av fisk, skalldyr og bløtdyr  (erstatter 10.209)
+      - "10.912"   # Produksjon av fôrvarer for akvakultur  (segment: for)
+      - "03.300"   # Tjenester tilknyttet fiske, fangst og akvakultur  (segment: bronnbat_service)
       # Fjernet 17.08.2026: "10.209" er utgått i gjeldende SN2007 og ga
       # null treff. Innholdet ligger nå i 10.202 og 10.203.
+      #
+      # 03.300 er bredere enn havbruk — den dekker også tjenester til
+      # fiske og fangst. Segmentet blir overinkluderende inntil det
+      # finnes en måte å skille dem på. Se rules/segments.yml.
     sidestorrelse: 100
 
     # Næringskoder som LEGITIMT kan gi null treff. Tomt søk varsler

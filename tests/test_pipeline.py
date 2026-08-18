@@ -771,36 +771,121 @@ def test_run_py_kan_importeres():
     assert "--tving" in resultat.stdout
 
 
-def test_tomt_naeringskodesok_varsler(capsys):
+def test_tomt_naeringskodesok_varsler():
     """En utgått NACE-kode gir 200 OK med tom liste, ikke en feil. Det er
     slik 10.209 kunne stå i config.yml i to dager uten at noe sa fra."""
     from sources.enhetsregisteret import _varsle_tomme_sok
 
-    tomme = _varsle_tomme_sok({"03.211": 612, "10.209": 0, "10.201": 109}, set())
+    varsler = _varsle_tomme_sok({"03.211": 612, "10.209": 0, "10.201": 109}, set())
 
-    assert tomme == ["10.209"]
-    ut = capsys.readouterr().out
-    assert "::error::" in ut
-    assert "10.209" in ut
-    assert "03.211" not in ut   # kun de tomme nevnes
+    assert len(varsler) == 1
+    assert varsler[0].startswith("10.209:")
+    assert "03.211" not in varsler[0]   # kun de tomme nevnes
 
 
-def test_tomt_sok_kan_kvitteres_ut(capsys):
+def test_tomt_sok_kan_kvitteres_ut():
     """tillat_tomt er kvitteringen for en kode som legitimt er tom —
     et bevisst valg ført i config.yml, ikke en dempet alarm."""
     from sources.enhetsregisteret import _varsle_tomme_sok
 
-    tomme = _varsle_tomme_sok({"03.211": 612, "03.223": 0}, {"03.223"})
-
-    assert tomme == []
-    assert capsys.readouterr().out == ""
+    assert _varsle_tomme_sok({"03.211": 612, "03.223": 0}, {"03.223"}) == []
 
 
-def test_alle_koder_med_treff_er_stille(capsys):
+def test_alle_koder_med_treff_er_stille():
     from sources.enhetsregisteret import _varsle_tomme_sok
 
     assert _varsle_tomme_sok({"03.211": 612, "10.201": 109}, set()) == []
-    assert capsys.readouterr().out == ""
+
+
+def test_advarsel_fra_kilde_naar_helt_opp(tmp_path, monkeypatch):
+    """En kilde som leverer, men ber om tilsyn, skal felle jobben —
+    uten å miste dataene sine. Det er hele poenget med kanalen:
+    et tomt NACE-søk skal ikke koste ukas seks andre koder."""
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
+
+    class MaseteKilde(FalskKilde):
+        name = "masete"
+
+        def fetch(self):
+            self.advarsler = ["10.209: næringskode uten treff"]
+            return super().fetch()
+
+    obs, res = runner.run_all([MaseteKilde()], "2026-01-01")
+
+    assert len(obs) == 1                      # dataene er i behold
+    assert res[0].ok is True                  # kilden feilet ikke
+    assert res[0].advarsler == ["10.209: næringskode uten treff"]
+
+
+def test_kilde_uten_advarsler_gir_tom_liste(tmp_path, monkeypatch):
+    """Default skal være tom. En kilde som ikke bryr seg rører ikke feltet."""
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
+
+    _, res = runner.run_all([FalskKilde()], "2026-01-01")
+    assert res[0].advarsler == []
+
+
+def test_advarsler_deles_ikke_mellom_kilder(tmp_path, monkeypatch):
+    """Klasseattributtet er en delt liste. Setter en kilde self.advarsler,
+    skal det ikke lekke til neste kilde eller neste kjøring."""
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
+
+    class Masete(FalskKilde):
+        name = "masete"
+
+        def fetch(self):
+            self.advarsler = ["noe å se på"]
+            return super().fetch()
+
+    _, res = runner.run_all([Masete(), FalskKilde()], "2026-01-01")
+    per_kilde = {r.source: r.advarsler for r in res}
+
+    assert per_kilde["masete"] == ["noe å se på"]
+    assert per_kilde["falsk"] == []
+    assert Source.advarsler == []   # klasselista er urørt
+
+
+def test_parse_leser_begge_arkivformater():
+    """Arkivet er verdiløst hvis en formatendring gjør gamle filer
+    uleselige. Både flat enhetsliste (før 17.08.2026) og sider med
+    konvolutt (etter) skal gi samme observasjoner."""
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    enhet = {"organisasjonsnummer": "999999999", "navn": "Testlaks AS",
+             "antallAnsatte": 12}
+    kilde = Enhetsregisteret()
+
+    gammelt = list(kilde.parse([enhet], "2026-01-01"))
+    nytt = list(kilde.parse(
+        [{"naeringskode": "03.211", "side": 0,
+          "svar": {"_embedded": {"enheter": [enhet]},
+                   "page": {"totalPages": 1}}}],
+        "2026-01-01",
+    ))
+
+    assert gammelt and gammelt == nytt
+
+
+def test_konvolutten_bevarer_totalpages_og_sok():
+    """Poenget med å arkivere sidene: totalPages og hvilket søk som fant
+    enheten er tilgjengelig ved re-parse, ikke bare i sanntid."""
+    from sources.enhetsregisteret import _enheter
+
+    sider = [
+        {"naeringskode": "03.211", "side": 0,
+         "svar": {"_embedded": {"enheter": [{"organisasjonsnummer": "1"}]},
+                  "page": {"totalPages": 2}}},
+        {"naeringskode": "10.209", "side": 0,
+         "svar": {"_embedded": {"enheter": []}, "page": {"totalPages": 0}}},
+    ]
+
+    # Enhetene pakkes ut som før ...
+    assert [e["organisasjonsnummer"] for e in _enheter(sider)] == ["1"]
+
+    # ... men det tomme søket er fortsatt synlig i arkivet etterpå.
+    tomme = [s["naeringskode"] for s in sider
+             if not s["svar"]["_embedded"]["enheter"]]
+    assert tomme == ["10.209"]
 
 
 def test_config_har_ingen_utgatte_koder():

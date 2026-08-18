@@ -152,12 +152,16 @@ def main() -> int:
         print(f"    · {rad['entity_name']}: {rad['field']} "
               f"{rad['old_value']} → {rad['new_value']}  [{rad['signal']}]")
 
-    if nede:
-        # To ulike årsaker havner her: kilden er nede (har fungert før,
-        # feiler nå), eller den leverte for lite (volumvakten). Meldingen
-        # sier derfor ikke lenger "leverer ikke" — halvparten av tilfellene
-        # leverte, bare ikke nok. Hver enkelt streng sier hvilken det er.
-        print(f"\n  KREVER TILSYN: {', '.join(nede)}")
+    # Tre ulike årsaker havner i samme liste, med samme konsekvens:
+    # kilden er nede (har fungert før, feiler nå), den leverte for lite
+    # (volumvakten), eller den leverte men ba om tilsyn (Source.advarsler,
+    # f.eks. et NACE-søk uten treff). Meldingen sier derfor ikke lenger
+    # "leverer ikke" — to av tre tilfeller leverte. Hver enkelt streng
+    # sier hvilken det er.
+    tilsyn = nede + [a for r in resultater for a in r.advarsler]
+
+    if tilsyn:
+        print(f"\n  KREVER TILSYN: {', '.join(tilsyn)}")
         return 1   # -> rød jobb -> e-post fra GitHub, hver uke til det er fikset
 
     return 0

@@ -179,6 +179,27 @@ FELTER: dict[str, Callable[[dict], Any]] = {
 }
 
 
+def _enheter(raw: list[dict]) -> Iterable[dict]:
+    """Pakker ut enheter fra arkivet, uansett hvilket format det har.
+
+    To formater finnes i arkivet, og begge må kunne re-parses — det er
+    hele grunnen til at arkivet eksisterer:
+
+    - NYTT (fra 17.08.2026): én post per SIDE, med konvolutten intakt og
+      hvilken næringskode søket gjaldt. Se fetch().
+    - GAMMELT: en flat liste av enheter, der konvolutten allerede var
+      strippet før arkivering.
+
+    Diskriminatoren er `svar`-nøkkelen. En enhet fra Brreg har aldri et
+    felt som heter det.
+    """
+    for post in raw:
+        if isinstance(post, dict) and "svar" in post:
+            yield from post["svar"].get("_embedded", {}).get("enheter", [])
+        else:
+            yield post
+
+
 def _varsle_tomme_sok(treff: dict[str, int], tillat_tomt: set[str]) -> list[str]:
     """Sier fra om næringskoder som ga null treff. Returnerer de uventede.
 
@@ -197,12 +218,13 @@ def _varsle_tomme_sok(treff: dict[str, int], tillat_tomt: set[str]) -> list[str]
     if not tomme:
         return []
 
-    print(f"::error::Næringskode uten treff: {', '.join(tomme)}. "
-          f"Enten er koden utgått eller feilskrevet, eller så finnes det "
-          f"ingen selskaper i den. Verifiser mot SSB "
-          f"(data.ssb.no/api/klass/v1/classifications/6) og fjern koden, "
-          f"eller før den opp i kilder.enhetsregisteret.tillat_tomt.")
-    return tomme
+    return [
+        f"{kode}: næringskode uten treff — utgått, feilskrevet, eller "
+        f"reelt tom. Verifiser mot SSB "
+        f"(data.ssb.no/api/klass/v1/classifications/6) og fjern koden, "
+        f"eller før den opp i kilder.enhetsregisteret.tillat_tomt"
+        for kode in tomme
+    ]
 
 
 class Enhetsregisteret(Source):
@@ -211,15 +233,25 @@ class Enhetsregisteret(Source):
     enabled = True
 
     def fetch(self) -> list[dict]:
+        """Én post per SIDE, med pagineringskonvolutten intakt.
+
+        Returnerer ikke en flat liste av enheter. Grunnen er arkivet:
+        strippes konvolutten før arkivering, er `totalPages` og hvilket
+        søk som fant hver enhet tapt for godt, og da kan verken en
+        avkortet paginering eller et tomt søk oppdages i ettertid ved
+        re-parse. Med sidene intakt er begge deler synlige i arkivet.
+
+        parse() pakker ut igjen, og leser begge arkivformater.
+        """
         koder = get("kilder.enhetsregisteret.naeringskoder", [])
         sidestorrelse = get("kilder.enhetsregisteret.sidestorrelse", 100)
         tillat_tomt = set(get("kilder.enhetsregisteret.tillat_tomt", []) or [])
-        enheter: list[dict] = []
+        sider: list[dict] = []
         treff_per_kode: dict[str, int] = {}
 
         with httpx.Client(timeout=30, headers={"Accept": "application/json"}) as client:
             for kode in koder:
-                for_kode = len(enheter)
+                antall = 0
                 side = 0
                 while True:
                     response = client.get(BASE, params={
@@ -230,8 +262,15 @@ class Enhetsregisteret(Source):
                     response.raise_for_status()
                     payload = response.json()
 
+                    # Hele svaret arkiveres, sammen med hvilket søk det kom fra.
+                    sider.append({
+                        "naeringskode": kode,
+                        "side": side,
+                        "svar": payload,
+                    })
+
                     batch = payload.get("_embedded", {}).get("enheter", [])
-                    enheter.extend(batch)
+                    antall += len(batch)
 
                     total_sider = payload.get("page", {}).get("totalPages", 1)
                     side += 1
@@ -243,13 +282,14 @@ class Enhetsregisteret(Source):
                               f"({MAKS_DYBDE}). Del opp filteret.")
                         break
 
-                treff_per_kode[kode] = len(enheter) - for_kode
+                treff_per_kode[kode] = antall
 
-        _varsle_tomme_sok(treff_per_kode, tillat_tomt)
-        return enheter
+        # Sett, ikke append — se Source.advarsler.
+        self.advarsler = _varsle_tomme_sok(treff_per_kode, tillat_tomt)
+        return sider
 
     def parse(self, raw: list[dict], observed_at: str) -> Iterable[Observation]:
-        for enhet in raw:
+        for enhet in _enheter(raw):
             orgnr = enhet.get("organisasjonsnummer")
             navn = enhet.get("navn", "")
             if not orgnr:

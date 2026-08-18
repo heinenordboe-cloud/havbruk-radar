@@ -45,6 +45,19 @@ class Source:
     enabled: bool = True
     version: str = "1"
 
+    # Ting kilden vil si fra om uten å felle seg selv.
+    #
+    # Noen feil er for alvorlige til å ties i hjel, men for små til at
+    # kilden skal kaste: et tomt NACE-søk betyr at én av syv koder er
+    # utgått, og kaster fetch() da, mister du ukas data for de seks
+    # andre. Kjernen samler disse opp og lar kjøringen ende rødt, slik
+    # at én knekt ting koster én ting og ikke alt.
+    #
+    # SETT den, ikke append til den: `self.advarsler = [...]`. Gjør du
+    # `self.advarsler.append(...)` treffer du lista på KLASSEN, som
+    # deles av alle instanser og aldri tømmes.
+    advarsler: list[str] = []
+
     # Hvor ofte kilden skal hentes, i dager. Ikke alle kilder beveger seg
     # like fort, og noen straffes for å hentes for sjelden:
     #

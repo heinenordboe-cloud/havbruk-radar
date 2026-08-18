@@ -5,7 +5,7 @@ Med den mister du én kilde én uke, og resten kjører videre.
 """
 
 import traceback
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
 from core import raw as raw_arkiv
@@ -20,6 +20,8 @@ class Result:
     ok: bool
     count: int
     error: str = ""
+    # Kilden leverte, men vil at noen skal se på noe. Se Source.advarsler.
+    advarsler: list[str] = field(default_factory=list)
 
 
 def velg_forfalte(
@@ -80,10 +82,14 @@ def run_all(
                 for obs in source.parse(rawdata, observed_at)
             ]
             observations.extend(batch)
-            results.append(Result(source.name, True, len(batch)))
+            results.append(
+                Result(source.name, True, len(batch),
+                       advarsler=list(getattr(source, "advarsler", [])))
+            )
         except Exception:
             results.append(
-                Result(source.name, False, 0, traceback.format_exc(limit=3))
+                Result(source.name, False, 0, traceback.format_exc(limit=3),
+                       advarsler=list(getattr(source, "advarsler", [])))
             )
 
     return observations, results
