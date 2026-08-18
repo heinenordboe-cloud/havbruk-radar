@@ -3,14 +3,29 @@
 kilder:
   enhetsregisteret:
     # NACE-koder. Start smalt — utvid når du ser hva som er nyttig.
+    #
+    # Navnene under er de offisielle fra SN2007, verifisert mot SSBs
+    # Klass-API 17.08.2026. Ikke skriv dem av fra hukommelsen: de gamle
+    # kommentarene her var feil på tre av seks koder, og en feil kode
+    # gir tom respons uten feilmelding. Se rules/segments.yml for hele
+    # oppslaget og hvilket segment hver kode hører til.
     naeringskoder:
-      - "03.211"   # Havbruk med fisk, hav og fjord
-      - "03.212"   # Havbruk med skalldyr, hav og fjord
-      - "03.221"   # Havbruk med fisk, ferskvann
+      - "03.211"   # Produksjon av fisk, bløtdyr, krepsdyr og pigghuder i sjø og brakkvann
+      - "03.212"   # Produksjon av yngel og settefisk i sjø og brakkvann  (SETTEFISK, ikke skalldyr)
+      - "03.221"   # Produksjon av fisk, bløtdyr, krepsdyr og andre dyr som lever i ferskvann
+      - "03.222"   # Produksjon av yngel og settefisk i ferskvann  (ny: fantes i data, ikke i søket)
       - "10.201"   # Produksjon av saltfisk, tørrfisk og klippfisk
-      - "10.202"   # Frysing av fisk, fiskefilet, skalldyr og bløtdyr
-      - "10.209"   # Bearbeiding og konservering av fisk ellers
+      - "10.202"   # Slakting av fisk, skalldyr og bløtdyr  (SLAKTING — het "frysing" før 2025)
+      - "10.203"   # Frysing og videre bearbeiding av fisk, skalldyr og bløtdyr  (erstatter 10.209)
+      # Fjernet 17.08.2026: "10.209" er utgått i gjeldende SN2007 og ga
+      # null treff. Innholdet ligger nå i 10.202 og 10.203.
     sidestorrelse: 100
+
+    # Næringskoder som LEGITIMT kan gi null treff. Tomt søk varsler
+    # ellers, fordi en utgått kode ser nøyaktig ut som en tom kode.
+    # Kvitteringen er å føre koden opp her — bevisst, med dato og grunn
+    # — ikke å dempe varselet.
+    tillat_tomt: []
 
   akvakultur:
     # Endepunkt og paginering er verifisert mot levende API 17.08.2026.

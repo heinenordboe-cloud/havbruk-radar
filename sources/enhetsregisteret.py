@@ -179,6 +179,32 @@ FELTER: dict[str, Callable[[dict], Any]] = {
 }
 
 
+def _varsle_tomme_sok(treff: dict[str, int], tillat_tomt: set[str]) -> list[str]:
+    """Sier fra om næringskoder som ga null treff. Returnerer de uventede.
+
+    Hvorfor dette trengs: en utgått NACE-kode gir 200 OK med tom liste,
+    ikke en feil. `10.209` sto i config.yml i to dager og bidro med null
+    enheter uten at noe sa fra. Volumvakten i health.py måler totalen per
+    KILDE og ser ikke enkeltsøk — faller ett av syv søk til null mens de
+    andre vokser litt, holder totalen seg innenfor terskelen.
+
+    Hvorfor ikke exception: fetch() kaster ikke her med vilje. En feil
+    kode ville da felt hele kilden, og ukas data for de seks andre kodene
+    ville gått tapt for å straffe en skrivefeil. Regelen fra 16.08 om at
+    én knekt ting koster én ting, ikke alt, gjelder også her.
+    """
+    tomme = sorted(k for k, n in treff.items() if n == 0 and k not in tillat_tomt)
+    if not tomme:
+        return []
+
+    print(f"::error::Næringskode uten treff: {', '.join(tomme)}. "
+          f"Enten er koden utgått eller feilskrevet, eller så finnes det "
+          f"ingen selskaper i den. Verifiser mot SSB "
+          f"(data.ssb.no/api/klass/v1/classifications/6) og fjern koden, "
+          f"eller før den opp i kilder.enhetsregisteret.tillat_tomt.")
+    return tomme
+
+
 class Enhetsregisteret(Source):
     name = "enhetsregisteret"
     entity_type = "selskap"
@@ -187,10 +213,13 @@ class Enhetsregisteret(Source):
     def fetch(self) -> list[dict]:
         koder = get("kilder.enhetsregisteret.naeringskoder", [])
         sidestorrelse = get("kilder.enhetsregisteret.sidestorrelse", 100)
+        tillat_tomt = set(get("kilder.enhetsregisteret.tillat_tomt", []) or [])
         enheter: list[dict] = []
+        treff_per_kode: dict[str, int] = {}
 
         with httpx.Client(timeout=30, headers={"Accept": "application/json"}) as client:
             for kode in koder:
+                for_kode = len(enheter)
                 side = 0
                 while True:
                     response = client.get(BASE, params={
@@ -214,6 +243,9 @@ class Enhetsregisteret(Source):
                               f"({MAKS_DYBDE}). Del opp filteret.")
                         break
 
+                treff_per_kode[kode] = len(enheter) - for_kode
+
+        _varsle_tomme_sok(treff_per_kode, tillat_tomt)
         return enheter
 
     def parse(self, raw: list[dict], observed_at: str) -> Iterable[Observation]:

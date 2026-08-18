@@ -769,3 +769,61 @@ def test_run_py_kan_importeres():
     assert resultat.returncode == 0, resultat.stderr
     assert "--planlagt" in resultat.stdout
     assert "--tving" in resultat.stdout
+
+
+def test_tomt_naeringskodesok_varsler(capsys):
+    """En utgått NACE-kode gir 200 OK med tom liste, ikke en feil. Det er
+    slik 10.209 kunne stå i config.yml i to dager uten at noe sa fra."""
+    from sources.enhetsregisteret import _varsle_tomme_sok
+
+    tomme = _varsle_tomme_sok({"03.211": 612, "10.209": 0, "10.201": 109}, set())
+
+    assert tomme == ["10.209"]
+    ut = capsys.readouterr().out
+    assert "::error::" in ut
+    assert "10.209" in ut
+    assert "03.211" not in ut   # kun de tomme nevnes
+
+
+def test_tomt_sok_kan_kvitteres_ut(capsys):
+    """tillat_tomt er kvitteringen for en kode som legitimt er tom —
+    et bevisst valg ført i config.yml, ikke en dempet alarm."""
+    from sources.enhetsregisteret import _varsle_tomme_sok
+
+    tomme = _varsle_tomme_sok({"03.211": 612, "03.223": 0}, {"03.223"})
+
+    assert tomme == []
+    assert capsys.readouterr().out == ""
+
+
+def test_alle_koder_med_treff_er_stille(capsys):
+    from sources.enhetsregisteret import _varsle_tomme_sok
+
+    assert _varsle_tomme_sok({"03.211": 612, "10.201": 109}, set()) == []
+    assert capsys.readouterr().out == ""
+
+
+def test_config_har_ingen_utgatte_koder():
+    """Kodene i config.yml skal finnes som bekreftet i segments.yml.
+    Fanger at noen legger tilbake en utgått kode uten å slå den opp."""
+    import yaml
+    from core import config
+
+    kart = yaml.safe_load(
+        (ROT / "rules" / "segments.yml").read_text(encoding="utf-8")
+    )
+    bekreftet = {
+        kode
+        for seg in kart["segmenter"].values()
+        for kode in (seg.get("koder") or {})
+    }
+    utgatt = {
+        kode
+        for seg in kart["segmenter"].values()
+        for kode in (seg.get("koder_utgatt") or {})
+    }
+
+    sokte = set(config.get("kilder.enhetsregisteret.naeringskoder", []))
+    assert sokte, "config.yml har ingen næringskoder"
+    assert not (sokte & utgatt), f"config.yml søker på utgåtte koder: {sokte & utgatt}"
+    assert sokte <= bekreftet, f"koder uten dekning i segments.yml: {sokte - bekreftet}"

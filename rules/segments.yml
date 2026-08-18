@@ -1,0 +1,197 @@
+# Kartet fra NACE-kode til segment i havbruksverdikjeden.
+#
+# Hvorfor segmentene skilles: hvert ledd har ulik tidsforskyvning mot
+# samme underliggende hendelse. Settefisk som settes i sjø nå er
+# slaktevolum om 12-18 måneder; fôrsalg er biomasseforventning gjort om
+# til lønnskostnad; foredling følger slaktevolumet etterpå. Skilles de
+# ikke, midles forskyvningene bort og hele det analytiske poenget
+# forsvinner.
+#
+# ## Versjonering
+#
+# `versjon` bumpes ved HVER endring i kodetilordningen. En endring skal
+# aldri omskrive historisk klassifisering: segmentet lagres som en
+# observasjon per kjøring (se docs/beslutninger/
+# 2026-08-17-reparerbar-historikk.md), og en enhet som var `oppdrett` i
+# uke 3 skal fortsatt stå som `oppdrett` i uke 3 selv om kartet endres i
+# uke 40. Kartet er en kilde til nye observasjoner, ikke en oppslagstabell
+# som leses på nytt over gammel historikk.
+#
+# ## Verifisering
+#
+# Alt under `koder:` er slått opp mot SSBs Klass-API (klassifikasjon 6,
+# Standard for næringsgruppering) og finnes med det navnet som står her.
+# Alt under `kandidater:` er IKKE klart for bruk — se forklaringen der.
+#
+#   https://data.ssb.no/api/klass/v1/classifications/6/codesAt?date=2026-01-01
+#
+# ## Funn fra oppslaget — les før config.yml endres
+#
+# config.yml sine kommentarer beskriver en eldre utgave av standarden,
+# og på ett punkt en utgave som ikke ser ut til å ha eksistert:
+#
+#   03.212  config.yml sier "Havbruk med skalldyr, hav og fjord".
+#           FEIL. Koden er "Produksjon av yngel og settefisk i sjø og
+#           brakkvann" — altså SETTEFISK, ikke skalldyr. Kontrollert mot
+#           både 2024- og 2026-utgaven: settefisk i begge. Skalldyr
+#           ligger i 03.211 sammen med fisk. 87 enheter i snapshotet
+#           17.08.2026 har 03.212 som hovedkode, og har hittil blitt
+#           lest som oppdrett.
+#
+#   10.209  config.yml søker på denne. Den er UTGÅTT i gjeldende
+#           standard. I 2024 var den "Slakting, bearbeiding og
+#           konservering av fisk og fiskevarer ellers". Den finnes ikke
+#           i 2026-utgaven, og null enheter i snapshotet har den.
+#           Erstattes av 10.203.
+#
+#   10.202  config.yml sier "Frysing av fisk, fiskefilet, skalldyr og
+#           bløtdyr". Det var riktig i 2024. I gjeldende standard er
+#           10.202 "Slakting av fisk, skalldyr og bløtdyr", og frysing
+#           er flyttet til 10.203. Samme kode, ny betydning — et
+#           snapshot fra 2024 og ett fra 2026 med 10.202 beskriver ikke
+#           det samme. Begge havner uansett i `foredling`, så
+#           segmenttilordningen er stabil selv om underbetydningen ikke er.
+#
+#   03.222  Finnes i dataene (1 hovedkode, 9 som naeringskode2, 10 som
+#           naeringskode3 i snapshotet 17.08.2026), men står ikke i
+#           config.yml. Enhetene er fanget opp via andre koder, ikke
+#           fordi vi søker på dem.
+#
+#   03.213  Fantes i 2024 som "Tjenester tilknyttet hav- og kystbasert
+#   03.223  akvakultur" og "... ferskvannsbasert akvakultur". Begge er
+#           BORTE i gjeldende standard, slått sammen til 03.300 sammen
+#           med tjenester til fiske og fangst. Konsekvens for historisk
+#           klassifisering: eldre kilder kan bære 03.213/03.223, og de
+#           var mer presise enn 03.300 — de gjaldt kun akvakultur.
+#           Derfor er de beholdt under `koder_utgatt` og mapper til
+#           samme segment.
+
+versjon: 1
+gyldig_fra: 2026-08-17
+standard: SN2007 (SSB, Standard for næringsgruppering)
+verifisert_mot: https://data.ssb.no/api/klass/v1/classifications/6
+verifisert_dato: 2026-08-17
+
+segmenter:
+
+  settefisk:
+    forskyvning: ledende
+    horisont_mnd: [12, 18]
+    hvorfor: >-
+      Smolt som settes i sjø nå blir slaktevolum om 12-18 måneder.
+      Kapasitetsendring her er det tidligste målbare varselet om
+      volumet lenger ute i kjeden.
+    koder:
+      "03.212": Produksjon av yngel og settefisk i sjø og brakkvann
+      "03.222": Produksjon av yngel og settefisk i ferskvann
+
+  for:
+    forskyvning: ledende
+    horisont_mnd: [6, 12]
+    hvorfor: >-
+      Fôr er biomasseforventning gjort om til lønnskostnad. Fôrprodusenten
+      bygger kapasitet mot forventet biomasse, ikke mot dagens.
+    koder:
+      "10.912": Produksjon av fôrvarer for akvakultur
+
+  bronnbat_service:
+    forskyvning: ledende
+    horisont_mnd: [1, 6]
+    hvorfor: >-
+      Fisk som skal flyttes, avluses eller slaktes bestilles før
+      hendelsen. Aktiviteten her varsler slakting og biomasseflytting
+      på kort horisont.
+    koder:
+      "03.300": Tjenester tilknyttet fiske, fangst og akvakultur
+    koder_utgatt:
+      # Gjaldt kun akvakultur og var dermed mer presise enn 03.300.
+      # Beholdt for enheter klassifisert før sammenslåingen.
+      "03.213": Tjenester tilknyttet hav- og kystbasert akvakultur (utgått, SN2007 pr. 2024)
+      "03.223": Tjenester tilknyttet ferskvannsbasert akvakultur (utgått, SN2007 pr. 2024)
+    merk: >-
+      03.300 er bredere enn segmentet: den dekker også tjenester til
+      fiske og fangst, som ikke er havbruk. Segmentet er dermed
+      overinkluderende inntil det finnes en måte å skille dem på.
+
+  teknologi:
+    forskyvning: ledende
+    horisont_mnd: [6, 12]
+    hvorfor: >-
+      Merder, utstyr og oppdrettsteknologi bestilles mot planlagt
+      kapasitet, ikke mot dagens produksjon.
+    # TOMT MED VILJE. Det finnes ingen NACE-kode for havbruksteknologi.
+    # Alle aktuelle koder dekker langt mer enn havbruk (all sivil
+    # skipsbygging, all næringsmiddelmaskin-produksjon), og ville gitt
+    # et segment som stort sett består av virksomheter uten tilknytning
+    # til havbruk. Å fylle hullet med den nærmeste koden ville vært å
+    # gjette. Se `kandidater` nedenfor.
+    koder: {}
+
+  oppdrett:
+    forskyvning: samtidig
+    horisont_mnd: [0, 0]
+    hvorfor: >-
+      Referanseleddet. Hendelsen skjer her; de andre segmentene måles
+      som forskyvning mot dette.
+    koder:
+      "03.211": Produksjon av fisk, bløtdyr, krepsdyr og pigghuder i sjø og brakkvann
+      "03.221": Produksjon av fisk, bløtdyr, krepsdyr og andre dyr som lever i ferskvann
+
+  foredling:
+    forskyvning: etterslepende
+    horisont_mnd: [0, 3]
+    hvorfor: >-
+      Følger slaktevolum. Endring her bekrefter det som allerede har
+      skjedd oppstrøms, og er derfor kontroll heller enn varsel.
+    koder:
+      "10.201": Produksjon av saltfisk, tørrfisk og klippfisk
+      "10.202": Slakting av fisk, skalldyr og bløtdyr
+      "10.203": Frysing og videre bearbeiding av fisk, skalldyr og bløtdyr
+    koder_utgatt:
+      "10.209": Slakting, bearbeiding og konservering av fisk og fiskevarer ellers (utgått, SN2007 pr. 2024)
+
+# ## Kandidater — IKKE i bruk, skal ikke inn i config.yml
+#
+# Alle kodene nedenfor er verifisert å EKSISTERE i SN2007 pr. 2026-01-01.
+# Det som er usikkert er ikke koden, men TILHØRIGHETEN: hver av dem
+# dekker et langt bredere område enn havbruk, og et søk på dem ville
+# hentet inn hovedsakelig irrelevante virksomheter.
+#
+# Å ta dem i bruk krever en avgrensning i tillegg til koden — for
+# eksempel geografi, eller en manuelt vedlikeholdt liste over kjente
+# aktører. Til den avgrensningen finnes, står de her.
+
+kandidater:
+
+  teknologi:
+    "30.110":
+      navn: Bygging av sivile skip og flytende materiell
+      usikkerhet: >-
+        Merder er "flytende materiell", men koden dekker all sivil
+        skipsbygging. Sannsynligvis den nærmeste koden som finnes.
+    "28.930":
+      navn: Produksjon av maskiner og utstyr til nærings-, nytelsesmiddel-, drikke- og tobakksindustri
+      usikkerhet: Dekker hele næringsmiddelindustrien, ikke bare fisk.
+    "28.990":
+      navn: Produksjon av andre spesialmaskiner ikke nevnt annet sted
+      usikkerhet: Sekkepost. Vil hente inn nesten bare irrelevante enheter.
+    "33.120":
+      navn: Reparasjon og vedlikehold av maskiner
+      usikkerhet: >-
+        Generell. Finnes i dataene (1 enhet med denne som hovedkode
+        17.08.2026), men det beviser bare at én havbruksrelatert enhet
+        har den — ikke at koden identifiserer segmentet.
+
+  bronnbat_service:
+    "50.202":
+      navn: Innenriks sjøfart med gods
+      usikkerhet: >-
+        Brønnbåter kan ligge her, men koden dekker all innenriks
+        godssjøfart. Uten en avgrensning blir segmentet dominert av
+        virksomhet uten tilknytning til havbruk.
+    "50.203":
+      navn: Forsyning for offshore
+      usikkerhet: Primært olje og gass, ikke havbruk.
+    "33.150":
+      navn: Reparasjon og vedlikehold av sivile skip og båter
+      usikkerhet: All sivil skipsservice, ikke havbruksspesifikk.
