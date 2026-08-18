@@ -28,6 +28,15 @@ def compare(current: pl.DataFrame, observed_at: str) -> pl.DataFrame:
         if old is None:
             continue  # første kjøring for denne kilden: alt er "nytt", ikke interessant
 
+        # Snapshots skrevet før dedupliseringen kom inn i to_frame() kan ha
+        # flere rader per (entity_id, field). De filene er append-only og kan
+        # ikke rettes i ettertid — men joinen under fanner ut på dem, og da
+        # rapporteres SAMME endring én gang per duplikat den uka verdien
+        # endrer seg. Verifisert: to like gamle rader ga to identiske
+        # endringer. Leseren må derfor forsvare seg mot historikk den ikke
+        # kan reparere.
+        old = old.unique(subset=snapshot.NOKKEL, keep="first", maintain_order=True)
+
         # Felter som ikke fantes i forrige snapshot i det hele tatt er en
         # SKJEMAUTVIDELSE, ikke en hendelse. Utvider du kilden med 24 nye
         # felter, er 23 000 "ny"-rader den uka støy som drukner de ekte

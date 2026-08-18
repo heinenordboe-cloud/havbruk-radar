@@ -845,6 +845,56 @@ def test_advarsler_deles_ikke_mellom_kilder(tmp_path, monkeypatch):
     assert Source.advarsler == []   # klasselista er urørt
 
 
+def test_duplikater_fjernes_i_to_frame():
+    """En kilde som søker på flere koder kan få samme entitet fra to søk.
+    15 selskaper matchet to NACE-koder 17.08.2026 og ga 503 identiske
+    ekstrarader."""
+    obs = [
+        Observation("1", "selskap", "X", "antall_ansatte", "10", "falsk", "2026-01-01"),
+        Observation("1", "selskap", "X", "antall_ansatte", "10", "falsk", "2026-01-01"),
+        Observation("1", "selskap", "X", "kommune", "Bodø", "falsk", "2026-01-01"),
+    ]
+    frame = snapshot.to_frame(obs)
+
+    assert frame.height == 2
+    assert sorted(frame["field"].to_list()) == ["antall_ansatte", "kommune"]
+
+
+def test_samme_felt_fra_to_kilder_beholdes():
+    """To KILDER som ser samme felt på samme entitet er kryssvalidering,
+    ikke duplikat. Derfor er source med i nøkkelen."""
+    obs = [
+        Observation("1", "selskap", "X", "navn", "Testlaks AS", "falsk", "2026-01-01"),
+        Observation("1", "selskap", "X", "navn", "Testlaks AS", "annen", "2026-01-01"),
+    ]
+    assert snapshot.to_frame(obs).height == 2
+
+
+def test_diff_dobbeltrapporterer_ikke_paa_gammelt_snapshot(tmp_path, monkeypatch):
+    """Snapshots skrevet før dedupliseringen er append-only og kan ikke
+    rettes. Joiner diffen mot dem, fanner den ut og rapporterer samme
+    endring én gang per duplikat. Endringsloggen er produktet."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    rad = {
+        "entity_id": "1", "entity_type": "selskap", "entity_name": "X",
+        "field": "antall_ansatte", "value": "10", "source": "falsk",
+        "observed_at": "2026-01-01", "fetched_at": "", "source_version": "1",
+        "raw_hash": "",
+    }
+    (tmp_path / "falsk").mkdir(parents=True)
+    pl.DataFrame([rad, rad]).write_parquet(tmp_path / "falsk" / "2026-01-01.parquet")
+
+    naa = snapshot.to_frame(
+        [Observation("1", "selskap", "X", "antall_ansatte", "20", "falsk", "2026-01-08")]
+    )
+    endringer = diff.compare(naa, "2026-01-08")
+
+    assert endringer.height == 1
+    assert endringer["old_value"][0] == "10"
+    assert endringer["new_value"][0] == "20"
+
+
 def test_parse_leser_begge_arkivformater():
     """Arkivet er verdiløst hvis en formatendring gjør gamle filer
     uleselige. Både flat enhetsliste (før 17.08.2026) og sider med

@@ -27,10 +27,38 @@ SCHEMA = [
 ]
 
 
+# Én kilde skal levere én verdi per entitet og felt per kjøring. Dette er
+# invarianten i observasjonsformatet, ikke en egenskap ved noen enkelt kilde,
+# og derfor håndheves den her — i trakta alt går gjennom — og ikke i hver
+# kilde for seg.
+#
+# `source` er med i nøkkelen med vilje: to KILDER som observerer samme felt
+# på samme entitet er kryssvalidering og skal beholdes. Det er samme kilde
+# to ganger som er feilen.
+NOKKEL = ["entity_id", "field", "source"]
+
+
 def to_frame(observations: list[Observation]) -> pl.DataFrame:
+    """Observasjoner til tabell, med duplikater fjernet.
+
+    Hvorfor dedupliseringen ligger her: en kilde som gjør flere søk kan få
+    samme entitet i retur fra to av dem. Enhetsregisteret søker på ni
+    NACE-koder, og 15 selskaper matchet to av dem 17.08.2026 — det ga 503
+    identiske ekstrarader. Mønsteret er ikke særegent for Brreg; enhver
+    kilde som filtrerer på en kodeliste kan treffe det.
+
+    Konsekvensen av å la dem stå er ikke bare støy i parquet: diff.compare()
+    joiner på (entity_id, field), så en duplisert rad blir til en duplisert
+    ENDRING den uka verdien faktisk endrer seg. Endringsloggen er produktet,
+    og den kan ikke rapportere samme hendelse to ganger.
+
+    `maintain_order=True` fordi rekkefølgen ellers varierer mellom kjøringer.
+    Det ville gitt en ny parquet-fil i git selv når ingenting er endret.
+    """
     if not observations:
         return pl.DataFrame(schema={col: pl.Utf8 for col in SCHEMA})
-    return pl.DataFrame([o.as_dict() for o in observations]).select(SCHEMA)
+    frame = pl.DataFrame([o.as_dict() for o in observations]).select(SCHEMA)
+    return frame.unique(subset=NOKKEL, keep="first", maintain_order=True)
 
 
 def _ledig_sti(target_dir: Path, observed_at: str) -> Path:
