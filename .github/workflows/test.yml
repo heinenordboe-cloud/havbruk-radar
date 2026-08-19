@@ -13,6 +13,17 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+
+    # `shell: bash` gir `bash --noprofile --norc -eo pipefail`. Uten det
+    # kjører GitHub `bash -e`, som mangler pipefail: i `a | b` er det bare
+    # exit-koden til b som teller, så en feilende a forsvinner stille.
+    # Ingen steg her bruker pipe i dag. Egenskapen skal likevel være på
+    # plass før noen skriver den første — den er umulig å oppdage i
+    # ettertid, fordi symptomet er en grønn jobb.
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v5
 
