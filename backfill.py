@@ -20,6 +20,23 @@ konstant eller forgiftet nivået. Se beslutningen fra 18.08.
 ikke teller rader ville løpt bakover i det uendelige og sett like
 vellykket ut hele veien. Derfor stopper den eksplisitt på første tomme
 uke og sier fra.
+
+## To ulike «feil», to ulike svar
+
+En TOM uke stopper kjøringen. Den betyr at året ikke finnes, og alt
+eldre vil også være tomt — å fortsette er å brenne API-kall på
+ingenting.
+
+En uke som FEILER gjør det ikke. Retryen i `sources/_http.py` har
+allerede brukt opp forsøkene sine, så feilen er enten permanent eller
+en tjeneste som var nede akkurat da. Å avbryte hele backfillen på uke
+300 av 730 fordi én uke feilet er å kaste 429 vellykkede kall — og
+kjøringen er gjenopptakbar, så det er ingenting å vinne på å stoppe.
+
+Prisen for å fortsette er at et hull kan bli usynlig. Det betales med
+feillista til slutt: hver uke som feilet skrives ut, og kjøringen
+avsluttes med feilkode. Uten den lista ville `continue` vært en stille
+feil av samme slag som resten av repoet er bygget for å hindre.
 """
 
 import argparse
@@ -122,6 +139,7 @@ def main() -> int:
     skrevet = 0
     hoppet = 0
     endringer_totalt = 0
+    feilede: list[tuple[str, int, int, str]] = []
 
     for aar, uke in uker:
         dato = mandag(aar, uke)
@@ -133,8 +151,21 @@ def main() -> int:
         try:
             rå = kilde.hent_uke(aar, uke)
         except Exception as e:
-            print(f"  {dato} (uke {uke}/{aar}): FEIL {type(e).__name__}: {e}")
-            return 1
+            # Videre, ikke stopp. Retryen i sources/_http.py har allerede
+            # brukt opp forsøkene sine på transiente feil, så det som
+            # kommer hit er enten permanent eller en uke som var nede
+            # akkurat nå. Å avbryte hele backfillen på uke 300 av 730
+            # fordi ÉN uke feilet er å kaste 429 vellykkede kall.
+            #
+            # Dette er bare forsvarlig sammen med feillista nedenfor.
+            # Uten den ville hoppet blitt stille, og et hull i
+            # historikken usynlig — nøyaktig feilmodusen resten av
+            # repoet er bygget for å hindre.
+            feil = f"{type(e).__name__}: {e}"
+            print(f"  {dato} (uke {uke}/{aar}): FEIL {feil}")
+            feilede.append((dato, uke, aar, feil))
+            time.sleep(args.pause)
+            continue
 
         # Arkivet FØR parse, som i runner.run_all(). Uten det er en
         # parse-feil oppdaget om et halvt år permanent datatap for alle
@@ -151,6 +182,10 @@ def main() -> int:
             print(f"  {dato} (uke {uke}/{aar}): TOM — ingen observasjoner.")
             print(f"\nStoppet: uke {uke}/{aar} ga null rader. Tidligste uke "
                   f"med data er 2012-01. Skrev {skrevet} uker før dette.")
+            if feilede:
+                print(f"{len(feilede)} uke(r) feilet også underveis:")
+                for d, u, a, f in feilede:
+                    print(f"  {d}  uke {u:>2}/{a}  {f}")
             return 1
 
         ramme = snapshot.to_frame(obs)
@@ -174,6 +209,15 @@ def main() -> int:
     print(f"\n{skrevet} uker skrevet, {hoppet} hoppet over (fantes "
           f"allerede), {endringer_totalt} endringer totalt.")
     print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+
+    if feilede:
+        print(f"\n{len(feilede)} uke(r) FEILET:")
+        for dato, uke, aar, feil in feilede:
+            print(f"  {dato}  uke {uke:>2}/{aar}  {feil}")
+        print("\nHullene er reelle. Kjør samme intervall på nytt — uker som "
+              "allerede er skrevet hoppes over, så bare disse hentes.")
+        return 1
+
     return 0
 
 
