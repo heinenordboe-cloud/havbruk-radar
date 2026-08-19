@@ -23,7 +23,12 @@ class Observation:
     field: str          # "antall_ansatte", "kapasitet_tonn", "kommune"
     value: str          # alt lagres som tekst; typing skjer i analysen
     source: str         # navnet på kilden som observerte
-    observed_at: str    # ISO-dato for kjøringen
+    # ISO-dato snapshotet GJELDER FOR — ikke datoen vi hentet det.
+    # `observed_at` handler om verden, `fetched_at` om oss. Ved ukentlig
+    # innsamling faller de sammen; ved backfill spriker de, og da er en
+    # backfillet rad kjennelig på at `fetched_at` ligger langt etter.
+    # Se docs/beslutninger/2026-08-18-observed-at-er-gyldighetsdato.md.
+    observed_at: str
 
     fetched_at: str = ""     # UTC-tidsstempel for hentingen
     source_version: str = ""  # source.version på hentetidspunktet
