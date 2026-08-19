@@ -16,6 +16,27 @@ commit:
 > [frekvensvakten måler innsamling, ikke
 > observasjon](2026-08-19-frekvensvakt-maler-innsamling.md).
 
+> **Note 19.08 — konklusjonen sto, men var ikke implementert der den
+> skulle virke.** Regelen ble bygget inn i `lusetall.parse()`, som
+> stempler radene med ukas mandag, og i `backfill.py`, som navngir
+> filene etter den. Innsamlingsløypa fikk den aldri: `run.py` sendte
+> kjøredatoen til `snapshot.write()`, `raw.arkiver()` og
+> `diff.compare()`. En ukekjøring mandag 24.08 ville derfor lagt uke 31
+> i `2026-08-24.parquet` med rader observert `2026-07-27` — mens
+> backfillen av den samme uka skriver `2026-07-27.parquet`. Samme uke,
+> to filnavn, en skjøt i serien der de to løypene møtes.
+>
+> Dette er tredje gang samme rotårsak slår ut: et tidspunkt som handler
+> om OSS brukt som om det handlet om VERDEN. F1 og F4 var de to første.
+> At posten sto uimplementert er selve funnet — en beslutning som bare
+> finnes på papir er ikke en beslutning, den er en intensjon.
+>
+> Rettet 19.08: `Source.gjelder_for()` oversetter kjøredato til
+> gyldighetsdato, kilden eier regelen, og `snapshot.write()` nekter nå å
+> skrive en fil hvis navnet ikke stemmer med radenes `observed_at`.
+> Invarianten «samme uke gir samme filnavn uansett hvilken vei den kom
+> inn» har test i `tests/test_gyldighetsdato.py`.
+
 **Bestemt:** `observed_at` betyr datoen snapshotet gjelder for.
 `fetched_at` betyr når API-et ble kalt. Erstatter punktet om merking i
 [backfill-beslutningen fra 17.08](2026-08-17-backfill-rekkefolge.md), som
@@ -67,6 +88,10 @@ krever ingen ny kolonne, og det kan ikke komme ut av synk med seg selv.
 3. Docstringen i `contract.py` sier i dag «ISO-dato for kjøringen». Den
    må si hva feltet nå betyr, ellers arver neste leser den gamle
    forståelsen.
+4. *(lagt til 19.08, se noten øverst)* `run.py` må utlede datoen fra
+   kildens egen etterslepsregel og ikke fra kjøredatoen. Lista over
+   manglet dette punktet, og det er grunnen til at posten kunne stå som
+   gjennomført mens innsamlingsløypa fortsatt daterte etter klokka.
 
 `diff.compare()` trenger ingen endring: `if old is None: continue` gjør
 det riktige når backfill prosesseres eldst først.

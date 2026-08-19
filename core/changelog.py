@@ -34,6 +34,27 @@ def skriv(endringer: pl.DataFrame, observed_at: str) -> Path | None:
     return sti
 
 
+def skriv_per_dato(endringer: pl.DataFrame) -> list[Path]:
+    """Én fil per OBSERVASJONSDATO, ikke én per kjøring.
+
+    Etter at kilder fikk hver sin gyldighetsdato, kan én kjøring
+    inneholde endringer med ulik `observed_at`: enhetsregisteret gjelder
+    i dag, lusetall gjelder uka for fire uker siden. Skrives de i én fil
+    navngitt etter kjøredatoen, arver changeloggen nøyaktig den feilen
+    snapshotene nettopp ble kvitt.
+
+    Fila navngis etter radenes egen dato, så navn og innhold ikke kan
+    spriker. Rekkefølgen er eldste først, som `les_alt()` forventer.
+    """
+    skrevet = []
+    grupper = sorted(endringer.group_by(["observed_at"]), key=lambda kv: kv[0])
+    for (dato,), gruppe in grupper:
+        sti = skriv(gruppe, str(dato))
+        if sti is not None:
+            skrevet.append(sti)
+    return skrevet
+
+
 def _filer() -> list[Path]:
     if not CHANGELOG_DIR.exists():
         return []

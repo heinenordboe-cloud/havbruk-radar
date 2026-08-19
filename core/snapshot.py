@@ -89,11 +89,32 @@ def _dato_og_versjon(stem: str) -> tuple[str, int]:
 
 def write(observations: list[Observation], observed_at: str) -> list[Path]:
     """Én parquet-fil per kilde per kjøring. Skriver aldri om — kolliderer
-    filnavnet med et som finnes, får den neste et løpenummer."""
+    filnavnet med et som finnes, får den neste et løpenummer.
+
+    `observed_at` må stemme med radenes egen `observed_at`, og det
+    kontrolleres her. Grunnen er en ekte feil: run.py sendte kjøredatoen
+    hit mens lusetall stemplet radene med uka de gjaldt for, så fila het
+    2026-08-24 og inneholdt uke 31. Et filnavn som lyver om innholdet er
+    verre enn ingen fil, fordi alt nedstrøms — diff, changelog,
+    prediksjoner — leser datoen fra navnet.
+
+    Kontrollen ligger her og ikke hos kalleren fordi dette er trakta alt
+    går gjennom: både run.py og backfill.py skriver herfra, og en
+    invariant som skal holde for begge hører hjemme i den ene veien de
+    deler.
+    """
     frame = to_frame(observations)
     written = []
 
     for (source,), group in frame.group_by(["source"]):
+        datoer = sorted(set(group["observed_at"].to_list()))
+        if datoer != [observed_at]:
+            raise ValueError(
+                f"{source}: filnavnet skulle vært {observed_at}, men radene "
+                f"er observert {datoer}. Ett snapshot er ett tidspunkt — "
+                f"skriv dem hver for seg, eller finn ut hvorfor de spriker."
+            )
+
         target_dir = RAW_DIR / str(source)
         target_dir.mkdir(parents=True, exist_ok=True)
         path = _ledig_sti(target_dir, observed_at)

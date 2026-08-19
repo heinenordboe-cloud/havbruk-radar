@@ -180,9 +180,32 @@ class Lusetall(Source):
             if egen:
                 c.close()
 
-    def fetch(self) -> dict:
+    def _uke_naa(self, i_dag: dt.date | None = None) -> tuple[int, int]:
+        """Uka kilden henter når vi kjører `i_dag`. Ett sted, ikke to.
+
+        Både fetch() og gjelder_for() må svare på det samme spørsmålet.
+        Regnes de ut hver for seg, kan de svare ulikt — og da får fila
+        navn etter én uke og innhold fra en annen.
+
+        UTC og ikke date.today(): run.py regner kjøredatoen i UTC. På en
+        maskin der lokal dato og UTC-dato er ulike, ville fetch() og
+        gjelder_for() landet på hver sin uke rundt midnatt.
+        """
         uker = int(get("kilder.lusetall.uker_etterslep", 4))
-        aar, uke = uke_med_etterslep(dt.date.today(), uker)
+        return uke_med_etterslep(
+            i_dag or dt.datetime.now(dt.timezone.utc).date(), uker)
+
+    def gjelder_for(self, kjoredato: str) -> str:
+        """Mandagen i uka vi henter — ikke dagen vi henter den.
+
+        Se Source.gjelder_for. Dette er den samme regelen backfillen
+        bruker når den navngir en fil, så en uke hentet ukentlig og den
+        samme uka hentet i backfill havner på nøyaktig samme filnavn.
+        """
+        return mandag(*self._uke_naa(dt.date.fromisoformat(kjoredato)))
+
+    def fetch(self) -> dict:
+        aar, uke = self._uke_naa()
         rå = self.hent_uke(aar, uke)
         self.advarsler = _vurder_rapportering(rå)
         return rå

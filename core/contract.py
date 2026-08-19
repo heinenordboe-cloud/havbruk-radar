@@ -88,3 +88,26 @@ class Source:
 
     def collect(self, observed_at: str) -> list[Observation]:
         return list(self.parse(self.fetch(), observed_at))
+
+    def gjelder_for(self, kjoredato: str) -> str:
+        """Hvilken dato snapshotet GJELDER for når vi henter `kjoredato`.
+
+        `observed_at` handler om verden, kjøredatoen om oss. For de fleste
+        kilder er de samme dag: spør du Brreg på mandag, får du mandagens
+        register. Standardsvaret er derfor kjøredatoen selv, og en kilde
+        uten etterslep skal ikke trenge å vite at denne metoden finnes.
+
+        En kilde med etterslep er ikke i den situasjonen. Lusetall henter
+        uke N-4 fordi ferskere uker er ufullstendige, og da GJELDER
+        snapshotet den uka — ikke dagen vi spurte. Uten dette skillet
+        daterer den ukentlige jobben hver fil fire uker for sent, mens
+        backfillen daterer den samme uka riktig, og serien får en skjøt
+        midt i seg der de to møtes.
+
+        Dette er den samme rotårsaken som frekvensvakten gikk på (F4):
+        et tidspunkt som handler om oss brukt som om det handlet om
+        verden. Beslutningen fra 18.08 slo fast at observed_at er
+        gyldighetsdato — dette er den regelen gjort tilgjengelig for
+        innsamlingsløypa, ikke bare for kildens egen parse().
+        """
+        return kjoredato

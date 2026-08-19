@@ -36,7 +36,7 @@ from core import (  # noqa: E402
 )
 
 
-def bygg_commitmelding(observed_at: str, resultater, endringer, scoret,
+def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
                        fasit=None) -> str:
     """Commit-meldingen er nyhetsbrevet ditt de neste fire månedene.
 
@@ -49,7 +49,7 @@ def bygg_commitmelding(observed_at: str, resultater, endringer, scoret,
     uklassifisert = scoret.height - traff.height
 
     linjer = [
-        f"Snapshot {observed_at} — {endringer.height} endringer, "
+        f"Snapshot {kjoredato} — {endringer.height} endringer, "
         f"{traff.height} scoret, {uklassifisert} uklassifiserte",
         "",
     ]
@@ -85,9 +85,13 @@ def bygg_commitmelding(observed_at: str, resultater, endringer, scoret,
                 f" — {rad['begrunnelse']}"
             )
 
+    # Gyldighetsdatoen står per kilde, ikke bare kjøredatoen i toppen.
+    # Uten den ser en lusetall-linje i uke 34 ut som om den handler om
+    # uke 34, og det gjør den ikke — den handler om uke 30.
     linjer.append("")
     for r in resultater:
-        linjer.append(f"{'ok  ' if r.ok else 'FEIL'} {r.source}: {r.count}")
+        gjelder = f" (gjelder {r.gjelder_for})" if r.gjelder_for != kjoredato else ""
+        linjer.append(f"{'ok  ' if r.ok else 'FEIL'} {r.source}: {r.count}{gjelder}")
 
     return "\n".join(linjer)
 
@@ -138,7 +142,11 @@ def main() -> int:
         print(melding)
         return 0 if ok else 1
 
-    observed_at = datetime.now(timezone.utc).date().isoformat()
+    # Dagen VI kjører. Ikke det samme som datoen dataene gjelder for —
+    # den spør vi hver kilde om under, med gjelder_for(). Alt som handler
+    # om oss (frekvensvakt, helsetilstand, prediksjonsvindu) måles mot
+    # denne; alt som handler om verden måles mot kildens egen dato.
+    kjoredato = datetime.now(timezone.utc).date().isoformat()
 
     # 1. Finn kilder
     kilder = registry.discover()
@@ -148,11 +156,11 @@ def main() -> int:
         print("Ingen aktive kilder funnet.")
         return 1
 
-    print(f"\nKjøring {observed_at}")
+    print(f"\nKjøring {kjoredato}")
 
     # 2. Hopp over kilder som ble hentet nylig nok
     if not args.torrkjor and not args.tving:
-        kilder, venter = runner.velg_forfalte(kilder, observed_at)
+        kilder, venter = runner.velg_forfalte(kilder, kjoredato)
         for kilde, dager in venter:
             nar = "i dag" if dager == 0 else f"for {dager} dag(er) siden"
             print(f"  [vent] {kilde.name:<20} hentet {nar}, "
@@ -167,9 +175,39 @@ def main() -> int:
             print("\n  Ingen kilder er forfalt. --tving overstyrer.")
             return 0
 
+    # 2b. Hopp over uker som allerede ligger skrevet.
+    #
+    # Frekvensvakten spør «er det lenge siden sist», denne spør «finnes
+    # denne uka allerede». For en kilde uten etterslep er de nesten det
+    # samme spørsmålet. For lusetall er de det ikke: kjører du to ganger
+    # i samme uke, peker begge kjøringene på SAMME gyldighetsdato, og
+    # uten denne vakten blir den andre en .2-fil ved siden av den første.
+    #
+    # Sjekken skjer før hentingen, som i backfill.py: en uke som er
+    # ferdig skal ikke koste et API-kall for å oppdages.
+    #
+    # --tving overstyrer. Det er hele poenget med flagget, og løpenummeret
+    # finnes nettopp for det tilfellet der du vet hva du gjør.
+    if not args.torrkjor and not args.tving:
+        ferdige = [k for k in kilder
+                   if k.name in snapshot.finnes_allerede(k.gjelder_for(kjoredato))]
+        for kilde in ferdige:
+            print(f"  [har]  {kilde.name:<20} {kilde.gjelder_for(kjoredato)} "
+                  f"ligger skrevet fra før")
+        kilder = [k for k in kilder if k not in ferdige]
+
+        if not kilder:
+            if args.planlagt:
+                print("\n::error::Planlagt kjøring samlet ingenting — alle kilder "
+                      "hadde allerede skrevet snapshotet sitt. Undersøk om "
+                      "jobben kjørte to ganger.")
+                return 1
+            print("\n  Alle kilder har allerede skrevet. --tving overstyrer.")
+            return 0
+
     # 3. Kjør dem, isoler feil
     observasjoner, resultater = runner.run_all(
-        kilder, observed_at, arkiver=not args.torrkjor
+        kilder, kjoredato, arkiver=not args.torrkjor
     )
     for r in resultater:
         print(f"  [{'ok  ' if r.ok else 'FEIL'}] {r.source:<20} {r.count:>6} observasjoner")
@@ -180,23 +218,47 @@ def main() -> int:
         print(f"\nTørrkjøring — {len(observasjoner)} observasjoner, ingenting skrevet.")
         return 0
 
-    # 4. Diff mot forrige snapshot (må skje FØR dagens skrives)
+    # 4 og 5. Diff og skriv, PER KILDE og på kildens egen dato.
+    #
+    # Én dato for hele kjøringen var feilen: lusetall henter uke N-4, så
+    # kjøredatoen ligger fire uker etter uka dataene gjelder for. Fila
+    # het da 2026-08-24 mens radene i den var observert 2026-07-27, og
+    # backfillen av den samme uka skrev 2026-07-27 — samme uke, to
+    # filnavn, en skjøt midt i serien.
+    #
+    # Diffen må fortsatt skje FØR skrivingen for hver kilde, ellers
+    # finner previous() kildens egen ferske fil og diffen blir tom.
     naa = snapshot.to_frame(observasjoner)
-    endringer = diff.compare(naa, observed_at)
+    endringsdeler = []
+    filer = []
 
-    # 5. Skriv dagens snapshot
-    filer = snapshot.write(observasjoner, observed_at)
+    for r in resultater:
+        if not r.ok:
+            continue
+        egne = [o for o in observasjoner if o.source == r.source]
+        if not egne:
+            continue
+        endringsdeler.append(diff.compare(snapshot.to_frame(egne), r.gjelder_for))
+        filer += snapshot.write(egne, r.gjelder_for)
+
+    endringer = diff.slaa_sammen(endringsdeler)
 
     # 6. Scor endringene
     scoret = signals.score(endringer)
 
-    # 7. Legg til i endringsloggen (egen fil per kjøring, aldri omskriving)
-    changelog.skriv(endringer, observed_at)
+    # 7. Legg til i endringsloggen (egen fil per dato, aldri omskriving)
+    changelog.skriv_per_dato(endringer)
 
     # 8. Oppdater helsetilstand
+    #
+    # KJØREDATOEN, ikke gyldighetsdatoen. health.json svarer på «når
+    # forsøkte vi sist», og det er et spørsmål om oss. Sendes kildens
+    # gyldighetsdato hit, tror frekvensvakten at lusetall sist kjørte for
+    # fire uker siden hver eneste uke — nøyaktig feilen F4 rettet.
+    #
     # `naa` sendes med: feltvakten teller rader per (kilde, felt) og ser
     # et felt forsvinne som volumvakten er for grovkornet til å merke.
-    tilstand, nede = health.oppdater(resultater, observed_at, naa)
+    tilstand, nede = health.oppdater(resultater, kjoredato, naa)
     health.skriv(tilstand)
 
     # 9. Avgjør prediksjoner hvis vinduet er ute
@@ -210,12 +272,17 @@ def main() -> int:
     # prediksjonene: mister du uka, kan den ikke hentes igjen, mens en
     # feilskrevet YAML kan rettes i morgen. Avviket går i tilsyn-lista og
     # gjør jobben rød i stedet.
+    #
+    # KJØREDATOEN: «er vinduet ute nå» er et spørsmål om kalenderen, ikke
+    # om hvilken uke en enkelt kilde gjelder for. Et anslag med frist
+    # 24.08 forfaller 24.08, uansett hvor stort etterslep kilden det
+    # måles mot har.
     formatfeil = predictions.valider()
-    fasit = predictions.evaluer(observed_at)
-    predictions.skriv(fasit, observed_at)
+    fasit = predictions.evaluer(kjoredato)
+    predictions.skriv(fasit, kjoredato)
 
     # 10. Skriv commit-melding
-    melding = bygg_commitmelding(observed_at, resultater, endringer, scoret, fasit)
+    melding = bygg_commitmelding(kjoredato, resultater, endringer, scoret, fasit)
     paths.COMMIT_MSG_PATH.parent.mkdir(parents=True, exist_ok=True)
     paths.COMMIT_MSG_PATH.write_text(melding, encoding="utf-8")
 

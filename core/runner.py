@@ -21,6 +21,11 @@ class Result:
     error: str = ""
     # Kilden leverte, men vil at noen skal se på noe. Se Source.advarsler.
     advarsler: list[str] = field(default_factory=list)
+    # Datoen kildens data GJELDER for — ikke datoen vi kjørte. Kalleren
+    # trenger den for å navngi snapshotet og datere diffen, og kan ikke
+    # regne den ut selv uten å kjenne kildens etterslepsregel.
+    # Se Source.gjelder_for.
+    gjelder_for: str = ""
 
 
 def stempl(observasjoner, source_version: str, raw_hash: str,
@@ -81,13 +86,32 @@ def velg_forfalte(
 
 def run_all(
     sources: list[Source],
-    observed_at: str,
+    kjoredato: str,
     arkiver: bool = True,
 ) -> tuple[list[Observation], list[Result]]:
+    """Henter hver kilde og isolerer feilene.
+
+    `kjoredato` er dagen VI kjører, ikke datoen dataene gjelder for. Hver
+    kilde oversetter selv den ene til den andre med `gjelder_for()`, og
+    det er den oversatte datoen som brukes til arkivnavn og til
+    `observed_at` på observasjonene. Kalleren får den tilbake i
+    `Result.gjelder_for` og skal bruke den — ikke kjøredatoen — når
+    snapshotet navngis.
+    """
     observations: list[Observation] = []
     results: list[Result] = []
 
     for source in sources:
+        # Kildens egen gyldighetsdato, ikke kjøredatoen. For kilder uten
+        # etterslep er de like, og da endrer dette ingenting. For lusetall
+        # er de aldri like. Se Source.gjelder_for.
+        #
+        # Utenfor try-blokken med vilje: en kilde som ikke klarer å svare
+        # på hvilken dato den gjelder for, skal ikke få lov til å bli
+        # rapportert med tom dato — da hadde feilen dukket opp igjen som
+        # et filnavn uten dato langt nedstrøms.
+        gjelder = source.gjelder_for(kjoredato)
+
         try:
             # collect() kollapset fetch() og parse() til ett kall. Kjernen
             # åpner dem og arkiverer imellom — uten det er hver feil i
@@ -95,21 +119,23 @@ def run_all(
             rawdata = source.fetch()
             raw_hash = ""
             if arkiver:
-                raw_hash = raw_arkiv.arkiver(source.name, observed_at, rawdata)
+                raw_hash = raw_arkiv.arkiver(source.name, gjelder, rawdata)
             batch = stempl(
-                source.parse(rawdata, observed_at),
+                source.parse(rawdata, gjelder),
                 source_version=source.version,
                 raw_hash=raw_hash,
             )
             observations.extend(batch)
             results.append(
                 Result(source.name, True, len(batch),
-                       advarsler=list(getattr(source, "advarsler", [])))
+                       advarsler=list(getattr(source, "advarsler", [])),
+                       gjelder_for=gjelder)
             )
         except Exception:
             results.append(
                 Result(source.name, False, 0, traceback.format_exc(limit=3),
-                       advarsler=list(getattr(source, "advarsler", [])))
+                       advarsler=list(getattr(source, "advarsler", [])),
+                       gjelder_for=gjelder)
             )
 
     return observations, results

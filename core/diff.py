@@ -82,3 +82,17 @@ def compare(current: pl.DataFrame, observed_at: str) -> pl.DataFrame:
         return pl.DataFrame(schema=CHANGE_SCHEMA)
 
     return pl.DataFrame(changes).select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
+
+
+def slaa_sammen(deler: list[pl.DataFrame]) -> pl.DataFrame:
+    """Endringer fra flere kilder til én ramme.
+
+    Trengs fordi kilder med ulikt etterslep ikke lenger deler dato: én
+    kjøring differ nå hver kilde mot sin egen gyldighetsdato, og delene
+    må settes sammen igjen før scoring og commit-melding. Tom liste gir
+    tom ramme med riktig skjema, så kalleren slipper å skille på det.
+    """
+    deler = [d for d in deler if not d.is_empty()]
+    if not deler:
+        return pl.DataFrame(schema=CHANGE_SCHEMA)
+    return pl.concat(deler, how="diagonal_relaxed")
