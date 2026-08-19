@@ -665,35 +665,43 @@ class DagligKilde(FalskKilde):
     min_dager_mellom = 1
 
 
+def _kjort(tmp_path, monkeypatch, **sist_forsok):
+    """Skriv en health.json der hver kilde sist ble FORSØKT på gitt dato.
+
+    Frekvensvakten leser innsamlingstidspunktet herfra, ikke datoen på
+    nyeste snapshotfil. Verdien None gir en post uten `sist_forsok` —
+    kilden finnes, men vi vet ikke når den sist kjørte.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    health.skriv({
+        kilde: ({"sist_forsok": dato} if dato else {"sist_ok": "2026-01-01"})
+        for kilde, dato in sist_forsok.items()
+    })
+    return health
+
+
 def test_forfalte_kilder_velges_hver_for_seg(tmp_path, monkeypatch):
     """Én kilde hentet i dag skal ikke blokkere de andre.
 
     Dette er scenarioet hver gang en ny kilde aktiveres midt i uka.
     """
-    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    _kjort(tmp_path, monkeypatch, falsk="2026-01-07", daglig="2026-01-07")
 
     ukentlig, daglig, ny = FalskKilde(), DagligKilde(), KnustKilde()
     ny.name = "helt_ny"
 
-    # Begge etablerte kilder hentet i går.
-    for kilde in (ukentlig, daglig):
-        snapshot.write(
-            [Observation("1", "selskap", "X", "f", "v", kilde.name, "2026-01-07")],
-            "2026-01-07",
-        )
-
     forfalt, venter = runner.velg_forfalte([ukentlig, daglig, ny], "2026-01-08")
 
     # Ukentlig må vente (1 dag < 7). Daglig er forfalt (1 >= 1).
-    # En kilde som aldri er hentet er alltid forfalt.
+    # En kilde health.json ikke kjenner er alltid forfalt.
     assert sorted(k.name for k in forfalt) == ["daglig", "helt_ny"]
     assert [(k.name, d) for k, d in venter] == [("falsk", 1)]
 
 
-def test_kilde_hentet_i_dag_er_ikke_forfalt(tmp_path, monkeypatch):
-    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
-
-    snapshot.write(list(FalskKilde().collect("2026-01-08")), "2026-01-08")
+def test_kilde_kjort_i_dag_er_ikke_forfalt(tmp_path, monkeypatch):
+    _kjort(tmp_path, monkeypatch, falsk="2026-01-08")
 
     forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-08")
     assert forfalt == []
@@ -701,23 +709,95 @@ def test_kilde_hentet_i_dag_er_ikke_forfalt(tmp_path, monkeypatch):
 
 
 def test_forfalt_igjen_etter_full_periode(tmp_path, monkeypatch):
-    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
-
-    snapshot.write(list(FalskKilde().collect("2026-01-01")), "2026-01-01")
+    _kjort(tmp_path, monkeypatch, falsk="2026-01-01")
 
     forfalt, _ = runner.velg_forfalte([FalskKilde()], "2026-01-08")   # nøyaktig 7
     assert [k.name for k in forfalt] == ["falsk"]
 
 
-def test_snapshot_datert_fram_i_tid_overskrives_ikke(tmp_path, monkeypatch):
+def test_kjoretidspunkt_fram_i_tid_gir_ikke_ny_kjoring(tmp_path, monkeypatch):
     """Klokkerot skal ikke føre til at noe skrives over."""
-    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
-
-    snapshot.write(list(FalskKilde().collect("2026-02-01")), "2026-02-01")
+    _kjort(tmp_path, monkeypatch, falsk="2026-02-01")
 
     forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-08")
     assert forfalt == []
     assert venter[0][1] < 0
+
+
+def test_ukjent_kilde_i_health_er_forfalt(tmp_path, monkeypatch):
+    """Fallback-regelen: vet vi ikke når kilden sist kjørte, kjører vi.
+
+    Ikke hypotetisk. `lusetall` sto i nøyaktig denne tilstanden i
+    produksjon da F4 ble fikset — health.json kjente bare akvakultur og
+    enhetsregisteret. Ble ukjent behandlet som fersk, ville kilden aldri
+    blitt hentet, og det er tapt historikk som ikke kan rettes i
+    etterkant. Å hente for ofte koster en ekstra fil med løpenummer.
+    """
+    _kjort(tmp_path, monkeypatch, daglig="2026-01-08")
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde(), DagligKilde()],
+                                           "2026-01-08")
+    assert [k.name for k in forfalt] == ["falsk"]      # står ikke i health.json
+    assert [k.name for k, _ in venter] == ["daglig"]
+
+
+def test_kilde_uten_sist_forsok_er_forfalt(tmp_path, monkeypatch):
+    """Samme regel når posten finnes, men mangler feltet.
+
+    Slik ser en health.json ut som er skrevet av en eldre versjon, eller
+    av en kilde som bare har `sist_ok`. Halvveis kjennskap er ikke
+    kjennskap.
+    """
+    health = _kjort(tmp_path, monkeypatch, falsk=None)
+
+    assert health.les()["falsk"] == {"sist_ok": "2026-01-01"}
+    assert health.dager_siden_kjoring("falsk", "2026-01-08") is None
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-08")
+    assert [k.name for k in forfalt] == ["falsk"]
+    assert venter == []
+
+
+def test_etterslep_gjor_ikke_kilden_permanent_forfalt(tmp_path, monkeypatch):
+    """F4: lusetall skriver uke N-4, så nyeste fil er ALLTID 28 dager
+    gammel — også når kilden kjører perfekt.
+
+    Målte vakten mot filnavnet, var kilden permanent forfalt, `kilder`
+    aldri tom, og `if not kilder:` i run.py kunne ikke fyre. Måler den
+    mot innsamlingstidspunktet, er den fersk.
+    """
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    _kjort(tmp_path, monkeypatch, falsk="2026-08-19")
+
+    # Snapshotet kilden skrev i dag er datert fire uker tilbake.
+    snapshot.write(
+        [Observation("10029", "lokalitet", "", "f", "v", "falsk", "2026-07-22")],
+        "2026-07-22",
+    )
+
+    # Observasjonsalderen er 28 dager — det er den gamle vaktens tall,
+    # og det er over enhver terskel.
+    assert snapshot.dager_siden_observasjon("falsk", "2026-08-19") == 28
+
+    # Innsamlingstidspunktet er i dag. Kilden er fersk.
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-08-19")
+    assert forfalt == []
+    assert [(k.name, d) for k, d in venter] == [("falsk", 0)]
+
+
+def test_alle_kilder_ferske_gir_tom_liste(tmp_path, monkeypatch):
+    """`if not kilder:` i run.py skal kunne fyre igjen.
+
+    Så lenge lusetall var permanent forfalt, kunne listen aldri bli tom,
+    og --planlagt-vakten fra 17.08 var død kode for den kilden.
+    """
+    _kjort(tmp_path, monkeypatch, falsk="2026-08-19", daglig="2026-08-19")
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde(), DagligKilde()],
+                                           "2026-08-19")
+    assert forfalt == []
+    assert not forfalt          # dette er uttrykket run.py tester på
+    assert sorted(k.name for k, _ in venter) == ["daglig", "falsk"]
 
 
 def test_health_beholder_kilder_som_ikke_kjorte(tmp_path, monkeypatch):
@@ -1104,16 +1184,16 @@ def test_nede_kilde_odelegger_ikke_referansen(tmp_path, monkeypatch):
     assert nede == ["falsk (volum 20% av referanse 1000: 200 observasjoner, uke 1)"]
 
 
-def test_dager_siden_leser_siste_snapshot(tmp_path, monkeypatch):
+def test_dager_siden_observasjon_leser_siste_snapshot(tmp_path, monkeypatch):
     monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
 
-    assert snapshot.dager_siden("falsk", "2026-01-08") is None
+    assert snapshot.dager_siden_observasjon("falsk", "2026-01-08") is None
 
     snapshot.write(list(FalskKilde().collect("2026-01-01")), "2026-01-01")
     snapshot.write(list(FalskKilde().collect("2026-01-05")), "2026-01-05")
 
     assert snapshot.siste_dato("falsk") == "2026-01-05"
-    assert snapshot.dager_siden("falsk", "2026-01-08") == 3
+    assert snapshot.dager_siden_observasjon("falsk", "2026-01-08") == 3
 
 
 def test_to_kjoringer_samme_dag_gir_to_filer(tmp_path, monkeypatch):
@@ -1139,7 +1219,7 @@ def test_to_kjoringer_samme_dag_gir_to_filer(tmp_path, monkeypatch):
 
 
 def test_siden_og_diff_plukker_nyeste_ved_kollisjon(tmp_path, monkeypatch):
-    """dager_siden() og diff.compare() må lese den siste versjonen for
+    """dager_siden_observasjon() og diff.compare() må lese den siste versjonen for
     dagen, ikke feiltolke løpenummeret som at kilden aldri er hentet."""
     monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
 
@@ -1150,10 +1230,10 @@ def test_siden_og_diff_plukker_nyeste_ved_kollisjon(tmp_path, monkeypatch):
         "2026-01-01",
     )
 
-    # siste_dato/dager_siden skal fortsatt lese datoen riktig, ikke
+    # siste_dato/dager_siden_observasjon skal fortsatt lese datoen riktig, ikke
     # snuble på løpenummeret og tro kilden aldri er hentet.
     assert snapshot.siste_dato("falsk") == "2026-01-01"
-    assert snapshot.dager_siden("falsk", "2026-01-08") == 7
+    assert snapshot.dager_siden_observasjon("falsk", "2026-01-08") == 7
 
     # diff mot uka etter skal sammenligne mot den SISTE versjonen (20),
     # ikke den første (12) som ellers ville gitt en falsk "endring".

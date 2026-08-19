@@ -9,7 +9,8 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
-- **2026-08-18** — [observed_at er datoen snapshotet gjelder for, ikke datoen vi hentet det](2026-08-18-observed-at-er-gyldighetsdato.md) — gjeldende
+- **2026-08-19** — [Frekvensvakten måler innsamlingstidspunkt, ikke observasjonsalder](2026-08-19-frekvensvakt-maler-innsamling.md) — utkast
+- **2026-08-18** — [observed_at er datoen snapshotet gjelder for, ikke datoen vi hentet det](2026-08-18-observed-at-er-gyldighetsdato.md) — delvis feil, se [2026-08-19-frekvensvakt-maler-innsamling.md](2026-08-19-frekvensvakt-maler-innsamling.md)
 - **2026-08-18** — [Kategorien «forsvinnende kilder» er tom, og hastverket den skapte gjelder ikke lenger](2026-08-18-kildeklassifisering-var-feil.md) — gjeldende
 - **2026-08-18** — [Prediksjonsloggen i drift, og hvorfor hele forløpet leses framfor endepunktene](2026-08-18-prediksjonslogg.md) — gjeldende
 - **2026-08-18** — [NAVs stillingsannonser vurdert og forkastet — lisens, slettingsplikt og persondata](2026-08-18-nav-stillingsannonser-forkastet.md) — gjeldende

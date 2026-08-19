@@ -1,11 +1,20 @@
 ---
 dato: 2026-08-18
 tittel: observed_at er datoen snapshotet gjelder for, ikke datoen vi hentet det
-status: gjeldende
+status: delvis feil
 commit: 
 ---
 
 # observed_at er gyldighetsdato
+
+> **Note 19.08 — én påstand i denne posten falt.** Skillet mellom
+> `observed_at` og `fetched_at` står, og var riktig. Det som er galt er
+> setningen under om at `dager_siden()` «gjør allerede det riktige»:
+> frekvensvakten målte mot filnavnsdatoen, altså mot `observed_at`, og
+> ble permanent utløst for enhver kilde med etterslep. Posten er derfor
+> **delvis feil**, ikke erstattet — resten gjelder uendret. Se
+> [frekvensvakten måler innsamling, ikke
+> observasjon](2026-08-19-frekvensvakt-maler-innsamling.md).
 
 **Bestemt:** `observed_at` betyr datoen snapshotet gjelder for.
 `fetched_at` betyr når API-et ble kalt. Erstatter punktet om merking i
@@ -35,6 +44,12 @@ Med gyldighetsdato skriver backfill av lusetall uke 9 i 2015 fila
 `data/raw/lusetall/2015-03-02.parquet`, og `previous()`, `les_mellom()`,
 `siste_dato()` og `dager_siden()` gjør allerede det riktige. Maskineriet
 arves gratis.
+
+> **Feil, 19.08.** De tre første gjør det riktige. `dager_siden()` gjorde
+> det ikke: den var frekvensvaktens eneste kilde, og målte mot
+> filnavnsdatoen — som denne posten nettopp omdefinerte til å bety
+> gyldighet og ikke henting. For lusetall med fire ukers etterslep leste
+> vakten permanent 28 dager. Se noten øverst.
 
 **Merkingen han ville ha finnes allerede.** En backfillet rad er en rad
 der `fetched_at` ligger langt etter `observed_at`. Det er utregnbart, det

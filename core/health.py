@@ -50,11 +50,22 @@ ikke når det er innenfor terskelen. Senket den seg, ville et fall på
 opprinnelig volum uten ett varsel. Eneste vei ned er godta_volum().
 """
 
+from __future__ import annotations
+
 import json
+from datetime import date
+from typing import TYPE_CHECKING
 
 from core import config
 from core.paths import HEALTH_PATH  # noqa: F401
-from core.runner import Result
+
+if TYPE_CHECKING:                       # pragma: no cover
+    # Kun for typene. Importeres den på ekte, blir det importsyklus:
+    # runner må lese health.json for å vite når en kilde sist ble kjørt
+    # (se dager_siden_kjoring), og health importerte runner for ett
+    # annoteringsnavn. `from __future__ import annotations` gjør
+    # annoteringene til strenger, så navnet trengs aldri ved kjøring.
+    from core.runner import Result
 
 # Aksepter opptil 10 % fall fra referansenivået før jobben felles.
 # Ikke utledet fra reell uke-til-uke-varians — vi har bare fem
@@ -232,6 +243,51 @@ def les() -> dict:
     if not HEALTH_PATH.exists():
         return {}
     return json.loads(HEALTH_PATH.read_text(encoding="utf-8"))
+
+
+def dager_siden_kjoring(kilde: str, i_dag: str,
+                        tilstand: dict | None = None) -> int | None:
+    """Dager siden kilden sist ble FORSØKT hentet. None = vet ikke.
+
+    Dette er spørsmålet frekvensvakten faktisk stiller. Den spurte før
+    snapshot.dager_siden_observasjon(), som svarer på noe annet: hvor
+    gammel den nyeste observasjonen er. For en kilde uten etterslep er
+    de like. For lusetall med uker_etterslep=4 er de det aldri — nyeste
+    fil er ALLTID datert fire uker tilbake, også når kilden kjører
+    perfekt, så vakten leste permanent 28 dager.
+
+    `sist_forsok` og ikke `fetched_at` fra proveniensen: health.json er
+    én liten fil som allerede leses hver kjøring, mens proveniensen
+    krever å åpne parquet-filer. Viktigere er at en kilde som FEILER
+    ikke skriver noen parquet i det hele tatt. Proveniensen kan derfor
+    ikke svare på «når forsøkte vi sist» — bare på «når lyktes vi
+    sist», og å utlede forsøket fra de vellykkede er samme sirkularitet
+    som F1: kilden som aldri har lykkes forsvinner ut av regnestykket.
+
+    None returneres når vi ikke VET når kilden sist kjørte:
+    kilden mangler i health.json, eller posten mangler `sist_forsok`.
+    Kalleren behandler None som forfalt. Fallback-oppførselen skal være
+    å kjøre: en kilde som aldri hentes fordi vi ikke vet når den sist
+    ble hentet er verre enn en som hentes for ofte. Det første er tapt
+    historikk og kan ikke rettes i etterkant; det andre er en ekstra
+    fil med løpenummer.
+
+    Dette er ikke en teoretisk gren. `lusetall` står i nøyaktig den
+    tilstanden i produksjon nå — health.json kjenner bare akvakultur og
+    enhetsregisteret.
+    """
+    post = (tilstand if tilstand is not None else les()).get(kilde)
+    if not post:
+        return None
+
+    sist = post.get("sist_forsok")
+    if not sist:
+        return None
+
+    try:
+        return (date.fromisoformat(i_dag) - date.fromisoformat(sist)).days
+    except ValueError:
+        return None   # ulesbar dato: vet ikke -> kjør
 
 
 def _felt_per_kilde(observasjoner) -> dict[str, dict[str, int]]:

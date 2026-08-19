@@ -132,12 +132,21 @@ def siste_dato(source: str) -> str | None:
     return _dato_og_versjon(filer[-1].stem)[0] if filer else None
 
 
-def dager_siden(source: str, observed_at: str) -> int | None:
-    """Dager siden kilden sist ble hentet. None = aldri hentet.
+def dager_siden_observasjon(source: str, observed_at: str) -> int | None:
+    """Alderen på den nyeste OBSERVASJONEN fra kilden. None = ingen finnes.
 
-    Negativt tall (snapshot datert fram i tid) returneres som det er, og
-    behandles av kalleren som "ikke forfalt" — det er tryggere enn å
-    overskrive noe som allerede finnes.
+    Het `dager_siden` og ble brukt som frekvensvakt. Det var feil, og
+    navnet var grunnen: den svarer på «hvor gammel er nyeste
+    observasjon», ikke på «når samlet vi sist inn». For kilder uten
+    etterslep er de to like, og forskjellen var usynlig. For lusetall
+    med uker_etterslep=4 er de aldri like — nyeste fil er ALLTID datert
+    fire uker tilbake, også når kilden kjører perfekt.
+
+    Frekvensvakten spør health.dager_siden_kjoring() i stedet. Denne
+    måler datafriskhet, som er et ekte spørsmål, bare ikke det
+    spørsmålet.
+
+    Negativt tall (snapshot datert fram i tid) returneres som det er.
     """
     sist = siste_dato(source)
     if sist is None:

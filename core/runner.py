@@ -8,9 +8,8 @@ import traceback
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
+from core import health
 from core import raw as raw_arkiv
-
-from core import snapshot
 from core.contract import Observation, Source
 
 
@@ -58,12 +57,20 @@ def velg_forfalte(
     Merk konsekvensen: kjører du manuelt på en søndag, er den ukentlige
     kilden ikke forfalt mandag, og ukas snapshot ligger på søndagen i
     stedet. Ingen data går tapt, og neste uke er den forfalt igjen.
+
+    Målingen går mot INNSAMLINGSTIDSPUNKTET i health.json, ikke mot
+    datoen på nyeste snapshotfil. De to er bare like for kilder uten
+    etterslep. Se health.dager_siden_kjoring.
+
+    `None` fra vakten betyr «vet ikke når kilden sist kjørte», og
+    behandles som forfalt. Fallback-oppførselen skal være å kjøre.
     """
+    tilstand = health.les()
     forfalt: list[Source] = []
     venter: list[tuple[Source, int]] = []
 
     for source in sources:
-        dager = snapshot.dager_siden(source.name, observed_at)
+        dager = health.dager_siden_kjoring(source.name, observed_at, tilstand)
         if dager is None or dager >= source.min_dager_mellom:
             forfalt.append(source)
         else:
