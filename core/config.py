@@ -23,8 +23,8 @@ def _expander(node: Any) -> Any:
     """Bytter ut ${NAVN} med miljøvariabel.
 
     Nøkler hører aldri hjemme i config.yml. De legges i GitHub Secrets
-    og refereres som ${BARENTSWATCH_KEY}. Da kan repoet være offentlig
-    uten at noe lekker.
+    og refereres som ${BARENTSWATCH_CLIENT_SECRET}. Da ligger verdien
+    aldri i en fil.
 
     Mangler variabelen, settes en markør i stedet for tom streng. get()
     kaster da når verdien FAKTISK brukes — ikke ved innlasting. Det er
@@ -54,8 +54,8 @@ def get(sti: str, standard: Any = None) -> Any:
     """Hent nøstet verdi med punktnotasjon: get("kilder.akvakultur.aktiv")
 
     Kaster hvis verdien refererer en miljøvariabel som ikke er satt. Da
-    får du "BARENTSWATCH_KEY er ikke satt" i stedet for en kryptisk 401
-    fra et API en time senere.
+    får du "BARENTSWATCH_CLIENT_SECRET er ikke satt" i stedet for en
+    kryptisk 400 fra et API en time senere.
     """
     node: Any = load()
     for del_ in sti.split("."):

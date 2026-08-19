@@ -33,6 +33,28 @@ kilder:
     # — ikke å dempe varselet.
     tillat_tomt: []
 
+  lusetall:
+    # BarentsWatch fiskehelse. Verifisert mot levende tjeneste 18.08.2026,
+    # se docs/BARENTSWATCH-FUNN.md.
+    #
+    # OAuth2 client credentials — to verdier, ikke én nøkkel. Verdiene
+    # ligger i miljøet (GitHub Secrets i drift, ~/.havbruk.env lokalt) og
+    # aldri i denne fila.
+    aktiv: true
+    base_url: "https://www.barentswatch.no/bwapi"
+    token_url: "https://id.barentswatch.no/connect/token"
+    client_id: "${BARENTSWATCH_CLIENT_ID}"
+    client_secret: "${BARENTSWATCH_CLIENT_SECRET}"
+
+    # Uker tilbake i tid. Inneværende uke har 5 % rapportert, uke N-3 har
+    # 99,0 % og N-4 har 99,3 %. En ufullstendig uke er permanent, og
+    # lusetall haster ikke — derfor fire.
+    uker_etterslep: 4
+
+    # Under denne andelen rapporterte aktive lokaliteter nekter kilden å
+    # skrive uka, og sier fra i stedet.
+    min_rapportert_andel: 0.80
+
   akvakultur:
     # Endepunkt og paginering er verifisert mot levende API 17.08.2026.
     # Feltvalget ligger i sources/akvakulturregisteret.py, ikke her —
