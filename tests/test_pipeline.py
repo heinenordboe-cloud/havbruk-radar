@@ -265,8 +265,9 @@ def test_reglene_i_repoet_er_gyldige():
     """Fanger skrivefeil i signals.yml før de blir stille manglende signaler."""
     kjente = {
         "navn", "felt", "endringstype", "min_endring_prosent", "retning",
-        "vekt", "kilde", "entity_type",
+        "vekt", "kilde", "entity_type", "fra", "til",
     }
+    assert signals.valider_regler() == [], "formatfeil i signals.yml"
     for regel in signals.load_rules():
         assert "navn" in regel, regel
         assert regel.get("endringstype") in (None, "ny", "endret", "borte"), regel
@@ -274,6 +275,64 @@ def test_reglene_i_repoet_er_gyldige():
         # En ukjent nøkkel ignoreres stille av _matches() og gir en regel
         # som ser strengere ut enn den er.
         assert set(regel) <= kjente, f"ukjent nøkkel i {regel['navn']}: {set(regel)-kjente}"
+
+
+def test_boolsk_overgang_scorer_ulikt_hver_vei():
+    """Å gå konkurs og å komme ut av konkurs er ikke samme hendelse.
+    Før scoret begge identisk på vekt 9."""
+    inn = _signalrad("konkurs", "False", "True")
+    ut = _signalrad("konkurs", "True", "False")
+
+    scoret = signals.score(pl.DataFrame([inn, ut]))
+    per_ny = dict(zip(scoret["new_value"].to_list(),
+                      zip(scoret["signal"].to_list(), scoret["vekt"].to_list())))
+
+    assert per_ny["True"] == ("Konkurs åpnet", 9)
+    assert per_ny["False"] == ("Ut av konkurs", 5)
+
+
+def test_boolsk_regel_matcher_uten_aa_kaste():
+    """float("False") kaster. Tekstgrammatikken skal ikke være i nærheten
+    av tallveien i det hele tatt."""
+    scoret = signals.score(pl.DataFrame([
+        _signalrad("under_tvangsavvikling", "False", "True"),
+        _signalrad("er_i_konsern", "False", "True"),
+        _signalrad("ansatte_er_registrert", "True", "False"),
+    ]))
+    assert signals.treff(scoret).height == 3
+
+
+def test_blandet_grammatikk_er_formatfeil():
+    """Tall- og tekstgrammatikk på samme regel gjør noe annet enn den ser
+    ut til å gjøre. Det skal si fra, ikke tie."""
+    problemer = signals.valider_regler([
+        {"navn": "Blandet", "felt": "konkurs", "til": "True", "retning": "ned"},
+    ])
+    assert len(problemer) == 1 and "Blandet" in problemer[0]
+    assert signals.valider_regler([{"navn": "Rein", "felt": "konkurs",
+                                    "til": "True"}]) == []
+
+
+def test_ugyldig_regel_utelates_men_stopper_ikke_scoringen(capsys):
+    """Én feilskrevet regel skal ikke koste ukas changelog."""
+    import core.signals as s
+    ekte = s.load_rules
+    s.load_rules = lambda: [
+        {"navn": "Blandet", "felt": "konkurs", "til": "True", "retning": "ned", "vekt": 9},
+        {"navn": "Frisk", "felt": "antall_ansatte", "endringstype": "endret",
+         "min_endring_prosent": 20, "retning": "opp", "vekt": 5},
+    ]
+    try:
+        scoret = s.score(pl.DataFrame([
+            _signalrad("konkurs", "False", "True"),
+            _signalrad("antall_ansatte", "10", "20"),
+        ]))
+    finally:
+        s.load_rules = ekte
+
+    assert "::error::" in capsys.readouterr().out
+    assert scoret.height == 2                       # ingen rader tapt
+    assert s.treff(scoret).height == 1              # kun den friske regelen traff
 
 
 def test_nytt_selskap_far_ikke_lokalitetsetiketten():

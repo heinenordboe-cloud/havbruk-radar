@@ -18,6 +18,28 @@ def load_rules() -> list[dict]:
     return yaml.safe_load(RULES_PATH.read_text(encoding="utf-8")).get("regler", [])
 
 
+def valider_regler(rules: list[dict] | None = None) -> list[str]:
+    """Formatfeil i reglene. Tom liste = alt i orden.
+
+    Tallgrammatikk (`retning`, `min_endring_prosent`, `fra_null`) og
+    tekstgrammatikk (`fra`, `til`) kan ikke stå på samme regel. De to
+    leser samme to verdier på uforenlige måter, og en regel som blander
+    dem gjør noe annet enn den ser ut til å gjøre. Det skal si fra, ikke
+    tie.
+    """
+    problemer = []
+    for regel in rules if rules is not None else load_rules():
+        navn = regel.get("navn", "(uten navn)")
+        tall = {"retning", "min_endring_prosent", "fra_null"} & set(regel)
+        tekst = {"fra", "til"} & set(regel)
+        if tall and tekst:
+            problemer.append(
+                f"{navn}: blander tallgrammatikk ({', '.join(sorted(tall))}) "
+                f"med tekstgrammatikk ({', '.join(sorted(tekst))})"
+            )
+    return problemer
+
+
 def _matches(rule: dict, row: dict) -> bool:
     if rule.get("felt") and rule["felt"] != row["field"]:
         return False
@@ -33,6 +55,17 @@ def _matches(rule: dict, row: dict) -> bool:
     if rule.get("kilde") and rule["kilde"] != row.get("source"):
         return False
     if rule.get("entity_type") and rule["entity_type"] != row.get("entity_type"):
+        return False
+
+    # Tekstlig overgang: `fra`/`til` sammenligner verdiene som de er.
+    #
+    # Boolske felter kunne ikke ha retning før dette. `konkurs` uten
+    # retning scoret inngang og utgang av konkurs identisk på vekt 9, og
+    # forsøkte man å rette det med retning: "ned", traff float("False")
+    # en ValueError og regelen sluttet å matche i det hele tatt. Stille.
+    if "fra" in rule and str(rule["fra"]) != str(row["old_value"]):
+        return False
+    if "til" in rule and str(rule["til"]) != str(row["new_value"]):
         return False
 
     terskel = rule.get("min_endring_prosent")
@@ -78,6 +111,18 @@ def score(changes: pl.DataFrame) -> pl.DataFrame:
     ha treffene, filtrer på `signal.is_not_null()`.
     """
     rules = load_rules()
+
+    # En regel som blander tall- og tekstgrammatikk gjør noe annet enn den
+    # ser ut til å gjøre. Den utelates og annonseres, i stedet for å kaste:
+    # kjøringen har allerede skrevet snapshotet, og changeloggen skal ikke
+    # gå tapt fordi én regel er feilskrevet.
+    feil = valider_regler(rules)
+    for f in feil:
+        print(f"::error::Formatfeil i signals.yml — {f}")
+    if feil:
+        ugyldige = {f.split(":", 1)[0] for f in feil}
+        rules = [r for r in rules if r.get("navn") not in ugyldige]
+
     rader = []
 
     for row in changes.iter_rows(named=True):

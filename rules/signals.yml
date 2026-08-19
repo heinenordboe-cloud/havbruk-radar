@@ -56,10 +56,21 @@ regler:
     min_endring_prosent: 5
     vekt: 7
 
-  - navn: "Konkurs eller avvikling"
+  # Boolske felter: `fra`/`til` sammenligner tekst. Uten dem scoret
+  # inngang og utgang av konkurs identisk på vekt 9. Retning kan ikke
+  # brukes her — float("False") kaster, og regelen ville sluttet å matche
+  # helt stille.
+  - navn: "Konkurs åpnet"
     felt: "konkurs"
     endringstype: "endret"
+    til: "True"
     vekt: 9
+
+  - navn: "Ut av konkurs"
+    felt: "konkurs"
+    endringstype: "endret"
+    til: "False"
+    vekt: 5
 
   - navn: "Nytt selskap i bransjen"
     felt: "navn"
@@ -82,10 +93,17 @@ regler:
     retning: "opp"
     vekt: 5
 
-  - navn: "Tvangsavvikling"
+  - navn: "Tvangsavvikling åpnet"
     felt: "under_tvangsavvikling"
     endringstype: "endret"
+    til: "True"
     vekt: 10
+
+  - navn: "Tvangsavvikling avsluttet"
+    felt: "under_tvangsavvikling"
+    endringstype: "endret"
+    til: "False"
+    vekt: 5
 
   - navn: "Aksjekapital økt"
     felt: "aksjekapital"
@@ -101,15 +119,29 @@ regler:
     min_endring_prosent: 1
     vekt: 8
 
-  - navn: "Inn i eller ut av konsern"
+  - navn: "Inn i konsern"
     felt: "er_i_konsern"
     endringstype: "endret"
+    til: "True"
+    vekt: 8
+
+  - navn: "Ut av konsern"
+    felt: "er_i_konsern"
+    endringstype: "endret"
+    til: "False"
     vekt: 8
 
   - navn: "Sluttet å rapportere ansatte"
     felt: "ansatte_er_registrert"
     endringstype: "endret"
+    til: "False"
     vekt: 4
+
+  - navn: "Begynte å rapportere ansatte"
+    felt: "ansatte_er_registrert"
+    endringstype: "endret"
+    til: "True"
+    vekt: 3
 
   - navn: "Endret vedtektsfestet formål"
     felt: "vedtektsfestet_formaal_hash"
