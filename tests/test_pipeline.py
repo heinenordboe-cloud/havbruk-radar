@@ -156,7 +156,7 @@ def test_regresjon_oppdages(tmp_path, monkeypatch):
     feilet = [runner.Result("falsk", False, 0, "RuntimeError: nede")]
     _, nede = health.oppdater(feilet, "2026-01-08")
 
-    assert nede == ["falsk (uke 1)"]
+    assert nede == ["falsk (nede, uke 1)"]
 
 
 def test_knekt_kildefil_stopper_ikke_de_andre(tmp_path, monkeypatch):
@@ -228,12 +228,51 @@ def test_nede_kilde_varsler_hver_uke(tmp_path, monkeypatch):
         assert nede, f"ingen alarm {uke} — dette er den stille datatapsfeilen"
 
 
-def test_kilde_som_aldri_har_fungert_varsler_ikke(tmp_path, monkeypatch):
+def test_kilde_som_aldri_har_fungert_varsler_ogsaa(tmp_path, monkeypatch):
+    """Erstatter test_kilde_som_aldri_har_fungert_varsler_ikke.
+
+    Den gamle testen festet antakelsen om at en ny kilde er en du sitter
+    og ser på mens den skrives. Legges kilden til av en agent og cron
+    fyrer fem dager senere, feiler den i det uendelige med exit 0 — og
+    ingen får vite det. Det er nøyaktig den stille datatapsfeilen hele
+    health.py finnes for å hindre, bare for en kilde som aldri kom i
+    drift i stedet for en som falt ut.
+    """
     from core import health
 
     monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
-    _, nede = health.oppdater([runner.Result("ny_kilde", False, 0, "ikke ferdig")], "2026-01-01")
-    assert nede == []
+
+    feilet = [runner.Result("ny_kilde", False, 0, "RuntimeError: ikke ferdig")]
+    for uke in ("2026-01-01", "2026-01-08", "2026-01-15"):
+        tilstand, nede = health.oppdater(feilet, uke)
+        health.skriv(tilstand)
+        assert nede, f"ingen alarm {uke} — kilden kan feile i det uendelige"
+
+    # Meldingen skiller de to tilfellene: dette er ikke en kilde som falt
+    # ut, det er en som aldri kom i drift. Samme exit-kode, ulik oppgave.
+    assert "har ALDRI levert" in nede[0]
+    assert "nede," not in nede[0]
+    assert "RuntimeError: ikke ferdig" in nede[0]
+
+
+def test_nede_og_aldri_levert_skilles_i_meldingen(tmp_path, monkeypatch):
+    """Begge gir exit 1, men de betyr ikke det samme for den som leser."""
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    # "fungert" har lykkes én gang; "aldri" har aldri.
+    health.skriv(health.oppdater([runner.Result("fungert", True, 5)],
+                                 "2026-01-01")[0])
+
+    _, nede = health.oppdater(
+        [runner.Result("fungert", False, 0, "nede"),
+         runner.Result("aldri", False, 0, "nede")],
+        "2026-01-08",
+    )
+
+    assert nede[0].startswith("fungert (nede, uke 1)")
+    assert nede[1].startswith("aldri (har ALDRI levert")
 
 
 def test_retning_skiller_okning_fra_kutt():
@@ -702,7 +741,7 @@ def test_health_beholder_kilder_som_ikke_kjorte(tmp_path, monkeypatch):
 
     # Og når "falsk" senere feiler, skal alarmen fortsatt gå.
     _, nede = health.oppdater([runner.Result("falsk", False, 0, "nede")], "2026-01-08")
-    assert nede == ["falsk (uke 1)"]
+    assert nede == ["falsk (nede, uke 1)"]
 
 
 def _helse(tmp_path, monkeypatch):

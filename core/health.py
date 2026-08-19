@@ -4,9 +4,16 @@ Det farligste feilmodus i dette systemet er ikke at noe krasjer.
 Det er at én kilde slutter å levere, feilen isoleres pent, jobben
 går grønt, og du oppdager i februar at du mangler ni uker med data.
 
-Derfor: vi husker forrige kjøring, og så lenge en kilde som HAR
-fungert er nede, avsluttes jobben med feilkode. Hver uke, ikke bare
-den første. Da sender GitHub deg e-post helt til det er fikset.
+Derfor: vi husker forrige kjøring, og så lenge en aktiv kilde feiler,
+avsluttes jobben med feilkode. Hver uke, ikke bare den første. Da
+sender GitHub deg e-post helt til det er fikset.
+
+Det gjelder også en kilde som aldri har lykkes. Regelen het tidligere
+"har fungert før, feiler nå", med den begrunnelsen at en nyskrevet
+kilde er en du sitter og ser på. Den antakelsen falt i det øyeblikket
+kilder kunne legges til uten at noen satt ved tastaturet når cron
+fyrte: en kilde som aldri kom i drift feilet da i det uendelige med
+exit 0. Meldingen skiller mellom de to, konsekvensen gjør ikke.
 
 Alternativet — å varsle kun ved overgangen fungerte->feiler — gir
 nøyaktig feilmodusen beskrevet over, bare forskjøvet én uke: mister
@@ -248,11 +255,15 @@ def oppdater(
 ) -> tuple[dict, list[str]]:
     """Returnerer ny helsetilstand og liste over kilder som trenger tilsyn.
 
-    To uavhengige grunner havner i samme liste, med samme konsekvens
+    Tre uavhengige grunner havner i samme liste, med samme konsekvens
     (rød jobb): kilden er "nede" (har fungert minst én gang før, feiler
-    nå), eller kilden leverte men med et volumfall over terskelen. En
-    kilde som aldri har levert (nyskrevet, ikke ferdig) varsler ikke for
-    noen av delene — den ser du på skjermen mens du jobber med den.
+    nå), kilden har ALDRI fungert, eller kilden leverte men med et
+    volumfall over terskelen.
+
+    De to første skilles i teksten, ikke i konsekvensen. "Nede" betyr at
+    noe som virket har sluttet å virke; "har aldri levert" betyr at
+    kilden aldri har vært i drift. Det er to helt ulike oppgaver for den
+    som leser meldingen, og de skal ikke se like ut.
 
     `historisk=True` for backfill: tilstanden røres ikke i det hele tatt.
     Volum- og feltreferansen er høyvannsmerker mot FORRIGE KJØRING, og
@@ -317,9 +328,24 @@ def oppdater(
             if gammel.get("felt_sist"):
                 ny[r.source]["felt_sist"] = gammel["felt_sist"]
 
-        # Har fungert før, er nede nå -> dette skal vekke deg. Hver uke.
-        if not r.ok and gammel.get("sist_ok"):
-            nede.append(f"{r.source} (uke {strekk})")
+        # En aktiv kilde som feiler skal ALLTID rapporteres. De to
+        # tilfellene betyr ikke det samme for den som leser meldingen, og
+        # skilles derfor i teksten — men begge feller jobben.
+        #
+        # Den gamle regelen krevde `sist_ok`, altså at kilden hadde
+        # lykkes minst én gang før. Antakelsen var at en ny kilde er en du
+        # sitter og ser på mens du skriver den. Den holder ikke: legges
+        # kilden til av en agent og cron fyrer fem dager senere, feiler
+        # den i det uendelige med exit 0, og ingen får vite det.
+        if not r.ok:
+            if gammel.get("sist_ok"):
+                nede.append(f"{r.source} (nede, uke {strekk})")
+            else:
+                nede.append(
+                    f"{r.source} (har ALDRI levert — feilet {strekk} "
+                    f"kjøring(er) på rad, sist: "
+                    f"{ny[r.source]['siste_feil'] or 'ukjent feil'})"
+                )
 
         # Leverte, men mistenkelig lite av det -> samme alarm, annen årsak.
         # Fyrer hver uke så lenge nivået er brutt, ikke bare uka det skjedde.
