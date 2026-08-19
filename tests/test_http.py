@@ -56,8 +56,8 @@ def test_backoff_er_eksponentiell():
 
     _http.utfor(lambda: klient.get("u"), "test", sov=sov)
 
-    # To pauser på tre forsøk. Tredje trinn (16 s) brukes først hvis
-    # FORSOK heves.
+    # Lykkes på tredje forsøk, så bare de to første pausene brukes.
+    # Hele serien (16 s inkludert) står i test_alle_tre_pausene_brukes.
     assert logg == [1.0, 4.0]
 
 
@@ -95,19 +95,19 @@ def test_429_retryes():
 @pytest.mark.parametrize("status", [400, 401, 403, 404, 422])
 def test_permanent_4xx_retryes_ikke(status):
     """Retry på en 404 er tre bortkastede kall og en utsatt feilmelding."""
-    klient = FalskKlient(_svar(status), _svar(200), _svar(200))
+    klient = FalskKlient(*[_svar(status)] + [_svar(200)] * _http.FORSOK)
     logg, sov = _sovelogg()
 
     with pytest.raises(httpx.HTTPStatusError):
         _http.utfor(lambda: klient.get("u"), "test", sov=sov)
 
-    assert klient.kall == 1, "permanent feil skal koste ett kall, ikke tre"
+    assert klient.kall == 1, "permanent feil skal koste ett kall, ikke fire"
     assert logg == [], "ingen pause på en feil som ikke blir bedre"
 
 
 def test_oppbrukt_retry_kaster_den_ekte_feilen():
     """Kalleren skal se motpartens feil, ikke en innpakning."""
-    klient = FalskKlient(_svar(503), _svar(503), _svar(503))
+    klient = FalskKlient(*[_svar(503)] * _http.FORSOK)
     logg, sov = _sovelogg()
 
     with pytest.raises(httpx.HTTPStatusError) as e:
@@ -138,7 +138,7 @@ def test_hvert_forsok_logges_med_utlosende_feil(capsys):
     assert "uke 30/2026" in ut
     assert "HTTP 503" in ut
     assert "ConnectError" in ut
-    assert "forsøk 1/3" in ut and "forsøk 2/3" in ut
+    assert f"forsøk 1/{_http.FORSOK}" in ut and f"forsøk 2/{_http.FORSOK}" in ut
 
 
 def test_oppgitt_logges(capsys):
@@ -148,7 +148,7 @@ def test_oppgitt_logges(capsys):
     with pytest.raises(httpx.HTTPStatusError):
         _http.utfor(lambda: klient.get("u"), "sites 0-99", sov=sov)
 
-    assert "ga opp etter 3 forsøk" in capsys.readouterr().out
+    assert f"ga opp etter {_http.FORSOK} forsøk" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------- kildene
@@ -156,7 +156,7 @@ def test_oppgitt_logges(capsys):
 
 def test_lusetall_tokenfeil_400_beholder_den_gode_meldingen(monkeypatch):
     """400 invalid_client skal fortsatt si hva som er galt, og ikke
-    retryes — den blir ikke bedre av å spørre tre ganger."""
+    retryes — den blir ikke bedre av å spørre fire ganger."""
     from sources import lusetall
 
     monkeypatch.setenv("BARENTSWATCH_CLIENT_ID", "id")

@@ -13,8 +13,8 @@ igjen senere»: motparten er nede, overbelastet eller uinteressert i
 akkurat nå.
 
 IKKE på 4xx utenom 429. En 404 er ikke midlertidig, og en 401 blir ikke
-bedre av å spørre tre ganger. Retry der er tre bortkastede kall og
-tjuefem sekunder ekstra på en feil som uansett skal opp — verre, det
+bedre av å spørre fire ganger. Retry der er tre bortkastede kall og
+tjueen sekunder ekstra på en feil som uansett skal opp — verre, det
 utsetter feilmeldingen som forteller deg hva som faktisk er galt.
 
 ## Hvorfor ikke bare la kilden feile
@@ -35,12 +35,13 @@ from typing import Any, Callable
 
 import httpx
 
-# Antall forsøk TOTALT, ikke antall omforsøk. Tre kall, to pauser.
-FORSOK = 3
+# Antall forsøk TOTALT, ikke antall omforsøk. Fire kall, tre pauser.
+FORSOK = 4
 
-# Eksponentiell backoff: pause før forsøk 2, 3, 4 ... Med FORSOK = 3
-# brukes de to første. Den tredje står her fordi den er neste trinn i
-# serien — heves FORSOK, trengs ingen annen endring.
+# Eksponentiell backoff: pause før forsøk 2, 3 og 4. Verste fall er
+# 1 + 4 + 16 = 21 sekunder brukt på én uke som ikke vil svare. Det er
+# ingenting mot en uke tapt historikk, og de aller fleste kall retryer
+# aldri — forventet totalkostnad over en backfill er marginal.
 PAUSER = (1.0, 4.0, 16.0)
 
 # Motparten sier «senere», ikke «nei».
