@@ -154,7 +154,26 @@ def test_oppgitt_logges(capsys):
 # ---------------------------------------------------------------- kildene
 
 
-def test_lusetall_tokenfeil_400_beholder_den_gode_meldingen(monkeypatch):
+@pytest.fixture
+def fersk_config():
+    """Tøm config-cachen rundt en test som setter miljøvariabler.
+
+    `config.load()` er lru_cache-et og ekspanderer `${VAR}` ved
+    INNLASTING, ikke ved oppslag. Har en tidligere test lastet configen
+    uten variablene satt, er den frosne verdien en manglende-markør, og
+    en `monkeypatch.setenv()` her kommer for sent. Testen ble dermed
+    avhengig av hvilken fil pytest kjørte først.
+
+    Tømmes også etterpå, så neste test ikke arver configen vi lagde.
+    """
+    from core import config
+
+    config.load.cache_clear()
+    yield config
+    config.load.cache_clear()
+
+
+def test_lusetall_tokenfeil_400_beholder_den_gode_meldingen(monkeypatch, fersk_config):
     """400 invalid_client skal fortsatt si hva som er galt, og ikke
     retryes — den blir ikke bedre av å spørre fire ganger."""
     from sources import lusetall
