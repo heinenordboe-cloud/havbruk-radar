@@ -9,6 +9,10 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-08-18** — [Kategorien «forsvinnende kilder» er tom, og hastverket den skapte gjelder ikke lenger](2026-08-18-kildeklassifisering-var-feil.md) — gjeldende
+- **2026-08-18** — [Prediksjonsloggen i drift, og hvorfor hele forløpet leses framfor endepunktene](2026-08-18-prediksjonslogg.md) — gjeldende
+- **2026-08-18** — [NAVs stillingsannonser vurdert og forkastet — lisens, slettingsplikt og persondata](2026-08-18-nav-stillingsannonser-forkastet.md) — gjeldende
+- **2026-08-18** — [Begge repo er private](2026-08-18-repoene-er-private.md) — gjeldende
 - **2026-08-17** — [Feltnivåvakt — volumvakten er for grovkornet til å se ett felt forsvinne](2026-08-17-feltnivaavakt.md) — gjeldende
 - **2026-08-17** — [Volumreferansen er et høyvannsmerke](2026-08-17-volumreferanse-er-hoyvannsmerke.md) — gjeldende
 - **2026-08-17** — [Én verdi per (entity_id, field, source) per kjøring](2026-08-17-en-verdi-per-nokkel.md) — gjeldende
@@ -26,7 +30,7 @@ Nyeste øverst.
 - **2026-08-16** — [Feil isoleres ved import, ikke bare ved kjøring](2026-08-16-feilisolering-ved-import.md) — gjeldende
 - **2026-08-16** — [Alarmen holder seg rød så lenge en kilde er nede](2026-08-16-vedvarende-nedetidsalarm.md) — gjeldende
 - **2026-08-16** — [Avhengigheter pinnes eksakt](2026-08-16-pinnede-avhengigheter.md) — gjeldende
-- **2026-08-16** — [Repoet er offentlig](2026-08-16-repoet-er-offentlig.md) — gjeldende
+- **2026-08-16** — [Repoet er offentlig](2026-08-16-repoet-er-offentlig.md) — erstattet av [2026-08-18-repoene-er-private.md](2026-08-18-repoene-er-private.md)
 - **2026-08-16** — [Repoet er privat inntil videre](2026-08-16-repoet-er-privat.md) — erstattet av [2026-08-16-repoet-er-offentlig.md](2026-08-16-repoet-er-offentlig.md)
 - **2026-08-16** — [Ukentlig innsamling, ikke daglig](2026-08-16-ukentlig-innsamling.md) — gjeldende
 - **2026-08-16** — [Git som database, ikke en server](2026-08-16-git-som-database.md) — gjeldende

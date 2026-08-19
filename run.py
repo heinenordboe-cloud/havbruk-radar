@@ -42,17 +42,36 @@ def bygg_commitmelding(observed_at: str, resultater, endringer, scoret,
 
     Du leser den i GitHub-appen på telefonen. Ingen nettside nødvendig.
     """
-    linjer = [f"Snapshot {observed_at} — {endringer.height} endringer", ""]
+    # `scoret` er nå ALLE endringer, ikke bare treffene. Overskriften sier
+    # begge tall: uklassifiserte er den ærlige målingen av blindsonen, og
+    # den skal stå i nyhetsbrevet, ikke bare i loggen.
+    traff = signals.treff(scoret)
+    uklassifisert = scoret.height - traff.height
 
-    for rad in scoret.head(10).iter_rows(named=True):
+    linjer = [
+        f"Snapshot {observed_at} — {endringer.height} endringer, "
+        f"{traff.height} scoret, {uklassifisert} uklassifiserte",
+        "",
+    ]
+
+    for rad in traff.head(10).iter_rows(named=True):
         navn = rad["entity_name"] or rad["entity_id"]
         linjer.append(
             f"* {navn}: {rad['field']} {rad['old_value']} -> {rad['new_value']}"
             f" [{rad['signal']}]"
         )
 
-    if scoret.height == 0 and endringer.height:
+    if traff.height == 0 and endringer.height:
         linjer.append("* ingen endringer traff en signalregel")
+
+    # Hvilke felter blindsonen består av. Dette er lista over regler som
+    # mangler, sortert etter hvor mye de ville fanget.
+    topp_uten = signals.uklassifiserte_felter(scoret)
+    if topp_uten:
+        linjer.append("")
+        linjer.append("Uklassifisert, vanligste felter:")
+        for felt, antall in topp_uten:
+            linjer.append(f"* {felt}: {antall}")
 
     # Fasit på anslag som forfalt denne uka. Dette er den eneste delen av
     # meldingen som sier noe om DEG og ikke om registrene.
@@ -201,18 +220,34 @@ def main() -> int:
     paths.COMMIT_MSG_PATH.write_text(melding, encoding="utf-8")
 
     # 11. Oppsummer
+    traff = signals.treff(scoret)
+    uklassifisert = scoret.height - traff.height
+
     print(f"\n  {len(filer)} snapshot skrevet")
-    print(f"  {endringer.height} endringer siden forrige kjøring")
-    print(f"  {scoret.height} av dem traff en signalregel")
+    print(f"  {endringer.height} endringer, {traff.height} scoret, "
+          f"{uklassifisert} uklassifiserte")
+
+    # Den ene summen som ikke kan stemme ved et sammentreff. Går den ikke
+    # opp, teller scoringen feil, og da er alt under her upålitelig.
+    if scoret.height != endringer.height:
+        print(f"::error::Scoringen mistet rader: {scoret.height} ut mot "
+              f"{endringer.height} inn. Se docs/SIGNALREGLER.md punkt 0.")
 
     if fasit.height:
         print(f"  {fasit.height} prediksjon(er) avgjort:")
         for rad in fasit.iter_rows(named=True):
             print(f"    · [{rad['utfall']}] {rad['id']} — {rad['begrunnelse']}")
 
-    for rad in scoret.head(15).iter_rows(named=True):
+    for rad in traff.head(15).iter_rows(named=True):
         print(f"    · {rad['entity_name']}: {rad['field']} "
               f"{rad['old_value']} → {rad['new_value']}  [{rad['signal']}]")
+
+    # Blindsonen, med navn. Uten denne lista vet du ikke hva du ikke ser.
+    topp_uten = signals.uklassifiserte_felter(scoret)
+    if topp_uten:
+        print("  uklassifisert, vanligste felter:")
+        for felt, antall in topp_uten:
+            print(f"    · {felt}: {antall}")
 
     # Tre ulike årsaker havner i samme liste, med samme konsekvens:
     # kilden er nede (har fungert før, feiler nå), den leverte for lite

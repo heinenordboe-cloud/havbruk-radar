@@ -1,7 +1,7 @@
 ---
 dato: 2026-08-16
 tittel: Repoet er offentlig
-status: gjeldende
+status: erstattet-av 2026-08-18-repoene-er-private.md
 commit: 
 ---
 

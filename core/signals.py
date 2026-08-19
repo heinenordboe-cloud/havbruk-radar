@@ -24,6 +24,17 @@ def _matches(rule: dict, row: dict) -> bool:
     if rule.get("endringstype") and rule["endringstype"] != row["change_type"]:
         return False
 
+    # Uten disse to kan ikke grammatikken skille en ny LOKALITET fra et
+    # nytt SELSKAP: begge er feltet `navn` med endringstype `ny`, og
+    # første treff vinner. Hver nyregistrert virksomhet fra
+    # Enhetsregisteret fikk dermed lokalitetsetiketten. Raden har hatt
+    # `source` og `entity_type` fra diff.py hele tiden — grammatikken
+    # brukte dem bare ikke.
+    if rule.get("kilde") and rule["kilde"] != row.get("source"):
+        return False
+    if rule.get("entity_type") and rule["entity_type"] != row.get("entity_type"):
+        return False
+
     terskel = rule.get("min_endring_prosent")
     retning = rule.get("retning", "begge")
 
@@ -51,23 +62,63 @@ def _matches(rule: dict, row: dict) -> bool:
 
 
 def score(changes: pl.DataFrame) -> pl.DataFrame:
+    """ALLE endringer, med `signal` og `vekt` der en regel traff.
+
+    Returnerer hver rad, ikke bare de scorede. En rad ingen regel treffer
+    får `signal: null` og `vekt: 0`.
+
+    Dette er endringen fra den opprinnelige versjonen, og grunnen er verdt
+    å skrive ned: før kastet funksjonen hver rad ingen regel traff. Traff
+    ingen regel noe som helst, kom en tom ramme ut — selv om det var fire
+    hundre endringer den uka. Blindsonen var strukturelt usynlig, og du
+    kan ikke skrive regelen som mangler før du kan telle hva den skulle
+    ha fanget.
+
+    MERK for kallere: `height` er nå TOTALEN, ikke antall treff. Vil du
+    ha treffene, filtrer på `signal.is_not_null()`.
+    """
     rules = load_rules()
-    scored = []
+    rader = []
 
     for row in changes.iter_rows(named=True):
+        signal, vekt = None, 0
         for rule in rules:
             if _matches(rule, row):
-                scored.append({
-                    **row,
-                    "signal": rule["navn"],
-                    "vekt": rule.get("vekt", 1),
-                })
+                signal, vekt = rule["navn"], rule.get("vekt", 1)
                 break
+        rader.append({**row, "signal": signal, "vekt": vekt})
 
-    if not scored:
+    if not rader:
         return changes.with_columns(
             pl.lit(None, dtype=pl.Utf8).alias("signal"),
             pl.lit(0, dtype=pl.Int64).alias("vekt"),
-        ).head(0)
+        )
 
-    return pl.DataFrame(scored).sort("vekt", descending=True)
+    # schema_overrides: traff ingen regel, ville `signal` ellers blitt
+    # utledet som Null-dtype og brutt filtreringen hos kalleren.
+    # maintain_order: sorteringen er stabil i praksis på polars 1.36.1,
+    # men garantien er ikke dokumentert, og siste_kjoring.txt committes.
+    # En ustabil sortering ville gitt ny commit-melding uten at noe
+    # faktisk endret seg. snapshot.to_frame() setter den av samme grunn.
+    return pl.DataFrame(
+        rader, schema_overrides={"signal": pl.Utf8, "vekt": pl.Int64}
+    ).sort("vekt", descending=True, maintain_order=True)
+
+
+def treff(scoret: pl.DataFrame) -> pl.DataFrame:
+    """Bare radene en regel traff. Motstykket til score()."""
+    return scoret.filter(pl.col("signal").is_not_null())
+
+
+def uklassifiserte_felter(scoret: pl.DataFrame, antall: int = 5) -> list[tuple[str, int]]:
+    """De vanligste feltene blant endringene ingen regel traff.
+
+    Peker rett på hvilke regler som mangler: står `kapasitet_midlertidig`
+    øverst med 60 uklassifiserte endringer, er det der neste regel hører
+    hjemme.
+    """
+    uten = scoret.filter(pl.col("signal").is_null())
+    if uten.is_empty():
+        return []
+    topp = uten.group_by("field").len().sort(["len", "field"], descending=[True, False])
+    return [(str(f), int(n)) for f, n in topp.head(antall).iter_rows()]

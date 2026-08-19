@@ -70,13 +70,78 @@ def test_diff_fanger_endring(tmp_path, monkeypatch):
     assert endringer["change_type"][0] == "endret"
 
 
-def test_signalregler_scorer():
-    endringer = pl.DataFrame([{
+def _signalrad(felt, gammel, ny, **overstyr):
+    rad = {
         "entity_id": "1", "entity_type": "selskap", "entity_name": "Testlaks AS",
-        "field": "antall_ansatte", "old_value": "10", "new_value": "20",
+        "field": felt, "old_value": gammel, "new_value": ny,
         "change_type": "endret", "source": "falsk", "observed_at": "2026-01-08",
-    }])
-    assert signals.score(endringer).height == 1
+    }
+    rad.update(overstyr)
+    return rad
+
+
+def test_signalregler_scorer():
+    scoret = signals.score(pl.DataFrame([_signalrad("antall_ansatte", "10", "20")]))
+    assert signals.treff(scoret).height == 1
+
+
+def test_score_returnerer_alle_rader_ogsaa_uten_treff():
+    """Blindsonen skal være synlig. Før kastet score() hver rad ingen
+    regel traff, så en uke med 400 uklassifiserte endringer så ut som en
+    uke uten endringer."""
+    endringer = pl.DataFrame([
+        _signalrad("antall_ansatte", "10", "20"),      # treffer en regel
+        _signalrad("poststed", "Bodø", "Tromsø"),      # ingen regel
+        _signalrad("landkode", "NO", "SE"),            # ingen regel
+    ])
+    scoret = signals.score(endringer)
+
+    assert scoret.height == 3                        # ALLE rader er med
+    assert signals.treff(scoret).height == 1
+
+    uten = scoret.filter(pl.col("signal").is_null())
+    assert uten.height == 2
+    assert uten["vekt"].to_list() == [0, 0]
+
+
+def test_scoret_pluss_uklassifisert_er_lik_totalen():
+    """Den ene summen som ikke kan stemme ved et sammentreff."""
+    endringer = pl.DataFrame([
+        _signalrad("antall_ansatte", "10", "20"),
+        _signalrad("konkurs", "False", "True"),
+        _signalrad("poststed", "Bodø", "Tromsø"),
+        _signalrad("landkode", "NO", "SE"),
+        _signalrad("aktivitet", "x", "y"),
+    ])
+    scoret = signals.score(endringer)
+    traff = signals.treff(scoret)
+    uklassifisert = scoret.height - traff.height
+
+    assert scoret.height == endringer.height
+    assert traff.height + uklassifisert == endringer.height
+
+
+def test_uklassifiserte_felter_peker_paa_manglende_regler():
+    """Lista over felter uten regel er lista over regler som mangler."""
+    endringer = pl.DataFrame(
+        [_signalrad("poststed", "a", "b") for _ in range(3)]
+        + [_signalrad("landkode", "NO", "SE") for _ in range(2)]
+        + [_signalrad("antall_ansatte", "10", "20")]
+    )
+    topp = signals.uklassifiserte_felter(signals.score(endringer))
+
+    assert topp == [("poststed", 3), ("landkode", 2)]
+
+
+def test_score_paa_tom_ramme_har_riktige_kolonner():
+    """Uke uten endringer skal ikke kaste hos kalleren."""
+    tom = pl.DataFrame(schema=diff.CHANGE_SCHEMA)
+    scoret = signals.score(tom)
+
+    assert scoret.height == 0
+    assert "signal" in scoret.columns and "vekt" in scoret.columns
+    assert signals.treff(scoret).height == 0
+    assert signals.uklassifiserte_felter(scoret) == []
 
 
 def test_regresjon_oppdages(tmp_path, monkeypatch):
@@ -198,10 +263,35 @@ def test_retning_skiller_okning_fra_kutt():
 
 def test_reglene_i_repoet_er_gyldige():
     """Fanger skrivefeil i signals.yml før de blir stille manglende signaler."""
+    kjente = {
+        "navn", "felt", "endringstype", "min_endring_prosent", "retning",
+        "vekt", "kilde", "entity_type",
+    }
     for regel in signals.load_rules():
         assert "navn" in regel, regel
         assert regel.get("endringstype") in (None, "ny", "endret", "borte"), regel
         assert regel.get("retning") in (None, "opp", "ned", "begge"), regel
+        # En ukjent nøkkel ignoreres stille av _matches() og gir en regel
+        # som ser strengere ut enn den er.
+        assert set(regel) <= kjente, f"ukjent nøkkel i {regel['navn']}: {set(regel)-kjente}"
+
+
+def test_nytt_selskap_far_ikke_lokalitetsetiketten():
+    """Begge regler er felt `navn` + endringstype `ny`, og første treff
+    vinner. Uten kilde/entity_type fikk hvert nyregistrerte selskap
+    etiketten "Ny lokalitet i registeret"."""
+    selskap = _signalrad("navn", None, "Nylaks AS",
+                         change_type="ny", source="enhetsregisteret",
+                         entity_type="selskap")
+    lokalitet = _signalrad("navn", None, "TUHOLMANE Ø",
+                           change_type="ny", source="akvakultur",
+                           entity_type="lokalitet")
+
+    scoret = signals.score(pl.DataFrame([selskap, lokalitet]))
+    per_kilde = dict(zip(scoret["source"].to_list(), scoret["signal"].to_list()))
+
+    assert per_kilde["enhetsregisteret"] == "Nytt selskap i bransjen"
+    assert per_kilde["akvakultur"] == "Ny lokalitet i registeret"
 
 
 def test_samme_dag_oppdages(tmp_path, monkeypatch):

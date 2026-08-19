@@ -40,9 +40,14 @@ regler:
     endringstype: "endret"
     vekt: 9
 
+  # `kilde` og `entity_type` er nødvendige her, ikke pynt: begge reglene
+  # under er felt `navn` med endringstype `ny`, og første treff vinner.
+  # Uten dem fikk hvert nyregistrerte SELSKAP etiketten "Ny lokalitet".
   - navn: "Ny lokalitet i registeret"
     felt: "navn"
     endringstype: "ny"
+    kilde: "akvakultur"
+    entity_type: "lokalitet"
     vekt: 8
 
   - navn: "Midlertidig kapasitet endret"
@@ -59,6 +64,8 @@ regler:
   - navn: "Nytt selskap i bransjen"
     felt: "navn"
     endringstype: "ny"
+    kilde: "enhetsregisteret"
+    entity_type: "selskap"
     vekt: 7
 
   - navn: "Nedbemanning over 20 %"
