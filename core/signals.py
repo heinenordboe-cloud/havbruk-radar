@@ -40,7 +40,22 @@ def valider_regler(rules: list[dict] | None = None) -> list[str]:
     return problemer
 
 
-def _matches(rule: dict, row: dict) -> bool:
+def _endrede_par(changes: pl.DataFrame) -> frozenset[tuple[str, str, str]]:
+    """(kilde, entity_id, felt) for alt som endret seg i denne kjøringen.
+
+    Oppslaget `krev_uendret` slår i. Bygges én gang per score() i stedet
+    for per rad.
+    """
+    if changes.is_empty():
+        return frozenset()
+    return frozenset(
+        (str(k), str(e), str(f))
+        for k, e, f in changes.select(["source", "entity_id", "field"]).iter_rows()
+    )
+
+
+def _matches(rule: dict, row: dict,
+             endrede: frozenset[tuple[str, str, str]] = frozenset()) -> bool:
     if rule.get("felt") and rule["felt"] != row["field"]:
         return False
     if rule.get("endringstype") and rule["endringstype"] != row["change_type"]:
@@ -55,6 +70,21 @@ def _matches(rule: dict, row: dict) -> bool:
     if rule.get("kilde") and rule["kilde"] != row.get("source"):
         return False
     if rule.get("entity_type") and rule["entity_type"] != row.get("entity_type"):
+        return False
+
+    # Sammenligningen forutsetter at noe annet holdt seg fast.
+    #
+    # Innenfor én lokalitets diff er enheten den samme med mindre den
+    # ENDRET seg. Problemet er derfor ikke at ulike lokaliteter bruker
+    # ulike enheter — det er at en lokalitet som bytter fra tonn til
+    # stykk gir en prosentendring mellom to usammenlignbare tall, scoret
+    # på vekt 10. Seks enheter er i bruk, og 433 av 1779 lokaliteter
+    # oppgir kapasitet i noe annet enn tonn, så det er ikke hypotetisk.
+    #
+    # Generisk, ikke kapasitetsspesifikk: nøkkelen navngir hvilket felt
+    # som må ha ligget i ro.
+    krev = rule.get("krev_uendret")
+    if krev and (str(row.get("source")), str(row["entity_id"]), str(krev)) in endrede:
         return False
 
     # Tekstlig overgang: `fra`/`til` sammenligner verdiene som de er.
@@ -135,11 +165,12 @@ def score(changes: pl.DataFrame) -> pl.DataFrame:
         rules = [r for r in rules if r.get("navn") not in ugyldige]
 
     rader = []
+    endrede = _endrede_par(changes)
 
     for row in changes.iter_rows(named=True):
         signal, vekt = None, 0
         for rule in rules:
-            if _matches(rule, row):
+            if _matches(rule, row, endrede):
                 signal, vekt = rule["navn"], rule.get("vekt", 1)
                 break
         rader.append({**row, "signal": signal, "vekt": vekt})

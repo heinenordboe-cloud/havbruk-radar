@@ -266,6 +266,7 @@ def test_reglene_i_repoet_er_gyldige():
     kjente = {
         "navn", "felt", "endringstype", "min_endring_prosent", "retning",
         "vekt", "kilde", "entity_type", "fra", "til", "fra_null",
+        "krev_uendret",
     }
     assert signals.valider_regler() == [], "formatfeil i signals.yml"
     for regel in signals.load_rules():
@@ -275,6 +276,31 @@ def test_reglene_i_repoet_er_gyldige():
         # En ukjent nøkkel ignoreres stille av _matches() og gir en regel
         # som ser strengere ut enn den er.
         assert set(regel) <= kjente, f"ukjent nøkkel i {regel['navn']}: {set(regel)-kjente}"
+
+
+def test_kapasitetsendring_med_samtidig_enhetsbytte_matcher_ikke():
+    """1000 TN -> 1500 STK er ikke 50 % vekst, det er to usammenlignbare
+    tall. Regelen skal tie, og enhetsbyttet får sin egen rad."""
+    scoret = signals.score(pl.DataFrame([
+        _signalrad("kapasitet", "1000", "1500", entity_id="7"),
+        _signalrad("kapasitet_enhet", "TN", "STK", entity_id="7"),
+    ]))
+    per_felt = dict(zip(scoret["field"].to_list(), scoret["signal"].to_list()))
+
+    assert per_felt["kapasitet"] is None
+    assert per_felt["kapasitet_enhet"] == "Måleenhet for kapasitet endret"
+
+
+def test_kapasitetsendring_uten_enhetsbytte_matcher_som_for():
+    """Vakten skal ikke gjøre regelen strengere enn den var når enheten
+    faktisk lå i ro — heller ikke for en ANNEN entitet som byttet enhet."""
+    scoret = signals.score(pl.DataFrame([
+        _signalrad("kapasitet", "1000", "1500", entity_id="7"),
+        _signalrad("kapasitet_enhet", "TN", "STK", entity_id="8"),
+    ]))
+    kap = scoret.filter(pl.col("field") == "kapasitet")
+
+    assert kap["signal"][0] == "Kapasitetsøkning over 10 %"
 
 
 def test_kapasitet_fra_null_fanges():

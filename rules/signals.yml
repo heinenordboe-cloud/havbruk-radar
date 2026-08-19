@@ -16,11 +16,15 @@
 # vekt                 sorteringsrekkefølge i commit-meldingen
 
 regler:
+  # `krev_uendret`: bytter lokaliteten måleenhet samme uke, er
+  # prosentendringen regnet mellom to usammenlignbare tall. Da skal
+  # regelen ikke treffe — enhetsbyttet får sin egen regel nederst.
   - navn: "Kapasitetsøkning over 10 %"
     felt: "kapasitet"
     endringstype: "endret"
     min_endring_prosent: 10
     retning: "opp"
+    krev_uendret: "kapasitet_enhet"
     vekt: 10
 
   - navn: "Kapasitetskutt over 10 %"
@@ -28,6 +32,7 @@ regler:
     endringstype: "endret"
     min_endring_prosent: 10
     retning: "ned"
+    krev_uendret: "kapasitet_enhet"
     vekt: 10
 
   # Prosentregning fra null er meningsløs, så nullvernet i koden spiste
@@ -170,3 +175,12 @@ regler:
     felt: "navn"
     endringstype: "endret"
     vekt: 3
+
+  # Selve enhetsbyttet er en reell hendelse, og den skal ikke forsvinne
+  # fordi den er upraktisk for prosentregningen. Lav vekt: den er sjelden
+  # interessant i seg selv, men den forklarer hvorfor kapasitetsregelen
+  # tidde den uka.
+  - navn: "Måleenhet for kapasitet endret"
+    felt: "kapasitet_enhet"
+    endringstype: "endret"
+    vekt: 2
