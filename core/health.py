@@ -243,7 +243,8 @@ def _felt_per_kilde(observasjoner) -> dict[str, dict[str, int]]:
 
 
 def oppdater(
-    resultater: list[Result], observed_at: str, observasjoner=None
+    resultater: list[Result], observed_at: str, observasjoner=None,
+    historisk: bool = False,
 ) -> tuple[dict, list[str]]:
     """Returnerer ny helsetilstand og liste over kilder som trenger tilsyn.
 
@@ -252,7 +253,17 @@ def oppdater(
     nå), eller kilden leverte men med et volumfall over terskelen. En
     kilde som aldri har levert (nyskrevet, ikke ferdig) varsler ikke for
     noen av delene — den ser du på skjermen mens du jobber med den.
+
+    `historisk=True` for backfill: tilstanden røres ikke i det hele tatt.
+    Volum- og feltreferansen er høyvannsmerker mot FORRIGE KJØRING, og
+    hundrevis av historiske uker skrevet etter hverandre ville enten fyrt
+    alarmen konstant eller løftet referansen til et nivå ingen ukentlig
+    kjøring kan møte. Helsetilstanden handler om om innsamlingen virker
+    nå, ikke om hvordan registeret så ut i 2014.
     """
+    if historisk:
+        return les(), []
+
     forrige = les()
 
     # Kilder som IKKE kjørte i dag (fordi de ikke var forfalt) skal beholde

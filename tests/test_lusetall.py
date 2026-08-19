@@ -106,6 +106,29 @@ def test_entity_id_er_localityno_som_tekst():
     assert {o.entity_id for o in obs} == {"10029"}
 
 
+def test_backfill_rorer_ikke_helsetilstanden(tmp_path, monkeypatch):
+    """Volum- og feltreferansen er høyvannsmerker mot forrige kjøring.
+    Hundrevis av historiske uker ville enten fyrt konstant eller løftet
+    referansen til et nivå ingen ukentlig kjøring kan møte."""
+    from core import health, runner
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    # Normal kjøring etablerer nivået.
+    tilstand, _ = health.oppdater([runner.Result("lusetall", True, 18348)],
+                                  "2026-07-20")
+    health.skriv(tilstand)
+    referanse = tilstand["lusetall"]["volum_referanse"]
+
+    # Backfill av en uke fra 2012 med langt færre observasjoner.
+    etter, nede = health.oppdater([runner.Result("lusetall", True, 900)],
+                                  "2012-01-02", historisk=True)
+
+    assert nede == []                                    # ingen falsk alarm
+    assert etter["lusetall"]["volum_referanse"] == referanse   # nivået står
+    assert health.les()["lusetall"]["antall_sist"] == 18348    # ikke skrevet
+
+
 def test_hele_uka_blir_en_ramme(tmp_path, monkeypatch):
     monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
     lok = [_lok(i, rapportert=(i % 2 == 0)) for i in range(50)]
