@@ -44,6 +44,7 @@ import httpx
 
 from core.config import get
 from core.contract import Observation, Source
+from sources import _http
 
 BASE = "https://data.brreg.no/enhetsregisteret/api/enheter"
 
@@ -254,12 +255,11 @@ class Enhetsregisteret(Source):
                 antall = 0
                 side = 0
                 while True:
-                    response = client.get(BASE, params={
+                    response = _http.get(client, BASE, params={
                         "naeringskode": kode,
                         "size": sidestorrelse,
                         "page": side,
-                    })
-                    response.raise_for_status()
+                    }, hva=f"naeringskode {kode} side {side}")
                     payload = response.json()
 
                     # Hele svaret arkiveres, sammen med hvilket søk det kom fra.

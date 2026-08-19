@@ -42,6 +42,7 @@ import httpx
 
 from core.config import get
 from core.contract import Observation, Source
+from sources import _http
 
 STANDARD_BASE = "https://www.barentswatch.no/bwapi"
 STANDARD_TOKEN_URL = "https://id.barentswatch.no/connect/token"
@@ -131,20 +132,23 @@ class Lusetall(Source):
             )
 
         url = get("kilder.lusetall.token_url", STANDARD_TOKEN_URL)
-        svar = httpx.post(url, data={
-            "client_id": cid,
-            "client_secret": sec,
-            "grant_type": "client_credentials",
-            "scope": "api",
-        }, timeout=30)
-
-        if svar.status_code == 400:
+        try:
+            svar = _http.post(url, hva="tokenkall", data={
+                "client_id": cid,
+                "client_secret": sec,
+                "grant_type": "client_credentials",
+                "scope": "api",
+            }, timeout=30)
+        except httpx.HTTPStatusError as e:
             # Feil secret gir 400 invalid_client, ikke 401. Verdt å si.
-            raise RuntimeError(
-                f"400 fra token-endepunktet ({svar.text[:120]}). Sjekk at "
-                f"secreten i portalen er den samme som i miljøet."
-            )
-        svar.raise_for_status()
+            # 400 er permanent, så _http prøver ikke igjen — feilen kommer
+            # med én gang, slik den skal.
+            if e.response.status_code == 400:
+                raise RuntimeError(
+                    f"400 fra token-endepunktet ({e.response.text[:120]}). "
+                    f"Sjekk at secreten i portalen er den samme som i miljøet."
+                ) from e
+            raise
 
         data = svar.json()
         self._token = data["access_token"]
@@ -167,8 +171,10 @@ class Lusetall(Source):
         egen = client is None
         c = client or self._klient()
         try:
-            svar = c.get(f"{base}/v1/geodata/fishhealth/locality/{aar}/{uke}")
-            svar.raise_for_status()
+            svar = _http.get(
+                c, f"{base}/v1/geodata/fishhealth/locality/{aar}/{uke}",
+                hva=f"uke {uke}/{aar}",
+            )
             return svar.json()
         finally:
             if egen:

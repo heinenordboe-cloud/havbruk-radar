@@ -44,6 +44,7 @@ import httpx
 
 from core.config import get
 from core.contract import Observation, Source
+from sources import _http
 
 STANDARD_BASE = "https://api.fiskeridir.no/pub-aqua/api/v1"
 
@@ -175,11 +176,12 @@ class Akvakulturregisteret(Source):
 
         with httpx.Client(timeout=60, headers={"Accept": "application/json"}) as client:
             for side in range(MAKS_SIDER):
-                svar = client.get(
+                svar = _http.get(
+                    client,
                     f"{base}/sites",
                     params={"range": f"{start}-{start + SPENN - 1}"},
+                    hva=f"sites {start}-{start + SPENN - 1}",
                 )
-                svar.raise_for_status()
                 batch = svar.json()
 
                 if not isinstance(batch, list):
