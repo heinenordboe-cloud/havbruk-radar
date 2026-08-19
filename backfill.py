@@ -31,8 +31,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from core import changelog, diff, registry, snapshot  # noqa: E402
-from sources.lusetall import PAUSE_S, mandag  # noqa: E402
+from core import changelog, diff, raw as raw_arkiv, registry, runner, snapshot  # noqa: E402
+from core.config import get  # noqa: E402
+from sources.lusetall import PAUSE_S, mandag, uke_med_etterslep  # noqa: E402
+
+
+def _ferskeste_tillatte(kilde) -> tuple[int, int]:
+    """Nyeste uke backfill får lov å skrive.
+
+    Samme N-4-grense som den løpende kilden bruker. Går backfill
+    lenger fram, skriver den uker den ukentlige jobben også vil skrive
+    (dobbeltskriving, .2-filer), eller uker som ennå er ufullstendige og
+    dermed permanent halve. Stopper den for tidlig, blir det hull.
+    Grensen må være den SAMME på begge sider, ikke to tall som ligner.
+    """
+    uker = int(get(f"kilder.{kilde.name}.uker_etterslep", 4))
+    return uke_med_etterslep(dt.date.today(), uker)
 
 
 def _uker(fra: tuple[int, int], til: tuple[int, int]):
@@ -43,6 +57,25 @@ def _uker(fra: tuple[int, int], til: tuple[int, int]):
         iso = d.isocalendar()
         yield iso.year, iso.week
         d += dt.timedelta(weeks=1)
+
+
+def _finnes_allerede(kilde_navn: str, dato: str) -> bool:
+    """Er uka allerede skrevet?
+
+    Gjør backfillen gjenopptakbar. Uten dette gir en omstart etter et
+    avbrudd `.2`-filer for hver uke som allerede lå der — både snapshot
+    og arkiv — fordi begge løser kollisjon med løpenummer i stedet for å
+    overskrive. Et avbrudd på år åtte ville blitt sju år med duplikater å
+    rydde for hånd, og filene er append-only.
+
+    Sjekken skjer FØR hentingen, så en omstart heller ikke bruker opp
+    API-kall på uker som er ferdige.
+    """
+    mappe = snapshot.RAW_DIR / kilde_navn
+    if not mappe.exists():
+        return False
+    return ((mappe / f"{dato}.parquet").exists()
+            or any(mappe.glob(f"{dato}.*.parquet")))
 
 
 def _parse_uke(tekst: str) -> tuple[int, int]:
@@ -69,23 +102,49 @@ def main() -> int:
         print(f"{args.kilde} har ingen hent_uke() og kan ikke backfilles.")
         return 1
 
-    uker = list(_uker(_parse_uke(args.fra), _parse_uke(args.til)))
-    print(f"Backfill {args.kilde}: {len(uker)} uker, {args.fra} -> {args.til}, "
-          f"{args.pause}s pause"
+    til = _parse_uke(args.til)
+    grense = _ferskeste_tillatte(kilde)
+    if dt.date.fromisocalendar(*til, 1) > dt.date.fromisocalendar(*grense, 1):
+        print(f"  --til {args.til} er ferskere enn etterslepsgrensen "
+              f"{grense[0]}-{grense[1]:02d}. Klipper der: uker etter den er "
+              f"enten ufullstendige eller den ukentlige jobbens ansvar.")
+        til = grense
+
+    uker = list(_uker(_parse_uke(args.fra), til))
+    if not uker:
+        print("Ingen uker i intervallet.")
+        return 1
+
+    print(f"Backfill {args.kilde}: {len(uker)} uker, {args.fra} -> "
+          f"{til[0]}-{til[1]:02d}, {args.pause}s pause"
           + (" (TØRRKJØRING)" if args.torrkjor else ""))
 
     skrevet = 0
+    hoppet = 0
     endringer_totalt = 0
 
     for aar, uke in uker:
         dato = mandag(aar, uke)
+
+        if not args.torrkjor and _finnes_allerede(kilde.name, dato):
+            hoppet += 1
+            continue
+
         try:
             rå = kilde.hent_uke(aar, uke)
         except Exception as e:
             print(f"  {dato} (uke {uke}/{aar}): FEIL {type(e).__name__}: {e}")
             return 1
 
-        obs = list(kilde.parse(rå, dato))
+        # Arkivet FØR parse, som i runner.run_all(). Uten det er en
+        # parse-feil oppdaget om et halvt år permanent datatap for alle
+        # 730 ukene — og det er hele begrunnelsen for rå-arkivet.
+        raw_hash = ""
+        if not args.torrkjor:
+            raw_hash = raw_arkiv.arkiver(kilde.name, dato, rå)
+
+        obs = runner.stempl(kilde.parse(rå, dato),
+                            source_version=kilde.version, raw_hash=raw_hash)
         if not obs:
             # Ikke "ferdig" — dette er stoppvilkåret. En tom uke fra et
             # endepunkt som svarer 200 betyr at året ikke finnes.
@@ -112,7 +171,8 @@ def main() -> int:
 
         time.sleep(args.pause)
 
-    print(f"\n{skrevet} uker skrevet, {endringer_totalt} endringer totalt.")
+    print(f"\n{skrevet} uker skrevet, {hoppet} hoppet over (fantes "
+          f"allerede), {endringer_totalt} endringer totalt.")
     print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
     return 0
 

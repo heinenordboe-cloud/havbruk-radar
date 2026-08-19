@@ -24,6 +24,24 @@ class Result:
     advarsler: list[str] = field(default_factory=list)
 
 
+def stempl(observasjoner, source_version: str, raw_hash: str,
+           fetched_at: str | None = None) -> list[Observation]:
+    """Setter proveniensfeltene på hver observasjon.
+
+    Ligger her og ikke i hver kaller fordi stemplingen er kjernens
+    ansvar: kilder rører aldri disse feltene. Både run_all() og
+    backfill.py bruker den, slik at en backfillet rad bærer nøyaktig
+    samme proveniens som en ukentlig — det er `fetched_at` langt etter
+    `observed_at` som gjør den kjennelig, ikke et manglende felt.
+    """
+    naa = fetched_at or datetime.now(timezone.utc).isoformat()
+    return [
+        replace(obs, fetched_at=naa, source_version=source_version,
+                raw_hash=raw_hash)
+        for obs in observasjoner
+    ]
+
+
 def velg_forfalte(
     sources: list[Source], observed_at: str
 ) -> tuple[list[Source], list[tuple[Source, int]]]:
@@ -71,16 +89,11 @@ def run_all(
             raw_hash = ""
             if arkiver:
                 raw_hash = raw_arkiv.arkiver(source.name, observed_at, rawdata)
-            fetched_at = datetime.now(timezone.utc).isoformat()
-            batch = [
-                replace(
-                    obs,
-                    fetched_at=fetched_at,
-                    source_version=source.version,
-                    raw_hash=raw_hash,
-                )
-                for obs in source.parse(rawdata, observed_at)
-            ]
+            batch = stempl(
+                source.parse(rawdata, observed_at),
+                source_version=source.version,
+                raw_hash=raw_hash,
+            )
             observations.extend(batch)
             results.append(
                 Result(source.name, True, len(batch),
