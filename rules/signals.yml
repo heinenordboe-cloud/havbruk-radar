@@ -30,6 +30,19 @@ regler:
     retning: "ned"
     vekt: 10
 
+  # Prosentregning fra null er meningsløs, så nullvernet i koden spiste
+  # denne hendelsen helt. `fra_null` ser overgangen i stedet for forholdet.
+  #
+  # Omfang, som er mindre enn det ser ut: 77 lokaliteter står med kapasitet
+  # null, men 72 av dem måler i STK og 50 er ferskvann — settefiskanlegg
+  # der feltet er tomt, ikke tomme sjølokaliteter. Reelt berørt er de fem
+  # som måler i tonn og de tretten i saltvann.
+  - navn: "Kapasitet satt fra null"
+    felt: "kapasitet"
+    endringstype: "endret"
+    fra_null: true
+    vekt: 9
+
   - navn: "Trafikklys endret i produksjonsområde"
     felt: "prodomraade_status"
     endringstype: "endret"

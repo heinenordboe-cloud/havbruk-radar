@@ -265,7 +265,7 @@ def test_reglene_i_repoet_er_gyldige():
     """Fanger skrivefeil i signals.yml før de blir stille manglende signaler."""
     kjente = {
         "navn", "felt", "endringstype", "min_endring_prosent", "retning",
-        "vekt", "kilde", "entity_type", "fra", "til",
+        "vekt", "kilde", "entity_type", "fra", "til", "fra_null",
     }
     assert signals.valider_regler() == [], "formatfeil i signals.yml"
     for regel in signals.load_rules():
@@ -275,6 +275,32 @@ def test_reglene_i_repoet_er_gyldige():
         # En ukjent nøkkel ignoreres stille av _matches() og gir en regel
         # som ser strengere ut enn den er.
         assert set(regel) <= kjente, f"ukjent nøkkel i {regel['navn']}: {set(regel)-kjente}"
+
+
+def test_kapasitet_fra_null_fanges():
+    """At det settes ut fisk der det ikke var noe er den mest interessante
+    hendelsen en lokalitet har. Nullvernet mot divisjon spiste den."""
+    scoret = signals.score(pl.DataFrame([_signalrad("kapasitet", "0", "780")]))
+    traff = signals.treff(scoret)
+
+    assert traff.height == 1
+    assert traff["signal"][0] == "Kapasitet satt fra null"
+
+
+def test_fra_null_gjelder_bare_naar_nokkelen_er_satt():
+    """Ingen implisitt endring av eksisterende regler: 0 -> N skal ikke
+    plutselig matche prosentreglene, og N -> 0 er ikke fra_null."""
+    # Prosentreglene skal fortsatt avvise 0 som utgangspunkt.
+    kun_prosent = [r for r in signals.load_rules()
+                   if r.get("min_endring_prosent") and not r.get("fra_null")]
+    rad = _signalrad("kapasitet", "0", "780")
+    assert not any(signals._matches(r, rad) for r in kun_prosent)
+
+    # Og motsatt vei er ikke "fra null".
+    fra_null = [r for r in signals.load_rules() if r.get("fra_null")]
+    assert fra_null
+    assert not any(signals._matches(r, _signalrad("kapasitet", "780", "0"))
+                   for r in fra_null)
 
 
 def test_boolsk_overgang_scorer_ulikt_hver_vei():

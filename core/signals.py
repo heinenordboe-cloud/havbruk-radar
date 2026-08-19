@@ -71,6 +71,17 @@ def _matches(rule: dict, row: dict) -> bool:
     terskel = rule.get("min_endring_prosent")
     retning = rule.get("retning", "begge")
 
+    # 0 -> N. Nullvernet mot divisjon under spiser samtidig den mest
+    # interessante hendelsen en lokalitet har: at det settes ut fisk der
+    # det ikke var noe. Prosentregning er meningsløs fra null, så denne
+    # regelen har ingen terskel — den ser bare overgangen.
+    if rule.get("fra_null"):
+        try:
+            old, new = float(row["old_value"]), float(row["new_value"])
+        except (TypeError, ValueError):
+            return False
+        return old == 0 and new > 0
+
     if terskel is not None or retning != "begge":
         try:
             old, new = float(row["old_value"]), float(row["new_value"])
