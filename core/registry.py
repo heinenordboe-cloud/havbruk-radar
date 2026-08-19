@@ -13,6 +13,29 @@ To ting denne fila garanterer, som begge er lært av å se dem feile:
 2. Bare klasser som er DEFINERT i modulen registreres, ikke de som
    er importert inn i den. Uten den sjekken kjøres en delt baseklasse
    én gang per fil som importerer den, og observasjonene dobles.
+
+## Invarianten: modulens filnavn ER kildens navn
+
+`sources/akvakultur.py` må inneholde kilden som heter `akvakultur`.
+Dette er ikke kosmetikk, og det er ikke en konvensjon som bare gjør
+koden penere å lese.
+
+En kildefil som ikke lar seg importere blir en KnektKilde. Da finnes
+det ingen klasse å spørre om navn, og det eneste kjernen VET er
+filnavnet. Bryter de to, rapporteres importfeilen under et navn
+`health.json` aldri har sett — og en kilde health ikke kjenner er en
+kilde uten historikk å måle mot.
+
+Konkret: `sources/akvakulturregisteret.py` het `akvakultur` som kilde.
+En importfeil der ble rapportert som «akvakulturregisteret», et navn
+uten `sist_ok`, uten volumreferanse og uten `sist_forsok` — så
+frekvensvakten så en ukjent kilde og nedetidsalarmen så en kilde som
+aldri hadde fungert. Fila er døpt om, og
+`test_modulnavn_er_kildenavn` feller enhver kilde som bryter
+invarianten på nytt.
+
+Moduler med `_`-prefiks er unntatt: de er delte hjelpere, ikke kilder,
+og skannes ikke.
 """
 
 import importlib
@@ -69,7 +92,14 @@ def discover() -> list[Source]:
             try:
                 instance = obj()
             except Exception:
-                found.append(KnektKilde(module_info.name, traceback.format_exc(limit=3)))
+                # Her FINNES klassen, så kilden kan navngi seg selv.
+                # Bare importfeilen over må gjette ut fra filnavnet, og
+                # det er invarianten i docstringen som gjør gjettet
+                # riktig.
+                found.append(KnektKilde(
+                    getattr(obj, "name", module_info.name),
+                    traceback.format_exc(limit=3),
+                ))
                 continue
 
             if instance.enabled:

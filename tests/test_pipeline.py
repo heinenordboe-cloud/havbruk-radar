@@ -192,6 +192,90 @@ def test_knekt_kildefil_stopper_ikke_de_andre(tmp_path, monkeypatch):
     assert {r.source: r.ok for r in res} == {"frisk": True, "knekt": False}
 
 
+def test_modulnavn_er_kildenavn():
+    """Invarianten: sources/<navn>.py inneholder kilden som heter <navn>.
+
+    En kildefil som ikke lar seg importere blir en KnektKilde, og da
+    finnes det ingen klasse å spørre om navn — kjernen kan bare lese
+    filnavnet. Bryter de to, rapporteres importfeilen under et navn
+    health.json aldri har sett: ingen sist_ok, ingen volumreferanse,
+    ingen sist_forsok. Nedetidsalarmen ser en kilde som aldri har
+    fungert, og frekvensvakten ser en ukjent kilde.
+
+    Dette er klassen feil, ikke tilfellet. sources/akvakulturregisteret.py
+    het `akvakultur` som kilde og er døpt om; denne testen er det som
+    hindrer at neste kilde gjør det samme.
+    """
+    import importlib
+    import inspect
+
+    from core import registry
+    from core.contract import Source
+
+    brudd = []
+    for fil in sorted(registry.SOURCES_DIR.glob("*.py")):
+        if fil.stem.startswith("_"):
+            continue          # delte hjelpere, ikke kilder
+
+        modul = importlib.import_module(f"sources.{fil.stem}")
+        klasser = [
+            obj for _, obj in inspect.getmembers(modul, inspect.isclass)
+            if issubclass(obj, Source) and obj is not Source
+            and obj.__module__ == modul.__name__
+        ]
+
+        assert klasser, f"sources/{fil.name} definerer ingen kilde"
+        for klasse in klasser:
+            if klasse.name != fil.stem:
+                brudd.append(f"sources/{fil.name}: {klasse.__name__}."
+                             f"name = {klasse.name!r}, forventet {fil.stem!r}")
+
+    assert not brudd, (
+        "Modulnavn må være identisk med kildens name, ellers rapporteres "
+        "en importfeil under et navn health.json ikke kjenner:\n  "
+        + "\n  ".join(brudd)
+    )
+
+
+def test_knekt_kilde_navngis_etter_kilden_naar_klassen_finnes(tmp_path,
+                                                              monkeypatch):
+    """Feiler __init__ i stedet for importen, kan kilden navngi seg selv.
+
+    Da skal navnet komme fra klassen, ikke fra filnavnet — filnavnet er
+    bare fallback for den ene feilen der ingen klasse finnes.
+    """
+    import types
+
+    from core import registry
+
+    (tmp_path / "en_kilde.py").write_text(
+        "from core.contract import Source\n"
+        "class Ødelagt(Source):\n"
+        "    name = 'en_kilde'\n"
+        "    def __init__(self): raise RuntimeError('config mangler')\n"
+        "    def fetch(self): return []\n"
+        "    def parse(self, raw, observed_at): return []\n",
+        encoding="utf-8",
+    )
+
+    def last(navn: str):
+        fil = tmp_path / f"{navn.split('.')[-1]}.py"
+        modul = types.ModuleType(navn)
+        modul.__name__ = navn
+        exec(compile(fil.read_text(encoding="utf-8"), str(fil), "exec"),
+             modul.__dict__)
+        for obj in modul.__dict__.values():
+            if isinstance(obj, type):
+                obj.__module__ = navn
+        return modul
+
+    monkeypatch.setattr(registry, "SOURCES_DIR", tmp_path)
+    monkeypatch.setattr(registry.importlib, "import_module", last)
+
+    kilder = registry.discover()
+    assert [k.name for k in kilder] == ["en_kilde"]
+
+
 def test_importert_kildeklasse_registreres_ikke_to_ganger():
     """Gjenbruk av en baseklasse mellom kilder skal ikke doble observasjonene."""
     import inspect as _inspect
@@ -600,7 +684,7 @@ def _akva_rad(site_nr=10029, kapasitet=2340.0, tillatelser=("B", "A")):
 
 def test_akvakultur_parser_ekte_respons():
     """Feltnavnene er verifisert mot levende API — dette låser dem."""
-    from sources.akvakulturregisteret import Akvakulturregisteret
+    from sources.akvakultur import Akvakulturregisteret
 
     obs = {o.field: o.value
            for o in Akvakulturregisteret().parse([_akva_rad()], "2026-08-17")}
@@ -617,7 +701,7 @@ def test_akvakultur_parser_ekte_respons():
 
 def test_akvakultur_tillatelser_sorteres():
     """Uten sortering gir vilkårlig rekkefølge fra API-et falsk endring hver uke."""
-    from sources.akvakulturregisteret import Akvakulturregisteret
+    from sources.akvakultur import Akvakulturregisteret
 
     def tillatelser(rekkefolge):
         rad = _akva_rad(tillatelser=rekkefolge)
@@ -629,7 +713,7 @@ def test_akvakultur_tillatelser_sorteres():
 
 def test_akvakultur_lagrer_ingen_persondata():
     """connections skal kun gi tillatelsesnumre — aldri innehaver."""
-    from sources.akvakulturregisteret import Akvakulturregisteret
+    from sources.akvakultur import Akvakulturregisteret
 
     rad = _akva_rad()
     rad["connections"] = [{"licenseNr": "H-KM-0018", "siteName": "TUHOLMANE Ø",

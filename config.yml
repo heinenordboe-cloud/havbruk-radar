@@ -57,7 +57,7 @@ kilder:
 
   akvakultur:
     # Endepunkt og paginering er verifisert mot levende API 17.08.2026.
-    # Feltvalget ligger i sources/akvakulturregisteret.py, ikke her —
+    # Feltvalget ligger i sources/akvakultur.py, ikke her —
     # feltnavn er en kontrakt mot historikken og skal ikke kunne endres
     # ved et uhell i en YAML-fil.
     aktiv: true
