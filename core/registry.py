@@ -62,7 +62,7 @@ class KnektKilde(Source):
         self.enabled = True
         self._feil = feil
 
-    def fetch(self):
+    def fetch(self, kjoredato: str):
         raise RuntimeError(f"Kilden '{self.name}' kunne ikke lastes:\n{self._feil}")
 
     def parse(self, raw, observed_at):

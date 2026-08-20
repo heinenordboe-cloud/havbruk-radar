@@ -22,7 +22,7 @@ class FalskKilde(Source):
     name = "falsk"
     entity_type = "selskap"
 
-    def fetch(self):
+    def fetch(self, kjoredato):
         return [{"orgnr": "999999999", "navn": "Testlaks AS", "ansatte": 12}]
 
     def parse(self, raw, observed_at):
@@ -41,7 +41,7 @@ class FalskKilde(Source):
 class KnustKilde(Source):
     name = "knust"
 
-    def fetch(self):
+    def fetch(self, kjoredato):
         raise RuntimeError("kilden er nede")
 
     def parse(self, raw, observed_at):
@@ -169,7 +169,7 @@ def test_knekt_kildefil_stopper_ikke_de_andre(tmp_path, monkeypatch):
         "from core.contract import Source\n"
         "class Frisk(Source):\n"
         "    name = 'frisk'\n"
-        "    def fetch(self): return []\n"
+        "    def fetch(self, kjoredato): return []\n"
         "    def parse(self, raw, observed_at): return []\n",
         encoding="utf-8",
     )
@@ -253,7 +253,7 @@ def test_knekt_kilde_navngis_etter_kilden_naar_klassen_finnes(tmp_path,
         "class Ødelagt(Source):\n"
         "    name = 'en_kilde'\n"
         "    def __init__(self): raise RuntimeError('config mangler')\n"
-        "    def fetch(self): return []\n"
+        "    def fetch(self, kjoredato): return []\n"
         "    def parse(self, raw, observed_at): return []\n",
         encoding="utf-8",
     )
@@ -1375,9 +1375,9 @@ def test_advarsel_fra_kilde_naar_helt_opp(tmp_path, monkeypatch):
     class MaseteKilde(FalskKilde):
         name = "masete"
 
-        def fetch(self):
+        def fetch(self, kjoredato):
             self.advarsler = ["10.209: næringskode uten treff"]
-            return super().fetch()
+            return super().fetch(kjoredato)
 
     obs, res = runner.run_all([MaseteKilde()], "2026-01-01")
 
@@ -1402,9 +1402,9 @@ def test_advarsler_deles_ikke_mellom_kilder(tmp_path, monkeypatch):
     class Masete(FalskKilde):
         name = "masete"
 
-        def fetch(self):
+        def fetch(self, kjoredato):
             self.advarsler = ["noe å se på"]
-            return super().fetch()
+            return super().fetch(kjoredato)
 
     _, res = runner.run_all([Masete(), FalskKilde()], "2026-01-01")
     per_kilde = {r.source: r.advarsler for r in res}

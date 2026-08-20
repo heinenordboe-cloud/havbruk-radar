@@ -44,7 +44,7 @@ class TregKilde(Source):
     def gjelder_for(self, kjoredato: str) -> str:
         return mandag(*uke_med_etterslep(dt.date.fromisoformat(kjoredato), 4))
 
-    def fetch(self):
+    def fetch(self, kjoredato):
         return {"verdi": self.verdi}
 
     def parse(self, raw, observed_at):
@@ -65,7 +65,7 @@ class KjappKilde(Source):
     def __init__(self, verdi="12"):
         self.verdi = verdi
 
-    def fetch(self):
+    def fetch(self, kjoredato):
         return {"verdi": self.verdi}
 
     def parse(self, raw, observed_at):
@@ -216,10 +216,9 @@ def test_lusetall_henter_og_daterer_samme_uke():
     fila navn etter én uke og innhold fra en annen. De deler _uke_naa().
     """
     kilde = Lusetall()
-    i_dag = dt.date.fromisoformat(MANDAG_24)
 
-    assert kilde._uke_naa(i_dag) == (2026, 31)
-    assert mandag(*kilde._uke_naa(i_dag)) == kilde.gjelder_for(MANDAG_24)
+    assert kilde._uke_naa(MANDAG_24) == (2026, 31)
+    assert mandag(*kilde._uke_naa(MANDAG_24)) == kilde.gjelder_for(MANDAG_24)
 
 
 # ------------------------------------------------- invarianten mot backfill

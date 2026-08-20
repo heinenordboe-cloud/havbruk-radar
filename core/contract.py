@@ -78,8 +78,29 @@ class Source:
     # dagens snapshot for de andre på nytt.
     min_dager_mellom: int = 7
 
-    def fetch(self) -> Any:
-        """Hent rådata. Ingen rensing, ingen tolkning her."""
+    def fetch(self, kjoredato: str) -> Any:
+        """Hent rådata for kjøringen som skjer `kjoredato`.
+
+        En kilde LESER ALDRI KLOKKA. Trenger den å vite hvilket tidsrom
+        den skal hente, får den datoen inn — den slår den ikke opp selv.
+
+        Dette er ikke en stilpreferanse. Tre feil i dette prosjektet har
+        hatt samme rotårsak, og alle tre kom av at et tidspunkt ble slått
+        opp på nytt et sted til:
+
+          F4   frekvensvakten leste filnavnsdato der den skulle lest
+               innsamlingstidspunkt
+          F6   run.py daterte snapshotet etter kjøredagen, mens kilden
+               stemplet radene med uka de gjaldt for
+          F7   fetch() slo opp klokka selv, mens gjelder_for() fikk
+               kjøredatoen inn — to klokkeoppslag som kunne svare ulikt
+               rundt midnatt, og da får fila navn etter én uke og innhold
+               fra en annen
+
+        Med datoen som argument finnes det ett tidspunkt per kjøring, og
+        det er umulig for to deler av samme kjøring å være uenige om
+        hvilken dag det er.
+        """
         raise NotImplementedError
 
     def parse(self, raw: Any, observed_at: str) -> Iterable[Observation]:
@@ -87,7 +108,11 @@ class Source:
         raise NotImplementedError
 
     def collect(self, observed_at: str) -> list[Observation]:
-        return list(self.parse(self.fetch(), observed_at))
+        """Hent og tolk i ett. `observed_at` er både kjøredato og
+        gyldighetsdato her — den brukes av tester og av kilder uten
+        etterslep. Kjernen går veien om run_all(), som holder de to fra
+        hverandre."""
+        return list(self.parse(self.fetch(observed_at), observed_at))
 
     def gjelder_for(self, kjoredato: str) -> str:
         """Hvilken dato snapshotet GJELDER for når vi henter `kjoredato`.

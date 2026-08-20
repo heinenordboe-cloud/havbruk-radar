@@ -169,7 +169,11 @@ class Akvakulturregisteret(Source):
     def __init__(self) -> None:
         self.enabled = bool(get("kilder.akvakultur.aktiv", False))
 
-    def fetch(self) -> list[dict]:
+    def fetch(self, kjoredato: str) -> list[dict]:
+        # `kjoredato` brukes ikke: registeret har ingen etterslep, og
+        # svaret er hva som gjelder nå. Argumentet står fordi kontrakten
+        # krever at en kilde FÅR tiden inn i stedet for å slå den opp —
+        # se Source.fetch. En kilde som ikke trenger den, ignorerer den.
         base = get("kilder.akvakultur.base_url", STANDARD_BASE).rstrip("/")
         lokaliteter: list[dict] = []
         start = 0

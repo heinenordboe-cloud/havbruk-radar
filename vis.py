@@ -16,6 +16,7 @@ Foreløpig bygges kun visning 2 (felter). Se docs/VISNING.md.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -56,6 +57,31 @@ def _siste_snapshot(kilde: str) -> tuple[str, pl.DataFrame] | None:
     if not filer:
         return None
     return dato, filer[-1][1]          # høyeste løpenummer sist
+
+
+def _etterslep_dager() -> dict[str, int]:
+    """Kildenavn -> hvor mange dager kildens ferskeste snapshot er datert
+    bak i tid FORDI kilden har etterslep.
+
+    Uten dette leses lusetall-panelet feil. Snapshotet er datert fire uker
+    tilbake, og en leser som sammenligner det med akvakultur-panelet ser
+    en kilde som ser ut til å ha stått stille en måned. Den har ikke det —
+    den henter uke N-4 med vilje, fordi ferskere uker er ufullstendige.
+
+    Måles som avstanden mellom kjøredatoen og datoen en kjøring i dag
+    ville gitt snapshotet, altså kildens egen gjelder_for(). Da er tallet
+    kildens regel og ikke et anslag basert på hva som tilfeldigvis ligger
+    på disk: en kilde som ikke har kjørt på tre uker skal se gammel ut,
+    og det skal ikke skjules bak «etterslep».
+    """
+    from core import registry
+
+    i_dag = dt.datetime.now(dt.timezone.utc).date()
+    ut = {}
+    for k in registry.discover():
+        gjelder = dt.date.fromisoformat(k.gjelder_for(i_dag.isoformat()))
+        ut[k.name] = (i_dag - gjelder).days
+    return ut
 
 
 def _er_numerisk(verdier: pl.Series) -> bool:
@@ -109,6 +135,7 @@ def _felter_for_kilde(kilde: str, ramme: pl.DataFrame,
 
 def bygg_data() -> dict:
     endringer = changelog.les_alt()
+    etterslep = _etterslep_dager()
     kilder = []
 
     for navn in _kilder():
@@ -119,6 +146,9 @@ def bygg_data() -> dict:
         kilder.append({
             "kilde": navn,
             "dato": dato,
+            # Dager kilden er datert bak i tid FORDI den har etterslep.
+            # 0 for kilder uten. Se _etterslep_dager().
+            "etterslep": etterslep.get(navn, 0),
             "entiteter": ramme["entity_id"].n_unique(),
             "observasjoner": ramme.height,
             "felter": _felter_for_kilde(navn, ramme, endringer),
@@ -189,7 +219,13 @@ function tegn(filter) {{
 
     const h = document.createElement('div');
     h.className = 'kilde';
-    h.textContent = `${{k.kilde}} — snapshot ${{k.dato}}, ${{k.entiteter}} entiteter, `
+    // Etterslepet står eksplisitt. Uten det ser en kilde som daterer seg
+    // fire uker tilbake med vilje ut som en kilde som har stått stille.
+    const etterslep = k.etterslep > 0
+      ? ` — gjelder ${{k.dato}}, ${{k.etterslep}} dager bak i dag (kilden `
+        + `henter med etterslep med vilje; ferskere data er ufullstendige)`
+      : ` — snapshot ${{k.dato}}`;
+    h.textContent = `${{k.kilde}}${{etterslep}}, ${{k.entiteter}} entiteter, `
                   + `${{k.observasjoner}} observasjoner, ${{k.felter.length}} felter`;
     ut.appendChild(h);
 
@@ -247,8 +283,10 @@ def main() -> int:
     mb = UT.stat().st_size / 1_048_576
     print(UT)
     for k in data["kilder"]:
-        print(f"  {k['kilde']:<20} {k['dato']}  {len(k['felter']):>3} felter  "
-              f"{k['entiteter']:>6} entiteter  {k['observasjoner']:>7} observasjoner")
+        merke = f" (-{k['etterslep']}d etterslep)" if k["etterslep"] else ""
+        print(f"  {k['kilde']:<20} {k['dato']}{merke:<18}  "
+              f"{len(k['felter']):>3} felter  {k['entiteter']:>6} entiteter  "
+              f"{k['observasjoner']:>7} observasjoner")
     print(f"  endringer i changeloggen: {data['endringer_totalt']}")
     print(f"  filstørrelse: {mb:.2f} MB")
     if mb > STOR_FIL_MB:

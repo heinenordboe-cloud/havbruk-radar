@@ -42,6 +42,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+from typing import Callable
 
 import polars as pl
 import yaml
@@ -270,8 +271,22 @@ def felt_navn(p: dict) -> str:
     return f"{p['entitet']}.{p['felt']}"
 
 
-def forfalte(idag: str, prediksjoner: list[dict] | None = None) -> list[dict]:
-    """Prediksjoner hvis vindu er lukket og som ikke er evaluert før.
+def _gyldig_til(idag: str) -> Callable[[str], str]:
+    """Gir en funksjon kildenavn -> nyeste dato vi har data for.
+
+    Slår opp kilden i registry og spør `gjelder_for(idag)`. En kilde
+    kjernen ikke kjenner, behandles som om den ikke har etterslep: da er
+    svaret kjøredatoen, altså nøyaktig oppførselen fra før.
+    """
+    from core import registry
+
+    etterslep = {k.name: k.gjelder_for(idag) for k in registry.discover()}
+    return lambda kilde: etterslep.get(kilde, idag)
+
+
+def forfalte(idag: str, prediksjoner: list[dict] | None = None,
+             gyldig_til: Callable[[str], str] | None = None) -> list[dict]:
+    """Prediksjoner hvis vindu er DEKKET AV DATA og som ikke er evaluert før.
 
     Anslag med formatfeil hoppes over. Uten det får et ugyldig anslag et
     resultat, havner i `alt_evaluert()`, og er dermed borte for godt i det
@@ -280,21 +295,44 @@ def forfalte(idag: str, prediksjoner: list[dict] | None = None) -> list[dict]:
     Fanget ved å kjøre `run.py`, ikke av testene: et anslag med
     `vindu.fra == vindu.til` gikk i tilsyn-lista som det skulle, OG ble
     skrevet til resultatfila i samme kjøring.
+
+    ## Hvorfor kalenderen ikke er nok
+
+    Vinduet ble før sammenlignet mot KJØREDATOEN. Men `_serie()` leser
+    snapshots etter filnavn, og filnavnet er gyldighetsdatoen. For en
+    kilde med fire ukers etterslep betyr det at et anslag med vindu som
+    lukker 01.08 ble avgjort 01.08 — på data som bare rakk til 06.07.
+    Anslaget ble dømt på tall fra før vinduet lukket, og utfallet ble et
+    fullt gyldig «bom». Verre: `alt_evaluert()` gjør det permanent, så
+    dataene som faktisk dekket vinduet kom for sent til å telle.
+
+    Derfor måles vinduet mot kildens egen gyldighetsdato. Et anslag mot
+    en kilde med etterslep venter til etterslepet har passert
+    `vindu.til`. For en kilde uten etterslep er de to datoene de samme,
+    og ingenting endrer seg.
+
+    `gyldig_til` er injiserbar for testenes skyld — og for den som vil
+    spørre «hva ville forfalt hvis vi kjørte i dag».
     """
     prediksjoner = last() if prediksjoner is None else prediksjoner
+    gyldig_til = gyldig_til or _gyldig_til(idag)
     ferdige = alt_evaluert()
-    return [
-        p for p in prediksjoner
-        if not _valider_en(p)
-        and str((p.get("vindu") or {}).get("til") or "") <= idag
-        and str(p.get("id")) not in ferdige
-    ]
+
+    forfalt = []
+    for p in prediksjoner:
+        if _valider_en(p) or str(p.get("id")) in ferdige:
+            continue
+        til = str((p.get("vindu") or {}).get("til") or "")
+        if til and til <= gyldig_til(str(p.get("kilde") or "")):
+            forfalt.append(p)
+    return forfalt
 
 
-def evaluer(idag: str, prediksjoner: list[dict] | None = None) -> pl.DataFrame:
+def evaluer(idag: str, prediksjoner: list[dict] | None = None,
+            gyldig_til: Callable[[str], str] | None = None) -> pl.DataFrame:
     """Avgjør alle forfalte anslag. Skriver ingenting."""
     rader = []
-    for p in forfalte(idag, prediksjoner):
+    for p in forfalte(idag, prediksjoner, gyldig_til):
         vindu = p["vindu"]
         fra, til = str(vindu["fra"]), str(vindu["til"])
         utgang, i_vindu = _serie(p["kilde"], str(p["entitet"]), p["felt"], fra, til)

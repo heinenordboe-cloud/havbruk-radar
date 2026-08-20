@@ -277,3 +277,83 @@ def test_ugyldig_anslag_evalueres_aldri(rot):
 
     # og når den rettes, er den fortsatt evaluerbar
     assert pred.evaluer("2026-03-02", [p()]).height == 1
+
+
+# ------------------------------------------------- kilder med etterslep
+
+def lus(**over):
+    """Anslag mot lusetall, som henter uke N-4."""
+    base = p(
+        id="2026-07-01-1",
+        kilde="lusetall",
+        felt="voksne_hunnlus",
+        vindu={"fra": "2026-07-01", "til": "2026-08-01"},
+        _fil="2026-07-01.yml",
+        _fildato="2026-07-01",
+    )
+    base.update(over)
+    return base
+
+
+def test_anslag_mot_kilde_med_etterslep_venter_paa_dataene(rot):
+    """Kalenderen sier forfalt, dataene sier nei.
+
+    Vinduet lukker 01.08, og kjøredatoen er 01.08. Men lusetall henter
+    uke N-4, så snapshotet den dagen gjelder 06.07 — en måned FØR vinduet
+    lukket. Avgjøres anslaget nå, dømmes det på tall fra før vinduet var
+    over, og `alt_evaluert()` gjør dommen permanent.
+    """
+    skriv_snapshot(rot, "lusetall", "2026-07-01", "10029", "voksne_hunnlus", 0.2)
+
+    assert pred.forfalte("2026-08-01", [lus()]) == []
+    assert pred.evaluer("2026-08-01", [lus()]).height == 0
+
+
+def test_etterslepet_teller_ikke_bare_kalenderen(rot):
+    """Tre uker etter at vinduet lukket er det fortsatt for tidlig.
+
+    24.08 ligger godt forbi 01.08 på kalenderen, men lusetall gjelder da
+    uke 31 — mandag 27.07 — og den er fortsatt før vinduet lukket.
+    """
+    skriv_snapshot(rot, "lusetall", "2026-07-01", "10029", "voksne_hunnlus", 0.2)
+
+    assert pred.forfalte("2026-08-24", [lus()]) == []
+
+
+def test_anslag_forfaller_naar_etterslepet_har_passert_vinduet(rot):
+    """31.08: lusetall gjelder mandag 03.08, som er etter 01.08. Nå har
+    vi data som dekker vinduet, og anslaget kan avgjøres."""
+    skriv_snapshot(rot, "lusetall", "2026-07-01", "10029", "voksne_hunnlus", 0.2)
+    skriv_snapshot(rot, "lusetall", "2026-07-27", "10029", "voksne_hunnlus", 0.3)
+
+    assert [x["id"] for x in pred.forfalte("2026-08-31", [lus()])] == ["2026-07-01-1"]
+
+    res = pred.evaluer("2026-08-31", [lus()])
+    assert res.height == 1
+    assert res["utfall"][0] == "traff"        # 0.2 -> 0.3 er +50 %, krav 10 % opp
+
+
+def test_kilde_uten_etterslep_forfaller_paa_kalenderen_som_for(rot):
+    """Motprøven. akvakultur har ikke etterslep, så gyldighetsdatoen ER
+    kjøredatoen — og oppførselen er nøyaktig som før endringen."""
+    skriv_snapshot(rot, "akvakultur", "2026-01-01", "10029", "kapasitet", 1000)
+    skriv_snapshot(rot, "akvakultur", "2026-02-01", "10029", "kapasitet", 1200)
+
+    assert pred.forfalte("2026-02-28", [p()]) == []      # vinduet er åpent
+    assert [x["id"] for x in pred.forfalte("2026-03-01", [p()])] == ["2026-01-01-1"]
+
+
+def test_ukjent_kilde_behandles_som_uten_etterslep(rot):
+    """En kilde kjernen ikke kjenner skal ikke kunne fryse et anslag for
+    godt. Da er svaret kjøredatoen, altså oppførselen fra før."""
+    assert [x["id"] for x in pred.forfalte(
+        "2026-03-01", [p(kilde="finnesikke")])] == ["2026-01-01-1"]
+
+
+def test_gyldig_til_kan_injiseres(rot):
+    """Regelen skal kunne prøves uten å gå veien om registry."""
+    skriv_snapshot(rot, "lusetall", "2026-07-01", "10029", "voksne_hunnlus", 0.2)
+
+    for til, ventet in (("2026-07-31", 0), ("2026-08-01", 1)):
+        funnet = pred.forfalte("2026-08-01", [lus()], gyldig_til=lambda k: til)
+        assert len(funnet) == ventet, f"gyldig_til={til}"

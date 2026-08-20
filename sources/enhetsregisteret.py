@@ -233,7 +233,7 @@ class Enhetsregisteret(Source):
     entity_type = "selskap"
     enabled = True
 
-    def fetch(self) -> list[dict]:
+    def fetch(self, kjoredato: str) -> list[dict]:
         """Én post per SIDE, med pagineringskonvolutten intakt.
 
         Returnerer ikke en flat liste av enheter. Grunnen er arkivet:
@@ -243,6 +243,10 @@ class Enhetsregisteret(Source):
         re-parse. Med sidene intakt er begge deler synlige i arkivet.
 
         parse() pakker ut igjen, og leser begge arkivformater.
+
+        `kjoredato` brukes ikke: registeret har ingen etterslep. Argumentet
+        står fordi kontrakten krever at en kilde FÅR tiden inn i stedet
+        for å slå den opp — se Source.fetch.
         """
         koder = get("kilder.enhetsregisteret.naeringskoder", [])
         sidestorrelse = get("kilder.enhetsregisteret.sidestorrelse", 100)

@@ -63,7 +63,12 @@ def _ferskeste_tillatte(kilde) -> tuple[int, int]:
     Grensen må være den SAMME på begge sider, ikke to tall som ligner.
     """
     uker = int(get(f"kilder.{kilde.name}.uker_etterslep", 4))
-    return uke_med_etterslep(dt.date.today(), uker)
+    # UTC, ikke date.today(). run.py regner kjøredatoen i UTC, og grensen
+    # skal være den SAMME på begge sider — to klokker som er uenige om
+    # hvilken dag det er, er nok til å flytte grensen en hel ISO-uke ved
+    # et ukeskille. Da skriver backfillen enten en uke den ukentlige
+    # jobben også tar, eller lar en uke ligge mellom seg og den.
+    return uke_med_etterslep(dt.datetime.now(dt.timezone.utc).date(), uker)
 
 
 def _uker(fra: tuple[int, int], til: tuple[int, int]):

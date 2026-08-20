@@ -116,7 +116,7 @@ def run_all(
             # collect() kollapset fetch() og parse() til ett kall. Kjernen
             # åpner dem og arkiverer imellom — uten det er hver feil i
             # parse() permanent datatap.
-            rawdata = source.fetch()
+            rawdata = source.fetch(kjoredato)
             raw_hash = ""
             if arkiver:
                 raw_hash = raw_arkiv.arkiver(source.name, gjelder, rawdata)

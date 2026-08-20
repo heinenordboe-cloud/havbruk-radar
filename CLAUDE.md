@@ -12,6 +12,29 @@ Hvis en ny kilde later til å kreve en endring i `core/`: ikke gjør
 unntaket. Si fra at kontrakten mangler noe, og la brukeren avgjøre om
 `contract.py` skal utvides.
 
+## 1b. En kilde leser aldri klokka — den får tiden inn
+
+`fetch(kjoredato)` og `gjelder_for(kjoredato)` får datoen som argument.
+Ingen kilde skal kalle `date.today()` eller `datetime.now()` for å
+avgjøre hvilket tidsrom den henter, og kjernen slår opp kjøredatoen
+nøyaktig ett sted: `run.py`.
+
+Tre feil i dette prosjektet har hatt samme rotårsak — et tidspunkt slått
+opp på nytt et sted til, eller et tidspunkt som handler om OSS brukt som
+om det handlet om VERDEN:
+
+- **F4:** frekvensvakten målte filnavnsdato der den skulle målt
+  innsamlingstidspunkt, og leste permanent 28 dager for lusetall.
+- **F6:** `run.py` daterte snapshotet etter kjøredagen mens kilden
+  stemplet radene med uka de gjaldt for. Filnavnet løy om innholdet.
+- **F7:** `fetch()` slo opp klokka mens `gjelder_for()` fikk datoen inn.
+  To oppslag som kan svare ulikt rundt midnatt — og da får fila navn
+  etter én uke og innhold fra en annen.
+
+Skillet som gjelder: `observed_at` handler om verden, `fetched_at` og
+`sist_forsok` handler om oss. Blander du dem, blir feilen usynlig for
+enhver kilde uten etterslep — og permanent for dem som har det.
+
 ## 2. Data skrives én gang, aldri om
 
 Append-only gjelder `data/raw/<kilde>/<dato>.parquet`,
