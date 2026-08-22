@@ -4,6 +4,7 @@ Poenget er ikke testdekning. Poenget er at du kan endre core/ og på
 to sekunder vite om du ødela noe.
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -1531,3 +1532,262 @@ def test_config_har_ingen_utgatte_koder():
     assert sokte, "config.yml har ingen næringskoder"
     assert not (sokte & utgatt), f"config.yml søker på utgåtte koder: {sokte & utgatt}"
     assert sokte <= bekreftet, f"koder uten dekning i segments.yml: {sokte - bekreftet}"
+
+
+# ------------------------------------------------- personformer (ENK)
+#
+# Revisjonen 22.08.2026 fant 34 enkeltpersonforetak i hvert eneste
+# enhetsregister-snapshot. Et ENK er ikke et eget rettssubjekt — foretaket
+# ER innehaveren — så navn, kommune, postnummer og konkursflagg er
+# opplysninger om en identifiserbar fysisk person. Testene under låser
+# begge halvdelene: filteret i kilden, og vakten som fanger at filteret
+# svikter.
+
+
+def _enhet(orgnr: str, form: str, navn: str = "Testlaks",
+           gate: str = "Fjordveien 1") -> dict:
+    return {
+        "organisasjonsnummer": orgnr,
+        "navn": navn,
+        "organisasjonsform": {"kode": form, "beskrivelse": form},
+        "forretningsadresse": {"kommune": "BODØ", "postnummer": "8000",
+                               "adresse": [gate]},
+        "antallAnsatte": 3,
+    }
+
+
+def test_enk_gir_ingen_observasjoner():
+    """Filteret er i kilden, ikke i en vask etterpå."""
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    obs = list(Enhetsregisteret().parse(
+        [_enhet("111111111", "ENK"), _enhet("222222222", "AS")], "2026-08-24"
+    ))
+
+    assert {o.entity_id for o in obs} == {"222222222"}
+
+
+def test_da_og_ans_beholdes():
+    """Et bevisst valg, ikke en forglemmelse: DA og ANS er egne
+    rettssubjekter, og deltakerne står bare i rolleregisteret vi aldri
+    spør etter. Se core/persondata.py. Faller denne, er valget endret —
+    og da skal beslutningen endres med den."""
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    obs = list(Enhetsregisteret().parse(
+        [_enhet("333333333", "DA"), _enhet("444444444", "ANS")], "2026-08-24"
+    ))
+
+    assert {o.entity_id for o in obs} == {"333333333", "444444444"}
+
+
+def test_gammelt_arkiv_med_enk_reparses_uten_enk():
+    """Arkivfilene fra før 22.08.2026 inneholder ENK. En re-parse skal
+    ikke føre dem inn igjen — derfor filtrerer parse() også, ikke bare
+    fetch()."""
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    flatt_gammelt_arkiv = [_enhet("111111111", "ENK"), _enhet("222222222", "AS")]
+    obs = list(Enhetsregisteret().parse(flatt_gammelt_arkiv, "2026-08-17"))
+
+    assert all(o.entity_id != "111111111" for o in obs)
+
+
+def test_fetch_arkiverer_ikke_personformer(monkeypatch, capsys):
+    """Rå-arkivet lagrer hele API-svaret, inkludert gateadressen som
+    FELTER holder utenfor snapshotet. Filtrerer vi først i parse(), ligger
+    hjemmeadressen til hvert ENK i arkivet uansett."""
+    from sources import _http
+    from sources import enhetsregisteret as er
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    # `from core.config import get` binder navnet i kildemodulen.
+    monkeypatch.setattr(er, "get", lambda nokkel, standard=None: {
+        "kilder.enhetsregisteret.naeringskoder": ["03.211"],
+        "kilder.enhetsregisteret.sidestorrelse": 100,
+        "kilder.enhetsregisteret.tillat_tomt": [],
+    }.get(nokkel, standard))
+
+    class FalsktSvar:
+        def json(self):
+            return {
+                "_embedded": {"enheter": [
+                    _enhet("111111111", "ENK", gate="Hjemmeveien 7"),
+                    _enhet("222222222", "AS")]},
+                "page": {"totalPages": 1},
+            }
+
+    monkeypatch.setattr(_http, "get", lambda *a, **kw: FalsktSvar())
+
+    sider = Enhetsregisteret().fetch("2026-08-24")
+    arkivert = json.dumps(sider, ensure_ascii=False)
+
+    assert "111111111" not in arkivert      # ENK er ute av arkivet
+    assert "Hjemmeveien" not in arkivert    # og hjemmeadressen med den
+    assert "222222222" in arkivert          # selskapet står igjen
+
+    # Konvolutten er urørt: en avkortet paginering skal fortsatt kunne
+    # oppdages ved re-parse.
+    assert sider[0]["svar"]["page"]["totalPages"] == 1
+    assert sider[0]["naeringskode"] == "03.211"
+
+    # Antallet skrives til kjøringsloggen, slik at et hopp er synlig.
+    assert "1 foretak filtrert bort som fysisk person (ENK 1)" in capsys.readouterr().out
+
+
+def test_side_med_bare_personformer_stopper_ikke_pagineringen(monkeypatch):
+    """Pagineringen styres av svaret fra Brreg, ikke av hva som ble igjen
+    etter filteret. Telles den etter, bryter løkka på en side der alle
+    treffene var ENK — og mister sidene bak."""
+    from sources import _http
+    from sources import enhetsregisteret as er
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    # `from core.config import get` binder navnet i kildemodulen.
+    monkeypatch.setattr(er, "get", lambda nokkel, standard=None: {
+        "kilder.enhetsregisteret.naeringskoder": ["03.211"],
+        "kilder.enhetsregisteret.sidestorrelse": 100,
+        "kilder.enhetsregisteret.tillat_tomt": [],
+    }.get(nokkel, standard))
+
+    sider_ut = [
+        {"_embedded": {"enheter": [_enhet("111111111", "ENK")]},
+         "page": {"totalPages": 2}},
+        {"_embedded": {"enheter": [_enhet("222222222", "AS")]},
+         "page": {"totalPages": 2}},
+    ]
+
+    class FalsktSvar:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    kalt = []
+
+    def falsk_get(*a, **kw):
+        kalt.append(kw.get("params", {}).get("page"))
+        return FalsktSvar(sider_ut[len(kalt) - 1])
+
+    monkeypatch.setattr(_http, "get", falsk_get)
+
+    sider = Enhetsregisteret().fetch("2026-08-24")
+
+    assert kalt == [0, 1]                      # side 2 ble faktisk hentet
+    assert "222222222" in json.dumps(sider)
+    assert "111111111" not in json.dumps(sider)
+
+
+def test_tomt_sok_varsler_ikke_naar_treffene_var_personformer(monkeypatch):
+    """Varselet om tomme næringskodesøk spør «svarte Brreg med noe».
+    Telles treffene etter filteret, ser en kode som legitimt bare
+    inneholder ENK ut som en utgått kode."""
+    from sources import _http
+    from sources import enhetsregisteret as er
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    # `from core.config import get` binder navnet i kildemodulen.
+    monkeypatch.setattr(er, "get", lambda nokkel, standard=None: {
+        "kilder.enhetsregisteret.naeringskoder": ["03.211"],
+        "kilder.enhetsregisteret.sidestorrelse": 100,
+        "kilder.enhetsregisteret.tillat_tomt": [],
+    }.get(nokkel, standard))
+
+    class FalsktSvar:
+        def json(self):
+            return {"_embedded": {"enheter": [_enhet("111111111", "ENK")]},
+                    "page": {"totalPages": 1}}
+
+    monkeypatch.setattr(_http, "get", lambda *a, **kw: FalsktSvar())
+
+    kilde = Enhetsregisteret()
+    kilde.fetch("2026-08-24")
+
+    assert kilde.advarsler == []
+
+
+def _obs_form(orgnr: str, form: str, observed_at: str = "2026-08-24") -> Observation:
+    return Observation(
+        entity_id=orgnr,
+        entity_type="selskap",
+        entity_name="Testlaks",
+        field="organisasjonsform",
+        value=form,
+        source="enhetsregisteret",
+        observed_at=observed_at,
+    )
+
+
+def test_vakten_nekter_snapshot_med_personform(tmp_path, monkeypatch):
+    """Et filter noen glemmer å oppdatere er ikke en garanti. Vakten
+    ligger i trakta alt skrives gjennom, som datokontrollen."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    with pytest.raises(ValueError, match="ENK"):
+        snapshot.write([_obs_form("111111111", "ENK")], "2026-08-24")
+
+    assert list(tmp_path.rglob("*.parquet")) == []   # ingenting ble skrevet
+
+
+def test_vakten_slipper_gjennom_selskapsformer(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    filer = snapshot.write(
+        [_obs_form("222222222", "AS"), _obs_form("333333333", "DA")],
+        "2026-08-24",
+    )
+
+    assert len(filer) == 1
+    assert pl.read_parquet(filer[0]).height == 2
+
+
+def test_vakten_lar_seg_ikke_lure_av_store_og_smaa_bokstaver(tmp_path, monkeypatch):
+    """Verdien er tekst fra et API. En kilde som skriver 'enk' skal ikke
+    slippe forbi en vakt som bare kjenner 'ENK'."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    with pytest.raises(ValueError):
+        snapshot.write([_obs_form("111111111", " enk ")], "2026-08-24")
+
+
+def test_vakten_faller_ikke_paa_kilder_uten_organisasjonsform(tmp_path, monkeypatch):
+    """Akvakulturregisteret oppgir ingen organisasjonsform. Vakten skal
+    være stille der, ikke kaste på et felt som ikke finnes."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    lokalitet = Observation(
+        entity_id="10029", entity_type="lokalitet", entity_name="TUHOLMANE",
+        field="kapasitet", value="2340.0", source="akvakultur",
+        observed_at="2026-08-24",
+    )
+
+    assert len(snapshot.write([lokalitet], "2026-08-24")) == 1
+
+
+def test_samme_enk_fra_to_naeringskoder_telles_en_gang(monkeypatch, capsys):
+    """Kilden søker på ni koder, og samme foretak kan komme i retur fra
+    flere. Teller loggen forekomster i stedet for foretak, hopper tallet
+    av at en næringskode ble lagt til — ikke av at flere personer kom inn
+    i utvalget."""
+    from sources import _http
+    from sources import enhetsregisteret as er
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    monkeypatch.setattr(er, "get", lambda nokkel, standard=None: {
+        "kilder.enhetsregisteret.naeringskoder": ["03.211", "03.300"],
+        "kilder.enhetsregisteret.sidestorrelse": 100,
+        "kilder.enhetsregisteret.tillat_tomt": [],
+    }.get(nokkel, standard))
+
+    class FalsktSvar:
+        def json(self):
+            return {"_embedded": {"enheter": [_enhet("111111111", "ENK"),
+                                              _enhet("222222222", "AS")]},
+                    "page": {"totalPages": 1}}
+
+    monkeypatch.setattr(_http, "get", lambda *a, **kw: FalsktSvar())
+
+    Enhetsregisteret().fetch("2026-08-24")
+
+    assert "1 foretak filtrert bort" in capsys.readouterr().out

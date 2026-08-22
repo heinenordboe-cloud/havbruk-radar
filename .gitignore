@@ -12,3 +12,9 @@ venv/
 .pytest_cache/
 dashboard/node_modules/
 dashboard/.evidence/
+
+# Agentens arbeidsnotater. Lå i .git/info/exclude fram til 22.08.2026, og
+# den er lokal — den følger ikke med en klone, en ny maskin eller en ny
+# sjekkut. Den har allerede sviktet to ganger. En regel som skal gjelde
+# repoet må ligge i repoet.
+/.claude/

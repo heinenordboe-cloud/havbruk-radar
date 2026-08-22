@@ -55,6 +55,22 @@ Bare virksomhets- og lokalitetsdata hentes. Roller, gateadresser og
 andre personopplysninger hentes bevisst ikke inn — verken dette repoet
 eller datarepoet skal være et personregister.
 
+**Noen ORGANISASJONSFORMER er personer.** Et enkeltpersonforetak er ikke
+et eget rettssubjekt: foretaket ER innehaveren, og da er navn, kommune,
+postnummer, næring og konkursflagg opplysninger om et navngitt menneske.
+Å utelate rolleendepunktet og gateadressen er ikke nok — 34 ENK lå i
+hvert snapshot i fem dager fordi de kom inn gjennom det ordinære
+næringskodesøket. `core/persondata.py` eier lista, kilden filtrerer i
+`fetch()` før arkivering, og `snapshot.write()` nekter å skrive et
+snapshot som likevel inneholder dem.
+
+Kontrollen som sviktet, sviktet på samme måte som feilene i 1b: åpningen
+16.08 ble begrunnet med at alle `entity_id` var ni siffer, og et ENK har
+ni siffer akkurat som et AS. Skillet fantes i dataene
+(`organisasjonsform`), men ble ikke båret over i kontrollen som skulle
+håndheve det. Når du skal bevise at noe ikke er der, spør om DET du
+faktisk vil vite, ikke om noe som korrelerer med det.
+
 ## 4. Skill mellom bekreftet og antatt
 
 Har du ikke selv sett et endepunkt, en respons eller et format, si det

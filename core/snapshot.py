@@ -10,6 +10,7 @@ from pathlib import Path
 
 import polars as pl
 
+from core import persondata
 from core.contract import Observation
 from core.paths import RAW_DIR  # noqa: F401  (monkeypatches i testene treffer her)
 
@@ -61,6 +62,42 @@ def to_frame(observations: list[Observation]) -> pl.DataFrame:
     return frame.unique(subset=NOKKEL, keep="first", maintain_order=True)
 
 
+def _vakt_mot_personformer(source: str, group: pl.DataFrame) -> None:
+    """Nekter å skrive et snapshot som inneholder en filtrert
+    organisasjonsform.
+
+    Filteret i kilden er der data faktisk holdes ute. Denne vakten er der
+    fordi et filter noen glemmer å oppdatere ikke er en garanti: en ny
+    kilde som henter selskapsdata, en re-parse gjennom en vei som ikke
+    filtrerer, eller en backfill som går utenom kildens `fetch()` — alle
+    tre ender her, i den ene trakta alt skrives gjennom. Samme plassering
+    og samme begrunnelse som datokontrollen under.
+
+    Hva vakten IKKE dekker, sagt rett ut: den ser bare rader der feltet
+    heter `organisasjonsform`. En kilde som kaller det noe annet, eller
+    som ikke oppgir formen i det hele tatt, går forbi. Den fanger at et
+    kjent filter sviktet — ikke at lista over personformer er riktig.
+    """
+    if persondata.FORM_FELT not in group["field"].to_list():
+        return
+
+    funn = (
+        group.filter(pl.col("field") == persondata.FORM_FELT)
+        .filter(pl.col("value").str.strip_chars().str.to_uppercase()
+                .is_in(sorted(persondata.PERSONFORMER)))
+    )
+    if funn.is_empty():
+        return
+
+    former = sorted(set(funn["value"].to_list()))
+    raise ValueError(
+        f"{source}: {funn.height} enhet(er) med organisasjonsform {former} "
+        f"i radene. Formen er en fysisk person, ikke et selskap "
+        f"(se core/persondata.py), og snapshotet skrives ikke. Filteret i "
+        f"kilden har sviktet eller er omgått — rett det der, ikke her."
+    )
+
+
 def _ledig_sti(target_dir: Path, observed_at: str) -> Path:
     """Neste ledige filnavn for denne datoen. Samme mønster som
     raw_arkiv.arkiver(): kollisjon løser seg med løpenummer, ikke
@@ -101,12 +138,20 @@ def write(observations: list[Observation], observed_at: str) -> list[Path]:
     Kontrollen ligger her og ikke hos kalleren fordi dette er trakta alt
     går gjennom: både run.py og backfill.py skriver herfra, og en
     invariant som skal holde for begge hører hjemme i den ene veien de
-    deler.
+    deler. Samme begrunnelse gjelder personformvakten, se
+    `_vakt_mot_personformer`.
+
+    Merk rekkefølgen: rå-arkivet skrives FØR parse(), altså før noe kommer
+    hit. Vakten stopper et snapshot, ikke en arkivfil. Skal persondata
+    holdes ute av arkivet også, må det skje i kildens `fetch()` — som er
+    grunnen til at enhetsregisteret filtrerer begge steder.
     """
     frame = to_frame(observations)
     written = []
 
     for (source,), group in frame.group_by(["source"]):
+        _vakt_mot_personformer(str(source), group)
+
         datoer = sorted(set(group["observed_at"].to_list()))
         if datoer != [observed_at]:
             raise ValueError(

@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-08-22** — [Enkeltpersonforetak filtreres bort i kilden](2026-08-22-enk-filtreres-i-kilden.md) — utkast
 - **2026-08-19** — [Frekvensvakten måler innsamlingstidspunkt, ikke observasjonsalder](2026-08-19-frekvensvakt-maler-innsamling.md) — utkast
 - **2026-08-18** — [observed_at er datoen snapshotet gjelder for, ikke datoen vi hentet det](2026-08-18-observed-at-er-gyldighetsdato.md) — delvis feil, se [2026-08-19-frekvensvakt-maler-innsamling.md](2026-08-19-frekvensvakt-maler-innsamling.md)
 - **2026-08-18** — [Kategorien «forsvinnende kilder» er tom, og hastverket den skapte gjelder ikke lenger](2026-08-18-kildeklassifisering-var-feil.md) — gjeldende
@@ -32,7 +33,7 @@ Nyeste øverst.
 - **2026-08-16** — [Feil isoleres ved import, ikke bare ved kjøring](2026-08-16-feilisolering-ved-import.md) — gjeldende
 - **2026-08-16** — [Alarmen holder seg rød så lenge en kilde er nede](2026-08-16-vedvarende-nedetidsalarm.md) — gjeldende
 - **2026-08-16** — [Avhengigheter pinnes eksakt](2026-08-16-pinnede-avhengigheter.md) — gjeldende
-- **2026-08-16** — [Repoet er offentlig](2026-08-16-repoet-er-offentlig.md) — erstattet av [2026-08-18-repoene-er-private.md](2026-08-18-repoene-er-private.md)
+- **2026-08-16** — [Repoet er offentlig](2026-08-16-repoet-er-offentlig.md) — delvis feil («ingen persondata» var ikke bevist), erstattet av [2026-08-18-repoene-er-private.md](2026-08-18-repoene-er-private.md)
 - **2026-08-16** — [Repoet er privat inntil videre](2026-08-16-repoet-er-privat.md) — erstattet av [2026-08-16-repoet-er-offentlig.md](2026-08-16-repoet-er-offentlig.md)
 - **2026-08-16** — [Ukentlig innsamling, ikke daglig](2026-08-16-ukentlig-innsamling.md) — gjeldende
 - **2026-08-16** — [Git som database, ikke en server](2026-08-16-git-som-database.md) — gjeldende
