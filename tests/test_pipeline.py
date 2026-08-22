@@ -4,6 +4,7 @@ Poenget er ikke testdekning. Poenget er at du kan endre core/ og på
 to sekunder vite om du ødela noe.
 """
 
+import ast
 import json
 import subprocess
 import sys
@@ -1791,3 +1792,170 @@ def test_samme_enk_fra_to_naeringskoder_telles_en_gang(monkeypatch, capsys):
     Enhetsregisteret().fetch("2026-08-24")
 
     assert "1 foretak filtrert bort" in capsys.readouterr().out
+
+
+# -------------------------------------------------- leseveien er én dør
+#
+# Snapshotene fra 16.-17.08.2026 inneholder 34 ENK hver, og de filene er
+# append-only. Filteret er derfor ikke en opprydding som blir ferdig, men
+# en betingelse hver eneste lesing må oppfylle. Testene under håndhever
+# begge halvdelene: at filteret virker, og at ingen ny lesevei kan gå
+# utenom det uten å felle suiten.
+
+
+def _snapshot_med_enk(observed_at: str = "2026-08-17") -> list[Observation]:
+    """Et snapshot slik de gamle filene ser ut: ENK og AS side om side,
+    med alle feltene utfylt for begge."""
+    rader = []
+    for orgnr, form, navn in [("111111111", "ENK", "Kari Nordmann"),
+                              ("222222222", "AS", "Testlaks AS")]:
+        for felt, verdi in [("organisasjonsform", form), ("navn", navn),
+                            ("kommune", "BODØ"), ("postnummer", "8000"),
+                            ("konkurs", "false")]:
+            rader.append(Observation(
+                entity_id=orgnr, entity_type="selskap", entity_name=navn,
+                field=felt, value=verdi, source="enhetsregisteret",
+                observed_at=observed_at,
+            ))
+    return rader
+
+
+def _skriv_gammelt_snapshot(rader, observed_at="2026-08-17"):
+    """Skriver forbi snapshot.write(), som med rette nekter ENK.
+
+    De gamle filene ble skrevet før vakten fantes, og en test som ikke kan
+    lage dem kan ikke bevise at leseveien håndterer dem."""
+    mappe = snapshot.RAW_DIR / "enhetsregisteret"
+    mappe.mkdir(parents=True, exist_ok=True)
+    ramme = pl.DataFrame([o.as_dict() for o in rader]).select(snapshot.SCHEMA)
+    ramme.write_parquet(mappe / f"{observed_at}.parquet")
+
+
+def test_previous_filtrerer_enk_ut_av_gammelt_snapshot(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    _skriv_gammelt_snapshot(_snapshot_med_enk())
+
+    gammelt = snapshot.previous("enhetsregisteret", before="2026-08-24")
+
+    assert gammelt is not None
+    assert gammelt["entity_id"].unique().to_list() == ["222222222"]
+
+
+def test_les_mellom_filtrerer_enk(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    _skriv_gammelt_snapshot(_snapshot_med_enk())
+
+    [(_, ramme)] = snapshot.les_mellom("enhetsregisteret", "2026-08-01", "2026-08-31")
+
+    assert "111111111" not in ramme["entity_id"].to_list()
+
+
+def test_hele_entiteten_fjernes_ikke_bare_formraden(tmp_path, monkeypatch):
+    """Fjernes bare raden som sier ENK, står navnet, kommunen og
+    konkursflagget igjen — persondataene uten etiketten som gjorde dem
+    gjenkjennelige. Det er verre enn ingen filtrering, fordi neste
+    revisjon ikke ville funnet dem."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    _skriv_gammelt_snapshot(_snapshot_med_enk())
+
+    ramme = snapshot.previous("enhetsregisteret", before="2026-08-24")
+
+    assert "Kari Nordmann" not in ramme["value"].to_list()
+    assert "Kari Nordmann" not in ramme["entity_name"].to_list()
+    assert ramme.height == 5              # kun AS-ets fem felter står igjen
+
+
+def test_enk_som_forsvinner_blir_ikke_en_endring(tmp_path, monkeypatch):
+    """Den konkrete konsekvensen av at leseveien filtrerer.
+
+    Uten filteret ser diffen ENK i forrige snapshot og ikke i dette, og
+    fører hver av dem inn i changeloggen som change_type «borte» — med
+    navn. Filteret i kilden ville da ha FLYTTET persondataene fra
+    snapshotene til endringsloggen, ikke fjernet dem."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    _skriv_gammelt_snapshot(_snapshot_med_enk("2026-08-17"))
+
+    # Denne uka: kilden filtrerer, så bare AS-et kommer inn.
+    naa = snapshot.to_frame([o for o in _snapshot_med_enk("2026-08-24")
+                             if o.entity_id == "222222222"])
+    endringer = diff.compare(naa, "2026-08-24")
+
+    assert endringer.height == 0
+    assert "111111111" not in endringer["entity_id"].to_list()
+
+
+def test_akvakultur_gaar_urort_gjennom_filteret(tmp_path, monkeypatch):
+    """En kilde uten organisasjonsformer skal ikke tape rader."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    lokalitet = [Observation(
+        entity_id="10029", entity_type="lokalitet", entity_name="TUHOLMANE",
+        field=f, value="x", source="akvakultur", observed_at="2026-08-17",
+    ) for f in ["kapasitet", "kommune", "prodomraade_status"]]
+    snapshot.write(lokalitet, "2026-08-17")
+
+    assert snapshot.previous("akvakultur", before="2026-08-24").height == 3
+
+
+def _kildefiler() -> list[Path]:
+    """Alle .py-filer i repoet som ikke er tester eller virtualenv."""
+    return [p for p in ROT.rglob("*.py")
+            if ".venv" not in p.parts and "tests" not in p.parts
+            and "__pycache__" not in p.parts]
+
+
+def test_ingen_leser_snapshots_utenom_les():
+    """Beviser at det ikke finnes en vei rundt filteret.
+
+    To krav, og begge må holde:
+
+    1. core/snapshot.py leser parquet nøyaktig ETT sted — `_les()`. En ny
+       funksjon der som kaller read_parquet direkte feller denne testen.
+    2. Ingen annen modul kombinerer kjennskap til RAW_DIR med en
+       parquet-lesing. En ny lesevei må gå gjennom previous() eller
+       les_mellom(), som begge går gjennom `_les()`.
+
+    Faller denne, ikke demp den: enten skal den nye veien gå gjennom
+    `_les()`, eller så er filteret ikke lenger en garanti.
+    """
+    def lesekall(fil: Path) -> list[str]:
+        """Faktiske parquet-lesekall, funnet i syntakstreet.
+
+        AST og ikke tekstsøk: docstringene i snapshot.py OMTALER
+        read_parquet for å forklare regelen, og en test som teller
+        forekomster i tekst ville talt forklaringen som et brudd."""
+        treff = []
+        for node in ast.walk(ast.parse(fil.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr in ("read_parquet", "scan_parquet"):
+                    treff.append(f"{node.func.attr} linje {node.lineno}")
+        return treff
+
+    i_snapshot = lesekall(ROT / "core" / "snapshot.py")
+    assert len(i_snapshot) == 1, (
+        f"core/snapshot.py leser parquet {len(i_snapshot)} steder, ikke ett: "
+        f"{i_snapshot}. Persondatafilteret ligger i _les() — gå gjennom den."
+    )
+
+    for fil in _kildefiler():
+        if fil == ROT / "core" / "snapshot.py":
+            continue
+        if "RAW_DIR" not in fil.read_text(encoding="utf-8"):
+            continue
+        assert not lesekall(fil), (
+            f"{fil.relative_to(ROT)} kjenner både RAW_DIR og "
+            f"{lesekall(fil)} — det er en lesevei utenom snapshot._les(), "
+            f"og da filtreres ikke enkeltpersonforetakene bort."
+        )
+
+
+def test_changelog_og_predictions_leser_ikke_raadata():
+    """De to andre modulene som leser parquet leser sine EGNE filer —
+    changelog/ og predictions/ — ikke raw/. Denne testen fanger at en av
+    dem begynner å lese snapshots direkte."""
+    for modul in ["changelog.py", "predictions.py"]:
+        tekst = (ROT / "core" / modul).read_text(encoding="utf-8")
+        assert "RAW_DIR" not in tekst, (
+            f"core/{modul} kjenner RAW_DIR. Leser den snapshots, må den gå "
+            f"gjennom snapshot.les_mellom() — se test_ingen_leser_snapshots_utenom_les."
+        )

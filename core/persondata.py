@@ -50,6 +50,8 @@ trekke grensa ved sektor 2300, er det en annen og bredere regel, og den
 bør skrives som en sektorprøve her framfor som en liste over former.
 """
 
+import polars as pl
+
 # Feltet en kilde oppgir organisasjonsformen i. Vakten i snapshot.write()
 # ser bare det den kan lese, og dette er navnet den leter etter.
 FORM_FELT = "organisasjonsform"
@@ -65,3 +67,38 @@ def er_personform(kode: object) -> bool:
     menneske». Tåler None og andre typer: en enhet uten oppgitt form er
     ikke en kjent personform, og skal ikke stoppes på det grunnlaget."""
     return isinstance(kode, str) and kode.strip().upper() in PERSONFORMER
+
+
+def fjern_personformer(frame: pl.DataFrame) -> pl.DataFrame:
+    """Alle rader om entiteter som er fysiske personer, ut av en ramme.
+
+    Dette er leseveien. Kilden filtrerer ved henting fra 22.08.2026, men
+    snapshotene som allerede ligger i datarepoet inneholder 34
+    enkeltpersonforetak hver, og de filene er append-only — se
+    `docs/beslutninger/2026-08-22-enk-filtreres-i-kilden.md`. De blir
+    stående på disk og forsvinner her i stedet, hver gang de leses.
+
+    HELE ENTITETEN, ikke bare formraden. Fjernes bare raden som sier
+    `organisasjonsform = ENK`, står navnet, kommunen, postnummeret og
+    konkursflagget igjen — altså nøyaktig persondataene, uten etiketten
+    som gjorde dem gjenkjennelige. Det ville vært verre enn ingen
+    filtrering, fordi neste revisjon ikke ville funnet dem.
+
+    Entiteter uten en `organisasjonsform`-rad blir stående. Vi kan ikke
+    vite hva de er, og en kilde uten organisasjonsformer — lokaliteter
+    fra Akvakulturregisteret, lusetall — skal gå urørt gjennom. Det er
+    grensa for hva denne funksjonen kan love: den fjerner det den kan se.
+    """
+    if frame.is_empty() or not {"entity_id", "field", "value"} <= set(frame.columns):
+        return frame
+
+    personer = frame.filter(
+        (pl.col("field") == FORM_FELT)
+        & pl.col("value").str.strip_chars().str.to_uppercase()
+        .is_in(sorted(PERSONFORMER))
+    )["entity_id"].unique().to_list()
+
+    if not personer:
+        return frame
+
+    return frame.filter(~pl.col("entity_id").is_in(personer))

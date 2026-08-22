@@ -148,7 +148,18 @@ vært seks ganger større neste mandag enn den revisjonen fant.
 **Re-parse av det ekte arkivet** (`2026-08-17.json.gz`, 954 enheter inn):
 904 entiteter ut, 0 ENK.
 
-**Testene:** 161 → 172 grønne, altså 11 nye på dette.
+**Lesing av de ekte snapshotene** (`HAVBRUK_DATA_DIR` mot datarepoet):
+
+    på disk   938 entiteter, 34 ENK   (uendret — filene røres ikke)
+    lest ut   904 entiteter,  0 ENK
+
+Alle fem filene leser likt. Akvakultur (48 236 rader) og lusetall
+(18 348 rader) går urørt gjennom filteret.
+
+**Testene:** 161 → 179 grønne, altså 18 nye på dette.
+`test_ingen_leser_snapshots_utenom_les()` er verifisert ved å innføre en
+omgåelse begge veier — en ny `read_parquet` i `snapshot.py`, og en i
+`vis.py` som kjenner `RAW_DIR` — og se den felle begge.
 
 ## Historikken som allerede er skrevet
 
@@ -158,7 +169,7 @@ Ikke rørt. Kartlagt:
 |------|--------|
 | `data/raw/enhetsregisteret/` | 5 filer, 34 ENK i hver |
 | `data/arkiv/enhetsregisteret/` | 5 filer, 34 ENK med **gateadresse** i hver |
-| `data/changelog/` | 0 — ingen ENK-endring er logget ennå |
+| `data/changelog/` | 0 — og forblir 0, se lesefilteret under |
 | kodrepoets git-historikk | 2 parquet-filer, 34 ENK i hver |
 
 Arkivet er verre enn snapshotene: der ligger hele API-svaret, inkludert
@@ -168,19 +179,51 @@ Kodrepoet er den ubehagelige raden. Snapshotene lå der før `91ccee6`
 skilte kode og data, og blobene er fortsatt nåbare i historikken — i
 perioden 16.–18.08 var det repoet offentlig.
 
-**[din vurdering]** — valget mellom:
+**Valgt 22.08.2026: filtrering ved lesing i datarepoet. Kodrepoets
+historikk røres ikke.**
 
-- **La historikken stå, filtrer ved lesing og publisering.** Holder
-  append-only og «git er databasen» intakt. Prisen er at persondataene
-  blir liggende i to repoers historikk, og at hver framtidig lesevei må
-  huske filteret — nøyaktig den formen for «noen må huske det» som denne
-  saken handler om.
-- **Skriv historikken om.** `git filter-repo` på begge repo, force push,
-  alle hasher endres. Bryter et arkitekturprinsipp med vilje, gjør
-  eksisterende kloner uforenlige, og fjerner ikke det noen allerede har
-  kopiert. Til gjengjeld er dataene faktisk borte.
-- **Noe imellom** — for eksempel omskriving av kodrepoet, som var
-  offentlig, og filtrering ved lesing i datarepoet, som ikke har vært det.
+Append-only holdes intakt — filene ER databasen, og en dato som endrer
+innhold gjør historikken uetterrettelig. Kodrepoets historikk er en egen
+sak som henger sammen med om repoet skal åpnes igjen, og den er ikke
+avgjort.
+
+Innvendingen mot lesefiltrering var at hver framtidig lesevei må huske
+det — nøyaktig den formen for «noen må huske det» som hele denne saken
+handler om. Den er møtt ved at det bare finnes ÉN lesevei:
+`snapshot._les()` er det eneste stedet i repoet som leser en snapshotfil,
+og `test_ingen_leser_snapshots_utenom_les()` nekter at det oppstår et
+sted til. Se «Leseveien er én dør» under.
+
+Noten i datarepoets `README.md` sier det samme til den som åpner
+datarepoet uten å ha lest dette.
+
+## Leseveien er én dør
+
+`core/snapshot.py::_les()` leser fila og kjører
+`persondata.fjern_personformer()` på den. `previous()` og `les_mellom()`
+er de eneste kallerne, og de er i sin tur de eneste veiene inn til
+rådataene:
+
+| kodesti | leser via | filtrert |
+|---------|-----------|----------|
+| `core/diff.py:27` | `snapshot.previous()` | ja |
+| `core/predictions.py:197` | `snapshot.les_mellom()` | ja |
+| `vis.py:56` | `snapshot.les_mellom()` | ja |
+| `backfill.py:96` | ingen lesing — sjekker bare om fila finnes | — |
+| `core/changelog.py`, `core/predictions.py` | egne filer, ikke `raw/` | — |
+
+**Hele entiteten fjernes, ikke bare formraden.** Fjernes bare raden som
+sier `organisasjonsform = ENK`, står navnet, kommunen, postnummeret og
+konkursflagget igjen — persondataene uten etiketten som gjorde dem
+gjenkjennelige. Det ville vært verre enn ingen filtrering, fordi neste
+revisjon ikke ville funnet dem.
+
+**Uten lesefilteret ville kildefilteret bare FLYTTET persondataene.**
+Målt mot de ekte filene: diffen ser 34 ENK i forrige snapshot og ikke i
+dette, og fører dem inn i changeloggen som `change_type = "borte"` — 699
+rader, med navn, i `data/changelog/2026-08-24.parquet`. Med lesefilteret:
+0 endringer. Det er den konkrete grunnen til at de to filtrene hører
+sammen.
 
 ## Prisen
 

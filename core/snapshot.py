@@ -223,6 +223,29 @@ def dager_siden_observasjon(source: str, observed_at: str) -> int | None:
         return None   # filnavn som ikke er en dato: behandles som aldri hentet
 
 
+def _les(sti: Path) -> pl.DataFrame:
+    """DEN ENE DØRA INN TIL ET SNAPSHOT PÅ DISK.
+
+    Alt som leser innholdet i `data/raw/<kilde>/<dato>.parquet` går
+    herfra, og derfor ligger persondatafilteret her og ikke i hver leser.
+    `previous()` og `les_mellom()` er de eneste kallerne, og de er i sin
+    tur de eneste veiene diff, prediksjoner og visning har inn til
+    rådataene.
+
+    Grunnen til at det må være ETT sted: snapshotene fra 16.–17.08.2026
+    inneholder 34 enkeltpersonforetak hver, og de filene er append-only
+    og blir stående. Filteret er derfor ikke en engangsopprydding som kan
+    kjøres ferdig, men en betingelse hver lesing må oppfylle — og en
+    betingelse som må oppfylles hver gang, skal ikke være noe en ny
+    leseveis forfatter må huske.
+
+    `test_ingen_leser_snapshots_utenom_les()` håndhever at det forblir
+    slik: den nekter at `read_parquet` dukker opp i denne modulen mer enn
+    én gang, eller i en annen modul som kjenner RAW_DIR.
+    """
+    return persondata.fjern_personformer(pl.read_parquet(sti))
+
+
 def previous(source: str, before: str) -> pl.DataFrame | None:
     """Siste snapshot fra denne kilden før gitt dato.
 
@@ -241,7 +264,7 @@ def previous(source: str, before: str) -> pl.DataFrame | None:
     if not earlier:
         return None
 
-    return pl.read_parquet(earlier[-1])
+    return _les(earlier[-1])
 
 
 def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]]:
@@ -270,4 +293,4 @@ def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]
          if fra <= _dato_og_versjon(p.stem)[0] <= til),
         key=lambda p: _dato_og_versjon(p.stem),
     )
-    return [(_dato_og_versjon(p.stem)[0], pl.read_parquet(p)) for p in aktuelle]
+    return [(_dato_og_versjon(p.stem)[0], _les(p)) for p in aktuelle]
