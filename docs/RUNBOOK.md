@@ -40,6 +40,37 @@ verktøy plukker den opp automatisk.
 Avhengighetene er pinnet eksakt. Oppgradering er en bevisst handling:
 bump versjonen i `requirements.txt`, kjør testene, commit.
 
+## Nøkler: to steder, begge må stemme
+
+Nøkler ligger aldri i fil. De refereres som `${NAVN}` i `config.yml` og
+hentes fra miljøet — `~/.havbruk.env` lokalt, Actions-secrets i
+datarepoet i drift. I dag er det to, begge for lusetall:
+`BARENTSWATCH_CLIENT_ID` og `BARENTSWATCH_CLIENT_SECRET`.
+
+**I drift er det to ledd, ikke ett.** Secreten må finnes i datarepoets
+innstillinger, OG den må eksponeres til «Samle inn»-steget i `samle.yml`
+via `env:`. Mangler det ene, ser det ut som det andre er i orden.
+`${{ secrets.X }}` på en secret som ikke finnes blir tom streng — så
+workflowen setter variabelen, og loggen sier likevel «er ikke satt».
+
+Feiler en kjøring på dette, stopper `run.py` før innsamlingen og lister
+ALLE manglende variabler samlet:
+
+    2 miljøvariabel(er) kreves av en aktiv kilde, men er ikke satt:
+
+      BARENTSWATCH_CLIENT_ID
+          kreves av config-nøkkelen 'kilder.lusetall.client_id'
+
+Sjekken ligger foran frekvensvakten med vilje: en manglende nøkkel er
+feil i oppsettet, ikke i denne kjøringen, og skal si fra selv om kilden
+uansett ville blitt hoppet over i dag. Se `core/miljo.py` og
+`docs/beslutninger/2026-08-24-miljovariabler-sjekkes-for-innsamling.md`.
+
+En ny kilde som trenger en nøkkel gjør tre ting, og ingen av dem er i
+`core/`: skriver `${NAVN}` i sin blokk i `config.yml`, legger secreten i
+datarepoet, og legger linja i `env:` i `samle.yml`. Sjekken finner den
+selv.
+
 ## Sikring — det som faktisk kan gå galt
 
 Rangert etter sannsynlighet, ikke etter hvor dramatisk det høres ut.

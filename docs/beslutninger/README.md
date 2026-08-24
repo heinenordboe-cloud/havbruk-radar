@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-08-24** — [Miljøvariabler sjekkes samlet før innsamlingen, ikke ved første bruk](2026-08-24-miljovariabler-sjekkes-for-innsamling.md) — utkast
 - **2026-08-22** — [Innsamlingen henter kodrepoet med token, ikke med åpenhet](2026-08-22-kodrepo-er-privat.md) — utkast
 - **2026-08-22** — [Enkeltpersonforetak filtreres bort i kilden](2026-08-22-enk-filtreres-i-kilden.md) — utkast
 - **2026-08-19** — [Frekvensvakten måler innsamlingstidspunkt, ikke observasjonsalder](2026-08-19-frekvensvakt-maler-innsamling.md) — utkast

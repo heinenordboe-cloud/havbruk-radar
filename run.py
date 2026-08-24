@@ -31,8 +31,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
 from core import (  # noqa: E402
-    changelog, diff, health, paths, predictions, registry, runner, signals,
-    snapshot,
+    changelog, diff, health, miljo, paths, predictions, registry, runner,
+    signals, snapshot,
 )
 
 
@@ -157,6 +157,27 @@ def main() -> int:
         return 1
 
     print(f"\nKjøring {kjoredato}")
+
+    # 1b. Har de aktive kildene nøklene sine? Spurt NÅ, samlet, for alle.
+    #
+    # FØR frekvensvakten, ikke etter. Det er ikke en detalj: lørdagens
+    # test-dispatch hoppet over lusetall via finnes_allerede() og gikk
+    # grønt med en secret som ikke fantes. Hullet sto åpent fra 18.08 og
+    # ble oppdaget mandag 24.08 05:00 — av cron, som er den ene kjøringen
+    # der en tapt uke faktisk koster en uke. Sjekken kjøres derfor på en kilde
+    # som skal hoppes over i dag også: en manglende nøkkel er feil i
+    # oppsettet, ikke i denne kjøringen, og den skal si fra den dagen
+    # den oppstår framfor den dagen den rammer.
+    #
+    # Meldingen navngir ALLE manglende variabler. Én om gangen ville med
+    # ukentlig cron blitt én uke per nøkkel.
+    mangler = miljo.manglende(kilder)
+    if mangler:
+        print()
+        print(miljo.forklar(mangler))
+        print(f"\n::error::Innsamlingen startet ikke: "
+              f"{', '.join(sorted(mangler))} er ikke satt.")
+        return 1
 
     # 2. Hopp over kilder som ble hentet nylig nok
     if not args.torrkjor and not args.tving:
