@@ -19,9 +19,9 @@ Ingen kilde skal kalle `date.today()` eller `datetime.now()` for å
 avgjøre hvilket tidsrom den henter, og kjernen slår opp kjøredatoen
 nøyaktig ett sted: `run.py`.
 
-Tre feil i dette prosjektet har hatt samme rotårsak — et tidspunkt slått
-opp på nytt et sted til, eller et tidspunkt som handler om OSS brukt som
-om det handlet om VERDEN:
+Fire feil i dette prosjektet har hatt samme rotårsak — et tidspunkt
+slått opp på nytt et sted til, eller et tidspunkt som handler om OSS
+brukt som om det handlet om VERDEN:
 
 - **F4:** frekvensvakten målte filnavnsdato der den skulle målt
   innsamlingstidspunkt, og leste permanent 28 dager for lusetall.
@@ -30,10 +30,38 @@ om det handlet om VERDEN:
 - **F7:** `fetch()` slo opp klokka mens `gjelder_for()` fikk datoen inn.
   To oppslag som kan svare ulikt rundt midnatt — og da får fila navn
   etter én uke og innhold fra en annen.
+- **F8:** frekvensvakten målte `sist_forsok` der den skulle målt
+  `sist_ok`. Lusetall feilet tre ganger på rad uten å hente en rad, og
+  fikk syv dagers karantene for det.
 
 Skillet som gjelder: `observed_at` handler om verden, `fetched_at` og
 `sist_forsok` handler om oss. Blander du dem, blir feilen usynlig for
 enhver kilde uten etterslep — og permanent for dem som har det.
+
+### 1b-2. Et FORSØK er ikke et RESULTAT
+
+Samme regel, uten klokka. `sist_forsok` og `fetched_at` sier at vi
+prøvde. `sist_ok` og radene på disk sier at vi fikk noe. En vakt som
+avgjør om vi skal hente, skal måle det siste — ellers gir en feilende
+kjøring karantene på like vilkår med en vellykket, og en periode som
+ikke kan hentes igjen går tapt mens jobben ser ut til å ha gjort
+jobben sin.
+
+F8 er formen i klartekst: `[vent] lusetall hentet i dag` om en kilde
+som hadde feilet tre ganger og hentet null rader. `sist_forsok` var
+satt, `sist_ok` var `null`, og vakten leste det feltet som var satt.
+
+Alle fire feilene over har samme form som regel 3s ENK-kontroll: en
+mekanisme som måler noe som LIGNER det den skal måle, og som er riktig
+i akkurat de tilfellene der de to faller sammen — kilden uten
+etterslep, kjøringen som lykkes, foretaket som er et AS. Den holder
+helt til den ikke gjør det, og da er den stille.
+
+Når du bygger en kontroll: still spørsmålet du faktisk vil ha svar på,
+og velg feltet som svarer på DET. Er du fristet til å bruke et felt
+fordi det «pleier å følge» det riktige — `feil_paa_rad` for «lyktes
+vi», ni siffer for «er dette et selskap» — er det ikke en snarvei. Det
+er neste nummer i denne lista.
 
 ## 2. Data skrives én gang, aldri om
 

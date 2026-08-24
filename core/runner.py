@@ -51,8 +51,8 @@ def velg_forfalte(
 ) -> tuple[list[Source], list[tuple[Source, int]]]:
     """Deler kildene i (forfalt, må vente).
 
-    En kilde er forfalt hvis den aldri er hentet, eller hvis det er gått
-    minst `min_dager_mellom` dager siden sist.
+    En kilde er forfalt hvis den aldri er hentet med hell, eller hvis
+    det er gått minst `min_dager_mellom` dager siden den sist LYKTES.
 
     Dette erstatter den gamle alt-eller-ingenting-guarden. Den nektet hele
     kjøringen når ÉN kilde hadde skrevet i dag, slik at en ny kilde ikke
@@ -63,11 +63,12 @@ def velg_forfalte(
     kilden ikke forfalt mandag, og ukas snapshot ligger på søndagen i
     stedet. Ingen data går tapt, og neste uke er den forfalt igjen.
 
-    Målingen går mot INNSAMLINGSTIDSPUNKTET i health.json, ikke mot
-    datoen på nyeste snapshotfil. De to er bare like for kilder uten
-    etterslep. Se health.dager_siden_kjoring.
+    Målingen går mot SISTE VELLYKKEDE INNSAMLING i health.json — ikke
+    mot datoen på nyeste snapshotfil (F4), og ikke mot siste forsøk
+    (F8). Et forsøk som feilet har ikke hentet noe, og skal ikke kunne
+    sette kilden i karantene. Se health.dager_siden_ok.
 
-    `None` fra vakten betyr «vet ikke når kilden sist kjørte», og
+    `None` fra vakten betyr «vet ikke når kilden sist lyktes», og
     behandles som forfalt. Fallback-oppførselen skal være å kjøre.
     """
     tilstand = health.les()
@@ -75,7 +76,7 @@ def velg_forfalte(
     venter: list[tuple[Source, int]] = []
 
     for source in sources:
-        dager = health.dager_siden_kjoring(source.name, observed_at, tilstand)
+        dager = health.dager_siden_ok(source.name, observed_at, tilstand)
         if dager is None or dager >= source.min_dager_mellom:
             forfalt.append(source)
         else:

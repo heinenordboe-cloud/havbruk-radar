@@ -751,19 +751,24 @@ class DagligKilde(FalskKilde):
     min_dager_mellom = 1
 
 
-def _kjort(tmp_path, monkeypatch, **sist_forsok):
-    """Skriv en health.json der hver kilde sist ble FORSØKT på gitt dato.
+def _kjort(tmp_path, monkeypatch, **sist_ok):
+    """Skriv en health.json der hver kilde sist LYKTES på gitt dato.
 
-    Frekvensvakten leser innsamlingstidspunktet herfra, ikke datoen på
-    nyeste snapshotfil. Verdien None gir en post uten `sist_forsok` —
-    kilden finnes, men vi vet ikke når den sist kjørte.
+    Frekvensvakten leser siste vellykkede innsamling herfra — ikke
+    datoen på nyeste snapshotfil (F4), og ikke siste forsøk (F8).
+    Verdien None gir en post uten `sist_ok`: kilden finnes, den ble
+    forsøkt i dag, men den har aldri levert. Det er nøyaktig posten
+    lusetall hadde i produksjon 24.08.
     """
     from core import health
 
     monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
     health.skriv({
-        kilde: ({"sist_forsok": dato} if dato else {"sist_ok": "2026-01-01"})
-        for kilde, dato in sist_forsok.items()
+        kilde: ({"sist_ok": dato, "sist_forsok": dato, "feil_paa_rad": 0}
+                if dato else
+                {"sist_ok": None, "sist_forsok": "2026-01-08",
+                 "feil_paa_rad": 3})
+        for kilde, dato in sist_ok.items()
     })
     return health
 
@@ -827,21 +832,111 @@ def test_ukjent_kilde_i_health_er_forfalt(tmp_path, monkeypatch):
     assert [k.name for k, _ in venter] == ["daglig"]
 
 
-def test_kilde_uten_sist_forsok_er_forfalt(tmp_path, monkeypatch):
-    """Samme regel når posten finnes, men mangler feltet.
+def test_kilde_som_aldri_har_lykkes_er_forfalt(tmp_path, monkeypatch):
+    """F8: posten finnes og sist_forsok er I DAG, men sist_ok er null.
 
-    Slik ser en health.json ut som er skrevet av en eldre versjon, eller
-    av en kilde som bare har `sist_ok`. Halvveis kjennskap er ikke
-    kjennskap.
+    Dette er lusetall 24.08: tre forsøk samme dag, alle invalid_client,
+    `feil_paa_rad=3`, ikke én rad hentet. Vakten leste `sist_forsok`,
+    så «hentet i dag», og satte kilden i syv dagers karantene. Uke 31
+    måtte hentes med --tving.
+
+    Halvveis kjennskap er ikke kjennskap: et forsøk sier ingenting om
+    hva vi har.
     """
     health = _kjort(tmp_path, monkeypatch, falsk=None)
 
-    assert health.les()["falsk"] == {"sist_ok": "2026-01-01"}
-    assert health.dager_siden_kjoring("falsk", "2026-01-08") is None
+    assert health.les()["falsk"]["sist_forsok"] == "2026-01-08"   # forsøkt i dag
+    assert health.les()["falsk"]["sist_ok"] is None               # aldri hentet
+    assert health.dager_siden_ok("falsk", "2026-01-08") is None
 
     forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-08")
     assert [k.name for k in forfalt] == ["falsk"]
     assert venter == []
+
+
+def _health(tmp_path, monkeypatch, poster):
+    """Skriv health.json rått, slik at sist_ok og sist_forsok kan skille lag.
+
+    `_kjort` holder de to i takt, som de er når alt går bra. Testene
+    under F8 handler nettopp om uka der de IKKE er i takt.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    health.skriv(poster)
+    return health
+
+
+def test_kilde_som_feilet_i_gaar_velges_i_dag(tmp_path, monkeypatch):
+    """Kravet fra F8: en feilet kilde forsøkes igjen ved NESTE kjøring.
+
+    Mandag 05.01 lyktes. Mandag 12.01 kjørte cron og feilet. Tirsdag
+    13.01 prøvde vi igjen, og det feilet også. Onsdag 14.01 kjører vi.
+
+    Målt mot forsøket var kilden «hentet i går» — seks dager igjen av
+    karantenen, og da er uka forbi før den slipper ut. Målt mot siste
+    suksess er den ni dager gammel: forfalt, og uka kan fortsatt reddes.
+    """
+    _health(tmp_path, monkeypatch, {
+        "falsk": {"sist_ok": "2026-01-05", "sist_forsok": "2026-01-13",
+                  "feil_paa_rad": 2},
+    })
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-14")
+    assert [k.name for k in forfalt] == ["falsk"]
+    assert venter == []
+
+
+def test_kilde_som_lyktes_i_gaar_velges_ikke(tmp_path, monkeypatch):
+    """Motsatt vei: vakten skal fortsatt holde igjen.
+
+    Fiksen får ikke bli «kjør alltid». Lyktes kilden i går, ligger
+    gårsdagens data på disk, og en henting til er en .2-fil uten nytt
+    innhold.
+    """
+    _kjort(tmp_path, monkeypatch, falsk="2026-01-13")
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-14")
+    assert forfalt == []
+    assert [(k.name, d) for k, d in venter] == [("falsk", 1)]
+
+
+def test_feilet_i_dag_med_gammel_suksess_velges(tmp_path, monkeypatch):
+    """Selve F8-tilfellet, med begge felt satt og uenige.
+
+    `sist_forsok` er i dag — kilden ble forsøkt for en time siden og
+    feilet. `sist_ok` er åtte dager gammel. Leser vakten forsøket, er
+    svaret «hentet i dag, går hver 7. dag», og perioden som mangler blir
+    aldri hentet. Leser den suksessen, er svaret 8 >= 7: forfalt.
+    """
+    health = _health(tmp_path, monkeypatch, {
+        "falsk": {"sist_ok": "2026-01-06", "sist_forsok": "2026-01-14",
+                  "feil_paa_rad": 1},
+    })
+
+    assert health.dager_siden_ok("falsk", "2026-01-14") == 8
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-14")
+    assert [k.name for k in forfalt] == ["falsk"]
+    assert venter == []
+
+
+def test_feilet_forsok_forkorter_ikke_karantenen(tmp_path, monkeypatch):
+    """Et forsøk skal verken forlenge eller forkorte noe.
+
+    Feiler kilden i dag etter en fersk suksess i går, er ingenting i
+    fare: gårsdagens data ligger der. Vakten teller fortsatt fra
+    suksessen, og kilden venter — dette er den bevisste følgen av å måle
+    det vi HAR i stedet for det vi PRØVDE.
+    """
+    _health(tmp_path, monkeypatch, {
+        "falsk": {"sist_ok": "2026-01-13", "sist_forsok": "2026-01-14",
+                  "feil_paa_rad": 1},
+    })
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-01-14")
+    assert forfalt == []
+    assert [(k.name, d) for k, d in venter] == [("falsk", 1)]
 
 
 def test_etterslep_gjor_ikke_kilden_permanent_forfalt(tmp_path, monkeypatch):

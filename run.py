@@ -180,6 +180,11 @@ def main() -> int:
         return 1
 
     # 2. Hopp over kilder som ble hentet nylig nok
+    #
+    # «hentet» betyr HENTET, ikke forsøkt. Linja under sa «hentet i dag»
+    # om lusetall 24.08, som hadde feilet tre ganger samme dag og aldri
+    # levert en rad — se F8 i health.dager_siden_ok. Vakten måler nå
+    # sist_ok, så ordet i utskriften og tallet bak det er samme sak.
     if not args.torrkjor and not args.tving:
         kilder, venter = runner.velg_forfalte(kilder, kjoredato)
         for kilde, dager in venter:

@@ -61,8 +61,8 @@ from core.paths import HEALTH_PATH  # noqa: F401
 
 if TYPE_CHECKING:                       # pragma: no cover
     # Kun for typene. Importeres den på ekte, blir det importsyklus:
-    # runner må lese health.json for å vite når en kilde sist ble kjørt
-    # (se dager_siden_kjoring), og health importerte runner for ett
+    # runner må lese health.json for å vite når en kilde sist lyktes
+    # (se dager_siden_ok), og health importerte runner for ett
     # annoteringsnavn. `from __future__ import annotations` gjør
     # annoteringene til strenger, så navnet trengs aldri ved kjøring.
     from core.runner import Result
@@ -245,42 +245,67 @@ def les() -> dict:
     return json.loads(HEALTH_PATH.read_text(encoding="utf-8"))
 
 
-def dager_siden_kjoring(kilde: str, i_dag: str,
-                        tilstand: dict | None = None) -> int | None:
-    """Dager siden kilden sist ble FORSØKT hentet. None = vet ikke.
+def dager_siden_ok(kilde: str, i_dag: str,
+                   tilstand: dict | None = None) -> int | None:
+    """Dager siden kilden sist ble hentet MED HELL. None = vet ikke.
 
     Dette er spørsmålet frekvensvakten faktisk stiller. Den spurte før
     snapshot.dager_siden_observasjon(), som svarer på noe annet: hvor
     gammel den nyeste observasjonen er. For en kilde uten etterslep er
     de like. For lusetall med uker_etterslep=4 er de det aldri — nyeste
     fil er ALLTID datert fire uker tilbake, også når kilden kjører
-    perfekt, så vakten leste permanent 28 dager.
+    perfekt, så vakten leste permanent 28 dager (F4).
 
-    `sist_forsok` og ikke `fetched_at` fra proveniensen: health.json er
-    én liten fil som allerede leses hver kjøring, mens proveniensen
-    krever å åpne parquet-filer. Viktigere er at en kilde som FEILER
-    ikke skriver noen parquet i det hele tatt. Proveniensen kan derfor
-    ikke svare på «når forsøkte vi sist» — bare på «når lyktes vi
-    sist», og å utlede forsøket fra de vellykkede er samme sirkularitet
-    som F1: kilden som aldri har lykkes forsvinner ut av regnestykket.
+    Deretter spurte den `sist_forsok`, og det var F8: et FORSØK er ikke
+    et RESULTAT. Lusetall feilet tre ganger 24.08 med invalid_client —
+    `sist_ok=null`, `feil_paa_rad=3` — og vakten svarte «hentet i dag,
+    går hver 7. dag». Kilden ble forsøkt, ikke hentet. Karantenen som
+    fulgte var syv dager, og uke 31 måtte hentes med --tving.
 
-    None returneres når vi ikke VET når kilden sist kjørte:
-    kilden mangler i health.json, eller posten mangler `sist_forsok`.
-    Kalleren behandler None som forfalt. Fallback-oppførselen skal være
-    å kjøre: en kilde som aldri hentes fordi vi ikke vet når den sist
-    ble hentet er verre enn en som hentes for ofte. Det første er tapt
-    historikk og kan ikke rettes i etterkant; det andre er en ekstra
-    fil med løpenummer.
+    Konsekvensen hvis den regelen står: en kilde som feiler i mandagens
+    cron er i karantene til neste mandag. Da er uka forbi, og en uke
+    som er forbi kan ikke hentes. Det er nøyaktig den irreversible
+    feilen systemet finnes for å hindre.
 
-    Dette er ikke en teoretisk gren. `lusetall` står i nøyaktig den
-    tilstanden i produksjon nå — health.json kjenner bare akvakultur og
-    enhetsregisteret.
+    `sist_ok` og ikke `feil_paa_rad > 0`: begge ville løst dagens sak,
+    men de spør ulike spørsmål. `feil_paa_rad` svarer «gikk det galt
+    etter forrige suksess» — et tall som KORRELERER med det vi vil
+    vite, og som må holdes i takt med `sist_ok` for å fortsette å
+    korrelere. To felt som kan svare ulikt er hele mønsteret fra F6 og
+    F7. `sist_ok` svarer direkte på det vakten skal vite: når har vi
+    sist noe å vise til. Ett felt, ett oppslag, ingen avstand mellom
+    spørsmålet og målingen.
+
+    Følgen er at vakten nå måler alderen på det vi HAR, ikke på det vi
+    prøvde. Et forsøk som feiler rett etter en fersk suksess gir ikke
+    hastverk: lyktes vi i går, ligger gårsdagens data på disk, og
+    ingenting er i fare. Men i det øyeblikket en periode faktisk står
+    på spill — ukas cron feiler, og `sist_ok` er syv dager gammel — er
+    kilden forfalt ved neste kjøring, ikke om syv dager til.
+
+    Ikke `fetched_at` fra proveniensen: health.json er én liten fil som
+    allerede leses hver kjøring, mens proveniensen krever å åpne
+    parquet-filer. (F4s andre argument — at en feilende kilde ikke
+    skriver parquet — gjelder ikke lenger her, for det er nettopp de
+    vellykkede kjøringene vi spør om nå. Lesekostnaden avgjør alene.)
+
+    None returneres når vi ikke VET når kilden sist lyktes: kilden
+    mangler i health.json, eller posten mangler `sist_ok` — inkludert
+    `sist_ok: null`, som er det en kilde som ALDRI har lykkes har
+    stående. Kalleren behandler None som forfalt. Fallback-oppførselen
+    skal være å kjøre: en kilde som aldri hentes fordi vi ikke vet når
+    den sist ble hentet er verre enn en som hentes for ofte. Det første
+    er tapt historikk og kan ikke rettes i etterkant; det andre er en
+    ekstra fil med løpenummer.
+
+    Dette er ikke en teoretisk gren. `lusetall` sto i nøyaktig den
+    tilstanden i produksjon 24.08: posten fantes, `sist_ok` var null.
     """
     post = (tilstand if tilstand is not None else les()).get(kilde)
     if not post:
         return None
 
-    sist = post.get("sist_forsok")
+    sist = post.get("sist_ok")
     if not sist:
         return None
 

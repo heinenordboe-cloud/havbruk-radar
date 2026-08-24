@@ -325,7 +325,7 @@ def test_frekvensvakten_maaler_fortsatt_kjoredato(isolert, monkeypatch):
     post = health.les()["treg"]
     assert post["sist_forsok"] == MANDAG_24
     assert post["sist_ok"] == MANDAG_24
-    assert health.dager_siden_kjoring("treg", MANDAG_24) == 0
+    assert health.dager_siden_ok("treg", MANDAG_24) == 0
 
 
 # -------------------------------------------------------- selve vaktposten

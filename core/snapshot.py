@@ -208,7 +208,7 @@ def dager_siden_observasjon(source: str, observed_at: str) -> int | None:
     med uker_etterslep=4 er de aldri like — nyeste fil er ALLTID datert
     fire uker tilbake, også når kilden kjører perfekt.
 
-    Frekvensvakten spør health.dager_siden_kjoring() i stedet. Denne
+    Frekvensvakten spør health.dager_siden_ok() i stedet. Denne
     måler datafriskhet, som er et ekte spørsmål, bare ikke det
     spørsmålet.
 
