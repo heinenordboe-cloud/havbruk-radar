@@ -2860,6 +2860,136 @@ def test_nede_kilde_forlenger_ikke_strekket(tmp_path, monkeypatch):
     assert not any("flagg" in t for t in tilsyn)
 
 
+# ---------------------------- tynt grunnlag: gulvet er ikke etablert
+
+def test_bygg_teller_datoer_ikke_filer():
+    """En rekjøring samme dag er ikke en ny observasjon.
+
+    akvakultur hadde åtte filer fra to datoer 25.08.2026, og normalen så
+    ut til å hvile på åtte observasjoner mens den hvilte på to. Både
+    gulvet og nullstrekket ble målt i filer der enheten skulle vært en
+    innsamling.
+    """
+    historikk = [
+        ("2026-01-01", _ramme("2026-01-01", "flagg", ["True"] * 10 + ["False"] * 90)),
+        ("2026-01-01", _ramme("2026-01-01", "flagg", ["True"] * 10 + ["False"] * 90)),
+        ("2026-01-01", _ramme("2026-01-01", "flagg", ["True"] * 10 + ["False"] * 90)),
+        ("2026-01-08", _ramme("2026-01-08", "flagg", ["True"] * 12 + ["False"] * 88)),
+    ]
+    n = feltnormal.bygg(historikk)["flagg"]
+    assert n["uker"] == 2, "fire filer, to datoer"
+
+
+def test_bygg_bruker_siste_fil_for_datoen():
+    """Høyest løpenummer vinner — samme rekkefølge som previous() velger."""
+    historikk = [
+        ("2026-01-01", _ramme("2026-01-01", "flagg", ["True"] * 5 + ["False"] * 95)),
+        ("2026-01-01", _ramme("2026-01-01", "flagg", ["True"] * 40 + ["False"] * 60)),
+    ]
+    n = feltnormal.bygg(historikk)["flagg"]
+    assert n["uker"] == 1 and n["laveste_sett"] == 40
+
+
+def test_gulv_etableres_ikke_paa_tynt_grunnlag():
+    """Kravet: en normal bygget på få observasjoner sier «vet ikke ennå»,
+    ikke «dagens verdi er minimum».
+
+    27 av 29 akvakultur-felt hadde gulv == median fra to observasjoner.
+    Én lokalitet som forsvant ville gjort jobben rød — normal drift.
+    """
+    faa = [(f"2026-01-{d:02d}", _ramme(f"2026-01-{d:02d}", "flagg",
+                                       ["True"] * 40 + ["False"] * 60))
+           for d in range(1, 5)]
+    n = feltnormal.bygg(faa)["flagg"]
+    assert n["uker"] == 4 < feltnormal.MIN_DATOER_FOR_GULV
+    assert n["gulv"] is None, "for tynt til at «laveste noensinne» betyr noe"
+    assert n["laveste_sett"] == 40, "det som ble SETT lagres likevel"
+
+
+def test_gulv_etableres_naar_grunnlaget_er_tykt_nok():
+    nok = [(f"2026-{m:02d}-01", _ramme(f"2026-{m:02d}-01", "flagg",
+                                       ["True"] * (40 + m) + ["False"] * 60))
+           for m in range(1, feltnormal.MIN_DATOER_FOR_GULV + 1)]
+    n = feltnormal.bygg(nok)["flagg"]
+    assert n["uker"] >= feltnormal.MIN_DATOER_FOR_GULV
+    assert n["gulv"] == 41 == n["laveste_sett"]
+
+
+def test_gulv_none_gir_ingen_gulvalarm(tmp_path, monkeypatch):
+    """Én lokalitet som forsvinner skal ikke gjøre jobben rød."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": None, "laveste_sett": 1777, "median": 1777,
+                               "uker": 2, "normalt_nullstrekk": 0, "dodt_naa": 0}}})
+
+    # 1776 i minoriteten der grunnlaget så 1777: én lokalitet borte.
+    naa = _ramme("2026-01-08", "flagg", ["True"] * 1776 + ["False"] * 1800)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+    assert tilsyn == [], tilsyn
+
+
+def test_gulv_none_stanser_ikke_strekkvakten(tmp_path, monkeypatch):
+    """Feltet er ikke uten tilsyn. Strekket trenger ikke spredning, bare tid."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": None, "laveste_sett": 0, "median": 0,
+                               "uker": 2, "normalt_nullstrekk": 0, "dodt_naa": 0}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 12}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["False"] * 1777)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+    assert len(tilsyn) == 1 and "tomt 13 kjøringer" in tilsyn[0]
+
+
+def test_erklaert_gulv_margin_gjenaapner_prove(tmp_path, monkeypatch):
+    """Eieren kan erklære at kilden er stabil. Det er en VURDERING.
+
+    Uten den er gulvet None og et hvilket som helst tap går upåaktet
+    hen til historikken finnes.
+    """
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": None, "laveste_sett": 1000, "median": 1000,
+                               "uker": 2, "normalt_nullstrekk": 0, "dodt_naa": 0}}})
+    monkeypatch.setattr(health.config, "get", lambda n, s=None:
+                        0.01 if n == "kilder.falsk.gulv_margin" else s)
+
+    lite = _ramme("2026-01-08", "flagg", ["True"] * 999 + ["False"] * 1001)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, lite.height)], "2026-01-08", lite)
+    assert tilsyn == [], "innenfor marginen"
+
+    mye = _ramme("2026-01-15", "flagg", ["True"] * 950 + ["False"] * 1050)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, mye.height)], "2026-01-15", mye)
+    assert len(tilsyn) == 1 and "under gulvet 990" in tilsyn[0], tilsyn
+
+
+def test_strekket_telles_i_datoer_ikke_kjoringer(tmp_path, monkeypatch):
+    """maks_nullstrekk er kalibrert i UKER. En rekjøring samme dag er
+    ikke en ny uke, og skal ikke flytte strekket."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "laveste_sett": 0, "median": 40,
+                               "uker": 500, "normalt_nullstrekk": 3, "dodt_naa": 0}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 5}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["False"] * 1777)
+    res = [runner.Result("falsk", True, naa.height)]
+
+    tilstand, _ = health.oppdater(res, "2026-01-08", naa)
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 6
+    health.skriv(tilstand)
+
+    # Samme dato på nytt: rekjøring, ikke ny observasjon.
+    tilstand, _ = health.oppdater(res, "2026-01-08", naa)
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 6, \
+        "rekjøring samme dag skal ikke telle som en uke til"
+    health.skriv(tilstand)
+
+    # Ny dato: nå teller det.
+    tilstand, _ = health.oppdater(res, "2026-01-15", naa)
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 7
+
+
 def test_godta_felt_kvitterer_ogsaa_innholdsalarmen(tmp_path, monkeypatch):
     """«Feltet er borte» og «feltet er tomt» er samme sak fra to sider.
     En kvittering som bare tok den ene ville latt jobben stå rød på den

@@ -140,9 +140,16 @@ def bygg_feltnormal(kjoredato: str) -> int:
             print(f"  {kilde.name:<20} ingen snapshots — hoppet over")
             continue
         normal[kilde.name] = feltnormal.bygg(historikk)
-        print(f"  {kilde.name:<20} {len(historikk)} snapshots "
+        # DATOER, ikke filer. les_mellom() gir flere innslag for samme
+        # dato når det finnes løpenummerfiler, og bygg() kollapser dem —
+        # så filtallet ville overdrevet grunnlaget. akvakultur så ut til
+        # å hvile på åtte observasjoner mens den hvilte på to.
+        datoer = len({d for d, _ in historikk})
+        tynt = "" if datoer >= feltnormal.MIN_DATOER_FOR_GULV else \
+            f"  <- for tynt for gulv (krever {feltnormal.MIN_DATOER_FOR_GULV})"
+        print(f"  {kilde.name:<20} {datoer} datoer / {len(historikk)} filer "
               f"({historikk[0][0]} .. {historikk[-1][0]}), "
-              f"{len(normal[kilde.name])} felter")
+              f"{len(normal[kilde.name])} felter{tynt}")
 
     if not normal:
         print("\n  Ingen historikk å bygge av.")

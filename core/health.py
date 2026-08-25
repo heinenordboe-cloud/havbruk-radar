@@ -188,8 +188,38 @@ def _vurder_felter(
     return referanse, None
 
 
+def _gulv_margin(kilde: str) -> float | None:
+    """Erklært margin for en kilde med for tynt grunnlag. None = ingen.
+
+    Dette er den ene terskelen i repoet som IKKE er målt, og det står
+    her fordi den ikke kan måles: en kilde med to observasjoner har per
+    definisjon ikke levert data å utlede en margin av.
+
+    Forsøket er gjort. Målt over lusetall og sjotemperatur, som har 761
+    uker: for vinduer på to observasjoner er medianfallet under gulvet
+    de neste 52 ukene 11 %, p90 er 79 %. En margin som absorberer det
+    ville sluppet gjennom et hvilket som helst realistisk innholdstap.
+    Og de to unge kildene ligner ikke på hverandre engang: akvakultur
+    var helt uendret i 27 av 28 feltoverganger på en uke, mens
+    enhetsregisteret svingte 35 % i median og 261 % på det meste.
+
+    Å velge et tall som får de tre prøvene i verifiseringen til å gå
+    opp ville vært å utlede terskelen av testen den skal bestå —
+    nøyaktig fella CLAUDE.md 1b-4 navngir. Derfor er standarden ingen
+    margin, og gulvet forblir None til historikken finnes.
+
+    Setter eieren `kilder.<navn>.gulv_margin` likevel, er det en
+    erklært vurdering med et navn på: «jeg vet at denne kilden er
+    stabil, og et fall over X er unormalt». Den påstanden kan et
+    menneske stå inne for. En måling kan den ikke.
+    """
+    verdi = config.get(f"kilder.{kilde}.gulv_margin", None)
+    return float(verdi) if verdi is not None else None
+
+
 def _vurder_innhold(
-    kilde: str, innhold_naa: dict[str, dict], gammel: dict, normal: dict
+    kilde: str, innhold_naa: dict[str, dict], gammel: dict, normal: dict,
+    observed_at: str = "",
 ) -> tuple[dict, list[str]]:
     """Returnerer (nye nullstrekk, varsler). Ser INNHOLD, ikke levering.
 
@@ -224,15 +254,32 @@ def _vurder_innhold(
     Uten en etablert normal gjøres ingenting. En alarm på et grunnlag vi
     ikke har er støy, og støy er det som får folk til å slutte å lese
     alarmer. `--bygg-feltnormal` etablerer grunnlaget.
+
+    Det gjelder også per FELT: er `gulv` None, hviler normalen på for få
+    observasjoner til at «laveste noensinne» betyr noe, og gulvprøven
+    hoppes over. Strekkprøven går som før — den trenger ikke spredning,
+    bare tid. Se feltnormal.MIN_DATOER_FOR_GULV.
+
+    Strekket telles i DATOER, ikke i kjøringer. Kjøres run.py to ganger
+    samme dag — en rekjøring etter en feil, en manuell kontroll — er det
+    fortsatt én innsamling, og feltet har ikke vært tomt to ganger. Uten
+    det ville en kilde som kjøres om igjen nådd grensa på en brøkdel av
+    tida, og «13» betydd noe forskjellig for hver kilde.
     """
     strekk = dict(gammel.get("innhold_nullstrekk") or {})
     if not innhold_naa:
         return strekk, []            # kilden er nede: volumvaktens bord
 
+    # Har vi allerede talt denne datoen? Da er dette en rekjøring, og
+    # strekket står stille — men prøvene under kjøres likevel, så en
+    # rekjøring fortsatt rapporterer det som er galt.
+    talt_for = bool(observed_at) and gammel.get("innhold_strekk_dato") == observed_at
+
     felter = (normal.get("kilder") or {}).get(kilde) or {}
     grense = config.get(f"kilder.{kilde}.maks_nullstrekk",
                         normal.get("maks_nullstrekk",
                                    feltnormal.STANDARD_MAKS_NULLSTREKK))
+    margin = _gulv_margin(kilde)
 
     varsler = []
     for felt, tall in sorted(innhold_naa.items()):
@@ -248,15 +295,33 @@ def _vurder_innhold(
         # begynt på null når vakten ble tatt i bruk, og trengt 13 nye uker
         # på å si fra om noe som har vart i tre år.
         forrige_strekk = strekk.get(felt, n.get("dodt_naa", 0) if n else 0)
-        strekk[felt] = forrige_strekk + 1 if minoritet == 0 else 0
+        if talt_for:
+            strekk[felt] = forrige_strekk if minoritet == 0 else 0
+        else:
+            strekk[felt] = forrige_strekk + 1 if minoritet == 0 else 0
 
         if n is None:
             continue                 # ingen normal for dette feltet ennå
 
-        if minoritet < n.get("gulv", 0):
+        # Gulvet er None når normalen hviler på for få observasjoner til
+        # at «laveste noensinne» betyr noe. Da hoppes gulvprøven over —
+        # feltet er ikke uten tilsyn, for strekkprøven gjelder fortsatt.
+        #
+        # `gulv_margin` i config gjenåpner prøven for en slik kilde, mot
+        # det som FAKTISK ble observert, med en margin eieren erklærer.
+        # Den er en VURDERING og ikke en måling — se _gulv_margin() — og
+        # skal derfor settes bevisst per kilde, aldri som standard.
+        gulv = n.get("gulv")
+        if gulv is None and margin is not None:
+            sett = n.get("laveste_sett")
+            if sett is not None:
+                gulv = int(sett * (1 - margin))
+        under_gulvet = gulv is not None and minoritet < gulv
+
+        if under_gulvet:
             varsler.append(
                 f"{kilde}.{felt} (innhold {minoritet} under gulvet "
-                f"{n['gulv']} — laveste på {n.get('uker', '?')} uker; "
+                f"{gulv} — laveste på {n.get('uker', '?')} uker; "
                 f"{tall['rader']} rader leveres fortsatt)")
         elif strekk[felt] >= grense:
             varsler.append(
@@ -522,7 +587,7 @@ def oppdater(
             # er nei. Se _vurder_innhold.
             innhold_naa = innhold_per_kilde.get(r.source, {})
             nullstrekk, innhold_varsler = _vurder_innhold(
-                r.source, innhold_naa, gammel, normal)
+                r.source, innhold_naa, gammel, normal, observed_at)
             # Bare strekket lagres, ikke selve målingene. Målt: `innhold_sist`
             # for alle 72 felter ville tatt health.json fra 5,4 til 19,9 kB —
             # nesten firedoblet en fil som skrives om hver uke, med tall som
@@ -531,6 +596,10 @@ def oppdater(
             ny[r.source]["innhold_nullstrekk"] = {
                 f: v for f, v in nullstrekk.items() if v
             }
+            # Datoen strekket sist ble talt for. Uten den kan ikke en
+            # rekjøring samme dag skilles fra neste ukes innsamling, og
+            # strekket ville telt filer i stedet for observasjoner.
+            ny[r.source]["innhold_strekk_dato"] = observed_at
         else:
             if gammel.get("felt_referanse"):
                 ny[r.source]["felt_referanse"] = gammel["felt_referanse"]
@@ -540,6 +609,8 @@ def oppdater(
             # har ikke vært tomt — det har ikke vært spurt.
             if gammel.get("innhold_nullstrekk"):
                 ny[r.source]["innhold_nullstrekk"] = gammel["innhold_nullstrekk"]
+            if gammel.get("innhold_strekk_dato"):
+                ny[r.source]["innhold_strekk_dato"] = gammel["innhold_strekk_dato"]
 
         # En aktiv kilde som feiler skal ALLTID rapporteres. De to
         # tilfellene betyr ikke det samme for den som leser meldingen, og

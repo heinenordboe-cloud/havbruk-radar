@@ -107,6 +107,31 @@ from core.paths import FELTNORMAL_DIR  # noqa: F401
 # config.yml (kilder.<navn>.maks_nullstrekk).
 STANDARD_MAKS_NULLSTREKK = 13
 
+# Hvor mange ULIKE observasjonsdatoer et felt må hvile på før gulvet
+# etableres i det hele tatt. Under dette blir `gulv` None, som leses
+# «vet ikke ennå» — og gulvvakten hopper over feltet.
+#
+# Målt, ikke gjettet. Andelen vinduer der feltet står helt stille
+# (maks == min, altså «gulvet er dagens verdi») over lusetall og
+# sjotemperatur, 763 felt-vinduer per k:
+#
+#     k=1  100,0 %     k=6   14,1 %     k=16   8,9 %
+#     k=2   31,0 %     k=8   12,1 %     k=20   8,0 %
+#     k=3   22,0 %     k=10  11,0 %     k=26   7,0 %
+#     k=4   18,0 %     k=13   9,8 %     k=52   4,1 %
+#
+# Kurven har kneet ved 13. Etter det er fallet marginalt — de neste 13
+# ukene kjøper 2,7 prosentpoeng — og resten er felter som FAKTISK står
+# stille (lusetalls døde felter er konstant 0 gjennom hele historikken).
+# Det er forskjellen som betyr noe: under 13 datoer vet vi ikke om
+# stillheten er feltets natur eller vår egen mangel på observasjoner.
+#
+# Tallet er det samme som STANDARD_MAKS_NULLSTREKK, og det er tilfeldig.
+# De er målt hver for seg på hvert sitt spørsmål — dette på hvor lenge
+# et gulv er en kopi, det andre på hvor lange nullstrekk som finnes
+# legitimt. At begge landet på 13 er ikke en begrunnelse for noen av dem.
+MIN_DATOER_FOR_GULV = 13
+
 SANNHETSVERDIER = {"true", "false"}
 
 
@@ -177,7 +202,8 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, dict]:
 
       gulv                laveste minoritet feltet har hatt. Alarmen går
                           under dette, så null historiske uker ville
-                          utløst den.
+                          utløst den. None når grunnlaget er for tynt til
+                          at tallet betyr noe — se `MIN_DATOER_FOR_GULV`.
       normalt_nullstrekk  lengste sammenhengende rekke uker med tomt
                           innhold, UTENOM et strekk som fortsatt pågår.
                           Det pågående strekket er nettopp det som skal
@@ -188,11 +214,29 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, dict]:
     et `dodt_naa` som sier hvor lenge. Da kan vakten ikke fyre på gulvet,
     men strekkvakten kan — og det er riktig fordeling: gulvet sier «under
     det laveste noensinne», strekket sier «har ikke sagt noe på lenge».
+
+    ## Én DATO er én observasjon, ikke én fil
+
+    `les_mellom()` gir flere innslag for samme dato når det finnes
+    løpenummerfiler, og det er riktig for den som leser forløp. Her ville
+    det telt den samme innsamlingen flere ganger: akvakultur hadde åtte
+    filer fra to datoer 25.08.2026, og normalen så ut til å hvile på åtte
+    observasjoner mens den hvilte på to. Både gulvet og nullstrekket ble
+    målt i filer der enheten skulle vært en innsamling.
+
+    Derfor kollapses historikken til én ramme per dato — den siste, som
+    er den med høyest løpenummer. Da betyr «13» det samme for en kilde
+    som er kjørt om igjen fire ganger på en dag som for en som ikke er
+    det.
     """
+    per_dato: dict[str, pl.DataFrame] = {}
+    for dato, ramme in historikk:
+        per_dato[dato] = ramme          # siste vinner: høyest løpenummer
+
     serier: dict[str, list[int]] = {}
     typer: dict[str, str] = {}
-    for _dato, ramme in historikk:
-        m = mål_ramme(ramme)
+    for dato in sorted(per_dato):
+        m = mål_ramme(per_dato[dato])
         for felter in m.values():
             for felt, tall in felter.items():
                 serier.setdefault(felt, []).append(tall["minoritet"])
@@ -211,8 +255,18 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, dict]:
         for x in kropp:
             strekk = strekk + 1 if x == 0 else 0
             best = max(best, strekk)
+        # Gulvet etableres bare når det hviler på nok observasjoner.
+        # Under det er «laveste vi har sett» det samme som «det vi ser
+        # nå», og en referanse som er en kopi av dagens verdi gjør
+        # enhver normal svingning til en alarm.
         ut[felt] = {
-            "gulv": min(v),
+            "gulv": min(v) if len(v) >= MIN_DATOER_FOR_GULV else None,
+            # Alltid det som FAKTISK ble observert, også når gulvet er
+            # None. Fila skal beskrive historikken; vakten avgjør hva den
+            # tør stole på. Uten dette kunne ingen se hva et tynt
+            # grunnlag inneholdt, og en senere vurdering måtte lese alle
+            # snapshotene på nytt.
+            "laveste_sett": min(v),
             "median": int(pl.Series(v).median()),
             "normalt_nullstrekk": best,
             "dodt_naa": etterfolgende,
