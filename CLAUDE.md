@@ -96,6 +96,35 @@ hva et gammelt snapshot inneholder) og pagineringstaket i
 `sources/enhetsregisteret.py` (avkortning gir en advarsel, ikke et
 merke i dataene). Se beslutningen fra 24.08.
 
+### 1b-4. En referanse bygges av historikk, og flytter seg ikke selv
+
+- **F10:** feltvakten telte RADER per felt. `har_rensefisk` leverte 1777
+  rader hver uke i 171 uker og var `False` i hver eneste én. Vakten så en
+  full kolonne og tidde i tre år. `har_medikamentell_behandling`: 89 uker.
+
+Det er den vanlige formen — et mål som ligner («kom feltet») der
+spørsmålet er et annet («sa feltet noe»). Men F10 har et andre ledd som
+er verdt en egen regel: **referansen var utledet av data som allerede
+inneholdt feilen.** Den ble satt sommeren 2026, da begge feltene hadde
+vært døde i årevis, og målte deretter dagens null mot gårsdagens null.
+
+To krav følger:
+
+1. **Bygg referansen av historikk, ikke av forrige kjøring.** For
+   lusetall finnes 761 uker. En referanse fra siste kjøring er ikke en
+   referanse — den er en kopi.
+2. **La den ikke flytte seg av seg selv.** `volum_referanse` er et
+   høyvannsmerke, `feltnormal.gulv` et lavvannsmerke. Begge beveger seg
+   bare ved en skrevet kvittering. En referanse som følger dataene er et
+   rullende snitt, og et rullende snitt godtar degradering i sakte film.
+
+Terskler skal måles, ikke gjettes, når det finnes data å måle med.
+`maks_nullstrekk = 13` er simulert over 761 uker: null falske alarmer i
+2014–2022, og begge dødsfallene fanget. Sjekk også at tallet ikke er
+utledet av selve feilen — første utkast lot `har_medikamentell_behandling`
+få et 45-ukers unntak som KOM FRA dødsfallet, og vakten ble blind for
+det den fantes for.
+
 ## 2. Data skrives én gang, aldri om
 
 Append-only gjelder `data/raw/<kilde>/<dato>.parquet`,

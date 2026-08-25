@@ -154,11 +154,52 @@ Skriv HVORFOR nivået ble godtatt, ikke bare at det ble det. Om fire
 måneder er den commit-meldingen eneste sted som skiller "registeret
 krympet" fra "vi ga opp en tirsdag".
 
+## Når innholdsvarselet fyrer
+
+Ser slik ut:
+
+    KREVER TILSYN: lusetall.har_rensefisk (tomt 172 kjøringer på rad,
+    grense 13; 1777 rader leveres fortsatt, alle «False»)
+
+Merk siste ledd: **radene kommer.** Dette er ikke en kilde som er nede
+og ikke et felt som er borte — feltet leveres komplett og har sluttet å
+si noe. `har_rensefisk` sto slik i 171 uker uten at noe fyrte, fordi den
+gamle vakten telte rader.
+
+Rekkefølgen når det skjer:
+
+1. Slå opp feltet hos kilden. Sluttet den å publisere det, eller sluttet
+   verden å ha det? Det er et spørsmål til kilden, ikke til koden.
+2. Er svaret «kilden sluttet å levere det»: det er datatap, og det kan
+   ikke hentes inn igjen. Noter det i beslutningsloggen.
+3. Er svaret «verdien er legitimt konstant nå»: kvitter ut med
+
+       HAVBRUK_DATA_DIR=../havbruk-radar-data/data python run.py --godta-felt lusetall
+
+   Det nullstiller strekket. Det rører IKKE gulvet — gulvet flyttes bare
+   ved å bygge normalen på nytt.
+
+**Normalen må være bygget for at vakten skal virke i det hele tatt:**
+
+    HAVBRUK_DATA_DIR=../havbruk-radar-data/data python run.py --bygg-feltnormal
+
+Den leser hele historikken, regner ut hva hvert felt normalt inneholder,
+og skriver `data/feltnormal/<dato>.json`. Fila skrives aldri om — en ny
+bygging gir en ny fil, og nyeste gjelder. Commit den: den er grunnlaget
+alarmene måles mot.
+
+Kjør den på nytt når en kilde har fått nok historikk til at normalen blir
+meningsfull. Akvakultur og enhetsregisteret hadde 8–9 snapshots i august
+2026, alle fra samme uke — for lite til å påstå at et konstant felt er
+dødt.
+
 ## Månedlig sjekk (to minutter)
 
 Alt i datarepoet:
 
 - Åpne `data/health.json`. Har alle kilder `feil_paa_rad: 0`?
+- Samme fil: er `innhold_nullstrekk` tom for alle kilder? Et tall som
+  vokser uke for uke er et felt på vei til å dø.
 - Se på commit-loggen. Er det commits hver mandag?
 - `du -sh data/`. Under 200 MB? Ingen bekymring.
 

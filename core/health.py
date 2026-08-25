@@ -48,6 +48,19 @@ løfter den med seg, men et volum under den senker den aldri — heller
 ikke når det er innenfor terskelen. Senket den seg, ville et fall på
 8 % i uka passert hver gang, og kilden kunne drive til 43 % av
 opprinnelig volum uten ett varsel. Eneste vei ned er godta_volum().
+
+Tredje stille feil, og den dyreste så langt: feltvakten under teller
+RADER per felt. Den fanger at et felt slutter å komme. Den fanger ikke
+at feltet fortsetter å komme og slutter å si noe. `har_rensefisk`
+leverte 1777 rader hver uke fra 2023-04-24 og var `False` i hver eneste
+én — 171 uker, uten et pip. `har_medikamentell_behandling`: 89 uker.
+
+Derfor _vurder_innhold() ved siden av _vurder_felter(). Den måler hvor
+mange rader som IKKE har feltets vanligste verdi, mot en normal bygget
+av hele historikken og lagret append-only utenfor denne fila. Se
+core/feltnormal.py — også for hvorfor normalen IKKE kan bo her: en
+referanse som skrives om hver kjøring var nettopp det som festet
+dødsleiet til har_rensefisk som normaltilstand.
 """
 
 from __future__ import annotations
@@ -57,6 +70,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from core import config
+from core import feltnormal
 from core.paths import HEALTH_PATH  # noqa: F401
 
 if TYPE_CHECKING:                       # pragma: no cover
@@ -174,6 +188,85 @@ def _vurder_felter(
     return referanse, None
 
 
+def _vurder_innhold(
+    kilde: str, innhold_naa: dict[str, dict], gammel: dict, normal: dict
+) -> tuple[dict, list[str]]:
+    """Returnerer (nye nullstrekk, varsler). Ser INNHOLD, ikke levering.
+
+    `_vurder_felter` over spør «kom feltet». Denne spør «sa det noe».
+    De to er ikke samme spørsmål, og forskjellen kostet 171 uker:
+    `har_rensefisk` leverte 1777 rader hver uke fra 2023-04-24 og var
+    `False` i hver eneste én. Radetellingen så en full kolonne.
+
+    Målet er `minoritet` — rader som ikke har feltets vanligste verdi.
+    Se core/feltnormal.py for hvorfor det og ikke «antall True».
+
+    To uavhengige prøver, og de fanger ulike ting:
+
+    * **Under gulvet.** Feltet bærer mindre innhold enn det noen gang
+      har gjort i historikken normalen ble bygget av. Fyrer straks.
+    * **Nullstrekk.** Feltet har vært helt tomt i flere kjøringer på rad
+      enn terskelen. Nødvendig fordi null er en HELT normal uke for et
+      lite felt — `har_ila` har 22 nulluker i historikken, `har_pd` 33.
+      Det er strekket, ikke uka, som skiller en stille uke fra et dødt
+      felt.
+
+      Grensa er flat og bruker IKKE feltets eget `normalt_nullstrekk`
+      som unntak, selv om tallet lagres. Grunnen er målt: hvert eneste
+      nullstrekk over 13 uker i 761 uker historikk er enten en oppstart
+      (har_pd 33 uker i 2012, har_ila 22 uker i 2012–13) eller et
+      dødsfall. Ingen av dem er «normalt». Verre: `har_medikamentell_
+      behandling` har et 45-ukers strekk i historikken som ER dødsfallet,
+      og et unntak utledet av det ville gjort vakten blind for nettopp
+      den feilen den finnes for. Tallet står i normalen som kontekst til
+      den som leser alarmen, ikke som fribillett.
+
+    Uten en etablert normal gjøres ingenting. En alarm på et grunnlag vi
+    ikke har er støy, og støy er det som får folk til å slutte å lese
+    alarmer. `--bygg-feltnormal` etablerer grunnlaget.
+    """
+    strekk = dict(gammel.get("innhold_nullstrekk") or {})
+    if not innhold_naa:
+        return strekk, []            # kilden er nede: volumvaktens bord
+
+    felter = (normal.get("kilder") or {}).get(kilde) or {}
+    grense = config.get(f"kilder.{kilde}.maks_nullstrekk",
+                        normal.get("maks_nullstrekk",
+                                   feltnormal.STANDARD_MAKS_NULLSTREKK))
+
+    varsler = []
+    for felt, tall in sorted(innhold_naa.items()):
+        n = felter.get(felt)
+        minoritet = tall.get("minoritet", 0)
+
+        # Strekket telles for ALLE felter, også de normalen ikke kjenner.
+        # Da er tallet klart den dagen normalen bygges, i stedet for å
+        # starte på null da.
+        #
+        # Første gang et felt telles, arves strekket fra normalens
+        # `dodt_naa`. Uten det ville et felt som har vært tomt i 171 uker
+        # begynt på null når vakten ble tatt i bruk, og trengt 13 nye uker
+        # på å si fra om noe som har vart i tre år.
+        forrige_strekk = strekk.get(felt, n.get("dodt_naa", 0) if n else 0)
+        strekk[felt] = forrige_strekk + 1 if minoritet == 0 else 0
+
+        if n is None:
+            continue                 # ingen normal for dette feltet ennå
+
+        if minoritet < n.get("gulv", 0):
+            varsler.append(
+                f"{kilde}.{felt} (innhold {minoritet} under gulvet "
+                f"{n['gulv']} — laveste på {n.get('uker', '?')} uker; "
+                f"{tall['rader']} rader leveres fortsatt)")
+        elif strekk[felt] >= grense:
+            varsler.append(
+                f"{kilde}.{felt} (tomt {strekk[felt]} kjøringer på rad, "
+                f"grense {grense}; {tall['rader']} rader leveres fortsatt, "
+                f"alle «{tall['toppverdi']}»)")
+
+    return strekk, varsler
+
+
 def godta_felt(kilde: str) -> tuple[bool, str]:
     """Godta kildens nåværende feltsett som det nye normale.
 
@@ -195,12 +288,28 @@ def godta_felt(kilde: str) -> tuple[bool, str]:
 
     fjernet = sorted(set(post.get("felt_referanse") or {}) - set(sist))
     post["felt_referanse"] = dict(sist)
+
+    # Innholdsalarmen kvitteres ut sammen med feltalarmen. De to er
+    # samme sak sett fra to sider — «feltet er borte» og «feltet er tomt»
+    # — og en kvittering som bare tok den ene ville latt jobben stå rød
+    # på den andre uten at noe mer kunne gjøres herfra.
+    #
+    # Strekket nullstilles. GULVET i feltnormalen røres IKKE: det ligger
+    # append-only i data/feltnormal/ og skal bygges på nytt bevisst, med
+    # en begrunnelse som blir stående. Se core/feltnormal.py.
+    tomme = sorted(f for f, v in (post.get("innhold_nullstrekk") or {}).items() if v)
+    post["innhold_nullstrekk"] = {}
     skriv(tilstand)
 
-    if not fjernet:
+    biter = []
+    if fjernet:
+        biter.append(f"godtok at {', '.join(fjernet)} er borte")
+    if tomme:
+        biter.append(f"nullstilte innholdsstrekket for {', '.join(tomme)}")
+    if not biter:
         return True, f"{kilde}: feltreferansen er allerede lik dagens feltsett."
     return True, (
-        f"{kilde}: godtok at {', '.join(fjernet)} er borte. "
+        f"{kilde}: {'; '.join(biter)}. "
         f"Commit health.json i datarepoet for å feste kvitteringen."
     )
 
@@ -357,6 +466,8 @@ def oppdater(
         return les(), []
 
     forrige = les()
+    normal = feltnormal.les()
+    innhold_per_kilde = feltnormal.mål_ramme(observasjoner)
 
     # Kilder som IKKE kjørte i dag (fordi de ikke var forfalt) skal beholde
     # tilstanden sin. Bygde vi dicten fra bare dagens resultater, forsvant
@@ -395,6 +506,7 @@ def oppdater(
         # Feltvakt: kun når kilden faktisk leverte. En nede kilde har
         # ingen felter, og skal ikke få referansen sin rasert.
         felt_varsel = None
+        innhold_varsler: list[str] = []
         if r.ok:
             felt_naa = felt_per_kilde.get(r.source, {})
             felt_referanse, felt_varsel = _vurder_felter(r.source, felt_naa, gammel)
@@ -403,11 +515,31 @@ def oppdater(
                 ny[r.source]["felt_sist"] = felt_naa
             elif gammel.get("felt_sist"):
                 ny[r.source]["felt_sist"] = gammel["felt_sist"]
+
+            # Innholdsvakt. Egen prøve, ikke en utvidelse av den over:
+            # «kom feltet» og «sa det noe» er to spørsmål, og et felt kan
+            # svare ja på det første i 171 uker mens svaret på det andre
+            # er nei. Se _vurder_innhold.
+            innhold_naa = innhold_per_kilde.get(r.source, {})
+            nullstrekk, innhold_varsler = _vurder_innhold(
+                r.source, innhold_naa, gammel, normal)
+            # Bare strekket lagres, ikke selve målingene. Målt: `innhold_sist`
+            # for alle 72 felter ville tatt health.json fra 5,4 til 19,9 kB —
+            # nesten firedoblet en fil som skrives om hver uke, med tall som
+            # kan regnes ut fra snapshotet på nytt når som helst. Strekket
+            # kan ikke det: det er tilstand som bygges opp over tid.
+            ny[r.source]["innhold_nullstrekk"] = {
+                f: v for f, v in nullstrekk.items() if v
+            }
         else:
             if gammel.get("felt_referanse"):
                 ny[r.source]["felt_referanse"] = gammel["felt_referanse"]
             if gammel.get("felt_sist"):
                 ny[r.source]["felt_sist"] = gammel["felt_sist"]
+            # Nede kilde: strekket står stille. Et felt som ikke ble hentet
+            # har ikke vært tomt — det har ikke vært spurt.
+            if gammel.get("innhold_nullstrekk"):
+                ny[r.source]["innhold_nullstrekk"] = gammel["innhold_nullstrekk"]
 
         # En aktiv kilde som feiler skal ALLTID rapporteres. De to
         # tilfellene betyr ikke det samme for den som leser meldingen, og
@@ -436,6 +568,9 @@ def oppdater(
         # Et felt som forsvant er egen sak, med egen kvittering.
         if felt_varsel:
             nede.append(felt_varsel)
+
+        # Et felt som kom, men sluttet å si noe, er en tredje sak.
+        nede.extend(innhold_varsler)
 
     return ny, nede
 

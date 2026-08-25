@@ -26,6 +26,11 @@ RAW_DIR = DATA_DIR / "raw"
 ARKIV_DIR = DATA_DIR / "arkiv"
 CHANGELOG_DIR = DATA_DIR / "changelog"
 HEALTH_PATH = DATA_DIR / "health.json"
+
+# Hva et felt NORMALT inneholder, bygget fra historikken. Append-only, én
+# fil per gang normalen etableres eller kvitteres — se core/feltnormal.py
+# for hvorfor den ikke bor i health.json.
+FELTNORMAL_DIR = DATA_DIR / "feltnormal"
 COMMIT_MSG_PATH = DATA_DIR / "siste_kjoring.txt"
 
 # Fra da endringsloggen lå i én fil. Leses fortsatt, skrives aldri til.

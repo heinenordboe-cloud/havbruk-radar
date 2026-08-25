@@ -13,7 +13,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from core import changelog, diff, runner, signals, snapshot
+from core import changelog, diff, feltnormal, health, runner, signals, snapshot
 from core import utvalg
 from core import raw as raw_arkiv
 from core.contract import Observation, Source
@@ -2414,3 +2414,242 @@ def test_merking_rorer_ikke_kilder_uten_startdatofelt():
          "observed_at": "2026-01-08", "forrige_observed_at": "2026-01-01"},
     ])
     assert changelog.merk_utvalgsutvidelse(logg)["change_type"].to_list() == ["ny"]
+
+
+# ============================================== innholdsvakten (F10)
+#
+# Feltvakten teller RADER. har_rensefisk leverte 1777 rader hver uke fra
+# 2023-04-24 og var False i hver eneste én — 171 uker uten et pip.
+
+
+def _obs_felt(dato, felt, verdier, kilde="falsk"):
+    """Én observasjon per verdi, alle på samme felt."""
+    return [
+        Observation(str(i), "lokalitet", f"L{i}", felt, str(v), kilde, dato)
+        for i, v in enumerate(verdier)
+    ]
+
+
+def _ramme(dato, felt, verdier, kilde="falsk"):
+    return snapshot.to_frame(_obs_felt(dato, felt, verdier, kilde))
+
+
+def test_maal_ser_innhold_ikke_bare_rader():
+    """Målet er minoriteten — rader som ikke har den vanligste verdien."""
+    dodt = feltnormal.mål(pl.Series("value", ["False"] * 1777))
+    levende = feltnormal.mål(pl.Series("value", ["True"] * 1360 + ["False"] * 417))
+
+    assert dodt["rader"] == 1777 and dodt["minoritet"] == 0
+    assert levende["rader"] == 1777 and levende["minoritet"] == 417
+    # Radetellingen ser to like fulle kolonner. Det var hele feilen.
+    assert dodt["rader"] == levende["rader"]
+
+
+def test_boolsk_felt_som_fryser_til_true_fanges_ogsaa():
+    """Derfor minoritet og ikke «antall True».
+
+    har_laksefisk er True for 1360 av 1777. Fryser feltet til bare True,
+    STIGER antall True — en vakt som teller sanne verdier ser vekst i det
+    øyeblikket feltet slutter å skille noe fra noe.
+    """
+    for _ in range(1):
+        levende = feltnormal.mål(pl.Series("value", ["True"] * 1360 + ["False"] * 417))
+        frosset = feltnormal.mål(pl.Series("value", ["True"] * 1777))
+
+    assert frosset["sanne"] > levende["sanne"], "antall True STEG"
+    assert frosset["minoritet"] == 0 < levende["minoritet"], "minoriteten falt"
+
+
+def test_maal_skiller_typene():
+    b = feltnormal.mål(pl.Series("value", ["True", "False", "True"]))
+    n = feltnormal.mål(pl.Series("value", ["0.0", "0.2", "1.5", "0.0"]))
+    k = feltnormal.mål(pl.Series("value", ["TN", "TN", "STK"]))
+
+    assert b["type"] == "boolsk" and b["sanne"] == 2
+    assert n["type"] == "numerisk" and n["ikke_null"] == 2 and n["median"] == 0.1
+    assert k["type"] == "kategorisk"
+
+
+def test_bygg_finner_dodt_felt_og_normalt_strekk():
+    """Speiler har_rensefisk: levende, så tomt i det uendelige."""
+    historikk = (
+        [(f"2026-01-{d:02d}", _ramme(f"2026-01-{d:02d}", "flagg",
+                                     ["True"] * 5 + ["False"] * 95))
+         for d in range(1, 10)]
+        + [(f"2026-02-{d:02d}", _ramme(f"2026-02-{d:02d}", "flagg", ["False"] * 100))
+           for d in range(1, 21)]
+    )
+    n = feltnormal.bygg(historikk)["flagg"]
+
+    assert n["gulv"] == 0, "feltet HAR vært tomt, så gulvet er null"
+    assert n["dodt_naa"] == 20, "det pågående strekket telles"
+    assert n["normalt_nullstrekk"] == 0, (
+        "det pågående strekket skal IKKE bli normalen — det er nettopp "
+        "det som skal etterforskes")
+
+
+def test_normalen_skrives_append_only(tmp_path, monkeypatch):
+    """En fil per gang normalen etableres. Aldri omskrevet.
+
+    Grunnen står i core/feltnormal.py: en referanse som skrives om kan
+    ikke svare på «hva var normalen i uke X», og det var en referanse som
+    oppdaterte seg selv som festet dødsleiet til har_rensefisk.
+    """
+    monkeypatch.setattr(feltnormal, "FELTNORMAL_DIR", tmp_path / "feltnormal")
+
+    a = feltnormal.skriv({"falsk": {"flagg": {"gulv": 5}}}, "2026-08-25", "første")
+    b = feltnormal.skriv({"falsk": {"flagg": {"gulv": 9}}}, "2026-08-25", "andre")
+
+    assert a.name == "2026-08-25.json"
+    assert b.name == "2026-08-25.2.json", "kollisjon gir løpenummer"
+    assert json.loads(a.read_text())["kilder"]["falsk"]["flagg"]["gulv"] == 5, \
+        "den første fila er urørt"
+    assert feltnormal.les()["kilder"]["falsk"]["flagg"]["gulv"] == 9, "nyeste gjelder"
+
+
+def _vakt(tmp_path, monkeypatch, normal, tilstand=None):
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    monkeypatch.setattr(feltnormal, "FELTNORMAL_DIR", tmp_path / "feltnormal")
+    if normal is not None:
+        feltnormal.skriv(normal, "2026-01-01", "test")
+    health.skriv(tilstand or {})
+
+
+def test_tomt_felt_varsler_selv_naar_radene_kommer(tmp_path, monkeypatch):
+    """Selve F10. Fullt levert, helt tomt."""
+    # gulv 0: feltet HAR vært tomt før, så gulvprøven kan ikke fyre.
+    # Det er strekket alene som skal fange dette — som med har_rensefisk.
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 40, "uker": 500,
+                               "normalt_nullstrekk": 3, "dodt_naa": 0}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 12}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["False"] * 1777)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+
+    assert len(tilsyn) == 1, tilsyn
+    assert "tomt 13 kjøringer på rad" in tilsyn[0]
+    assert "1777 rader leveres fortsatt" in tilsyn[0]
+
+
+def test_en_enkelt_tom_uke_varsler_ikke(tmp_path, monkeypatch):
+    """Null er en HELT normal uke for et lite felt. har_ila har 22
+    nulluker i historikken, har_pd 33 — en vakt som fyrte på hver av dem
+    ville vært støy, og støy får folk til å slutte å lese alarmer."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 8, "uker": 500,
+                               "normalt_nullstrekk": 22, "dodt_naa": 0}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["False"] * 1777)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+    assert tilsyn == []
+
+
+def test_innhold_under_gulvet_varsler_straks(tmp_path, monkeypatch):
+    """Den andre prøven. Gulvet er et LAVVANNSMERKE — det laveste feltet
+    har vært på 574 uker. Under det er per definisjon uten sidestykke.
+
+    Dette er prøven som fanget har_medikamentell_behandling i replayen:
+    gulvet var 1, og uka det falt til 0 fyrte den samme uke.
+    """
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 1, "median": 24, "uker": 574,
+                               "normalt_nullstrekk": 0, "dodt_naa": 0}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["False"] * 1745)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+
+    assert len(tilsyn) == 1, tilsyn
+    assert "under gulvet 1" in tilsyn[0] and "574 uker" in tilsyn[0]
+
+
+def test_friskt_felt_varsler_ikke(tmp_path, monkeypatch):
+    """Fiksen får ikke bli «alt varsler»."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 300, "median": 400, "uker": 574,
+                               "normalt_nullstrekk": 0, "dodt_naa": 0}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["True"] * 380 + ["False"] * 1397)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+    assert tilsyn == []
+
+
+def test_uten_normal_varsler_ingenting(tmp_path, monkeypatch):
+    """Ingen etablert normal = ingen påstand. En alarm på et grunnlag vi
+    ikke har er støy."""
+    _vakt(tmp_path, monkeypatch, None)
+
+    naa = _ramme("2026-01-08", "flagg", ["False"] * 1777)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+
+    assert tilsyn == []
+    assert tilstand["falsk"]["innhold_nullstrekk"] == {"flagg": 1}, \
+        "strekket telles likevel, så tallet er klart den dagen normalen bygges"
+
+
+def test_strekket_arves_fra_normalens_dodt_naa(tmp_path, monkeypatch):
+    """Et felt som har vært tomt i 171 uker skal ikke begynne på null.
+
+    Uten arven ville vakten trengt 13 NYE uker på å si fra om noe som har
+    vart i tre år.
+    """
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 12, "uker": 761,
+                               "normalt_nullstrekk": 3, "dodt_naa": 171}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["False"] * 1777)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 172
+    assert len(tilsyn) == 1 and "tomt 172 kjøringer" in tilsyn[0]
+
+
+def test_innhold_som_kommer_tilbake_nullstiller_strekket(tmp_path, monkeypatch):
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 12, "uker": 761,
+                               "normalt_nullstrekk": 3, "dodt_naa": 0}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 40}}})
+
+    naa = _ramme("2026-01-08", "flagg", ["True"] * 6 + ["False"] * 1771)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-01-08", naa)
+
+    assert tilstand["falsk"]["innhold_nullstrekk"] == {}
+    assert tilsyn == []
+
+
+def test_nede_kilde_forlenger_ikke_strekket(tmp_path, monkeypatch):
+    """Et felt som ikke ble hentet har ikke vært tomt — det har ikke
+    vært spurt."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 12, "uker": 761,
+                               "normalt_nullstrekk": 3, "dodt_naa": 0}}},
+          {"falsk": {"sist_ok": "2026-01-01",
+                     "innhold_nullstrekk": {"flagg": 12}}})
+
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", False, 0, error="nede")], "2026-01-08", None)
+
+    assert tilstand["falsk"]["innhold_nullstrekk"] == {"flagg": 12}, "står stille"
+    assert not any("flagg" in t for t in tilsyn)
+
+
+def test_godta_felt_kvitterer_ogsaa_innholdsalarmen(tmp_path, monkeypatch):
+    """«Feltet er borte» og «feltet er tomt» er samme sak fra to sider.
+    En kvittering som bare tok den ene ville latt jobben stå rød på den
+    andre uten at noe mer kunne gjøres herfra."""
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    health.skriv({"falsk": {"felt_sist": {"flagg": 100},
+                            "felt_referanse": {"flagg": 100},
+                            "innhold_nullstrekk": {"flagg": 40}}})
+
+    ok, melding = health.godta_felt("falsk")
+
+    assert ok and "nullstilte innholdsstrekket for flagg" in melding
+    assert health.les()["falsk"]["innhold_nullstrekk"] == {}

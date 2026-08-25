@@ -33,8 +33,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
 from core import (  # noqa: E402
-    changelog, diff, health, miljo, paths, predictions, registry, runner,
-    signals, snapshot,
+    changelog, diff, feltnormal, health, miljo, paths, predictions,
+    registry, runner, signals, snapshot,
 )
 
 
@@ -119,6 +119,48 @@ def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
     return "\n".join(linjer)
 
 
+def bygg_feltnormal(kjoredato: str) -> int:
+    """Etabler hva hvert felt NORMALT inneholder, fra hele historikken.
+
+    Egen kommando og ikke noe den ukentlige kjøringen gjør. Det var
+    nettopp en referanse som oppdaterte seg selv hver uke som festet
+    dødsleiet til `har_rensefisk` som normaltilstand: den ble satt
+    sommeren 2026, da feltet hadde vært tomt i 171 uker, og vakten
+    målte deretter dagens null mot gårsdagens null.
+
+    Skriver en NY fil i data/feltnormal/, aldri over en som finnes.
+    «Hva var normalen i uke X» skal kunne besvares av dataene.
+    """
+    kilder = registry.discover()
+    normal = {}
+    print(f"\nBygger innholdsnormal per {kjoredato}\n")
+    for kilde in kilder:
+        historikk = snapshot.les_mellom(kilde.name, "0000-00-00", kjoredato)
+        if not historikk:
+            print(f"  {kilde.name:<20} ingen snapshots — hoppet over")
+            continue
+        normal[kilde.name] = feltnormal.bygg(historikk)
+        print(f"  {kilde.name:<20} {len(historikk)} snapshots "
+              f"({historikk[0][0]} .. {historikk[-1][0]}), "
+              f"{len(normal[kilde.name])} felter")
+
+    if not normal:
+        print("\n  Ingen historikk å bygge av.")
+        return 1
+
+    pakket = {"kilder": normal, "maks_nullstrekk": feltnormal.STANDARD_MAKS_NULLSTREKK}
+    print()
+    for linje in feltnormal.sammendrag(pakket):
+        print(linje)
+
+    sti = feltnormal.skriv(
+        normal, kjoredato,
+        f"bygget fra all historikk til og med {kjoredato}")
+    print(f"\n  skrevet: {sti}")
+    print("  Commit fila i datarepoet — den er grunnlaget alarmene måles mot.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bare", help="kjør kun én kilde")
@@ -128,6 +170,11 @@ def main() -> int:
     parser.add_argument("--planlagt", action="store_true",
                         help="dette er den ukentlige cron-kjøringen: null forfalte "
                              "kilder er en feil, ikke en stille exit")
+    parser.add_argument("--bygg-feltnormal", action="store_true",
+                        help="bygg innholdsnormalen fra HELE historikken og "
+                             "skriv den som ny fil i data/feltnormal/. "
+                             "Kjør denne én gang, og på nytt bare når du "
+                             "bevisst vil flytte normalen.")
     parser.add_argument("--godta-felt", metavar="KILDE",
                         help="godta kildens nåværende feltsett som nytt normalt, "
                              "og avslutt. Kvitteringen for et felt som legitimt "
@@ -170,6 +217,12 @@ def main() -> int:
     # om oss (frekvensvakt, helsetilstand, prediksjonsvindu) måles mot
     # denne; alt som handler om verden måles mot kildens egen dato.
     kjoredato = datetime.now(timezone.utc).date().isoformat()
+
+    # Bygger normal fra historikken og avslutter. Står ETTER kjoredato
+    # fordi den daterer fila, og kjøredatoen slås opp nøyaktig ett sted
+    # (CLAUDE.md 1b) — ikke fordi den samler inn noe.
+    if args.bygg_feltnormal:
+        return bygg_feltnormal(kjoredato)
 
     # 1. Finn kilder
     kilder = registry.discover()
