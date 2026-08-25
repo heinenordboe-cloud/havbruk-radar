@@ -129,6 +129,102 @@ def test_tom_uke_stopper_fortsatt(isolert, monkeypatch, capsys):
     assert "Stoppet:" in capsys.readouterr().out
 
 
+# --------------------------------------- stopp når TJENESTEN er nede (F12)
+
+def test_maks_feil_paa_rad_stopper_kjoringen(isolert, monkeypatch, capsys):
+    """F12: 522 uker på rad feilet med 401 og kjøringen gikk i ni timer.
+
+    Én uke som feiler er en uke. N på rad er en tjeneste som er nede, og
+    resten av intervallet er bortkastede kall.
+    """
+    kilde = FalskLusetall(feiler={(2026, 2), (2026, 3), (2026, 4)})
+
+    kode = _kjor(monkeypatch, kilde, "2026-01", "2026-10")
+    ut = capsys.readouterr().out
+
+    assert kode == 1
+    # Stoppet på den tredje, forsøkte ikke uke 5-10.
+    assert kilde.hentet == [(2026, 1), (2026, 2), (2026, 3), (2026, 4)]
+    assert "STOPPET" in ut and "3 uker på rad" in ut
+    assert "Skrev 1 uker" in ut
+    # Feillista skal komme også når den stopper tidlig — ellers er hullet
+    # usynlig, som før feillista fantes.
+    assert "3 uke(r) FEILET" in ut
+    assert "Kjør samme intervall på nytt" in ut
+
+
+def test_spredte_feil_stopper_ikke(isolert, monkeypatch, capsys):
+    """Telleren nullstilles av et RESULTAT, ikke av et forsøk (1b-2).
+
+    To feil med en vellykket uke imellom er ikke en tjeneste som er nede,
+    og en backfill på 761 uker skal tåle dem.
+    """
+    kilde = FalskLusetall(feiler={(2026, 2), (2026, 4), (2026, 6), (2026, 8)})
+
+    kode = _kjor(monkeypatch, kilde, "2026-01", "2026-10")
+    ut = capsys.readouterr().out
+
+    assert kode == 1                      # hullene er reelle
+    assert len(kilde.hentet) == 10        # men alle ti ble forsøkt
+    assert "STOPPET" not in ut
+    assert "4 uke(r) FEILET" in ut
+
+
+def test_loggen_er_tidsstemplet(isolert, monkeypatch, capsys):
+    """Uten tid per linje kan en ratebegrensning ikke skilles fra en
+    tokenfeil i ettertid. Loggen fra 24.08 hadde ingen."""
+    import re
+
+    _kjor(monkeypatch, FalskLusetall(), "2026-01", "2026-02")
+    ut = capsys.readouterr().out
+
+    linjer = [ln for ln in ut.splitlines() if ln.strip()]
+    assert linjer, "ingen utskrift å tidsstemple"
+    monster = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}  ")
+    assert all(monster.match(ln) for ln in linjer), \
+        f"utidsstemplet linje: {[ln for ln in linjer if not monster.match(ln)][:3]}"
+
+
+# ------------------------------------------------------ proveniens (1b-3)
+
+class UtvalgKilde(FalskLusetall):
+    """Setter utvalg i hent_uke(), slik sjotemperatur gjør."""
+
+    def hent_uke(self, aar, uke, client=None):
+        self.utvalg = {"rapporttype": ["Lice"]}
+        return super().hent_uke(aar, uke)
+
+
+def test_backfillede_rader_baerer_utvalg(isolert, monkeypatch, capsys):
+    """Regel 1b-3: et snapshot skal alene kunne svare på hva vi lette etter.
+
+    backfill.py kalte hent_uke() direkte og sendte aldri utvalget videre
+    til stempl(). 389 206 rader ble skrevet med tomt utvalg 24.08.2026.
+    """
+    import polars as pl
+    from core import utvalg as utvalg_modul
+
+    assert _kjor(monkeypatch, UtvalgKilde(), "2026-01", "2026-02") == 0
+
+    fil = isolert / "raw/lusetall/2025-12-29.parquet"
+    if not fil.exists():
+        fil = sorted((isolert / "raw/lusetall").glob("*.parquet"))[0]
+    rader = pl.read_parquet(fil)
+
+    forventet = utvalg_modul.serialiser({"rapporttype": ["Lice"]})
+    assert rader["utvalg"].unique().to_list() == [forventet]
+    assert forventet != "", "tomt utvalg leses «vet ikke», ikke «ingen filtrering»"
+
+
+def test_kilde_uten_utvalg_gir_tomt_felt_ikke_krasj(isolert, monkeypatch, capsys):
+    """En kilde som ikke oppgir utvalg skal fortsatt kunne backfilles."""
+    import polars as pl
+
+    assert _kjor(monkeypatch, FalskLusetall(), "2026-01", "2026-02") == 0
+    fil = sorted((isolert / "raw/lusetall").glob("*.parquet"))[0]
+    assert pl.read_parquet(fil)["utvalg"].unique().to_list() == [""]
+
+
 # ------------------------------------------------- retry gjennom hele veien
 
 class TimeoutKlient:
