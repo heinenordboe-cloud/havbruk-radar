@@ -35,7 +35,9 @@ class Observation:
     raw_hash: str = ""        # sha256 fra raw_arkiv.arkiver()
 
     # Hva kilden BA OM da denne raden ble hentet — kanonisk JSON fra
-    # core/utvalg.py, tom streng når kilden ikke oppgir noe.
+    # core/utvalg.py. `"{}"` betyr «kilden hentet alt», tom streng betyr
+    # «kilden sa ingenting». De to er IKKE det samme, og snapshots
+    # skrevet før 25.08.2026 har tom streng uansett hva kilden gjorde.
     #
     # Proveniens som de tre over, og stemplet av kjernen på samme måte:
     # ingen kilde setter dette feltet selv. Grunnen til at det må ligge
@@ -86,9 +88,20 @@ class Source:
     # og F8. Setter fetch() den mens den henter, beskriver den
     # nødvendigvis det kallet som faktisk ble gjort.
     #
-    # En kilde som henter alt den kan få lar den stå tom. Da svarer
-    # utvalg.er_utvidet() usant, og ingenting undertrykkes.
-    utvalg: dict = {}
+    # TRE tilstander, ikke to (se core/utvalg.py):
+    #
+    #   {"naeringskoder": [...]}   kjent utvalg
+    #   {}                         kjent: kilden filtrerer ikke
+    #   None                       ukjent — kilden sier ingenting
+    #
+    # Standarden er None og ikke {}. Sto den som {}, ville enhver kilde
+    # som aldri har tenkt på spørsmålet automatisk påstått at den henter
+    # alt, og den påstanden har ingen gått god for. En kilde må si det
+    # selv: `self.utvalg = {}` i hent_uke(), slik lusetall gjør.
+    #
+    # `{}` og None er begge usanne i Python og lett å blande. Spør med
+    # utvalg.er_ukjent() og utvalg.henter_alt(), ikke med `if not`.
+    utvalg: dict | None = None
 
     # Feltet som bærer entitetens EGEN startdato i verden — datoen den ble
     # til, ikke datoen vi først så den. For Enhetsregisteret er det

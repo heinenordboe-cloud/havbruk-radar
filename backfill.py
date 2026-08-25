@@ -296,7 +296,7 @@ def main() -> int:
         # kallet over — derfor leses den her og ikke før løkka.
         obs = runner.stempl(kilde.parse(rå, dato),
                             source_version=kilde.version, raw_hash=raw_hash,
-                            utvalg=getattr(kilde, "utvalg", None) or None)
+                            utvalg=getattr(kilde, "utvalg", None))
         if not obs:
             # Ikke "ferdig" — dette er stoppvilkåret. En tom uke fra et
             # endepunkt som svarer 200 betyr at året ikke finnes.

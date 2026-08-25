@@ -2404,6 +2404,100 @@ def test_er_utvidet_grammatikken():
         utvalg.serialiser({"naeringskoder": ["a", "b"]})
 
 
+def test_tre_tilstander_overlever_diskturen():
+    """Kjent utvalg, kjent ingen filtrering, og ukjent — alle tre.
+
+    Fram til 25.08.2026 fantes bare to: `{}` serialiserte til tom streng
+    og kunne ikke skilles fra «kilden sa ingenting». For lusetall var det
+    direkte galt — endepunktet tar ingen utvalgsparametre, så «alt» er
+    kunnskap og ikke fravær av den.
+    """
+    kjent = {"naeringskoder": ["03.211"]}
+
+    assert utvalg.serialiser(kjent) == '{"naeringskoder":["03.211"]}'
+    assert utvalg.serialiser({}) == "{}"
+    assert utvalg.serialiser(None) == ""
+
+    assert utvalg.les('{"naeringskoder":["03.211"]}') == kjent
+    assert utvalg.les("{}") == {}
+    assert utvalg.les("") is None
+
+    # Og de tre skal kunne SKILLES av en leser, ikke bare lagres ulikt.
+    assert not utvalg.er_ukjent(utvalg.les("{}"))
+    assert utvalg.henter_alt(utvalg.les("{}"))
+
+    assert utvalg.er_ukjent(utvalg.les(""))
+    assert not utvalg.henter_alt(utvalg.les(""))
+
+    assert not utvalg.er_ukjent(kjent)
+    assert not utvalg.henter_alt(kjent)
+
+
+def test_ingen_filtrering_er_ikke_ukjent_i_utvidelsesregelen():
+    """De to ytterpunktene, som den generelle regelen ikke dekker."""
+    filter_ = {"naeringskoder": ["03.211"]}
+
+    # Bredere enn alt finnes ikke.
+    assert not utvalg.er_utvidet({}, filter_)
+    assert not utvalg.er_utvidet({}, {})
+
+    # Fra et filter til alt er den størst mulige utvidelsen.
+    assert utvalg.er_utvidet(filter_, {})
+
+    # Ukjent smitter fortsatt: ingen kan påstå noe da.
+    assert not utvalg.er_utvidet(None, {})
+    assert not utvalg.er_utvidet({}, None)
+
+
+def test_kilde_som_ikke_sier_noe_paastaar_ikke_at_den_henter_alt():
+    """Standarden på Source er None, ikke {}.
+
+    Sto den som {}, ville enhver kilde som aldri har tenkt på spørsmålet
+    automatisk påstått at den ikke filtrerer — en påstand ingen har gått
+    god for.
+    """
+    from core.contract import Source
+
+    class Taus(Source):
+        name = "taus"
+        entity_type = "selskap"
+
+        def fetch(self, kjoredato):
+            return {}
+
+        def parse(self, raw, observed_at):
+            return []
+
+    assert Taus().utvalg is None
+    assert utvalg.serialiser(Taus().utvalg) == ""
+    assert utvalg.er_ukjent(utvalg.les(utvalg.serialiser(Taus().utvalg)))
+
+
+def test_lusetall_deklarerer_ingen_filtrering(monkeypatch):
+    """2b: endepunktet tar ingen utvalgsparametre, og det skal STÅ."""
+    from sources.lusetall import Lusetall
+
+    kilde = Lusetall()
+    assert kilde.utvalg is None, "ingenting påstås før noe er hentet"
+
+    monkeypatch.setattr(kilde, "_klient", lambda: _FalskKlient())
+    kilde.hent_uke(2026, 30)
+
+    assert kilde.utvalg == {}
+    assert utvalg.serialiser(kilde.utvalg) == "{}"
+    assert utvalg.henter_alt(utvalg.les(utvalg.serialiser(kilde.utvalg)))
+
+
+class _FalskKlient:
+    def get(self, url, **kw):
+        import httpx
+        return httpx.Response(200, request=httpx.Request("GET", url),
+                              json={"year": 2026, "week": 30, "localities": []})
+
+    def close(self):
+        pass
+
+
 def test_skalar_i_utvalget_avvises():
     """`sidestorrelse` endrer ikke HVILKE entiteter vi får, og et felt som
     ikke endrer utvalget skal ikke kunne utløse en utvalgsutvidelse."""

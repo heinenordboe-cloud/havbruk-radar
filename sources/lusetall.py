@@ -115,6 +115,18 @@ class Lusetall(Source):
 
     def hent_uke(self, aar: int, uke: int, client: httpx.Client | None = None) -> dict:
         """Rå respons for én uke. Brukes av både fetch() og backfill."""
+        # KJENT ingen filtrering, ikke ukjent. `/locality/{år}/{uke}` tar
+        # ingen utvalgsparametre og returnerer alle lokaliteter som
+        # rapporterte den uka — det er ikke fravær av kunnskap, det er
+        # kunnskap om fravær av filtrering. Se core/utvalg.py om de tre
+        # tilstandene, og `lus_er_rapportert` for det samme skillet en
+        # etasje ned: None og 0 er ikke det samme.
+        #
+        # Settes HER og ikke i fetch(), fordi hent_uke() er det ene stedet
+        # både ukejobben og backfill.py går gjennom. Sto det i fetch(),
+        # bar backfillede rader dårligere proveniens enn ukentlige.
+        self.utvalg = {}
+
         base = get("kilder.lusetall.base_url", STANDARD_BASE).rstrip("/")
         egen = client is None
         c = client or self._klient()

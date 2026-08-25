@@ -39,6 +39,38 @@ Skalarer hører ikke hjemme her. `sidestorrelse: 100` avgjør ikke HVILKE
 entiteter vi får, bare hvor mange kall det tar å hente dem — og et felt
 som ikke endrer utvalget skal ikke kunne utløse en utvalgsutvidelse.
 `normaliser()` avviser derfor alt som ikke er en liste.
+
+## TRE tilstander, ikke to
+
+Fram til 25.08.2026 fantes bare to: «her er utvalget» og tomt. Tomt
+måtte da bety både «vi vet ikke hva vi ba om» og «vi ba om alt», og de
+er ikke det samme.
+
+For `lusetall` var sammenblandingen direkte gal.
+`/locality/{år}/{uke}` tar ingen utvalgsparametre og returnerer alle
+lokaliteter. Det er ikke fravær av kunnskap, det er kunnskap om fravær
+av filtrering — og et snapshot som sier «vet ikke» om noe vi vet, sier
+noe usant om seg selv.
+
+Det er samme skille som `lus_er_rapportert`: en lokalitet uten
+rapportering og en med null lus er ikke det samme, og prosjektet hadde
+allerede det riktig der og galt her.
+
+    kilde.utvalg      på disk     les()      betyr
+    ---------------------------------------------------------------
+    {"n": [...]}      {"n":[…]}   {"n":[…]}  kjent utvalg
+    {}                "{}"        {}         kjent: ingen filtrering
+    None              ""          None       ukjent
+
+`Source.utvalg` er derfor `None` som standard og ikke `{}`. Sto den som
+`{}`, ville enhver kilde som ALDRI har tenkt på spørsmålet automatisk
+påstått at den henter alt — en påstand ingen har gått god for. En
+kilde må si det selv for at det skal stå i dataene.
+
+De to falske vennene er `{}` og `None`, som begge er usanne i Python.
+`if not utvalg:` behandler dem likt og er nesten alltid feil her. Spør
+med `er_ukjent()` og `henter_alt()` i stedet — de finnes for at den
+forskjellen skal være tungvint å overse.
 """
 
 from __future__ import annotations
@@ -72,21 +104,48 @@ def normaliser(utvalg: dict | None) -> dict[str, list[str]]:
     return ut
 
 
-def serialiser(utvalg: dict | None) -> str:
-    """Kanonisk JSON, eller tom streng når kilden ikke oppgir noe.
+def er_ukjent(utvalg: dict | None) -> bool:
+    """Sa kilden ingenting om hva den ba om?
 
-    Tom streng og ikke `"{}"`: de to betyr ulike ting. `{}` er «kilden
-    sier at den ikke filtrerer», tom streng er «kilden sier ingenting».
-    Bare den andre skal lese som «vet ikke» hos `er_utvidet()`.
+    Finnes som funksjon og ikke som `if not utvalg:` fordi `{}` og `None`
+    begge er usanne, og de betyr motsatte ting: `{}` er en PÅSTAND om at
+    ingenting ble filtrert bort, `None` er fraværet av en påstand.
     """
+    return utvalg is None
+
+
+def henter_alt(utvalg: dict | None) -> bool:
+    """Sa kilden uttrykkelig at den ikke filtrerer?
+
+    Sant bare for `{}`. `None` er ukjent og gir usant — vi vet ikke at
+    den henter alt, vi vet ikke noe.
+    """
+    return utvalg is not None and len(utvalg) == 0
+
+
+def serialiser(utvalg: dict | None) -> str:
+    """Kanonisk JSON. `"{}"` for «ingen filtrering», `""` for ukjent.
+
+    De to er forskjellige med vilje, og forskjellen ligger i STRENGEN
+    fordi det er strengen som havner på raden og overlever til neste år.
+    Kollapset de to — som de gjorde fram til 25.08.2026 — kunne et
+    snapshot aldri si at det hentet alt, bare at det ikke sa noe.
+    """
+    if utvalg is None:
+        return ""
     n = normaliser(utvalg)
     if not n:
-        return ""
+        return "{}"
     return json.dumps(n, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def les(tekst: str | None) -> dict[str, list[str]] | None:
-    """Tilbake til dict. None = ukjent utvalg (tomt, manglende, ulesbart).
+    """Tilbake til dict. None = ukjent, `{}` = kjent ingen filtrering.
+
+    Tom streng er ukjent, `"{}"` er «kilden hentet alt». Snapshots skrevet
+    før 25.08.2026 har tom streng uansett hva kilden faktisk gjorde, og
+    skal leses som ukjent — vi visste ikke da vi skrev dem. Se
+    docs/beslutninger/2026-08-25-utvalg-skiller-ukjent-fra-ingen-filtrering.md.
 
     Ulesbar tekst gir None og ikke en exception. Grunnen er den samme som
     i `health.dager_siden_ok()`: dette er inndata fra en fil på disk som
@@ -134,6 +193,21 @@ def er_utvidet(fra: dict | None, til: dict | None) -> bool:
     if fra is None or til is None:
         return False
 
+    # «Ingen filtrering» er ytterpunktene, og de må håndteres før den
+    # generelle regelen — den er skrevet for to kriteriesett og leser
+    # et tomt sett som «ingen kriterier», ikke som «alle entiteter».
+    if henter_alt(fra):
+        # Bredere enn alt finnes ikke. Uten denne ville en overgang fra
+        # alt til et filter blitt lest som utvidelse (ny nøkkel i `til`),
+        # og radene som forsvant blitt merket som noe som kom til.
+        return False
+    if henter_alt(til):
+        # Fra et filter til alt ER den størst mulige utvidelsen. Den
+        # generelle regelen ville sagt usant her, fordi kriteriene i
+        # `fra` ikke finnes igjen i et tomt `til` — de er ikke fjernet,
+        # de er blitt overflødige.
+        return True
+
     strengt_storre = set(til) - set(fra) != set()
     for nokkel, gamle in fra.items():
         nye = set(til.get(nokkel, []))
@@ -148,6 +222,12 @@ def beskriv(fra: dict | None, til: dict | None) -> str:
     """Én linje om hva som kom til. For logg og commit-melding."""
     if fra is None or til is None:
         return "utvalg ukjent"
+    if henter_alt(fra) and henter_alt(til):
+        return "ingen filtrering"
+    if henter_alt(fra):
+        return "fra ingen filtrering til " + ", ".join(sorted(til))
+    if henter_alt(til):
+        return "fra " + ", ".join(sorted(fra)) + " til ingen filtrering"
     biter = []
     for nokkel in sorted(set(fra) | set(til)):
         lagt_til = sorted(set(til.get(nokkel, [])) - set(fra.get(nokkel, [])))
