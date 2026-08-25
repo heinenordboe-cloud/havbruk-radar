@@ -11,6 +11,7 @@ from pathlib import Path
 import polars as pl
 
 from core import persondata
+from core import utvalg as utvalg_modul
 from core.contract import Observation
 from core.paths import RAW_DIR  # noqa: F401  (monkeypatches i testene treffer her)
 
@@ -25,6 +26,11 @@ SCHEMA = [
     "fetched_at",
     "source_version",
     "raw_hash",
+    # Hva kilden ba om. Proveniens som de tre over — se core/utvalg.py.
+    # Verdien er lik for hver rad i ett snapshot, så parquet
+    # ordbok-koder den bort. Målt på enhetsregisteret 24.08: 51623 rader
+    # og en 100-tegns utvalgsstreng koster 1156 bytes, 0,53 % av fila.
+    "utvalg",
 ]
 
 
@@ -243,7 +249,35 @@ def _les(sti: Path) -> pl.DataFrame:
     slik: den nekter at `read_parquet` dukker opp i denne modulen mer enn
     én gang, eller i en annen modul som kjenner RAW_DIR.
     """
-    return persondata.fjern_personformer(pl.read_parquet(sti))
+    frame = persondata.fjern_personformer(pl.read_parquet(sti))
+
+    # Snapshots skrevet før 24.08.2026 har ingen `utvalg`-kolonne. De
+    # skal kunne leses, og de skal lese som «vet ikke» — ikke som «ingen
+    # filtrering». Tom streng er nettopp det skillet, se utvalg.les().
+    #
+    # Kolonnen legges til her og ikke hos hver leser av samme grunn som
+    # persondatafilteret ligger her: dette er den ene døra, og en
+    # betingelse som må oppfylles hver gang skal ikke være noe en ny
+    # lesevei må huske.
+    if "utvalg" not in frame.columns:
+        frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias("utvalg"))
+    return frame
+
+
+def utvalg_i(frame: pl.DataFrame) -> dict | None:
+    """Utvalget et snapshot ble hentet med. None = vet ikke.
+
+    Ett snapshot er ett kall, så alle rader bærer samme verdi. Spriker
+    de likevel — to kilder slått sammen i én ramme, eller en håndredigert
+    fil — er svaret None. Å plukke den første av flere ville vært et
+    gjett, og et gjett her undertrykker rader.
+    """
+    if frame.is_empty() or "utvalg" not in frame.columns:
+        return None
+    verdier = set(frame["utvalg"].to_list())
+    if len(verdier) != 1:
+        return None
+    return utvalg_modul.les(verdier.pop())
 
 
 def previous(source: str, before: str) -> pl.DataFrame | None:

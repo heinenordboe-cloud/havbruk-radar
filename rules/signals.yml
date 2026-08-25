@@ -9,11 +9,16 @@
 # Revider dem når endringsloggen har nok rader til å si hva som faktisk
 # beveger seg og hvor ofte.
 #
-# felt                 hvilket observasjonsfelt regelen gjelder
-# endringstype         ny | endret | borte
-# min_endring_prosent  krever tallverdier; sammenligner absolutt endring
-# retning              opp | ned | begge (standard: begge)
-# vekt                 sorteringsrekkefølge i commit-meldingen
+# felt                     hvilket observasjonsfelt regelen gjelder
+# endringstype             ny | endret | borte
+#                          (`utvalgsutvidelse` finnes, men skal ALDRI
+#                          brukes her — de radene er ikke bevegelse)
+# min_endring_prosent      krever tallverdier; sammenligner absolutt endring
+# retning                  opp | ned | begge (standard: begge)
+# krev_uendret             navngir et felt som må ha ligget i ro
+# krev_dato_etter_forrige  navngir et datofelt hos entiteten som må ligge
+#                          etter datoen diffen sammenlignet mot
+# vekt                     sorteringsrekkefølge i commit-meldingen
 
 regler:
   # `krev_uendret`: bytter lokaliteten måleenhet samme uke, er
@@ -90,11 +95,22 @@ regler:
     til: "False"
     vekt: 5
 
+  # `krev_dato_etter_forrige`: uten den betyr regelen "nytt for OSS",
+  # ikke "nytt i bransjen". Kjøringen 24.08.2026 fyrte den 908 ganger —
+  # alle 908 var selskaper som kom inn da næringskodelista ble utvidet,
+  # og INGEN av dem var registrert siden forrige snapshot. Nyeste
+  # registrering var 04.08, eldste 1995-02-19, 107 av dem fra 1995.
+  #
+  # Nøkkelen navngir feltet som bærer selskapets egen startdato, og
+  # krever at den ligger etter datoen diffen sammenlignet mot
+  # (`forrige_observed_at`). Mangler ett av tallene, treffer ikke
+  # regelen — se core/signals.py.
   - navn: "Nytt selskap i bransjen"
     felt: "navn"
     endringstype: "ny"
     kilde: "enhetsregisteret"
     entity_type: "selskap"
+    krev_dato_etter_forrige: "registreringsdato"
     vekt: 7
 
   - navn: "Nedbemanning over 20 %"

@@ -287,6 +287,12 @@ class Enhetsregisteret(Source):
     entity_type = "selskap"
     enabled = True
 
+    # Brregs eget ord for «da ble selskapet til». Se Source.startdatofelt:
+    # den uka næringskodelista utvides er dette det eneste som skiller en
+    # ekte nyregistrering fra et selskap som har eksistert siden 1995 og
+    # bare nå kom innenfor søket vårt.
+    startdatofelt = "registreringsdato"
+
     def fetch(self, kjoredato: str) -> list[dict]:
         """Én post per SIDE, med pagineringskonvolutten intakt.
 
@@ -311,6 +317,20 @@ class Enhetsregisteret(Source):
         koder = get("kilder.enhetsregisteret.naeringskoder", [])
         sidestorrelse = get("kilder.enhetsregisteret.sidestorrelse", 100)
         tillat_tomt = set(get("kilder.enhetsregisteret.tillat_tomt", []) or [])
+
+        # Hva vi BA OM, festet til det vi får. Kjernen stempler den på
+        # hver rad (se Source.utvalg og core/utvalg.py), slik at et
+        # snapshot kan svare på om en ny entitet er ny i BRANSJEN eller
+        # bare ny i vårt utvalg.
+        #
+        # Settes her, av samme oppslag som styrer løkka under. Sto den i
+        # en egen metode, ville den vært et andre config-oppslag som kan
+        # svare noe annet enn det søket faktisk gjorde.
+        #
+        # `sidestorrelse` er BEVISST ikke med: den avgjør hvor mange kall
+        # det tar, ikke hvilke selskaper vi får. Et felt som ikke endrer
+        # utvalget skal ikke kunne utløse en utvalgsutvidelse.
+        self.utvalg = {"naeringskoder": list(koder)}
         sider: list[dict] = []
         treff_per_kode: dict[str, int] = {}
         filtrert_per_form: dict[str, set[str]] = {}

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
 from core import health
+from core import utvalg as utvalg_modul
 from core import raw as raw_arkiv
 from core.contract import Observation, Source
 
@@ -29,7 +30,8 @@ class Result:
 
 
 def stempl(observasjoner, source_version: str, raw_hash: str,
-           fetched_at: str | None = None) -> list[Observation]:
+           fetched_at: str | None = None, utvalg: dict | None = None
+           ) -> list[Observation]:
     """Setter proveniensfeltene på hver observasjon.
 
     Ligger her og ikke i hver kaller fordi stemplingen er kjernens
@@ -37,11 +39,19 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     backfill.py bruker den, slik at en backfillet rad bærer nøyaktig
     samme proveniens som en ukentlig — det er `fetched_at` langt etter
     `observed_at` som gjør den kjennelig, ikke et manglende felt.
+
+    `utvalg` er hva kilden BA OM, satt av dens egen `fetch()`. Den
+    stemples her av samme grunn som de tre andre: skulle hver kilde
+    sette den på hver Observation, ville en kilde som glemte det gitt et
+    snapshot som ser komplett ut og ikke kan svare på hvorfor en entitet
+    dukket opp. En backfill uten fetch() har ikke noe utvalg å oppgi, og
+    da blir feltet tomt — som leses «vet ikke», ikke «ingen filtrering».
     """
     naa = fetched_at or datetime.now(timezone.utc).isoformat()
+    merket = utvalg_modul.serialiser(utvalg)
     return [
         replace(obs, fetched_at=naa, source_version=source_version,
-                raw_hash=raw_hash)
+                raw_hash=raw_hash, utvalg=merket)
         for obs in observasjoner
     ]
 
@@ -121,10 +131,15 @@ def run_all(
             raw_hash = ""
             if arkiver:
                 raw_hash = raw_arkiv.arkiver(source.name, gjelder, rawdata)
+            # `source.utvalg` LESES ETTER fetch(), aldri før. Kilden
+            # setter den mens den henter, så verdien beskriver nødvendigvis
+            # det kallet som nettopp ble gjort. Leste vi den før, ville vi
+            # hatt to oppslag som kan svare ulikt — F6/F7/F8 om igjen.
             batch = stempl(
                 source.parse(rawdata, gjelder),
                 source_version=source.version,
                 raw_hash=raw_hash,
+                utvalg=getattr(source, "utvalg", None),
             )
             observations.extend(batch)
             results.append(

@@ -13,7 +13,8 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from core import diff, runner, signals, snapshot
+from core import changelog, diff, runner, signals, snapshot
+from core import utvalg
 from core import raw as raw_arkiv
 from core.contract import Observation, Source
 
@@ -77,6 +78,10 @@ def _signalrad(felt, gammel, ny, **overstyr):
         "entity_id": "1", "entity_type": "selskap", "entity_name": "Testlaks AS",
         "field": felt, "old_value": gammel, "new_value": ny,
         "change_type": "endret", "source": "falsk", "observed_at": "2026-01-08",
+        # Datoen diffen sammenlignet mot. `krev_dato_etter_forrige` leser
+        # den; uten den kan ingen regel skille "ny i registeret" fra "ny
+        # i utvalget vårt".
+        "forrige_observed_at": "2026-01-01",
     }
     rad.update(overstyr)
     return rad
@@ -391,7 +396,7 @@ def test_reglene_i_repoet_er_gyldige():
     kjente = {
         "navn", "felt", "endringstype", "min_endring_prosent", "retning",
         "vekt", "kilde", "entity_type", "fra", "til", "fra_null",
-        "krev_uendret",
+        "krev_uendret", "krev_dato_etter_forrige",
     }
     assert signals.valider_regler() == [], "formatfeil i signals.yml"
     for regel in signals.load_rules():
@@ -515,19 +520,32 @@ def test_ugyldig_regel_utelates_men_stopper_ikke_scoringen(capsys):
 def test_nytt_selskap_far_ikke_lokalitetsetiketten():
     """Begge regler er felt `navn` + endringstype `ny`, og første treff
     vinner. Uten kilde/entity_type fikk hvert nyregistrerte selskap
-    etiketten "Ny lokalitet i registeret"."""
+    etiketten "Ny lokalitet i registeret".
+
+    Selskapet må være FAKTISK nyregistrert for at regelen skal treffe i
+    det hele tatt — derfor følger registreringsdatoen med som søskenrad.
+    Se test_nytt_selskap_krever_registrering_etter_forrige_snapshot.
+    """
     selskap = _signalrad("navn", None, "Nylaks AS",
                          change_type="ny", source="enhetsregisteret",
                          entity_type="selskap")
+    registrert = _signalrad("registreringsdato", None, "2026-01-05",
+                            change_type="ny", source="enhetsregisteret",
+                            entity_type="selskap")
     lokalitet = _signalrad("navn", None, "TUHOLMANE Ø",
                            change_type="ny", source="akvakultur",
                            entity_type="lokalitet")
 
-    scoret = signals.score(pl.DataFrame([selskap, lokalitet]))
-    per_kilde = dict(zip(scoret["source"].to_list(), scoret["signal"].to_list()))
+    scoret = signals.score(pl.DataFrame([selskap, registrert, lokalitet]))
+    # Slår opp på (kilde, felt): begge navn-radene er "ny", og det er
+    # nettopp dem regelparet skal skille.
+    per_navnrad = {
+        (k, f): sig for k, f, sig in
+        scoret.select(["source", "field", "signal"]).iter_rows()
+    }
 
-    assert per_kilde["enhetsregisteret"] == "Nytt selskap i bransjen"
-    assert per_kilde["akvakultur"] == "Ny lokalitet i registeret"
+    assert per_navnrad[("enhetsregisteret", "navn")] == "Nytt selskap i bransjen"
+    assert per_navnrad[("akvakultur", "navn")] == "Ny lokalitet i registeret"
 
 
 def test_samme_dag_oppdages(tmp_path, monkeypatch):
@@ -2054,3 +2072,345 @@ def test_changelog_og_predictions_leser_ikke_raadata():
             f"core/{modul} kjenner RAW_DIR. Leser den snapshots, må den gå "
             f"gjennom snapshot.les_mellom() — se test_ingen_leser_snapshots_utenom_les."
         )
+
+
+# ==================================================== utvalgsutvidelse
+#
+# F9: diff.compare() undertrykte nye FELTNAVN, men gjorde ingenting med
+# nye ENTITETER som kom inn fordi utvalget ble utvidet. 24.08.2026 var
+# 25804 av 26673 endringer (96,7 %) av det slaget.
+
+
+def _obs(eid, felt, verdi, dato, kilde="falsk", navn="Testlaks AS",
+         utvalg_json=""):
+    return Observation(
+        entity_id=eid, entity_type="selskap", entity_name=navn,
+        field=felt, value=verdi, source=kilde, observed_at=dato,
+        utvalg=utvalg_json,
+    )
+
+
+def _skriv(monkeypatch, tmp_path, dato, rader, koder):
+    """Snapshot med et oppgitt utvalg, skrevet gjennom den ekte veien."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    merket = utvalg.serialiser({"naeringskoder": koder})
+    obs = [_obs(eid, felt, verdi, dato, utvalg_json=merket)
+           for eid, felt, verdi in rader]
+    snapshot.write(obs, dato)
+    return obs
+
+
+def test_utvalg_folger_snapshotet_og_kan_leses_tilbake(tmp_path, monkeypatch):
+    """Rotårsaken til F9: søket lå bare i config.yml og i git."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "A")], ["03.211", "03.212"])
+
+    lest = snapshot.previous("falsk", before="2026-01-08")
+    assert snapshot.utvalg_i(lest) == {"naeringskoder": ["03.211", "03.212"]}
+
+
+def test_gammelt_snapshot_uten_utvalg_leses_som_vet_ikke(tmp_path, monkeypatch):
+    """Filene fra før 24.08.2026 har ingen utvalgskolonne, og de er
+    append-only. De skal kunne leses, og de skal lese som «vet ikke» —
+    ikke som «ingen filtrering»."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    katalog = tmp_path / "raw" / "falsk"
+    katalog.mkdir(parents=True)
+    pl.DataFrame({
+        "entity_id": ["1"], "entity_type": ["selskap"], "entity_name": ["A"],
+        "field": ["navn"], "value": ["A"], "source": ["falsk"],
+        "observed_at": ["2026-01-01"],
+    }).write_parquet(katalog / "2026-01-01.parquet")
+
+    lest = snapshot.previous("falsk", before="2026-01-08")
+    assert "utvalg" in lest.columns, "kolonnen legges til av _les()"
+    assert snapshot.utvalg_i(lest) is None, "tom streng betyr vet ikke"
+
+
+def test_ny_entitet_ved_utvidet_utvalg_merkes(tmp_path, monkeypatch):
+    """Selve F9, i miniatyr: kode 03.300 legges til, og selskapet som
+    kommer inn med den er ikke en hendelse i verden."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS"), ("1", "kommune", "Bodø")],
+           ["03.211"])
+    naa = _skriv(monkeypatch, tmp_path, "2026-01-08",
+                 [("1", "navn", "Gammel AS"), ("1", "kommune", "Bodø"),
+                  ("2", "navn", "Nykommer AS"), ("2", "kommune", "Tromsø")],
+                 ["03.211", "03.300"])
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
+
+    typer = dict(endringer.group_by("change_type").len().iter_rows())
+    assert typer == {diff.UTVALGSUTVIDELSE: 2}, typer
+    assert set(endringer["entity_id"].to_list()) == {"2"}
+    assert diff.bevegelse(endringer).height == 0, "ingen bevegelse denne uka"
+
+
+def test_ekte_nyregistrering_overlever_en_utvidelsesuke(tmp_path, monkeypatch):
+    """Unntaket fra merkingen, og grunnen til at Source.startdatofelt finnes.
+
+    To selskaper kommer inn samme uke som utvalget utvides. Det ene ble
+    registrert i 1998 og har alltid vært der; det andre ble registrert
+    etter forrige snapshot. Merkes begge, forsvinner en ekte hendelse i
+    støyen fra utvidelsen — samme tap som utvidelsen selv skaper, bare
+    med motsatt fortegn.
+    """
+    # `registreringsdato` må finnes i FORRIGE snapshot også. Er feltnavnet
+    # nytt, filtrerer skjemautvidelsesregelen det bort før noen rekker å
+    # lese datoen — og da har utvidelsesuka ingen fødselsdato å skille på.
+    # Verdt å vite hvis en kilde legger til startdatofeltet sitt samtidig
+    # som utvalget vokser.
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS"), ("1", "registreringsdato", "2001-03-04")],
+           ["03.211"])
+    naa = _skriv(monkeypatch, tmp_path, "2026-01-08", [
+        ("1", "navn", "Gammel AS"), ("1", "registreringsdato", "2001-03-04"),
+        ("2", "navn", "Innhentet AS"), ("2", "registreringsdato", "1998-04-01"),
+        ("3", "navn", "Helt Fersk AS"), ("3", "registreringsdato", "2026-01-05"),
+    ], ["03.211", "03.300"])
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08",
+                             startdatofelt="registreringsdato")
+
+    per_entitet = {
+        e: t for e, f, t in
+        endringer.select(["entity_id", "field", "change_type"]).iter_rows()
+        if f == "navn"
+    }
+    assert per_entitet == {"2": diff.UTVALGSUTVIDELSE, "3": "ny"}
+
+    # Og hele veien ut: signalregelen skal se den ene, ikke den andre.
+    traff = signals.treff(signals.score(
+        endringer.with_columns(pl.lit("enhetsregisteret").alias("source"))
+    ))
+    assert [(r["entity_id"], r["signal"]) for r in traff.iter_rows(named=True)] \
+        == [("3", "Nytt selskap i bransjen")]
+
+
+def test_uten_startdatofelt_merkes_alle_nye(tmp_path, monkeypatch):
+    """En kilde som ikke kan etterprøves får ingen tvil til gode. Det er
+    den strenge siden, og den er riktig her: uten en startdato finnes det
+    ingen grunn til å påstå at entiteten er ny i verden."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS"), ("1", "registreringsdato", "2001-03-04")],
+           ["03.211"])
+    naa = _skriv(monkeypatch, tmp_path, "2026-01-08",
+                 [("1", "navn", "Gammel AS"),
+                  ("1", "registreringsdato", "2001-03-04"),
+                  ("3", "navn", "Fersk AS"),
+                  ("3", "registreringsdato", "2026-01-05")],
+                 ["03.211", "03.300"])
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")  # ingen felt
+    assert set(endringer["change_type"].to_list()) == {diff.UTVALGSUTVIDELSE}
+
+
+def test_ny_entitet_uten_utvidelse_er_fortsatt_ny(tmp_path, monkeypatch):
+    """Motprøven. Står utvalget stille, er en ny entitet en hendelse —
+    fiksen får ikke bli «alt nytt er støy»."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS")], ["03.211"])
+    naa = _skriv(monkeypatch, tmp_path, "2026-01-08",
+                 [("1", "navn", "Gammel AS"), ("2", "navn", "Nykommer AS")],
+                 ["03.211"])
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
+    assert dict(endringer.group_by("change_type").len().iter_rows()) == {"ny": 1}
+    assert diff.bevegelse(endringer).height == 1
+
+
+def test_endring_paa_eksisterende_entitet_merkes_aldri(tmp_path, monkeypatch):
+    """Utvidelsen gjelder entiteter som kom INN. En verdi som beveget seg
+    på et selskap vi allerede fulgte er bevegelse, uansett hva som skjedde
+    med næringskodelista samme uke."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "kommune", "Bodø")], ["03.211"])
+    naa = _skriv(monkeypatch, tmp_path, "2026-01-08",
+                 [("1", "kommune", "Tromsø"), ("2", "kommune", "Alta")],
+                 ["03.211", "03.300"])
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
+    per_entitet = dict(zip(endringer["entity_id"].to_list(),
+                           endringer["change_type"].to_list()))
+    assert per_entitet == {"1": "endret", "2": diff.UTVALGSUTVIDELSE}
+
+
+def test_ukjent_utvalg_undertrykker_ingenting(tmp_path, monkeypatch):
+    """Fallbacken går motsatt vei av frekvensvaktens, og med vilje: en
+    undertrykt rad er en hendelse ingen får se."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    snapshot.write([_obs("1", "navn", "Gammel AS", "2026-01-01")], "2026-01-01")
+    naa = [_obs("1", "navn", "Gammel AS", "2026-01-08"),
+           _obs("2", "navn", "Nykommer AS", "2026-01-08")]
+    snapshot.write(naa, "2026-01-08")
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
+    assert dict(endringer.group_by("change_type").len().iter_rows()) == {"ny": 1}
+
+
+def test_innsnevring_og_utvidelse_samtidig_er_ikke_utvidelse(tmp_path, monkeypatch):
+    """17.08.2026 gikk 10.209 UT mens 03.222 og 10.203 kom inn. Da kan en
+    ny entitet skyldes begge deler, og radene skal bli SETT."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS")], ["03.211", "10.209"])
+    naa = _skriv(monkeypatch, tmp_path, "2026-01-08",
+                 [("1", "navn", "Gammel AS"), ("2", "navn", "Nykommer AS")],
+                 ["03.211", "10.203", "03.222"])
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
+    assert dict(endringer.group_by("change_type").len().iter_rows()) == {"ny": 1}
+
+
+def test_er_utvidet_grammatikken():
+    """Definisjonen for seg, uten filer rundt."""
+    smal = {"naeringskoder": ["03.211"]}
+    bred = {"naeringskoder": ["03.211", "03.300"]}
+
+    assert utvalg.er_utvidet(smal, bred)
+    assert not utvalg.er_utvidet(bred, smal)          # innsnevring
+    assert not utvalg.er_utvidet(smal, smal)          # uendret
+    assert not utvalg.er_utvidet(None, bred)          # vet ikke
+    assert not utvalg.er_utvidet(smal, None)
+    # Ny NØKKEL er et kriterium vi ikke søkte på før.
+    assert utvalg.er_utvidet(smal, {**smal, "fylker": ["18"]})
+    # Rekkefølge skal ikke telle som endring — ellers ny fil i git hver uke.
+    assert utvalg.serialiser({"naeringskoder": ["b", "a"]}) == \
+        utvalg.serialiser({"naeringskoder": ["a", "b"]})
+
+
+def test_skalar_i_utvalget_avvises():
+    """`sidestorrelse` endrer ikke HVILKE entiteter vi får, og et felt som
+    ikke endrer utvalget skal ikke kunne utløse en utvalgsutvidelse."""
+    with pytest.raises(ValueError, match="ikke en liste"):
+        utvalg.serialiser({"sidestorrelse": 100})
+
+
+def test_utvalgsutvidelse_utloser_ingen_signalregel():
+    """Kravet, sagt rett ut. `endringstype` i signals.yml er ny/endret/
+    borte — en fjerde verdi kan ikke matche noen av dem."""
+    rad = _signalrad("navn", None, "Nykommer AS",
+                     change_type=diff.UTVALGSUTVIDELSE,
+                     source="enhetsregisteret", entity_type="selskap")
+    reg = _signalrad("registreringsdato", None, "2026-01-05",
+                     change_type=diff.UTVALGSUTVIDELSE,
+                     source="enhetsregisteret", entity_type="selskap")
+
+    scoret = signals.score(pl.DataFrame([rad, reg]))
+    assert scoret.height == 2, "radene beholdes"
+    assert signals.treff(scoret).height == 0, "men scorer ikke"
+
+
+def test_nytt_selskap_krever_registrering_etter_forrige_snapshot():
+    """Regelen fyrte 908 ganger 24.08 og hadde rett null ganger.
+
+    Alle 908 var registrert FØR forrige snapshot — nyeste 04.08, eldste
+    1995-02-19. «Ny for oss» er ikke «ny i verden».
+    """
+    def selskap(orgnr, registrert):
+        return [
+            _signalrad("navn", None, f"Selskap {orgnr}", entity_id=orgnr,
+                       change_type="ny", source="enhetsregisteret",
+                       entity_type="selskap",
+                       forrige_observed_at="2026-01-01"),
+            _signalrad("registreringsdato", None, registrert, entity_id=orgnr,
+                       change_type="ny", source="enhetsregisteret",
+                       entity_type="selskap",
+                       forrige_observed_at="2026-01-01"),
+        ]
+
+    scoret = signals.score(pl.DataFrame(
+        selskap("gammel", "1995-02-19")     # fantes lenge, ny for OSS
+        + selskap("fersk", "2026-01-05")    # registrert etter forrige snapshot
+    ))
+    traff = signals.treff(scoret)
+    assert [r["entity_id"] for r in traff.iter_rows(named=True)] == ["fersk"]
+    assert traff["signal"].to_list() == ["Nytt selskap i bransjen"]
+
+
+def test_nytt_selskap_uten_baseline_scorer_ikke():
+    """Rader skrevet før 24.08.2026 mangler `forrige_observed_at`. Å anta
+    «da er den vel ny» ville gjenskapt feilen regelen finnes for."""
+    rader = [
+        _signalrad("navn", None, "Ukjent AS", change_type="ny",
+                   source="enhetsregisteret", entity_type="selskap",
+                   forrige_observed_at=None),
+        _signalrad("registreringsdato", None, "2026-01-05", change_type="ny",
+                   source="enhetsregisteret", entity_type="selskap",
+                   forrige_observed_at=None),
+    ]
+    assert signals.treff(signals.score(pl.DataFrame(rader))).height == 0
+
+
+def test_forrige_observed_at_stemples_paa_hver_endring(tmp_path, monkeypatch):
+    """Uten den kan ingen lese hvor langt en changelog-rad spenner."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "kommune", "Bodø")], ["03.211"])
+    naa = _skriv(monkeypatch, tmp_path, "2026-01-08",
+                 [("1", "kommune", "Tromsø")], ["03.211"])
+
+    endringer = diff.compare(snapshot.to_frame(naa), "2026-01-08")
+    assert endringer["forrige_observed_at"].to_list() == ["2026-01-01"]
+
+
+def test_historiske_rader_merkes_ved_lesing(tmp_path, monkeypatch):
+    """Punkt 4: changeloggen fra 24.08 kan ikke skrives om, men den kan
+    leses riktig. Testen er den samme som signalregelen bruker."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS")], ["03.211"])
+    _skriv(monkeypatch, tmp_path, "2026-01-08",
+           [("1", "navn", "Gammel AS"), ("2", "navn", "Nykommer AS")],
+           ["03.211"])
+
+    # Slik en rad så ut FØR fiksen: ingen forrige_observed_at, ingen
+    # utvalgskolonne å slå opp i.
+    gammel_logg = pl.DataFrame([
+        {"entity_id": "2", "entity_type": "selskap", "entity_name": "Nykommer AS",
+         "field": "navn", "old_value": None, "new_value": "Nykommer AS",
+         "change_type": "ny", "source": "enhetsregisteret",
+         "observed_at": "2026-01-08"},
+        {"entity_id": "2", "entity_type": "selskap", "entity_name": "Nykommer AS",
+         "field": "registreringsdato", "old_value": None,
+         "new_value": "1998-04-01",          # fantes lenge før vi så etter
+         "change_type": "ny", "source": "enhetsregisteret",
+         "observed_at": "2026-01-08"},
+        {"entity_id": "3", "entity_type": "selskap", "entity_name": "Fersk AS",
+         "field": "navn", "old_value": None, "new_value": "Fersk AS",
+         "change_type": "ny", "source": "enhetsregisteret",
+         "observed_at": "2026-01-08"},
+        {"entity_id": "3", "entity_type": "selskap", "entity_name": "Fersk AS",
+         "field": "registreringsdato", "old_value": None,
+         "new_value": "2026-01-05",          # registrert etter forrige snapshot
+         "change_type": "ny", "source": "enhetsregisteret",
+         "observed_at": "2026-01-08"},
+    ])
+
+    # Baselinen finnes ikke i raden, men snapshotene ligger der.
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    (tmp_path / "raw" / "enhetsregisteret").mkdir(parents=True)
+    for dato in ["2026-01-01", "2026-01-08"]:
+        for fil in (tmp_path / "raw" / "falsk").glob(f"{dato}.parquet"):
+            pl.read_parquet(fil).with_columns(
+                pl.lit("enhetsregisteret").alias("source")
+            ).write_parquet(tmp_path / "raw" / "enhetsregisteret" / fil.name)
+
+    merket = changelog.merk_utvalgsutvidelse(gammel_logg)
+
+    assert merket.height == gammel_logg.height, "ingen rad forsvinner"
+    per_entitet = {
+        e: t for e, f, t in
+        merket.select(["entity_id", "field", "change_type"]).iter_rows()
+        if f == "navn"
+    }
+    assert per_entitet == {"2": diff.UTVALGSUTVIDELSE, "3": "ny"}
+
+
+def test_merking_rorer_ikke_kilder_uten_startdatofelt():
+    """Lusetall har ingen registreringsdato. Uten et felt å etterprøve
+    mot skal raden stå som «ny» — usikkerhet skal se ut som usikkerhet."""
+    logg = pl.DataFrame([
+        {"entity_id": "10029", "entity_type": "lokalitet", "entity_name": "Ø",
+         "field": "voksne_hunnlus", "old_value": None, "new_value": "0.2",
+         "change_type": "ny", "source": "lusetall",
+         "observed_at": "2026-01-08", "forrige_observed_at": "2026-01-01"},
+    ])
+    assert changelog.merk_utvalgsutvidelse(logg)["change_type"].to_list() == ["ny"]

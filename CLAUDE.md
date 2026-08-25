@@ -63,6 +63,39 @@ fordi det «pleier å følge» det riktige — `feil_paa_rad` for «lyktes
 vi», ni siffer for «er dette et selskap» — er det ikke en snarvei. Det
 er neste nummer i denne lista.
 
+### 1b-3. En verdi som avgjør hva dataene BETYR, lagres SAMMEN med dem
+
+De to reglene over handler om å måle riktig ting. Denne handler om at
+tingen i det hele tatt må være der å måle.
+
+- **F9:** hvilke næringskoder vi søkte på lå bare i `config.yml` og i
+  git. Et snapshot kunne fortelle hva vi FANT, men ikke hva vi LETTE
+  ETTER — og da kan ingen sammenligning av to snapshots skille «ny i
+  bransjen» fra «ny i vårt utvalg». 24.08.2026 ga det 25804 av 26673
+  endringer (96,7 %): 908 selskaper som kom inn da lista ble utvidet
+  kvelden 17.08, ingen av dem registrert siden forrige snapshot.
+
+Prøven er enkel, og den skal stilles om hver innstilling som påvirker
+innsamlingen: **kan et snapshot alene svare på hva denne verdien var da
+raden ble skrevet?** Kan det ikke det, skal verdien stemples på raden —
+som `fetched_at`, `source_version`, `raw_hash` og nå `utvalg`.
+
+`diff.compare()` hadde regelen for feltnavn fra før: et nytt FELT er en
+skjemautvidelse, ikke en hendelse, og 18687 rader ble undertrykt på det
+grunnlaget 17.08. Forskjellen på de to var aldri prinsipiell — bare at
+feltnavnene lå i dataene og næringskodene ikke gjorde det.
+
+Merk asymmetrien i hvordan de behandles: skjemautvidelsen SLETTES fordi
+påstanden er sikker fra de to snapshotene alene. Utvalgsutvidelsen
+MERKES og radene beholdes, fordi påstanden hviler på et felt som kan
+være tomt. En undertrykt rad er en hendelse ingen får se.
+
+Kjente steder regelen ennå ikke er oppfylt, med vitende og vilje:
+`core/persondata.PERSONFORMER` (virker ved LESING, så lista kan endre
+hva et gammelt snapshot inneholder) og pagineringstaket i
+`sources/enhetsregisteret.py` (avkortning gir en advarsel, ikke et
+merke i dataene). Se beslutningen fra 24.08.
+
 ## 2. Data skrives én gang, aldri om
 
 Append-only gjelder `data/raw/<kilde>/<dato>.parquet`,

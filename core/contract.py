@@ -34,6 +34,16 @@ class Observation:
     source_version: str = ""  # source.version på hentetidspunktet
     raw_hash: str = ""        # sha256 fra raw_arkiv.arkiver()
 
+    # Hva kilden BA OM da denne raden ble hentet — kanonisk JSON fra
+    # core/utvalg.py, tom streng når kilden ikke oppgir noe.
+    #
+    # Proveniens som de tre over, og stemplet av kjernen på samme måte:
+    # ingen kilde setter dette feltet selv. Grunnen til at det må ligge
+    # på raden og ikke i config: et snapshot skal kunne svare på om en
+    # ny entitet er ny i VERDEN eller ny i UTVALGET, og det kan det ikke
+    # hvis søket bare finnes i en fil som skrives om. Se core/utvalg.py.
+    utvalg: str = ""
+
     def as_dict(self) -> dict:
         return asdict(self)
 
@@ -62,6 +72,38 @@ class Source:
     # `self.advarsler.append(...)` treffer du lista på KLASSEN, som
     # deles av alle instanser og aldri tømmes.
     advarsler: list[str] = []
+
+    # Hvilket UTVALG kilden ba om. `{"naeringskoder": ["03.211", ...]}`
+    # — nøkkel til liste, se core/utvalg.py for formatet.
+    #
+    # SETTES AV `fetch()`, leses av kjernen etterpå. Nøyaktig samme
+    # mekanikk som `advarsler`, og samme felle: SETT den
+    # (`self.utvalg = {...}`), ikke muter dicten på klassen.
+    #
+    # At den settes av fetch() og ikke er en egen metode, er poenget.
+    # En `utvalg(kjoredato)`-metode ville vært et ANDRE oppslag mot
+    # config, og to oppslag som kan svare ulikt er mønsteret fra F6, F7
+    # og F8. Setter fetch() den mens den henter, beskriver den
+    # nødvendigvis det kallet som faktisk ble gjort.
+    #
+    # En kilde som henter alt den kan få lar den stå tom. Da svarer
+    # utvalg.er_utvidet() usant, og ingenting undertrykkes.
+    utvalg: dict = {}
+
+    # Feltet som bærer entitetens EGEN startdato i verden — datoen den ble
+    # til, ikke datoen vi først så den. For Enhetsregisteret er det
+    # `registreringsdato`.
+    #
+    # Den uka utvalget utvides er dette det eneste som skiller «selskapet
+    # ble stiftet i går» fra «vi begynte å lete der i går». Uten det ville
+    # en ekte nyregistrering blitt merket utvalgsutvidelse sammen med de
+    # 908 gamle, og en ekte hendelse forsvunnet stille — nøyaktig
+    # feilmodusen merkingen finnes for å unngå.
+    #
+    # Kilden oppgir navnet fordi navnet er kildens. `core/` skal ikke
+    # kjenne Brregs ordforråd. Tom streng: kilden kan ikke etterprøves,
+    # og da merkes alle nye entiteter i en utvidelsesuke.
+    startdatofelt: str = ""
 
     # Hvor ofte kilden skal hentes, i dager. Ikke alle kilder beveger seg
     # like fort, og noen straffes for å hentes for sjelden:

@@ -157,3 +157,35 @@ Testene skal dekke: at et nytt selskap får selskapsetiketten, at en
 boolsk overgang scorer ulikt hver vei, at 0 → N fanges når `fra_null`
 er satt og ikke ellers, at en kapasitetsendring med samtidig
 enhetsendring ikke matcher, og at scoret + uklassifisert er lik totalen.
+
+---
+
+## Tillegg 24.08.2026 — «ny» betydde ikke det den så ut til
+
+Første ekte diff kom mandag 24.08, og den avslørte en sjette feil som
+ikke sto i lista over.
+
+`endringstype: ny` betyr «dette (entitet, felt)-paret fantes ikke i
+forrige snapshot». Det er ikke det samme som «dette er nytt i verden».
+Næringskodelista ble utvidet kvelden 17.08, og i 24.08-kjøringen fyrte
+«Nytt selskap i bransjen» **908 ganger**. Registreringsdato for alle
+908: null registrert siden forrige snapshot, nyeste 2026-08-04, eldste
+1995-02-19, 107 av dem fra 1995. Regelen hadde rett null ganger.
+
+To ting endret seg:
+
+1. **`krev_dato_etter_forrige: "registreringsdato"`** på regelen.
+   Nøkkelen navngir feltet som bærer entitetens egen fødselsdato, og
+   krever at den ligger etter `forrige_observed_at` — datoen diffen
+   sammenlignet mot, som nå står på hver changelog-rad. Feltnavnet står
+   i YAML og ikke i koden fordi `registreringsdato` er Brregs ord.
+
+2. **`change_type: "utvalgsutvidelse"`**, en fjerde verdi fra
+   `diff.compare()`. Ingen regel har den som `endringstype`, så slike
+   rader treffer ingenting — uten at én linje her måtte endres. Bruk
+   den ALDRI i en regel.
+
+Mangler `forrige_observed_at` (rader skrevet før 24.08) eller
+startdatoen, treffer regelen ikke. Å anta «da er den vel ny» ville
+gjenskapt feilen den finnes for å rette.
+

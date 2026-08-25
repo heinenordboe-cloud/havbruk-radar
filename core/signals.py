@@ -54,8 +54,27 @@ def _endrede_par(changes: pl.DataFrame) -> frozenset[tuple[str, str, str]]:
     )
 
 
+def _nye_verdier(changes: pl.DataFrame) -> dict[tuple[str, str, str], str]:
+    """(kilde, entity_id, felt) -> new_value for hele endringssettet.
+
+    `krev_dato_etter_forrige` slår opp her. En entitet som er ny bringer
+    med seg én rad per felt, så registreringsdatoen ligger i rammen ved
+    siden av navnet — regelen trenger ikke gå til snapshotet for å finne
+    den. Bygges én gang per score(), som `_endrede_par`.
+    """
+    if changes.is_empty():
+        return {}
+    return {
+        (str(k), str(e), str(f)): v
+        for k, e, f, v in changes.select(
+            ["source", "entity_id", "field", "new_value"]
+        ).iter_rows()
+    }
+
+
 def _matches(rule: dict, row: dict,
-             endrede: frozenset[tuple[str, str, str]] = frozenset()) -> bool:
+             endrede: frozenset[tuple[str, str, str]] = frozenset(),
+             nye_verdier: dict[tuple[str, str, str], str] | None = None) -> bool:
     if rule.get("felt") and rule["felt"] != row["field"]:
         return False
     if rule.get("endringstype") and rule["endringstype"] != row["change_type"]:
@@ -86,6 +105,32 @@ def _matches(rule: dict, row: dict,
     krev = rule.get("krev_uendret")
     if krev and (str(row.get("source")), str(row["entity_id"]), str(krev)) in endrede:
         return False
+
+    # «Ny for oss» er ikke «ny i verden».
+    #
+    # `endringstype: ny` sier bare at (entitet, felt) ikke fantes i
+    # forrige snapshot. Utvider du næringskodelista, er 908 selskaper
+    # plutselig "ny" — og målt på 24.08.2026 var NULL av dem registrert
+    # siden forrige snapshot. Den eldste var fra 1995. Regelen "Nytt
+    # selskap i bransjen" fyrte 908 ganger og hadde rett null ganger.
+    #
+    # `krev_dato_etter_forrige: <felt>` navngir feltet som bærer
+    # entitetens egen startdato, og krever at den ligger ETTER datoen vi
+    # sammenlignet mot. Feltnavnet står i regelen og ikke i koden fordi
+    # `registreringsdato` er Brregs ord — en annen kilde kaller det noe
+    # annet, og core/ skal ikke kjenne noen kildes feltnavn.
+    #
+    # Mangler datoen, eller mangler `forrige_observed_at` (rader skrevet
+    # før 24.08.2026), treffer regelen IKKE. Å anta «da er den vel ny»
+    # ville gjenskapt nøyaktig feilen regelen finnes for å rette.
+    datofelt = rule.get("krev_dato_etter_forrige")
+    if datofelt:
+        forrige = row.get("forrige_observed_at")
+        startdato = (nye_verdier or {}).get(
+            (str(row.get("source")), str(row["entity_id"]), str(datofelt))
+        )
+        if not forrige or not startdato or str(startdato) <= str(forrige):
+            return False
 
     # Tekstlig overgang: `fra`/`til` sammenligner verdiene som de er.
     #
@@ -166,11 +211,12 @@ def score(changes: pl.DataFrame) -> pl.DataFrame:
 
     rader = []
     endrede = _endrede_par(changes)
+    nye_verdier = _nye_verdier(changes)
 
     for row in changes.iter_rows(named=True):
         signal, vekt = None, 0
         for rule in rules:
-            if _matches(rule, row, endrede):
+            if _matches(rule, row, endrede, nye_verdier):
                 signal, vekt = rule["navn"], rule.get("vekt", 1)
                 break
         rader.append({**row, "signal": signal, "vekt": vekt})

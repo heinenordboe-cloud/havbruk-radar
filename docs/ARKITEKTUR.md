@@ -62,6 +62,27 @@ simulerte uker: 1,9 MB mot 340 KB.
 Analyselaget leser hele loggen med `changelog.les_alt()` og skal ikke
 vite at den er delt i filer.
 
+## Et snapshot bærer med seg hva det ba om
+
+Hver rad har fire proveniensfelter kilden aldri rører: `fetched_at`,
+`source_version`, `raw_hash` og `utvalg`. Det siste er søket kilden
+faktisk gjorde — for Enhetsregisteret lista over næringskoder.
+
+Grunnen er målt. Fram til 24.08.2026 lå den lista bare i `config.yml`
+og i git-historikken, og da kan et snapshot fortelle hva vi FANT, men
+ikke hva vi LETTE ETTER. Uka kodelista ble utvidet kom 908 selskaper
+inn på én gang, og 25804 av ukas 26673 changelog-rader var dem — ikke
+fordi noe skjedde i bransjen, men fordi luka vår ble større.
+
+`diff.compare()` merker slike rader `utvalgsutvidelse`. De beholdes
+(append-only), men `diff.bevegelse()` filtrerer dem bort før noe telles,
+og ingen signalregel treffer dem. Se `core/utvalg.py` og
+docs/beslutninger/2026-08-24-utvalgsutvidelse-er-ikke-endring.md.
+
+Regelen bak, som gjelder enhver ny innstilling: **kan et snapshot alene
+svare på hva verdien var da raden ble skrevet?** Kan det ikke det, hører
+verdien hjemme på raden. Se CLAUDE.md 1b-3.
+
 ## Rekkefølgen i `run.py`
 
 Diffen kjøres **før** dagens snapshot skrives. Skriver du først, finner

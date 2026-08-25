@@ -27,6 +27,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import polars as pl
+
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
@@ -48,9 +50,18 @@ def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
     traff = signals.treff(scoret)
     uklassifisert = scoret.height - traff.height
 
+    # Utvalgsutvidelse er ikke bevegelse, og skal ikke summeres som det.
+    # Uten dette skillet het kjøringen 24.08 «26673 endringer», mens 25804
+    # av dem var 908 selskaper som kom inn fordi næringskodelista ble
+    # utvidet. Tallet i emnelinjen er det du leser på telefonen, og det
+    # skal svare på hva som SKJEDDE.
+    bevegelse = diff.bevegelse(endringer)
+    utvidelse = endringer.height - bevegelse.height
+
     linjer = [
-        f"Snapshot {kjoredato} — {endringer.height} endringer, "
-        f"{traff.height} scoret, {uklassifisert} uklassifiserte",
+        f"Snapshot {kjoredato} — {bevegelse.height} endringer, "
+        f"{traff.height} scoret, {uklassifisert} uklassifiserte"
+        + (f", {utvidelse} utvalgsutvidelse" if utvidelse else ""),
         "",
     ]
 
@@ -61,8 +72,20 @@ def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
             f" [{rad['signal']}]"
         )
 
-    if traff.height == 0 and endringer.height:
+    if traff.height == 0 and bevegelse.height:
         linjer.append("* ingen endringer traff en signalregel")
+
+    # Utvidelsen får sin egen linje, ikke bare et tall i toppen. Uka
+    # utvalget vokser er verdt å se i loggen — det er den uka enhver
+    # senere sammenligning må ta hensyn til.
+    if utvidelse:
+        berort = (endringer.filter(pl.col("change_type") == diff.UTVALGSUTVIDELSE)
+                  ["entity_id"].n_unique())
+        linjer.append("")
+        linjer.append(
+            f"Utvalget ble utvidet: {berort} entitet(er) kom inn, "
+            f"{utvidelse} rader merket utvalgsutvidelse (ikke bevegelse)."
+        )
 
     # Hvilke felter blindsonen består av. Dette er lista over regler som
     # mangler, sortert etter hvor mye de ville fanget.
@@ -257,6 +280,7 @@ def main() -> int:
     naa = snapshot.to_frame(observasjoner)
     endringsdeler = []
     filer = []
+    kilde_per_navn = {k.name: k for k in kilder}
 
     for r in resultater:
         if not r.ok:
@@ -264,7 +288,14 @@ def main() -> int:
         egne = [o for o in observasjoner if o.source == r.source]
         if not egne:
             continue
-        endringsdeler.append(diff.compare(snapshot.to_frame(egne), r.gjelder_for))
+        # `startdatofelt` er kildens eget navn på entitetens fødselsdato.
+        # Uten det ville en ekte nyregistrering i en utvidelsesuke blitt
+        # merket utvalgsutvidelse sammen med de gamle — se diff.compare.
+        kilde = kilde_per_navn.get(r.source)
+        endringsdeler.append(diff.compare(
+            snapshot.to_frame(egne), r.gjelder_for,
+            startdatofelt=getattr(kilde, "startdatofelt", ""),
+        ))
         filer += snapshot.write(egne, r.gjelder_for)
 
     endringer = diff.slaa_sammen(endringsdeler)
@@ -315,10 +346,17 @@ def main() -> int:
     # 11. Oppsummer
     traff = signals.treff(scoret)
     uklassifisert = scoret.height - traff.height
+    bevegelse = diff.bevegelse(endringer)
+    utvidelse = endringer.height - bevegelse.height
 
     print(f"\n  {len(filer)} snapshot skrevet")
-    print(f"  {endringer.height} endringer, {traff.height} scoret, "
+    print(f"  {bevegelse.height} endringer, {traff.height} scoret, "
           f"{uklassifisert} uklassifiserte")
+    if utvidelse:
+        berort = (endringer.filter(pl.col("change_type") == diff.UTVALGSUTVIDELSE)
+                  ["entity_id"].n_unique())
+        print(f"  {utvidelse} rader er utvalgsutvidelse ({berort} nye entiteter "
+              f"i utvalget) — lagret, men ikke talt som bevegelse")
 
     # Den ene summen som ikke kan stemme ved et sammentreff. Går den ikke
     # opp, teller scoringen feil, og da er alt under her upålitelig.

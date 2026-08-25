@@ -26,7 +26,7 @@ import polars as pl
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from core import changelog, snapshot          # noqa: E402
+from core import changelog, diff, snapshot   # noqa: E402
 from core.paths import DATA_DIR, RAW_DIR      # noqa: E402
 
 UT = DATA_DIR / "oversikt.html"
@@ -134,7 +134,15 @@ def _felter_for_kilde(kilde: str, ramme: pl.DataFrame,
 
 
 def bygg_data() -> dict:
-    endringer = changelog.les_alt()
+    # Merkingen skjer ved LESING, ikke i fila. Changeloggen er
+    # append-only, og radene fra 24.08.2026 kan ikke skrives om — men de
+    # kan leses riktig. 25804 av de 26673 radene den uka var 908
+    # selskaper som kom inn da næringskodelista ble utvidet, og en
+    # analyse som teller dem som aktivitet leser en utvidelse som en
+    # bransje i bevegelse. Se changelog.merk_utvalgsutvidelse().
+    alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
+    endringer = diff.bevegelse(alle)
+    utvalgsutvidelse = alle.height - endringer.height
     etterslep = _etterslep_dager()
     kilder = []
 
@@ -157,6 +165,9 @@ def bygg_data() -> dict:
     return {
         "kilder": kilder,
         "endringer_totalt": endringer.height,
+        # Står for seg og skjules ikke: uka utvalget vokser er den uka
+        # enhver senere sammenligning må ta hensyn til.
+        "utvalgsutvidelse_totalt": utvalgsutvidelse,
     }
 
 
@@ -260,7 +271,11 @@ function tegn(filter) {{
 
   document.getElementById('merk').textContent =
     `${{vist}} av ${{totalt}} felter vist. `
-    + `Endringer i changeloggen totalt: ${{DATA.endringer_totalt}}. `
+    + `Endringer i changeloggen totalt: ${{DATA.endringer_totalt}}`
+    + (DATA.utvalgsutvidelse_totalt
+        ? ` (+${{DATA.utvalgsutvidelse_totalt}} rader utvalgsutvidelse, ikke bevegelse)`
+        : ``)
+    + `. `
     + `Gul rad = én distinkt verdi, feltet kan ikke endre seg. `
     + `Rød prosent = under 50 % dekning.`;
 }}
@@ -288,6 +303,9 @@ def main() -> int:
               f"{len(k['felter']):>3} felter  {k['entiteter']:>6} entiteter  "
               f"{k['observasjoner']:>7} observasjoner")
     print(f"  endringer i changeloggen: {data['endringer_totalt']}")
+    if data["utvalgsutvidelse_totalt"]:
+        print(f"  utvalgsutvidelse (ikke bevegelse): "
+              f"{data['utvalgsutvidelse_totalt']}")
     print(f"  filstørrelse: {mb:.2f} MB")
     if mb > STOR_FIL_MB:
         print(f"  ADVARSEL: over {STOR_FIL_MB} MB. Se 'Navngitt feilmodus' "
