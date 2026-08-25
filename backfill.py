@@ -1,11 +1,24 @@
-"""Backfill av historiske uker. Ved siden av run.py, ikke inni kjernen.
+"""Backfill av historisk periode. Ved siden av run.py, ikke inni kjernen.
 
     python backfill.py --kilde lusetall --fra 2026-20 --til 2026-24
     python backfill.py --kilde lusetall --fra 2012-01 --til 2026-30
     python backfill.py --kilde lusetall --fra 2011-01 --til 2011-05  # stopper
+    python backfill.py --kilde biomasse --fra 2017-10 --til 2026-04  # MÅNEDER
+
+## To moduser, valgt av kilden og ikke av et flagg
+
+En kilde med `hent_uke()` backfilles i UKER, en med `hent_alt()` i
+MÅNEDER. `--fra 2017-10` betyr derfor uke 10 for lusetall og oktober for
+biomasse, og det er kilden som avgjør hvilken — ikke en bryter brukeren
+kan sette feil. Ville et flagg vært tydeligere? Nei: da finnes det to
+steder å si hva `2017-10` betyr, og de kan være uenige.
+
+Ukemodus henter ett kall per uke. Månedsmodus henter ÉN GANG: biomassefila
+bærer hele serien i hver nedlasting, så 106 måneder koster ett kall og
+ikke 106. Se `_backfill_maaneder` for hva det gjør med arkivet.
 
 Skriver snapshots i DATOREKKEFØLGE, eldst først, og utleder diff og
-changelog per uke underveis. Rekkefølgen er ikke kosmetisk:
+changelog per periode underveis. Rekkefølgen er ikke kosmetisk:
 `diff.compare()` sammenligner mot forrige snapshot etter dato, så
 prosesseres uker eldst først, får hver uke riktig forrige uke å
 sammenligne mot. Kjøres de i motsatt rekkefølge, er hver diff tom.
@@ -123,6 +136,7 @@ class _Tidsstemplet(io.TextIOBase):
 from core import changelog, diff, raw as raw_arkiv, registry, runner, snapshot  # noqa: E402
 from core.config import get  # noqa: E402
 from sources.lusetall import PAUSE_S, mandag, uke_med_etterslep  # noqa: E402
+from sources.biomasse import siste_dag  # noqa: E402
 
 
 def _ferskeste_tillatte(kilde) -> tuple[int, int]:
@@ -177,11 +191,176 @@ def _parse_uke(tekst: str) -> tuple[int, int]:
     return int(aar), int(uke)
 
 
+# ------------------------------------------------------------ månedsmodus
+
+def _parse_maaned(tekst: str) -> tuple[int, int]:
+    aar, mnd = tekst.split("-")
+    if not 1 <= int(mnd) <= 12:
+        raise ValueError(f"{tekst!r} er ikke en måned. Ventet ÅÅÅÅ-MM.")
+    return int(aar), int(mnd)
+
+
+def _maaneder(fra: tuple[int, int], til: tuple[int, int]):
+    """Alle (år, måned) fra og med `fra` til og med `til`, eldst først."""
+    n = fra[0] * 12 + fra[1] - 1
+    slutt = til[0] * 12 + til[1] - 1
+    while n <= slutt:
+        yield n // 12, n % 12 + 1
+        n += 1
+
+
+def _backfill_maaneder(kilde, args) -> int:
+    """Backfill for en kilde som leverer hele serien i ett kall.
+
+    ## Hvorfor dette ikke er ukeløkka med en annen kalender
+
+    Ukemodus gjør ett kall per uke, og hele maskineriet rundt den —
+    pause, retry, MAKS_FEIL_PAA_RAD, stopp på tom uke — finnes fordi 730
+    kall mot en tjeneste er 730 anledninger til å feile.
+
+    Her er det ETT kall. Enten kom fila eller ikke, og feiler den, feiler
+    alt. Det som kan gå galt etterpå er ikke nettverk, men at en måned
+    mangler i fila — og det er ikke en grunn til å stoppe, bare til å si
+    fra og gå videre. Å arve ukeløkkas feilhåndtering ville vært å
+    beskytte seg mot noe som ikke kan skje her.
+
+    ## Arkivet skrives ÉN gang, ikke én gang per måned
+
+    Alle månedene kommer fra det samme svaret. Arkiverte vi per måned,
+    ville 106 identiske kopier av en 650 kB fil ligget i datarepoet for
+    å dokumentere ett kall.
+
+    I stedet arkiveres svaret én gang, og alle månedene stemples med
+    samme `raw_hash`. Det er ikke en snarvei — det er hva `raw_hash`
+    ER: `core/raw.py` sier uttrykkelig at hashen er INNHOLDSADRESSERT og
+    ikke filnavnsadressert, og at arkiv- og snapshottellerne aldri holder
+    tritt. 106 snapshots som peker på ett råsvar er en sann påstand om
+    hvor de kom fra.
+
+    Arkivfila dateres etter den NYESTE måneden i intervallet. Det er
+    samme konvensjon som den løpende jobben følger: `fetch()` returnerer
+    hele fila, og kjernen arkiverer den under måneden som skrives.
+
+    ## health.json røres ikke
+
+    Samme grunn som i ukemodus, og den er ekstra tydelig her: 106
+    månedsskrivinger etter hverandre ville enten fyrt volumvarselet
+    konstant eller løftet referansen til et nivå ingen enkeltmåned kan
+    møte. Se beslutningen fra 18.08.
+    """
+    fra = _parse_maaned(args.fra)
+    til = _parse_maaned(args.til)
+
+    # Grensen mot den løpende jobben. Vi spør KILDEN, med dagens dato,
+    # i stedet for å regne den ut på nytt her. Ukemodus regner sin egen
+    # (`_ferskeste_tillatte`), og det er ett tall som kan bli uenig med
+    # kildens — nøyaktig F7. Her finnes det bare ett svar.
+    idag = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    grense = _parse_maaned(kilde.gjelder_for(idag)[:7])
+    if til > grense:
+        print(f"  --til {args.til} er ferskere enn etterslepsgrensen "
+              f"{grense[0]}-{grense[1]:02d}. Klipper der: måneder etter den "
+              f"er den løpende jobbens ansvar.")
+        til = grense
+
+    maaneder = list(_maaneder(fra, til))
+    if not maaneder:
+        print("Ingen måneder i intervallet.")
+        return 1
+
+    print(f"Backfill {kilde.name}: {len(maaneder)} måneder, {args.fra} -> "
+          f"{til[0]}-{til[1]:02d}, ett kall"
+          + (" (TØRRKJØRING)" if args.torrkjor else ""))
+
+    try:
+        rå = kilde.hent_alt()
+    except Exception as e:
+        print(f"  HENTING FEILET: {type(e).__name__}: {e}")
+        print("Ingenting skrevet. Kjør på nytt — hele serien kommer i ett kall.")
+        return 1
+
+    # Arkivet FØR parse, som i runner.run_all(). Uten det er en parse-feil
+    # oppdaget om et halvt år permanent datatap — og det er hele
+    # begrunnelsen for rå-arkivet.
+    # ETT hentetidspunkt for alle månedene, slått opp én gang. De kom
+    # fra det samme kallet, og `fetched_at` skal si det: 103 stempler som
+    # spriker på mikrosekundet ville påstått 103 hentinger. For en kilde
+    # som REVIDERER fortiden er `fetched_at` ikke bokføring — det er
+    # hvilken påstand raden er (CLAUDE.md 1b-5), og da skal påstander fra
+    # samme kall bære samme dato.
+    #
+    # Ukemodus gjør det motsatte, og med rette: der ER hver uke et eget
+    # kall.
+    hentet_at = dt.datetime.now(dt.timezone.utc).isoformat()
+
+    raw_hash = ""
+    if not args.torrkjor:
+        raw_hash = raw_arkiv.arkiver(kilde.name, siste_dag(*til), rå)
+        print(f"  arkivert under {siste_dag(*til)}, sha256 {raw_hash[:16]}…")
+
+    skrevet = hoppet = endringer_totalt = 0
+    manglende: list[str] = []
+
+    for aar, mnd in maaneder:
+        dato = siste_dag(aar, mnd)
+
+        if not args.torrkjor and _finnes_allerede(kilde.name, dato):
+            hoppet += 1
+            continue
+
+        try:
+            obs = runner.stempl(kilde.parse(rå, dato),
+                                source_version=kilde.version,
+                                raw_hash=raw_hash, fetched_at=hentet_at,
+                                utvalg=getattr(kilde, "utvalg", None))
+        except Exception as e:
+            # En måned som mangler i fila er et HULL, ikke et avbrudd.
+            # De øvrige månedene ligger i det samme svaret og er like
+            # gyldige — å stoppe her ville kastet dem for ingenting.
+            feil = f"{type(e).__name__}: {e}"
+            print(f"  {dato} ({aar}-{mnd:02d}): FEIL {feil}")
+            manglende.append(f"{dato}  {aar}-{mnd:02d}  {feil}")
+            continue
+
+        ramme = snapshot.to_frame(obs)
+        if args.torrkjor:
+            print(f"  {dato} ({aar}-{mnd:02d}): {ramme.height:>4} observasjoner, "
+                  f"{ramme['entity_id'].n_unique():>3} områder")
+            continue
+
+        # Diff FØR skriving, som i run.py — ellers finner previous()
+        # månedens egen fil og diffen blir tom.
+        endr = diff.compare(ramme, dato)
+        filer = snapshot.write(obs, dato)
+        changelog.skriv(endr, dato)
+        endringer_totalt += endr.height
+        skrevet += 1
+        print(f"  {dato} ({aar}-{mnd:02d}): {ramme.height:>4} observasjoner, "
+              f"{ramme['entity_id'].n_unique():>3} områder, "
+              f"{endr.height:>4} endringer -> {filer[0].name}")
+
+    print(f"\n{skrevet} måneder skrevet, {hoppet} hoppet over (fantes "
+          f"allerede), {endringer_totalt} endringer totalt.")
+    print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+
+    if manglende:
+        print(f"\n{len(manglende)} måned(er) MANGLET i fila:")
+        for m in manglende:
+            print(f"  {m}")
+        print("\nHullene er reelle. De ligger ikke i fila Fiskeridirektoratet "
+              "publiserer, så de kan ikke hentes ved å prøve igjen.")
+        return 1
+
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--kilde", required=True, help="kildenavn, f.eks. lusetall")
-    p.add_argument("--fra", required=True, metavar="ÅÅÅÅ-UU")
-    p.add_argument("--til", required=True, metavar="ÅÅÅÅ-UU")
+    # ÅÅÅÅ-UU for ukekilder, ÅÅÅÅ-MM for månedskilder. Kilden avgjør
+    # hvilken — se modulens docstring.
+    p.add_argument("--fra", required=True, metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
+    p.add_argument("--til", required=True, metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
     p.add_argument("--pause", type=float, default=None,
                    help=f"sekunder mellom kall (standard: kildens egen "
                         f"`pause_s`, ellers {PAUSE_S})")
@@ -197,8 +376,13 @@ def main() -> int:
     if kilde is None:
         print(f"Ukjent eller inaktiv kilde: {args.kilde}")
         return 1
+    # Kilden velger modus, ikke brukeren. Se modulens docstring.
+    if hasattr(kilde, "hent_alt"):
+        return _backfill_maaneder(kilde, args)
+
     if not hasattr(kilde, "hent_uke"):
-        print(f"{args.kilde} har ingen hent_uke() og kan ikke backfilles.")
+        print(f"{args.kilde} har verken hent_uke() eller hent_alt() og kan "
+              f"ikke backfilles.")
         return 1
 
     # Kilden eier sin egen pause. Eksporten sjotemperatur henter er 128 kB

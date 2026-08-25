@@ -347,3 +347,160 @@ def test_exit_null_naar_feillista_er_tom(isolert, monkeypatch, sovelogg):
 
     assert _kjor(monkeypatch, kilde, "2026-01", "2026-04") == 0
     assert sovelogg == [], "ingen feil, ingen pauser"
+
+
+# ---- månedsmodus -----------------------------------------------------
+#
+# Ukemodus gjør ett kall per uke og er bygget rundt at kall feiler.
+# Månedsmodus gjør ETT kall for hele serien, og har derfor helt andre
+# feilmoduser: ikke «uke 300 av 730 feilet», men «måneden ligger ikke i
+# fila», og ikke «arkivér hver uke», men «arkivér svaret én gang».
+
+class FalskBiomasse(Source):
+    """Svarer på hent_alt(). `mangler` er måneder som ikke er i fila."""
+
+    name = "biomasse"
+    entity_type = "produksjonsomraade"
+
+    def __init__(self, mangler=()):
+        self.mangler = set(mangler)
+        self.kall = 0
+
+    def hent_alt(self, client=None):
+        self.kall += 1
+        self.utvalg = {}
+        return "hele-serien"
+
+    def gjelder_for(self, kjoredato):
+        return "2026-04-30"
+
+    def parse(self, raw, observed_at):
+        aar, mnd = int(observed_at[:4]), int(observed_at[5:7])
+        if (aar, mnd) in self.mangler:
+            raise RuntimeError(f"{aar}-{mnd:02d} ligger ikke i fila")
+        for po in ("1", "2"):
+            yield Observation(
+                entity_id=po, entity_type=self.entity_type,
+                entity_name=f"PO {po}", field="beholdning_antall",
+                value=f"{1000 + mnd}", source=self.name,
+                observed_at=observed_at,
+            )
+
+
+def _kjor_mnd(monkeypatch, kilde, fra, til, ekstra=()):
+    monkeypatch.setattr(backfill.registry, "discover", lambda: [kilde])
+    monkeypatch.setattr("sys.argv", ["backfill.py", "--kilde", "biomasse",
+                                     "--fra", fra, "--til", til, *ekstra])
+    return backfill.main()
+
+
+def test_maanedsmodus_henter_en_gang_for_hele_serien(isolert, monkeypatch, capsys):
+    """Fila bærer alle månedene. 106 måneder skal koste ett kall, ikke 106."""
+    kilde = FalskBiomasse()
+
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04") == 0
+    assert kilde.kall == 1
+
+    ut = capsys.readouterr().out
+    assert "4 måneder skrevet" in ut
+    for dato in ("2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30"):
+        assert (isolert / "raw" / "biomasse" / f"{dato}.parquet").exists()
+
+
+def test_arkivet_skrives_en_gang_og_alle_maanedene_deler_hash(isolert,
+                                                              monkeypatch):
+    """raw_hash er INNHOLDSADRESSERT (core/raw.py). 106 snapshots som
+    peker på ett råsvar er en sann påstand — 106 identiske kopier av en
+    650 kB fil i datarepoet er ikke en bedre en."""
+    import polars as pl
+
+    kilde = FalskBiomasse()
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04") == 0
+
+    arkiv = sorted((isolert / "arkiv" / "biomasse").glob("*"))
+    assert [p.name for p in arkiv] == ["2026-04-30.txt.gz"], \
+        "arkivet dateres etter den nyeste måneden i intervallet"
+
+    hasher = set()
+    for p in sorted((isolert / "raw" / "biomasse").glob("*.parquet")):
+        hasher |= set(pl.read_parquet(p)["raw_hash"].to_list())
+    assert len(hasher) == 1 and hasher != {""}
+
+
+def test_maaned_som_mangler_er_et_hull_ikke_et_avbrudd(isolert, monkeypatch,
+                                                       capsys):
+    """De øvrige månedene ligger i det samme svaret og er like gyldige.
+    Å stoppe ville kastet dem for ingenting — men hullet skal navngis og
+    kjøringen ende rødt."""
+    kilde = FalskBiomasse(mangler=[(2026, 2)])
+
+    kode = _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04")
+    ut = capsys.readouterr().out
+
+    assert kode != 0
+    assert "3 måneder skrevet" in ut
+    assert "1 måned(er) MANGLET" in ut
+    assert "2026-02" in ut
+    assert (isolert / "raw" / "biomasse" / "2026-03-31.parquet").exists()
+    assert not (isolert / "raw" / "biomasse" / "2026-02-28.parquet").exists()
+
+
+def test_maanedsmodus_er_gjenopptakbar(isolert, monkeypatch, capsys):
+    """Uten dette gir en omstart .2-filer for hver måned som allerede lå
+    der — både snapshot og arkiv løser kollisjon med løpenummer."""
+    kilde = FalskBiomasse()
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-02")
+    capsys.readouterr()
+
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04") == 0
+    ut = capsys.readouterr().out
+    assert "2 måneder skrevet, 2 hoppet over" in ut
+    assert not list((isolert / "raw" / "biomasse").glob("*.2.parquet"))
+
+
+def test_til_klippes_ved_kildens_egen_etterslepsgrense(isolert, monkeypatch,
+                                                       capsys):
+    """Grensen spørres AV KILDEN med dagens dato, ikke regnet ut på nytt
+    her. To tall som ligner er F7 — her finnes det bare ett svar."""
+    kilde = FalskBiomasse()
+
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-09") == 0
+    ut = capsys.readouterr().out
+    assert "Klipper der" in ut
+    assert "4 måneder skrevet" in ut
+
+
+def test_torrkjoring_skriver_ingenting(isolert, monkeypatch, capsys):
+    kilde = FalskBiomasse()
+
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04",
+                     ekstra=("--torrkjor",)) == 0
+    assert not (isolert / "raw").exists()
+    assert not (isolert / "arkiv").exists()
+    assert "TØRRKJØRING" in capsys.readouterr().out
+
+
+def test_ugyldig_maaned_avvises():
+    with pytest.raises(ValueError):
+        backfill._parse_maaned("2026-13")
+
+
+def test_maanedsloopen_taaler_arsskiftet():
+    assert list(backfill._maaneder((2025, 11), (2026, 2))) == [
+        (2025, 11), (2025, 12), (2026, 1), (2026, 2)]
+
+
+def test_alle_maanedene_deler_ett_hentetidspunkt(isolert, monkeypatch):
+    """De kom fra det samme kallet. 103 stempler som spriker på
+    mikrosekundet ville påstått 103 hentinger — og for en kilde som
+    reviderer fortiden er fetched_at ikke bokføring, men hvilken påstand
+    raden er (CLAUDE.md 1b-5)."""
+    import polars as pl
+
+    kilde = FalskBiomasse()
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04") == 0
+
+    stempler = set()
+    for p in sorted((isolert / "raw" / "biomasse").glob("*.parquet")):
+        stempler |= set(pl.read_parquet(p)["fetched_at"].to_list())
+    assert len(stempler) == 1

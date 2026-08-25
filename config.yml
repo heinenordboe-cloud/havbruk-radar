@@ -120,3 +120,56 @@ kilder:
     # 261 % på det meste over sine tre datoer, og en 1 %-margin ville
     # fyrt konstant.
     gulv_margin: 0.01
+
+  biomasse:
+    # Fiskeridirektoratets biomassestatistikk etter produksjonsområde.
+    # Verifisert mot levende tjeneste 25.08.2026, se
+    # docs/KILDE-BIOMASSE.md. NLOD — ingen nøkkel, ingen registrering,
+    # men attribusjon «Kilde: Fiskeridirektoratet» kreves av enhver
+    # sammenstilling som bruker tallene.
+    #
+    # Én statisk fil som bærer HELE serien (2017-10 og framover) i hver
+    # nedlasting. Ingen spørrestreng, ingen paginering, ingen API.
+    aktiv: true
+    url: "https://register.fiskeridir.no/biomassestatistikk/BIOSTAT-LAKS-OMR/biostat-total-omr.csv"
+
+    # MÅNEDER, ikke uker. Fila publiseres på nytt den 20. hver måned, og
+    # innrapporteringsfristen er den 7. — måned M er synlig ~50 dager
+    # etter at M begynte.
+    #
+    # Fire og ikke to eller tre. Tallet er ikke valgt for å komme forbi
+    # publiseringen, men for å komme forbi REVISJONEN. Målt ved å krysse
+    # en Wayback-kopi fra 07.08.2024 mot dagens fil, 3973 felles rader —
+    # andel som SENERE ble revidert, etter månedens alder da vi hentet:
+    #
+    #     0 mnd  28,8 %      3 mnd  10,4 %
+    #     1 mnd  19,2 %      4+     ~8-15 %, flatt
+    #     2 mnd  11,3 %
+    #
+    # Kurven flater ut ved alder 2. Resten er permanent omklassifisering
+    # som ingen ventetid fjerner. Fire GARANTERER alder >= 2 uansett
+    # hvilken dag i måneden cron treffer: kjører vi før den 20., er
+    # ferskeste publiserte måned kjøremåneden minus 2. Tre ville gitt
+    # alder 1 (19,2 %) halvparten av dagene.
+    maaneder_etterslep: 4
+
+    # Nullstrekket som skiller en stille måned fra et dødt felt.
+    # STANDARD_MAKS_NULLSTREKK er 13, og det tallet er målt i UKER på
+    # lusetall. Her er én kjøring én MÅNED, så 13 ville betydd «si fra
+    # etter tretten måneder» — over et år før et dødt felt oppdages.
+    # Samme tall, et annet spørsmål.
+    #
+    # Målt over alle 106 måneder: bare `romming_antall` har nullmåneder
+    # i det hele tatt (52 av 106 — halvparten av månedene har null
+    # rømminger i hvert eneste produksjonsområde). Strekkfordelingen er
+    # {1: 19, 2: 6, 3: 3, 4: 3}, lengste fire.
+    #
+    # Simulert over de samme 106 månedene:
+    #     grense 3 -> 9 alarmmåneder    grense 5 -> 0
+    #     grense 4 -> 3 alarmmåneder    grense 6-13 -> 0
+    #
+    # Fem er første grense uten falsk alarm, men uten margin: én stille
+    # måned til hadde fyrt. Åtte er det dobbelte av lengste observerte
+    # strekk, gir null falske alarmer på historikken, og fanger et dødt
+    # felt på åtte måneder i stedet for tretten.
+    maks_nullstrekk: 8

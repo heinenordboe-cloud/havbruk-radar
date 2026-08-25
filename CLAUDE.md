@@ -160,6 +160,62 @@ utledet av selve feilen — første utkast lot `har_medikamentell_behandling`
 få et 45-ukers unntak som KOM FRA dødsfallet, og vakten ble blind for
 det den fantes for.
 
+### 1b-5. Noen kilder REVIDERER fortiden
+
+De fire foran handler om å måle riktig ting til riktig tid. Denne
+handler om kilder der «riktig» ikke er én verdi.
+
+Standardantakelsen i dette repoet er at fortiden ligger fast:
+Enhetsregisteret sier hva som gjelder NÅ, lusetall sier hva som ble
+telt i uke 30, og uke 30 blir aldri noe annet. `fetched_at` er da bare
+bokføring — den skiller en backfillet rad fra en ukentlig, og ellers
+ingenting.
+
+Den antakelsen holder ikke for alle kilder. Fiskeridirektoratets
+biomassefil publiseres på nytt den 20. hver måned, og hver publisering
+kan endre tall helt tilbake til 2017. Målt 25.08.2026 mot en
+Wayback-kopi fra 07.08.2024: **490 av 3973 felles rader (12,3 %) endret,
+i hvert eneste år i serien**, mens summen av alle beholdninger bare
+flyttet seg 0,006 %. Mekanismen er ikke nye innrapporteringer — det er
+lokaliteter som blir omklassifisert mellom produksjonsområder i
+ettertid, i speilpar: 1 422 777 fisk flyttet begge veier mellom PO 5 og
+`(null)` for oktober 2017.
+
+To snapshots som er uenige om 2018 er da IKKE en feil. De er to
+påstander om samme tidspunkt, gjort på hver sin dato, og **begge er
+sanne**. `observed_at` sier hvilket punkt i verden raden handler om;
+`fetched_at` sier hvilken PÅSTAND om det punktet dette er.
+
+Tre krav følger, og de er billige hvis de stilles før kilden bygges:
+
+1. **Spør om kilden reviderer, før du velger etterslep.** Publiseringen
+   sier når en periode blir SYNLIG. Revisjonen sier når den blir
+   STABIL. De er ikke samme dato, og bare den andre er målbar mot
+   historikk. For biomasse faller revisjonsandelen 28,8 % → 19,2 % →
+   11,3 % med månedens alder og flater ut ved to; etterslepet ble satt
+   der kurven flater, ikke der publiseringen skjer.
+2. **Behold hele svaret i arkivet, ikke bare skiven du skriver.**
+   `fetch()` skal returnere det kilden faktisk sendte. For en
+   revisjonskilde er det forskjellen på å ha revisjonshistorikken og å
+   ikke ha den: hos Fiskeridirektoratet forsvinner forrige versjon den
+   20. hver måned, og finnes den ikke i `data/arkiv/`, finnes den ikke.
+3. **Ikke la en revidert verdi overskrive den gamle.** Regel 2 er
+   allerede absolutt, men her er den ikke en formalitet om
+   repostørrelse — den er det eneste som bevarer at kilden har ombestemt
+   seg.
+
+Og motsatt vei: **et gulv eller en referanse skal ikke bygges av en fil
+som revideres bakover.** Det er 1b-4 med en ekstra tann — der ble
+referansen utledet av data som allerede inneholdt feilen, her kan selve
+grunnlaget endre seg etter at referansen er satt. Se
+docs/KILDE-BIOMASSE.md punkt 5.
+
+Merk hva som IKKE ble bygget, og hvorfor: changeloggen kan ikke skille
+«ny måned» fra «revidert måned», fordi `diff.compare()` sammenligner mot
+forrige DATO og ikke mot forrige VERSJON av samme dato. Å legge til den
+aksen er en endring i `core/` — altså regel 1, og eierens avgjørelse,
+ikke et unntak en kilde tar seg til.
+
 ## 2. Data skrives én gang, aldri om
 
 Append-only gjelder `data/raw/<kilde>/<dato>.parquet`,
