@@ -47,6 +47,10 @@ UTVANDRING_VID = (14, 26)    # følsomhetssjekk
 KATEGORIER = ["lav", "moderat", "hoy"]
 RANG = {"lav": 0, "moderat": 1, "hoy": 2}
 
+# Temperaturleddet i Stien mfl. 2005: (T + 4,28)^2. Konstanten er deres,
+# ikke vår, og står som et navngitt tall og ikke inne i et uttrykk.
+STIEN_T0 = 4.28
+
 
 # ---------------------------------------------------------------- innlesing
 
@@ -81,9 +85,61 @@ def po_kart() -> dict[str, int]:
     return {e: int(v) for e, v in par.iter_rows() if v not in (None, "")}
 
 
+def bredde_kart() -> dict[str, float]:
+    """localityNo -> breddegrad, fra nyeste akvakultursnapshot.
+
+    Samme forbehold som po_kart(): dagens register påført historiske uker.
+    Brukes bare til KONTROLLEN — om temperaturen forklarer noe utover
+    geografi — og ikke som prediktor.
+    """
+    siste = snapshot.siste_dato("akvakultur")
+    if siste is None:
+        raise SystemExit("fant ingen akvakultursnapshots")
+    _, df = snapshot.les_mellom("akvakultur", siste, siste)[-1]
+    par = df.filter(pl.col("field") == "breddegrad").select("entity_id", "value")
+    ut = {}
+    for e, v in par.iter_rows():
+        try:
+            ut[e] = float(v)
+        except (TypeError, ValueError):
+            continue
+    return ut
+
+
+def les_temp() -> dict[tuple[str, int, int], float]:
+    """(lok, iso-år, iso-uke) -> sjøtemperatur.
+
+    Samme ukeakse og samme etterslep som lusetall — det ER den samme
+    rapporten, hentet fra CSV-eksporten i stedet for ukeendepunktet. Se
+    docs/KILDE-SJOTEMPERATUR.md; de to er krysset mot hverandre på tolv
+    lokaliteter i uke 30/2018 og gir samme verdi.
+
+    `temperatur_er_rapportert` leses ikke her: en rad uten temperatur har
+    ingen `sjotemperatur`-observasjon i det hele tatt, så fraværet i denne
+    ordboka ER flagget. Det som IKKE gjøres er å lese en manglende verdi
+    som 0 grader — 0,0 forekommer 622 ganger i historikken som en ekte
+    måling, og med (T + 4,28)^2 er forskjellen på «ukjent» og «0» et
+    faktisk tall på smittepresset.
+    """
+    ut: dict[tuple[str, int, int], float] = {}
+    for dato_tekst, df in snapshot.les_mellom(
+            "sjotemperatur", f"{FRA_AAR - 1}-12-01", f"{TIL_AAR + 1}-01-31"):
+        iso = dt.date.fromisoformat(dato_tekst).isocalendar()
+        if not (FRA_AAR <= iso.year <= TIL_AAR):
+            continue
+        t = df.filter(pl.col("field") == "sjotemperatur").select("entity_id", "value")
+        for e, v in t.iter_rows():
+            try:
+                ut[(e, iso.year, iso.week)] = float(v)
+            except (TypeError, ValueError):
+                continue
+    return ut
+
+
 def les_uker() -> list[dict]:
     """Én rad per lokalitet-uke, for uker i [FRA_AAR, TIL_AAR]."""
     kart = po_kart()
+    temp = les_temp()
     rader = []
     # Intervallet er kalenderdatoer, mens avgrensningen er ISO-år. De to
     # spriker rundt nyttår, så vinduet er med vilje en dag vidt i hver
@@ -108,6 +164,7 @@ def les_uker() -> list[dict]:
                 "rensefisk": r.get("har_rensefisk") == "True",
                 "mekanisk": r.get("har_mekanisk_fjerning") == "True",
                 "medikament": r.get("har_medikamentell_behandling") == "True",
+                "temp": temp.get((r["entity_id"], iso.year, iso.week)),
             })
     return rader
 
@@ -154,15 +211,28 @@ def hvilke_inngangsdata(rader: list[dict]) -> None:
     print(f"  antall fisk    NEI  — finnes ikke i lusetall. Alle 19 feltene i")
     print(f"                        BarentsWatch-responsen er sjekket mot rå-arkivet:")
     print(f"                        ingen biomasse, ingen fiskeantall, ingen kapasitet.")
-    print(f"  sjøtemperatur  NEI  — finnes ikke i ukeendepunktet. Det finnes et eget")
-    print(f"                        endepunkt (.../seatemperature/{{år}}), men det er")
-    print(f"                        per lokalitet per år og er ikke hentet.")
+    n_temp = sum(1 for r in rader if r["temp"] is not None)
+    print(f"  sjøtemperatur  JA   — `sjotemperatur` fra CSV-eksporten av den SAMME")
+    print(f"                        ukerapporten. Samme ukeakse, samme etterslep.")
+    print(f"                        {n_temp} verdier 2018-2026.")
     print()
     print("  KONSEKVENS: smittepressproxyen fra Stien mfl. 2005")
     print("      nauplier = N_fisk × N_hunnlus × 0,17 × (T + 4,28)²")
-    print("  bygges IKKE. To av tre innganger mangler, og en proxy bygget på")
-    print("  én av tre er ikke den formelen — den er lusetallet med et navn")
-    print("  som lover mer enn det holder.")
+    print("  bygges FORTSATT IKKE i sin helhet. `stien_delvis` under er")
+    print("      DELVIS proxy = N_hunnlus × (T + 4,28)²")
+    print("  altså formelen UTEN N_fisk og uten konstanten 0,17 (som er en")
+    print("  ren skalering og ikke endrer noen rangkorrelasjon).")
+    print()
+    print("  TO AV TRE LEDD ER IKKE FORMELEN. Det var konklusjonen forrige gang")
+    print("  og den står. N_fisk er ikke et lite ledd man kan se bort fra: det er")
+    print("  ANTALL VERTER, og det varierer med to størrelsesordener mellom en")
+    print("  nystartet og en full lokalitet. En lokalitet med 200 000 fisk og en")
+    print("  med 2 000 000 gir samme `stien_delvis` ved lik lus og lik temperatur,")
+    print("  og produserer ti ganger så mange nauplier i virkeligheten.")
+    print()
+    print("  `stien_delvis` er derfor et NAVN PÅ ET MELLOMLEDD, ikke et estimat")
+    print("  av smittepress. Den står i tabellene fordi spørsmålet er om")
+    print("  temperaturen flytter noe — ikke fordi tallet betyr nauplier.")
     print()
     print("  Akvakultursnapshotet har `kapasitet` (MTB i tonn) per lokalitet. Det er")
     print("  et TAK, ikke en beholdning: en lokalitet med 3600 tonn MTB kan stå tom.")
@@ -175,6 +245,8 @@ def per_po_aar(rader: list[dict], vindu: tuple[int, int]) -> dict:
     """(po, aar) -> prediktorer. Bare rapporterende lokaliteter med PO."""
     lav, hoy = vindu
     bøtte = defaultdict(lambda: defaultdict(list))   # (po,aar) -> uke -> [lus]
+    t_bøtte = defaultdict(lambda: defaultdict(list))  # (po,aar) -> uke -> [temp]
+    s_bøtte = defaultdict(lambda: defaultdict(list))  # (po,aar) -> uke -> [delvis]
     for r in rader:
         if r["po"] is None or not r["rapportert"] or r["lus"] is None:
             continue
@@ -182,13 +254,37 @@ def per_po_aar(rader: list[dict], vindu: tuple[int, int]) -> dict:
             continue
         bøtte[(r["po"], r["aar"])][r["uke"]].append(r["lus"])
 
+        # Temperaturen aggregeres over de samme lokalitet-ukene som
+        # lusetallet, ikke over alle lokaliteter som målte temperatur.
+        # Ellers ville de to prediktorene hvilt på ulike utvalg, og en
+        # forskjell mellom dem kunne vært utvalget og ikke variabelen.
+        if r["temp"] is not None:
+            t_bøtte[(r["po"], r["aar"])][r["uke"]].append(r["temp"])
+            # DELVIS Stien-proxy, regnet PER LOKALITET-UKE fordi det er
+            # der formelen bor. Å gange et PO-snitt av lus med et PO-snitt
+            # av temperatur ville vært en annen størrelse: E[x]·E[y] er
+            # ikke E[x·y] med mindre de er ukorrelerte, og her er de det
+            # nettopp ikke.
+            s_bøtte[(r["po"], r["aar"])][r["uke"]].append(
+                r["lus"] * (r["temp"] + STIEN_T0) ** 2)
+
     ut = {}
     for nøkkel, per_uke in bøtte.items():
         alle = [x for v in per_uke.values() for x in v]
         if not alle:
             continue
         ukesnitt = [st.mean(v) for v in per_uke.values() if v]
+        t_uker = t_bøtte.get(nøkkel, {})
+        s_uker = s_bøtte.get(nøkkel, {})
+        t_alle = [x for v in t_uker.values() for x in v]
         ut[nøkkel] = {
+            # Uvektet på samme måte som lusetallet: snitt av ukesnitt.
+            "temp_snitt": (st.mean([st.mean(v) for v in t_uker.values() if v])
+                           if t_uker else None),
+            "stien_delvis": (st.mean([st.mean(v) for v in s_uker.values() if v])
+                             if s_uker else None),
+            "n_temp": len(t_alle),
+            "temp_dekning": len(t_alle) / len(alle) if alle else 0.0,
             # Uvektet: hver uke teller likt, uansett hvor mange lokaliteter
             # som rapporterte den uka. Vektet: hver lokalitet-uke teller likt,
             # så uker med mange rapporterende drar mer.
@@ -232,14 +328,19 @@ def seksjon(t: str) -> str:
 
 def tabell_prediktorer(pred: dict, fasit: dict, vindu: tuple[int, int]) -> None:
     print(seksjon(f"3. PREDIKTORER PER PO PER ÅR — uke {vindu[0]}-{vindu[1]}"))
-    print(f"{'PO':>3} {'år':>5} {'kategori':>9} {'snitt_uv':>9} {'snitt_v':>8}"
-          f" {'median':>7} {'p95':>6} {'maks':>6} {'n_lok':>6} {'n_uker':>7}")
+    print(f"{'PO':>3} {'år':>5} {'kategori':>9} {'snitt_uv':>9} {'p95':>6}"
+          f" {'temp':>6} {'t-dekn':>7} {'delvis':>8} {'n_lok':>6} {'n_uker':>7}")
     for (po, aar) in sorted(pred):
         p = pred[(po, aar)]
         kat = fasit.get((po, aar), {}).get("kategori", "—")
+        t = f"{p['temp_snitt']:.2f}" if p["temp_snitt"] is not None else "—"
+        d = f"{p['stien_delvis']:.2f}" if p["stien_delvis"] is not None else "—"
         print(f"{po:>3} {aar:>5} {kat:>9} {p['snitt_uvektet']:>9.3f}"
-              f" {p['snitt_vektet']:>8.3f} {p['median']:>7.3f} {p['p95']:>6.2f}"
-              f" {p['maks']:>6.2f} {p['n_lok']:>6} {p['n_uker']:>7}")
+              f" {p['p95']:>6.2f} {t:>6} {p['temp_dekning']:>6.1%}"
+              f" {d:>8} {p['n_lok']:>6} {p['n_uker']:>7}")
+    print("\n  temp   = snitt sjøtemperatur i vinduet, uvektet over uker.")
+    print("  delvis = DELVIS Stien-proxy: lus × (T + 4,28)², uten N_fisk.")
+    print("           Se seksjon 2 — to av tre ledd er ikke formelen.")
 
 
 def fordeling_per_kategori(pred: dict, fasit: dict, vindu: tuple[int, int],
@@ -292,10 +393,12 @@ def rangkorrelasjon(pred: dict, fasit: dict) -> None:
     uavhengige, og en p-verdi ville lovet mer enn tallet holder.
     """
     print(seksjon("5. SAMVARIASJON MED KATEGORIRANG (Spearman, beskrivende)"))
-    for navn in ["snitt_uvektet", "snitt_vektet", "median", "p95", "maks", "n_lok"]:
+    for navn in ["snitt_uvektet", "snitt_vektet", "median", "p95", "maks",
+                 "n_lok", "temp_snitt", "stien_delvis"]:
         par = [(p[navn], RANG[fasit[(po, aar)]["kategori"]])
                for (po, aar), p in pred.items()
-               if fasit.get((po, aar), {}).get("kategori") in RANG]
+               if fasit.get((po, aar), {}).get("kategori") in RANG
+               and p.get(navn) is not None]
         if len(par) < 5:
             continue
         r = spearman([a for a, _ in par], [b for _, b in par])
@@ -426,11 +529,13 @@ def baseline(fasit: dict) -> None:
             print(f"    PO{po:<3} {aar-1}->{aar}  {a} -> {b}")
 
 
-def retning_ved_skifte(pred: dict, fasit: dict) -> None:
-    """De 11 gangene kategorien FAKTISK endret seg — beveget lusetallet seg
+def retning_ved_skifte(pred: dict, fasit: dict,
+                       felt: str = "snitt_uvektet", merkelapp: str = "lusetallet",
+                       nr: str = "8b") -> tuple[int, int]:
+    """De 11 gangene kategorien FAKTISK endret seg — beveget prediktoren seg
     samme vei? Dette er ikke en modell; det er å telle fortegn."""
-    print(seksjon("8b. BEVEGET LUSETALLET SEG SAMME VEI SOM KATEGORIEN?"))
-    print(f"{'PO':>4} {'skifte':>12} {'retning':>8} {'snitt_uv':>17} {'endring':>9} {'p95':>15} {'enig':>6}")
+    print(seksjon(f"{nr}. BEVEGET {merkelapp.upper()} SEG SAMME VEI SOM KATEGORIEN?"))
+    print(f"{'PO':>4} {'skifte':>12} {'retning':>8} {felt[:8]:>17} {'endring':>9} {'p95':>15} {'enig':>6}")
     enige = 0
     n = 0
     for (po, aar), f in sorted(fasit.items()):
@@ -440,22 +545,163 @@ def retning_ved_skifte(pred: dict, fasit: dict) -> None:
         if f["kategori"] == forrige["kategori"]:
             continue
         a, b = pred.get((po, aar - 1)), pred.get((po, aar))
-        if not a or not b:
+        if not a or not b or a.get(felt) is None or b.get(felt) is None:
             continue
         n += 1
         opp = RANG[f["kategori"]] > RANG[forrige["kategori"]]
-        d = b["snitt_uvektet"] - a["snitt_uvektet"]
+        d = b[felt] - a[felt]
         enig = (d > 0) == opp
         enige += enig
         print(f"{po:>4} {forrige['kategori'][:3]+'->'+f['kategori'][:3]:>12}"
               f" {'opp' if opp else 'ned':>8}"
-              f" {a['snitt_uvektet']:>8.3f}->{b['snitt_uvektet']:<8.3f}"
+              f" {a[felt]:>8.3f}->{b[felt]:<8.3f}"
               f" {d:>+9.3f} {a['p95']:>7.2f}->{b['p95']:<7.2f}"
               f" {'ja' if enig else 'NEI':>6}")
-    print(f"\n  {enige} av {n} skifter har lusetallet på riktig side. "
+    print(f"\n  {enige} av {n} skifter har {merkelapp} på riktig side. "
           f"Myntkast gir {n/2:.1f}.")
-    print("  Dette er ikke en test — 11 skifter, avhengige av hverandre innen PO.")
+    print("  Dette er ikke en test — få skifter, avhengige av hverandre innen PO.")
     print("  Det er tellingen av fortegn, og den står som den er.")
+    return enige, n
+
+
+def bredde_per_po(rader: list[dict], pred: dict) -> dict:
+    """(po, aar) -> snittbreddegrad for lokalitetene som faktisk bidro.
+
+    Ett sted, brukt av både kontrollen og plottet. To utregninger som kan
+    svare ulikt er mønsteret repoet har betalt for fire ganger.
+    """
+    bredde = bredde_kart()
+    lok_per = defaultdict(set)
+    for r in rader:
+        if r["po"] is None or not r["rapportert"] or r["lus"] is None:
+            continue
+        if not (UTVANDRING[0] <= r["uke"] <= UTVANDRING[1]):
+            continue
+        lok_per[(r["po"], r["aar"])].add(r["lok"])
+    ut = {}
+    for k, lokker in lok_per.items():
+        b = [bredde[l] for l in lokker if l in bredde]
+        if b:
+            ut[k] = st.mean(b)
+    return ut
+
+
+def geografikontrollen(rader: list[dict], pred: dict, fasit: dict,
+                       bredde_po: dict) -> None:
+    """DEN VIKTIGE KONTROLLEN.
+
+    Temperaturen faller monotont med breddegrad — det er målt over hele
+    serien: augustmedianen går fra 16,6 grader ved 58-59°N til 10,1 ved
+    70-71°N. Produksjonsområdene er også geografiske, nummerert sørfra.
+    Så en variabel som «forklarer» kategorien kan gjøre det utelukkende
+    fordi den er en omskrivning av HVOR området ligger.
+
+    Prøven: hvis rho(temperatur, kategori) og rho(breddegrad, kategori)
+    er like store, og temperatur og breddegrad henger tett sammen, så
+    forklarer temperaturen ingenting utover geografi. Da er den ikke en
+    tredje prediktor — den er PO-identitet med en annen enhet.
+    """
+    print(seksjon("10. GEOGRAFIKONTROLLEN — er temperatur bare breddegrad?"))
+
+    bredde = bredde_kart()
+
+    print("\n  a) Samvariasjon med kategorirang, side om side:")
+    for navn, hent in [
+            ("lusetall (snitt_uv)", lambda k, p: p["snitt_uvektet"]),
+            ("temperatur", lambda k, p: p["temp_snitt"]),
+            ("DELVIS Stien-proxy", lambda k, p: p["stien_delvis"]),
+            ("breddegrad", lambda k, p: bredde_po.get(k)),
+            ("PO-nummer (ren geografi)", lambda k, p: float(k[0])),
+            ("n_lok (kontrollvariabel)", lambda k, p: float(p["n_lok"])),
+    ]:
+        par = [(hent(k, p), RANG[fasit[k]["kategori"]])
+               for k, p in pred.items()
+               if fasit.get(k, {}).get("kategori") in RANG and hent(k, p) is not None]
+        if len(par) < 5:
+            continue
+        r = spearman([a for a, _ in par], [b for _, b in par])
+        print(f"       {navn:>26}  rho = {r:+.3f}   (n = {len(par)})")
+
+    print("\n  b) Henger temperatur og breddegrad sammen?")
+    felles = [k for k in pred if k in bredde_po and pred[k]["temp_snitt"] is not None]
+    if felles:
+        t = [pred[k]["temp_snitt"] for k in felles]
+        b = [bredde_po[k] for k in felles]
+        print(f"       PO-år-nivå:      Spearman(temp, breddegrad) = "
+              f"{spearman(t, b):+.3f}  (n = {len(felles)})")
+        print(f"                        Pearson  (temp, breddegrad) = "
+              f"{pearson(t, b):+.3f}")
+
+    lok_temp = defaultdict(list)
+    for r in rader:
+        if r["temp"] is None or r["lok"] not in bredde:
+            continue
+        if not (UTVANDRING[0] <= r["uke"] <= UTVANDRING[1]):
+            continue
+        lok_temp[r["lok"]].append(r["temp"])
+    if lok_temp:
+        lt = [st.mean(v) for v in lok_temp.values()]
+        lb = [bredde[l] for l in lok_temp]
+        print(f"       lokalitetsnivå:  Spearman(temp, breddegrad) = "
+              f"{spearman(lt, lb):+.3f}  (n = {len(lt)} lokaliteter)")
+
+    print("\n  c) Temperatur per PO — hvor mye av den er bare hvor området ligger?")
+    print(f"       {'PO':>3} {'breddegrad':>11} {'temp snitt':>11} {'temp spenn':>22} {'n år':>5}")
+    for po in range(1, 14):
+        aar = [k for k in pred if k[0] == po and pred[k]["temp_snitt"] is not None]
+        if not aar:
+            continue
+        t = [pred[k]["temp_snitt"] for k in aar]
+        b = [bredde_po[k] for k in aar if k in bredde_po]
+        print(f"       {po:>3} {st.mean(b) if b else float('nan'):>11.2f}"
+              f" {st.mean(t):>11.2f} {min(t):>10.2f}-{max(t):<10.2f} {len(aar):>5}")
+    print("\n       Spennet innen ett PO er variasjonen MELLOM ÅR på samme sted.")
+    print("       Er det lite mot forskjellen mellom PO-er, bærer temperaturen")
+    print("       nesten bare geografi og nesten ingen årsvariasjon.")
+
+    serier_po = {po: [pred[k]["temp_snitt"] for k in pred
+                      if k[0] == po and pred[k]["temp_snitt"] is not None]
+                 for po in range(1, 14)}
+    serier_po = {po: v for po, v in serier_po.items() if v}
+    mellom = [st.mean(v) for v in serier_po.values()]
+    innen = [st.pstdev(v) for v in serier_po.values() if len(v) > 1]
+    if mellom and innen:
+        # Std mot std. Første utkast sammenlignet std MELLOM med SPENN
+        # innen, og det er et eple mot en appelsin: et spenn er alltid
+        # større enn et standardavvik for samme tall.
+        print(f"\n       std MELLOM PO (av PO-snittene):  {st.pstdev(mellom):.2f} grader")
+        print(f"       median std INNEN ett PO (år):    {st.median(innen):.2f} grader")
+        print(f"       forhold:                         "
+              f"{st.pstdev(mellom)/st.median(innen):.1f}x")
+        print("       Er forholdet stort, er temperaturen først og fremst HVOR")
+        print("       området ligger, og bare i liten grad hvilket år det er.")
+
+    print("\n  d) INNEN ETT PO — forklarer prediktorene årsvariasjonen?")
+    print("     Geografien er konstant innen et PO. Blir rho borte her, var")
+    print("     det geografi og ikke variabelen som bar samvariasjonen.")
+    print(f"     {'prediktor':>26} {'median rho':>11} {'PO-er':>6}  fordeling per PO")
+    for navn, hent in [
+            ("lusetall (snitt_uv)", lambda k, p: p["snitt_uvektet"]),
+            ("temperatur", lambda k, p: p["temp_snitt"]),
+            ("DELVIS Stien-proxy", lambda k, p: p["stien_delvis"]),
+            ("n_lok (kontrollvariabel)", lambda k, p: float(p["n_lok"])),
+    ]:
+        rhoer = []
+        for po in range(1, 14):
+            par = [(hent(k, pred[k]), RANG[fasit[k]["kategori"]])
+                   for k in sorted(pred)
+                   if k[0] == po and fasit.get(k, {}).get("kategori") in RANG
+                   and hent(k, pred[k]) is not None]
+            # Minst tre år OG minst to ulike kategorier — ellers er rangen
+            # konstant og korrelasjonen udefinert (eller 0 per konstruksjon).
+            if len(par) < 3 or len({b for _, b in par}) < 2:
+                continue
+            rhoer.append(spearman([a for a, _ in par], [b for _, b in par]))
+        if not rhoer:
+            print(f"     {navn:>26} {'—':>11} {0:>6}  (ingen PO med nok variasjon)")
+            continue
+        fordeling = " ".join(f"{r:+.2f}" for r in sorted(rhoer))
+        print(f"     {navn:>26} {st.median(rhoer):>+11.3f} {len(rhoer):>6}  {fordeling}")
 
 
 def uro(rader: list[dict], pred: dict) -> None:
@@ -509,7 +755,95 @@ def uro(rader: list[dict], pred: dict) -> None:
 
 # ---------------------------------------------------------------- plott
 
-def plott(pred: dict, fasit: dict) -> Path:
+def plott_geografi(pred: dict, fasit: dict, bredde_po: dict) -> str:
+    """Kontrollen som SVG: temperatur mot breddegrad, farget etter kategori.
+
+    Ligger et punkt langt fra linja, er temperaturen den ÅRET noe annet
+    enn hvor området ligger. Ligger alle på linja, er den ikke det.
+    """
+    farge = {"lav": "#2f7d32", "moderat": "#c98a00", "hoy": "#b3261e",
+             "ukjent": "#bbbbbb"}
+    pkt = [(bredde_po[k], pred[k]["temp_snitt"],
+            fasit.get(k, {}).get("kategori", "ukjent"), k)
+           for k in sorted(pred)
+           if k in bredde_po and pred[k]["temp_snitt"] is not None]
+    if not pkt:
+        return ""
+    B, H, MV, MH, MT, MB = 900, 420, 60, 20, 34, 58
+    bx = [a for a, *_ in pkt]; by = [b for _, b, *_ in pkt]
+    x0, x1 = min(bx) - 0.3, max(bx) + 0.3
+    y0, y1 = min(by) - 0.4, max(by) + 0.4
+    def X(v): return MV + (v - x0) / (x1 - x0) * (B - MV - MH)
+    def Y(v): return H - MB - (v - y0) / (y1 - y0) * (H - MT - MB)
+
+    s = [f'<svg viewBox="0 0 {B} {H}" width="100%" font-family="system-ui" font-size="11">']
+    s.append(f'<text x="{MV}" y="18" font-size="13" font-weight="600">'
+             f'Kontrollen: sjøtemperatur mot breddegrad, ett punkt per PO-år'
+             f'</text>')
+    for t in range(int(y0) + 1, int(y1) + 1):
+        s.append(f'<line x1="{MV}" y1="{Y(t):.1f}" x2="{B-MH}" y2="{Y(t):.1f}" stroke="#eee"/>')
+        s.append(f'<text x="{MV-8}" y="{Y(t)+4:.1f}" text-anchor="end" fill="#666">{t}°C</text>')
+    for b in range(int(x0) + 1, int(x1) + 1, 2):
+        s.append(f'<text x="{X(b):.1f}" y="{H-MB+18:.1f}" text-anchor="middle" fill="#666">{b}°N</text>')
+    # minste kvadraters linje, bare som visuell referanse
+    mx, my = st.mean(bx), st.mean(by)
+    nev = sum((a - mx) ** 2 for a in bx)
+    if nev:
+        hell = sum((a - mx) * (b - my) for a, b in zip(bx, by)) / nev
+        s.append(f'<line x1="{X(x0):.1f}" y1="{Y(my + hell*(x0-mx)):.1f}" '
+                 f'x2="{X(x1):.1f}" y2="{Y(my + hell*(x1-mx)):.1f}" '
+                 f'stroke="#888" stroke-dasharray="5 4"/>')
+    for bb, tt, kat, k in pkt:
+        s.append(f'<circle cx="{X(bb):.1f}" cy="{Y(tt):.1f}" r="4.5" '
+                 f'fill="{farge[kat]}" fill-opacity="0.8"><title>PO{k[0]} {k[1]}: '
+                 f'{tt:.2f}°C ved {bb:.2f}°N ({kat})</title></circle>')
+    s.append(f'<text x="{MV}" y="{H-8}" fill="#666">'
+             f'Spearman(temp, breddegrad) = '
+             f'{spearman(bx, by):+.3f}. Punktene ligger nesten på en linje: '
+             f'temperaturen i et PO-år er i hovedsak hvor området ligger.</text>')
+    s.append('</svg>')
+    return "".join(s)
+
+
+def plott_proxy(pred: dict, fasit: dict) -> str:
+    """DELVIS Stien-proxy per kategori, samme form som lusefordelingen."""
+    farge = {"lav": "#2f7d32", "moderat": "#c98a00", "hoy": "#b3261e"}
+    grupper = defaultdict(list)
+    for k, p in pred.items():
+        f = fasit.get(k)
+        if f and f["kategori"] != "ukjent" and p["stien_delvis"] is not None:
+            grupper[f["kategori"]].append(p["stien_delvis"])
+    if not grupper:
+        return ""
+    B, H = 900, 270
+    m = max(x for v in grupper.values() for x in v)
+    def X(v): return 70 + (v / m) * (B - 110)
+    s = [f'<svg viewBox="0 0 {B} {H}" width="100%" font-family="system-ui" font-size="11">']
+    s.append('<text x="70" y="18" font-size="13" font-weight="600">'
+             'DELVIS Stien-proxy: lus × (T + 4,28)² — UTEN antall fisk</text>')
+    for i, kat in enumerate(KATEGORIER):
+        v = sorted(grupper.get(kat, []))
+        if not v:
+            continue
+        yy = 58 + i * 62
+        s.append(f'<text x="62" y="{yy+4}" text-anchor="end" font-weight="600" '
+                 f'fill="{farge[kat]}">{kat}</text>')
+        s.append(f'<line x1="{X(min(v)):.1f}" y1="{yy}" x2="{X(max(v)):.1f}" y2="{yy}" '
+                 f'stroke="{farge[kat]}" stroke-width="2" stroke-opacity="0.35"/>')
+        s.append(f'<line x1="{X(st.median(v)):.1f}" y1="{yy-12}" '
+                 f'x2="{X(st.median(v)):.1f}" y2="{yy+12}" stroke="{farge[kat]}" stroke-width="2"/>')
+        for val in v:
+            s.append(f'<circle cx="{X(val):.1f}" cy="{yy}" r="4" fill="{farge[kat]}" '
+                     f'fill-opacity="0.55"><title>{val:.2f}</title></circle>')
+        s.append(f'<text x="{B-30}" y="{yy+4}" text-anchor="end" fill="#666">'
+                 f'n={len(v)}, median {st.median(v):.2f}</text>')
+    s.append(f'<text x="70" y="{H-10}" fill="#666">To av tre ledd er ikke formelen. '
+             f'N_fisk mangler, og det er antall verter.</text>')
+    s.append('</svg>')
+    return "".join(s)
+
+
+def plott(pred: dict, fasit: dict, bredde_po: dict) -> Path:
     """To enkle plott som SVG i én HTML-fil. Ingen matplotlib i repoet,
     og en ny avhengighet er ikke verdt en utforskning."""
     UT.mkdir(exist_ok=True)
@@ -593,6 +927,9 @@ def plott(pred: dict, fasit: dict) -> Path:
     s.append('</svg>')
     p2 = "".join(s)
 
+    p3 = plott_geografi(pred, fasit, bredde_po)
+    p4 = plott_proxy(pred, fasit)
+
     ut = UT / "lusepress.html"
     ut.write_text(
         "<meta charset='utf-8'><title>Lusepress mot ekspertgruppen</title>"
@@ -602,7 +939,13 @@ def plott(pred: dict, fasit: dict) -> Path:
         "<p>Utforskning, ikke modell. Snitt voksne hunnlus per rapporterende "
         f"lokalitet i utvandringsvinduet uke 16–24, {FRA_AAR}–{TIL_AAR}. "
         "Fasit for 2020–2024; øvrige år er grå fordi kategorien ikke er kjent.</p>"
-        + p1 + p2, encoding="utf-8")
+        + p1 + p2
+        + "<h2>Sjøtemperatur som tredje prediktor</h2>"
+        "<p>Temperaturen kommer fra den samme ukerapporten som lusetallet — "
+        "samme ukeakse, samme etterslep. Plottet under er KONTROLLEN: hvis "
+        "temperaturen i et PO-år bare er hvor området ligger, forklarer den "
+        "ingenting utover geografi.</p>"
+        + p3 + p4, encoding="utf-8")
     return ut
 
 
@@ -626,10 +969,14 @@ def main() -> int:
     foelsomhet(p16, p14, fasit)
     spesifikke_sporsmaal(p16, fasit)
     baseline(fasit)
-    retning_ved_skifte(p16, fasit)
+    retning_ved_skifte(p16, fasit, "snitt_uvektet", "lusetallet", "8b")
+    retning_ved_skifte(p16, fasit, "temp_snitt", "temperaturen", "8c")
+    retning_ved_skifte(p16, fasit, "stien_delvis", "den delvise proxyen", "8d")
+    bredde_po = bredde_per_po(rader, p16)
+    geografikontrollen(rader, p16, fasit, bredde_po)
     uro(rader, p16)
 
-    sti = plott(p16, fasit)
+    sti = plott(p16, fasit, bredde_po)
     print(seksjon("PLOTT"))
     print(f"  {sti}")
     return 0
