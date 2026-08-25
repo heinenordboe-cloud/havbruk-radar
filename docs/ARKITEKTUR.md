@@ -51,8 +51,20 @@ en lokal kjøring ikke committer historikk til feil sted.
 
 ## Append-only, aldri omskriving
 
-Både `data/raw/<kilde>/<dato>.parquet` og `data/changelog/<dato>.parquet`
-skrives én gang og røres aldri igjen.
+Både `data/raw/<kilde>/<dato>.parquet` og
+`data/changelog/<kilde>/<dato>.parquet` skrives én gang og røres aldri
+igjen.
+
+Changeloggen ble indeksert på DATO alene fram til 25.08.2026. Da var
+datoen hele nøkkelen, og to kilder som gjaldt for samme dato kunne ikke
+sameksistere — den andre skrivingen slettet den førstes rader.
+`sjotemperatur` og `lusetall` har samme etterslep og deler dato, og
+backfillen av den første tok 238 datoer fra den andre. Nøkkelen er
+(kilde, dato) nå, som i `raw/`. Se `core/changelog.py` om F11.
+
+De 761 filene som ble skrevet før omleggingen ligger flatt som
+`data/changelog/<dato>.parquet`. De flyttes ikke — en skrevet fil røres
+ikke — og `les_alt()` leser begge layoutene.
 
 Grunnen er git, ikke minne. Komprimert parquet delta-komprimerer elendig,
 så en fil som skrives om hver uke lagres som en ny nesten-full kopi hver

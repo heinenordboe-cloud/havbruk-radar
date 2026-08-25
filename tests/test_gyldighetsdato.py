@@ -56,6 +56,30 @@ class TregKilde(Source):
         )
 
 
+class TregNabo(Source):
+    """Andre kilde med SAMME etterslep, som sjotemperatur ved siden av
+    lusetall. De to gjelder for samme uke og skriver samme dato."""
+
+    name = "trumf"
+    entity_type = "lokalitet"
+
+    def __init__(self, verdi="9.4"):
+        self.verdi = verdi
+
+    def gjelder_for(self, kjoredato: str) -> str:
+        return mandag(*uke_med_etterslep(dt.date.fromisoformat(kjoredato), 4))
+
+    def fetch(self, kjoredato):
+        return {"verdi": self.verdi}
+
+    def parse(self, raw, observed_at):
+        yield Observation(
+            entity_id="10029", entity_type=self.entity_type, entity_name="X",
+            field="sjotemperatur", value=raw["verdi"], source=self.name,
+            observed_at=observed_at,
+        )
+
+
 class KjappKilde(Source):
     """Kilde uten etterslep. Rører ikke gjelder_for()."""
 
@@ -153,10 +177,11 @@ def test_changeloggen_dateres_etter_observasjonen(isolert, monkeypatch):
 
     _kjor_uke(monkeypatch, [TregKilde("0.9")])
 
-    filer = sorted(p.name for p in (isolert / "changelog").iterdir())
-    assert filer == [f"{UKE_31}.parquet"]
+    filer = sorted(str(p.relative_to(isolert / "changelog"))
+                   for p in (isolert / "changelog").glob("*/*.parquet"))
+    assert filer == [f"treg/{UKE_31}.parquet"]
 
-    rader = _les(isolert / "changelog" / f"{UKE_31}.parquet")
+    rader = _les(isolert / "changelog" / "treg" / f"{UKE_31}.parquet")
     assert rader["observed_at"].unique().to_list() == [UKE_31]
     assert rader["new_value"].to_list() == ["0.9"]
 
@@ -338,3 +363,54 @@ def test_write_nekter_filnavn_som_ikke_stemmer_med_radene(isolert):
         snapshot.write(obs, MANDAG_24)
 
     assert not (isolert / "raw/treg").exists(), "ingenting skal være skrevet"
+
+
+# --------------------------------------- to kilder på samme dato (F11)
+
+def test_ukekjoring_med_to_trege_kilder_beholder_begge(isolert, monkeypatch):
+    """Begge kildene gjelder for uke 31 og skal begge stå i changeloggen.
+
+    Dette er tilfellet som ALLTID var trygt: run.py slår sammen alle
+    kilders endringer og skriver dem i én omgang. Testen holder på det,
+    så en senere omlegging ikke mister det.
+    """
+    snapshot.write(list(TregKilde("0.1").parse({"verdi": "0.1"}, UKE_30)), UKE_30)
+    snapshot.write(list(TregNabo("8.0").parse({"verdi": "8.0"}, UKE_30)), UKE_30)
+
+    _kjor_uke(monkeypatch, [TregKilde("0.9"), TregNabo("9.4")])
+
+    filer = sorted(str(p.relative_to(isolert / "changelog"))
+                   for p in (isolert / "changelog").glob("*/*.parquet"))
+    assert filer == [f"treg/{UKE_31}.parquet", f"trumf/{UKE_31}.parquet"]
+
+    alt = changelog.les_alt()
+    assert sorted(alt["source"].unique().to_list()) == ["treg", "trumf"]
+    assert alt["observed_at"].unique().to_list() == [UKE_31]
+
+
+def test_etterslept_kilde_sletter_ikke_naboens_changelog(isolert, monkeypatch):
+    """F11 i sin ekte form: kilden som var RØD hentes inn etterpå.
+
+    Uke 31 samles med bare `treg` (naboen feilet). `trumf` backfilles inn
+    for samme dato senere, som en egen skriving. Før 25.08.2026 slettet
+    den siste skrivingen den førstes rader — det var slik lusetall mistet
+    238 datoer til sjotemperatur-backfillen.
+    """
+    snapshot.write(list(TregKilde("0.1").parse({"verdi": "0.1"}, UKE_30)), UKE_30)
+    _kjor_uke(monkeypatch, [TregKilde("0.9")])
+
+    assert changelog.les_alt()["source"].unique().to_list() == ["treg"]
+
+    # Naboen hentes inn etterpå, slik backfill.py gjør det: én kilde,
+    # én dato, egen skriving.
+    snapshot.write(list(TregNabo("8.0").parse({"verdi": "8.0"}, UKE_30)), UKE_30)
+    egne = list(TregNabo("9.4").parse({"verdi": "9.4"}, UKE_31))
+    endr = diff.compare(snapshot.to_frame(egne), UKE_31)
+    snapshot.write(egne, UKE_31)
+    changelog.skriv(endr, UKE_31)
+
+    alt = changelog.les_alt()
+    assert sorted(alt["source"].unique().to_list()) == ["treg", "trumf"], \
+        "backfill av én kilde skal ikke slette den andres endringer"
+    assert (isolert / "changelog" / "treg" / f"{UKE_31}.parquet").exists()
+    assert (isolert / "changelog" / "trumf" / f"{UKE_31}.parquet").exists()

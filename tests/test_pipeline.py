@@ -602,8 +602,9 @@ def test_changelog_skriver_en_fil_per_kjoring(tmp_path, monkeypatch):
     changelog.skriv(_endring("2026-01-08", "20"), "2026-01-08")
     changelog.skriv(_endring("2026-01-15", "30"), "2026-01-15")
 
-    filer = sorted(p.name for p in (tmp_path / "changelog").glob("*.parquet"))
-    assert filer == ["2026-01-08.parquet", "2026-01-15.parquet"]
+    filer = sorted(str(p.relative_to(tmp_path / "changelog"))
+                   for p in (tmp_path / "changelog").glob("*/*.parquet"))
+    assert filer == ["falsk/2026-01-08.parquet", "falsk/2026-01-15.parquet"]
 
     alt = changelog.les_alt()
     assert alt.height == 2
@@ -621,6 +622,131 @@ def test_changelog_rekjoring_dobbeltforer_ikke(tmp_path, monkeypatch):
     changelog.skriv(_endring("2026-01-08", "20"), "2026-01-08")
 
     assert changelog.les_alt().height == 1
+
+
+def _endring_fra(kilde, dato, ny_verdi, eid="1"):
+    return pl.DataFrame([{
+        "entity_id": eid, "entity_type": "selskap", "entity_name": "Testlaks AS",
+        "field": "antall_ansatte", "old_value": "10", "new_value": ny_verdi,
+        "change_type": "endret", "source": kilde, "observed_at": dato,
+    }])
+
+
+def test_to_kilder_samme_dato_overlever_hverandre(tmp_path, monkeypatch):
+    """F11: lusetall og sjotemperatur har samme etterslep og deler dato.
+
+    Før 25.08.2026 var datoen alene filnavnet, og den andre skrivingen
+    slettet den førstes rader. Det traff 238 datoer i 2012-2016.
+    """
+    from core import changelog
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    changelog.skriv(_endring_fra("lusetall", "2026-07-27", "20"), "2026-07-27")
+    changelog.skriv(_endring_fra("sjotemperatur", "2026-07-27", "9.4"), "2026-07-27")
+
+    alt = changelog.les_alt()
+    assert sorted(alt["source"].to_list()) == ["lusetall", "sjotemperatur"]
+    assert alt.height == 2, "den andre skrivingen skal ikke ha slettet den første"
+
+    filer = sorted(str(f.relative_to(tmp_path / "changelog"))
+                   for f in (tmp_path / "changelog").glob("*/*.parquet"))
+    assert filer == ["lusetall/2026-07-27.parquet",
+                     "sjotemperatur/2026-07-27.parquet"]
+
+
+def test_rekjoring_av_samme_kilde_dobbeltforer_fortsatt_ikke(tmp_path, monkeypatch):
+    """Skillet som gjør (kilde, dato) riktig: din egen fil overskrives,
+    naboens finnes ikke for deg."""
+    from core import changelog
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    changelog.skriv(_endring_fra("lusetall", "2026-07-27", "20"), "2026-07-27")
+    changelog.skriv(_endring_fra("sjotemperatur", "2026-07-27", "9.4"), "2026-07-27")
+    changelog.skriv(_endring_fra("lusetall", "2026-07-27", "20"), "2026-07-27")
+
+    alt = changelog.les_alt()
+    assert alt.height == 2
+    assert sorted(alt["source"].to_list()) == ["lusetall", "sjotemperatur"]
+
+
+def test_skriv_krever_en_kilde_per_fil(tmp_path, monkeypatch):
+    """Filnavnet bærer kilden, så innholdet må være enig med seg selv."""
+    from core import changelog
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+
+    blandet = pl.concat([_endring_fra("lusetall", "2026-07-27", "20"),
+                         _endring_fra("sjotemperatur", "2026-07-27", "9.4")])
+    with pytest.raises(ValueError, match="skriv_per_dato"):
+        changelog.skriv(blandet, "2026-07-27")
+
+
+def test_skriv_per_dato_deler_paa_kilde_og_dato(tmp_path, monkeypatch):
+    """Én kjøring, to kilder, to datoer -> fire filer, ingen overskriving."""
+    from core import changelog
+
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    alle = pl.concat([
+        _endring_fra("lusetall", "2026-07-27", "20"),
+        _endring_fra("sjotemperatur", "2026-07-27", "9.4"),
+        _endring_fra("enhetsregisteret", "2026-08-24", "31"),
+    ])
+    skrevet = changelog.skriv_per_dato(alle)
+
+    assert len(skrevet) == 3
+    assert sorted(str(f.relative_to(tmp_path / "changelog")) for f in skrevet) == [
+        "enhetsregisteret/2026-08-24.parquet",
+        "lusetall/2026-07-27.parquet",
+        "sjotemperatur/2026-07-27.parquet",
+    ]
+    assert changelog.les_alt().height == 3
+
+
+def test_gammel_flat_fil_med_samme_kilde_avvises(tmp_path, monkeypatch):
+    """Det ene tvetydige tilfellet i migreringen: avvis, ikke gjett.
+
+    Den flate fila fra før omleggingen bærer allerede kilden. Skrives
+    <kilde>/<dato>.parquet ved siden av, teller les_alt() radene to ganger.
+    """
+    from core import changelog
+
+    kat = tmp_path / "changelog"
+    kat.mkdir()
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", kat)
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    _endring_fra("lusetall", "2026-07-27", "20").write_parquet(
+        kat / "2026-07-27.parquet")
+
+    with pytest.raises(changelog.Kildekollisjon, match="2026-07-27.parquet"):
+        changelog.skriv(_endring_fra("lusetall", "2026-07-27", "21"), "2026-07-27")
+
+
+def test_gammel_flat_fil_med_annen_kilde_er_ingen_kollisjon(tmp_path, monkeypatch):
+    """Det VANLIGE tilfellet: lusetall ligger flatt i 2012-2016, og
+    sjotemperatur backfilles inn ved siden av. De bærer hver sine rader."""
+    from core import changelog
+
+    kat = tmp_path / "changelog"
+    kat.mkdir()
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", kat)
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    _endring_fra("lusetall", "2014-06-02", "20").write_parquet(
+        kat / "2014-06-02.parquet")
+
+    changelog.skriv(_endring_fra("sjotemperatur", "2014-06-02", "9.4"),
+                    "2014-06-02")
+
+    alt = changelog.les_alt()
+    assert alt.height == 2
+    assert sorted(alt["source"].to_list()) == ["lusetall", "sjotemperatur"]
 
 
 def test_changelog_tom_gir_riktig_skjema(tmp_path, monkeypatch):
