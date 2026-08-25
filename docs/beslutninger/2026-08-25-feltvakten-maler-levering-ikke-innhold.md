@@ -199,6 +199,68 @@ ny modul.
 flyttes bare ved å bygge normalen på nytt, med en begrunnelse som blir
 stående i fila.
 
+## Gulvet krever et grunnlag — og akvakultur har en erklært margin
+
+Da normalen ble etablert 25.08 fikk 27 av 29 akvakultur-felt
+`gulv == median` med `gulv > 0`: `breddegrad` 1777, `arter` 532,
+`forste_klarering` 1761, identiske i hele grunnlaget. Simulert ville én
+lokalitet som forsvant gitt 20 alarmer. Det er normal drift.
+
+Gulvet etableres derfor bare når det hviler på minst
+`MIN_DATOER_FOR_GULV = 13` ulike observasjonsdatoer. Under det er
+`gulv` None — «vet ikke ennå» — og gulvprøven hoppes over. Tallet er
+målt: andelen vinduer der feltet står helt stille faller fra 100 % ved
+k=1 til 9,8 % ved k=13 og flater ut der.
+
+### Marginen er en vurdering, og den er merket som det
+
+Det etterlot en åpning: med to observasjonsdatoer var gulvprøven helt
+av for akvakultur, og 50 lokaliteter som forsvant fyrte ingenting.
+Volumvakten dekker det ikke heller — 50 er 97,2 % av referansen, og
+grensa er 90 %.
+
+En margin utledet av ANTALL observasjoner ble forsøkt og forkastet.
+Målt over lusetall og sjotemperatur er medianfallet under et
+to-observasjoners gulv 11 % og p90 er 79 %; en margin som absorberer
+det slipper gjennom et hvilket som helst realistisk tap. Og de to unge
+kildene ligner ikke på hverandre: akvakultur var uendret i 27 av 28
+feltoverganger på en uke, enhetsregisteret svingte 35 % i median og
+261 % på det meste. Ett målt tall kan ikke tjene begge.
+
+`kilder.akvakultur.gulv_margin: 0.01` er derfor satt som en VURDERING,
+ikke en måling, og det er den eneste terskelen i repoet som er det:
+
+> Akvakulturregisteret er et lisensregister. Lokaliteter kommer og går
+> enkeltvis gjennom forvaltningsvedtak, ikke i klynger. Et fall over
+> 1 % på én uke — atten lokaliteter av 1777 — er ikke normal drift.
+
+En måling på to observasjoner kan ikke skille 1 fra 50. En vurdering av
+hva slags register dette er, kan det. Forskjellen er ikke akademisk: et
+målt tall står til dataene motsier det, et vurdert tall står til noen
+endrer mening, og det skal være tydelig hvilket av dem dette er.
+
+Målt effekt: 0 og 1 lokalitet borte gir stille, 5 gir 2 alarmer, 50 gir
+26. enhetsregisteret får den IKKE — der ville 1 % fyrt konstant.
+
+### Marginen skal fjernes
+
+**Når akvakultur har et års historikk, fjernes `gulv_margin` og gulvet
+måles av kildens egne data.** Da er den ikke lenger nødvendig, og en
+vurdering skal ikke overleve dataene som kunne erstattet den. Det er
+den samme regelen som gjelder normalen selv: terskler måles når det
+finnes data å måle med, og gjettes ikke da.
+
+Merk at INGEN av delene skjer av seg selv. Normalen er append-only og
+bygges bare av `--bygg-feltnormal`; den 13. observasjonsdatoen endrer
+ingenting før noen kjører den kommandoen. Og selv da ville marginen
+fortsatt ligge i config og myke opp et gulv som ikke lenger trenger
+det.
+
+Rekkefølgen når året er gått er altså: bygg normalen på nytt, bekreft
+at akvakultur-feltene har fått et målt `gulv`, og fjern så
+`gulv_margin` fra config. Denne beslutningen er stedet det står, fordi
+ingen mekanisme minner om det.
+
 ## Prisen
 
 *(skisse — skrives om)*

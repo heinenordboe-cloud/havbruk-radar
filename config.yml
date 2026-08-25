@@ -90,3 +90,33 @@ kilder:
     # ved et uhell i en YAML-fil.
     aktiv: true
     base_url: "https://api.fiskeridir.no/pub-aqua/api/v1"
+
+    # Gulvmargin for innholdsvakten. DETTE ER EN VURDERING, IKKE EN
+    # MÅLING — det eneste tallet i dette repoet som ikke er målt, og det
+    # står her fordi det ikke KAN måles ennå.
+    #
+    # Akvakulturregisteret er et lisensregister. Lokaliteter kommer og
+    # går enkeltvis gjennom forvaltningsvedtak, ikke i klynger. Et fall
+    # over 1 % på én uke — atten lokaliteter av 1777 — er ikke normal
+    # drift, og det er en påstand om hva slags register dette er.
+    #
+    # En måling på to observasjoner kan ikke skille 1 fra 50. En
+    # vurdering av registerets natur kan det. Forskjellen på de to er
+    # ikke akademisk: et målt tall står til dataene motsier det, et
+    # vurdert tall står til noen endrer mening, og det skal være tydelig
+    # hvilket av dem dette er.
+    #
+    # Uten den er `gulv` None for alle 29 felt — akvakultur har to
+    # observasjonsdatoer, under feltnormal.MIN_DATOER_FOR_GULV = 13 — og
+    # gulvprøven er helt av. Målt effekt med 0.01: 0 og 1 lokalitet borte
+    # gir stille, 5 gir 2 alarmer, 50 gir 26.
+    #
+    # FJERNES når akvakultur har et års historikk. Da måles gulvet av
+    # kildens egne data, og en vurdering skal ikke overleve dataene som
+    # kunne erstattet den. Se docs/beslutninger/
+    # 2026-08-25-feltvakten-maler-levering-ikke-innhold.md.
+    #
+    # Settes IKKE på enhetsregisteret: den svingte 35 % i median og
+    # 261 % på det meste over sine tre datoer, og en 1 %-margin ville
+    # fyrt konstant.
+    gulv_margin: 0.01

@@ -2964,6 +2964,25 @@ def test_erklaert_gulv_margin_gjenaapner_prove(tmp_path, monkeypatch):
     assert len(tilsyn) == 1 and "under gulvet 990" in tilsyn[0], tilsyn
 
 
+def test_bare_akvakultur_har_erklaert_gulv_margin():
+    """Marginen er en VURDERING, og den gjelder ett register.
+
+    akvakultur er et lisensregister: lokaliteter kommer og går enkeltvis
+    gjennom forvaltningsvedtak, så et fall over 1 % på en uke er ikke
+    normal drift. enhetsregisteret svingte 35 % i median og 261 % på det
+    meste over sine tre datoer — en 1 %-margin ville fyrt konstant der.
+
+    Testen står for at nummer to ikke får den ved et uhell, f.eks. hvis
+    noen «rydder» ved å flytte verdien opp til et felles nivå.
+    """
+    from core import config
+
+    assert config.get("kilder.akvakultur.gulv_margin", None) == 0.01
+    for kilde in ["enhetsregisteret", "lusetall", "sjotemperatur"]:
+        assert config.get(f"kilder.{kilde}.gulv_margin", None) is None, \
+            f"{kilde} skal ikke ha en erklært margin"
+
+
 def test_strekket_telles_i_datoer_ikke_kjoringer(tmp_path, monkeypatch):
     """maks_nullstrekk er kalibrert i UKER. En rekjøring samme dag er
     ikke en ny uke, og skal ikke flytte strekket."""
