@@ -290,36 +290,62 @@ Målt på den faktiske backfillen: **27 uker per minutt**, altså ~2,2 s per
 uke med `--pause 0.4`. Kallet er 0,8 s av det; resten er diff, skriving
 og changelog. 730 uker tar ~27 minutter, én gang.
 
-### 401-blokka 24.08.2026 — observert, ikke forklart
+### 401-blokkene 24.–25.08.2026 — forklart: maskinen sov (F13)
 
-Backfillen skrev 239 uker på 8 minutter (~30 kall/min, ~30 MB) og fikk så
-`401 Unauthorized` på uke 31/2016, rett etter et `ReadTimeout`. Deretter
-401 på hver eneste av de 522 gjenstående ukene, i ni timer, uten én
-vellykket henting.
+To backfiller stoppet på `401 Unauthorized`. Årsaken er den samme, og
+den er fastslått — den har ingenting med ratebegrensning å gjøre.
 
-Det som er BEKREFTET:
+`Tilgang.token()` cachet utløpstiden som
+`time.monotonic() + expires_in - 60`. På macOS er `time.monotonic()`
+`mach_absolute_time()` (bekreftet med `time.get_clock_info`), og den
+står stille mens maskinen sover. Serverens klokke gjør ikke det.
 
-  - Tokenet lever 3600 s og fornyes ved 59 min, så kjøringen hentet nytt
-    token ~9 ganger og fikk 401 likevel.
-  - Ingen tokenkall feilet — da hadde feilen hatt en annen type.
-  - De samme nøklene virket dagen etter: token 200, uke 31/2016 200 med
-    128 587 byte.
+Kjøringen 25.08 er målt linje for linje, og tidsstemplene avgjør det:
 
-Det som IKKE er fastslått: hvorfor. En serverside-blokkering utløst av
-kalltempoet passer med observasjonene, men ingenting i responsen sier
-det — ingen `Retry-After`, ingen rate-headere, og 401 er feil status for
-en ratebegrensning. Det står som uforklart.
+    09:16:43  uke 11/2022 skrevet          ~4 s per uke
+    09:18:37  uke 12/2022 skrevet          114 s
+    09:18:39  Entering Sleep ... Using Batt (94 %)
+              ... Sleep/DarkWake på batteri i 38 minutter ...
+    09:52:14  uke 13/2022: 401
+    09:56:34  Wake ... due to lid / HID Activity
+    09:57:16  uke 15/2022: 401  ->  STOPPET etter tre på rad
 
-`Sjotemperatur.pause_s = 2.0` er satt som følge av dette, og er
-FORSIKRING og ikke en rettelse: ~20 kall/min i stedet for ~30, og hele
-historikken på ~48 minutter i stedet for ~27. Prisen er 21 minutter én
-gang. Alternativet er å gjette på en årsak vi ikke har bevist, og
-`docs/BARENTSWATCH-FUNN.md` §5 sa allerede at fravær av en dokumentert
-grense ikke er fravær av en grense.
+Søvnen begynte to sekunder etter at uke 12 ble skrevet. Regnestykket:
+tokenet ble hentet 08:42:57, maskinen var våken til 09:18:39 (36 min),
+sov 38 min, og våknet med et token som var 74 minutter gammelt i verden
+mens vår klokke sa 36. TTL er 60. Koden fornyet aldri på 401, så hver
+påfølgende uke fikk samme døde token.
 
-Loggen fra kjøringen kunne ikke skille de to hypotesene fra hverandre —
-den hadde ingen tidsstempler, og var 0 byte i ni timer fordi stdout mot
-fil er blokkbufret. `backfill.py` tidsstempler og linjebufrer nå.
+Kjøringen 24.08 er den samme feilen over natta: 22:58 til 08:05, det
+meste av det i søvn. Den tidligere antakelsen her — serverside-blokkering
+etter ~30 kall/min — var **feil**, og den ble bare stående fordi loggen
+manglet tidsstempler. Uke 239 var ikke en grense hos BarentsWatch; det
+var tidspunktet maskinen sovnet.
+
+Rettet 25.08.2026 på to steder, se `sources/_barentswatch.py` og
+CLAUDE.md 1b-1:
+
+  - alderen måles med veggklokka, som er den som handler om verden
+  - `Tilgang.get()` re-autentiserer ÉN gang på 401 og prøver om igjen.
+    Serveren er autoriteten på om tokenet duger; en klokke kan bare
+    fange at vi regnet feil, aldri at en nøkkel er rullert eller en
+    tilgang trukket.
+
+### Om `pause_s = 2.0`
+
+`Sjotemperatur.pause_s` er 2,0 mot lusetalls 0,5. Den ble satt 25.08 som
+forsikring mot en ratebegrensning som viste seg ikke å finnes, og den
+blir stående på egne meritter, ikke på den begrunnelsen:
+
+Eksporten er 128 kB per ukekall mot lusetalls få kilobyte. ~20 kall/min
+i stedet for ~30 tar hele historikken fra ~27 til ~48 minutter — 21
+minutter, én gang, for en kilde vi skal bruke i to år mot et API uten
+dokumentert grense. `docs/BARENTSWATCH-FUNN.md` §5 sier at fravær av en
+dokumentert grense ikke er fravær av en grense, og det står ved lag selv
+om det ikke var det som skjedde her.
+
+Målt: 534 uker på 74 minutter med denne pausen, inkludert 38 minutter
+søvn — altså ~36 minutter reell kjøretid for 534 uker.
 
 ## 11. Det som IKKE er bygget
 

@@ -41,7 +41,7 @@ import httpx
 
 from core.config import get
 from core.contract import Observation, Source
-from sources import _barentswatch, _http
+from sources import _barentswatch
 
 # Innlogging og ukeregning deles med `sjotemperatur` — se
 # sources/_barentswatch.py. Navnene re-eksporteres her fordi
@@ -131,7 +131,9 @@ class Lusetall(Source):
         egen = client is None
         c = client or self._klient()
         try:
-            svar = _http.get(
+            # Gjennom Tilgang og ikke _http direkte: den legger én
+            # re-autentisering på en 401 oppå retryen. Se F13.
+            svar = self._tilgang.get(
                 c, f"{base}/v1/geodata/fishhealth/locality/{aar}/{uke}",
                 hva=f"uke {uke}/{aar}",
             )

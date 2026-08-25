@@ -293,8 +293,8 @@ def test_utvalget_settes_i_hent_uke_ikke_i_fetch(monkeypatch):
 
     kilde = Sjotemperatur()
     monkeypatch.setattr(kilde._tilgang, "klient", lambda accept=None: _LukkbarKlient())
-    monkeypatch.setattr(sjotemperatur._http, "get",
-                        lambda c, url, hva=None, **kw: FalsktSvar())
+    monkeypatch.setattr(type(kilde._tilgang), "get",
+                        lambda self, c, url, hva=None, **kw: FalsktSvar())
 
     # Veien backfillen går: hent_uke() alene, ingen fetch().
     assert kilde.hent_uke(2026, 30) == tekst

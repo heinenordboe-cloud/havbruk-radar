@@ -92,8 +92,13 @@ class Tilgang:
 
     def token(self) -> str:
         """Token caches og gjenbrukes. En backfill er hundrevis av kall;
-        ett tokenkall per API-kall er hverken nødvendig eller høflig."""
-        if self._token and time.monotonic() < self._token_utloper:
+        ett tokenkall per API-kall er hverken nødvendig eller høflig.
+
+        Alderen måles med VEGGKLOKKA. Se `_token_utloper` for hvorfor det
+        er `time.time()` og ikke `time.monotonic()` her — det er motsatt
+        av hva man vanligvis skal velge.
+        """
+        if self._token and time.time() < self._token_utloper:
             return self._token
 
         # get() kaster hvis miljøvariabelen mangler. Det er med vilje: en
@@ -129,9 +134,73 @@ class Tilgang:
 
         data = svar.json()
         self._token = data["access_token"]
+
+        # VEGGKLOKKE, ikke monotonic — F13.
+        #
+        # monotonic er normalt riktig for «hvor lenge siden», nettopp fordi
+        # den ikke lar seg flytte av NTP eller av at noen stiller klokka.
+        # Her er den feil, og grunnen er den vanlige i dette repoet: den
+        # måler noe som handler om OSS, mens spørsmålet handler om VERDEN.
+        #
+        # `time.monotonic()` er `mach_absolute_time()` på macOS, og den
+        # STÅR STILLE mens maskinen sover. Serverens klokke gjør ikke det.
+        # 25.08.2026 sov maskinen 38 minutter på batteri midt i en
+        # backfill: tokenet ble 74 minutter gammelt hos BarentsWatch mens
+        # vår klokke sa 36, TTL er 60, og alle de 227 gjenstående ukene
+        # fikk 401. Samme form som F4, F6, F7 og F8 — et tidspunkt om oss
+        # brukt som om det handlet om verden.
+        #
+        # Veggklokka kan hoppe. Hopper den bakover, tror vi tokenet lever
+        # lenger enn det gjør — og da fanger 401-veien i `get()` det.
+        # Hopper den forover, fornyer vi for tidlig, som bare koster ett
+        # kall. Begge feilene er små; den monotonic gjorde var stille og
+        # permanent.
+        #
         # Fornyes 60 s før utløp, så et kall ikke dør midt i en backfill.
-        self._token_utloper = time.monotonic() + int(data.get("expires_in", 3600)) - 60
+        self._token_utloper = time.time() + int(data.get("expires_in", 3600)) - 60
         return self._token
+
+    def forny(self) -> str:
+        """Kast tokenet vi har, og hent et nytt.
+
+        Finnes for 401-veien i `get()`. Den som kaller har fått vite av
+        SERVEREN at tokenet ikke duger, og det er en sterkere kilde enn
+        vår egen utregning av når det burde utløpt.
+        """
+        self._token = None
+        self._token_utloper = 0.0
+        return self.token()
+
+    def get(self, client: httpx.Client, url: str, hva: str | None = None,
+            **kwargs) -> httpx.Response:
+        """`_http.get()`, men med ÉN re-autentisering hvis svaret er 401.
+
+        Serveren er autoriteten på om tokenet er gyldig — ikke klokka vår.
+        Veggklokka i `token()` retter regnestykket, men den dekker bare
+        det tilfellet der vi regnet feil. Denne dekker resten: en rullert
+        nøkkel, et tilbakekalt token, eller en server som gir kortere
+        levetid enn `expires_in` lovte. Ingen av dem kan utledes av en
+        klokke, uansett hvilken.
+
+        ÉN gang, og bare én. En 401 som overlever en fersk innlogging er
+        ekte — nøkkelen er feil, eller tilgangen er trukket — og skal opp
+        og felle kilden, ikke løkke.
+
+        Dette er IKKE retry. `_http` retryer transiente feil og skal
+        fortsatt ikke røre 401: en 4xx blir ikke bedre av å spørres om
+        igjen med det samme. Her spør vi om igjen med noe NYTT, og det er
+        en annen handling enn å gjenta seg selv.
+        """
+        try:
+            return _http.get(client, url, hva=hva, **kwargs)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 401:
+                raise
+
+        print(f"    [auth] {hva or url}: 401 — henter nytt token og "
+              f"prøver én gang til")
+        client.headers["Authorization"] = f"Bearer {self.forny()}"
+        return _http.get(client, url, hva=hva, **kwargs)
 
     def klient(self, accept: str = "application/json") -> httpx.Client:
         return httpx.Client(

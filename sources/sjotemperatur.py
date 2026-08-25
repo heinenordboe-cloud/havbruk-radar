@@ -128,7 +128,7 @@ import httpx
 
 from core.config import get
 from core.contract import Observation, Source
-from sources import _barentswatch, _http
+from sources import _barentswatch
 from sources._barentswatch import PAUSE_S, TIDLIGSTE, mandag, uke_med_etterslep  # noqa: F401
 
 # Kolonnenavnene i eksporten, verifisert 24.08.2026. Norske, med BOM,
@@ -290,7 +290,9 @@ class Sjotemperatur(Source):
         egen = client is None
         c = client or self._tilgang.klient(accept="text/csv")
         try:
-            svar = _http.get(
+            # Gjennom Tilgang og ikke _http direkte: den legger én
+            # re-autentisering på en 401 oppå retryen. Se F13.
+            svar = self._tilgang.get(
                 c, f"{base}/v1/geodata/download/fishhealth",
                 hva=f"uke {uke}/{aar}",
                 params={

@@ -19,7 +19,7 @@ Ingen kilde skal kalle `date.today()` eller `datetime.now()` for å
 avgjøre hvilket tidsrom den henter, og kjernen slår opp kjøredatoen
 nøyaktig ett sted: `run.py`.
 
-Fire feil i dette prosjektet har hatt samme rotårsak — et tidspunkt
+Fem feil i dette prosjektet har hatt samme rotårsak — et tidspunkt
 slått opp på nytt et sted til, eller et tidspunkt som handler om OSS
 brukt som om det handlet om VERDEN:
 
@@ -33,10 +33,45 @@ brukt som om det handlet om VERDEN:
 - **F8:** frekvensvakten målte `sist_forsok` der den skulle målt
   `sist_ok`. Lusetall feilet tre ganger på rad uten å hente en rad, og
   fikk syv dagers karantene for det.
+- **F13:** `Tilgang.token()` målte tokenets alder med `time.monotonic()`.
+  Maskinen sov 38 minutter på batteri midt i en backfill; tokenet ble 74
+  minutter gammelt hos BarentsWatch mens vår klokke sa 36, TTL er 60, og
+  alle gjenstående uker fikk 401.
 
 Skillet som gjelder: `observed_at` handler om verden, `fetched_at` og
 `sist_forsok` handler om oss. Blander du dem, blir feilen usynlig for
 enhver kilde uten etterslep — og permanent for dem som har det.
+
+### 1b-1. VALGET AV KLOKKE er også et valg av hvem tiden handler om
+
+F13 er samme familie som de fire over, men en variant verdt et eget
+navn: der de andre slo opp FEIL TIDSPUNKT, slo F13 opp riktig tidspunkt
+med FEIL KLOKKE.
+
+`time.monotonic()` er normalt det riktige valget for «hvor lenge siden»,
+nettopp fordi den ikke lar seg flytte av NTP eller av at noen stiller
+klokka. Det gjør den til standardrådet — og det var derfor den sto der.
+
+Men `monotonic` er `mach_absolute_time()` på macOS, og den STÅR STILLE
+mens maskinen sover. Det er ikke en feil i klokka; det er definisjonen
+av den. Den måler hvor lenge VI har vært våkne. Spørsmålet «har serveren
+utdatert tokenet vårt» handler om verden, og verden sover ikke mens
+lokket er lukket.
+
+Regelen: **spør hvem tiden tilhører før du velger klokke.**
+
+  - Handler den om oss — hvor lenge har prosessen kjørt, hvor lenge tok
+    dette kallet, hvor lenge skal vi vente — er `monotonic` riktig.
+  - Handler den om verden — er dette tokenet utløpt, er denne uka
+    ferdig, hvor mange dager siden hentet vi sist — er veggklokka
+    riktig, med alle sine skjevheter.
+
+Og når motparten kan svare selv, er svaret dens bedre enn regnestykket
+ditt uansett hvilken klokke du valgte. Derfor re-autentiserer
+`Tilgang.get()` én gang på 401: en klokke kan bare fange at VI regnet
+feil, aldri at nøkkelen er rullert eller tilgangen trukket. Det er samme
+prinsipp som 1b-2 og regel 3 — still spørsmålet du faktisk vil ha svar
+på, til den som faktisk vet.
 
 ### 1b-2. Et FORSØK er ikke et RESULTAT
 
