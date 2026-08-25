@@ -44,8 +44,16 @@ bump versjonen i `requirements.txt`, kjør testene, commit.
 
 Nøkler ligger aldri i fil. De refereres som `${NAVN}` i `config.yml` og
 hentes fra miljøet — `~/.havbruk.env` lokalt, Actions-secrets i
-datarepoet i drift. I dag er det to, begge for lusetall:
-`BARENTSWATCH_CLIENT_ID` og `BARENTSWATCH_CLIENT_SECRET`.
+datarepoet i drift. I dag er det to: `BARENTSWATCH_CLIENT_ID` og
+`BARENTSWATCH_CLIENT_SECRET`.
+
+De kreves av to kilder — `lusetall` og `sjotemperatur` — og er deklarert
+i BEGGE blokkene i `config.yml`, ikke bare i den ene. Det er ikke
+duplisering for duplikatets skyld: `core/miljo.py` spør per AKTIV kilde,
+så en nøkkel som bare sto under `lusetall` ville vært usynlig den dagen
+`lusetall` slås av og `sjotemperatur` står igjen alene. Feilmeldingen
+navngir da begge config-stiene, som er riktig — det er to kilder som
+mister innloggingen, ikke én.
 
 **I drift er det to ledd, ikke ett.** Secreten må finnes i datarepoets
 innstillinger, OG den må eksponeres til «Samle inn»-steget i `samle.yml`

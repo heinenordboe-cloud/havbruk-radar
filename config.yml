@@ -55,6 +55,34 @@ kilder:
     # skrive uka, og sier fra i stedet.
     min_rapportert_andel: 0.80
 
+  sjotemperatur:
+    # BarentsWatch fiskehelse, eksportendepunktet. Verifisert mot levende
+    # tjeneste 24.08.2026, se docs/KILDE-SJOTEMPERATUR.md.
+    #
+    # Samme OAuth2-nøkler som lusetall, men deklarert på nytt HER. Det er
+    # ikke duplisering for duplikatets skyld: core/miljo.py leser
+    # ${}-syntaksen per AKTIV kilde, så en nøkkel som bare sto under
+    # lusetall ville vært usynlig den dagen lusetall slås av og denne
+    # står igjen alene.
+    aktiv: true
+    base_url: "https://www.barentswatch.no/bwapi"
+    token_url: "https://id.barentswatch.no/connect/token"
+    client_id: "${BARENTSWATCH_CLIENT_ID}"
+    client_secret: "${BARENTSWATCH_CLIENT_SECRET}"
+
+    # Temperaturen rapporteres i SAMME ukeskjema som lusetallet.
+    # Etterslepet er derfor ikke likt lusetalls — det er det samme.
+    # Målt 24.08.2026: uke N-1 har 30,8 %, N-4 har 99,5 %.
+    uker_etterslep: 4
+
+    # Andel av IKKE-BRAKKLAGTE lokaliteter som må ha en temperatur før
+    # uka skrives uten innsigelse. Målt over alle 763 ferdige uker
+    # 2012-2026: laveste uke 76,8 %, median 99,4 %. 0.80 gir 2 falske
+    # alarmer (uke 21/2013 og uke 51/2012) og fanger den ferskeste uka
+    # med 49 prosentpoengs margin. Se sources/sjotemperatur.py for
+    # hvorfor nevneren er ikke-brakklagte og ikke noe som ligner mer.
+    min_rapportert_andel: 0.80
+
   akvakultur:
     # Endepunkt og paginering er verifisert mot levende API 17.08.2026.
     # Feltvalget ligger i sources/akvakultur.py, ikke her —

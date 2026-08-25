@@ -1,0 +1,134 @@
+# Ekspertgruppens kategorisering av lakselusindusert villfiskdødelighet
+# per produksjonsområde per år. MANUELT INNSAMLET FASIT fra offentlige
+# rapporter — ikke innsamlede observasjoner. Se analyse/fasit/README.md
+# for hvorfor fila ligger her og ikke i data/.
+#
+# Kategoriene er terskler på estimert dødelighet:
+#   lav = under 10 %, moderat = 10-30 %, hoy = over 30 %
+#   ukjent = året er ikke lest ut av en rapport. IKKE gjettet.
+#
+# kilde:     hvilken rapport verdien er lest fra
+# sikkerhet: verifisert = lest direkte i rapporten
+#            utledet    = avledet, ikke lest som kategori
+#            ingen      = ukjent, ingen kilde
+#
+# Skrevet 24.08.2026. Nye årganger legges til som nye rader; en rad som
+# endres skal endres med ny kilde og ny dato i denne kommentaren.
+po,aar,kategori,kilde,sikkerhet
+1,2020,lav,ekspertrapport,verifisert
+1,2021,lav,styringsgruppen,verifisert
+1,2022,lav,ekspertrapport,verifisert
+1,2023,lav,styringsgruppen,verifisert
+1,2024,lav,ekspertrapport,utledet
+2,2020,hoy,ekspertrapport,verifisert
+2,2021,lav,styringsgruppen,verifisert
+2,2022,moderat,ekspertrapport,verifisert
+2,2023,moderat,styringsgruppen,verifisert
+2,2024,moderat,ekspertrapport,utledet
+3,2020,hoy,ekspertrapport,verifisert
+3,2021,hoy,styringsgruppen,verifisert
+3,2022,hoy,ekspertrapport,verifisert
+3,2023,hoy,styringsgruppen,verifisert
+3,2024,hoy,ekspertrapport,utledet
+4,2020,moderat,ekspertrapport,verifisert
+4,2021,hoy,styringsgruppen,verifisert
+4,2022,hoy,ekspertrapport,verifisert
+4,2023,moderat,styringsgruppen,verifisert
+4,2024,moderat,ekspertrapport,utledet
+5,2020,lav,ekspertrapport,verifisert
+5,2021,moderat,styringsgruppen,verifisert
+5,2022,moderat,ekspertrapport,verifisert
+5,2023,moderat,styringsgruppen,verifisert
+5,2024,moderat,ekspertrapport,utledet
+6,2020,lav,ekspertrapport,verifisert
+6,2021,lav,styringsgruppen,verifisert
+6,2022,moderat,ekspertrapport,verifisert
+6,2023,moderat,styringsgruppen,verifisert
+6,2024,moderat,ekspertrapport,utledet
+7,2020,moderat,ekspertrapport,verifisert
+7,2021,moderat,styringsgruppen,verifisert
+7,2022,moderat,ekspertrapport,verifisert
+7,2023,moderat,styringsgruppen,verifisert
+7,2024,moderat,ekspertrapport,utledet
+8,2020,lav,ekspertrapport,verifisert
+8,2021,lav,styringsgruppen,verifisert
+8,2022,moderat,ekspertrapport,verifisert
+8,2023,lav,styringsgruppen,verifisert
+8,2024,moderat,ekspertrapport,utledet
+9,2020,lav,ekspertrapport,verifisert
+9,2021,lav,styringsgruppen,verifisert
+9,2022,lav,ekspertrapport,verifisert
+9,2023,lav,styringsgruppen,verifisert
+9,2024,lav,ekspertrapport,utledet
+10,2020,lav,ekspertrapport,verifisert
+10,2021,lav,styringsgruppen,verifisert
+10,2022,lav,ekspertrapport,verifisert
+10,2023,lav,styringsgruppen,verifisert
+10,2024,moderat,ekspertrapport,utledet
+11,2020,lav,ekspertrapport,verifisert
+11,2021,lav,styringsgruppen,verifisert
+11,2022,lav,ekspertrapport,verifisert
+11,2023,lav,styringsgruppen,verifisert
+11,2024,moderat,ekspertrapport,utledet
+12,2020,lav,ekspertrapport,verifisert
+12,2021,lav,styringsgruppen,verifisert
+12,2022,lav,ekspertrapport,verifisert
+12,2023,lav,styringsgruppen,verifisert
+12,2024,lav,ekspertrapport,utledet
+13,2020,lav,ekspertrapport,verifisert
+13,2021,lav,styringsgruppen,verifisert
+13,2022,lav,ekspertrapport,verifisert
+13,2023,lav,styringsgruppen,verifisert
+13,2024,lav,ekspertrapport,utledet
+1,2018,ukjent,,ingen
+2,2018,ukjent,,ingen
+3,2018,ukjent,,ingen
+4,2018,ukjent,,ingen
+5,2018,ukjent,,ingen
+6,2018,ukjent,,ingen
+7,2018,ukjent,,ingen
+8,2018,ukjent,,ingen
+9,2018,ukjent,,ingen
+10,2018,ukjent,,ingen
+11,2018,ukjent,,ingen
+12,2018,ukjent,,ingen
+13,2018,ukjent,,ingen
+1,2019,ukjent,,ingen
+2,2019,ukjent,,ingen
+3,2019,ukjent,,ingen
+4,2019,ukjent,,ingen
+5,2019,ukjent,,ingen
+6,2019,ukjent,,ingen
+7,2019,ukjent,,ingen
+8,2019,ukjent,,ingen
+9,2019,ukjent,,ingen
+10,2019,ukjent,,ingen
+11,2019,ukjent,,ingen
+12,2019,ukjent,,ingen
+13,2019,ukjent,,ingen
+1,2025,ukjent,,ingen
+2,2025,ukjent,,ingen
+3,2025,ukjent,,ingen
+4,2025,ukjent,,ingen
+5,2025,ukjent,,ingen
+6,2025,ukjent,,ingen
+7,2025,ukjent,,ingen
+8,2025,ukjent,,ingen
+9,2025,ukjent,,ingen
+10,2025,ukjent,,ingen
+11,2025,ukjent,,ingen
+12,2025,ukjent,,ingen
+13,2025,ukjent,,ingen
+1,2026,ukjent,,ingen
+2,2026,ukjent,,ingen
+3,2026,ukjent,,ingen
+4,2026,ukjent,,ingen
+5,2026,ukjent,,ingen
+6,2026,ukjent,,ingen
+7,2026,ukjent,,ingen
+8,2026,ukjent,,ingen
+9,2026,ukjent,,ingen
+10,2026,ukjent,,ingen
+11,2026,ukjent,,ingen
+12,2026,ukjent,,ingen
+13,2026,ukjent,,ingen

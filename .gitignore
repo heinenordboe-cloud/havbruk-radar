@@ -18,3 +18,8 @@ dashboard/.evidence/
 # sjekkut. Den har allerede sviktet to ganger. En regel som skal gjelde
 # repoet må ligge i repoet.
 /.claude/
+
+# Generert av analyse/. Ren funksjon av snapshots + fasit, kan alltid
+# regenereres — og en generert fil som skrives om hver kjøring er
+# nøyaktig mønsteret som får repoet til å vokse kvadratisk.
+analyse/ut/

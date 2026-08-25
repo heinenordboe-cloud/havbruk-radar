@@ -35,41 +35,27 @@ tatt. Se beslutningen fra 18.08.
 from __future__ import annotations
 
 import datetime as dt
-import time
 from typing import Any, Callable, Iterable
 
 import httpx
 
 from core.config import get
 from core.contract import Observation, Source
-from sources import _http
+from sources import _barentswatch, _http
 
-STANDARD_BASE = "https://www.barentswatch.no/bwapi"
-STANDARD_TOKEN_URL = "https://id.barentswatch.no/connect/token"
-
-# Tidligste uke med data. 2010 og 2011 gir 200 OK med tom liste, ikke 404.
-TIDLIGSTE = (2012, 1)
-
-# Ingen dokumentert ratebegrensning, ingen X-RateLimit-headere. Målt
-# 0,19 s per kall. Pausen er forsikring, ikke etterlevelse: fravær av en
-# dokumentert grense er ikke fravær av en grense, og vi skal bruke denne
-# kilden i to år.
-PAUSE_S = 0.5
-
-
-def mandag(aar: int, uke: int) -> str:
-    """ISO-uke -> dato for mandagen. Uke 34/2026 -> '2026-08-17'.
-
-    Valget står for alltid i filnavnene og skal ikke endres senere.
-    """
-    return dt.date.fromisocalendar(aar, uke, 1).isoformat()
-
-
-def uke_med_etterslep(i_dag: dt.date, uker: int) -> tuple[int, int]:
-    """ISO-år og -uke `uker` uker før `i_dag`."""
-    d = i_dag - dt.timedelta(weeks=uker)
-    iso = d.isocalendar()
-    return iso.year, iso.week
+# Innlogging og ukeregning deles med `sjotemperatur` — se
+# sources/_barentswatch.py. Navnene re-eksporteres her fordi
+# `backfill.py` og testene importerer dem fra denne modulen, og fordi et
+# navn som flyttes er et navn som kan bli borte i en importfeil hos noen
+# andre. Delt KODE, ikke delt TILSTAND: hver kilde har sin egen Tilgang.
+from sources._barentswatch import (  # noqa: F401
+    PAUSE_S,
+    STANDARD_BASE,
+    STANDARD_TOKEN_URL,
+    TIDLIGSTE,
+    mandag,
+    uke_med_etterslep,
+)
 
 
 # Feltnavn er en kontrakt mot historikken. Døper du om et felt senere,
@@ -109,59 +95,21 @@ class Lusetall(Source):
 
     def __init__(self) -> None:
         self.enabled = bool(get("kilder.lusetall.aktiv", False))
-        self._token: str | None = None
-        self._token_utloper: float = 0.0
+        self._tilgang = _barentswatch.Tilgang(self.name)
 
     # ---- autentisering -------------------------------------------------
+    #
+    # Selve innloggingen ligger i sources/_barentswatch.py, delt med
+    # `sjotemperatur`. De to metodene her er igjen fordi de er kildens
+    # egen flate: testen for 400 invalid_client kaller `_hent_token()`
+    # direkte, og en delegasjon er billigere enn å flytte en test som
+    # dokumenterer en feil vi faktisk har hatt.
 
     def _hent_token(self) -> str:
-        """Token caches og gjenbrukes. Backfill er 730 kall; ett
-        token-kall per API-kall er hverken nødvendig eller høflig."""
-        if self._token and time.monotonic() < self._token_utloper:
-            return self._token
-
-        # get() kaster hvis miljøvariabelen mangler. Det er med vilje: en
-        # kilde som ikke får logge inn skal feile rødt, ikke returnere
-        # tomt — ellers ser den ut som en uke uten lus.
-        cid = get("kilder.lusetall.client_id")
-        sec = get("kilder.lusetall.client_secret")
-        if not cid or not sec:
-            raise RuntimeError(
-                "BARENTSWATCH_CLIENT_ID/-SECRET mangler. Kilden feiler "
-                "heller enn å levere tomt."
-            )
-
-        url = get("kilder.lusetall.token_url", STANDARD_TOKEN_URL)
-        try:
-            svar = _http.post(url, hva="tokenkall", data={
-                "client_id": cid,
-                "client_secret": sec,
-                "grant_type": "client_credentials",
-                "scope": "api",
-            }, timeout=30)
-        except httpx.HTTPStatusError as e:
-            # Feil secret gir 400 invalid_client, ikke 401. Verdt å si.
-            # 400 er permanent, så _http prøver ikke igjen — feilen kommer
-            # med én gang, slik den skal.
-            if e.response.status_code == 400:
-                raise RuntimeError(
-                    f"400 fra token-endepunktet ({e.response.text[:120]}). "
-                    f"Sjekk at secreten i portalen er den samme som i miljøet."
-                ) from e
-            raise
-
-        data = svar.json()
-        self._token = data["access_token"]
-        # Fornyes 60 s før utløp, så et kall ikke dør midt i en backfill.
-        self._token_utloper = time.monotonic() + int(data.get("expires_in", 3600)) - 60
-        return self._token
+        return self._tilgang.token()
 
     def _klient(self) -> httpx.Client:
-        return httpx.Client(
-            headers={"Authorization": f"Bearer {self._hent_token()}",
-                     "Accept": "application/json"},
-            timeout=60,
-        )
+        return self._tilgang.klient()
 
     # ---- henting -------------------------------------------------------
 
