@@ -37,6 +37,14 @@ brukt som om det handlet om VERDEN:
   Maskinen sov 38 minutter på batteri midt i en backfill; tokenet ble 74
   minutter gammelt hos BarentsWatch mens vår klokke sa 36, TTL er 60, og
   alle gjenstående uker fikk 401.
+- **F14:** løpenummeret i filnavnet (`.2`, `.3`) var en stedfortreder
+  for rekkefølge — en høyere `.N` var skrevet senere OG bar en nyere
+  påstand. Arkivinnsettingen brøt det: for 2017-10-31 er `.2`
+  Wayback-kopien utgitt 20.07.2024, ved siden av en `.parquet` utgitt to
+  år senere. `previous()` og `les_mellom()` sorterte fortsatt på filnavn
+  etter at `versjoner()` var lagt om. Målt over de 81 månedene: bare 2 av
+  9391 endringsrader ville forsvunnet — men **1805 changelog-rader ville
+  oppgitt en to år gammel verdi som forrige måneds tall.**
 
 Skillet som gjelder: `observed_at` handler om verden, `fetched_at` og
 `sist_forsok` handler om oss. Blander du dem, blir feilen usynlig for

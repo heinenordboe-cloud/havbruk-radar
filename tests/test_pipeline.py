@@ -2881,7 +2881,8 @@ def test_bygg_teller_datoer_ikke_filer():
 
 
 def test_bygg_bruker_siste_fil_for_datoen():
-    """Høyest løpenummer vinner — samme rekkefølge som previous() velger."""
+    """Siste innslag for datoen vinner — samme rekkefølge som
+    les_mellom() gir, som er utgivelsesrekkefølge og ikke løpenummer."""
     historikk = [
         ("2026-01-01", _ramme("2026-01-01", "flagg", ["True"] * 5 + ["False"] * 95)),
         ("2026-01-01", _ramme("2026-01-01", "flagg", ["True"] * 40 + ["False"] * 60)),

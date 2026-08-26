@@ -360,24 +360,36 @@ def utvalg_i(frame: pl.DataFrame) -> dict | None:
 
 
 def previous(source: str, before: str) -> pl.DataFrame | None:
-    """Siste snapshot fra denne kilden før gitt dato.
+    """Siste snapshot fra denne kilden før gitt dato — nyeste PÅSTAND om
+    den datoen, ikke høyeste løpenummer.
 
-    Ved flere filer på samme (siste) dato — kollisjon løst med
-    løpenummer — velges den med høyest løpenummer, ikke den som
-    sorterer sist alfabetisk (".10" < ".2" alfabetisk, ikke tallmessig).
+    To ledd, og de svarer på hver sin ting:
+
+        1. hvilken DATO sto sist         — filnavnene avgjør
+        2. hvilken PÅSTAND om den gjelder — `forrige_versjon()` avgjør
+
+    Andre ledd var løpenummeret fram til 26.08.2026, og det holdt så lenge
+    en høyere `.N` også bar en nyere påstand. Arkivinnsettingen brøt den
+    sammenhengen: for 2017-10-31 er `.2` Wayback-kopien utgitt 20.07.2024,
+    skrevet ved siden av en `.parquet` utgitt to år senere. Leste vi
+    løpenummeret, ville `diff.compare()` sammenlignet november 2017 mot en
+    to år gammel påstand om oktober, og hele differansen mellom de to
+    utgivelsene lekket inn i changeloggen som industriens bevegelse.
+
+    Derfor slår ikke denne opp versjonen selv. `forrige_versjon()` er det
+    ene stedet som avgjør hvilken påstand om en dato som gjelder, og to
+    tellere for samme sak er formen F6 og F7 hadde.
     """
     target_dir = RAW_DIR / source
     if not target_dir.exists():
         return None
 
-    earlier = sorted(
-        (p for p in target_dir.glob("*.parquet") if _dato_og_versjon(p.stem)[0] < before),
-        key=lambda p: _dato_og_versjon(p.stem),
-    )
-    if not earlier:
+    tidligere = {_dato_og_versjon(p.stem)[0] for p in target_dir.glob("*.parquet")}
+    aktuelle = [d for d in tidligere if d < before]
+    if not aktuelle:
         return None
 
-    return _les(earlier[-1])
+    return forrige_versjon(source, max(aktuelle))
 
 
 def versjon_av(sti: Path) -> int:
@@ -426,9 +438,14 @@ def forrige_versjon(source: str, observed_at: str) -> pl.DataFrame | None:
     revisjon.
 
     «Forrige» er relativ til versjonen som er i ferd med å bli skrevet:
-    finnes `2018-03-31.parquet` og `.2`, er svaret `.2`, fordi det er den
-    en ny `.3` ville avløst. Løpenummeret sorteres TALLMESSIG — `.10`
-    kommer etter `.2`, ikke før, som det ville alfabetisk.
+    svaret er den påstanden en ny skriving ville avløst. Det er den SIST
+    UTGITTE av versjonene på disk — ikke den med høyest løpenummer.
+
+    De to falt sammen fram til 26.08.2026 og gjør det ikke lenger: for
+    2017-10-31 er `.2` Wayback-kopien utgitt 20.07.2024, skrevet ved
+    siden av en `.parquet` utgitt to år senere. `versjoner()` eier
+    rekkefølgen, og løpenummeret er der bare tiebreaker — tallmessig, så
+    `.10` kommer etter `.2` og ikke før, som det ville alfabetisk.
 
     None betyr «datoen finnes ikke ennå». Det er ikke en revisjon, det er
     en førstegangsskriving, og den hører til `compare()`.
@@ -474,16 +491,21 @@ def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]
     utgangsverdien hentes.
 
     Flere filer på samme dato (løpenummer ved kollisjon) gir flere
-    innslag med samme dato, sortert slik at høyeste løpenummer kommer
-    sist — samme rekkefølge som `previous()` velger etter.
+    innslag med samme dato, sortert ELDST UTGITT FØRST — samme nøkkel som
+    `versjoner()`, og dermed samme påstand sist som `previous()` velger.
+
+    At det er utgivelsen og ikke løpenummeret som sorterer, betyr noe her:
+    kallerne — feltnormalen og prediksjonsloggen — tar det SISTE innslaget
+    for en dato som den gjeldende. Etter arkivinnsettingen 26.08.2026 er
+    høyeste løpenummer for 81 biomassemåneder en Wayback-kopi utgitt
+    20.07.2024, og «gjeldende» ville da vært to år gammel.
     """
     target_dir = RAW_DIR / source
     if not target_dir.exists():
         return []
 
-    aktuelle = sorted(
-        (p for p in target_dir.glob("*.parquet")
-         if fra <= _dato_og_versjon(p.stem)[0] <= til),
-        key=lambda p: _dato_og_versjon(p.stem),
-    )
-    return [(_dato_og_versjon(p.stem)[0], _les(p)) for p in aktuelle]
+    lest = [(_dato_og_versjon(p.stem), _les(p))
+            for p in target_dir.glob("*.parquet")
+            if fra <= _dato_og_versjon(p.stem)[0] <= til]
+    lest.sort(key=lambda par: (par[0][0], publisert(par[1]), par[0][1]))
+    return [(nokkel[0], ramme) for nokkel, ramme in lest]

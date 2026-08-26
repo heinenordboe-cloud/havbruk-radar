@@ -547,3 +547,110 @@ def test_compare_baerer_ogsa_utgivelsene(isolert):
     rad = diff.compare(nyere, "2018-03-31").to_dicts()[0]
     assert rad["forrige_published_at"] == "2026-07-20T04:00:00+00:00"
     assert rad["published_at"] == "2026-08-20T04:38:18+00:00"
+
+
+# ---- løpenummer er ikke lenger kronologi -----------------------------
+#
+# Fram til 26.08.2026 var løpenummeret en pålitelig stedfortreder for
+# rekkefølge: en høyere `.N` var skrevet senere OG bar en nyere påstand.
+# Arkivinnsettingen brøt den sammenhengen. For 2017-10-31 er `.2` det
+# høyeste løpenummeret og bærer den ELDSTE påstanden — Wayback-kopien
+# utgitt 20.07.2024, skrevet ved siden av en `.parquet` fra 25.08.2026.
+#
+# Testene under holder de to fra hverandre på BEGGE akser. `versjoner()`
+# og `forrige_versjon()` ble lagt om da feltet kom inn; `previous()` og
+# `les_mellom()` ble det ikke, og de er den andre halvdelen av samme feil.
+
+def _disken_slik_den_er(oktober="2017-10-31"):
+    """Nøyaktig formen på disk etter arkivinnsettingen.
+
+    Basefila er 2026-påstanden og har INGEN `published_at` — den ble
+    skrevet før feltet fantes. `.2` er Wayback-kopien: skrevet sist,
+    utgitt først.
+    """
+    _skriv([_obs(value="17190233", observed_at=oktober)], oktober,
+           fetched_at="2026-08-25T21:51:20+00:00", published_at="")
+    _skriv([_obs(value="18613010", observed_at=oktober)], oktober,
+           fetched_at="2026-08-26T05:20:31+00:00",
+           published_at="2024-07-20T04:40:53+00:00")
+
+
+def test_forrige_versjon_folger_utgivelsen_ikke_lopenummeret(isolert):
+    """Løpenummer og utgivelse ute av takt, sett fra revisjonskjøringen.
+
+    `.2` er Wayback-kopien fra 2024 og har det HØYESTE løpenummeret. Når
+    drift henter en ny utgivelse i september 2026, spør revisjonen om
+    forrige versjon FØR den skriver — og svaret skal være basefila fra
+    august, ikke arkivkopien. Velges `.2`, blir sammenligningen 2026 mot
+    2024, mellomversjonen hoppes over, og en to år gammel differanse
+    rapporteres som ukas revisjon.
+    """
+    _disken_slik_den_er("2018-03-31")
+
+    assert [nr for nr, _ in snapshot.versjoner("biomasse", "2018-03-31")] == [2, 1], (
+        "utgivelsesrekkefølge, ikke filrekkefølge")
+
+    forrige = snapshot.forrige_versjon("biomasse", "2018-03-31")
+    assert forrige["value"][0] == "17190233", (
+        "forrige versjon er basefila fra august, ikke arkivkopien fra 2024")
+
+    # Og når september-kroppen så er skrevet som `.3`, er DEN den nyeste
+    # påstanden — løpenummeret og utgivelsen er i takt igjen på toppen.
+    _skriv([_obs(value="17000000")], "2018-03-31",
+           fetched_at="2026-09-20T06:00:00+00:00",
+           published_at="2026-09-20T04:40:00+00:00")
+    assert [nr for nr, _ in snapshot.versjoner("biomasse", "2018-03-31")] == [2, 1, 3]
+    assert snapshot.forrige_versjon("biomasse", "2018-03-31")["value"][0] == "17000000"
+
+
+def test_previous_folger_utgivelsen_ikke_lopenummeret(isolert):
+    """Den andre aksen, og den som ikke var rettet.
+
+    `previous()` svarer «hva sto her sist» og brukes av `diff.compare()`
+    langs TIDA. Velger den arkivkopien, sammenlignes november 2017 mot en
+    to år gammel påstand om oktober, og hele differansen mellom
+    2024- og 2026-utgivelsen lekker inn i changeloggen som industriens
+    bevegelse mellom to måneder.
+    """
+    _disken_slik_den_er()
+    _skriv([_obs(value="16000000", observed_at="2017-11-30")], "2017-11-30",
+           fetched_at="2026-08-25T21:51:20+00:00", published_at="")
+
+    forrige = snapshot.previous("biomasse", before="2017-11-30")
+    assert forrige["observed_at"][0] == "2017-10-31"
+    assert forrige["value"][0] == "17190233", (
+        "nyeste PÅSTAND om oktober, ikke høyeste løpenummer")
+
+
+def test_les_mellom_gir_versjonene_i_utgivelsesrekkefolge(isolert):
+    """Feltnormalen og prediksjonsloggen leser herfra, og begge tar det
+    SISTE innslaget for en dato som gjeldende. Er rekkefølgen filbasert,
+    er «gjeldende» arkivkopien fra 2024."""
+    _disken_slik_den_er()
+
+    rekka = snapshot.les_mellom("biomasse", "2017-10-31", "2017-10-31")
+    assert [r["value"][0] for _, r in rekka] == ["18613010", "17190233"], (
+        "eldst utgitt først — siste innslag er den gjeldende påstanden")
+
+
+def test_uten_published_at_avgjor_lopenummeret_fortsatt(isolert):
+    """Fallet tilbake, og hvorfor det er RIKTIG og ikke bare til stede.
+
+    De 103 basefilene og alle fire øvrige kilder mangler `published_at`.
+    For dem faller `publisert()` tilbake på `fetched_at`, som stiger
+    monotont med hver skriving — så utgivelsesrekkefølgen blir NØYAKTIG
+    løpenummerrekkefølgen. Fallbacken endrer altså ingenting for noen
+    kilde som ikke har feltet, og det er det som gjør den trygg.
+
+    Faller til og med `fetched_at` bort, er nøkkelen tom for alle, og
+    løpenummeret bryter likheten alene.
+    """
+    for n, verdi in enumerate(["1", "2", "3"], start=1):
+        _skriv([_obs(value=verdi)], "2018-03-31",
+               fetched_at=f"2026-01-0{n}T00:00:00+00:00", published_at="")
+
+    assert [nr for nr, _ in snapshot.versjoner("biomasse", "2018-03-31")] == [1, 2, 3]
+    assert snapshot.forrige_versjon("biomasse", "2018-03-31")["value"][0] == "3"
+
+    _skriv([_obs(value="4", observed_at="2018-04-30")], "2018-04-30")
+    assert snapshot.previous("biomasse", before="2018-04-30")["value"][0] == "3"
