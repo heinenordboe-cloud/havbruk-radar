@@ -1,9 +1,28 @@
 """Første utforskning: skiller lusetallene ekspertgruppens kategorier?
 
     python analyse/lusepress_mot_fasit.py
+    python analyse/lusepress_mot_fasit.py --akvakultur-versjon 1
 
 Leser snapshots fra HAVBRUK_DATA_DIR, kobler mot fasiten i
 analyse/fasit/ og skriver tall til stdout + plott til analyse/ut/.
+
+## Kjøringsloggen
+
+Hver kjøring skriver `analyse/ut/lusepress.kjoring.log` med ALLE valg
+som påvirket tallene — avgrensning, vindu, mål, fasitens innholds-hash,
+PERSONFORMER-lista, git-commit, og hvilken snapshot-FIL hver dato ble
+lest fra, med løpenummer og `published_at`.
+
+Grunnen er at `rho = +0,761` ikke er en egenskap ved dataene alene. Det
+er en egenskap ved dataene og ved et dusin valg som ikke sto noe sted
+før 26.08.2026, og som ingen kunne rekonstruere tre måneder senere. Se
+`analyse/kjoringslogg.py`.
+
+Snapshotene leses derfor gjennom loggen og ikke gjennom
+`snapshot.les_mellom()` direkte: en logg som skrives ved siden av
+lesingen er en påstand om den, en logg som skrives AV lesingen er en
+beskrivelse av den. To tellere for samme sak er formen F6, F7 og F8
+hadde.
 
 Dette er utforskning. Ingen modell, ingen regresjon, ingen konklusjon
 om at noe virker. Ingenting i core/ røres.
@@ -18,6 +37,7 @@ avgrensningen kan etterprøves.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import datetime as dt
 import statistics as st
@@ -37,9 +57,11 @@ sys.path.insert(0, str(ROOT))
 # append-only og blir stående. En analyse som globber selv, leser dem —
 # og `test_ingen_leser_snapshots_utenom_les()` feller den for det.
 from core import snapshot                # noqa: E402
+from analyse import kjoringslogg          # noqa: E402
 
 FASIT = ROOT / "analyse" / "fasit" / "ekspertgruppen-po-kategori.csv"
 UT = ROOT / "analyse" / "ut"
+LOGGFIL = UT / "lusepress.kjoring.log"
 
 FRA_AAR, TIL_AAR = 2018, 2026
 UTVANDRING = (16, 24)        # utgangspunkt
@@ -53,6 +75,26 @@ STIEN_T0 = 4.28
 
 
 # ---------------------------------------------------------------- innlesing
+
+FORKASTNINGSGRUNN = f"ISO-år utenfor [{FRA_AAR}, {TIL_AAR}]"
+
+
+def _i_iso_aar(dato_tekst: str) -> bool:
+    """Ligger denne ukas snapshot innenfor årsavgrensningen?
+
+    Datointervallet i `logg.les()` er KALENDERDATOER, avgrensningen er
+    ISO-ÅR, og de to spriker rundt nyttår: 2018-12-31 er uke 1 i ISO-året
+    2019. Intervallet er derfor med vilje en dag vidt i hver ende, og
+    denne prøven skjærer av resten.
+
+    Den er skilt ut som en navngitt funksjon fordi den brukes to steder —
+    lusetall og sjøtemperatur — og de to MÅ avgrense likt. Gjorde de det
+    ikke, ville en prediktor hvilt på et annet utvalg uker enn den andre,
+    og en forskjell mellom dem kunne vært avgrensningen framfor
+    variabelen.
+    """
+    return FRA_AAR <= dt.date.fromisoformat(dato_tekst).isocalendar().year <= TIL_AAR
+
 
 def les_fasit() -> dict[tuple[int, int], dict]:
     """(po, aar) -> rad. `ukjent` beholdes som rad; den er en opplysning."""
@@ -68,8 +110,32 @@ def les_fasit() -> dict[tuple[int, int], dict]:
     return ut
 
 
-def po_kart() -> dict[str, int]:
-    """localityNo -> produksjonsområde, fra nyeste akvakultursnapshot.
+def akvakultur_naa(logg: kjoringslogg.Kjoringslogg,
+                   versjonsvalg) -> pl.DataFrame:
+    """Det akvakultursnapshotet analysen bruker — lest PÅ ETT STED.
+
+    `po_kart()` og `bredde_kart()` slo begge opp «nyeste dato» og leste
+    fila hver for seg. To oppslag som kan svare ulikt er formen F6, F7 og
+    F8 hadde, og her er den ikke teoretisk: kjører den ukentlige jobben
+    mellom de to kallene, får PO-kartet én dato og breddegradene en
+    annen — og geografikontrollen sammenligner da to registre.
+
+    Hvilken DATO som er nyeste avgjøres av filnavnene. Hvilken PÅSTAND om
+    den datoen som gjelder, avgjør `versjonsvalg`: 2026-08-24 finnes i
+    fire versjoner, og loggen fører hvilken som ble lest.
+    """
+    siste = snapshot.siste_dato("akvakultur")
+    if siste is None:
+        raise SystemExit("fant ingen akvakultursnapshots")
+    ramme = logg.les_dato("akvakultur", siste, versjonsvalg=versjonsvalg)
+    if ramme is None:
+        raise SystemExit(
+            f"akvakultur {siste} finnes ikke i versjon {versjonsvalg!r}")
+    return ramme
+
+
+def po_kart(akva: pl.DataFrame) -> dict[str, int]:
+    """localityNo -> produksjonsområde, fra akvakultursnapshotet.
 
     ADVARSEL, og den gjelder hele analysen: dette er dagens PO-tilhørighet
     påført historiske uker. En lokalitet flytter seg ikke, så koden er
@@ -77,26 +143,18 @@ def po_kart() -> dict[str, int]:
     slettet fra registeret før i dag har ingen kode i det hele tatt, og
     faller ut. Det er hele grunnen til at PO-dekning rapporteres per år.
     """
-    siste = snapshot.siste_dato("akvakultur")
-    if siste is None:
-        raise SystemExit("fant ingen akvakultursnapshots")
-    _, df = snapshot.les_mellom("akvakultur", siste, siste)[-1]
-    par = df.filter(pl.col("field") == "prodomraade_kode").select("entity_id", "value")
+    par = akva.filter(pl.col("field") == "prodomraade_kode").select("entity_id", "value")
     return {e: int(v) for e, v in par.iter_rows() if v not in (None, "")}
 
 
-def bredde_kart() -> dict[str, float]:
-    """localityNo -> breddegrad, fra nyeste akvakultursnapshot.
+def bredde_kart(akva: pl.DataFrame) -> dict[str, float]:
+    """localityNo -> breddegrad, fra det SAMME akvakultursnapshotet.
 
     Samme forbehold som po_kart(): dagens register påført historiske uker.
     Brukes bare til KONTROLLEN — om temperaturen forklarer noe utover
     geografi — og ikke som prediktor.
     """
-    siste = snapshot.siste_dato("akvakultur")
-    if siste is None:
-        raise SystemExit("fant ingen akvakultursnapshots")
-    _, df = snapshot.les_mellom("akvakultur", siste, siste)[-1]
-    par = df.filter(pl.col("field") == "breddegrad").select("entity_id", "value")
+    par = akva.filter(pl.col("field") == "breddegrad").select("entity_id", "value")
     ut = {}
     for e, v in par.iter_rows():
         try:
@@ -106,7 +164,7 @@ def bredde_kart() -> dict[str, float]:
     return ut
 
 
-def les_temp() -> dict[tuple[str, int, int], float]:
+def les_temp(logg: kjoringslogg.Kjoringslogg) -> dict[tuple[str, int, int], float]:
     """(lok, iso-år, iso-uke) -> sjøtemperatur.
 
     Samme ukeakse og samme etterslep som lusetall — det ER den samme
@@ -122,11 +180,10 @@ def les_temp() -> dict[tuple[str, int, int], float]:
     faktisk tall på smittepresset.
     """
     ut: dict[tuple[str, int, int], float] = {}
-    for dato_tekst, df in snapshot.les_mellom(
-            "sjotemperatur", f"{FRA_AAR - 1}-12-01", f"{TIL_AAR + 1}-01-31"):
+    for dato_tekst, df in logg.les(
+            "sjotemperatur", f"{FRA_AAR - 1}-12-01", f"{TIL_AAR + 1}-01-31",
+            behold=_i_iso_aar, forkastningsgrunn=FORKASTNINGSGRUNN):
         iso = dt.date.fromisoformat(dato_tekst).isocalendar()
-        if not (FRA_AAR <= iso.year <= TIL_AAR):
-            continue
         t = df.filter(pl.col("field") == "sjotemperatur").select("entity_id", "value")
         for e, v in t.iter_rows():
             try:
@@ -136,19 +193,20 @@ def les_temp() -> dict[tuple[str, int, int], float]:
     return ut
 
 
-def les_uker() -> list[dict]:
+def les_uker(logg: kjoringslogg.Kjoringslogg, kart: dict[str, int],
+             temp: dict[tuple[str, int, int], float]) -> list[dict]:
     """Én rad per lokalitet-uke, for uker i [FRA_AAR, TIL_AAR]."""
-    kart = po_kart()
-    temp = les_temp()
     rader = []
     # Intervallet er kalenderdatoer, mens avgrensningen er ISO-år. De to
     # spriker rundt nyttår, så vinduet er med vilje en dag vidt i hver
-    # ende og ISO-året sjekkes på nytt per fil under.
-    for dato_tekst, df in snapshot.les_mellom(
-            "lusetall", f"{FRA_AAR - 1}-12-01", f"{TIL_AAR + 1}-01-31"):
+    # ende og ISO-året avgjøres av `_i_iso_aar` — som `logg.les()` fører
+    # som en FORKASTNING og ikke som et hull. Se kjoringslogg.Forkastet:
+    # «uke 52/2017 ble lest» og «uke 52/2017 ble valgt bort» gir ulike
+    # tall, og bare det andre er et valg noen har tatt.
+    for dato_tekst, df in logg.les(
+            "lusetall", f"{FRA_AAR - 1}-12-01", f"{TIL_AAR + 1}-01-31",
+            behold=_i_iso_aar, forkastningsgrunn=FORKASTNINGSGRUNN):
         iso = dt.date.fromisoformat(dato_tekst).isocalendar()
-        if not (FRA_AAR <= iso.year <= TIL_AAR):
-            continue
         bred = df.pivot(values="value", index="entity_id", on="field",
                         aggregate_function="first")
         for r in bred.iter_rows(named=True):
@@ -564,13 +622,13 @@ def retning_ved_skifte(pred: dict, fasit: dict,
     return enige, n
 
 
-def bredde_per_po(rader: list[dict], pred: dict) -> dict:
+def bredde_per_po(rader: list[dict], bredde: dict[str, float]) -> dict:
     """(po, aar) -> snittbreddegrad for lokalitetene som faktisk bidro.
 
     Ett sted, brukt av både kontrollen og plottet. To utregninger som kan
-    svare ulikt er mønsteret repoet har betalt for fire ganger.
+    svare ulikt er mønsteret repoet har betalt for fire ganger — og
+    `bredde` kommer inn av samme grunn: kartet slås opp én gang, i main().
     """
-    bredde = bredde_kart()
     lok_per = defaultdict(set)
     for r in rader:
         if r["po"] is None or not r["rapportert"] or r["lus"] is None:
@@ -587,7 +645,7 @@ def bredde_per_po(rader: list[dict], pred: dict) -> dict:
 
 
 def geografikontrollen(rader: list[dict], pred: dict, fasit: dict,
-                       bredde_po: dict) -> None:
+                       bredde_po: dict, bredde: dict[str, float]) -> None:
     """DEN VIKTIGE KONTROLLEN.
 
     Temperaturen faller monotont med breddegrad — det er målt over hele
@@ -602,8 +660,6 @@ def geografikontrollen(rader: list[dict], pred: dict, fasit: dict,
     tredje prediktor — den er PO-identitet med en annen enhet.
     """
     print(seksjon("10. GEOGRAFIKONTROLLEN — er temperatur bare breddegrad?"))
-
-    bredde = bredde_kart()
 
     print("\n  a) Samvariasjon med kategorirang, side om side:")
     for navn, hent in [
@@ -843,9 +899,17 @@ def plott_proxy(pred: dict, fasit: dict) -> str:
     return "".join(s)
 
 
-def plott(pred: dict, fasit: dict, bredde_po: dict) -> Path:
+def plott(pred: dict, fasit: dict, bredde_po: dict,
+          logg: kjoringslogg.Kjoringslogg) -> Path:
     """To enkle plott som SVG i én HTML-fil. Ingen matplotlib i repoet,
-    og en ny avhengighet er ikke verdt en utforskning."""
+    og en ny avhengighet er ikke verdt en utforskning.
+
+    `logg` er med for PEKEREN, ikke for å skrive noe: resultatfila skal
+    kunne si hvilke valg den hvilte på uten at leseren må lete i git
+    eller i en terminalhistorikk som er borte. Se punkt 3 — en analyse
+    leser ikke git, og et plott som ikke peker på loggen sin er et tall
+    uten proveniens.
+    """
     UT.mkdir(exist_ok=True)
     farge = {"lav": "#2f7d32", "moderat": "#c98a00", "hoy": "#b3261e",
              "ukjent": "#bbbbbb"}
@@ -934,26 +998,136 @@ def plott(pred: dict, fasit: dict, bredde_po: dict) -> Path:
     ut.write_text(
         "<meta charset='utf-8'><title>Lusepress mot ekspertgruppen</title>"
         "<style>body{font-family:system-ui;max-width:960px;margin:2rem auto;"
-        "padding:0 1rem;color:#222}p{color:#555;line-height:1.5}</style>"
+        "padding:0 1rem;color:#222}p{color:#555;line-height:1.5}"
+        ".logg{background:#f6f6f4;border-left:3px solid #999;padding:.8rem 1rem;"
+        "font-size:.92rem}</style>"
         "<h1>Lusepress mot ekspertgruppens kategorier</h1>"
         "<p>Utforskning, ikke modell. Snitt voksne hunnlus per rapporterende "
         f"lokalitet i utvandringsvinduet uke 16–24, {FRA_AAR}–{TIL_AAR}. "
         "Fasit for 2020–2024; øvrige år er grå fordi kategorien ikke er kjent.</p>"
+        + pekeren(logg)
         + p1 + p2
         + "<h2>Sjøtemperatur som tredje prediktor</h2>"
         "<p>Temperaturen kommer fra den samme ukerapporten som lusetallet — "
         "samme ukeakse, samme etterslep. Plottet under er KONTROLLEN: hvis "
         "temperaturen i et PO-år bare er hvor området ligger, forklarer den "
         "ingenting utover geografi.</p>"
-        + p3 + p4, encoding="utf-8")
+        + p3 + p4
+        + pekeren(logg), encoding="utf-8")
     return ut
+
+
+def pekeren(logg: kjoringslogg.Kjoringslogg) -> str:
+    """Blokka som knytter et tall til valgene bak det.
+
+    Står både øverst og nederst i fila. Det er ikke pynt: en leser som
+    scroller til et plott og stopper der, skal ikke kunne unngå å se at
+    tallene har en logg — og hvilken.
+
+    Løpenummeret og utgivelsestidspunktet for hver leste fil står i
+    LOGGEN og ikke her. Det som står her, er nok til å finne den:
+    filnavnet, committen og kjøretidspunktet.
+    """
+    lenke = logg.peker_fra(UT)
+    return (
+        f'<p class="logg"><strong>Kjøringslogg:</strong> '
+        f'<a href="{lenke}">{lenke}</a> — alle valg som påvirket '
+        f'tallene på denne sida: avgrensning, vindu, mål, fasitens '
+        f'innholds-hash, PERSONFORMER-lista, og hvilken snapshot-fil hver '
+        f'dato ble lest fra, med løpenummer og <code>published_at</code>.<br>'
+        f'Kjørt {logg.kjort_at}.</p>')
 
 
 # ---------------------------------------------------------------- hoved
 
-def main() -> int:
+def versjonsvalg_av(tekst: str):
+    """`"3"` -> `3`, `"gjeldende"` -> `"gjeldende"`.
+
+    Løpenummeret er et TALL og ikke en streng her, fordi
+    `kjoringslogg._velg()` sammenligner det med løpenummeret på fila. En
+    streng «3» ville aldri matchet, og analysen ville stilltiende lest
+    ingenting for den datoen.
+    """
+    return int(tekst) if tekst.isdigit() else tekst
+
+
+def argumenter(argv: list[str] | None = None) -> argparse.Namespace:
+    """Bare valg som SKAL kunne endres uten å redigere fila.
+
+    Grunnen til at versjonsvalget er et argument og ikke en konstant:
+    endrer du en konstant, endrer du også `git.commit` og
+    `git.rent_arbeidstre` i loggen — og da skiller to logger seg på tre
+    linjer der ett valg ble endret. Punkt 4 i oppgaven krever at loggen
+    skiller seg på NØYAKTIG det valget, og det krever at valget kan
+    endres uten å røre arbeidstreet.
+    """
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument(
+        "--akvakultur-versjon", default=kjoringslogg.GJELDENDE,
+        help="hvilken VERSJON av akvakultursnapshotet PO-kartet og "
+             "breddegradene leses fra: 'gjeldende' (sist utgitte, "
+             "standard), 'forste', eller et løpenummer. 2026-08-24 "
+             "finnes i fire versjoner.")
+    ap.add_argument(
+        "--logg", default=str(LOGGFIL),
+        help="hvor kjøringsloggen skrives. Endres bare når to kjøringer "
+             "skal sammenlignes.")
+    return ap.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = argumenter(argv)
+    akva_versjon = versjonsvalg_av(args.akvakultur_versjon)
+
+    logg = kjoringslogg.Kjoringslogg("lusepress_mot_fasit", Path(args.logg))
+
+    # Avgrensningen. Alt som avgjør HVILKE observasjoner som teller.
+    logg.valg("avgrensning.fra_aar", FRA_AAR)
+    logg.valg("avgrensning.til_aar", TIL_AAR)
+    logg.valg("avgrensning.aarsakse", "ISO-år, ikke kalenderår")
+    logg.valg("avgrensning.vindu", f"uke {UTVANDRING[0]}-{UTVANDRING[1]}")
+    logg.valg("avgrensning.vindu_folsomhet",
+              f"uke {UTVANDRING_VID[0]}-{UTVANDRING_VID[1]}")
+    logg.valg("avgrensning.po", "1-13, fra prodomraade_kode i akvakultur")
+    logg.valg("avgrensning.arter",
+              "ingen artsavgrensning — lusetall skiller ikke art")
+    logg.valg("avgrensning.rader",
+              "rapportert=True, lus ikke tom, po kjent. Brakklagte inngår "
+              "bare i dekningstabellen.")
+
+    # Målet og vektingen. Det som avgjør HVA som regnes ut av dem.
+    logg.valg("maal.hoved", "snitt_uvektet")
+    logg.valg("maal.aggregering",
+              "lokalitet-uke -> ukesnitt per PO -> uvektet snitt over uker")
+    logg.valg("maal.vektet_alternativ",
+              "snitt_vektet = snitt over alle lokalitet-uker")
+    logg.valg("maal.ovrige", ["median", "p95", "maks", "n_lok",
+                             "temp_snitt", "stien_delvis"])
+    logg.valg("maal.stien_t0", STIEN_T0)
+    logg.valg("maal.stien_delvis",
+              "lus × (T + 4,28)² per lokalitet-uke — UTEN N_fisk og "
+              "uten 0,17")
+    logg.valg("maal.manglende_temperatur",
+              "utelates; leses ALDRI som 0 grader")
+    logg.valg("maal.korrelasjon", "Spearman, ranger med gjennomsnittsrang")
+    logg.valg("kategorier", KATEGORIER)
+
+    logg.fil("fasit", FASIT)
     fasit = les_fasit()
-    rader = les_uker()
+    logg.valg("fasit.rader", len(fasit))
+    ukjente = sorted(k for k, v in fasit.items() if v["kategori"] == "ukjent")
+    logg.valg("fasit.ukjent.antall", len(ukjente))
+    logg.valg("fasit.ukjent",
+              ", ".join(f"PO{po}/{aar}" for po, aar in ukjente) or "(ingen)")
+    logg.valg("fasit.sikkerhet",
+              _tell_sikkerhet(fasit))
+
+    akva = akvakultur_naa(logg, akva_versjon)
+    kart = po_kart(akva)
+    bredde = bredde_kart(akva)
+    temp = les_temp(logg)
+    rader = les_uker(logg, kart, temp)
+    logg.valg("resultat.lokalitet_uker", len(rader))
     print(f"Leste {len(rader)} lokalitet-uker, {FRA_AAR}-{TIL_AAR}.")
 
     dekning(rader)
@@ -961,6 +1135,7 @@ def main() -> int:
 
     p16 = per_po_aar(rader, UTVANDRING)
     p14 = per_po_aar(rader, UTVANDRING_VID)
+    logg.valg("resultat.po_aar", len(p16))
 
     tabell_prediktorer(p16, fasit, UTVANDRING)
     fordeling_per_kategori(p16, fasit, UTVANDRING)
@@ -972,14 +1147,48 @@ def main() -> int:
     retning_ved_skifte(p16, fasit, "snitt_uvektet", "lusetallet", "8b")
     retning_ved_skifte(p16, fasit, "temp_snitt", "temperaturen", "8c")
     retning_ved_skifte(p16, fasit, "stien_delvis", "den delvise proxyen", "8d")
-    bredde_po = bredde_per_po(rader, p16)
-    geografikontrollen(rader, p16, fasit, bredde_po)
+    bredde_po = bredde_per_po(rader, bredde)
+    geografikontrollen(rader, p16, fasit, bredde_po, bredde)
     uro(rader, p16)
 
-    sti = plott(p16, fasit, bredde_po)
-    print(seksjon("PLOTT"))
-    print(f"  {sti}")
+    # Hovedtallet føres i loggen selv. Et resultat som ligger i en logg
+    # over sine egne forutsetninger kan sammenlignes med neste kjøring
+    # uten å lete i stdout.
+    logg.valg("resultat.rho.snitt_uvektet", f"{_rho(p16, fasit, 'snitt_uvektet'):+.3f}")
+    logg.valg("resultat.rho.temp_snitt", f"{_rho(p16, fasit, 'temp_snitt'):+.3f}")
+    logg.valg("resultat.rho.stien_delvis", f"{_rho(p16, fasit, 'stien_delvis'):+.3f}")
+
+    sti = plott(p16, fasit, bredde_po, logg)
+    loggsti = logg.skriv()
+    print(seksjon("PLOTT OG KJØRINGSLOGG"))
+    print(f"  plott:        {sti}")
+    print(f"  kjøringslogg: {loggsti}")
+    print("\n  Loggen bærer alle valg som påvirket tallene over — vindu,")
+    print("  avgrensning, mål, fasitens innholds-hash, PERSONFORMER, og")
+    print("  hvilken snapshot-FIL hver dato ble lest fra, med løpenummer")
+    print("  og published_at. Uten den er ingen av tallene reproduserbare.")
     return 0
+
+
+def _tell_sikkerhet(fasit: dict) -> str:
+    """`verifisert×43, utledet×13` — determinstisk, sortert."""
+    antall: dict[str, int] = {}
+    for v in fasit.values():
+        antall[v["sikkerhet"]] = antall.get(v["sikkerhet"], 0) + 1
+    return ", ".join(f"{k}×{n}" for k, n in sorted(antall.items()))
+
+
+def _rho(pred: dict, fasit: dict, felt: str) -> float:
+    """Samme regnestykke som seksjon 5, ett sted.
+
+    Ligger her og ikke inne i `rangkorrelasjon()` fordi tallet skal både
+    printes og føres i loggen, og to utregninger av samme tall kan svare
+    ulikt. Det er formen F6, F7 og F8 hadde, i miniatyr.
+    """
+    par = [(p[felt], RANG[fasit[k]["kategori"]])
+           for k, p in pred.items()
+           if fasit.get(k, {}).get("kategori") in RANG and p.get(felt) is not None]
+    return spearman([a for a, _ in par], [b for _, b in par]) if par else float("nan")
 
 
 if __name__ == "__main__":

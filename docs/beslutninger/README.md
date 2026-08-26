@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-08-26** — [En analyse skriver ned valgene sine, og versjonsvalget er ett av dem](2026-08-26-analysen-skriver-kjoringslogg.md) — gjeldende
 - **2026-08-26** — [published_at, og at løpenummeret sluttet å være kronologi](2026-08-26-published-at.md) — gjeldende
 - **2026-08-25** — [Utvalget skiller ukjent fra ingen filtrering](2026-08-25-utvalg-skiller-ukjent-fra-ingen-filtrering.md) — gjeldende
 - **2026-08-25** — [Feltvakten måler levering, ikke innhold](2026-08-25-feltvakten-maler-levering-ikke-innhold.md) — utkast
