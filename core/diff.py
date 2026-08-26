@@ -43,6 +43,24 @@ REVIDERT = "revidert"
 IKKE_BEVEGELSE = frozenset({UTVALGSUTVIDELSE, REVIDERT})
 
 
+class Feilrekkefolge(RuntimeError):
+    """Påstanden som skal sammenlignes er ELDRE enn den som ligger lagret.
+
+    `revisjon()` svarer på «hva har kilden ombestemt seg om siden sist».
+    Får den en eldre påstand inn, ville radene sagt at kilden endret 2026
+    til 2024 — riktig innhold, motsatt fortegn, og en changelog som leser
+    baklengs.
+
+    Det er ikke en feil å HA en eldre påstand: en kropp gravd fram fra
+    Wayback er nettopp det, og den er verdifull. Den skal bare skrives
+    med `backfill.py --arkiv`, som setter den inn på riktig plass i
+    utgivelsesrekkefølgen.
+
+    Kastes bare når BEGGE sider har et kjent `published_at`. Er den ene
+    ukjent, kan rekkefølgen ikke fastslås, og da påstås den ikke.
+    """
+
+
 class Grunnlagssprik(RuntimeError):
     """De to versjonene ble ikke laget på samme vilkår.
 
@@ -97,6 +115,20 @@ CHANGE_SCHEMA = {
     # opplysningen — der er `observed_at` lik på begge sider, og
     # hentetidspunktet er det eneste som plasserer de to påstandene i tid.
     "forrige_fetched_at": pl.Utf8,
+    # UTGIVELSESTIDSPUNKTENE på hver side. Tom streng = kilden sa
+    # ingenting; se Observation.published_at.
+    #
+    # De kom inn 26.08.2026 sammen med `published_at`, og de er det som
+    # gjør en revisjonsrad LESBAR UTEN FILNAVNET. En rad som sier
+    #
+    #     forrige_published_at 2024-07-20  ->  published_at 2026-08-20
+    #
+    # forteller selv hvilken vei den går, uansett hvilken changelog-fil
+    # den ligger i og uansett hvilken rekkefølge de to snapshotene ble
+    # SKREVET i. Hentetidspunktene kan ikke det: en arkivkopi hentes i
+    # dag og er utgitt for to år siden.
+    "published_at": pl.Utf8,
+    "forrige_published_at": pl.Utf8,
 }
 
 
@@ -180,6 +212,8 @@ def compare(current: pl.DataFrame, observed_at: str,
         # snapshotet ikke bærer ett entydig — snapshots fra før feltet
         # fantes gjør ikke det, og de skal fortsatt kunne diffes.
         forrige_hentet = snapshot.fetched_at_i(old) or ""
+        forrige_utgitt = snapshot.published_at_i(old) or ""
+        utgitt = snapshot.published_at_i(group) or ""
 
         # Entitetene som ble til i verden etter forrige snapshot. De
         # skal STÅ som "ny" selv i en utvidelsesuke — se docstringen.
@@ -238,7 +272,119 @@ def compare(current: pl.DataFrame, observed_at: str,
                 "observed_at": observed_at,
                 "forrige_observed_at": forrige_dato,
                 "forrige_fetched_at": forrige_hentet,
+                "published_at": utgitt,
+                "forrige_published_at": forrige_utgitt,
             })
+
+    if not changes:
+        return pl.DataFrame(schema=CHANGE_SCHEMA)
+
+    return pl.DataFrame(changes).select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
+
+
+def _vilkaar(eldre: pl.DataFrame, nyere: pl.DataFrame, source: str,
+             observed_at: str) -> None:
+    """Kaster hvis de to versjonene ikke kan sammenlignes som kildens
+    revisjon.
+
+    To ting må ha stått stille mellom hentingene: vår egen tolkning
+    (`source_version`) og vårt eget utvalg. Endret én av dem seg, kan en
+    forskjell like gjerne være oss som kilden, og de to kan ikke skilles
+    herfra. Da er det spørsmålet som er ubesvarlig — ikke dataene som er
+    ødelagte, og begge snapshots blir stående.
+    """
+    gammel_versjon = snapshot.source_version_i(eldre)
+    ny_versjon = snapshot.source_version_i(nyere)
+    if gammel_versjon != ny_versjon:
+        raise Grunnlagssprik(
+            f"{source} {observed_at}: forrige versjon ble tolket av "
+            f"source_version {gammel_versjon!r}, denne av {ny_versjon!r}. "
+            f"En forskjell mellom dem kan like gjerne være vår egen "
+            f"parser som kildens revisjon, og de to kan ikke skilles "
+            f"herfra. Begge snapshots står."
+        )
+
+    gammelt_utvalg = snapshot.utvalg_i(eldre)
+    nytt_utvalg = snapshot.utvalg_i(nyere)
+    if gammelt_utvalg != nytt_utvalg:
+        raise Grunnlagssprik(
+            f"{source} {observed_at}: forrige versjon ble hentet med "
+            f"utvalget {gammelt_utvalg!r}, denne med {nytt_utvalg!r}. "
+            f"Entiteter som kommer eller går kan da være vårt utvalg og "
+            f"ikke kildens revisjon. Begge snapshots står."
+        )
+
+
+def revisjon_mellom(eldre: pl.DataFrame, nyere: pl.DataFrame,
+                    observed_at: str) -> pl.DataFrame:
+    """Revisjonsradene mellom to navngitte versjoner av samme dato.
+
+    Ren funksjon: den slår ingenting opp på disk, og den avgjør ingen
+    rekkefølge — kalleren har allerede bestemt hvilken av de to som er
+    ELDRE. Det er nettopp derfor den finnes ved siden av `revisjon()`:
+    arkivmodusen i `backfill.py` setter en kropp inn MELLOM to påstander
+    vi allerede har, og da er «forrige versjon på disk» feil spørsmål.
+
+    ## Hva som IKKE regnes som revisjon
+
+    **Et feltnavn som bare finnes på én side.** Legger vi til en kolonne i
+    parseren, ville hver eneste måned fått en «revidert»-rad for det nye
+    feltet — en påstand om at kilden endret noe VI endret. Samme regel og
+    samme begrunnelse som skjemautvidelsen i `compare()`, bare med to
+    sider å beskytte: et felt vi la til, og et felt vi fjernet, er begge
+    våre.
+
+    Merk at filteret går på FELTNAVN og ikke på entiteter. En entitet som
+    dukker opp eller forsvinner mellom to versjoner av samme måned ER en
+    revisjon — kilden har flyttet noe inn i eller ut av det tidsrommet —
+    og `old_value`/`new_value` viser hvilken vei det gikk.
+    """
+    changes = []
+    kilder = set(nyere["source"].to_list()) | set(eldre["source"].to_list())
+    source = str(sorted(kilder)[0]) if kilder else ""
+
+    _vilkaar(eldre, nyere, source, observed_at)
+
+    # Samme forsvar som i compare(): snapshots fra før dedupliseringen
+    # kan ha flere rader per (entity_id, field), og joinen under ville
+    # fanne ut på dem.
+    eldre = eldre.unique(subset=snapshot.NOKKEL, keep="first",
+                         maintain_order=True)
+
+    felles_felter = (set(eldre["field"].unique().to_list())
+                     & set(nyere["field"].unique().to_list()))
+
+    key = ["entity_id", "field"]
+    joined = nyere.join(
+        eldre.select(key + ["value"]).rename({"value": "old_value"}),
+        on=key,
+        how="full",
+        coalesce=True,
+    )
+
+    for row in joined.iter_rows(named=True):
+        if row["field"] not in felles_felter:
+            continue
+        new_value, old_value = row.get("value"), row.get("old_value")
+        if new_value == old_value:
+            continue
+
+        changes.append({
+            "entity_id": row["entity_id"],
+            "entity_type": row.get("entity_type") or "",
+            "entity_name": row.get("entity_name") or "",
+            "field": row["field"],
+            "old_value": old_value,
+            "new_value": new_value,
+            "change_type": REVIDERT,
+            "source": source,
+            "observed_at": observed_at,
+            # Samme dato på begge sider. Det ER revisjonen.
+            "forrige_observed_at": observed_at,
+            "forrige_fetched_at": snapshot.fetched_at_i(eldre) or "",
+            "published_at": snapshot.published_at_i(nyere) or "",
+            "forrige_published_at": snapshot.published_at_i(eldre) or "",
+        })
 
     if not changes:
         return pl.DataFrame(schema=CHANGE_SCHEMA)
@@ -253,114 +399,53 @@ def revisjon(current: pl.DataFrame, observed_at: str) -> pl.DataFrame:
     Speilvendt `compare()`: der sammenlignes to ULIKE `observed_at` fra
     samme henting, her sammenlignes to ULIKE hentinger av SAMME
     `observed_at`. Radene får `change_type = "revidert"`, `observed_at` og
-    `forrige_observed_at` er like, og `forrige_fetched_at` bærer hvilken
-    henting den erstattede påstanden kom fra.
+    `forrige_observed_at` er like, og `forrige_published_at` ->
+    `published_at` bærer hvilken vei revisjonen gikk.
+
+    «Forrige» er den SIST UTGITTE versjonen på disk, ikke den med høyest
+    løpenummer. De to var det samme til 26.08.2026, da en kropp utgitt i
+    2024 ble skrevet inn ved siden av en utgitt i 2026. Se
+    `snapshot.versjoner()`.
 
     Tom ramme når datoen ikke finnes fra før. Det er ikke en revisjon —
     det er en førstegangsskriving, og den hører til `compare()`.
 
-    ## Hva som IKKE regnes som revisjon
-
-    **Et feltnavn som bare finnes på én side.** Legger vi til en kolonne i
-    parseren, ville hver eneste måned fått en «revidert»-rad for det nye
-    feltet — en påstand om at Fiskeridirektoratet endret noe VI endret.
-    Samme regel og samme begrunnelse som skjemautvidelsen i `compare()`,
-    bare med to sider å beskytte: et felt vi la til, og et felt vi fjernet,
-    er begge våre.
-
-    Merk at filteret går på FELTNAVN og ikke på entiteter. En entitet som
-    dukker opp eller forsvinner mellom to versjoner av samme måned ER en
-    revisjon — kilden har flyttet noe inn i eller ut av det tidsrommet — og
-    `old_value`/`new_value` viser hvilken vei det gikk.
-
-    **Ulikt grunnlag.** Er `source_version` eller `utvalg` forskjellig
-    mellom de to snapshotene, kastes `Grunnlagssprik`. Da kan en forskjell
-    ikke tilskrives kilden i det hele tatt, og en rad som påsto det ville
-    vært feil om en tredjepart. Begge snapshots blir stående; det er
-    spørsmålet som er ubesvarlig, ikke dataene som er ødelagte.
-
-    Det er samme disiplin som resten av repoet: still spørsmålet du
-    faktisk vil ha svar på, og nekt å svare når feltet som kunne svart
-    ikke holdt seg fast (CLAUDE.md 1b-2).
+    Kaster `Feilrekkefolge` hvis `current` er utgitt FØR den lagrede
+    versjonen. Da er dette ikke «hva har kilden ombestemt seg om siden
+    sist», men en eldre påstand som skal settes inn på riktig plass —
+    `backfill.py --arkiv`. Kaster `Grunnlagssprik` hvis vår egen
+    tolkning eller vårt eget utvalg endret seg imellom; se `_vilkaar`.
     """
-    changes = []
+    deler = []
 
     for (source,), group in current.group_by(["source"]):
         forrige = snapshot.forrige_versjon(str(source), observed_at)
         if forrige is None or forrige.is_empty():
             continue
 
-        # Vilkårene FØR sammenligningen. Rekkefølgen er ikke likegyldig:
-        # en Grunnlagssprik skal kastes uten at det er skrevet en eneste
-        # rad som påstår noe om kilden.
-        gammel_versjon = snapshot.source_version_i(forrige)
-        ny_versjon = snapshot.source_version_i(group)
-        if gammel_versjon != ny_versjon:
-            raise Grunnlagssprik(
-                f"{source} {observed_at}: forrige versjon ble tolket av "
-                f"source_version {gammel_versjon!r}, denne av {ny_versjon!r}. "
-                f"En forskjell mellom dem kan like gjerne være vår egen "
-                f"parser som kildens revisjon, og de to kan ikke skilles "
-                f"herfra. Begge snapshots står."
+        # Retningen FØR sammenligningen. En eldre påstand inn hit ville
+        # gitt riktig innhold med motsatt fortegn — en changelog som
+        # leser baklengs — og det skal ikke kunne skje ved et uhell.
+        #
+        # Bare når BEGGE sider har et kjent utgivelsestidspunkt. Er den
+        # ene ukjent, kan rekkefølgen ikke fastslås, og da påstås den
+        # ikke: `fetched_at` er bare en øvre grense, og en grense er ikke
+        # et grunnlag for å nekte.
+        ute_nå = snapshot.published_at_i(group)
+        ute_før = snapshot.published_at_i(forrige)
+        if ute_nå and ute_før and ute_nå < ute_før:
+            raise Feilrekkefolge(
+                f"{source} {observed_at}: kroppen er utgitt {ute_nå}, den "
+                f"lagrede versjonen {ute_før}. Dette er ikke en revisjon "
+                f"av den — det er en ELDRE påstand, og radene ville sagt "
+                f"at kilden endret det nye til det gamle. Skriv den inn "
+                f"med `backfill.py --arkiv`, som setter den på riktig "
+                f"plass i utgivelsesrekkefølgen."
             )
 
-        gammelt_utvalg = snapshot.utvalg_i(forrige)
-        nytt_utvalg = snapshot.utvalg_i(group)
-        if gammelt_utvalg != nytt_utvalg:
-            raise Grunnlagssprik(
-                f"{source} {observed_at}: forrige versjon ble hentet med "
-                f"utvalget {gammelt_utvalg!r}, denne med {nytt_utvalg!r}. "
-                f"Entiteter som kommer eller går kan da være vårt utvalg og "
-                f"ikke kildens revisjon. Begge snapshots står."
-            )
+        deler.append(revisjon_mellom(forrige, group, observed_at))
 
-        # Samme forsvar som i compare(): snapshots fra før dedupliseringen
-        # kan ha flere rader per (entity_id, field), og joinen under ville
-        # fanne ut på dem.
-        forrige = forrige.unique(subset=snapshot.NOKKEL, keep="first",
-                                 maintain_order=True)
-
-        # Feltnavn som finnes på BEGGE sider. Alt annet er vår
-        # skjemaendring, ikke kildens revisjon.
-        felles_felter = (set(forrige["field"].unique().to_list())
-                         & set(group["field"].unique().to_list()))
-
-        forrige_hentet = snapshot.fetched_at_i(forrige) or ""
-
-        key = ["entity_id", "field"]
-        joined = group.join(
-            forrige.select(key + ["value"]).rename({"value": "old_value"}),
-            on=key,
-            how="full",
-            coalesce=True,
-        )
-
-        for row in joined.iter_rows(named=True):
-            if row["field"] not in felles_felter:
-                continue
-            new_value, old_value = row.get("value"), row.get("old_value")
-            if new_value == old_value:
-                continue
-
-            changes.append({
-                "entity_id": row["entity_id"],
-                "entity_type": row.get("entity_type") or "",
-                "entity_name": row.get("entity_name") or "",
-                "field": row["field"],
-                "old_value": old_value,
-                "new_value": new_value,
-                "change_type": REVIDERT,
-                "source": str(source),
-                "observed_at": observed_at,
-                # Samme dato på begge sider. Det ER revisjonen.
-                "forrige_observed_at": observed_at,
-                "forrige_fetched_at": forrige_hentet,
-            })
-
-    if not changes:
-        return pl.DataFrame(schema=CHANGE_SCHEMA)
-
-    return pl.DataFrame(changes).select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
+    return slaa_sammen(deler)
 
 
 def bevegelse(endringer: pl.DataFrame) -> pl.DataFrame:

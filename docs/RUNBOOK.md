@@ -240,6 +240,33 @@ står. Er den derimot uventet, har noen endret parseren uten å si fra.
 lenger finnes i publiseringen. Det har ikke skjedd, og skulle det skje,
 er det verdt å undersøke før noe annet.
 
+## Ved behov: en eldre utgivelse inn i serien
+
+```bash
+python backfill.py --kilde biomasse --arkiv <wayback-url>
+```
+
+Ikke en fast jobb. Kjøres når noen finner en arkivkopi av biomassefila
+som er eldre enn det vi har — hver av dem er en revisjonstilstand som
+ikke finnes noe annet sted.
+
+Kopien skrives som `<dato>.2.parquet` ved siden av den gamle, og
+revisjonsradene mot den påfølgende utgivelsen havner i
+`changelog/biomasse/<dato>.2.parquet`. Rekkefølgen leses av
+`published_at`, ikke av filnavnet: en kopi skrevet i dag kan godt være
+den eldste påstanden.
+
+**Uten `published_at` skrives ingenting**, og det er meningen. Kroppen
+må bære `Last-Modified` eller `X-Archive-Orig-Last-Modified`. En
+arkivkopi uten utgivelsestidspunkt kan ikke plasseres i rekkefølgen, og
+en gjettet dato er verre enn ingen kopi.
+
+Kjøringen er idempotent: nøkkelen er utgivelsen, ikke filnavnet, så
+samme kopi to ganger gir ikke to snapshots.
+
+Kartlagt 26.08.2026: fire utgivelser til finnes i Wayback, i
+JSON-varianten. Se docs/KILDE-BIOMASSE.md punkt 12.
+
 ## Månedlig sjekk (to minutter)
 
 Alt i datarepoet:

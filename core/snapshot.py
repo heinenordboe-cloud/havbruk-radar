@@ -31,6 +31,9 @@ SCHEMA = [
     # ordbok-koder den bort. Målt på enhetsregisteret 24.08: 51623 rader
     # og en 100-tegns utvalgsstreng koster 1156 bytes, 0,53 % av fila.
     "utvalg",
+    # Da KILDEN utga svaret. Tom streng = vet ikke. Se
+    # Observation.published_at for hvorfor det ikke er `fetched_at`.
+    "published_at",
 ]
 
 
@@ -261,6 +264,19 @@ def _les(sti: Path) -> pl.DataFrame:
     # lesevei må huske.
     if "utvalg" not in frame.columns:
         frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias("utvalg"))
+
+    # Og snapshots skrevet før 26.08.2026 har ingen `published_at`. Samme
+    # behandling og samme begrunnelse: de skal lese som «vet ikke».
+    #
+    # De skal IKKE fylles med `fetched_at`. Det ville vært å skrive om
+    # historikken med et gjett — 103 biomasse-snapshots ville plutselig
+    # PÅSTÅTT at Fiskeridirektoratet utga tallene 25.08.2026, som er
+    # dagen VI hentet dem. Regel 2 gjelder her som ellers: en skrevet fil
+    # røres ikke, og en manglende opplysning ser ut som en manglende
+    # opplysning.
+    if "published_at" not in frame.columns:
+        frame = frame.with_columns(
+            pl.lit("", dtype=pl.Utf8).alias("published_at"))
     return frame
 
 
@@ -287,6 +303,38 @@ def fetched_at_i(frame: pl.DataFrame) -> str | None:
     fra. Uten den kan en revisjon ikke plasseres i tid.
     """
     return _en_verdi(frame, "fetched_at")
+
+
+def published_at_i(frame: pl.DataFrame) -> str | None:
+    """Da KILDEN utga snapshotet. None = radene spriker, feltet mangler,
+    eller kilden sa ingenting.
+
+    Merk at tom streng og None kollapser til None her, og det er riktig:
+    begge betyr «vi vet ikke når dette ble utgitt». Skillet mellom «feltet
+    fantes ikke» og «kilden svarte ikke» er ikke et skille noen kan handle
+    på.
+    """
+    return _en_verdi(frame, "published_at") or None
+
+
+def publisert(frame: pl.DataFrame) -> str:
+    """Sorteringsnøkkelen for VERSJONER av samme dato.
+
+    `published_at` der den finnes, ellers `fetched_at`. Ikke fordi de er
+    det samme — det er hele grunnen til at `published_at` ble innført —
+    men fordi `fetched_at` er en ØVRE GRENSE for den: du kan ikke hente
+    noe som ikke er utgitt.
+
+    Rekkefølgen blir derfor riktig så lenge en kropp som er utgitt LENGE
+    før den ble hentet, faktisk oppgir `published_at`. Det er nettopp
+    tilfellet for en arkivkopi, og derfor nekter arkivmodusen i
+    `backfill.py` å skrive en kropp uten den. For en fersk henting er
+    grensen stram — timer eller dager — og fallbacken uskadelig.
+
+    Tom streng når ingen av dem er kjent. Da sorterer versjonen først, og
+    løpenummeret avgjør resten.
+    """
+    return published_at_i(frame) or fetched_at_i(frame) or ""
 
 
 def source_version_i(frame: pl.DataFrame) -> str | None:
@@ -385,16 +433,31 @@ def forrige_versjon(source: str, observed_at: str) -> pl.DataFrame | None:
     None betyr «datoen finnes ikke ennå». Det er ikke en revisjon, det er
     en førstegangsskriving, og den hører til `compare()`.
     """
+    versjonene = versjoner(source, observed_at)
+    return versjonene[-1][1] if versjonene else None
+
+
+def versjoner(source: str, observed_at: str) -> list[tuple[int, pl.DataFrame]]:
+    """Alle versjoner av én dato som (løpenummer, ramme), ELDST UTGITT FØRST.
+
+    Rekkefølgen er PUBLISERINGSREKKEFØLGE, ikke filrekkefølge. De to var
+    det samme helt til 26.08.2026, da Wayback-kopien av biomassefila ble
+    skrevet inn: den er utgitt 20.07.2024 og skrevet som `.2` ved siden av
+    en `.parquet` utgitt 20.08.2026. Løpenummeret sier når VI skrev,
+    `published_at` når KILDEN utga, og det er det siste som avgjør hvilken
+    påstand som avløste hvilken.
+
+    Løpenummeret bryter likheter — to kropper med samme utgivelsestidspunkt
+    er skrevet i den rekkefølgen de kom.
+    """
     target_dir = RAW_DIR / source
     if not target_dir.exists():
-        return None
+        return []
 
-    samme_dato = sorted(
-        (p for p in target_dir.glob("*.parquet")
-         if _dato_og_versjon(p.stem)[0] == observed_at),
-        key=lambda p: _dato_og_versjon(p.stem),
-    )
-    return _les(samme_dato[-1]) if samme_dato else None
+    samme_dato = [p for p in target_dir.glob("*.parquet")
+                  if _dato_og_versjon(p.stem)[0] == observed_at]
+    lest = [(_dato_og_versjon(p.stem)[1], _les(p)) for p in samme_dato]
+    return sorted(lest, key=lambda par: (publisert(par[1]), par[0]))
 
 
 def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]]:

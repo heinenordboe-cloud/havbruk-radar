@@ -43,10 +43,10 @@ def _obs(entity_id="1", field="beholdning_antall", value="100",
 
 
 def _skriv(observasjoner, observed_at, fetched_at="2024-08-07T00:00:00+00:00",
-           source_version="1", utvalg="{}"):
+           source_version="1", utvalg="{}", published_at=""):
     """Skriver et snapshot med eksplisitt proveniens. Returnerer stien."""
     from dataclasses import replace
-    stemplet = [replace(o, fetched_at=fetched_at,
+    stemplet = [replace(o, fetched_at=fetched_at, published_at=published_at,
                         source_version=source_version, raw_hash="h",
                         utvalg=utvalg) for o in observasjoner]
     return snapshot.write(stemplet, observed_at)[0]
@@ -402,3 +402,148 @@ def test_ekte_speilpar_fra_biomassefila_blir_revidert(isolert):
                  pl.col("field") == "andel_av_beholdning").to_dicts()}
     assert andel["5"] == ("0.891680", "0.394810")
     assert andel["uten_po"] == ("0.108320", "0.605190")
+
+
+# ---- published_at: tre parter, tre tidspunkter ------------------------
+#
+# observed_at  VERDEN — hvilket tidspunkt raden handler om
+# fetched_at   OSS    — når vi spurte
+# published_at KILDEN — når kilden utga svaret
+#
+# De to siste faller sammen NESTEN, og bare når vi henter ferskt. Testene
+# under handler om hva som skjer når de ikke gjør det.
+
+def _skriv_utgitt(observasjoner, observed_at, published_at,
+                  fetched_at="2026-08-26T00:00:00+00:00", **kw):
+    return _skriv(observasjoner, observed_at, fetched_at=fetched_at,
+                  published_at=published_at, **kw)
+
+
+def test_standarden_er_ikke_hentetidspunktet():
+    """En kilde som ikke vet når noe ble utgitt skal si at den ikke vet.
+    Sto fetched_at her, ville hver kilde påstått en utgivelsesdato ingen
+    har gått god for."""
+    from core import runner
+    obs = runner.stempl([_obs()], source_version="1", raw_hash="h")
+    assert obs[0].published_at == ""
+    assert obs[0].fetched_at != ""
+
+
+def test_gamle_snapshots_leses_som_ukjent_ikke_som_hentetidspunktet(isolert):
+    """De 103 biomasse-snapshotene fra 25.08 har ikke feltet. Fylles de
+    med fetched_at, PÅSTÅR de plutselig at Fiskeridirektoratet utga
+    tallene den dagen VI hentet dem. Regel 2: en skrevet fil røres ikke."""
+    import polars as pl
+    from dataclasses import replace
+
+    gammel = [replace(_obs(), fetched_at="2026-08-25T00:00:00+00:00",
+                      source_version="1", raw_hash="h", utvalg="{}")]
+    ramme = snapshot.to_frame(gammel).drop("published_at")
+    mappe = snapshot.RAW_DIR / "biomasse"
+    mappe.mkdir(parents=True)
+    ramme.write_parquet(mappe / "2018-03-31.parquet")
+
+    lest = snapshot.forrige_versjon("biomasse", "2018-03-31")
+    assert lest["published_at"].to_list() == [""]
+    assert snapshot.published_at_i(lest) is None
+
+
+def test_publisert_faller_tilbake_paa_hentetidspunktet(isolert):
+    """`fetched_at` er en ØVRE GRENSE for `published_at` — du kan ikke
+    hente noe som ikke er utgitt. Fallbacken er derfor trygg for ferske
+    hentinger, og det er nettopp derfor arkivmodusen nekter uten."""
+    kjent = _ramme([_obs()], fetched_at="F", source_version="1")
+    assert snapshot.publisert(kjent) == "F"
+
+    from dataclasses import replace
+    med = snapshot.to_frame([replace(_obs(), fetched_at="F",
+                                     published_at="P", source_version="1",
+                                     utvalg="{}")])
+    assert snapshot.publisert(med) == "P"
+
+
+def test_versjoner_sorteres_paa_utgivelse_ikke_paa_lopenummer(isolert):
+    """Kjernen i hele utvidelsen. `.parquet` er utgitt 2026, `.2` er
+    Wayback-kopien utgitt 2024 — skrevet SIST, men eldst."""
+    _skriv_utgitt([_obs(value="ny")], "2018-03-31", "2026-08-20T04:38:18+00:00")
+    _skriv_utgitt([_obs(value="gammel")], "2018-03-31",
+                  "2024-07-20T04:40:53+00:00")
+
+    rekke = snapshot.versjoner("biomasse", "2018-03-31")
+    assert [v for v, _ in rekke] == [2, 1], "løpenummer 2 er UTGITT først"
+    assert [r["value"][0] for _, r in rekke] == ["gammel", "ny"]
+
+    # Og «forrige versjon» er fortsatt den sist UTGITTE, ikke den sist
+    # skrevne.
+    assert snapshot.forrige_versjon("biomasse", "2018-03-31")["value"][0] == "ny"
+
+
+def test_eldre_kropp_inn_i_revisjon_kaster_framfor_aa_lese_baklengs(isolert):
+    """Radene ville hatt riktig innhold med motsatt fortegn: «kilden
+    endret det nye til det gamle»."""
+    _skriv_utgitt([_obs(value="ny")], "2018-03-31", "2026-08-20T04:38:18+00:00")
+
+    eldre = _ramme([_obs(value="gammel")])
+    eldre = eldre.with_columns(
+        pl.lit("2024-07-20T04:40:53+00:00").alias("published_at"))
+
+    with pytest.raises(diff.Feilrekkefolge) as e:
+        diff.revisjon(eldre, "2018-03-31")
+    assert "--arkiv" in str(e.value)
+
+
+def test_ukjent_utgivelse_paa_en_side_gir_ingen_paastand_om_rekkefolge(isolert):
+    """De 103 produksjonssnapshotene har ukjent published_at. Ville
+    Feilrekkefolge fyrt på dem, hadde den ordinære revisjonskjøringen
+    stoppet — og `fetched_at` er bare en øvre grense, ikke et grunnlag for
+    å nekte."""
+    _skriv([_obs(value="ny")], "2018-03-31",
+           fetched_at="2026-08-25T00:00:00+00:00")   # published_at ukjent
+
+    nyere = _ramme([_obs(value="nyere")])
+    nyere = nyere.with_columns(
+        pl.lit("2026-08-20T04:38:18+00:00").alias("published_at"))
+
+    rev = diff.revisjon(nyere, "2018-03-31")         # kaster ikke
+    assert rev.height == 1
+    assert rev["change_type"][0] == diff.REVIDERT
+
+
+def test_revisjonsraden_baerer_begge_utgivelsene(isolert):
+    """Uten dem er raden ikke lesbar uten filnavnet: hentetidspunktene
+    sier ingenting om retning når den ene kroppen kommer fra et arkiv."""
+    _skriv_utgitt([_obs(value="gammel")], "2018-03-31",
+                  "2024-07-20T04:40:53+00:00")
+
+    nyere = _ramme([_obs(value="ny")]).with_columns(
+        pl.lit("2026-08-20T04:38:18+00:00").alias("published_at"))
+    rad = diff.revisjon(nyere, "2018-03-31").to_dicts()[0]
+
+    assert rad["forrige_published_at"] == "2024-07-20T04:40:53+00:00"
+    assert rad["published_at"] == "2026-08-20T04:38:18+00:00"
+    assert rad["forrige_published_at"] < rad["published_at"], "leser framover"
+
+
+def test_revisjon_mellom_lar_kalleren_bestemme_retningen(isolert):
+    """Arkivmodusen setter en kropp inn MELLOM to påstander vi har. Da er
+    «forrige versjon på disk» feil spørsmål, og funksjonen slår ingenting
+    opp."""
+    eldre = _ramme([_obs(value="2024")]).with_columns(
+        pl.lit("2024-07-20T04:40:53+00:00").alias("published_at"))
+    nyere = _ramme([_obs(value="2026")]).with_columns(
+        pl.lit("2026-08-20T04:38:18+00:00").alias("published_at"))
+
+    rad = diff.revisjon_mellom(eldre, nyere, "2018-03-31").to_dicts()[0]
+    assert (rad["old_value"], rad["new_value"]) == ("2024", "2026")
+    assert rad["forrige_published_at"] < rad["published_at"]
+
+
+def test_compare_baerer_ogsa_utgivelsene(isolert):
+    _skriv_utgitt([_obs(value="10", observed_at="2018-02-28")], "2018-02-28",
+                  "2026-07-20T04:00:00+00:00")
+    nyere = _ramme([_obs(value="20")]).with_columns(
+        pl.lit("2026-08-20T04:38:18+00:00").alias("published_at"))
+
+    rad = diff.compare(nyere, "2018-03-31").to_dicts()[0]
+    assert rad["forrige_published_at"] == "2026-07-20T04:00:00+00:00"
+    assert rad["published_at"] == "2026-08-20T04:38:18+00:00"

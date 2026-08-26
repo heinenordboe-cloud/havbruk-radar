@@ -357,8 +357,12 @@ def test_backfillede_rader_baerer_utvalg(monkeypatch):
 
 
 class _Svar:
-    def __init__(self, tekst):
+    def __init__(self, tekst, headere=None):
         self.content = tekst.encode("utf-8-sig")
+        # Ekte header fra tjenesten 25.08.2026. Den 20., ~04:40 UTC — samme
+        # mønster som Wayback-kopien fra 2024 bærer.
+        self.headers = {"Last-Modified": "Thu, 20 Aug 2026 04:38:18 GMT"} \
+            if headere is None else headere
 
 
 def test_fetch_returnerer_hele_fila_uendret_for_arkivering(monkeypatch):
@@ -417,3 +421,88 @@ def test_tom_fil_gir_advarsel(monkeypatch):
     monkeypatch.setattr(k, "hent_alt", lambda: _csv())
     k.fetch("2026-08-25")
     assert k.advarsler == ["biomasse: fila er tom."]
+
+
+# ---- published_at: LEST, ikke gjettet --------------------------------
+
+def test_utgitt_leses_av_last_modified():
+    """Ekte header fra tjenesten 25.08.2026. Den 20., ~04:40 UTC — som er
+    dagen fila publiseres på nytt."""
+    assert biomasse._utgitt({"Last-Modified": "Thu, 20 Aug 2026 04:38:18 GMT"}) \
+        == "2026-08-20T04:38:18+00:00"
+
+
+def test_utgitt_faller_tilbake_paa_waybacks_bevarte_header():
+    """`X-Archive-Orig-Last-Modified` er DEN SAMME headeren, bevart av
+    Internet Archive. Ekte verdi fra kopien av 07.08.2024."""
+    assert biomasse._utgitt(
+        {"X-Archive-Orig-Last-Modified": "Sat, 20 Jul 2024 04:40:53 GMT"}
+    ) == "2024-07-20T04:40:53+00:00"
+
+
+def test_waybacks_egen_fangstdato_brukes_IKKE():
+    """`Memento-Datetime` er da ARKIVET hentet kroppen — deres fetched_at,
+    ikke Fiskeridirektoratets published_at. For 2024-kopien ligger de 18
+    dager fra hverandre, og å bruke feil ville datert en publisering etter
+    at den skjedde."""
+    assert biomasse._utgitt(
+        {"Memento-Datetime": "Wed, 07 Aug 2024 22:13:45 GMT"}) == ""
+
+
+def test_manglende_eller_ulesbar_header_gir_tom_streng_ikke_klokka():
+    """Tom streng er «vet ikke». Å falle tilbake på klokka ville datert en
+    tredjeparts publisering etter når VI ringte."""
+    assert biomasse._utgitt({}) == ""
+    assert biomasse._utgitt({"Last-Modified": ""}) == ""
+    assert biomasse._utgitt({"Last-Modified": "i går"}) == ""
+
+
+def test_hent_alt_setter_published_at(monkeypatch):
+    k = Biomasse()
+    assert k.published_at == ""
+    monkeypatch.setattr(biomasse._http, "get", lambda *a, **kw: _Svar(_csv()))
+    k.hent_alt()
+    assert k.published_at == "2026-08-20T04:38:18+00:00"
+
+
+def test_published_at_stemples_paa_raden(monkeypatch):
+    k = Biomasse()
+    monkeypatch.setattr(biomasse._http, "get",
+                        lambda *a, **kw: _Svar(_csv(*_alle_po())))
+    rå = k.hent_alt()
+    obs = runner.stempl(k.parse(rå, "2026-04-30"), source_version="1",
+                        raw_hash="x", published_at=k.published_at,
+                        utvalg=k.utvalg)
+    assert {o.published_at for o in obs} == {"2026-08-20T04:38:18+00:00"}
+
+
+def test_kilde_uten_header_gir_tomt_felt_ikke_hentetidspunktet(monkeypatch):
+    k = Biomasse()
+    monkeypatch.setattr(biomasse._http, "get",
+                        lambda *a, **kw: _Svar(_csv(*_alle_po()), headere={}))
+    rå = k.hent_alt()
+    obs = runner.stempl(k.parse(rå, "2026-04-30"), source_version="1",
+                        raw_hash="x", published_at=k.published_at)
+    assert {o.published_at for o in obs} == {""}
+    assert {o.fetched_at for o in obs} != {""}
+
+
+def test_url_kan_overstyres_for_arkivkopi(monkeypatch):
+    """En Wayback-kopi er samme fil på en annen adresse — ikke et
+    særtilfelle i parsingen."""
+    sett = []
+    monkeypatch.setattr(biomasse._http, "get",
+                        lambda c, url, **kw: (sett.append(url), _Svar(_csv()))[1])
+    k = Biomasse()
+    k.hent_alt()
+    k.hent_alt(url="https://web.archive.org/web/x/https://register…/fil.csv")
+    assert sett[0] == biomasse.STANDARD_URL
+    assert sett[1].startswith("https://web.archive.org/")
+
+
+def test_maaneder_lar_kroppen_svare_selv():
+    """Arkivmodusen må vite hvilke perioder en kopi dekker uten å kjenne
+    CSV-formatet."""
+    k = Biomasse()
+    rå = _csv(*_alle_po(2026, 3), *_alle_po(2026, 4))
+    assert k.maaneder(rå) == ["2026-03-31", "2026-04-30"]

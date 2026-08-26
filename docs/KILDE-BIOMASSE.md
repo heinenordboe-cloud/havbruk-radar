@@ -337,12 +337,75 @@ forskjell like gjerne være vår egen parser som kildens revisjon, og en
 rad som påsto det siste ville vært en anklage mot en tredjepart for noe
 vi gjorde selv. Begge snapshots blir stående, og kjøringen ender rødt.
 
-**Det tredje tidspunktet, som ennå mangler.** Skjemaet har `observed_at`
-(om verden) og `fetched_at` (om oss). En revisjonskilde har et tredje:
-når KILDEN publiserte påstanden. I løpende drift er de to siste nesten
-like — vi henter innen dager. For en kropp hentet fra Wayback er de to år
-fra hverandre, og da leser revisjonsaksen baklengs. Det er derfor
-2024-kopien er verifisert MOT, men ikke skrevet INN i serien. Se punkt 11.
+### `published_at` — det tredje tidspunktet
+
+Innført 26.08.2026. Skjemaet hadde `observed_at` (om verden) og
+`fetched_at` (om oss); en revisjonskilde har et tredje: **når kilden
+utga påstanden**.
+
+    observed_at    VERDEN   hvilken måned raden handler om
+    fetched_at     OSS      når vi lastet ned
+    published_at   KILDEN   når Fiskeridirektoratet la ut fila
+
+I løpende drift ligger de to siste dager fra hverandre. For en kropp
+hentet fra Wayback ligger de **to år** fra hverandre, og uten det tredje
+feltet kan en slik kropp ikke skrives inn i det hele tatt: enten får den
+eldste påstanden det nyeste hentetidspunktet, eller så finner vi på en
+proveniens.
+
+**Den leses, den gjettes ikke.** Fra `Last-Modified`:
+
+| kropp | header | verdi |
+|---|---|---|
+| levende tjeneste, 25.08.2026 | `Last-Modified` | `Thu, 20 Aug 2026 04:38:18 GMT` |
+| Wayback-kopi, fanget 07.08.2024 | `X-Archive-Orig-Last-Modified` | `Sat, 20 Jul 2024 04:40:53 GMT` |
+
+Den 20. begge ganger, ~04:40 UTC begge ganger. Publiseringsplanen står
+altså i dataene og trenger ikke utledes av sideteksten.
+
+Merk hva som **ikke** brukes: Waybacks egen `Memento-Datetime`
+(07.08.2024) er da *arkivet* hentet kroppen — deres `fetched_at`, ikke
+Fiskeridirektoratets `published_at`. For denne kopien ligger de 18 dager
+fra hverandre.
+
+**Rekkefølgen leses av utgivelsen, ikke av filnavnet.**
+`snapshot.versjoner()` sorterer på `published_at`, med `fetched_at` som
+reserve der utgivelsen er ukjent — en reserve som er trygg fordi
+`fetched_at` er en øvre grense (du kan ikke hente noe som ikke er
+utgitt), og fordi arkivmodusen nekter å skrive en kropp uten
+`published_at`.
+
+**De 103 snapshotene fra 25.08 har ikke feltet.** De leses som ukjent og
+fylles ikke inn retroaktivt — de ville da påstått at Fiskeridirektoratet
+utga tallene den dagen vi hentet dem.
+
+### Arkivmodus: en eldre utgivelse inn i serien
+
+```bash
+python backfill.py --kilde biomasse --arkiv <wayback-url>
+```
+
+Skriver en **eldre** utgivelse inn på riktig plass. Uten
+`published_at` i svaret skrives ingenting — det er hele vilkåret.
+`diff.revisjon()` kaster `Feilrekkefolge` hvis noen prøver å sende en
+eldre kropp gjennom den ordinære revisjonsveien.
+
+**Kjørt 26.08.2026** med kopien fanget 07.08.2024, utgitt 20.07.2024:
+
+| | |
+|---|---|
+| Måneder i kroppen | 81 (2017-10 til 2024-06) |
+| Satt inn | 81, som `<dato>.2.parquet` |
+| Revisjonsrader | **1809** |
+| Retning | `2024-07-20 → 2026-…`, verifisert |
+
+Oktober 2017, PO 5, `beholdning_antall`: **18 613 010 → 17 190 233**, et
+fall på nøyaktig 1 422 777 fisk — speilparet mot `uten_po`, nå i
+changeloggen som `revidert`.
+
+Og prøven på at aksen leser riktig vei: for hver av de 81 månedene har
+`.2.parquet` (skrevet sist) et **eldre** `published_at` enn `.parquet`,
+og `snapshot.forrige_versjon()` gir fortsatt 2026-påstanden.
 
 ---
 
@@ -501,18 +564,8 @@ bære attribusjonen.** Det er et lisensvilkår, ikke en høflighet.
 
 ## 11. Det som IKKE er bygget
 
-**2024-kopien som en del av serien.** Wayback har
-biomassefila slik den så ut 07.08.2024, og den bærer 1809 revisjoner mot
-dagens. De er verifisert (punkt 5), men ikke skrevet inn, og hindringen
-er ikke teknisk: `fetched_at` skal si når VI hentet, og vi hentet den i
-dag. Skrives den med dagens dato, får den ELDSTE påstanden det NYESTE
-hentetidspunktet, og revisjonsaksen leser baklengs. Skrives den med
-2024-datoen, er det en proveniens vi har funnet på.
-
-Riktig løsning er sannsynligvis et tredje felt — `published_at`, når
-kilden utga påstanden — men det er en utvidelse av `Observation`, altså
-CLAUDE.md regel 1 og eierens avgjørelse. Til den er tatt, ligger
-2024-kopien utenfor.
+**De fire gjenstående Wayback-utgivelsene.** Se punkt 12. De
+ligger i JSON-varianten, og kilden leser CSV.
 
 **Revisjon som et steg i `run.py`.** `run.py` skriver ett snapshot per
 kilde per kjøring, og den invarianten bærer frekvensvakten,
@@ -529,3 +582,48 @@ trengs.
 
 **Årsaken til `(null)`.** Punkt 6. Krever et spørsmål til
 Fiskeridirektoratet, ikke mer kode.
+
+---
+
+## 12. Wayback-kartleggingen — hva mer som finnes
+
+Kartlagt 26.08.2026 via CDX-API-et. Ingen kropp lastet ned; publiserings-
+datoene er lest av `X-Archive-Orig-Last-Modified` med HEAD.
+
+**`biostat-total-omr.csv`: ÉN fangst.** 07.08.2024, utgitt 20.07.2024 —
+den er nå i serien.
+
+**`biostat-total-omr.json`: SEKS fangster, seks distinkte digests.** Samme
+`Data`-rader som CSV-en (verifisert 25.08.2026: 5199 rader, samme
+feltnavn), så hver er en revisjonstilstand ingen andre har:
+
+| fangst | utgitt | bytes | status |
+|---|---|---|---|
+| 2024-07-15 | 2024-06-20 | 119 240 | **ny for oss** |
+| 2024-08-07 | 2024-07-20 | 176 717 | har den (via CSV) |
+| 2025-01-17 | *ingen header* | 119 338 | **kan ikke brukes** |
+| 2025-08-08 | 2025-07-20 | 226 568 | **ny for oss** |
+| 2025-11-10 | 2025-10-20 | 233 844 | **ny for oss** |
+| 2026-06-08 | 2026-05-20 | 260 295 | **ny for oss** |
+
+**Fire nye utgivelser å hente**, én duplikat, én ubrukelig.
+
+Den ubrukelige er verdt å merke seg: uten `X-Archive-Orig-Last-Modified`
+kan kroppen ikke plasseres i utgivelsesrekkefølgen, og arkivmodusen
+nekter å skrive den. Regelen fanger den selv — ingen skjønn nødvendig.
+
+**Ikke verifisert:** hvorfor 2024-07-15 (119 kB) og 2025-01-17 (119 kB)
+er så mye mindre enn 2024-08-07 (177 kB), når serien vokser monotont.
+Avkortet fangst er den nærliggende forklaringen, men den er ikke
+undersøkt. Kolonnesjekken i `_les_csv()` fanger et avkortet hode; en
+kropp som er kuttet midt i vil gi færre måneder enn ventet, og
+arkivmodusen rapporterer hvor mange den fant.
+
+**Det som mangler for å hente dem:** kilden leser CSV, og disse er JSON.
+`Data`-arrayen har de samme feltnavnene, så det er en parser-gren og ikke
+en ny kilde — men den er ikke bygget, og `Metadata`-blokken i JSON-en er
+feil (punkt 1), så den må ignoreres eksplisitt.
+
+`biostat-total-omr.xlsx` har én fangst (2024-08-09). Fylkesvarianten har
+seks JSON-fangster og én CSV — relevant først hvis den kilden bygges
+(punkt 3).

@@ -12,6 +12,7 @@ import pytest
 import backfill
 from core import raw as raw_arkiv, snapshot
 from core.contract import Observation, Source
+from sources.biomasse import siste_dag
 from sources import _http
 
 
@@ -365,11 +366,17 @@ class FalskBiomasse(Source):
     def __init__(self, mangler=()):
         self.mangler = set(mangler)
         self.kall = 0
+        self.i_kroppen = [(2026, m) for m in range(1, 5)]
 
-    def hent_alt(self, client=None):
+    published_at = ""
+
+    def hent_alt(self, client=None, url=None):
         self.kall += 1
         self.utvalg = {}
         return "hele-serien"
+
+    def maaneder(self, raw):
+        return [siste_dag(a, m) for a, m in self.i_kroppen]
 
     def gjelder_for(self, kjoredato):
         return "2026-04-30"
@@ -521,7 +528,7 @@ class ReviderendeBiomasse(FalskBiomasse):
         self.verdi = verdi
         self.version = version
 
-    def hent_alt(self, client=None):
+    def hent_alt(self, client=None, url=None):
         # Kroppen skal endre seg SAMMEN med verdiene. En falsk kilde der
         # svaret er konstant mens parsingen endrer seg ville skjult at
         # arkivet dedupliserer på innhold.
@@ -695,3 +702,146 @@ def test_hashene_leser_det_som_ligger_der(isolert):
     h2, skrev = ra.arkiver_ny("biomasse", "2026-02-28", "en annen kropp")
     assert skrev and h2 != h
     assert ra.hashene("biomasse") == {h, h2}
+
+
+# ---- arkivmodus: en ELDRE utgivelse settes inn -----------------------
+
+class ArkivBiomasse(ReviderendeBiomasse):
+    """Leverer én kropp på standard-URL og en annen på arkiv-URL-en,
+    hver med sitt eget utgivelsestidspunkt — slik Wayback faktisk gjør."""
+
+    def __init__(self, ferskt="1750", arkivert="1000",
+                 utgitt_arkiv="2024-07-20T04:40:53+00:00",
+                 utgitt_ferskt="2026-08-20T04:38:18+00:00"):
+        super().__init__(verdi=ferskt)
+        self.arkivert, self.ferskt = arkivert, ferskt
+        self.utgitt_arkiv, self.utgitt_ferskt = utgitt_arkiv, utgitt_ferskt
+
+    def hent_alt(self, client=None, url=None):
+        self.kall += 1
+        self.utvalg = {}
+        if url:
+            self.verdi, self.published_at = self.arkivert, self.utgitt_arkiv
+        else:
+            self.verdi, self.published_at = self.ferskt, self.utgitt_ferskt
+        return f"hele-serien-{self.verdi}"
+
+
+def _kjor_arkiv(monkeypatch, kilde, ekstra=()):
+    monkeypatch.setattr(backfill.registry, "discover", lambda: [kilde])
+    monkeypatch.setattr("sys.argv", ["backfill.py", "--kilde", "biomasse",
+                                     "--arkiv", "https://web.archive.org/x",
+                                     *ekstra])
+    return backfill.main()
+
+
+def test_arkivkopi_settes_inn_som_den_eldre_paastanden(isolert, monkeypatch,
+                                                       capsys):
+    """Hele poenget med published_at: kroppen skrives SIST, men er utgitt
+    FØRST, og rekkefølgen skal leses av utgivelsen — ikke av
+    løpenummeret."""
+    import polars as pl
+
+    kilde = ArkivBiomasse()
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04")   # den ferske først
+    capsys.readouterr()
+
+    assert _kjor_arkiv(monkeypatch, kilde) == 0
+    ut = capsys.readouterr().out
+    assert "utgitt 2024-07-20T04:40:53+00:00 (lest av svaret" in ut
+    assert "4 måneder satt inn" in ut
+
+    mappe = isolert / "raw" / "biomasse"
+    # Den gamle fila står urørt; arkivkopien ligger ved siden av.
+    assert (mappe / "2026-01-31.parquet").exists()
+    assert (mappe / "2026-01-31.2.parquet").exists()
+
+    # Rekkefølgen leses av UTGIVELSEN: .2 er eldst.
+    rekke = snapshot.versjoner("biomasse", "2026-01-31")
+    assert [v for v, _ in rekke] == [2, 1]
+    assert snapshot.forrige_versjon("biomasse", "2026-01-31")["value"][0] \
+        == "1751", "den sist UTGITTE er fortsatt den ferske"
+
+
+def test_revisjonsradene_peker_riktig_vei(isolert, monkeypatch, capsys):
+    """old_value fra 2024, new_value fra 2026 — ikke omvendt, selv om
+    2024-kroppen ble skrevet sist."""
+    import polars as pl
+
+    kilde = ArkivBiomasse()
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04")
+    _kjor_arkiv(monkeypatch, kilde)
+    capsys.readouterr()
+
+    # Februar, ikke januar: januar er den første måneden i intervallet og
+    # har ingen forrige måned å bevege seg fra, så den har ingen
+    # bevegelsesfil å stå ved siden av.
+    rader = pl.read_parquet(
+        isolert / "changelog" / "biomasse" / "2026-02-28.2.parquet")
+    rad = rader.filter(pl.col("entity_id") == "1").to_dicts()[0]
+    assert rad["change_type"] == "revidert"
+    assert (rad["old_value"], rad["new_value"]) == ("1002", "1752")
+    assert rad["forrige_published_at"] == "2024-07-20T04:40:53+00:00"
+    assert rad["published_at"] == "2026-08-20T04:38:18+00:00"
+    assert rad["forrige_published_at"] < rad["published_at"]
+
+    # Bevegelsesradene for samme måned står urørt i sin egen fil.
+    bevegelse = pl.read_parquet(
+        isolert / "changelog" / "biomasse" / "2026-02-28.parquet")
+    assert set(bevegelse["change_type"]) == {"endret"}
+
+
+def test_arkivkopi_uten_utgivelsestidspunkt_skriver_ingenting(isolert,
+                                                              monkeypatch,
+                                                              capsys):
+    """Uten den kan kroppen ikke plasseres i rekkefølgen: publisert()
+    ville falt tilbake på fetched_at, som er I DAG, og da hadde den
+    ELDSTE påstanden fått det NYESTE tidspunktet."""
+    kilde = ArkivBiomasse(utgitt_arkiv="")
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-02")
+    capsys.readouterr()
+
+    assert _kjor_arkiv(monkeypatch, kilde) == 1
+    assert "vet ikke når kilden utga den" in capsys.readouterr().out
+    assert not list((isolert / "raw" / "biomasse").glob("*.2.parquet"))
+
+
+def test_arkivkopi_er_idempotent(isolert, monkeypatch, capsys):
+    """Nøkkelen er UTGIVELSEN, ikke filnavnet: to kjøringer av samme
+    arkivkopi skal ikke gi to snapshots av samme påstand."""
+    kilde = ArkivBiomasse()
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-02")
+    _kjor_arkiv(monkeypatch, kilde)
+    capsys.readouterr()
+
+    assert _kjor_arkiv(monkeypatch, kilde) == 0
+    assert "0 måneder satt inn, 2 hoppet over" in capsys.readouterr().out
+    assert not list((isolert / "raw" / "biomasse").glob("*.3.parquet"))
+
+
+def test_maaneder_vi_ikke_har_hoppes_over(isolert, monkeypatch, capsys):
+    """En måned som mangler er ikke en revisjon av noe — den er
+    backfillens bord."""
+    kilde = ArkivBiomasse()
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-02")
+    capsys.readouterr()
+
+    assert _kjor_arkiv(monkeypatch, kilde) == 0
+    ut = capsys.readouterr().out
+    assert "2 måned(er) i kroppen har vi ikke fra før" in ut
+    assert "2 måneder satt inn" in ut
+
+
+def test_arkiv_og_revisjon_sammen_avvises(isolert, monkeypatch, capsys):
+    kilde = ArkivBiomasse()
+    assert _kjor_arkiv(monkeypatch, kilde, ekstra=("--revisjon",)) == 1
+    assert "motsatte retninger" in capsys.readouterr().out
+
+
+def test_arkiv_avvises_for_en_ukekilde(isolert, monkeypatch, capsys):
+    kilde = FalskLusetall()
+    monkeypatch.setattr(backfill.registry, "discover", lambda: [kilde])
+    monkeypatch.setattr("sys.argv", ["backfill.py", "--kilde", "lusetall",
+                                     "--arkiv", "https://x"])
+    assert backfill.main() == 1
+    assert "--arkiv krever en kilde" in capsys.readouterr().out

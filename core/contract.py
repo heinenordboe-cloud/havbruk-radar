@@ -34,6 +34,36 @@ class Observation:
     source_version: str = ""  # source.version på hentetidspunktet
     raw_hash: str = ""        # sha256 fra raw_arkiv.arkiver()
 
+    # Da KILDEN utga påstanden. Tom streng betyr «kilden sa ingenting».
+    #
+    # Et tidspunkt kan tilhøre tre parter, og de tre er ikke det samme:
+    #
+    #     observed_at    VERDEN   — hvilket tidspunkt raden handler om
+    #     fetched_at     OSS      — når vi spurte
+    #     published_at   KILDEN   — når kilden utga dette svaret
+    #
+    # De to siste faller sammen NESTEN, og bare når vi henter ferskt. En
+    # kropp hentet fra et arkiv river dem fra hverandre: Wayback-kopien av
+    # biomassefila ble hentet av oss 26.08.2026 og utgitt av
+    # Fiskeridirektoratet 20.07.2024. To år.
+    #
+    # Uten feltet kan en slik kropp ikke skrives inn i det hele tatt. Enten
+    # får den ELDSTE påstanden det NYESTE hentetidspunktet — og
+    # revisjonsaksen leser baklengs — eller så finner vi på en proveniens.
+    #
+    # STANDARDEN ER IKKE `fetched_at`, og det er ikke en forglemmelse. En
+    # kilde som ikke vet når noe ble utgitt skal si at den ikke vet. Sto
+    # `fetched_at` her, ville hver eneste kilde automatisk PÅSTÅTT en
+    # utgivelsesdato ingen har gått god for — og påstanden ville vært
+    # usann i nøyaktig det tilfellet feltet finnes for. Samme skille som
+    # `utvalg` gjør mellom «vet ikke» og «vet»: tom streng er ikke en
+    # verdi, den er fraværet av en.
+    #
+    # Stemples av kjernen som de tre over. Kilden oppgir den i
+    # `Source.published_at`, og bare der den har LEST den — se
+    # `sources/biomasse.py`, som tar den fra `Last-Modified`.
+    published_at: str = ""
+
     # Hva kilden BA OM da denne raden ble hentet — kanonisk JSON fra
     # core/utvalg.py. `"{}"` betyr «kilden hentet alt», tom streng betyr
     # «kilden sa ingenting». De to er IKKE det samme, og snapshots
@@ -102,6 +132,28 @@ class Source:
     # `{}` og None er begge usanne i Python og lett å blande. Spør med
     # utvalg.er_ukjent() og utvalg.henter_alt(), ikke med `if not`.
     utvalg: dict | None = None
+
+    # Da KILDEN utga svaret `fetch()` nettopp hentet. ISO-8601 i UTC, eller
+    # tom streng for «vet ikke». Se Observation.published_at for hvorfor
+    # standarden ikke er hentetidspunktet.
+    #
+    # SETTES av kilden i det kallet som henter, leses av kjernen etterpå —
+    # samme mekanikk og samme begrunnelse som `utvalg`. Sto den i en egen
+    # metode, ville det vært et ANDRE oppslag som kan svare noe annet enn
+    # det kallet faktisk fikk (F6, F7, F8).
+    #
+    # BARE der kilden har LEST den. Å utlede den av kjøredatoen, av en
+    # publiseringsplan eller av «fila oppdateres den 20.» er å gjette på
+    # en tredjeparts vegne. `sources/biomasse.py` tar den fra
+    # `Last-Modified`-headeren, som tjenesten selv setter — og fra
+    # `X-Archive-Orig-Last-Modified` når kroppen kommer fra Wayback, som
+    # er den SAMME headeren bevart.
+    #
+    # To tilstander, ikke tre som i `utvalg`: enten vet vi når kilden utga
+    # dette, eller så vet vi det ikke. Det finnes ikke noe «kilden utgir
+    # ikke» — et svar er utgitt i det øyeblikket det gis; spørsmålet er
+    # bare om noen skrev ned når.
+    published_at: str = ""
 
     # Feltet som bærer entitetens EGEN startdato i verden — datoen den ble
     # til, ikke datoen vi først så den. For Enhetsregisteret er det

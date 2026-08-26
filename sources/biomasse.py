@@ -229,6 +229,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import email.utils
 import io
 from typing import Iterable
 
@@ -304,6 +305,47 @@ DESIMALER_KG = 3
 # den minste ekte andelen vi har målt er 0,0096 og skal kunne bevege seg
 # meningsfullt; brøk fordi `value` er tekst og typingen skjer i analysen.
 DESIMALER_ANDEL = 6
+
+
+# Headere som bærer KILDENS eget utgivelsestidspunkt, i den rekkefølgen
+# de spørres.
+#
+# `Last-Modified` er tjenestens egen, og den er presis: målt 25.08.2026 sa
+# den `Thu, 20 Aug 2026 04:38:18 GMT` — den 20., som er dagen fila
+# publiseres på nytt.
+#
+# `X-Archive-Orig-Last-Modified` er DEN SAMME headeren, bevart av
+# Internet Archive. Verifisert 26.08.2026 på kopien fra 07.08.2024:
+# `Sat, 20 Jul 2024 04:40:53 GMT`. Igjen den 20., igjen ~04:40 UTC.
+#
+# Merk hva vi IKKE bruker: Waybacks egen `Memento-Datetime` (07.08.2024)
+# er da ARKIVET hentet kroppen — deres `fetched_at`, ikke
+# Fiskeridirektoratets `published_at`. De to ligger 18 dager fra hverandre
+# for akkurat denne kopien, og å bruke feil ville datert en publisering
+# etter når den skjedde.
+UTGITT_HEADERE = ("Last-Modified", "X-Archive-Orig-Last-Modified")
+
+
+def _utgitt(headere) -> str:
+    """Kildens utgivelsestidspunkt som ISO-8601 i UTC, eller tom streng.
+
+    Tom streng er «vet ikke», og den er det ærlige svaret når headeren
+    mangler eller ikke lar seg tolke. Å falle tilbake på klokka her ville
+    vært å datere en tredjeparts publisering etter når VI ringte — se
+    Observation.published_at.
+    """
+    for navn in UTGITT_HEADERE:
+        rå = headere.get(navn)
+        if not rå:
+            continue
+        try:
+            naar = email.utils.parsedate_to_datetime(rå)
+        except (TypeError, ValueError):
+            continue
+        if naar.tzinfo is None:
+            naar = naar.replace(tzinfo=dt.timezone.utc)
+        return naar.astimezone(dt.timezone.utc).isoformat()
+    return ""
 
 
 class Kolonnefeil(RuntimeError):
@@ -475,7 +517,8 @@ class Biomasse(Source):
     def url(self) -> str:
         return str(get("kilder.biomasse.url", STANDARD_URL))
 
-    def hent_alt(self, client: httpx.Client | None = None) -> str:
+    def hent_alt(self, client: httpx.Client | None = None,
+                 url: str | None = None) -> str:
         """Rå CSV-tekst for HELE serien. Det er den eneste formen som finnes.
 
         Returnerer TEKST og ikke ferdig tolkede rader, fordi kjernen
@@ -498,13 +541,26 @@ class Biomasse(Source):
         spørrestreng. Vi ber om alt som finnes, og får alt som finnes.
         At Fiskeridirektoratet selv har avgrenset den til matfisk av laks
         og regnbueørret i sjø er deres utvalg, ikke vårt.
+
+        `published_at` settes HER, av samme grunn og på samme sted. Den
+        LESES av svarets `Last-Modified` — den utledes ikke av
+        publiseringsplanen, og den er ikke kjøredatoen. Mangler headeren,
+        blir feltet tomt, som leses «vet ikke».
+
+        `url` overstyrer config og finnes for arkivmodusen: en
+        Wayback-kopi er samme fil på en annen adresse, og den bærer
+        originalens `Last-Modified` videre i
+        `X-Archive-Orig-Last-Modified`. Da er en arkivkopi ikke et
+        særtilfelle i parsingen — bare en annen URL med et eldre
+        utgivelsestidspunkt.
         """
         self.utvalg = {}
 
         egen = client is None
         c = client or httpx.Client(timeout=60.0, follow_redirects=True)
         try:
-            svar = _http.get(c, self.url(), hva="biomasse (hele serien)")
+            svar = _http.get(c, url or self.url(), hva="biomasse (hele serien)")
+            self.published_at = _utgitt(svar.headers)
             # Eksplisitt dekoding, ikke svar.text: httpx gjetter tegnsett
             # fra headeren, og denne svarer `text/csv` uten charset. Da
             # ville «MÅNED_KODE» blitt «MÃ…NED_KODE» og kolonnesjekken
@@ -513,6 +569,16 @@ class Biomasse(Source):
         finally:
             if egen:
                 c.close()
+
+    def maaneder(self, raw: str) -> list[str]:
+        """Gyldighetsdatoene en kropp bærer, eldst først.
+
+        Finnes for arkivmodusen i `backfill.py`, som må vite hvilke
+        perioder en Wayback-kopi dekker uten å kjenne CSV-formatet. Fila
+        svarer selv — det er samme prinsipp som at `parse()` bekrefter
+        måneden framfor å stole på etterslepsregnestykket.
+        """
+        return [siste_dag(aar, mnd) for aar, mnd in maaneder_i(_les_csv(raw))]
 
     def _maaned_naa(self, kjoredato: str) -> tuple[int, int]:
         """Måneden kilden henter når vi kjører `kjoredato`. Ett sted, ikke to.

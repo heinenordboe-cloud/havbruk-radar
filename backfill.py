@@ -4,6 +4,8 @@
     python backfill.py --kilde lusetall --fra 2012-01 --til 2026-30
     python backfill.py --kilde lusetall --fra 2011-01 --til 2011-05  # stopper
     python backfill.py --kilde biomasse --fra 2017-10 --til 2026-04  # MÅNEDER
+    python backfill.py --kilde biomasse --revisjon        # har kilden snudd?
+    python backfill.py --kilde biomasse --arkiv <url>     # eldre utgivelse inn
 
 ## To moduser, valgt av kilden og ikke av et flagg
 
@@ -213,6 +215,136 @@ def _maaned_av_dato(dato: str) -> tuple[int, int]:
     return int(dato[:4]), int(dato[5:7])
 
 
+def _arkivkopi(kilde, args) -> int:
+    """Skriver en ELDRE utgivelse inn i serien, på riktig plass.
+
+        python backfill.py --kilde biomasse --arkiv <url>
+
+    ## Hvorfor dette er en egen modus
+
+    `--revisjon` spør «har kilden ombestemt seg SIDEN SIST». Denne spør
+    «hva sa kilden FØR det vi allerede har». Retningen er motsatt, og en
+    kropp som er utgitt før den lagrede kan ikke gå gjennom `revisjon()`
+    i det hele tatt — den ville gitt riktig innhold med motsatt fortegn,
+    og `diff.Feilrekkefolge` stopper den.
+
+    Kroppen kommer fra Wayback, og det er ikke et særtilfelle i
+    parsingen: det er samme fil på en annen adresse.
+    `X-Archive-Orig-Last-Modified` bærer originalens egen
+    `Last-Modified` videre, så `published_at` LESES her akkurat som ved
+    en fersk henting.
+
+    ## Uten `published_at` skrives ingenting
+
+    Det er hele vilkåret. En arkivkropp uten utgivelsestidspunkt kan ikke
+    plasseres i rekkefølgen: `snapshot.publisert()` ville falt tilbake på
+    `fetched_at`, som er I DAG, og da hadde den ELDSTE påstanden fått det
+    NYESTE tidspunktet. Fallbacken er trygg for ferske hentinger nettopp
+    fordi arkivmodusen nekter her.
+
+    ## Hva som skrives
+
+    Per måned vi ALLEREDE har: ett snapshot med løpenummer (den gamle
+    røres ikke), og revisjonsradene fra den innsatte påstanden til den
+    som følger den i utgivelsesrekkefølgen. Radene bærer
+    `forrige_published_at -> published_at` og forteller dermed selv
+    hvilken vei de går, uansett hvilken rekkefølge filene ble skrevet i.
+
+    Måneder vi IKKE har hoppes over. De er backfillens bord — en måned
+    som mangler er ikke en revisjon av noe.
+    """
+    rå = kilde.hent_alt(url=args.arkiv)
+    utgitt = getattr(kilde, "published_at", "") or ""
+    if not utgitt:
+        print(f"  Kroppen bærer ingen `Last-Modified` (heller ikke "
+              f"`X-Archive-Orig-Last-Modified`), så vi vet ikke når kilden "
+              f"utga den.\n"
+              f"  Uten det kan den ikke plasseres i utgivelsesrekkefølgen, "
+              f"og en gjettet dato er verre enn ingen kopi. Ingenting "
+              f"skrevet.")
+        return 1
+
+    print(f"  utgitt {utgitt} (lest av svaret, ikke gjettet)")
+
+    vi_har = set(snapshot.datoer(kilde.name))
+    i_kroppen = kilde.maaneder(rå)
+    aktuelle = [d for d in i_kroppen if d in vi_har]
+    ukjente = [d for d in i_kroppen if d not in vi_har]
+
+    print(f"Arkivkopi {kilde.name}: {len(i_kroppen)} måneder i kroppen, "
+          f"{len(aktuelle)} som vi allerede har"
+          + (" (TØRRKJØRING)" if args.torrkjor else ""))
+    if ukjente:
+        print(f"  {len(ukjente)} måned(er) i kroppen har vi ikke fra før "
+              f"({ukjente[0]} .. {ukjente[-1]}) — hoppet over. En måned som "
+              f"mangler er ikke en revisjon; bruk backfill for dem.")
+
+    if not aktuelle:
+        print("Ingen måneder å sette inn.")
+        return 1
+
+    hentet_at = dt.datetime.now(dt.timezone.utc).isoformat()
+    raw_hash = ""
+    if not args.torrkjor:
+        raw_hash, skrev = raw_arkiv.arkiver_ny(
+            kilde.name, aktuelle[-1], rå)
+        print(f"  {'arkivert' if skrev else 'allerede arkivert'} under "
+              f"{aktuelle[-1]}, sha256 {raw_hash[:16]}…")
+
+    satt_inn = hoppet = nyeste = revisjonsrader = 0
+    for dato in aktuelle:
+        # Idempotens: er denne utgivelsen allerede skrevet for måneden,
+        # er kjøringen en gjentakelse. Nøkkelen er UTGIVELSEN, ikke
+        # filnavnet — to kjøringer av samme arkivkopi skal ikke gi to
+        # snapshots av samme påstand.
+        if any(snapshot.published_at_i(r) == utgitt
+               for _, r in snapshot.versjoner(kilde.name, dato)):
+            hoppet += 1
+            continue
+
+        obs = runner.stempl(kilde.parse(rå, dato),
+                            source_version=kilde.version, raw_hash=raw_hash,
+                            fetched_at=hentet_at, published_at=utgitt,
+                            utvalg=getattr(kilde, "utvalg", None))
+        ramme = snapshot.to_frame(obs)
+
+        if args.torrkjor:
+            print(f"  {dato}: {ramme.height:>4} observasjoner")
+            continue
+
+        filer = snapshot.write(obs, dato)
+        vaar = snapshot.versjon_av(filer[0])
+
+        # Etterfølgeren i UTGIVELSESREKKEFØLGE, ikke i filrekkefølge.
+        rekke = snapshot.versjoner(kilde.name, dato)
+        plass = next(i for i, (v, _) in enumerate(rekke) if v == vaar)
+        if plass + 1 >= len(rekke):
+            # Kroppen er den nyeste utgivelsen for denne måneden. Da er
+            # dette ikke en innsetting — det er en revisjon, og den hører
+            # til --revisjon. Snapshotet står; ingen rader påstås.
+            nyeste += 1
+            print(f"  {dato}: skrevet som {filer[0].name}, men den er "
+                  f"NYESTE utgivelse for måneden — ingen etterfølger å "
+                  f"sammenligne mot. Bruk --revisjon for den retningen.")
+            continue
+
+        etterfolger = rekke[plass + 1][1]
+        endr = diff.revisjon_mellom(ramme, etterfolger, dato)
+        changelog.skriv(endr, dato, versjon=vaar)
+        revisjonsrader += endr.height
+        satt_inn += 1
+        print(f"  {dato}: {ramme.height:>4} observasjoner -> {filer[0].name}, "
+              f"{endr.height:>4} revisjoner mot "
+              f"{snapshot.published_at_i(etterfolger) or 'ukjent utgivelse'}")
+
+    print(f"\n{satt_inn} måneder satt inn, {hoppet} hoppet over (denne "
+          f"utgivelsen lå der alt), {nyeste} var nyeste utgivelse, "
+          f"{revisjonsrader} revisjonsrader totalt.")
+    print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+    return 0
+
+
+
 def _backfill_maaneder(kilde, args) -> int:
     """Backfill og revisjon for en kilde som leverer hele serien i ett kall.
 
@@ -393,6 +525,13 @@ def _backfill_maaneder(kilde, args) -> int:
             obs = runner.stempl(kilde.parse(rå, dato),
                                 source_version=kilde.version,
                                 raw_hash=raw_hash, fetched_at=hentet_at,
+                                # LESES ETTER hent_alt(), som utvalget.
+                                # Uten den ville en backfillet måned båret
+                                # dårligere proveniens enn en fra run.py —
+                                # og revisjonsaksen ville måttet gjette
+                                # rekkefølgen fra hentetidspunktet.
+                                published_at=getattr(kilde, "published_at",
+                                                     "") or "",
                                 utvalg=getattr(kilde, "utvalg", None))
         except Exception as e:
             # En måned som mangler i fila er et HULL, ikke et avbrudd.
@@ -484,6 +623,12 @@ def main() -> int:
     # ingen glemmer å flytte. Ukemodus krever dem fortsatt, og sier fra.
     p.add_argument("--fra", metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
     p.add_argument("--til", metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
+    p.add_argument("--arkiv", metavar="URL",
+                   help="skriv en ELDRE utgivelse inn i serien fra denne "
+                        "adressen — typisk en Wayback-kopi. Kroppen må bære "
+                        "et utgivelsestidspunkt (Last-Modified eller "
+                        "X-Archive-Orig-Last-Modified); uten det skrives "
+                        "ingenting. Bare for kilder med hent_alt().")
     p.add_argument("--revisjon", action="store_true",
                    help="sjekk om kilden har ombestemt seg om månedene vi "
                         "allerede har, i stedet for å hente nye. Skriver "
@@ -506,11 +651,23 @@ def main() -> int:
         return 1
     # Kilden velger modus, ikke brukeren. Se modulens docstring.
     if hasattr(kilde, "hent_alt"):
+        if args.arkiv and args.revisjon:
+            print("--arkiv og --revisjon spør om motsatte retninger: den "
+                  "ene setter inn en ELDRE utgivelse, den andre henter den "
+                  "NYESTE. Velg én.")
+            return 1
+        if args.arkiv:
+            return _arkivkopi(kilde, args)
         return _backfill_maaneder(kilde, args)
 
     if not hasattr(kilde, "hent_uke"):
         print(f"{args.kilde} har verken hent_uke() eller hent_alt() og kan "
               f"ikke backfilles.")
+        return 1
+
+    if args.arkiv:
+        print(f"--arkiv krever en kilde som leverer hele serien i ett kall "
+              f"(hent_alt). {args.kilde} henter én uke om gangen.")
         return 1
 
     if args.revisjon:

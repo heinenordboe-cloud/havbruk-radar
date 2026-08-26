@@ -93,6 +93,19 @@ Changelog-fila får samme løpenummer som snapshotet, så
 (revisjon mot seg selv) lever side om side. Se `core/diff.revisjon()` og
 CLAUDE.md 1b-5/1b-6.
 
+### Og løpenummeret sier ikke lenger noe om rekkefølge
+
+Fra 26.08.2026 sorteres versjoner av samme dato på `published_at` — da
+KILDEN utga påstanden — og ikke på filnavnet. Grunnen er konkret:
+Wayback-kopien av biomassefila ble skrevet inn den dagen, som `.2`, og
+den er utgitt 20.07.2024 mens `.parquet` ved siden av er fra 2026.
+Løpenummeret sier når VI skrev; `published_at` sier hvilken påstand som
+avløste hvilken.
+
+Det er tredje part i et tidspunkt, og den er ny: `observed_at` handler om
+verden, `fetched_at` om oss, `published_at` om kilden. De to siste faller
+sammen nesten — men bare når vi henter ferskt. Se CLAUDE.md 1b-7.
+
 ## Et snapshot bærer med seg hva det ba om
 
 Hver rad har fire proveniensfelter kilden aldri rører: `fetched_at`,

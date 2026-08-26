@@ -42,6 +42,9 @@ Skillet som gjelder: `observed_at` handler om verden, `fetched_at` og
 `sist_forsok` handler om oss. Blander du dem, blir feilen usynlig for
 enhver kilde uten etterslep — og permanent for dem som har det.
 
+**Og det er TRE parter, ikke to.** Se 1b-7: `published_at` handler om
+KILDEN.
+
 ### 1b-1. VALGET AV KLOKKE er også et valg av hvem tiden handler om
 
 F13 er samme familie som de fire over, men en variant verdt et eget
@@ -250,14 +253,55 @@ er et bevisst valg: `run.py` skriver ett snapshot per kilde per kjøring,
 og den invarianten bærer frekvensvakten, `finnes_allerede()` og
 feilisoleringen. Se `_backfill_maaneder` for hele begrunnelsen.
 
-**Det som ennå mangler, og som er en kontraktsavgjørelse:** skjemaet har
-`observed_at` (om verden) og `fetched_at` (om oss), men en
-revisjonskilde har et TREDJE tidspunkt — når kilden PUBLISERTE den
-påstanden. I den løpende driften er de to siste nesten like, fordi vi
-henter innen dager. For en kropp hentet fra et arkiv er de to år fra
-hverandre, og da leser revisjonsaksen baklengs. Det er derfor
-Wayback-kopien fra 07.08.2024 er verifisert mot, men ikke skrevet inn i
-serien.
+### 1b-7. Et tidspunkt tilhører VERDEN, OSS eller KILDEN
+
+    observed_at    VERDEN   hvilket tidspunkt raden handler om
+    fetched_at     OSS      når vi spurte
+    published_at   KILDEN   når kilden utga dette svaret
+
+De to siste faller sammen NESTEN, og bare når vi henter ferskt. Det er
+den «nesten» som gjør at repoet klarte seg uten det tredje feltet fram
+til 26.08.2026: henter du en gang i uka, ligger utgivelsen timer eller
+dager fra hentingen, og forskjellen er støy.
+
+En kropp gravd fram fra et arkiv river dem fra hverandre. Wayback-kopien
+av biomassefila ble hentet av oss 26.08.2026 og utgitt av
+Fiskeridirektoratet 20.07.2024. To år.
+
+Uten `published_at` kan en slik kropp ikke skrives inn i det hele tatt.
+Enten får den ELDSTE påstanden det NYESTE hentetidspunktet — og
+revisjonsaksen leser baklengs — eller så finner vi på en proveniens. Det
+er ikke to dårlige valg blant flere; det er de eneste to.
+
+Tre regler følger:
+
+1. **Standarden er «vet ikke», aldri `fetched_at`.** Sto hentetidspunktet
+   der, ville hver kilde automatisk PÅSTÅTT en utgivelsesdato ingen har
+   gått god for — og påstanden ville vært usann i nøyaktig det tilfellet
+   feltet finnes for. Tom streng er ikke en verdi; den er fraværet av en.
+   Samme skille som `utvalg` gjør.
+2. **Den LESES, den utledes ikke.** `sources/biomasse.py` tar den fra
+   `Last-Modified`, som tjenesten selv setter — og fra
+   `X-Archive-Orig-Last-Modified` når kroppen kommer fra Wayback, som er
+   den SAMME headeren bevart. Å utlede den av at «fila oppdateres den
+   20.» ville vært et gjett på en tredjeparts vegne, og det er ikke
+   bedre enn å gjette klokkeslettet.
+
+   Merk hva som IKKE brukes: Waybacks egen `Memento-Datetime` er da
+   ARKIVET hentet kroppen — deres `fetched_at`, ikke Fiskeridirektoratets
+   `published_at`. For 2024-kopien ligger de 18 dager fra hverandre.
+3. **`fetched_at` er en ØVRE GRENSE for den, og duger som reserve.** Du
+   kan ikke hente noe som ikke er utgitt, så `snapshot.publisert()`
+   faller tilbake på hentetidspunktet der utgivelsen er ukjent.
+   Rekkefølgen blir riktig så lenge en kropp som er utgitt LENGE før den
+   ble hentet, faktisk oppgir `published_at` — og derfor NEKTER
+   `backfill.py --arkiv` å skrive en kropp uten den. Reserven er trygg
+   fordi unntaket er stengt.
+
+Gamle snapshots har ikke feltet. De leses som ukjent og fylles ikke inn
+retroaktivt: 103 biomasse-snapshots ville da PÅSTÅTT at
+Fiskeridirektoratet utga tallene 25.08.2026, som er dagen VI hentet dem.
+Regel 2 gjelder her som ellers.
 
 ## 2. Data skrives én gang, aldri om
 

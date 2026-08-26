@@ -30,8 +30,8 @@ class Result:
 
 
 def stempl(observasjoner, source_version: str, raw_hash: str,
-           fetched_at: str | None = None, utvalg: dict | None = None
-           ) -> list[Observation]:
+           fetched_at: str | None = None, utvalg: dict | None = None,
+           published_at: str = "") -> list[Observation]:
     """Setter proveniensfeltene på hver observasjon.
 
     Ligger her og ikke i hver kaller fordi stemplingen er kjernens
@@ -39,6 +39,14 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     backfill.py bruker den, slik at en backfillet rad bærer nøyaktig
     samme proveniens som en ukentlig — det er `fetched_at` langt etter
     `observed_at` som gjør den kjennelig, ikke et manglende felt.
+
+    `published_at` er da KILDEN utga svaret, satt av dens egen `fetch()`
+    der den har LEST den. Tom streng er «vet ikke», og det er standarden —
+    ikke `fetched_at`. Sto hentetidspunktet der, ville hver kilde påstått
+    en utgivelsesdato ingen har gått god for, og påstanden ville vært
+    usann i nøyaktig det tilfellet feltet finnes for: en kropp hentet fra
+    et arkiv, der de to ligger år fra hverandre. Se
+    Observation.published_at.
 
     `utvalg` er hva kilden BA OM, satt av dens egen `fetch()`. Den
     stemples her av samme grunn som de tre andre: skulle hver kilde
@@ -51,7 +59,7 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     merket = utvalg_modul.serialiser(utvalg)
     return [
         replace(obs, fetched_at=naa, source_version=source_version,
-                raw_hash=raw_hash, utvalg=merket)
+                raw_hash=raw_hash, utvalg=merket, published_at=published_at)
         for obs in observasjoner
     ]
 
@@ -140,6 +148,9 @@ def run_all(
                 source_version=source.version,
                 raw_hash=raw_hash,
                 utvalg=getattr(source, "utvalg", None),
+                # LESES ETTER fetch(), som utvalget og av samme grunn:
+                # verdien skal beskrive det kallet som nettopp ble gjort.
+                published_at=getattr(source, "published_at", "") or "",
             )
             observations.extend(batch)
             results.append(
