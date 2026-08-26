@@ -201,6 +201,45 @@ meningsfull. Akvakultur og enhetsregisteret hadde 8–9 snapshots i august
 2026, alle fra samme uke — for lite til å påstå at et konstant felt er
 dødt.
 
+## Månedlig: revisjonskjøringen
+
+```bash
+python backfill.py --kilde biomasse --revisjon
+```
+
+**Hører i cron, ved siden av `run.py`.** Én gang i måneden, etter den
+20. — det er da Fiskeridirektoratet publiserer fila på nytt.
+
+Hva den gjør: leser biomassefila og sjekker om kilden har OMBESTEMT SEG
+om måneder vi allerede har skrevet. Der noe er endret, skrives
+`<dato>.2.parquet` ved siden av den gamle — som blir stående urørt — og
+changelog-fila får det samme løpenummeret. Der ingenting er endret,
+skrives ingenting.
+
+Uten datoer tar den alt vi har. Den er trygg å kjøre om igjen: samme fil
+gir «0 måneder REVIDERT, N uendret», og en kropp som allerede er arkivert
+arkiveres ikke på nytt.
+
+Hvorfor det er verdt to minutter i måneden: biomassefila **reviderer
+fortiden**. 490 av 3973 rader endret seg mellom august 2024 og august
+2026, over hele serien tilbake til 2017 — lokaliteter som
+omklassifiseres mellom produksjonsområder i ettertid. Hos
+Fiskeridirektoratet forsvinner forrige versjon den 20. hver måned.
+Kjøres ikke denne, forsvinner den for oss også.
+
+### Når den ender rødt
+
+**`GRUNNLAGSSPRIK`** betyr at `source_version` eller `utvalg` er ulikt
+mellom de to versjonene. Da kan en forskjell like gjerne være vår egen
+parser som kildens revisjon, og kjøringen nekter å påstå det siste.
+Har du nettopp bumpet `source_version` med vilje, er dette forventet:
+revisjonssporet starter på nytt fra neste skriving, og begge snapshots
+står. Er den derimot uventet, har noen endret parseren uten å si fra.
+
+**«N måned(er) MANGLET i fila»** betyr at en måned vi har skrevet ikke
+lenger finnes i publiseringen. Det har ikke skjedd, og skulle det skje,
+er det verdt å undersøke før noe annet.
+
 ## Månedlig sjekk (to minutter)
 
 Alt i datarepoet:

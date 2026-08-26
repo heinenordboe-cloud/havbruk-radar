@@ -264,6 +264,41 @@ def _les(sti: Path) -> pl.DataFrame:
     return frame
 
 
+def _en_verdi(frame: pl.DataFrame, kolonne: str) -> str | None:
+    """Verdien alle radene deler i en kolonne, eller None hvis de spriker.
+
+    Ett snapshot er ett kall, så proveniensfeltene — `fetched_at`,
+    `source_version`, `utvalg` — bærer samme verdi på hver rad. Spriker de
+    likevel, er rammen satt sammen av flere snapshots eller redigert for
+    hånd, og da er svaret None. Å plukke den første av flere ville vært et
+    gjett, og et gjett her ender som en påstand i changeloggen.
+    """
+    if frame.is_empty() or kolonne not in frame.columns:
+        return None
+    verdier = set(frame[kolonne].to_list())
+    return str(verdier.pop()) if len(verdier) == 1 else None
+
+
+def fetched_at_i(frame: pl.DataFrame) -> str | None:
+    """Når snapshotet ble hentet. None = radene spriker eller mangler feltet.
+
+    Trengs av `diff.revisjon()`: en revisjon er to utsagn om samme
+    `observed_at`, og det eneste som skiller dem er hvilken henting de kom
+    fra. Uten den kan en revisjon ikke plasseres i tid.
+    """
+    return _en_verdi(frame, "fetched_at")
+
+
+def source_version_i(frame: pl.DataFrame) -> str | None:
+    """Hvilken parserversjon som skrev snapshotet. None = spriker.
+
+    Brukes som VILKÅR, ikke som opplysning: to versjoner av samme dato
+    kan bare sammenlignes som kildens revisjon hvis vår egen tolkning sto
+    stille imellom. Se `diff.revisjon()`.
+    """
+    return _en_verdi(frame, "source_version")
+
+
 def utvalg_i(frame: pl.DataFrame) -> dict | None:
     """Utvalget et snapshot ble hentet med. None = vet ikke.
 
@@ -272,12 +307,8 @@ def utvalg_i(frame: pl.DataFrame) -> dict | None:
     fil — er svaret None. Å plukke den første av flere ville vært et
     gjett, og et gjett her undertrykker rader.
     """
-    if frame.is_empty() or "utvalg" not in frame.columns:
-        return None
-    verdier = set(frame["utvalg"].to_list())
-    if len(verdier) != 1:
-        return None
-    return utvalg_modul.les(verdier.pop())
+    rå = _en_verdi(frame, "utvalg")
+    return None if rå is None else utvalg_modul.les(rå)
 
 
 def previous(source: str, before: str) -> pl.DataFrame | None:
@@ -299,6 +330,71 @@ def previous(source: str, before: str) -> pl.DataFrame | None:
         return None
 
     return _les(earlier[-1])
+
+
+def versjon_av(sti: Path) -> int:
+    """Løpenummeret i et snapshotfilnavn. 1 når det ikke har noe.
+
+    Finnes for kallere som nettopp har skrevet et snapshot og skal gi noe
+    annet — en changelog-fil — det SAMME nummeret. Å telle det opp på nytt
+    hos kalleren ville vært to tellere for samme sak, som er formen F6 og
+    F7 hadde.
+    """
+    return _dato_og_versjon(sti.stem)[1]
+
+
+def datoer(source: str) -> list[str]:
+    """Alle observasjonsdatoer kilden har skrevet, eldst først, uten
+    duplikater.
+
+    Leser FILNAVN, ikke innhold. En revisjonskjøring skal kunne spørre
+    «hvilke perioder har vi allerede uttalt oss om» uten å åpne hundre
+    parquet-filer for å finne det ut.
+
+    Flere versjoner av samme dato (løpenummer) teller som én dato — det er
+    perioden som er nøkkelen her, ikke hvor mange ganger vi har skrevet
+    den.
+    """
+    target_dir = RAW_DIR / source
+    if not target_dir.exists():
+        return []
+    return sorted({_dato_og_versjon(p.stem)[0]
+                   for p in target_dir.glob("*.parquet")})
+
+
+def forrige_versjon(source: str, observed_at: str) -> pl.DataFrame | None:
+    """Nyeste snapshot som allerede finnes for NØYAKTIG denne datoen.
+
+    Søsteren til `previous()`, og forskjellen er hele poenget:
+
+        previous(kilde, before=D)      forrige DATO — hva sto her sist
+        forrige_versjon(kilde, D)      forrige VERSJON av samme dato —
+                                       hva sa kilden om D forrige gang
+                                       vi spurte
+
+    De to besvarer ulike spørsmål, og bare det andre kan uttrykke at en
+    kilde har ombestemt seg. `previous()` ville sammenlignet mars med
+    februar; det er industriens bevegelse, ikke Fiskeridirektoratets
+    revisjon.
+
+    «Forrige» er relativ til versjonen som er i ferd med å bli skrevet:
+    finnes `2018-03-31.parquet` og `.2`, er svaret `.2`, fordi det er den
+    en ny `.3` ville avløst. Løpenummeret sorteres TALLMESSIG — `.10`
+    kommer etter `.2`, ikke før, som det ville alfabetisk.
+
+    None betyr «datoen finnes ikke ennå». Det er ikke en revisjon, det er
+    en førstegangsskriving, og den hører til `compare()`.
+    """
+    target_dir = RAW_DIR / source
+    if not target_dir.exists():
+        return None
+
+    samme_dato = sorted(
+        (p for p in target_dir.glob("*.parquet")
+         if _dato_og_versjon(p.stem)[0] == observed_at),
+        key=lambda p: _dato_og_versjon(p.stem),
+    )
+    return _les(samme_dato[-1]) if samme_dato else None
 
 
 def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]]:

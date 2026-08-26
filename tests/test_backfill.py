@@ -504,3 +504,194 @@ def test_alle_maanedene_deler_ett_hentetidspunkt(isolert, monkeypatch):
     for p in sorted((isolert / "raw" / "biomasse").glob("*.parquet")):
         stempler |= set(pl.read_parquet(p)["fetched_at"].to_list())
     assert len(stempler) == 1
+
+
+# ---- revisjonsmodus --------------------------------------------------
+#
+# Speilbildet av månedsmodus: backfill skriver månedene vi MANGLER,
+# revisjon gjennomgår månedene vi HAR. Testene under holder de to fra
+# hverandre, og passer på at en revisjon ikke rører den gamle fila.
+
+class ReviderendeBiomasse(FalskBiomasse):
+    """Som FalskBiomasse, men `verdi` kan byttes mellom kjøringene —
+    slik den ekte fila endrer seg mellom to publiseringer."""
+
+    def __init__(self, verdi="1000", mangler=(), version="1"):
+        super().__init__(mangler=mangler)
+        self.verdi = verdi
+        self.version = version
+
+    def hent_alt(self, client=None):
+        # Kroppen skal endre seg SAMMEN med verdiene. En falsk kilde der
+        # svaret er konstant mens parsingen endrer seg ville skjult at
+        # arkivet dedupliserer på innhold.
+        self.kall += 1
+        self.utvalg = {}
+        return f"hele-serien-{self.verdi}"
+
+    def parse(self, raw, observed_at):
+        aar, mnd = int(observed_at[:4]), int(observed_at[5:7])
+        if (aar, mnd) in self.mangler:
+            raise RuntimeError(f"{aar}-{mnd:02d} ligger ikke i fila")
+        for po in ("1", "2"):
+            # PO 1 varierer med MÅNEDEN, så compare() har ekte bevegelse
+            # å finne, og med `verdi`, så revisjon() har ekte revisjon å
+            # finne. De to aksene må kunne skilles i den samme fila.
+            yield Observation(
+                entity_id=po, entity_type=self.entity_type,
+                entity_name=f"PO {po}", field="beholdning_antall",
+                value=str(int(self.verdi) + mnd) if po == "1" else "500",
+                source=self.name, observed_at=observed_at,
+            )
+
+
+def test_revisjon_skriver_bare_der_noe_faktisk_er_endret(isolert, monkeypatch,
+                                                         capsys):
+    """En identisk `.2`-fil ville vært ren støy i et append-only repo —
+    og en påstand om at kilden sa noe nytt da den ikke gjorde det."""
+    import polars as pl
+
+    kilde = ReviderendeBiomasse(verdi="1000")
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03") == 0
+    capsys.readouterr()
+
+    # Ingen endring: ingen nye filer.
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03",
+                     ekstra=("--revisjon",)) == 0
+    ut = capsys.readouterr().out
+    assert "0 måneder REVIDERT, 3 uendret" in ut
+    assert not list((isolert / "raw" / "biomasse").glob("*.2.parquet"))
+
+    # Kilden ombestemmer seg.
+    kilde.verdi = "1750"
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03",
+                     ekstra=("--revisjon",)) == 0
+    ut = capsys.readouterr().out
+    assert "3 måneder REVIDERT, 0 uendret" in ut
+
+    # Den gamle fila står URØRT ved siden av den nye.
+    mappe = isolert / "raw" / "biomasse"
+    gammel = pl.read_parquet(mappe / "2026-01-31.parquet")
+    ny = pl.read_parquet(mappe / "2026-01-31.2.parquet")
+    assert gammel.filter(pl.col("entity_id") == "1")["value"][0] == "1001"
+    assert ny.filter(pl.col("entity_id") == "1")["value"][0] == "1751"
+
+
+def test_revisjonens_changelog_sletter_ikke_bevegelsens(isolert, monkeypatch):
+    """Løpenummeret på changelog-fila skal følge snapshotets. Uten det
+    ville «januar mot januar» skrevet over «januar mot desember»."""
+    import polars as pl
+
+    kilde = ReviderendeBiomasse(verdi="1000")
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03")
+    kilde.verdi = "1750"
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03", ekstra=("--revisjon",))
+
+    mappe = isolert / "changelog" / "biomasse"
+    assert sorted(p.name for p in mappe.glob("2026-02-28*")) == [
+        "2026-02-28.2.parquet", "2026-02-28.parquet"]
+    assert set(pl.read_parquet(mappe / "2026-02-28.parquet")["change_type"]) \
+        == {"endret"}
+    assert set(pl.read_parquet(mappe / "2026-02-28.2.parquet")["change_type"]) \
+        == {"revidert"}
+
+
+def test_revisjon_hopper_over_maaneder_vi_ikke_har(isolert, monkeypatch,
+                                                   capsys):
+    """En måned som ikke er skrevet er ikke en revisjon — den er
+    backfillens bord, og skal ikke smugles inn her hvor changeloggen
+    ville kalt den «revidert»."""
+    kilde = ReviderendeBiomasse(verdi="1000")
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-02")
+    capsys.readouterr()
+
+    kilde.verdi = "1750"
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-04",
+                     ekstra=("--revisjon",)) == 0
+    ut = capsys.readouterr().out
+    assert "2 måneder REVIDERT" in ut
+    assert "2 hoppet over (ikke skrevet ennå)" in ut
+    assert not (isolert / "raw" / "biomasse" / "2026-03-31.parquet").exists()
+
+
+def test_revisjon_uten_datoer_tar_alt_vi_har(isolert, monkeypatch, capsys):
+    """Cron-linja er `--kilde biomasse --revisjon`. Datoer som må flyttes
+    hver måned er datoer noen glemmer å flytte."""
+    kilde = ReviderendeBiomasse(verdi="1000")
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03")
+    capsys.readouterr()
+
+    kilde.verdi = "1750"
+    monkeypatch.setattr(backfill.registry, "discover", lambda: [kilde])
+    monkeypatch.setattr("sys.argv", ["backfill.py", "--kilde", "biomasse",
+                                     "--revisjon"])
+    assert backfill.main() == 0
+    ut = capsys.readouterr().out
+    assert "2026-01 -> 2026-03" in ut
+    assert "3 måneder REVIDERT" in ut
+
+
+def test_grunnlagssprik_stopper_revisjonen_og_gir_exit_1(isolert, monkeypatch,
+                                                         capsys):
+    """Bumpes source_version, kan en forskjell like gjerne være vår egen
+    parser. Da skal begge snapshots stå, og jobben bli rød."""
+    kilde = ReviderendeBiomasse(verdi="1000", version="1")
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-02")
+    capsys.readouterr()
+
+    kilde.verdi, kilde.version = "1750", "2"
+    assert _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-02",
+                     ekstra=("--revisjon",)) == 1
+    ut = capsys.readouterr().out
+    assert "GRUNNLAGSSPRIK" in ut
+    assert "2 måned(er) kunne IKKE vurderes" in ut
+    assert not list((isolert / "raw" / "biomasse").glob("*.2.parquet"))
+
+
+def test_revisjon_avvises_for_en_ukekilde(isolert, monkeypatch, capsys):
+    """Uten hent_alt() finnes det ikke to versjoner av samme uke å
+    sammenligne — hver uke er sitt eget kall."""
+    kilde = FalskLusetall()
+    monkeypatch.setattr(backfill.registry, "discover", lambda: [kilde])
+    monkeypatch.setattr("sys.argv", ["backfill.py", "--kilde", "lusetall",
+                                     "--revisjon"])
+    assert backfill.main() == 1
+    assert "--revisjon krever en kilde" in capsys.readouterr().out
+
+
+def test_ukekilde_uten_datoer_sier_fra(isolert, monkeypatch, capsys):
+    kilde = FalskLusetall()
+    monkeypatch.setattr(backfill.registry, "discover", lambda: [kilde])
+    monkeypatch.setattr("sys.argv", ["backfill.py", "--kilde", "lusetall"])
+    assert backfill.main() == 1
+    assert "--fra og --til kreves" in capsys.readouterr().out
+
+
+def test_samme_kropp_arkiveres_ikke_to_ganger(isolert, monkeypatch, capsys):
+    """Revisjonskjøringen leser den samme publiseringen som månedsjobben
+    allerede arkiverte. Uten hash-sjekken ville den lagt igjen en
+    identisk 200 kB-kopi hver måned for å dokumentere ingenting."""
+    kilde = ReviderendeBiomasse(verdi="1000")
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03")
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03", ekstra=("--revisjon",))
+    capsys.readouterr()
+
+    arkiv = sorted((isolert / "arkiv" / "biomasse").glob("*"))
+    assert len(arkiv) == 1, [p.name for p in arkiv]
+
+    # En NY kropp arkiveres, også når den kommer fra revisjonskjøringen.
+    kilde.verdi = "1750"
+    _kjor_mnd(monkeypatch, kilde, "2026-01", "2026-03", ekstra=("--revisjon",))
+    assert "allerede arkivert" not in capsys.readouterr().out
+    assert len(list((isolert / "arkiv" / "biomasse").glob("*"))) == 2
+
+
+def test_hashene_leser_det_som_ligger_der(isolert):
+    from core import raw as ra
+    assert ra.hashene("biomasse") == set()
+    h = ra.arkiver("biomasse", "2026-01-31", "en kropp")
+    assert ra.hashene("biomasse") == {h}
+    assert ra.arkiver_ny("biomasse", "2026-02-28", "en kropp") == (h, False)
+    h2, skrev = ra.arkiver_ny("biomasse", "2026-02-28", "en annen kropp")
+    assert skrev and h2 != h
+    assert ra.hashene("biomasse") == {h, h2}

@@ -1,6 +1,27 @@
 """Sammenligner denne kjøringen mot forrige snapshot.
 
 Diffen er produktet. Rådataene er bare råstoffet.
+
+## To akser, to spørsmål
+
+`compare()` går langs TIDA: hva sier kilden i dag som den ikke sa forrige
+gang vi spurte. Det er bevegelse i verden.
+
+`revisjon()` går langs HENTINGENE: hva sier kilden i dag om et tidspunkt
+den allerede har uttalt seg om. Det er ikke bevegelse i verden — det er
+kilden som har ombestemt seg.
+
+Aksen finnes fordi én kilde krever den. Fiskeridirektoratets biomassefil
+publiseres på nytt den 20. hver måned og endrer tall helt tilbake til
+2017: målt 25.08.2026 mot en kopi fra 07.08.2024 var 490 av 3973 felles
+rader endret, i hvert eneste år i serien, mens summen av alle
+beholdninger bare flyttet seg 0,006 %. Mekanismen er lokaliteter som
+omklassifiseres mellom produksjonsområder i ettertid.
+
+To snapshots som er uenige om 2018 er derfor ikke en feil. `observed_at`
+sier hvilket punkt i verden raden handler om; `fetched_at` sier hvilken
+PÅSTAND om det punktet dette er. Begge er sanne, og bare den andre aksen
+kan vise at den andre påstanden erstattet den første. Se CLAUDE.md 1b-5.
 """
 
 import polars as pl
@@ -12,6 +33,30 @@ from core import utvalg
 # spørre etter den, ikke fordi noe skjedde i verden. Se core/utvalg.py.
 UTVALGSUTVIDELSE = "utvalgsutvidelse"
 
+# Radene som heller ikke er bevegelse, av motsatt grunn: verden sto
+# stille, og det var KILDEN som flyttet seg. Se `revisjon()`.
+REVIDERT = "revidert"
+
+# Endringstypene som beskriver at noe skjedde i verden. Alt utenfor er
+# noe som skjedde med OSS eller med KILDEN, og telles ikke som aktivitet
+# — se `bevegelse()`.
+IKKE_BEVEGELSE = frozenset({UTVALGSUTVIDELSE, REVIDERT})
+
+
+class Grunnlagssprik(RuntimeError):
+    """De to versjonene ble ikke laget på samme vilkår.
+
+    Kastes av `revisjon()` når vår egen tolkning (`source_version`) eller
+    vårt eget utvalg (`utvalg`) endret seg mellom de to hentingene. Da kan
+    en forskjell ikke tilskrives kilden, og påstanden «Fiskeridirektoratet
+    reviderte dette» ville vært en anklage mot en tredjepart for noe vi
+    gjorde selv.
+
+    Egen type fordi den ikke er en datafeil: begge snapshots er gyldige,
+    spørsmålet er bare ubesvarlig fra dem alene. Kalleren skal si fra og
+    la begge stå.
+    """
+
 CHANGE_SCHEMA = {
     "entity_id": pl.Utf8,
     "entity_type": pl.Utf8,
@@ -19,13 +64,18 @@ CHANGE_SCHEMA = {
     "field": pl.Utf8,
     "old_value": pl.Utf8,
     "new_value": pl.Utf8,
-    # "ny" | "endret" | "borte" | "utvalgsutvidelse"
+    # "ny" | "endret" | "borte" | "utvalgsutvidelse" | "revidert"
     #
-    # Den siste er en EGEN verdi og ikke en boolsk kolonne ved siden av
-    # "ny", med vilje. Enhver leser som forgrener på change_type — og
-    # signals.py er en av dem — må da forholde seg til den eksplisitt i
-    # stedet for å svelge den som bevegelse. En kolonne til hadde vært
-    # noe hver leser måtte huske å lese.
+    # De to siste er EGNE verdier og ikke boolske kolonner ved siden av,
+    # med vilje. Enhver leser som forgrener på change_type — og signals.py
+    # er en av dem — må da forholde seg til dem eksplisitt i stedet for å
+    # svelge dem som bevegelse. En kolonne til hadde vært noe hver leser
+    # måtte huske å lese.
+    #
+    # Ingen av de 24 reglene i rules/signals.yml matcher "revidert", og
+    # det er ikke tilfeldig: alle oppgir `endringstype`, så en ny verdi
+    # treffer ingen regel før noen skriver en som ber om den. Samme
+    # mekanikk som utvalgsutvidelse.
     "change_type": pl.Utf8,
     "source": pl.Utf8,
     "observed_at": pl.Utf8,
@@ -34,7 +84,19 @@ CHANGE_SCHEMA = {
     # og over tretti dager ser identisk ut i loggen. Signalregelen
     # `krev_dato_etter_forrige` trenger den også — den er hele skillet
     # mellom "ny i registeret" og "ny i utvalget vårt".
+    #
+    # For en revisjonsrad er den LIK `observed_at`. Det er ikke en feil:
+    # det er nettopp det som gjør raden til en revisjon.
     "forrige_observed_at": pl.Utf8,
+    # HENTETIDSPUNKTET vi sammenlignet mot. Tom streng når det gamle
+    # snapshotet ikke bærer ett entydig — rader skrevet før feltet fantes,
+    # eller en ramme satt sammen av flere hentinger.
+    #
+    # For `compare()` er den kontekst: to snapshots med samme observed_at
+    # ville ellers vært umulige å skille. For `revisjon()` er den HELE
+    # opplysningen — der er `observed_at` lik på begge sider, og
+    # hentetidspunktet er det eneste som plasserer de to påstandene i tid.
+    "forrige_fetched_at": pl.Utf8,
 }
 
 
@@ -114,6 +176,11 @@ def compare(current: pl.DataFrame, observed_at: str,
         if len(forrige_datoer) == 1:
             forrige_dato = str(forrige_datoer.pop())
 
+        # Hentetidspunktet vi sammenligner mot. Tom streng når det gamle
+        # snapshotet ikke bærer ett entydig — snapshots fra før feltet
+        # fantes gjør ikke det, og de skal fortsatt kunne diffes.
+        forrige_hentet = snapshot.fetched_at_i(old) or ""
+
         # Entitetene som ble til i verden etter forrige snapshot. De
         # skal STÅ som "ny" selv i en utvidelsesuke — se docstringen.
         # Tom mengde når kilden ikke oppgir noe startdatofelt, eller når
@@ -170,6 +237,124 @@ def compare(current: pl.DataFrame, observed_at: str,
                 "source": str(source),
                 "observed_at": observed_at,
                 "forrige_observed_at": forrige_dato,
+                "forrige_fetched_at": forrige_hentet,
+            })
+
+    if not changes:
+        return pl.DataFrame(schema=CHANGE_SCHEMA)
+
+    return pl.DataFrame(changes).select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
+
+
+def revisjon(current: pl.DataFrame, observed_at: str) -> pl.DataFrame:
+    """Hva kilden har OMBESTEMT SEG om for et tidspunkt den alt har uttalt
+    seg om.
+
+    Speilvendt `compare()`: der sammenlignes to ULIKE `observed_at` fra
+    samme henting, her sammenlignes to ULIKE hentinger av SAMME
+    `observed_at`. Radene får `change_type = "revidert"`, `observed_at` og
+    `forrige_observed_at` er like, og `forrige_fetched_at` bærer hvilken
+    henting den erstattede påstanden kom fra.
+
+    Tom ramme når datoen ikke finnes fra før. Det er ikke en revisjon —
+    det er en førstegangsskriving, og den hører til `compare()`.
+
+    ## Hva som IKKE regnes som revisjon
+
+    **Et feltnavn som bare finnes på én side.** Legger vi til en kolonne i
+    parseren, ville hver eneste måned fått en «revidert»-rad for det nye
+    feltet — en påstand om at Fiskeridirektoratet endret noe VI endret.
+    Samme regel og samme begrunnelse som skjemautvidelsen i `compare()`,
+    bare med to sider å beskytte: et felt vi la til, og et felt vi fjernet,
+    er begge våre.
+
+    Merk at filteret går på FELTNAVN og ikke på entiteter. En entitet som
+    dukker opp eller forsvinner mellom to versjoner av samme måned ER en
+    revisjon — kilden har flyttet noe inn i eller ut av det tidsrommet — og
+    `old_value`/`new_value` viser hvilken vei det gikk.
+
+    **Ulikt grunnlag.** Er `source_version` eller `utvalg` forskjellig
+    mellom de to snapshotene, kastes `Grunnlagssprik`. Da kan en forskjell
+    ikke tilskrives kilden i det hele tatt, og en rad som påsto det ville
+    vært feil om en tredjepart. Begge snapshots blir stående; det er
+    spørsmålet som er ubesvarlig, ikke dataene som er ødelagte.
+
+    Det er samme disiplin som resten av repoet: still spørsmålet du
+    faktisk vil ha svar på, og nekt å svare når feltet som kunne svart
+    ikke holdt seg fast (CLAUDE.md 1b-2).
+    """
+    changes = []
+
+    for (source,), group in current.group_by(["source"]):
+        forrige = snapshot.forrige_versjon(str(source), observed_at)
+        if forrige is None or forrige.is_empty():
+            continue
+
+        # Vilkårene FØR sammenligningen. Rekkefølgen er ikke likegyldig:
+        # en Grunnlagssprik skal kastes uten at det er skrevet en eneste
+        # rad som påstår noe om kilden.
+        gammel_versjon = snapshot.source_version_i(forrige)
+        ny_versjon = snapshot.source_version_i(group)
+        if gammel_versjon != ny_versjon:
+            raise Grunnlagssprik(
+                f"{source} {observed_at}: forrige versjon ble tolket av "
+                f"source_version {gammel_versjon!r}, denne av {ny_versjon!r}. "
+                f"En forskjell mellom dem kan like gjerne være vår egen "
+                f"parser som kildens revisjon, og de to kan ikke skilles "
+                f"herfra. Begge snapshots står."
+            )
+
+        gammelt_utvalg = snapshot.utvalg_i(forrige)
+        nytt_utvalg = snapshot.utvalg_i(group)
+        if gammelt_utvalg != nytt_utvalg:
+            raise Grunnlagssprik(
+                f"{source} {observed_at}: forrige versjon ble hentet med "
+                f"utvalget {gammelt_utvalg!r}, denne med {nytt_utvalg!r}. "
+                f"Entiteter som kommer eller går kan da være vårt utvalg og "
+                f"ikke kildens revisjon. Begge snapshots står."
+            )
+
+        # Samme forsvar som i compare(): snapshots fra før dedupliseringen
+        # kan ha flere rader per (entity_id, field), og joinen under ville
+        # fanne ut på dem.
+        forrige = forrige.unique(subset=snapshot.NOKKEL, keep="first",
+                                 maintain_order=True)
+
+        # Feltnavn som finnes på BEGGE sider. Alt annet er vår
+        # skjemaendring, ikke kildens revisjon.
+        felles_felter = (set(forrige["field"].unique().to_list())
+                         & set(group["field"].unique().to_list()))
+
+        forrige_hentet = snapshot.fetched_at_i(forrige) or ""
+
+        key = ["entity_id", "field"]
+        joined = group.join(
+            forrige.select(key + ["value"]).rename({"value": "old_value"}),
+            on=key,
+            how="full",
+            coalesce=True,
+        )
+
+        for row in joined.iter_rows(named=True):
+            if row["field"] not in felles_felter:
+                continue
+            new_value, old_value = row.get("value"), row.get("old_value")
+            if new_value == old_value:
+                continue
+
+            changes.append({
+                "entity_id": row["entity_id"],
+                "entity_type": row.get("entity_type") or "",
+                "entity_name": row.get("entity_name") or "",
+                "field": row["field"],
+                "old_value": old_value,
+                "new_value": new_value,
+                "change_type": REVIDERT,
+                "source": str(source),
+                "observed_at": observed_at,
+                # Samme dato på begge sider. Det ER revisjonen.
+                "forrige_observed_at": observed_at,
+                "forrige_fetched_at": forrige_hentet,
             })
 
     if not changes:
@@ -179,7 +364,12 @@ def compare(current: pl.DataFrame, observed_at: str,
 
 
 def bevegelse(endringer: pl.DataFrame) -> pl.DataFrame:
-    """Radene som faktisk er bevegelse — alt unntatt utvalgsutvidelse.
+    """Radene som faktisk er bevegelse i verden.
+
+    Alt unntatt `IKKE_BEVEGELSE`, altså unntatt utvalgsutvidelse og
+    revisjon. De to er speilbilder av hverandre og filtreres av samme
+    grunn: den ene sier at VI begynte å se etter noe, den andre at KILDEN
+    ombestemte seg om noe. I ingen av tilfellene skjedde det noe i sjøen.
 
     Egen funksjon og ikke et filter hos hver kaller: «hvor mye skjedde
     denne uka» er ett spørsmål med ett svar, og tallet står i
@@ -188,11 +378,12 @@ def bevegelse(endringer: pl.DataFrame) -> pl.DataFrame:
 
     Radene som filtreres bort er IKKE slettet. De ligger i changeloggen,
     de kan telles, og de kan leses av den som vil vite når utvalget ble
-    utvidet. De skal bare ikke summeres som aktivitet.
+    utvidet eller når kilden skrev om fortiden. De skal bare ikke summeres
+    som aktivitet.
     """
     if endringer.is_empty() or "change_type" not in endringer.columns:
         return endringer
-    return endringer.filter(pl.col("change_type") != UTVALGSUTVIDELSE)
+    return endringer.filter(~pl.col("change_type").is_in(sorted(IKKE_BEVEGELSE)))
 
 
 def slaa_sammen(deler: list[pl.DataFrame]) -> pl.DataFrame:

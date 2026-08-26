@@ -129,13 +129,34 @@ def _gammel_flat_fil(observed_at: str, kilde: str) -> Path | None:
     return flat if kilde in kilder else None
 
 
-def skriv(endringer: pl.DataFrame, observed_at: str) -> Path | None:
+def skriv(endringer: pl.DataFrame, observed_at: str,
+          versjon: int = 1) -> Path | None:
     """Skriver én kildes endringer for én dato. Returnerer stien, eller None.
 
     Fila er `changelog/<kilde>/<dato>.parquet`. Kilden leses ut av radene,
     så to kilder som gjelder for samme dato skriver til hver sin fil og kan
     ikke slette hverandre. En rekjøring av SAMME kilde samme dato
     overskriver sin egen fil, som før — loggen dobbeltføres ikke.
+
+    ## Om `versjon`
+
+    En kilde som REVIDERER fortiden skriver samme `observed_at` flere
+    ganger, og den andre skrivingen er ikke en rekjøring av den første —
+    den er et nytt utsagn om det samme tidspunktet. Snapshotet får da
+    løpenummer (`<dato>.2.parquet`, se `snapshot._ledig_sti`), og
+    changelog-fila skal bære det SAMME nummeret.
+
+    Uten det ville revisjonsradene overskrevet bevegelsesradene for den
+    måneden: `diff.compare()` skrev «mars mot februar» dit i sin tid, og
+    `diff.revisjon()` ville lagt «mars mot mars» oppå. To ulike spørsmål,
+    ett filnavn, og den førstes svar borte.
+
+    Nummeret skal komme fra snapshotet som faktisk ble skrevet, ikke
+    telles opp her — to tellere for samme sak er formen F6/F7 kostet oss.
+    Kalleren leser det av stien `snapshot.write()` returnerte.
+
+    `les_alt()` plukker begge opp: `_filer()` globber `*/*.parquet`, og
+    `2018-03-31.2` sorterer etter `2018-03-31`.
     """
     if endringer.is_empty():
         return None
@@ -155,7 +176,9 @@ def skriv(endringer: pl.DataFrame, observed_at: str) -> Path | None:
 
     mappe = CHANGELOG_DIR / kilde
     mappe.mkdir(parents=True, exist_ok=True)
-    sti = mappe / f"{observed_at}.parquet"
+    navn = f"{observed_at}.parquet" if versjon <= 1 \
+        else f"{observed_at}.{versjon}.parquet"
+    sti = mappe / navn
     endringer.write_parquet(sti)
     return sti
 

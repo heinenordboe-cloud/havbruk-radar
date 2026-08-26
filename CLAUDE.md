@@ -210,11 +210,54 @@ referansen utledet av data som allerede inneholdt feilen, her kan selve
 grunnlaget endre seg etter at referansen er satt. Se
 docs/KILDE-BIOMASSE.md punkt 5.
 
-Merk hva som IKKE ble bygget, og hvorfor: changeloggen kan ikke skille
-«ny måned» fra «revidert måned», fordi `diff.compare()` sammenligner mot
-forrige DATO og ikke mot forrige VERSJON av samme dato. Å legge til den
-aksen er en endring i `core/` — altså regel 1, og eierens avgjørelse,
-ikke et unntak en kilde tar seg til.
+### 1b-6. Changeloggen har TO akser, og de svarer på hver sin ting
+
+`diff.compare()` går langs TIDA: hva sier kilden i dag som den ikke sa
+forrige gang vi spurte. `diff.revisjon()` går langs HENTINGENE: hva sier
+kilden i dag om et tidspunkt den allerede har uttalt seg om.
+
+    compare      to ULIKE observed_at, samme henting   -> ny/endret/borte
+    revisjon     to ULIKE hentinger, samme observed_at  -> revidert
+
+Bare den andre kan uttrykke at en kilde har ombestemt seg, og den ble
+lagt til 25.08.2026 fordi biomasse krevde den. Aksen hviler på tre ting,
+og hver av dem er en regel i seg selv:
+
+1. **`snapshot.forrige_versjon()`, ikke `previous()`.** Den første finner
+   forrige VERSJON av samme dato (løpenummeret `.2`, `.3`), den andre
+   forrige DATO. Bruker du feil, sammenligner du mars med februar og
+   kaller industriens bevegelse for en revisjon.
+2. **`forrige_fetched_at` på raden.** For en revisjonsrad er
+   `observed_at` og `forrige_observed_at` LIKE — det er nettopp det som
+   gjør den til en revisjon — og hentetidspunktet er da det eneste som
+   plasserer de to påstandene i tid.
+3. **`revidert` er ikke bevegelse.** Den filtreres av `diff.bevegelse()`
+   sammen med `utvalgsutvidelse`. De to er speilbilder: den ene sier at
+   VI begynte å se etter noe, den andre at KILDEN ombestemte seg. I
+   ingen av tilfellene skjedde det noe i sjøen, og ingen av dem skal
+   telles i «X endringer denne uka».
+
+Og én ting aksen NEKTER å svare på: er `source_version` eller `utvalg`
+ulikt mellom de to versjonene, kaster `revisjon()` `Grunnlagssprik` i
+stedet for å sammenligne. Da kan en forskjell like gjerne være vår egen
+parser som kildens revisjon, og en rad som påsto det siste ville vært en
+anklage mot en tredjepart for noe vi gjorde selv. Begge snapshots blir
+stående; det er spørsmålet som er ubesvarlig, ikke dataene som er
+ødelagte.
+
+Revisjonen kjøres av `backfill.py --revisjon` og ikke av `run.py`. Det
+er et bevisst valg: `run.py` skriver ett snapshot per kilde per kjøring,
+og den invarianten bærer frekvensvakten, `finnes_allerede()` og
+feilisoleringen. Se `_backfill_maaneder` for hele begrunnelsen.
+
+**Det som ennå mangler, og som er en kontraktsavgjørelse:** skjemaet har
+`observed_at` (om verden) og `fetched_at` (om oss), men en
+revisjonskilde har et TREDJE tidspunkt — når kilden PUBLISERTE den
+påstanden. I den løpende driften er de to siste nesten like, fordi vi
+henter innen dager. For en kropp hentet fra et arkiv er de to år fra
+hverandre, og da leser revisjonsaksen baklengs. Det er derfor
+Wayback-kopien fra 07.08.2024 er verifisert mot, men ikke skrevet inn i
+serien.
 
 ## 2. Data skrives én gang, aldri om
 

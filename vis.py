@@ -97,17 +97,28 @@ def _er_numerisk(verdier: pl.Series) -> bool:
     return verdier.cast(pl.Float64, strict=False).null_count() == 0
 
 
+def _per_felt(kilde: str, rader: pl.DataFrame) -> dict[str, int]:
+    """{feltnavn: antall} for én kildes rader i en endringsramme."""
+    if not rader.height:
+        return {}
+    return {
+        str(felt): int(antall)
+        for felt, antall in (rader.filter(pl.col("source") == kilde)
+                             .group_by("field").len().iter_rows())
+    }
+
+
 def _felter_for_kilde(kilde: str, ramme: pl.DataFrame,
-                      endringer: pl.DataFrame) -> list[dict]:
+                      endringer: pl.DataFrame,
+                      revisjoner: pl.DataFrame) -> list[dict]:
     entiteter = ramme["entity_id"].n_unique()
 
-    endr_per_felt: dict[str, int] = {}
-    if endringer.height:
-        for felt, antall in (
-            endringer.filter(pl.col("source") == kilde)
-            .group_by("field").len().iter_rows()
-        ):
-            endr_per_felt[str(felt)] = int(antall)
+    endr_per_felt = _per_felt(kilde, endringer)
+    # Egen kolonne, ikke lagt til endringstallet. En revidert måned er
+    # ikke en måned der noe skjedde — det er en måned kilden har uttalt
+    # seg om to ganger. Summeres de, forsvinner nettopp det skillet
+    # revisjonsaksen finnes for.
+    rev_per_felt = _per_felt(kilde, revisjoner)
 
     rader = []
     for (felt,), gruppe in ramme.group_by(["field"]):
@@ -123,13 +134,15 @@ def _felter_for_kilde(kilde: str, ramme: pl.DataFrame,
             "distinkte": verdier.n_unique(),
             "eksempler": [str(v) for v in vanligste["value"].to_list()],
             "endringer": endr_per_felt.get(str(felt), 0),
+            "revisjoner": rev_per_felt.get(str(felt), 0),
             "numerisk": _er_numerisk(verdier),
         })
 
     # Fallende på endringer: toppen av lista er der det er noe å mene
     # noe om. Sekundært på dekning, så lista er stabil mens
     # endringstallet ennå er null for alt.
-    rader.sort(key=lambda r: (-r["endringer"], -r["dekning"], r["felt"]))
+    rader.sort(key=lambda r: (-r["endringer"], -r["revisjoner"],
+                              -r["dekning"], r["felt"]))
     return rader
 
 
@@ -142,7 +155,16 @@ def bygg_data() -> dict:
     # bransje i bevegelse. Se changelog.merk_utvalgsutvidelse().
     alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
     endringer = diff.bevegelse(alle)
-    utvalgsutvidelse = alle.height - endringer.height
+
+    # Tell hver for seg, ikke som «resten». `bevegelse()` filtrerer nå bort
+    # TO typer, og differansen alene ville tilskrevet revisjonene til
+    # utvalgsutvidelsen — et tall som så riktig ut og pekte på feil årsak.
+    def _av_type(t):
+        return (alle.filter(pl.col("change_type") == t)
+                if "change_type" in alle.columns else alle.head(0))
+
+    utvalgsutvidelse = _av_type(diff.UTVALGSUTVIDELSE).height
+    revisjoner = _av_type(diff.REVIDERT)
     etterslep = _etterslep_dager()
     kilder = []
 
@@ -159,7 +181,7 @@ def bygg_data() -> dict:
             "etterslep": etterslep.get(navn, 0),
             "entiteter": ramme["entity_id"].n_unique(),
             "observasjoner": ramme.height,
-            "felter": _felter_for_kilde(navn, ramme, endringer),
+            "felter": _felter_for_kilde(navn, ramme, endringer, revisjoner),
         })
 
     return {
@@ -168,6 +190,14 @@ def bygg_data() -> dict:
         # Står for seg og skjules ikke: uka utvalget vokser er den uka
         # enhver senere sammenligning må ta hensyn til.
         "utvalgsutvidelse_totalt": utvalgsutvidelse,
+        # Samme prinsipp, motsatt årsak: her sto verden stille og KILDEN
+        # flyttet seg. To utsagn om samme tidspunkt er ikke bevegelse.
+        "revisjon_totalt": revisjoner.height,
+        # Hvor mange PERIODER kilden har uttalt seg om mer enn én gang.
+        # Radtallet alene sier ikke om det er én måned som ble skrevet om
+        # femti ganger eller femti måneder som ble rørt én gang hver.
+        "reviderte_perioder": (revisjoner.select(["source", "observed_at"])
+                               .unique().height),
     }
 
 
@@ -194,6 +224,9 @@ def html(data: dict) -> str:
  .ex {{ color: #555; }}
  .lav {{ color: #b00; }}
  .flat {{ background: #fff6d6; }}
+ /* Egen farge, ikke rød: en revisjon er ikke en feil. Den er kilden som
+    har uttalt seg om det samme tidspunktet en gang til. */
+ .rev {{ color: #05628a; font-weight: 600; }}
  input {{ font: inherit; padding: 3px 6px; width: 18rem; }}
  .merk {{ color: #666; margin: .3rem 0 1rem; }}
 </style>
@@ -243,7 +276,8 @@ function tegn(filter) {{
     const t = document.createElement('table');
     const thead = document.createElement('tr');
     for (const [tekst, klasse] of [['felt',''],['dekning','n'],['%','n'],
-         ['distinkte','n'],['endringer','n'],['type',''],['eksempler','']]) {{
+         ['distinkte','n'],['endringer','n'],['revidert','n'],['type',''],
+         ['eksempler','']]) {{
       const th = document.createElement('th');
       th.textContent = tekst;
       if (klasse) th.className = klasse;
@@ -262,7 +296,10 @@ function tegn(filter) {{
       celle(tr, pst, f.dekning_andel < 0.5 ? 'n lav' : 'n');
       celle(tr, f.distinkte, 'n');
       celle(tr, f.endringer, 'n');
-      celle(tr, f.numerisk ? 'tall' : 'tekst');
+      // Egen kolonne, og tom celle framfor 0: en revisjon er ikke en
+      // liten endring, den er en annen slags påstand. Blandes de i én
+      // kolonne, leses «kilden skrev om fortiden» som «det skjedde noe».
+      celle(tr, f.revisjoner || '', f.revisjoner ? 'n rev' : 'n');
       celle(tr, f.eksempler.join('  |  '), 'ex');
       t.appendChild(tr);
     }}
@@ -275,9 +312,15 @@ function tegn(filter) {{
     + (DATA.utvalgsutvidelse_totalt
         ? ` (+${{DATA.utvalgsutvidelse_totalt}} rader utvalgsutvidelse, ikke bevegelse)`
         : ``)
+    + (DATA.revisjon_totalt
+        ? ` (+${{DATA.revisjon_totalt}} rader revisjon over `
+          + `${{DATA.reviderte_perioder}} perioder — kilden har uttalt seg `
+          + `om samme tidspunkt flere ganger; ikke bevegelse i verden)`
+        : ``)
     + `. `
     + `Gul rad = én distinkt verdi, feltet kan ikke endre seg. `
-    + `Rød prosent = under 50 % dekning.`;
+    + `Rød prosent = under 50 % dekning. `
+    + `Blå «revidert» = kilden skrev om fortiden.`;
 }}
 
 document.getElementById('sok').addEventListener('input', e => tegn(e.target.value));
@@ -306,6 +349,9 @@ def main() -> int:
     if data["utvalgsutvidelse_totalt"]:
         print(f"  utvalgsutvidelse (ikke bevegelse): "
               f"{data['utvalgsutvidelse_totalt']}")
+    if data["revisjon_totalt"]:
+        print(f"  revisjon (ikke bevegelse): {data['revisjon_totalt']} rader "
+              f"over {data['reviderte_perioder']} perioder")
     print(f"  filstørrelse: {mb:.2f} MB")
     if mb > STOR_FIL_MB:
         print(f"  ADVARSEL: over {STOR_FIL_MB} MB. Se 'Navngitt feilmodus' "

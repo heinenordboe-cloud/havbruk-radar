@@ -56,7 +56,17 @@ Per kilde, én rad per felt:
 - antall distinkte verdier
 - tre eksempelverdier
 - hvor mange ganger feltet har endret seg siden innsamlingen startet
+- hvor mange ganger feltet er REVIDERT — egen kolonne, ikke lagt til
+  endringstallet
 - numerisk eller ikke
+
+**Revisjon står for seg selv.** En revidert måned er ikke en måned der
+noe skjedde; det er en måned kilden har uttalt seg om to ganger. Summeres
+de to kolonnene, forsvinner nettopp det skillet revisjonsaksen finnes
+for — og en fil som ble skrevet om i ettertid ville lest som en bransje i
+bevegelse. Samme begrunnelse som at utvalgsutvidelse telles for seg.
+Tallet vises bare når det er noe å vise, og i egen farge; blankt er
+riktigere enn `0` for et felt ingen har revidert.
 
 **Dette er visningen som gjør «ingen peiling» til en liste.** Et felt som
 aldri endrer seg er verdiløst å spå om. Et felt med tre distinkte verdier

@@ -209,8 +209,49 @@ def _maaneder(fra: tuple[int, int], til: tuple[int, int]):
         n += 1
 
 
+def _maaned_av_dato(dato: str) -> tuple[int, int]:
+    return int(dato[:4]), int(dato[5:7])
+
+
 def _backfill_maaneder(kilde, args) -> int:
-    """Backfill for en kilde som leverer hele serien i ett kall.
+    """Backfill og revisjon for en kilde som leverer hele serien i ett kall.
+
+    ## To modus, ett kall
+
+    UTEN `--revisjon`: skriv månedene vi ikke har. Hopper over det som
+    finnes, sammenligner hver måned mot den FORRIGE MÅNEDEN
+    (`diff.compare`), skriver ett snapshot per måned.
+
+    MED `--revisjon`: sjekk om kilden har ombestemt seg om månedene vi
+    ALLEREDE har. Hopper over det som IKKE finnes, sammenligner hver måned
+    mot FORRIGE VERSJON AV SEG SELV (`diff.revisjon`), og skriver bare der
+    noe faktisk er endret — da som `<dato>.2.parquet` ved siden av den
+    gamle, som blir stående urørt.
+
+    De to er speilbilder, og det er hele grunnen til at de deler løkke:
+    forskjellen er hvilken akse man sammenligner langs, ikke hvordan man
+    henter eller skriver.
+
+    ## Hvorfor revisjon er en EGEN kjøring og ikke et steg i run.py
+
+    `run.py` skriver ett snapshot per kilde per kjøring, og den
+    invarianten bærer `finnes_allerede()`, frekvensvakten,
+    `--planlagt`-semantikken og feilisoleringen i `runner.run_all()`. Å
+    la én kilde skrive N datoer i én kjøring ville krevd et nytt punkt i
+    kildekontrakten — en måte for kilden å si «her er flere perioder fra
+    samme svar» — og det er en endring i `core/contract.py`, altså
+    CLAUDE.md regel 1.
+
+    Månedsløkka her kan allerede skrive N datoer fra ett svar. Den er
+    testet, og den gjør ingenting annet. Revisjon er derfor tolv linjer
+    her mot en kontraktsutvidelse der.
+
+    Prisen er at kjøringen må startes. Den betales i cron ved siden av
+    `run.py` — se docs/RUNBOOK.md — og den er lav fordi kjøringen er
+    REKONSTRUKTIV: hver changelog-rad bærer både `fetched_at` og
+    `forrige_fetched_at`, så en revisjon som oppdages sent plasseres
+    fortsatt riktig i tid. Kjøres den aldri, ligger publiseringene like
+    fullt i `data/arkiv/` og kan spilles av på nytt.
 
     ## Hvorfor dette ikke er ukeløkka med en annen kalender
 
@@ -241,6 +282,18 @@ def _backfill_maaneder(kilde, args) -> int:
     samme konvensjon som den løpende jobben følger: `fetch()` returnerer
     hele fila, og kjernen arkiverer den under måneden som skrives.
 
+    Skrivingen går gjennom `raw_arkiv.arkiver_ny()`, som hopper over en
+    kropp som allerede ligger der. Regelen er: **hver DISTINKTE kropp vi
+    laster ned arkiveres nøyaktig én gang.** Uten den ville en
+    revisjonskjøring lagt igjen en identisk 200 kB-kopi hver måned for å
+    dokumentere ingenting — den leser jo den samme publiseringen som
+    månedsjobben allerede har arkivert.
+
+    Og med den er tilfellet ingen tenker på dekket også: er månedsjobben
+    rød, leser revisjonskjøringen en kropp som IKKE er arkivert, hashen er
+    ny, og kroppen skrives. En revisjonsrad er en påstand om hva kilden
+    sa, og en påstand uten sitt belegg er det dette repoet ikke skriver.
+
     ## health.json røres ikke
 
     Samme grunn som i ukemodus, og den er ekstra tydelig her: 106
@@ -248,8 +301,25 @@ def _backfill_maaneder(kilde, args) -> int:
     konstant eller løftet referansen til et nivå ingen enkeltmåned kan
     møte. Se beslutningen fra 18.08.
     """
-    fra = _parse_maaned(args.fra)
-    til = _parse_maaned(args.til)
+    revider = bool(getattr(args, "revisjon", False))
+    skrevne = [_maaned_av_dato(d) for d in snapshot.datoer(kilde.name)]
+
+    # I revisjonsmodus er intervallet valgfritt: standarden er «alt vi
+    # allerede har uttalt oss om», som er nettopp det en revisjon skal
+    # gjennomgå. Det gjør cron-linja `--kilde biomasse --revisjon` — uten
+    # datoer som må flyttes hver måned og glemmes når de ikke blir det.
+    if revider and not (args.fra and args.til):
+        if not skrevne:
+            print(f"{kilde.name} har ingen snapshots å revidere ennå.")
+            return 1
+        fra = _parse_maaned(args.fra) if args.fra else skrevne[0]
+        til = _parse_maaned(args.til) if args.til else skrevne[-1]
+    elif not (args.fra and args.til):
+        print("--fra og --til kreves (unntatt sammen med --revisjon).")
+        return 1
+    else:
+        fra = _parse_maaned(args.fra)
+        til = _parse_maaned(args.til)
 
     # Grensen mot den løpende jobben. Vi spør KILDEN, med dagens dato,
     # i stedet for å regne den ut på nytt her. Ukemodus regner sin egen
@@ -258,9 +328,9 @@ def _backfill_maaneder(kilde, args) -> int:
     idag = dt.datetime.now(dt.timezone.utc).date().isoformat()
     grense = _parse_maaned(kilde.gjelder_for(idag)[:7])
     if til > grense:
-        print(f"  --til {args.til} er ferskere enn etterslepsgrensen "
-              f"{grense[0]}-{grense[1]:02d}. Klipper der: måneder etter den "
-              f"er den løpende jobbens ansvar.")
+        print(f"  --til {til[0]}-{til[1]:02d} er ferskere enn "
+              f"etterslepsgrensen {grense[0]}-{grense[1]:02d}. Klipper der: "
+              f"måneder etter den er den løpende jobbens ansvar.")
         til = grense
 
     maaneder = list(_maaneder(fra, til))
@@ -268,8 +338,9 @@ def _backfill_maaneder(kilde, args) -> int:
         print("Ingen måneder i intervallet.")
         return 1
 
-    print(f"Backfill {kilde.name}: {len(maaneder)} måneder, {args.fra} -> "
-          f"{til[0]}-{til[1]:02d}, ett kall"
+    hva = "Revisjon" if revider else "Backfill"
+    print(f"{hva} {kilde.name}: {len(maaneder)} måneder, "
+          f"{fra[0]}-{fra[1]:02d} -> {til[0]}-{til[1]:02d}, ett kall"
           + (" (TØRRKJØRING)" if args.torrkjor else ""))
 
     try:
@@ -295,16 +366,26 @@ def _backfill_maaneder(kilde, args) -> int:
 
     raw_hash = ""
     if not args.torrkjor:
-        raw_hash = raw_arkiv.arkiver(kilde.name, siste_dag(*til), rå)
-        print(f"  arkivert under {siste_dag(*til)}, sha256 {raw_hash[:16]}…")
+        raw_hash, skrev = raw_arkiv.arkiver_ny(kilde.name, siste_dag(*til), rå)
+        if skrev:
+            print(f"  arkivert under {siste_dag(*til)}, sha256 {raw_hash[:16]}…")
+        else:
+            print(f"  allerede arkivert, sha256 {raw_hash[:16]}… "
+                  f"(samme kropp som en tidligere kjøring)")
 
-    skrevet = hoppet = endringer_totalt = 0
+    skrevet = hoppet = endringer_totalt = uendret = 0
     manglende: list[str] = []
+    sprik: list[str] = []
 
     for aar, mnd in maaneder:
         dato = siste_dag(aar, mnd)
 
-        if not args.torrkjor and _finnes_allerede(kilde.name, dato):
+        # Speilvendt vilkår. Backfill skriver det vi MANGLER; revisjon
+        # gjennomgår det vi HAR. En måned som ikke er skrevet er ikke en
+        # revisjon — den er backfillens bord, og skal ikke smugles inn her
+        # hvor changelogen ville kalt den «revidert».
+        finnes = _finnes_allerede(kilde.name, dato)
+        if not args.torrkjor and (finnes if not revider else not finnes):
             hoppet += 1
             continue
 
@@ -328,20 +409,58 @@ def _backfill_maaneder(kilde, args) -> int:
                   f"{ramme['entity_id'].n_unique():>3} områder")
             continue
 
-        # Diff FØR skriving, som i run.py — ellers finner previous()
-        # månedens egen fil og diffen blir tom.
-        endr = diff.compare(ramme, dato)
+        # Diff FØR skriving, som i run.py — ellers finner previous() (eller
+        # forrige_versjon()) månedens egen ferske fil og diffen blir tom.
+        if revider:
+            try:
+                endr = diff.revisjon(ramme, dato)
+            except diff.Grunnlagssprik as e:
+                # Ikke en datafeil: begge snapshots er gyldige, men
+                # spørsmålet er ubesvarlig fra dem alene. Da skal vi si
+                # fra og la begge stå — ikke gjette på kildens vegne.
+                print(f"  {dato} ({aar}-{mnd:02d}): GRUNNLAGSSPRIK {e}")
+                sprik.append(f"{dato}  {e}")
+                continue
+
+            if endr.is_empty():
+                # Ingen revisjon. En identisk `.2`-fil ville vært ren støy
+                # i et append-only repo — og en påstand om at kilden sa
+                # noe nytt da den ikke gjorde det.
+                uendret += 1
+                continue
+        else:
+            endr = diff.compare(ramme, dato)
+
         filer = snapshot.write(obs, dato)
-        changelog.skriv(endr, dato)
+        # Løpenummeret LESES av stien som faktisk ble skrevet, ikke telles
+        # opp her. To tellere for samme sak er formen F6/F7 kostet oss, og
+        # her ville den lagt revisjonsradene oppå bevegelsesradene.
+        versjon = snapshot.versjon_av(filer[0])
+        changelog.skriv(endr, dato, versjon=versjon)
         endringer_totalt += endr.height
         skrevet += 1
+        merke = "revisjoner" if revider else "endringer"
         print(f"  {dato} ({aar}-{mnd:02d}): {ramme.height:>4} observasjoner, "
               f"{ramme['entity_id'].n_unique():>3} områder, "
-              f"{endr.height:>4} endringer -> {filer[0].name}")
+              f"{endr.height:>4} {merke} -> {filer[0].name}")
 
-    print(f"\n{skrevet} måneder skrevet, {hoppet} hoppet over (fantes "
-          f"allerede), {endringer_totalt} endringer totalt.")
+    if revider:
+        print(f"\n{skrevet} måneder REVIDERT, {uendret} uendret, {hoppet} "
+              f"hoppet over (ikke skrevet ennå), {endringer_totalt} "
+              f"revisjonsrader totalt.")
+    else:
+        print(f"\n{skrevet} måneder skrevet, {hoppet} hoppet over (fantes "
+              f"allerede), {endringer_totalt} endringer totalt.")
     print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+
+    if sprik:
+        print(f"\n{len(sprik)} måned(er) kunne IKKE vurderes:")
+        for s in sprik:
+            print(f"  {s}")
+        print("\nBegge snapshots står. Er source_version bumpet med vilje, "
+              "er dette forventet — revisjonssporet starter på nytt fra "
+              "neste skriving.")
+        return 1
 
     if manglende:
         print(f"\n{len(manglende)} måned(er) MANGLET i fila:")
@@ -359,8 +478,17 @@ def main() -> int:
     p.add_argument("--kilde", required=True, help="kildenavn, f.eks. lusetall")
     # ÅÅÅÅ-UU for ukekilder, ÅÅÅÅ-MM for månedskilder. Kilden avgjør
     # hvilken — se modulens docstring.
-    p.add_argument("--fra", required=True, metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
-    p.add_argument("--til", required=True, metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
+    #
+    # Ikke `required`: sammen med --revisjon er standarden «alt vi
+    # allerede har skrevet», og en cron-linje uten datoer er en cron-linje
+    # ingen glemmer å flytte. Ukemodus krever dem fortsatt, og sier fra.
+    p.add_argument("--fra", metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
+    p.add_argument("--til", metavar="ÅÅÅÅ-UU|ÅÅÅÅ-MM")
+    p.add_argument("--revisjon", action="store_true",
+                   help="sjekk om kilden har ombestemt seg om månedene vi "
+                        "allerede har, i stedet for å hente nye. Skriver "
+                        "<dato>.2.parquet der noe er endret, og lar den "
+                        "gamle stå. Bare for kilder med hent_alt().")
     p.add_argument("--pause", type=float, default=None,
                    help=f"sekunder mellom kall (standard: kildens egen "
                         f"`pause_s`, ellers {PAUSE_S})")
@@ -383,6 +511,18 @@ def main() -> int:
     if not hasattr(kilde, "hent_uke"):
         print(f"{args.kilde} har verken hent_uke() eller hent_alt() og kan "
               f"ikke backfilles.")
+        return 1
+
+    if args.revisjon:
+        print(f"--revisjon krever en kilde som leverer hele serien i ett "
+              f"kall (hent_alt). {args.kilde} henter én uke om gangen, og "
+              f"da finnes det ikke to versjoner av samme uke å sammenligne.")
+        return 1
+
+    # Ukemodus har ingen standard å falle tilbake på: hver uke er et eget
+    # kall, og «alle uker» ville vært 730 av dem.
+    if not (args.fra and args.til):
+        print("--fra og --til kreves for en ukekilde.")
         return 1
 
     # Kilden eier sin egen pause. Eksporten sjotemperatur henter er 128 kB

@@ -74,6 +74,25 @@ simulerte uker: 1,9 MB mot 340 KB.
 Analyselaget leser hele loggen med `changelog.les_alt()` og skal ikke
 vite at den er delt i filer.
 
+### Løpenummeret er ikke bare kollisjonshåndtering
+
+`<dato>.2.parquet` fantes fra starten som svaret på «to skrivinger til
+samme dato». Fra 25.08.2026 bærer det noe mer: for en kilde som
+REVIDERER fortiden er `.2` en NY PÅSTAND om det samme tidspunktet, ikke
+en gjentakelse av den gamle.
+
+Fiskeridirektoratets biomassefil publiseres på nytt den 20. hver måned og
+endrer tall tilbake til 2017. To snapshots som er uenige om mars 2018 er
+begge sanne — de sier hva kilden sa på hver sin `fetched_at`. Append-only
+er derfor ikke lenger bare en regel om repostørrelse her; det er det
+eneste som bevarer at kilden har ombestemt seg, siden forrige versjon
+forsvinner hos dem hver måned.
+
+Changelog-fila får samme løpenummer som snapshotet, så
+`2018-03-31.parquet` (bevegelse mot februar) og `2018-03-31.2.parquet`
+(revisjon mot seg selv) lever side om side. Se `core/diff.revisjon()` og
+CLAUDE.md 1b-5/1b-6.
+
 ## Et snapshot bærer med seg hva det ba om
 
 Hver rad har fire proveniensfelter kilden aldri rører: `fetched_at`,

@@ -286,22 +286,63 @@ zcat data/arkiv/biomasse/2026-08-31.txt.gz > ny.csv
 # nøkkel: ÅR;MÅNED_KODE;PO_KODE;ARTSID;UTSETTSÅR
 ```
 
-### Det changeloggen IKKE kan si — og hvorfor
+### Changelogens revisjonsakse
 
-`diff.compare()` sammenligner et snapshot mot det **forrige etter dato**.
-For biomasse betyr det at mars sammenlignes med februar, som er riktig og
-nyttig: det er industriens faktiske bevegelse.
+Bygget 25.08.2026. `diff.compare()` sammenligner et snapshot mot det
+**forrige etter dato** — for biomasse er det mars mot februar, altså
+industriens faktiske bevegelse. `diff.revisjon()` sammenligner mot
+**forrige versjon av samme dato** — mars mot mars, altså
+Fiskeridirektoratets revisjon.
 
-Men «måned M ble revidert» er ikke den sammenligningen. Det er to utsagn
-om **samme** tidspunkt, gjort på hver sin `fetched_at`, og changeloggen
-har ingen akse for det. Å legge den til ville krevd endringer i
-`core/diff.py` og `CHANGE_SCHEMA` — altså en endring i `core/` for å
-legge til en kilde, som CLAUDE.md regel 1 uttrykkelig forbyr uten at
-eieren har bestemt seg.
+    compare      to ULIKE observed_at, samme henting   -> ny/endret/borte
+    revisjon     to ULIKE hentinger, samme observed_at  -> revidert
 
-**Derfor er den ikke bygget.** Ingenting går tapt i mellomtiden: hele
-fila ligger arkivert for hver publisering, så påstanden kan alltid
-utledes i ettertid. Se punkt 11 for hva en slik utvidelse ville kreve.
+En revisjonsrad bærer `change_type = "revidert"`, `observed_at ==
+forrige_observed_at` (det er nettopp det som gjør den til en revisjon) og
+`forrige_fetched_at`, som er det eneste som plasserer de to påstandene i
+tid. Ingen av de 24 signalreglene matcher `"revidert"`, og
+`diff.bevegelse()` filtrerer den bort: to utsagn om samme tidspunkt er
+ikke bevegelse i verden.
+
+Kjøres av:
+
+```bash
+python backfill.py --kilde biomasse --revisjon
+```
+
+Uten datoer tar den alt vi har skrevet. Den skriver `<dato>.2.parquet`
+ved siden av den gamle — som blir stående urørt — og bare der noe faktisk
+er endret. Changelog-fila får det samme løpenummeret, så
+`2018-03-31.parquet` (bevegelse) og `2018-03-31.2.parquet` (revisjon)
+lever side om side.
+
+**Verifisert mot ekte data 25.08.2026.** Wayback-kopien fra 07.08.2024
+ble skrevet som 81 månedssnapshots, dagens fil kjørt mot dem:
+
+| | |
+|---|---|
+| Revisjonsrader | **1809**, over 81 av 81 måneder |
+| Uavhengig fasit (parse av begge filene direkte) | 1809 — eksakt samme sett |
+| Feilaktig merket `endret` | 0 |
+| `forrige_fetched_at` satt | på alle |
+| Talt som bevegelse | 0 |
+
+De 490 endrede CSV-radene dekker 262 (måned, PO)-par; alle 262 finnes i
+changeloggen. Changeloggen dekker 279, fordi de ni målte feltene våre er
+flere enn de fem kolonnene stikkprøven brukte.
+
+**Grunnlagssprik.** Er `source_version` eller `utvalg` ulikt mellom de to
+versjonene, kaster `revisjon()` i stedet for å sammenligne. Da kan en
+forskjell like gjerne være vår egen parser som kildens revisjon, og en
+rad som påsto det siste ville vært en anklage mot en tredjepart for noe
+vi gjorde selv. Begge snapshots blir stående, og kjøringen ender rødt.
+
+**Det tredje tidspunktet, som ennå mangler.** Skjemaet har `observed_at`
+(om verden) og `fetched_at` (om oss). En revisjonskilde har et tredje:
+når KILDEN publiserte påstanden. I løpende drift er de to siste nesten
+like — vi henter innen dager. For en kropp hentet fra Wayback er de to år
+fra hverandre, og da leser revisjonsaksen baklengs. Det er derfor
+2024-kopien er verifisert MOT, men ikke skrevet INN i serien. Se punkt 11.
 
 ---
 
@@ -460,20 +501,26 @@ bære attribusjonen.** Det er et lisensvilkår, ikke en høflighet.
 
 ## 11. Det som IKKE er bygget
 
-**Revisjon inn i changeloggen.** Se punkt 5. Krever en
-sammenligningsakse `core/diff.py` ikke har (samme `observed_at`, ulik
-`fetched_at`). Ville trolig kreve: et nytt `change_type`
-(`"revidert"`), et felt for hvilken `fetched_at` det sammenlignes mot i
-`CHANGE_SCHEMA`, og en variant av `snapshot.previous()` som finner
-forrige *versjon av samme dato* i stedet for forrige dato. Det er en
-utvidelse av kontrakten, og eieren avgjør den.
+**2024-kopien som en del av serien.** Wayback har
+biomassefila slik den så ut 07.08.2024, og den bærer 1809 revisjoner mot
+dagens. De er verifisert (punkt 5), men ikke skrevet inn, og hindringen
+er ikke teknisk: `fetched_at` skal si når VI hentet, og vi hentet den i
+dag. Skrives den med dagens dato, får den ELDSTE påstanden det NYESTE
+hentetidspunktet, og revisjonsaksen leser baklengs. Skrives den med
+2024-datoen, er det en proveniens vi har funnet på.
 
-**Automatisk skriving av reviderte måneder som `.2`-snapshots.**
-Mekanikken finnes allerede (`snapshot._ledig_sti` løser kollisjon med
-løpenummer, `previous()` velger høyeste), men `run.py` skriver ett
-snapshot per kilde per kjøring, så det ville krevd en egen
-revisjonskjøring. Ikke bygget før changeloggspørsmålet over er avgjort —
-snapshots uten en changelog som kan forklare dem er halve svaret.
+Riktig løsning er sannsynligvis et tredje felt — `published_at`, når
+kilden utga påstanden — men det er en utvidelse av `Observation`, altså
+CLAUDE.md regel 1 og eierens avgjørelse. Til den er tatt, ligger
+2024-kopien utenfor.
+
+**Revisjon som et steg i `run.py`.** `run.py` skriver ett snapshot per
+kilde per kjøring, og den invarianten bærer frekvensvakten,
+`finnes_allerede()` og feilisoleringen. Å la én kilde skrive N datoer i
+én kjøring krever et nytt punkt i kildekontrakten. Revisjonen kjøres
+derfor av `backfill.py --revisjon`, som allerede kan skrive N datoer fra
+ett svar. Prisen er at den må startes — den hører i cron ved siden av
+`run.py`, se docs/RUNBOOK.md.
 
 **Fylkesvarianten.** Punkt 3.
 

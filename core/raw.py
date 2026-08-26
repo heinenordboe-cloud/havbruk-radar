@@ -72,3 +72,48 @@ def arkiver(kilde: str, observed_at: str, raw: Any) -> str:
         f.write(data)
 
     return hashlib.sha256(data).hexdigest()
+
+
+def hashene(kilde: str) -> set[str]:
+    """sha256 av alt som allerede ligger arkivert for kilden.
+
+    Leser og hasher filene. Det er greit her: funksjonen kalles én gang
+    per kjøring, ikke én gang per periode, og arkivet for en månedlig
+    kilde er titalls filer — ikke titusener.
+    """
+    mappe = ARKIV_DIR / kilde
+    if not mappe.exists():
+        return set()
+    ut = set()
+    for sti in mappe.glob("*.gz"):
+        with gzip.open(sti, "rb") as f:
+            ut.add(hashlib.sha256(f.read()).hexdigest())
+    return ut
+
+
+def arkiver_ny(kilde: str, observed_at: str, raw: Any) -> tuple[str, bool]:
+    """Arkiverer råsvaret HVIS innholdet ikke allerede ligger der.
+    Returnerer (sha256, ble_skrevet).
+
+    Regelen `arkiver()` følger er «hver skriving blir en fil». Den er
+    riktig for den løpende jobben, som henter én ny publisering hver
+    gang. Den er feil for en REVISJONSKJØRING: den leser den samme
+    publiseringen som månedsjobben allerede arkiverte, og ville lagt igjen
+    en identisk 200 kB-kopi hver måned for å dokumentere ingenting.
+
+    Regelen her er én linje lengre og lettere å huske: **hver DISTINKTE
+    kropp vi laster ned arkiveres nøyaktig én gang.** Den fanger også
+    tilfellet ingen tenker på — at revisjonskjøringen leser en kropp
+    månedsjobben ikke rakk, fordi den var rød — for da er hashen ny, og
+    kroppen skrives.
+
+    Hashen returneres uansett, og det er den som havner på radene.
+    `raw_hash` er innholdsadressert (se modulens docstring), så et
+    snapshot som peker på en arkivfil skrevet av en TIDLIGERE kjøring er
+    en sann påstand om hvor det kom fra.
+    """
+    data, _ = _serialiser(raw)
+    sha = hashlib.sha256(data).hexdigest()
+    if sha in hashene(kilde):
+        return sha, False
+    return arkiver(kilde, observed_at, raw), True
