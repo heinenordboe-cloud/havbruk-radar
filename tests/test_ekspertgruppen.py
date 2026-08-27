@@ -224,9 +224,25 @@ def _pdf(created: str | None) -> bytes:
 
 
 def test_published_at_leses_av_creationdate():
-    utgitt, advarsel = eg._utgitt(_pdf("D:20201123130644+01'00'"), 2020)
+    advarsler: list[str] = []
+    utgitt = eg._utgitt(_pdf("D:20201123130644+01'00'"), 2020, advarsler)
     assert utgitt == "2020-11-23T12:06:44+00:00"
-    assert advarsel == ""
+    assert advarsler == []
+
+
+def test_utgitt_normaliserer_til_utc():
+    """Kroppene er stemplet i +01:00 (norsk vintertid).
+
+    `published_at` sammenlignes LEKSIKOGRAFISK i `snapshot.publisert()` og
+    `diff.revisjon()`. Et annet offset gir feil rekkefølge uten å feile,
+    og det er derfor `test_ingen_kilde_setter_published_at_uten_a_normalisere`
+    krever at verdien går gjennom nettopp denne funksjonen.
+    """
+    utgitt = eg._utgitt(_pdf("D:20211111154825+01'00'"), 2021, [])
+    assert utgitt.endswith("+00:00")
+    naar = dt.datetime.fromisoformat(utgitt)
+    assert naar.utcoffset() == dt.timedelta(0)
+    assert naar.hour == 14                      # 15:48 +01:00 er 14:48 UTC
 
 
 def test_creationdate_utenfor_vinduet_gir_tom_published_at():
@@ -236,15 +252,15 @@ def test_creationdate_utenfor_vinduet_gir_tom_published_at():
     re-eksport skje i 2026, ville datoen vært 2026 — og brukt som
     `published_at` ville den lest revisjonsaksen baklengs.
     """
-    utgitt, advarsel = eg._utgitt(_pdf("D:20260401120000Z"), 2020)
-    assert utgitt == ""
-    assert "RE-EKSPORTTIDSPUNKT" in advarsel
+    advarsler: list[str] = []
+    assert eg._utgitt(_pdf("D:20260401120000Z"), 2020, advarsler) == ""
+    assert "RE-EKSPORTTIDSPUNKT" in advarsler[0]
 
 
 def test_manglende_creationdate_gir_tom_published_at_ikke_klokka():
-    utgitt, advarsel = eg._utgitt(_pdf(None), 2020)
-    assert utgitt == ""
-    assert "gjettet dato er verre" in advarsel
+    advarsler: list[str] = []
+    assert eg._utgitt(_pdf(None), 2020, advarsler) == ""
+    assert "gjettet dato er verre" in advarsler[0]
 
 
 @pytest.mark.parametrize("tekst, ventet", [
@@ -253,14 +269,30 @@ def test_manglende_creationdate_gir_tom_published_at_ikke_klokka():
     ("D:20221201103434+01'00'", dt.datetime(
         2022, 12, 1, 10, 34, 34,
         tzinfo=dt.timezone(dt.timedelta(hours=1)))),
-    ("D:2020", dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc)),
 ])
 def test_pdf_datoformatet(tekst, ventet):
     assert eg._les_pdf_dato(tekst) == ventet
 
 
-def test_ugyldig_pdf_dato_er_none():
-    assert eg._les_pdf_dato("i går") is None
+@pytest.mark.parametrize("tekst", ["i går", "20201123", ""])
+def test_ugyldig_pdf_dato_er_none(tekst):
+    assert eg._les_pdf_dato(tekst) is None
+
+
+def test_delvis_dato_nektes_selv_om_standarden_tillater_den():
+    """ISO 32000 lar alt etter årstallet utelates. Vi tar det ikke.
+
+    Ingen av de fem kroppene har en slik dato, så å støtte formen ville
+    vært å anta noe om et format vi ikke har sett (CLAUDE.md regel 4). Og
+    tolkningen ville uansett vært et gjett: `D:2020` som 1. januar
+    daterer en novemberrapport ti måneder for tidlig, i et felt som
+    sammenlignes leksikografisk.
+    """
+    assert eg._les_pdf_dato("D:2020") is None
+    assert eg._les_pdf_dato("D:202011") is None
+    # Dagen holder; klokkeslettet er valgfritt.
+    assert eg._les_pdf_dato("D:20201123") == dt.datetime(
+        2020, 11, 23, tzinfo=dt.timezone.utc)
 
 
 # ---- gjenkjenning og årsvalg -----------------------------------------
@@ -453,6 +485,27 @@ def test_begge_under_terskel_gir_ulikhet_paa_begge():
         "hi_virtuell_smolt_vektet": "<1",
         "hi_virtuell_smolt_uvektet": "<1",
     }
+
+
+def test_roc_leses_ogsaa_uten_ord_foran_tallet():
+    """«er 27 %» mot «er moderat (33 %)» — to former, samme opplysning.
+
+    Den første formen falt stille bort i første utkast: den valgfrie
+    ordgruppa `(?:\\w+\\s*)?` slukte sifrene. To av 22 verdier forsvant,
+    én i hver av 2021- og 2022-kroppene, og begge var blant de høyeste i
+    sitt år.
+    """
+    bar = "HI smittepress: Indeksen for risiko for høy påvirkning er 27 %."
+    med_ord = ("HI smittepress: Indeksen for risiko for høy påvirkning er "
+               "moderat (33 %).")
+    med_aar = ("HI smittepress: Indeksen for risiko for høy påvirkning er "
+               "moderat i 2022 (15 %).")
+    orddelt = ("HI smittepress: Indeksen for ris iko for høy påvirkning er "
+               "33 %.")
+    assert dict(eg._hi_smittepress(bar))["hi_smittepress_roc_indeks"] == "27"
+    assert dict(eg._hi_smittepress(med_ord))["hi_smittepress_roc_indeks"] == "33"
+    assert dict(eg._hi_smittepress(med_aar))["hi_smittepress_roc_indeks"] == "15"
+    assert dict(eg._hi_smittepress(orddelt))["hi_smittepress_roc_indeks"] == "33"
 
 
 def test_arealandel_og_roc_er_to_felter():

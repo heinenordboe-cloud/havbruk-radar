@@ -1,11 +1,9 @@
 # Øktstatus 27.08.2026 — ekspertgruppen som kilde
 
-Økta ble avbrutt midt i testkjøringen. Denne fila er skrevet for at
-neste økt skal slippe å gjette hva som står.
+Kilden er lukket og målt. Analysen er ikke kjørt.
 
-**Ingenting er pushet.** Kode ligger på branchen
-`ekspertgruppen-som-kilde` (695251f), data på `main` i datarepoet
-(eef0363).
+**Testsuiten er grønn: 482 passerte.** Branchen
+`ekspertgruppen-som-kilde` er klar til å merges.
 
 ---
 
@@ -65,24 +63,31 @@ verktøycache.
 
 ---
 
-## 2. Ikke ferdig
+### Testtilstand: grønn
 
-### Testsuiten er IKKE verifisert — dette er det viktigste
+Full suite: **482 passerte, 0 feilet.**
 
-Full suite er **ikke kjørt** etter at kilden ble lagt til. Siste fulle
-kjøring ga 413 passerte, men det var før `sources/ekspertgruppen.py`
-fantes. Alt som teller kilder — registry-tester, pipeline-tester,
-`test_modulnavn_er_kildenavn` — har ukjent status.
+De tre feilene som sto ved avbruddet er diagnostisert og rettet. To av
+dem var koden, én var testen:
 
-`tests/test_ekspertgruppen.py` alene: **63 passerte, 2 feilet.**
-
-| Test | Symptom | Ikke diagnostisert |
+| Feil | Verdikt | Hva som ble gjort |
 |---|---|---|
-| `test_pdf_datoformatet[D:2020]` | `_les_pdf_dato("D:2020")` gir `None` | PDF-standarden tillater år uten måned/dag; regexet krever MMDD. Uavklart om testen eller koden har rett. |
-| `test_arealandel_og_roc_er_to_felter` | `_ROC` bommer på «er 27 %» | Den valgfrie ordgruppen `(?:\w+\s*)?` spiser tallet når det ikke står et ord foran. Regexet traff 20 verdier i de ekte kroppene, så feilen er i robustheten, ikke i uttrekket som ble kjørt. |
+| `test_ingen_kilde_setter_published_at_uten_a_normalisere` | **koden** | `_utgitt` returnerte en tuppel som ble pakket ut før tilordning, så vakten kunne ikke se statisk at verdien gikk gjennom en registrert UTC-normaliserer. Formen på tilordningen ER egenskapen som kan etterprøves. Advarselen kommer nå ut gjennom en liste, og `self.published_at = _utgitt(...)` er igjen et direkte kall. |
+| `test_arealandel_og_roc_er_to_felter` | **koden**, og testen fanget et ekte tap | Den valgfrie ordgruppa `(?:\w+\s*)?` slukte tallet når det ikke sto et ord foran: «er 27 %» ga treff med tomt tall, «er moderat (33 %)» ga 33. **2 av 22 ROC-verdier falt stille bort**, én i hver av 2021- og 2022-kroppene, og begge var blant de høyeste i sitt år. |
+| `test_pdf_datoformatet[D:2020]` | **testen** | Den påsto at ISO 32000s år-uten-måned skal tolkes som 1. januar. Ingen av de fem kroppene har den formen (regel 4), og tolkningen ville datert en novemberrapport ti måneder for tidlig i et felt som sammenlignes leksikografisk. Nektelsen er nå bevisst og dokumentert i stedet for tilfeldig. |
 
-Ingen av de to er undersøkt ferdig. **Ikke merge branchen før begge er
-avklart og hele suiten er grønn.**
+ROC-rettingen endret dataene. Snapshotene ble re-derivert fra det urørte
+rå-arkivet — 2021 gikk fra 366 til 368 observasjoner, 2022 fra 72 til 74.
+Revisjonsradene er uendret på 12.
+
+**Merk for neste re-parse:** dette var trygt fordi dataene var lokale,
+upushede og bare timer gamle. Etter push er en parserendring en
+`source_version`-bump og en ny versjon ved siden av — ikke en
+re-derivering.
+
+---
+
+## 2. Ikke ferdig
 
 ### Dokumentasjon som mangler
 
@@ -156,23 +161,90 @@ adresse — bare vedleggene ligger ute, og regjeringen.no svarer 403.
   (april–juli) ligger før seriens start. Reelt proxy-dekkede år er 2018,
   2020, 2021, 2022.
 - **2019-hullet bryter persistensaksen.** 2018→2020 er ikke et ettårig
-  skifte. 13 slike toårshopp, og de må ikke telles sammen med de 52
-  ettårsovergangene.
+  skifte. **13 slike toårshopp, hvorav 2 er kategoriskift**, og de må
+  ikke telles sammen med de 52 ettårsovergangene.
 
-### 3d. Det kontinuerlige måltallet er tynnere enn håpet
+### 3d. Dekningsflaten — hele den, ikke ett felt
+
+Forrige runde målte HI virtuell smolt i 2020-rapporten og fant årets
+verdi for 4 av 13 PO. Det var ett felt i én rapport. Her er hele flaten,
+målt på de fem arkiverte kroppene.
+
+Tallet er antall PO med **årets verdi**; `(+Ns)` er PO der rapporten bare
+oppgir et flerårsspenn eller et snitt over serien, som ikke er brukbart
+som årlig utfall.
+
+| felt | 16/17→16 | 16/17→17 | 18→16 | 18→17 | 18→18 | 20→20 | 21→20 | 21→21 | 22→22 |
+|---|---|---|---|---|---|---|---|---|---|
+| kategori | 13 | 13 | 13 | 13 | 13 | 13 | 13 | 13 | 13 |
+| utvandringsvindu | 0 | 0 | 0 | 0 | 0 | **13** | 0 | 0 | 0 |
+| HI VS vektet | 0 | 0 (+13s) | 0 | 0 | 0 | **4** (+9s) | 0 | 0 (+13s) | 0 (+13s) |
+| HI VS uvektet | 0 | 0 (+13s) | 0 | 0 | 0 | **4** (+9s) | 0 | 0 (+13s) | 0 (+13s) |
+| VI VS vektet+uvektet | 0 | 0 | 0 | 0 | 0 | **8** (+4s) | 0 | **10** (+3s) | 0 (+13s) |
+| SINTEF VS uvektet | 0 | 0 | 0 | 0 | 0 | **5** | 0 | **5** | **6** |
+| HI smittepress ROC | 0 | 0 | 0 | 0 | 0 | 0 | 0 | **11** | **11** |
+| arealandel over terskel | 0 | 0 | 0 | 0 | 0 | **13** | 0 | 1 | 1 |
+
+Summert over alle rapportene, og med ettårsoverganger — som er det et
+utfall må ha for å kunne måle bevegelse:
+
+| felt | (po, år)-celler | ettårsoverganger | år |
+|---|---|---|---|
+| **kategori** | **78** | **52** | 2016–18, 2020–22 |
+| HI smittepress ROC | 22 | 11 | 2021, 2022 |
+| VI VS vektet+uvektet | 18 | 8 | 2020, 2021 |
+| SINTEF VS uvektet | 16 | 10 | 2020–2022 |
+| arealandel over terskel | 15 | 2 | 2020 (+2 løse) |
+| HI VS vektet / uvektet | 4 / 4 | 0 | 2020 |
+| utvandringsvindu | 13 | 0 | 2020 |
+
+Fire ting som ikke er åpenbare fra tabellen:
+
+- **2018-rapporten har ingen modellavsnitt i det hele tatt.** 27 sider,
+  skrevet under tidsnød. Bare kategorien.
+- **2016/17-rapporten har HI VS-avsnitt for alle 13, men bare spenn.**
+  Ingen årsverdi noe sted.
+- **SINTEF dekker bare PO 2–7.** Modellen kjøres ikke for de andre, så
+  taket er 6 PO per år, ikke 13.
+- **VI VS er den mest regelmessige av modellene** («Uvektet og vektet
+  gjennomsnitt av dødelighet var henholdsvis 9 og 6 %»), men 2022 la om
+  til elvevise spenn og mistet PO-snittet.
+
+### 3e. Finnes et kontinuerlig utfall med flere brukbare celler enn kategorien?
+
+**Nei. For alle fire modellene.**
+
+| | celler | mot kategoriens 78 | ettårsoverganger |
+|---|---|---|---|
+| HI smittepress ROC | 22 | 28 % | 11 |
+| VI virtuell smolt | 18 | 23 % | 8 |
+| SINTEF virtuell smolt | 16 | 21 % | 10 |
+| arealandel over terskel | 15 | 19 % | 2 |
+| HI virtuell smolt | 4 | 5 % | 0 |
+
+Det største kontinuerlige feltet har under en tredjedel av kategoriens
+celler og drøyt en femtedel av dens 52 ettårsoverganger.
+
+De kan ikke legges sammen heller. Ingen av dem dekker de samme årene:
+ROC finnes bare 2021–2022, arealandelen i praksis bare 2020, VI bare
+2020–2021, SINTEF bare 2020–2022 og bare for PO 2–7. Å slå ROC og
+arealandel sammen krever dessuten at noen avgjør om de er samme
+størrelse — se punkt 3 under `[din vurdering]`.
+
+**Omleggingen til kontinuerlig utfall er ikke mulig med disse
+rapportene.** Det er ikke en påstand om at et kontinuerlig estimat ville
+vært dårligere. Det er at ekspertgruppen ikke publiserer et som dekker
+nok (po, år)-celler til å bære et måltall.
 
 Forrige beslutningsnotat regnet med «65 celler med et kontinuerlig
-utfall». Målt: **HI virtuell smolt oppgir årets vektede og uvektede snitt
-for bare 4 av 13 produksjonsområder i 2020-rapporten.** De ni andre
-oppgir seriens spenn over 2012–2020 og elvenes spenn innen året — to
-andre størrelser om andre tidsrom. Uttrekket leser dem ikke, og feltet er
-fraværende, ikke null.
+utfall» og pekte på det som den store styrkegevinsten framfor en bedre
+prediktor. **Det premisset holder ikke.**
 
-Faktisk uttrukket: 8 celler `hi_virtuell_smolt_vektet`/`_uvektet`, 15
-`hi_smittepress_arealandel`, 20 `hi_smittepress_roc_indeks`.
-
-**Dette svekker premisset for å legge om til kontinuerlig utfall.** Det
-bør avgjøres før neste analyseøkt.
+Hva som ville snudd det: at HIs egne modellrapporter («Rapport fra
+havforskningen», en annen serie enn ekspertgruppens) tabellerer
+per-PO-estimater for hele 2012–2025. De er ikke undersøkt. Det er den
+neste tråden hvis et kontinuerlig utfall fortsatt er ønsket — og den
+ligger utenfor denne kilden.
 
 ---
 

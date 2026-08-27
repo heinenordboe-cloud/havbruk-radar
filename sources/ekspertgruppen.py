@@ -368,12 +368,26 @@ def _flat(sider: list[str]) -> str:
     return " ".join(" ".join(sider).split())
 
 
-def _utgitt(rå: bytes, nyeste_aar: int) -> tuple[str, str]:
-    """(published_at, advarsel) lest av PDF-ens `/CreationDate`.
+def _utgitt(rå: bytes, nyeste_aar: int,
+            advarsler: list[str] | None = None) -> str:
+    """`published_at` lest av PDF-ens `/CreationDate`, normalisert til UTC.
 
-    Returnerer ISO-8601 i UTC, eller TOM STRENG med en advarsel. Tom er
-    «vet ikke», og den er det ærlige svaret — ikke hentetidspunktet, og
-    ikke vurderingsåret. Se Observation.published_at.
+    Returnerer ISO-8601 i UTC, eller TOM STRENG. Tom er «vet ikke», og
+    den er det ærlige svaret — ikke hentetidspunktet, og ikke
+    vurderingsåret. Se Observation.published_at.
+
+    ## Hvorfor grunnen kommer ut gjennom `advarsler` og ikke som returverdi
+
+    Fordi `test_ingen_kilde_setter_published_at_uten_a_normalisere`
+    leser koden STATISK: den krever at `self.published_at = ...` er et
+    direkte kall til en funksjon som er registrert og oppførselstestet
+    som UTC-normaliserer. En tuppel som pakkes ut i to variabler først
+    ser ut som en tilordning fra et navn, og vakten kan ikke se hva
+    navnet inneholder.
+
+    Første utkast gjorde nettopp det, og vakten felte det — med rette.
+    Formen på tilordningen ER egenskapen som kan etterprøves, og en
+    bekvemmelighet som ødelegger den er ikke en bekvemmelighet.
 
     ## Vakten
 
@@ -398,21 +412,26 @@ def _utgitt(rå: bytes, nyeste_aar: int) -> tuple[str, str]:
         if hasattr(rå_dato, "get_object"):
             rå_dato = rå_dato.get_object()
     except Exception as e:
-        return "", (f"ekspertgruppen: klarte ikke lese PDF-metadata "
-                    f"({type(e).__name__}: {e}). published_at settes tom.")
+        return _si_fra(advarsler,
+                       f"ekspertgruppen: klarte ikke lese PDF-metadata "
+                       f"({type(e).__name__}: {e}). published_at settes tom.")
 
     if not rå_dato:
-        return "", ("ekspertgruppen: kroppen har ingen `/CreationDate`. "
-                    "Da vet vi ikke når kilden utga den, og published_at "
-                    "settes tom — en gjettet dato er verre enn ingen.")
+        return _si_fra(advarsler,
+                       "ekspertgruppen: kroppen har ingen `/CreationDate`. "
+                       "Da vet vi ikke når kilden utga den, og published_at "
+                       "settes tom — en gjettet dato er verre enn ingen.")
 
     naar = _les_pdf_dato(str(rå_dato))
     if naar is None:
-        return "", (f"ekspertgruppen: `/CreationDate` {rå_dato!r} lot seg "
-                    f"ikke tolke. published_at settes tom.")
+        return _si_fra(advarsler,
+                       f"ekspertgruppen: `/CreationDate` {rå_dato!r} lot seg "
+                       f"ikke tolke (måned og dag kreves — se "
+                       f"`_les_pdf_dato`). published_at settes tom.")
 
     if not (nyeste_aar <= naar.year <= nyeste_aar + 1):
-        return "", (
+        return _si_fra(
+            advarsler,
             f"ekspertgruppen: `/CreationDate` er {naar.date().isoformat()}, "
             f"utenfor [{nyeste_aar}, {nyeste_aar + 1}] for en rapport som "
             f"vurderer {nyeste_aar}. Det er et RE-EKSPORTTIDSPUNKT, ikke en "
@@ -420,7 +439,23 @@ def _utgitt(rå: bytes, nyeste_aar: int) -> tuple[str, str]:
             f"utgivelse etter når noen åpnet fila i en annen PDF-motor."
         )
 
-    return naar.astimezone(dt.timezone.utc).isoformat(), ""
+    # DEN ENE normaliseringen. Alt annet i denne funksjonen er vakthold.
+    # DEN ENE normaliseringen. Alt annet i funksjonen er vakthold, og
+    # hvert avslag går gjennom `_si_fra` slik at returtypen forblir én
+    # streng — se docstringen om hvorfor formen på tilordningen betyr
+    # noe for `test_ingen_kilde_setter_published_at_uten_a_normalisere`.
+    return naar.astimezone(dt.timezone.utc).isoformat()
+
+
+def _si_fra(advarsler: list[str] | None, grunn: str) -> str:
+    """Legger grunnen i lista og returnerer tom `published_at`.
+
+    Finnes for at `_utgitt` skal kunne ha ÉN returtype. Se der for
+    hvorfor formen på tilordningen er en egenskap som må bevares.
+    """
+    if advarsler is not None:
+        advarsler.append(grunn)
+    return ""
 
 
 _PDF_DATO = re.compile(
@@ -433,8 +468,22 @@ def _les_pdf_dato(tekst: str) -> dt.datetime | None:
     """`D:20201123130644+01'00'` -> tidssone-bevisst datetime.
 
     Egen leser fordi formatet er PDF-spesifikt (ISO 32000, 7.9.4) og
-    hverken `datetime.fromisoformat` eller `email.utils` tar det. Feltet
-    er valgfritt bakfra: `D:2020` er en gyldig dato i standarden.
+    hverken `datetime.fromisoformat` eller `email.utils` tar det.
+
+    ## Måned og dag KREVES, selv om standarden gjør dem valgfrie
+
+    ISO 32000 tillater `D:2020` — alt etter årstallet kan utelates. Vi
+    NEKTER den formen likevel, og det er et valg, ikke en forglemmelse.
+
+    To grunner. Ingen av de fem kroppene har en slik dato; å støtte et
+    format vi ikke har sett er å anta noe om det (CLAUDE.md regel 4). Og
+    tolkningen ville uansett vært et gjett: `D:2020` som 2020-01-01
+    daterer en rapport utgitt i november til 1. januar, ti måneder for
+    tidlig. `published_at` sammenlignes LEKSIKOGRAFISK i
+    `snapshot.publisert()` og `diff.revisjon()`, så en oppdiktet
+    januardato kan sortere foran en ekte påstand fra året før.
+
+    `None` gir tom `published_at` med advarsel, som er det ærlige svaret.
     """
     m = _PDF_DATO.match(tekst.strip())
     if not m:
@@ -871,9 +920,19 @@ _AREALANDEL = re.compile(
 
 # «Indeksen for risiko for høy påvirkning er 27 %» — 2021/2022-formen.
 # Noen ganger med et ord foran tallet: «er moderat (33 %)».
+# Ordet foran tallet er VALGFRITT og må ikke kunne være tallet selv.
+# `(?:\w+\s*)?` var den første formen, og den slukte sifrene: «er 27 %»
+# ga treff med et tomt tall, mens «er moderat (33 %)» ga 33. To av 22
+# verdier falt stille bort — begge den bare formen, og begge blant de
+# høyeste i sitt år (27 % i 2021, 33 % i 2022).
+#
+# Det er repoets egen feilklasse (CLAUDE.md 1b-2): mekanismen var riktig
+# i akkurat de tilfellene der et ord OG en parentes fulgtes at, og stille
+# ellers. Bokstavklassen kan ikke matche et tall, så de to formene kan
+# ikke lenger forveksles.
 _ROC = re.compile(
     r"Indeksen\s+for\s+ris\s?iko\s+for\s+h[øo]y\s+p[åa]virkning\s+er\s+"
-    r"(?:\w+\s*)?\(?\s*([^.)]{0,20}?%)", re.I)
+    r"(?:[^\W\d_]+\s*)*\(?\s*([^.)]{0,20}?%)", re.I)
 
 # «Gjennomsnittet vektet (22 %) ... uvektede snittet (32 %)»
 _VS_VEKTET_FORST = re.compile(
@@ -1539,9 +1598,12 @@ class Ekspertgruppen(Source):
             if egen:
                 c.close()
 
-        utgitt, advarsel = _utgitt(rå, utgivelse.aar[-1])
-        self.published_at = utgitt
-        self.advarsler = [advarsel] if advarsel else []
+        # SETT, ikke append: `advarsler` er en liste på KLASSEN, som
+        # deles av alle instanser og aldri tømmes. Se Source.advarsler.
+        advarsler: list[str] = []
+        # Direkte kall, ikke en utpakket tuppel. Se `_utgitt`.
+        self.published_at = _utgitt(rå, utgivelse.aar[-1], advarsler)
+        self.advarsler = advarsler
         return rå
 
     def aar_i(self, rå: bytes) -> list[str]:
