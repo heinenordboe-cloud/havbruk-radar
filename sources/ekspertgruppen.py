@@ -912,27 +912,50 @@ def _usikkerhet_i_prosa(seksjon: str) -> str | None:
     return None
 
 
-# «Modellert område med forhøyet påvirkning utgjør 34 % av det kystnære
-# arealet» — 2020-formen. Andelen av arealet, ikke en indeks.
-_AREALANDEL = re.compile(
-    r"forh[øo]yet\s+p\s?[åa]virkning\s+utgj[øo]r\s*([^.]{0,30}?%)"
-    r"\s*av\s+det\s+kystn[æa]re\s+arealet", re.I)
+def _slakk(ord_: str) -> str:
+    """Regexbit som tåler ORDDELINGSMELLOMROM inne i et ord.
 
-# «Indeksen for risiko for høy påvirkning er 27 %» — 2021/2022-formen.
-# Noen ganger med et ord foran tallet: «er moderat (33 %)».
-# Ordet foran tallet er VALGFRITT og må ikke kunne være tallet selv.
-# `(?:\w+\s*)?` var den første formen, og den slukte sifrene: «er 27 %»
-# ga treff med et tomt tall, mens «er moderat (33 %)» ga 33. To av 22
-# verdier falt stille bort — begge den bare formen, og begge blant de
-# høyeste i sitt år (27 % i 2021, 33 % i 2022).
+    PDF-ene setter av og til et mellomrom midt i et ord når linja er
+    justert: 2018-rapportens kapittel 4 skriver «hø y risiko for
+    lakselusindusert dødel ighet i to områder (3, 4)». Uten slakk fant
+    `_kategorilister` bare 11 av 13 produksjonsområder for 2017, og de
+    to som falt ut var nettopp de to i høy-kategorien.
+
+    Slakken gjelder BARE kategoriordene, og bare i denne ene lesingen.
+    Å normalisere bort alle enkeltmellomrom i hele dokumentet ville
+    slått sammen ord som skal stå fra hverandre.
+    """
+    return r"\s?".join(re.escape(bokstav) for bokstav in ord_)
+
+
+# HI smittekart oppgir SAMME indeks i to formuleringer, og rapportene
+# bytter mellom dem uten å bruke begge for samme produksjonsområde:
 #
-# Det er repoets egen feilklasse (CLAUDE.md 1b-2): mekanismen var riktig
-# i akkurat de tilfellene der et ord OG en parentes fulgtes at, og stille
-# ellers. Bokstavklassen kan ikke matche et tall, så de to formene kan
-# ikke lenger forveksles.
+#   2020, alle 13 PO   «Modellert område med forhøyet påvirkning utgjør
+#                       34 % av det kystnære arealet»
+#   2021/2022, PO2-13  «Indeksen for risiko for høy påvirkning er 27 %»
+#   2021/2022, PO1     tilbake til 2020-formen
+#
+# At det er én størrelse er lest i rapportene, ikke sluttet av navnene —
+# se docs/KILDE-EKSPERTGRUPPEN.md punkt 5b. De lagres likevel som TO
+# felter, fordi ordlyden er kildens og en sammenslåing er analysens valg,
+# ikke innsamlingens.
+#
+# Begge mønstrene tåler orddelingsmellomrom («påv irkning», «ris iko»):
+# PDF-en deler ord i justerte linjer, og uten slakk falt PO7 ut av begge
+# årene — 11 % i 2021 og 25 % i 2022, begge moderate verdier midt i
+# fordelingen.
+_AREALANDEL = re.compile(
+    r"forh[øo]yet\s+" + _slakk("påvirkning") + r"\s+utgj[øo]r\s*"
+    r"([^.]{0,30}?%)\s*av\s+det\s+kystn[æa]re\s+arealet", re.I)
+
+# «er 27 %», «er moderat (33 %)», «er moderat i 2022 (15 %)» og
+# «for hele produksjonsområdet er moderat (25 %)» — innskuddet mellom
+# størrelsen og verbet er valgfritt og kan være flere ord.
 _ROC = re.compile(
-    r"Indeksen\s+for\s+ris\s?iko\s+for\s+h[øo]y\s+p[åa]virkning\s+er\s+"
-    r"(?:[^\W\d_]+\s*)*\(?\s*([^.)]{0,20}?%)", re.I)
+    r"Indeksen\s+for\s+" + _slakk("risiko") + r"\s+for\s+"
+    + _slakk("høy") + r"\s+" + _slakk("påvirkning")
+    + r"[^.%]{0,45}?\s+er\s+(?:[^\W\d_]+\s*)*\(?\s*([^.)]{0,20}?%)", re.I)
 
 # «Gjennomsnittet vektet (22 %) ... uvektede snittet (32 %)»
 _VS_VEKTET_FORST = re.compile(
@@ -1031,22 +1054,6 @@ def _hi_smittepress(seksjon: str) -> list[tuple[str, str]]:
         if verdi:
             ut.append((F_ROC, verdi))
     return ut
-
-
-def _slakk(ord_: str) -> str:
-    """Regexbit som tåler ORDDELINGSMELLOMROM inne i et ord.
-
-    PDF-ene setter av og til et mellomrom midt i et ord når linja er
-    justert: 2018-rapportens kapittel 4 skriver «hø y risiko for
-    lakselusindusert dødel ighet i to områder (3, 4)». Uten slakk fant
-    `_kategorilister` bare 11 av 13 produksjonsområder for 2017, og de
-    to som falt ut var nettopp de to i høy-kategorien.
-
-    Slakken gjelder BARE kategoriordene, og bare i denne ene lesingen.
-    Å normalisere bort alle enkeltmellomrom i hele dokumentet ville
-    slått sammen ord som skal stå fra hverandre.
-    """
-    return r"\s?".join(re.escape(bokstav) for bokstav in ord_)
 
 
 # «lav risiko for lakselusindusert dødelighet i syv produksjonsområder
@@ -1539,6 +1546,20 @@ def gjenkjenn(flat_forside: str) -> Utgivelse:
 
 class Ekspertgruppen(Source):
     name = "ekspertgruppen"
+
+    # Bumpet fra "1" 27.08.2026: `_AREALANDEL` og `_ROC` fikk slakk for
+    # orddelingsmellomrom («påv irkning») og for innskutte ord mellom
+    # størrelsen og verbet («... for hele produksjonsområdet er ...»).
+    # Uten dem falt PO7 ut av både 2021 og 2022 — 11 % og 25 %, midt i
+    # fordelingen.
+    #
+    # Snapshotene på disk er skrevet av versjon 1 og har 37 av 39
+    # HI smittekart-celler. De skrives IKKE om: dataene er pushet, og en
+    # parserendring etter det er en ny versjon ved siden av, ikke en
+    # re-derivering. `diff.revisjon()` vil kaste `Grunnlagssprik` mellom
+    # versjonene, som er riktig — en forskjell kan da like gjerne være
+    # vår parser som kildens revisjon.
+    version = "2"
     # Samme entitetstype som biomasse, med vilje: en analyse skal kunne
     # joine kategori mot beholdning på `entity_id` uten en oversettelse.
     entity_type = "produksjonsomraade"

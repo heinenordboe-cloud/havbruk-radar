@@ -508,6 +508,31 @@ def test_roc_leses_ogsaa_uten_ord_foran_tallet():
     assert dict(eg._hi_smittepress(orddelt))["hi_smittepress_roc_indeks"] == "33"
 
 
+@pytest.mark.parametrize("setning, ventet", [
+    # PDF-en deler ord i justerte linjer.
+    ("Indeksen for risiko for høy påv irkning er moderat (11 %).", "11"),
+    ("Indeksen for ris iko for høy påvirkning er 33 %.", "33"),
+    # ... og skyter inn ledd mellom størrelsen og verbet.
+    ("Indeksen for risiko for høy påvirkning for hele produksjons"
+     "området er moderat (25 %).", "25"),
+])
+def test_roc_taaler_orddeling_og_innskudd(setning, ventet):
+    """PO7 falt ut av BÅDE 2021 og 2022 på disse to formene.
+
+    11 % og 25 % — midt i fordelingen, ikke ytterpunkter, så tapet var
+    usynlig i et sammendrag. Med rettingen dekker HI smittekart 39 av 39
+    (po, år)-celler.
+    """
+    tekst = "HI smittepress: " + setning
+    assert dict(eg._hi_smittepress(tekst))["hi_smittepress_roc_indeks"] == ventet
+
+
+def test_arealandel_taaler_orddeling():
+    tekst = ("Smittepress HI: Modellert område med forhøyet p åvirkning "
+             "utgjør 12 % av det kystnære arealet.")
+    assert dict(eg._hi_smittepress(tekst))["hi_smittepress_arealandel"] == "12"
+
+
 def test_arealandel_og_roc_er_to_felter():
     """2020 oppgir en arealandel, 2021/2022 en ROC-indeks.
 

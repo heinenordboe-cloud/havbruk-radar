@@ -187,6 +187,90 @@ måltall kategorien selv ikke bærer. Den er heller ikke satt så høyt at
 bare et perfekt datasett passerer — 25 er under det arealandel+ROC ville
 gitt hvis de er samme størrelse.
 
+## UTFALL av stoppregelen — ført inn 27.08.2026, etter at den var skrevet
+
+**Stoppregelen er IKKE utløst. Begge trådene klarerte den.**
+
+### Tråd 1: arealandel og ROC ER samme størrelse
+
+Avgjort ved å lese definisjonene, ikke navnene. Rapportene definerer
+indeksen ORDRETT LIKT i 2020, 2021 og 2022:
+
+    I = (Areal_Rød(30d) + 0,5 × Areal_Gul(30d)) / Areal_antatt_leveområde
+
+der «Areal antatt leveområde» er «totalarealet avgrenset av en linje som
+ligger 9,6 km fra land». Formålet er oppgitt som «et objektivt mål på
+hvor stor andel av et PO det er sannsynlig med høyt påslag».
+
+Tre uavhengige holdepunkter for at de to formuleringene navngir den:
+
+1. **De er perfekt komplementære.** Over alle 39 PO-år oppgir rapporten
+   nøyaktig ÉN av dem per produksjonsområde, aldri begge. 2020 bruker
+   arealformen for alle 13; 2021 og 2022 bruker indeksformen for PO2–13
+   og arealformen for PO1.
+2. **2020-rapporten viser tilbake til sitt eget tall som «Indeksen»** i
+   samme avsnitt, for 7 av 13 produksjonsområder. De seks som ikke gjør
+   det har korte avsnitt uten omtale av tidsutvikling.
+3. **Ingen sprang ved formuleringsskiftet.** PO4 går 18 → 18 og PO10 går
+   10 → 10 over skiftet 2020→2021; PO-rangeringen er bevart i alle tre
+   år. Var de ulike størrelser, skulle PO2–13 vist en systematisk
+   forskyvning der PO1 ikke gjorde det. Det gjør de ikke.
+
+**Resultat: 39 av 39 (po, år)-celler for 2020–2022, og 26
+ettårsoverganger.** Over stoppregelens terskel på 25.
+
+De lagres fortsatt som to felter. Ordlyden er kildens, og
+sammenslåingen er analysens valg — ikke innsamlingens.
+
+### Tråd 2: HIs modellrapporter dekker mer
+
+«Rapport fra havforskningen», serien *Modellert påvirkning av lakselus
+på vill laksefisk*, er en ANNEN serie enn ekspertgruppens:
+
+| år | rapportnr. | URL |
+|---|---|---|
+| 2020, 2021 | 2021-48 | `hi.no/hi/nettrapporter/rapport-fra-havforskningen-2021-48` |
+| 2022 | 2022-36 | `…rapport-fra-havforskningen-2022-36` |
+| 2022, 2023 | 2023-57 | `…rapport-fra-havforskningen-2023-57` |
+| 2024 | 2024-50 | `…rapport-fra-havforskningen-2024-50` |
+| 2024, 2025 | 2025-67 | `…rapport-fra-havforskningen-2025-67` |
+
+Åpne, som HTML-nettrapporter — ikke bak regjeringen.nos 403.
+
+**Det som IKKE finnes:** en tabell med per-PO-verdier for hele 2012–2025.
+Multiårsdataene er FIGURER — søylediagram med bildetekst «Tidsutvikling
+for ROC-indeks årene 2012-2025». Å lese verdier av et søylediagram ville
+vært oppdiktet presisjon fra piksler, og gjøres ikke.
+
+**Det som finnes:** hver rapport oppgir for SITT år (a) ROC-indeksen per
+produksjonsområde som eksplisitt tall, og (b) en per-PO-middelverdi av
+virtuell-smolt-dødelighet i tabell («Gjennomsnitt for PO»).
+
+Serien dekker dermed 2020–2025. Det er 6 år × 13 PO = **78 celler og 65
+ettårsoverganger** for ROC — og den fyller 2023, 2024 og 2025, som
+ekspertgruppens rapporter ikke gir oss.
+
+**Ikke verifisert:** punkt (a) og (b) er lest gjennom et
+hentesammendrag av HTML-en, ikke ved å laste ned og lese kroppene selv.
+Antall PO med eksplisitt tall er oppgitt som «alle 13» for 2024-rapporten
+basert på et utdrag der 8 var synlige. Før dette brukes i et resultat må
+kroppene hentes, arkiveres og telles — se CLAUDE.md regel 4.
+
+### Hva utfallet betyr
+
+Prediksjonshypotesen legges IKKE bort. Måltallet kan bli et kontinuerlig
+utfall med langt flere bevegelser enn kategoriens 13, og kilden for det
+er åpen og maskinlesbar.
+
+Neste skritt er en NY KILDE for HIs modellrapporter — ikke en utvidelse
+av denne. De er en egen utgiver, en egen serie, et eget format (HTML, ikke
+PDF) og en egen publiseringsrytme.
+
+**Det endrer ikke konklusjonen om ekspertgruppens rapporter.** Deres
+kategori har 52 ettårsoverganger og 13 skift, og det er fortsatt for
+tynt til å bære en prediksjonstest alene. Gevinsten ligger et annet sted
+enn der 26.08-notatet lette.
+
 ## Fasiten beholdes, men degraderes
 
 `analyse/fasit/ekspertgruppen-po-kategori.csv` slettes ikke. Den har 2023
