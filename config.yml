@@ -173,3 +173,17 @@ kilder:
     # strekk, gir null falske alarmer på historikken, og fanger et dødt
     # felt på åtte måneder i stedet for tretten.
     maks_nullstrekk: 8
+
+  ekspertgruppen:
+    # Ekspertgruppen for vurdering av lusepåvirkning — kategori per
+    # produksjonsområde per år, altså fasiten trafikklyssystemet styres
+    # etter. Verifisert mot fem nedlastede rapporter 26.-27.08.2026, se
+    # docs/KILDE-EKSPERTGRUPPEN.md.
+    #
+    # Ingen nøkkel og ingen avtale: rapportene er offentlige PDF-er.
+    # URL-ene ligger IKKE her, men i `RAPPORTER` i kildefila — de er en
+    # del av uttrekket, ikke en innstilling. Hver URL hører sammen med
+    # nøyaktig én uttrekksfunksjon som er skrevet mot nøyaktig det
+    # dokumentet, og å kunne bytte adresse uten å bytte parser ville vært
+    # å invitere en kropp inn i feil leser.
+    aktiv: true

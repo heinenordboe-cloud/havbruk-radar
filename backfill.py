@@ -6,14 +6,20 @@
     python backfill.py --kilde biomasse --fra 2017-10 --til 2026-04  # MÅNEDER
     python backfill.py --kilde biomasse --revisjon        # har kilden snudd?
     python backfill.py --kilde biomasse --arkiv <url>     # eldre utgivelse inn
+    python backfill.py --kilde ekspertgruppen --rapporter # N kropper, M år hver
 
-## To moduser, valgt av kilden og ikke av et flagg
+## TRE moduser, valgt av kilden og ikke av et flagg
 
 En kilde med `hent_uke()` backfilles i UKER, en med `hent_alt()` i
-MÅNEDER. `--fra 2017-10` betyr derfor uke 10 for lusetall og oktober for
-biomasse, og det er kilden som avgjør hvilken — ikke en bryter brukeren
-kan sette feil. Ville et flagg vært tydeligere? Nei: da finnes det to
-steder å si hva `2017-10` betyr, og de kan være uenige.
+MÅNEDER, og en med `utgivelser()` i RAPPORTER. `--fra 2017-10` betyr
+derfor uke 10 for lusetall og oktober for biomasse, og det er kilden som
+avgjør hvilken — ikke en bryter brukeren kan sette feil. Ville et flagg
+vært tydeligere? Nei: da finnes det to steder å si hva `2017-10` betyr,
+og de kan være uenige.
+
+Rapportmodus er den tredje formen: N kropper som hver dekker M perioder,
+og som uttaler seg om hverandres perioder. Se `_backfill_rapporter` for
+hvorfor verken uke- eller månedsmodus treffer den.
 
 Ukemodus henter ett kall per uke. Månedsmodus henter ÉN GANG: biomassefila
 bærer hele serien i hver nedlasting, så 106 måneder koster ett kall og
@@ -612,6 +618,184 @@ def _backfill_maaneder(kilde, args) -> int:
     return 0
 
 
+# ----------------------------------------------------------- rapportmodus
+
+def _backfill_rapporter(kilde, args) -> int:
+    """Backfill for en kilde der HVER KROPP dekker flere perioder, og
+    kroppene OVERLAPPER.
+
+        python backfill.py --kilde ekspertgruppen --rapporter
+
+    ## Hvorfor dette er en tredje modus og ikke en av de to andre
+
+    Ukemodus er én kropp per periode. Månedsmodus er én kropp for alle
+    periodene. Ekspertgruppen er N kropper som hver dekker M perioder, og
+    som sier noe om hverandres perioder: 2018-rapporten gjentar 2016 og
+    2017, 2021-rapporten gjentar 2020 med en oppdatert tabell.
+
+    Verken `--fra/--til` eller `--revisjon` treffer den formen.
+    `_backfill_maaneder` gjør ENTEN backfill ELLER revisjon for hele
+    intervallet; her er det den samme kroppen som gjør begge deler
+    samtidig — den skriver 2021 for første gang OG reviderer 2020.
+
+    ## Rekkefølgen er hele mekanismen
+
+    Kroppene leses i UTGIVELSESREKKEFØLGE, eldst først, fordi det er den
+    eneste rekkefølgen der hver kropp er «nyere enn det som ligger der».
+    Da er hvert år først en førstegangsskriving (`diff.compare`) og
+    deretter en revisjon (`diff.revisjon`) for hver nyere rapport som
+    uttaler seg om det.
+
+    Går man motsatt vei, er hver eldre rapport en ELDRE påstand om en
+    dato som alt er skrevet, og `diff.revisjon()` kaster `Feilrekkefolge`
+    — med rette. Den retningen finnes allerede som `--arkiv`, og den er
+    for kropper som dukker opp i ettertid, ikke for en serie vi kjenner.
+
+    ## Idempotens
+
+    Nøkkelen er UTGIVELSEN, ikke filnavnet: er denne rapportens
+    `published_at` allerede skrevet for året, er kjøringen en gjentakelse
+    og året hoppes over. To kjøringer av samme backfill skal ikke gi to
+    snapshots av samme påstand. Samme regel som `_arkivkopi`.
+    """
+    utgivelser = kilde.utgivelser()
+    print(f"Backfill {kilde.name}: {len(utgivelser)} rapport(er), "
+          f"eldst utgitt først"
+          + (" (TØRRKJØRING)" if args.torrkjor else ""))
+
+    skrevet = revidert = uendret = hoppet = 0
+    endringer_totalt = revisjonsrader = 0
+    feil: list[str] = []
+    sprik: list[str] = []
+
+    for utgivelse in utgivelser:
+        merke = ", ".join(str(a) for a in utgivelse.aar)
+        print(f"\n{utgivelse.tittel}\n  dekker {merke}")
+        if utgivelse.merknad:
+            print(f"  merknad: {utgivelse.merknad}")
+
+        try:
+            rå = kilde.hent_rapport(utgivelse)
+        except Exception as e:
+            # Én rapport som ikke lar seg hente skal ikke felle de andre.
+            # De ligger på ulike verter, og en 403 hos den ene sier
+            # ingenting om den neste.
+            feil.append(f"{merke}: {type(e).__name__}: {e}")
+            print(f"  HENTING FEILET: {type(e).__name__}: {e}")
+            continue
+
+        for advarsel in getattr(kilde, "advarsler", []):
+            print(f"  ADVARSEL: {advarsel}")
+
+        utgitt = getattr(kilde, "published_at", "") or ""
+        if not utgitt:
+            # Uten utgivelsestidspunkt kan kroppen ikke plasseres i
+            # rekkefølgen, og `snapshot.publisert()` ville falt tilbake
+            # på hentetidspunktet — som er I DAG for alle fem kroppene.
+            # Da ville den ELDSTE rapporten fått det NYESTE tidspunktet
+            # og revisjonsaksen lest baklengs. Samme vilkår som --arkiv.
+            feil.append(f"{merke}: ingen published_at")
+            print("  Kroppen bærer ingen lesbar utgivelsesdato. Uten den "
+                  "kan den ikke plasseres i utgivelsesrekkefølgen, og en "
+                  "gjettet dato er verre enn ingen rapport. Hoppet over.")
+            continue
+
+        datoer = kilde.aar_i(rå)
+        print(f"  utgitt {utgitt} (lest av kroppen, ikke gjettet)")
+
+        raw_hash = ""
+        if not args.torrkjor:
+            raw_hash, ble_skrevet = raw_arkiv.arkiver_ny(
+                kilde.name, datoer[-1], rå)
+            print(f"  {'arkivert' if ble_skrevet else 'allerede arkivert'} "
+                  f"under {datoer[-1]}, sha256 {raw_hash[:16]}…")
+
+        # ETT hentetidspunkt for alle årene i kroppen. De kom fra det
+        # samme kallet, og `fetched_at` skal si det — se
+        # `_backfill_maaneder` for hvorfor det betyr noe her og ikke i
+        # ukemodus.
+        hentet_at = dt.datetime.now(dt.timezone.utc).isoformat()
+
+        for dato in datoer:
+            finnes = _finnes_allerede(kilde.name, dato)
+
+            if not args.torrkjor and finnes and any(
+                    snapshot.published_at_i(r) == utgitt
+                    for _, r in snapshot.versjoner(kilde.name, dato)):
+                hoppet += 1
+                continue
+
+            try:
+                obs = runner.stempl(
+                    kilde.parse(rå, dato),
+                    source_version=kilde.version, raw_hash=raw_hash,
+                    fetched_at=hentet_at, published_at=utgitt,
+                    utvalg=getattr(kilde, "utvalg", None))
+            except Exception as e:
+                # Et år som ikke lar seg tolke er et HULL, ikke et
+                # avbrudd. De øvrige årene ligger i den samme kroppen og
+                # er like gyldige.
+                print(f"  {dato}: FEIL {type(e).__name__}: {e}")
+                feil.append(f"{dato}  {type(e).__name__}: {e}")
+                continue
+
+            ramme = snapshot.to_frame(obs)
+            if args.torrkjor:
+                print(f"  {dato}: {ramme.height:>4} observasjoner, "
+                      f"{ramme['entity_id'].n_unique():>3} områder"
+                      + ("  [ville revidert]" if finnes else ""))
+                continue
+
+            # Diff FØR skriving, ellers finner previous() (eller
+            # forrige_versjon()) årets egen ferske fil og diffen blir tom.
+            if finnes:
+                try:
+                    endr = diff.revisjon(ramme, dato)
+                except diff.Grunnlagssprik as e:
+                    print(f"  {dato}: GRUNNLAGSSPRIK {e}")
+                    sprik.append(f"{dato}  {e}")
+                    continue
+                if endr.is_empty():
+                    # Rapporten gjentar året uten å endre noe. En
+                    # identisk `.2`-fil ville vært en påstand om at
+                    # kilden sa noe nytt da den ikke gjorde det.
+                    uendret += 1
+                    print(f"  {dato}: gjentatt uendret — ingenting skrevet")
+                    continue
+                revidert += 1
+                revisjonsrader += endr.height
+            else:
+                endr = diff.compare(ramme, dato)
+                skrevet += 1
+                endringer_totalt += endr.height
+
+            filer = snapshot.write(obs, dato)
+            versjon = snapshot.versjon_av(filer[0])
+            changelog.skriv(endr, dato, versjon=versjon)
+            hva = "revisjoner" if finnes else "endringer"
+            print(f"  {dato}: {ramme.height:>4} observasjoner, "
+                  f"{ramme['entity_id'].n_unique():>3} områder, "
+                  f"{endr.height:>4} {hva} -> {filer[0].name}")
+
+    print(f"\n{skrevet} år skrevet første gang ({endringer_totalt} endringer), "
+          f"{revidert} år REVIDERT ({revisjonsrader} revisjonsrader), "
+          f"{uendret} gjentatt uendret, {hoppet} hoppet over (denne "
+          f"utgivelsen lå der alt).")
+    print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+
+    if sprik:
+        print(f"\n{len(sprik)} år kunne IKKE vurderes som revisjon:")
+        for s in sprik:
+            print(f"  {s}")
+
+    if feil:
+        print(f"\n{len(feil)} rapport/år feilet:")
+        for f in feil:
+            print(f"  {f}")
+        return 1
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--kilde", required=True, help="kildenavn, f.eks. lusetall")
@@ -634,6 +818,11 @@ def main() -> int:
                         "allerede har, i stedet for å hente nye. Skriver "
                         "<dato>.2.parquet der noe er endret, og lar den "
                         "gamle stå. Bare for kilder med hent_alt().")
+    p.add_argument("--rapporter", action="store_true",
+                   help="les alle kildens rapporter i UTGIVELSESREKKEFØLGE "
+                        "og skriv hvert år de dekker: førstegangsskriving "
+                        "der året er nytt, revisjon der det alt finnes. "
+                        "Bare for kilder med utgivelser().")
     p.add_argument("--pause", type=float, default=None,
                    help=f"sekunder mellom kall (standard: kildens egen "
                         f"`pause_s`, ellers {PAUSE_S})")
@@ -650,6 +839,15 @@ def main() -> int:
         print(f"Ukjent eller inaktiv kilde: {args.kilde}")
         return 1
     # Kilden velger modus, ikke brukeren. Se modulens docstring.
+    if hasattr(kilde, "utgivelser"):
+        if args.arkiv or args.revisjon:
+            print("--arkiv og --revisjon gjelder kilder med hent_alt(). "
+                  f"{args.kilde} leser flere kropper som hver dekker flere "
+                  "perioder, og gjør begge deler i én kjøring: bruk "
+                  "--rapporter.")
+            return 1
+        return _backfill_rapporter(kilde, args)
+
     if hasattr(kilde, "hent_alt"):
         if args.arkiv and args.revisjon:
             print("--arkiv og --revisjon spør om motsatte retninger: den "

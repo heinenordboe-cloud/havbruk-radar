@@ -3,7 +3,7 @@
 # tilfeldig mandag møter et endret API og blir rød uten at du gjorde noe.
 #
 # Oppgradering skjer når DU velger det: bump versjonen, kjør pytest, commit.
-# Regenerer med: pip freeze | grep -iE "^(httpx|polars|PyYAML)==" 
+# Regenerer med: pip freeze | grep -iE "^(httpx|polars|pypdf|PyYAML)=="
 #
 # pyarrow er fjernet: polars leser og skriver parquet selv, og pyarrow
 # ble aldri importert noe sted i koden.
@@ -11,3 +11,13 @@
 httpx==0.28.1
 polars==1.36.1
 PyYAML==6.0.3
+
+# Leser ekspertgruppens rapporter, som bare finnes som PDF. Kom inn
+# 26.08.2026 — den var ad hoc-installert i .venv fra 25.08 og sto ikke
+# her, som er nøyaktig det denne fila finnes for å hindre.
+#
+# Brukes for tekstuttrekk, ikke for skriving. `extraction_mode="layout"`
+# er det som gjør tabellene i rapportene lesbare i det hele tatt: uten
+# den kollapser kolonnene, og en rad med tomme celler kan ikke tilordnes
+# metode. Se sources/ekspertgruppen.py.
+pypdf==6.16.2
