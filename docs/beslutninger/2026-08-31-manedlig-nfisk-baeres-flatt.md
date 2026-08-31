@@ -2,7 +2,7 @@
 dato: 2026-08-31
 tittel: Månedlig N_fisk bæres flatt over ukene, ikke interpolert
 status: gjeldende
-commit: [fylles inn]
+commit: b995eb2
 ---
 
 ## Hva som ble bestemt
