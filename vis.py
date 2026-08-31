@@ -26,10 +26,24 @@ import polars as pl
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+import kildeledd                            # noqa: E402
 from core import changelog, diff, snapshot   # noqa: E402
 from core.paths import DATA_DIR, RAW_DIR      # noqa: E402
 
 UT = DATA_DIR / "oversikt.html"
+
+# Kildeleddet, skrevet OG lest av kildeledd.py. Visningen regner ikke
+# formelen ut på nytt: to steder som beregner Stien-leddet ville vært to
+# tellere for samme sak, og den formen har dette repoet betalt for flere
+# ganger (CLAUDE.md 1b). Lesingen ligger heller ikke her — se
+# kildeledd.les_serier() for hvorfor. Finnes filene ikke, hoppes
+# seksjonen over: vis.py skal kunne kjøres på et repo der kildeledd.py
+# aldri er kjørt.
+
+# FULL og DELVIS er IKKE samme størrelse, og skal ikke kunne forveksles
+# ved et blikk. Ulik farge og ulik strek, ikke bare ulik etikett.
+FARGE_FULL = "#05628a"
+FARGE_DELVIS = "#b26a00"
 
 # Navngitt feilmodus fra VISNING.md: hele datasettet inline slutter å
 # virke når det blir stort nok. Grensa ligger et sted rundt 20-50 MB.
@@ -201,10 +215,164 @@ def bygg_data() -> dict:
     }
 
 
+# ------------------------------------------------------- kildeleddet
+
+def _linje(punkter: list[tuple[float, float]], farge: str,
+           strek: str = "") -> str:
+    if not punkter:
+        return ""
+    d = " ".join(f"{x:.1f},{y:.1f}" for x, y in punkter)
+    stiplet = ' stroke-dasharray="2 2"' if strek else ""
+    return (f'<polyline points="{d}" fill="none" stroke="{farge}" '
+            f'stroke-width="1"{stiplet}/>')
+
+
+def _panel(rader: list[tuple[str, float]], bredde: int, hoyde: int,
+           farge: str, alle_datoer: list[str], strek: str = "") -> str:
+    """Én kurve i en boks. x er posisjon i den GLOBALE datolista.
+
+    Den globale aksen er poenget: to paneler under hverandre skal kunne
+    leses mot hverandre uten at 2012 i det ene ligger over 2018 i det
+    andre. FULL starter derfor inne i panelet sitt og ikke ved venstre
+    kant — hullet foran 2017-10 er en egenskap ved dataene, ikke ved
+    tegningen, og skal SES.
+    """
+    if not rader:
+        return ""
+    indeks = {d: i for i, d in enumerate(alle_datoer)}
+    n = max(len(alle_datoer) - 1, 1)
+    topp = max(v for _, v in rader) or 1.0
+    punkter = [((indeks[d] / n) * bredde, hoyde - (v / topp) * hoyde)
+               for d, v in rader if d in indeks]
+    return _linje(punkter, farge, strek)
+
+
+def _sesongprofil(ramme: pl.DataFrame, farge: str, strek: str = "") -> str:
+    """Median per ISO-uke over alle år og alle PO.
+
+    Dette er plausibilitetssjekken, og den er den enkleste som finnes:
+    lakselus har et kraftig sesongmønster, og en serie uten det er regnet
+    feil. Median og ikke middel — ett PO-år med en ekstremverdi skal ikke
+    kunne tegne en topp som ikke er der.
+    """
+    per_uke = (ramme.group_by("iso_uke")
+               .agg(pl.col("verdi").median().alias("m"))
+               .sort("iso_uke"))
+    if per_uke.is_empty():
+        return ""
+    B, H = 520, 110
+    topp = per_uke["m"].max() or 1.0
+    punkter = [(((u - 1) / 52) * B, H - (m / topp) * H)
+               for u, m in per_uke.iter_rows()]
+    return _linje(punkter, farge, strek)
+
+
+def kildeledd_html() -> str:
+    """Hele seksjonen, eller tom streng om serien ikke er beregnet."""
+    serier = kildeledd.les_serier()
+    if not serier:
+        return ""
+
+    alle_datoer = sorted({d for r in serier.values()
+                          for d in r["uke_mandag"].to_list()})
+    B, H = 520, 110
+
+    # --- sesongprofil ---------------------------------------------------
+    sesong = []
+    for serie, farge, strek in (("full", FARGE_FULL, ""),
+                                ("delvis", FARGE_DELVIS, "stiplet")):
+        if serie not in serier:
+            continue
+        r = serier[serie]
+        kurve = _sesongprofil(r, farge, strek)
+        topp = (r.group_by("iso_uke").agg(pl.col("verdi").median().alias("m"))
+                 .sort("m", descending=True))
+        topp_uke = topp["iso_uke"][0] if not topp.is_empty() else "?"
+        bunn_uke = topp.sort("m")["iso_uke"][0] if not topp.is_empty() else "?"
+        enhet = r["enhet"][0] if not r.is_empty() else ""
+        sesong.append(
+            f'<div class="fig"><div class="figh">{serie.upper()} — median per ISO-uke'
+            f' <span class="dim">(topp uke {topp_uke}, bunn uke {bunn_uke};'
+            f' {enhet})</span></div>'
+            f'<svg viewBox="0 -6 {B} {H + 12}" width="100%" height="{H + 12}">'
+            f'{kurve}</svg>'
+            f'<div class="figx"><span>uke 1</span><span>uke 26</span>'
+            f'<span>uke 52</span></div></div>')
+
+    # --- per PO ---------------------------------------------------------
+    po_er = sorted({p for r in serier.values() for p in r["po"].to_list()})
+    paneler = []
+    for po in po_er:
+        deler = []
+        merker = []
+        for serie, farge, strek in (("full", FARGE_FULL, ""),
+                                    ("delvis", FARGE_DELVIS, "stiplet")):
+            if serie not in serier:
+                continue
+            d = serier[serie].filter(pl.col("po") == po).sort("uke_mandag")
+            if d.is_empty():
+                continue
+            rader = list(zip(d["uke_mandag"].to_list(), d["verdi"].to_list()))
+            deler.append(_panel(rader, B, H, farge, alle_datoer, strek))
+            # Toppverdien står som TALL. Hver kurve er skalert til sitt
+            # eget maksimum, så uten tallet er to paneler ikke
+            # sammenlignbare — og et panel som ser høyt ut kan være lavt.
+            merker.append(f'<span style="color:{farge}">{serie}: '
+                          f'maks {max(v for _, v in rader):.3g}</span>')
+        navn = ""
+        for r in serier.values():
+            treff = r.filter(pl.col("po") == po)["po_navn"]
+            if not treff.is_empty() and treff[0]:
+                navn = treff[0]
+                break
+        paneler.append(
+            f'<div class="fig"><div class="figh">PO{po} {navn} '
+            f'<span class="dim">{" · ".join(merker)}</span></div>'
+            f'<svg viewBox="0 -6 {B} {H + 12}" width="100%" height="{H + 12}">'
+            f'{"".join(deler)}</svg></div>')
+
+    forbehold = ""
+    for r in serier.values():
+        if not r.is_empty():
+            forbehold = r["forbehold"][0]
+            break
+    formler = " · ".join(
+        f'{s.upper()} = {serier[s]["formel"][0]}' for s in ("full", "delvis")
+        if s in serier and not serier[s].is_empty())
+    agg = (serier[next(iter(serier))]["aggregering"][0]
+           if serier else "")
+
+    fra = min(alle_datoer) if alle_datoer else "?"
+    til = max(alle_datoer) if alle_datoer else "?"
+
+    return f"""
+<h2 class="k2">Kildeleddet — Stien mfl. 2005, per produksjonsområde per uke</h2>
+<div class="merk">
+ <b style="color:{FARGE_FULL}">FULL</b> (heltrukket) er kildeleddet:
+ klekte nauplier per time. Finnes bare fra 2017-10, fordi N_fisk gjør det.
+ <b style="color:{FARGE_DELVIS}">DELVIS</b> (stiplet) er
+ <b>ikke kildeleddet</b> — den er lus × (T + 4,28)² uten N_fisk og uten
+ 0,17, i en annen enhet, og tallene er ikke sammenlignbare med FULL.
+ Hver kurve er skalert til sitt eget maksimum; les tallet, ikke høyden.
+ <br>{formler}
+ <br>N_fisk mot ukentlige lus/temp: <b>{agg}</b> — uka ganges med
+ beholdningen ved slutten av sin egen måned, ikke interpolert.
+ Sprang i FULL som ikke finnes i DELVIS er et månedsskifte i N_fisk,
+ ikke en hendelse i sjøen.
+ <br><b>Forbehold:</b> {forbehold}
+ <br><span class="dim">{fra} .. {til}. Beregnet av kildeledd.py; denne
+ siden leser tallene og regner dem ikke ut på nytt.</span>
+</div>
+<div class="figrad">{"".join(sesong)}</div>
+<div class="figrad">{"".join(paneler)}</div>
+"""
+
+
 def html(data: dict) -> str:
     # `</` brytes opp: en verdi som inneholder "</script>" ville ellers
     # lukket taggen og ødelagt sida.
     nyttelast = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
+    kildeledd = kildeledd_html()
 
     return f"""<!doctype html>
 <meta charset="utf-8">
@@ -229,10 +397,23 @@ def html(data: dict) -> str:
  .rev {{ color: #05628a; font-weight: 600; }}
  input {{ font: inherit; padding: 3px 6px; width: 18rem; }}
  .merk {{ color: #666; margin: .3rem 0 1rem; }}
+ .k2 {{ font-size: 1rem; margin: 2rem 0 .3rem;
+        border-top: 2px solid #111; padding-top: .6rem; }}
+ .figrad {{ display: grid; gap: .8rem 1.2rem;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            margin-bottom: 1.2rem; }}
+ .fig {{ border: 1px solid #ddd; padding: .4rem .5rem; }}
+ .figh {{ font-size: 11px; margin-bottom: .2rem; }}
+ .figx {{ display: flex; justify-content: space-between;
+          font-size: 10px; color: #888; }}
+ .dim {{ color: #888; font-weight: normal; }}
+ .fig svg {{ display: block; }}
 </style>
 
 <h1>Feltoversikt</h1>
 <div class="sub">Visning 2 av 5. Ett felt per rad, sortert fallende på antall endringer.</div>
+{kildeledd}
+<h2 class="k2">Felter</h2>
 
 <input id="sok" placeholder="filtrer på feltnavn…" autofocus>
 <div class="merk" id="merk"></div>

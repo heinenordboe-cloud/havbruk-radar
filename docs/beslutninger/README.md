@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-08-31** — [Månedlig N_fisk bæres flatt over ukene, ikke interpolert](2026-08-31-manedlig-nfisk-baeres-flatt.md) — gjeldende
 - **2026-08-31** — [Hypotesen omdefineres — ROC er ikke en uavhengig fasit, den er en funksjon av prediktorene våre](2026-08-31-hypotesen-omdefineres.md) — gjeldende
 - **2026-08-31** — [Datakvalitetsvarsler (KREVER TILSYN) skal ikke feile den ukentlige jobben](2026-08-31-tilsyn-feiler-ikke-jobben.md) — besluttet
 - **2026-08-27** — [Ekspertgruppen er en kilde, ikke en fasitfil — og dekningsgevinsten ga ikke styrke](2026-08-27-ekspertgruppen-som-kilde.md) — gjeldende

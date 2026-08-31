@@ -2366,6 +2366,31 @@ def test_ingen_leser_snapshots_utenom_les():
                     treff.append(f"{node.func.attr} linje {node.lineno}")
         return treff
 
+    def kode_uten_prosa(fil: Path) -> str:
+        """Filas kode med docstrings og kommentarer fjernet.
+
+        Samme problem som `lesekall()` løser for kallene, i den andre
+        enden: en docstring som FORKLARER regelen nevner «RAW_DIR», og et
+        tekstsøk leste forklaringen som kjennskap. kildeledd.py falt på
+        det 31.08.2026 — for en docstring som beskrev nettopp denne
+        testen.
+
+        Tekstsøk og ikke AST-navn: en fil kan nå raw-mappa gjennom en
+        streng (`DATA_DIR / "raw"`) eller `getattr`, og de skal fortsatt
+        felles. Det som fjernes er prosaen, ikke bredden.
+        """
+        tre = ast.parse(fil.read_text(encoding="utf-8"))
+        for node in ast.walk(tre):
+            if not isinstance(node, (ast.Module, ast.FunctionDef,
+                                     ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            krp = getattr(node, "body", None)
+            if (krp and isinstance(krp[0], ast.Expr)
+                    and isinstance(krp[0].value, ast.Constant)
+                    and isinstance(krp[0].value.value, str)):
+                node.body = krp[1:] or [ast.Pass()]
+        return ast.unparse(tre)
+
     i_snapshot = lesekall(ROT / "core" / "snapshot.py")
     assert len(i_snapshot) == 1, (
         f"core/snapshot.py leser parquet {len(i_snapshot)} steder, ikke ett: "
@@ -2375,7 +2400,7 @@ def test_ingen_leser_snapshots_utenom_les():
     for fil in _kildefiler():
         if fil == ROT / "core" / "snapshot.py":
             continue
-        if "RAW_DIR" not in fil.read_text(encoding="utf-8"):
+        if "RAW_DIR" not in kode_uten_prosa(fil):
             continue
         assert not lesekall(fil), (
             f"{fil.relative_to(ROT)} kjenner både RAW_DIR og "
