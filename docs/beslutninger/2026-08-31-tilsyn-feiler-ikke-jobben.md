@@ -2,7 +2,7 @@
 dato: 2026-08-31
 tittel: "Datakvalitetsvarsler (KREVER TILSYN) skal ikke feile den ukentlige jobben"
 status: besluttet
-commit: <fylles inn etter commit>
+commit: 64e6976
 ---
 
 ## Beslutning
