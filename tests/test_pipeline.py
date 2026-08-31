@@ -1640,9 +1640,13 @@ def test_advarsel_fra_kilde_naar_helt_opp(tmp_path, monkeypatch):
 #
 # Se docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md.
 
-def _kjor_main(tmp_path, monkeypatch, kilder, argv, health_start=None):
+def _kjor_main(tmp_path, monkeypatch, kilder, argv, health_start=None,
+               prediksjon_dir=None):
     """Kjør run.main() på ekte, i en tom datamappe, med falske kilder."""
     import run
+
+    if prediksjon_dir is not None:
+        monkeypatch.setattr(run.predictions, "PREDIKSJON_DIR", prediksjon_dir)
 
     monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
     monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path / "arkiv")
@@ -1738,6 +1742,63 @@ def test_forfalte_kilder_feller_jobben_fortsatt(tmp_path, monkeypatch, capsys):
 
     assert kode == 1
     assert "::error::Planlagt kjøring samlet ingenting" in ut
+
+
+def test_prediksjonsformat_feller_jobben(tmp_path, monkeypatch, capsys):
+    """Et anslag som ikke lot seg lese er en UTEBLITT LEVERANSE, ikke en
+    observasjon om at dataene ser rare ut.
+
+    Skillet er verdt en test fordi det ble lest feil én gang: 31.08.2026
+    lå formatfeil i tilsyn-lista i noen timer, og fikk exit 0 sammen med
+    volumfall og feltvarsler. Konsekvensen er ikke symmetrisk med de
+    andre — `evaluer()` hopper over anslaget, så et vindu som lukket i
+    dag lukket uten dom, og det kan ikke rettes i morgen."""
+    pdir = tmp_path / "predictions"
+    pdir.mkdir()
+    # `grunnlag` under MIN_GRUNNLAG: gyldig YAML, ugyldig anslag. Det er
+    # valider() som skal fange den, ikke yaml-parseren.
+    (pdir / "2026-08-31.yml").write_text(
+        "prediksjoner:\n"
+        "  - id: 2026-08-31-1\n"
+        "    entitet: '10029'\n"
+        "    kilde: akvakultur\n"
+        "    felt: kapasitet\n"
+        "    type: endring\n"
+        "    retning: opp\n"
+        "    grunnlag: for kort\n",
+        encoding="utf-8",
+    )
+
+    kode, output = _kjor_main(tmp_path, monkeypatch, [FalskKilde()], ["run.py"],
+                              prediksjon_dir=pdir)
+    ut = capsys.readouterr().out
+
+    assert kode == 1, "en uteblitt leveranse er en reell feil"
+    assert "::error::Prediksjonsformat:" in ut
+    # Og den skal IKKE ha blitt et tilsynsvarsel på veien.
+    assert "prediksjonsformat" not in ut.split("::error::")[0]
+    assert "::warning::" not in ut
+    # Innsamlingen er fortsatt viktigere enn prediksjonene: ukas data
+    # skrives selv om anslaget er ødelagt.
+    assert list((tmp_path / "raw").rglob("*.parquet"))
+
+
+def test_prediksjonsformat_og_tilsyn_skjuler_ikke_hverandre(
+        tmp_path, monkeypatch, capsys):
+    """To ulike ting skjedde. Begge skal stå i loggen, hver med sin
+    annotasjonstype — den ene skal ikke kortslutte den andre."""
+    pdir = tmp_path / "predictions"
+    pdir.mkdir()
+    (pdir / "2026-08-31.yml").write_text(
+        "prediksjoner:\n  - id: 2026-08-31-1\n", encoding="utf-8")
+
+    kode, _ = _kjor_main(tmp_path, monkeypatch, [MaseteKilde()], ["run.py"],
+                         prediksjon_dir=pdir)
+    ut = capsys.readouterr().out
+
+    assert kode == 1
+    assert "::warning::KREVER TILSYN" in ut          # NACE-søket
+    assert "::error::Prediksjonsformat:" in ut       # anslaget
 
 
 def test_tilsyn_meldes_til_workflowen_utenom_exit_koden(tmp_path, monkeypatch):

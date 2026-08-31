@@ -21,15 +21,21 @@ ukentlige cron-kjøringen betyr at uka gikk uten et snapshot, usynlig for
 alt annet enn denne linjen. `--planlagt` gjør det skillet eksplisitt:
 null forfalte kilder er da en feil, ikke en stille exit.
 
-Exit-koden betyr én ting, og bare den: **uka mangler data.**
+Exit-koden betyr én ting, og bare den: **noe som skulle vært skrevet,
+ble ikke skrevet.**
 
-    1   ingen kilder å hente (--planlagt), manglende nøkkel, eller en
-        kilde som kastet et unntak i fetch/parse
-    0   alt som var forfalt ble hentet og skrevet — også når en vakt
-        ber om tilsyn
+    1   ingen kilder å hente (--planlagt), manglende nøkkel, en kilde
+        som kastet et unntak i fetch/parse, eller et prediksjonsanslag
+        som ikke lot seg lese
+    0   alt som skulle skrives ble skrevet — også når en vakt ber om
+        tilsyn
 
-Et kvalitetsvarsel (KREVER TILSYN) er ikke det samme som en tapt uke, og
-delte signal fram til 31.08.2026. Se
+Skillet går mellom en LEVERANSE som uteble og en OBSERVASJON om
+innholdet. Et kvalitetsvarsel (KREVER TILSYN) er det siste, og delte
+signal med det første fram til 31.08.2026. Et formatavvik i
+predictions/ er derimot en uteblitt leveranse: anslaget hoppes over av
+`predictions.evaluer()`, og et anslag som ikke ble avgjort i vinduet
+sitt blir aldri avgjort. Se
 docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md.
 """
 
@@ -417,11 +423,18 @@ def main() -> int:
     # skrivingen, dømmes anslaget på forrige ukes tall og taper en uke —
     # stille, fordi utfallet blir et fullt gyldig "bom".
     #
-    # Et formatavvik felles IKKE kjøringen. Innsamlingen er viktigere enn
-    # prediksjonene: mister du uka, kan den ikke hentes igjen, mens en
-    # feilskrevet YAML kan rettes i morgen. Avviket går i tilsyn-lista og
-    # blir en ::warning:: der — fra 31.08.2026 uten å gjøre jobben rød,
-    # sammen med resten av lista.
+    # Et formatavvik felles IKKE kjøringen der og da. Innsamlingen er
+    # viktigere enn prediksjonene: mister du uka, kan den ikke hentes
+    # igjen, mens en feilskrevet YAML kan rettes i morgen. Avviket
+    # samles opp og gjør jobben rød på slutten — ::error::, ikke
+    # ::warning::.
+    #
+    # Det er IKKE et tilsynsvarsel, og lå i tilsyn-lista i noen timer
+    # 31.08.2026 fordi beslutningsteksten ble lest bokstavelig. Et
+    # anslag som ikke lot seg lese, ble hoppet over av evaluer() — det
+    # er en leveranse som uteble, ikke en observasjon om at dataene ser
+    # rare ut. Og «i morgen» finnes ikke for et anslag hvis vindu lukket
+    # i dag.
     #
     # KJØREDATOEN: «er vinduet ute nå» er et spørsmål om kalenderen, ikke
     # om hvilken uke en enkelt kilde gjelder for. Et anslag med frist
@@ -479,9 +492,13 @@ def main() -> int:
     # (Source.advarsler, f.eks. et NACE-søk uten treff). Meldingen sier
     # derfor ikke "leverer ikke" — to av tre tilfeller leverte. Hver
     # enkelt streng sier hvilken det er.
+    #
+    # Alle tre er OBSERVASJONER OM INNHOLDET. `formatfeil` sto her fram
+    # til 31.08.2026 og hører ikke hjemme: den sier at en fil vi selv
+    # eier ikke lot seg lese, og det er en uteblitt leveranse. Se
+    # feilende-lista nederst.
     tilsyn = (nede
-              + [a for r in resultater for a in r.advarsler]
-              + [f"prediksjonsformat: {f}" for f in formatfeil])
+              + [a for r in resultater for a in r.advarsler])
 
     if tilsyn:
         print(f"\n  KREVER TILSYN: {', '.join(tilsyn)}")
@@ -507,11 +524,17 @@ def main() -> int:
     # exit-koden, og merket står nøyaktig der det sto før.
     _actions_output("tilsyn", "true" if tilsyn else "false")
 
-    # Det som fortsatt feller jobben: en kilde som var forfalt og skulle
-    # hentes, men som kastet et unntak i fetch/parse. Da mangler uka en
-    # kilde, og uka kan ikke hentes igjen senere — regel 5 i CLAUDE.md.
-    # Det er en annen alvorlighetsgrad enn «et felt ser mistenkelig
-    # stabilt ut over tid», og de to skal ikke dele signal.
+    # Det som feller jobben: noe som skulle vært skrevet, ble det ikke.
+    # To kilder til det, med hver sin melding fordi de krever helt ulike
+    # ting av den som leser loggen. Begge samles opp før returen — den
+    # ene skal ikke skjule den andre.
+    tapt = False
+
+    # (a) En kilde som var forfalt og skulle hentes, men som kastet et
+    # unntak i fetch/parse. Da mangler uka en kilde, og uka kan ikke
+    # hentes igjen senere — regel 5 i CLAUDE.md. Det er en annen
+    # alvorlighetsgrad enn «et felt ser mistenkelig stabilt ut over
+    # tid», og de to skal ikke dele signal.
     #
     # Målt på `resultater`, ikke på tilsyn-lista: `nede` blander de to
     # kategoriene i én liste av strenger, og «lyktes hentingen» er et
@@ -522,9 +545,20 @@ def main() -> int:
         print(f"\n::error::Innsamlingen feilet for {', '.join(feilende)}. "
               f"Denne uka mangler kilden(e) over, og uka kan ikke hentes "
               f"igjen senere.")
-        return 1
+        tapt = True
 
-    return 0
+    # (b) Et anslag i predictions/ som ikke lot seg lese. Samme form,
+    # annet objekt: `predictions.evaluer()` hopper over anslaget, så et
+    # vindu som lukket i dag blir aldri avgjort. Fila er vår egen og kan
+    # rettes på et minutt — men bare hvis noen får vite det, og en
+    # ::warning:: i et Annotations-panel er ikke det.
+    if formatfeil:
+        print(f"\n::error::Prediksjonsformat: {', '.join(formatfeil)}. "
+              f"Anslaget ble ikke avgjort denne kjøringen — et vindu som "
+              f"lukket i dag, lukket uten dom.")
+        tapt = True
+
+    return 1 if tapt else 0
 
 
 if __name__ == "__main__":
