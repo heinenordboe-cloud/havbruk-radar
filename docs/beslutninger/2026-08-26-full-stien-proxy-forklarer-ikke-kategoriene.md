@@ -5,6 +5,14 @@ status: gjeldende
 commit: [fylles inn]
 ---
 
+> **Lesningen av nullresultatet er omdefinert 31.08.2026.** Målingene i
+> denne posten står uendret, men konklusjonen «hypotesen er ikke
+> bekreftet» hvilte på at kategorien var en uavhengig fasit. Den er den
+> ikke: ROC er en beregnet funksjon av de samme prediktorene, fra de
+> samme registrene. Svak sammenheng måler derfor tap i en kjent kjede,
+> ikke fravær av signal. Se
+> [2026-08-31-hypotesen-omdefineres.md](2026-08-31-hypotesen-omdefineres.md).
+
 ## Hva som ble bestemt
 
 Hypotesen «trafikklysets kategoriskift er forutsigbare fra offentlige
