@@ -20,9 +20,21 @@ en kilde hentet i går ikke hentes på nytt. Men den SAME hendelsen på den
 ukentlige cron-kjøringen betyr at uka gikk uten et snapshot, usynlig for
 alt annet enn denne linjen. `--planlagt` gjør det skillet eksplisitt:
 null forfalte kilder er da en feil, ikke en stille exit.
+
+Exit-koden betyr én ting, og bare den: **uka mangler data.**
+
+    1   ingen kilder å hente (--planlagt), manglende nøkkel, eller en
+        kilde som kastet et unntak i fetch/parse
+    0   alt som var forfalt ble hentet og skrevet — også når en vakt
+        ber om tilsyn
+
+Et kvalitetsvarsel (KREVER TILSYN) er ikke det samme som en tapt uke, og
+delte signal fram til 31.08.2026. Se
+docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md.
 """
 
 import argparse
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +48,26 @@ from core import (  # noqa: E402
     changelog, diff, feltnormal, health, miljo, paths, predictions,
     registry, runner, signals, snapshot,
 )
+
+
+def _actions_output(navn: str, verdi: str) -> None:
+    """Skriv et steg-utfall til GitHub Actions, uten å bruke exit-koden.
+
+    Exit-koden er ETT bit, og den er allerede lovet bort: den betyr «uka
+    mangler data». Alt annet workflowen trenger å vite om kjøringen må
+    derfor ha sin egen kanal, ellers ender det med at et nytt tilfelle
+    presses inn i det ene bitet og to ulike hendelser blir umulige å
+    skille — som var nøyaktig tilstanden før 31.08.2026, da et
+    kvalitetsvarsel og en tapt kilde begge var «exit 1».
+
+    Stille no-op utenfor Actions. Lokalt finnes ikke GITHUB_OUTPUT, og en
+    kjøring på laptopen skal ikke feile av at den ikke gjør det.
+    """
+    sti = os.environ.get("GITHUB_OUTPUT")
+    if not sti:
+        return
+    with open(sti, "a", encoding="utf-8") as f:
+        f.write(f"{navn}={verdi}\n")
 
 
 def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
@@ -388,7 +420,8 @@ def main() -> int:
     # Et formatavvik felles IKKE kjøringen. Innsamlingen er viktigere enn
     # prediksjonene: mister du uka, kan den ikke hentes igjen, mens en
     # feilskrevet YAML kan rettes i morgen. Avviket går i tilsyn-lista og
-    # gjør jobben rød i stedet.
+    # blir en ::warning:: der — fra 31.08.2026 uten å gjøre jobben rød,
+    # sammen med resten av lista.
     #
     # KJØREDATOEN: «er vinduet ute nå» er et spørsmål om kalenderen, ikke
     # om hvilken uke en enkelt kilde gjelder for. Et anslag med frist
@@ -440,19 +473,56 @@ def main() -> int:
         for felt, antall in topp_uten:
             print(f"    · {felt}: {antall}")
 
-    # Tre ulike årsaker havner i samme liste, med samme konsekvens:
-    # kilden er nede (har fungert før, feiler nå), den leverte for lite
-    # (volumvakten), eller den leverte men ba om tilsyn (Source.advarsler,
-    # f.eks. et NACE-søk uten treff). Meldingen sier derfor ikke lenger
-    # "leverer ikke" — to av tre tilfeller leverte. Hver enkelt streng
-    # sier hvilken det er.
+    # Tre ulike årsaker havner i samme liste, og de peker på hver sin
+    # oppgave: kilden er nede (har fungert før, feiler nå), den leverte
+    # for lite (volumvakten), eller den leverte men ba om tilsyn
+    # (Source.advarsler, f.eks. et NACE-søk uten treff). Meldingen sier
+    # derfor ikke "leverer ikke" — to av tre tilfeller leverte. Hver
+    # enkelt streng sier hvilken det er.
     tilsyn = (nede
               + [a for r in resultater for a in r.advarsler]
               + [f"prediksjonsformat: {f}" for f in formatfeil])
 
     if tilsyn:
         print(f"\n  KREVER TILSYN: {', '.join(tilsyn)}")
-        return 1   # -> rød jobb -> e-post fra GitHub, hver uke til det er fikset
+        # ::warning::, ikke exit 1. Se
+        # docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md.
+        #
+        # Strekket bak et innholdsvarsel NULLSTILLES IKKE når terskelen
+        # er brutt. Et brudd rødlyser derfor hver uke til rotårsaken er
+        # fikset — 90 og 172 uker for lusetalls to døde felter — og en
+        # status som er rød av grunner som ikke er DENNE ukas problem,
+        # slutter å bære informasjon. Da leses ikke det røde krysset,
+        # og det er verst den uka en reell feil kommer i tillegg.
+        #
+        # Annotasjonen står på egen linje uten innrykk: GitHub tolker
+        # bare ::-kommandoer som begynner i kolonne 0.
+        print(f"::warning::KREVER TILSYN: {', '.join(tilsyn)}")
+
+    # DELVIS-merket i commit-meldingen hang på exit-koden, og bare på
+    # den. Skulle merket fulgt exit-koden videre, ville denne endringen
+    # stille gjort ukene med et kvalitetsvarsel om til hele uker i
+    # `git log` — samme feilmodus som merket ble innført for å hindre.
+    # Datarepoets samle.yml leser derfor dette utfallet i tillegg til
+    # exit-koden, og merket står nøyaktig der det sto før.
+    _actions_output("tilsyn", "true" if tilsyn else "false")
+
+    # Det som fortsatt feller jobben: en kilde som var forfalt og skulle
+    # hentes, men som kastet et unntak i fetch/parse. Da mangler uka en
+    # kilde, og uka kan ikke hentes igjen senere — regel 5 i CLAUDE.md.
+    # Det er en annen alvorlighetsgrad enn «et felt ser mistenkelig
+    # stabilt ut over tid», og de to skal ikke dele signal.
+    #
+    # Målt på `resultater`, ikke på tilsyn-lista: `nede` blander de to
+    # kategoriene i én liste av strenger, og «lyktes hentingen» er et
+    # spørsmål r.ok svarer på direkte. Å lese det ut av teksten igjen
+    # ville vært nok et mål som LIGNER det vi vil vite (CLAUDE.md 1b-2).
+    feilende = [r.source for r in resultater if not r.ok]
+    if feilende:
+        print(f"\n::error::Innsamlingen feilet for {', '.join(feilende)}. "
+              f"Denne uka mangler kilden(e) over, og uka kan ikke hentes "
+              f"igjen senere.")
+        return 1
 
     return 0
 

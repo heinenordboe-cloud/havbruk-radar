@@ -23,15 +23,21 @@ Nedetid er ikke den eneste stille feilen. Endrer kilden et feltnavn,
 finner parse() det ikke, og returnerer 20 % av observasjonene den
 pleier — ingen exception, r.ok forblir True, jobben er grønn. Derfor
 måler volumvakten nedenfor antall observasjoner mot et REFERANSENIVÅ,
-og bruker samme "nede"-mekanisme til å felle jobben ved et stort fall.
+og bruker samme "nede"-mekanisme til å be om tilsyn ved et stort fall.
 
 Referansenivået er det siste volumet som ble godkjent som friskt, og
 det lagres her i health.json — ikke i forrige snapshot. Grunnen er
 avsnittet over: sammenlignet vakten mot forrige snapshot, ville det
 ødelagte tallet blitt neste ukes normal, alarmen ville fyrt én uke og
 så tiet mens datatapet fortsatte. Referansen står stille til noen
-bevisst godtar et nytt nivå (se godta_volum), så alarmen holder seg
-rød hver uke til nivået er tilbake eller kvittert ut.
+bevisst godtar et nytt nivå (se godta_volum), så alarmen fyrer hver
+uke til nivået er tilbake eller kvittert ut.
+
+Fra 31.08.2026 fyrer den som en ::warning:: og ikke som en rød jobb.
+Grunnen er nettopp at den ikke nullstiller seg: en alarm som står til
+noen kvitterer den ut, rødlyser hver uke uansett hva som skjedde DENNE
+uka, og en status som alltid er rød leses ikke. Se
+docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md.
 
 Av samme grunn er referansen IKKE et rullende snitt. Et snitt lar en
 gradvis degradering flytte referansen nedover med seg — samme feil i
@@ -510,10 +516,15 @@ def oppdater(
 ) -> tuple[dict, list[str]]:
     """Returnerer ny helsetilstand og liste over kilder som trenger tilsyn.
 
-    Tre uavhengige grunner havner i samme liste, med samme konsekvens
-    (rød jobb): kilden er "nede" (har fungert minst én gang før, feiler
-    nå), kilden har ALDRI fungert, eller kilden leverte men med et
-    volumfall over terskelen.
+    Tre uavhengige grunner havner i samme liste: kilden er "nede" (har
+    fungert minst én gang før, feiler nå), kilden har ALDRI fungert,
+    eller kilden leverte men med et volumfall over terskelen.
+
+    Lista er en TILSYNSLISTE, ikke en feilliste. Alle innslagene blir en
+    ::warning:: i run.py; det som feller jobben er `r.ok is False`, som
+    run.py leser direkte fra resultatene. De to første grunnene over
+    følger av nettopp det og feller jobben på den veien — den tredje
+    gjør det ikke, fordi kilden leverte.
 
     De to første skilles i teksten, ikke i konsekvensen. "Nede" betyr at
     noe som virket har sluttet å virke; "har aldri levert" betyr at
@@ -614,7 +625,8 @@ def oppdater(
 
         # En aktiv kilde som feiler skal ALLTID rapporteres. De to
         # tilfellene betyr ikke det samme for den som leser meldingen, og
-        # skilles derfor i teksten — men begge feller jobben.
+        # skilles derfor i teksten — men begge feller jobben, via
+        # `r.ok is False` i run.py og ikke via denne lista.
         #
         # Den gamle regelen krevde `sist_ok`, altså at kilden hadde
         # lykkes minst én gang før. Antakelsen var at en ny kilde er en du

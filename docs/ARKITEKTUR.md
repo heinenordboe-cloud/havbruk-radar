@@ -135,9 +135,14 @@ subtile rekkefølgeavhengigheten i systemet, og den er verdt å huske.
 
 ## Volumvaktens referanse ligger i `health.json`, ikke i forrige snapshot
 
-Volumvakten i `core/health.py` feller jobben når en kilde leverer
+Volumvakten i `core/health.py` ber om tilsyn når en kilde leverer
 vesentlig færre observasjoner enn normalt — den stille feilen der et
 feltnavn endres, `parse()` ikke finner det, og jobben likevel er grønn.
+
+(Den FELLER ikke jobben. Alarmen står til noen kvitterer den ut, og en
+alarm som ikke nullstiller seg selv rødlyser hver uke uansett hva som
+skjedde denne uka. Se
+`docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md`.)
 
 Den måler mot et referansenivå lagret i `health.json`: det siste
 volumet som ble godkjent som friskt. Fristelsen er å regne det ut på
@@ -148,8 +153,8 @@ i rekkefølge etter hvor stille de feiler:
    snapshot, blir det ødelagte tallet neste ukes normal. Alarmen fyrer
    uken bruddet skjer og tier deretter, mens datatapet fortsetter — og
    det er nøyaktig feilmodusen `health.py` finnes for å hindre. Målt i
-   simulering over fem uker med vedvarende brudd: rød i uke 3, grønn i
-   uke 4 og 5. Et rullende snitt har samme feil, bare i sakte film.
+   simulering over fem uker med vedvarende brudd: varsel i uke 3, stille
+   i uke 4 og 5. Et rullende snitt har samme feil, bare i sakte film.
 
 2. **`health.oppdater()` kalles ETTER `snapshot.write()`** (steg 8 mot
    steg 5). Dagens fil ligger altså allerede på disk når vakten kjører.

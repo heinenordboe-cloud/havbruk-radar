@@ -1159,7 +1159,7 @@ def _helse(tmp_path, monkeypatch):
 
 
 def test_volumfall_utloser_rodt(tmp_path, monkeypatch):
-    """Et stort fall skal felle jobben selv om kilden rapporterer ok —
+    """Et stort fall skal be om tilsyn selv om kilden rapporterer ok —
     scenarioet der et feltnavn endres og parse() stille returnerer færre
     rader uten å kaste."""
     health = _helse(tmp_path, monkeypatch)
@@ -1182,7 +1182,7 @@ def test_volumvakt_forste_kjoring_varsler_ikke(tmp_path, monkeypatch):
 
 
 def test_volumokning_varsler_ikke_og_hever_referansen(tmp_path, monkeypatch):
-    """En økning er ikke tapt historikk, og skal ikke felle jobben. Men
+    """En økning er ikke tapt historikk, og skal ikke be om tilsyn. Men
     den nye normalen blir referansen, slik at et senere fall måles mot
     det faktiske nivået."""
     health = _helse(tmp_path, monkeypatch)
@@ -1608,9 +1608,12 @@ def test_alle_koder_med_treff_er_stille():
 
 
 def test_advarsel_fra_kilde_naar_helt_opp(tmp_path, monkeypatch):
-    """En kilde som leverer, men ber om tilsyn, skal felle jobben —
-    uten å miste dataene sine. Det er hele poenget med kanalen:
-    et tomt NACE-søk skal ikke koste ukas seks andre koder."""
+    """En kilde som leverer, men ber om tilsyn, skal si fra — uten å
+    miste dataene sine. Det er hele poenget med kanalen: et tomt
+    NACE-søk skal ikke koste ukas seks andre koder.
+
+    (Selve exit-koden: se test_tilsyn_alene_feller_ikke_jobben. Fra
+    31.08.2026 er tilsyn en ::warning::, ikke en rød jobb.)"""
     monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
 
     class MaseteKilde(FalskKilde):
@@ -1625,6 +1628,138 @@ def test_advarsel_fra_kilde_naar_helt_opp(tmp_path, monkeypatch):
     assert len(obs) == 1                      # dataene er i behold
     assert res[0].ok is True                  # kilden feilet ikke
     assert res[0].advarsler == ["10.209: næringskode uten treff"]
+
+
+# --- Exit-koden fra run.py -------------------------------------------
+#
+# Exit-koden betyr én ting: UKA MANGLER DATA. Den betydde to fram til
+# 31.08.2026 — «uka mangler data» OG «en vakt ba om tilsyn» — og siden
+# et brutt innholdsstrekk ikke nullstilles, rødlyste den andre hver uke
+# til rotårsaken var fikset. En status som er rød av grunner som ikke er
+# denne ukas problem, slutter å leses.
+#
+# Se docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md.
+
+def _kjor_main(tmp_path, monkeypatch, kilder, argv, health_start=None):
+    """Kjør run.main() på ekte, i en tom datamappe, med falske kilder."""
+    import run
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path / "arkiv")
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(feltnormal, "FELTNORMAL_DIR", tmp_path / "feltnormal")
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    monkeypatch.setattr(run.paths, "COMMIT_MSG_PATH", tmp_path / "siste.txt")
+    monkeypatch.setattr(run.predictions, "RESULTAT_DIR", tmp_path / "prediksjoner")
+    monkeypatch.setattr(run.registry, "discover", lambda: kilder)
+    monkeypatch.setattr(sys, "argv", argv)
+
+    if health_start is not None:
+        health.skriv(health_start)
+
+    # GITHUB_OUTPUT: kanalen DELVIS-merket leses av. Uten den ville
+    # exit-koden vært det eneste signalet igjen, og da ville merket
+    # forsvunnet fra uker med et kvalitetsvarsel.
+    ut = tmp_path / "gh_output.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
+    kode = run.main()
+    return kode, (ut.read_text(encoding="utf-8") if ut.exists() else "")
+
+
+class MaseteKilde(FalskKilde):
+    """Leverer helt fint, men ber om tilsyn. Kilden er ikke nede."""
+
+    def fetch(self, kjoredato):
+        self.advarsler = ["10.209: næringskode uten treff"]
+        return super().fetch(kjoredato)
+
+
+def test_tilsyn_alene_feller_ikke_jobben(tmp_path, monkeypatch, capsys):
+    kode, output = _kjor_main(tmp_path, monkeypatch, [MaseteKilde()], ["run.py"])
+    ut = capsys.readouterr().out
+
+    assert kode == 0, "et kvalitetsvarsel er ikke en tapt uke"
+    assert "KREVER TILSYN" in ut
+    assert "::warning::KREVER TILSYN" in ut
+    assert "::error::" not in ut
+    # Dataene er skrevet — tilsynet handler om innholdet, ikke om at
+    # hentingen sviktet.
+    assert list((tmp_path / "raw").rglob("*.parquet"))
+
+
+def test_volumvakten_alene_feller_ikke_jobben(tmp_path, monkeypatch, capsys):
+    """Formen som faktisk rødlyste jobben: r.ok er True, `nede` er ikke tom."""
+    kode, _ = _kjor_main(
+        tmp_path, monkeypatch, [FalskKilde()], ["run.py"],
+        health_start={"falsk": {"sist_ok": "2026-01-01", "sist_forsok": "2026-01-01",
+                                "feil_paa_rad": 0, "antall_sist": 10000,
+                                "volum_referanse": 10000, "volum_lavt_paa_rad": 0}},
+    )
+    ut = capsys.readouterr().out
+
+    assert kode == 0
+    assert "volum" in ut and "::warning::KREVER TILSYN" in ut
+
+
+def test_unntak_i_fetch_feller_jobben_fortsatt(tmp_path, monkeypatch, capsys):
+    """Uendret: en kilde som kastet, betyr at uka mangler den kilden —
+    og uka kan ikke hentes igjen senere (CLAUDE.md regel 5)."""
+    kode, _ = _kjor_main(tmp_path, monkeypatch, [KnustKilde()], ["run.py"])
+    ut = capsys.readouterr().out
+
+    assert kode == 1
+    assert "::error::Innsamlingen feilet for knust" in ut
+
+
+def test_en_feilende_kilde_feller_jobben_selv_om_andre_leverte(
+        tmp_path, monkeypatch, capsys):
+    """Feilisoleringen redder de andre kildenes data. Den skal ikke
+    også skjule at én mangler."""
+    kode, _ = _kjor_main(tmp_path, monkeypatch,
+                         [FalskKilde(), KnustKilde()], ["run.py"])
+    ut = capsys.readouterr().out
+
+    assert kode == 1
+    assert list((tmp_path / "raw").rglob("*.parquet"))   # falsk kom fram
+    assert "::error::Innsamlingen feilet for knust" in ut
+
+
+def test_forfalte_kilder_feller_jobben_fortsatt(tmp_path, monkeypatch, capsys):
+    """Uendret: --planlagt uten noe forfalt betyr at uka gikk uten snapshot."""
+    from datetime import datetime, timezone
+    i_dag = datetime.now(timezone.utc).date().isoformat()
+
+    kode, _ = _kjor_main(
+        tmp_path, monkeypatch, [FalskKilde()], ["run.py", "--planlagt"],
+        health_start={"falsk": {"sist_ok": i_dag, "sist_forsok": i_dag,
+                                "feil_paa_rad": 0, "antall_sist": 1}},
+    )
+    ut = capsys.readouterr().out
+
+    assert kode == 1
+    assert "::error::Planlagt kjøring samlet ingenting" in ut
+
+
+def test_tilsyn_meldes_til_workflowen_utenom_exit_koden(tmp_path, monkeypatch):
+    """DELVIS-merket hang på exit-koden. Slutter run.py å rødlyse uten å
+    si fra på en annen kanal, krymper merket stille — og en uke med et
+    kvalitetsvarsel blir umulig å skille fra en hel uke i git log."""
+    _, med = _kjor_main(tmp_path, monkeypatch, [MaseteKilde()], ["run.py"])
+    assert "tilsyn=true" in med
+
+
+def test_ren_kjoring_melder_ingen_tilsyn(tmp_path, monkeypatch):
+    _, uten = _kjor_main(tmp_path, monkeypatch, [FalskKilde()], ["run.py"])
+    assert "tilsyn=false" in uten
+
+
+def test_actions_output_er_stille_utenfor_actions(tmp_path, monkeypatch):
+    """Lokalt finnes ikke GITHUB_OUTPUT. En kjøring på laptopen skal
+    ikke feile av det."""
+    import run
+
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    run._actions_output("tilsyn", "true")   # skal ikke kaste
 
 
 def test_kilde_uten_advarsler_gir_tom_liste(tmp_path, monkeypatch):

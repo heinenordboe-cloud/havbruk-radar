@@ -90,7 +90,13 @@ telefonen din. Ti minutter, én gang.
 
 **2. En kilde slutter å levere og du merker det ikke.** Feilisoleringen
 gjør jobben grønn selv når en kilde er død. `core/health.py` løser dette:
-regresjon gir rød jobb og e-post fra GitHub.
+en kilde som kaster gir rød jobb og e-post fra GitHub.
+
+Et KVALITETSVARSEL gjør det ikke — det blir en ::warning:: i
+Annotations-panelet og et `DELVIS:`-prefiks i commit-meldingen. Da må du
+faktisk se etter det, og commit-meldingen er stedet: den ligger i
+GitHub-appen på telefonen uansett. Se
+`docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md`.
 
 **3. Actions deaktiveres.** GitHub slår av planlagte kjøringer etter 60
 dager uten commit-aktivitet på default branch. Kun commits teller — ikke
@@ -118,7 +124,8 @@ dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
 
 ## Når volumvarselet fyrer
 
-Du har fått rød jobb og en linje som denne:
+Kjøringen er grønn, men commiten er merket `DELVIS:` og loggen har en
+linje som denne:
 
     enhetsregisteret (volum 62% av referanse 27074: 16786 observasjoner, uke 1)
 
@@ -164,7 +171,7 @@ krympet" fra "vi ga opp en tirsdag".
 
 ## Når innholdsvarselet fyrer
 
-Ser slik ut:
+Ser slik ut — som ::warning:: i Annotations, ikke som rød jobb:
 
     KREVER TILSYN: lusetall.har_rensefisk (tomt 172 kjøringer på rad,
     grense 13; 1777 rader leveres fortsatt, alle «False»)

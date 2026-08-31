@@ -42,8 +42,13 @@ etterslep koster ingenting mot at en ufullstendig uke er permanent.
 
 **Kilden skal nekte å skrive en uke der andelen rapporterte er under
 80 %.** Ikke som unntak som feller kjøringen, men som `advarsler` på
-kilden, slik at jobben blir rød og uka kan hentes på nytt senere. Dette
-er vakten mot at etterslepet endrer seg uten at noen merker det.
+kilden, slik at uka merkes `DELVIS:` i commit-meldingen og kan hentes på
+nytt senere. Dette er vakten mot at etterslepet endrer seg uten at noen
+merker det.
+
+Fra 31.08.2026 gjør en advarsel ikke jobben rød — den blir en
+::warning::. Merket i commit-meldingen er derfor det som bærer signalet
+her; se `docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md`.
 
 ## Ukedato-konvensjonen
 
