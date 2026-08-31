@@ -2,7 +2,7 @@
 dato: 2026-08-31
 tittel: Hypotesen omdefineres — ROC er ikke en uavhengig fasit, den er en funksjon av prediktorene våre
 status: gjeldende
-commit: [fylles inn]
+commit: 478e9d7
 ---
 
 **Dette notatet er skrevet FØR analysen kjøres.** Det er hele poenget med
