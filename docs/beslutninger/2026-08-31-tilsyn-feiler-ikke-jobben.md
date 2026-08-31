@@ -23,7 +23,7 @@ virke:
 | --- | --- | --- |
 | `havbruk-radar` | `64e6976` | exit-kode-logikken i `run.py`, `::warning::`-annotasjonen, `tilsyn=`-utfallet til `GITHUB_OUTPUT` |
 | `havbruk-radar-data` | `564baff` | `samle.yml` leser `outputs.tilsyn` i tillegg til `outcome`, slik at DELVIS-merket dekker det samme som før |
-| `havbruk-radar` | `<denne>` | presiseringen under: prediksjonsformat tilbake til exit 1 |
+| `havbruk-radar` | `e652713` | presiseringen under: prediksjonsformat tilbake til exit 1 |
 
 Rekkefølgen på pushen er ikke likegyldig: koden først, workflowen etter.
 Motsatt vei kjører ny DELVIS-logikk mot en `run.py` som ikke skriver
