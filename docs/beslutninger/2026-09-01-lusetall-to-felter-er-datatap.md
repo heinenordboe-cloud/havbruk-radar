@@ -2,7 +2,7 @@
 dato: 2026-09-01
 tittel: "har_rensefisk og har_medikamentell_behandling er datatap hos kilden, ikke en parserfeil"
 status: gjeldende
-commit: [fylles inn]
+commit: e424c1e
 ---
 
 ## Hva som ble bestemt
