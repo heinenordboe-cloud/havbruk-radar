@@ -21,3 +21,9 @@ PyYAML==6.0.3
 # den kollapser kolonnene, og en rad med tomme celler kan ikke tilordnes
 # metode. Se sources/ekspertgruppen.py.
 pypdf==6.16.2
+# Kreves av pypdf for AES-krypterte PDF-er. 2023-ekspertgrupperapporten
+# er kryptert (tom eierpassord, kun rettighetsbegrensning), og uten denne
+# kaster pypdf DependencyError før første side er lest. De sju andre
+# årgangene er ukrypterte — dette er den ene kroppen som krever den, og
+# den kan ikke leses uten.
+cryptography==50.0.1

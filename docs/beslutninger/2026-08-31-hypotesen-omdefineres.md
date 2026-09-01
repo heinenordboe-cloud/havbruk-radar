@@ -192,6 +192,39 @@ Merk hva dette gjør med tolkningen av et negativt utfall: faller
 grensen, kan vi **ikke** skille forklaring 1 fra forklaring 2. Vi kan
 bare si at kildeleddet slik VI kan regne det ut, ikke bestemmer ROC.
 
+## Grunnlaget er endret 01.09.2026 — grensen må settes på nytt
+
+Notatet forutsetter **39 celler** (13 PO × 2020–2022). Den forutsetningen
+holder ikke lenger: ekspertgrupperapportene for 2023, 2024 og 2025 er
+funnet i Nasjonalt vitenarkiv og lest inn (`sources/ekspertgruppen.py`).
+
+| | før | nå |
+|---|---|---|
+| (po, år)-celler med `kategori` | 78 | **116** |
+| ettårsoverganger | 52 | **90** |
+| herav kategoriskift | 13 | **19** |
+| ROC-celler (`hi_smittepress_roc_indeks`) | 33 (2021–2022) | **43** (2021–2025) |
+| ROC ettårsoverganger | 11 | **29** |
+
+**Grensen R² ≥ 0,70 er IKKE flyttet, og analysen er ikke kjørt.** Men
+tallet 39 i «Forventning» er nå feil, og begrunnelsen for 0,70 hviler på
+n = 39 gjennom Fisher-z-intervallet. Med et større n blir intervallet
+smalere, og terskelen som klarerer referansepunktene på nedre kant
+faller. Regnestykket skal gjøres på nytt **før** analysen kjøres — det er
+hele poenget med at grensen ble skrevet først.
+
+To ting må avklares før den nye grensen kan settes:
+
+1. **ROC-dekningen for 2025 er 2 av 13 PO.** 2021–2023 gir 11, 2024 gir
+   8, 2025 gir 2. Fallet ser ut som samme feilklasse som PO7-tapet i
+   `a0aa8af` — en formulering uttrekket ikke tåler — og ikke som at
+   ekspertgruppen sluttet å oppgi tallet. Det må undersøkes før 2024 og
+   2025 telles med i et panel.
+2. **PO9 i 2024 og 2025 har ingen `kategori`.** Kilden nekter å velge
+   («Lav til moderat»), verdien ligger i `kategori_ordrett`, og cellene
+   faller derfor ut av rangbaserte mål. 2024 er senere revidert til
+   moderat av 2025-rapporten; 2025 står uavklart.
+
 ## Hva som ville snudd det
 
 - Dokumentasjon på at HI bruker en **annen formel eller andre registre**

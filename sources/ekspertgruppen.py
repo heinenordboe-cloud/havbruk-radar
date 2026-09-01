@@ -264,6 +264,19 @@ METODE_SINTEF_VS = "sintef_virtuell_smolt"
 # den er stabil mellom kjøringer med vilje: en parquet-fil skal ikke få
 # nytt innhold i git bare fordi en dict ble iterert annerledes.
 F_KATEGORI = "kategori"
+# Kildens egen ordlyd der den NEKTER å velge én av de tre kategoriene.
+#
+# Innført 01.09.2026 for PO9. Både 2024- og 2025-rapporten skriver
+# «Konklusjon: Lav til moderat» i prosaen og «Lav–Moderat*» i tabellen,
+# med en fotnote som sier at informasjonsgrunnlaget ikke er tilstrekkelig
+# til å avgjøre hvilken kategori som har sannsynlighetsovervekt.
+#
+# Da er `kategori` TOM og denne bærer ordlyden. Å presse «Lav til moderat»
+# inn i én av tre ville vært å ta et valg kilden uttrykkelig har latt
+# være å ta — samme skille som `published_at` «vet ikke» mot `fetched_at`
+# (CLAUDE.md 1b-7 punkt 1). Og å innføre en fjerde kategoriverdi ville
+# brutt den ordinale trestegsskalaen alt som rangerer kategorien hviler på.
+F_KATEGORI_ORDRETT = "kategori_ordrett"
 F_USIKKERHET = "kategori_usikkerhet"
 F_RETNING = "kategori_retning"
 
@@ -844,8 +857,22 @@ class Celle(NamedTuple):
 
 # «Konklusjon: Høy lakselusindusert villfiskdødelighet i 2020» (2020, 2021)
 # «Konklusjon: Moderat risiko for lakselusindusert villfiskdødelighet i 2018»
+#
+# NEGATIVT LOOKAHEAD, og det er ikke pynt. Uten det matchet mønsteret
+# «Lav» i «Konklusjon: Lav til moderat lakselusindusert villaksdødelighet
+# i 2025» og skrev kategori=lav for PO9 — et syntaktisk vellykket treff
+# med feil verdi, som er nøyaktig feilklassen i CLAUDE.md 1b-2. Målt:
+# den ville truffet i både 2024 og 2025.
 _KONKLUSJON_ETT_AAR = re.compile(
-    r"Konklusjon\s*:\s*(Lav|Moderat|Høy|Hoy)\b[^.]{0,80}?\b(\d{4})\b", re.I)
+    r"Konklusjon\s*:\s*(Lav|Moderat|Høy|Hoy)\b"
+    r"(?!\s*(?:til|[–—-])\s*moderat)"
+    r"[^.]{0,80}?\b(\d{4})\b", re.I)
+
+# Kildens uavklarte form. Egen regex og ikke en gren i den over: dette er
+# et ANNET utsagn, ikke en variant av samme.
+_KONKLUSJON_UAVKLART = re.compile(
+    r"Konklusjon\s*:\s*(Lav\s*(?:til|[–—-])\s*moderat)\b"
+    r"[^.]{0,80}?\b(\d{4})\b", re.I)
 
 # «Konklusjon: Lav risiko ... både i 2016 og 2017» (2016/2017-rapporten)
 _KONKLUSJON_BEGGE = re.compile(
@@ -1399,6 +1426,258 @@ def _uttrekk_2021(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
         yield from _tallceller(flat)
 
 
+def _krev_antall(funn, ventet: int, hva: str, aar: int) -> None:
+    """Setningstelling. Uttrekk fra løpende tekst skal feile HØYLYTT.
+
+    Denne vakten finnes fordi feilklassen har dukket opp tre ganger i
+    denne kilden alene, og alle tre gangene ble funnet ved å granske
+    enkelttilfeller for hånd — ikke av en test, ikke av en advarsel:
+
+      * PO7 manglet arealandel OG ROC i 2021 og 2022 (orddelingsmellomrom
+        «påv irkning», og et innskutt ledd mellom størrelsen og verbet).
+        11 % og 25 %, midt i fordelingen, så tapet var usynlig i et
+        sammendrag.
+      * PO9 i 2024 og 2025: «Konklusjon: Lav til moderat» ga treff på
+        «Lav». Riktig ANTALL, feil VERDI — se `_KONKLUSJON_ETT_AAR`.
+      * 2025-tabellen finnes TO ganger i samme kropp, én for 2024 og én
+        for 2025, og de er uenige om PO9. Et uttrekk som tok den første
+        siden som traff bildeteksten, leste feil år.
+
+    Et uttrekk som finner 12 av 13 er ikke 92 % riktig. Det er et uttrekk
+    som har sluttet å virke på en måte ingen ser, og de tolv som kom er
+    ikke tryggere enn den som forsvant.
+    """
+    if len(funn) != ventet:
+        raise Rapportfeil(
+            f"{hva} for {aar}: fant {len(funn)}, ventet {ventet}. "
+            f"Fant: {sorted(funn) if isinstance(funn, dict) else funn}. "
+            f"Kroppen er arkivert — dette er en re-parse, ikke tapt "
+            f"historikk. Er formen endret, skal årgangen ha sin egen "
+            f"uttrekksfunksjon framfor at denne mykes opp."
+        )
+
+
+def _shelf_tabell(sider: list[str], overskrift: re.Pattern, aar: int,
+                  rad: re.Pattern | None = None,
+                  ) -> tuple[dict[str, str], dict[str, str]]:
+    """Oppsummeringstabellen for ETT år: (kategori, ordrett) per PO.
+
+    Siden velges av OVERSKRIFTEN og ikke av bildeteksten. Det er en målt
+    forskjell: 2025-kroppen har «Oppsummering av sannsynlighet for
+    lakselusindusert villaksdødelighet» to ganger — Tabell 6.1 under
+    «Oppdaterte hovedkonklusjoner for 2024» og Tabell 6.3 under
+    «Hovedkonklusjoner for 2025» — og de er uenige om PO9. En anker på
+    bildeteksten ville tatt den første og lest 2024 som om det var 2025.
+
+    Overskriften navngir året. Det er kilden som sier hvilket år tabellen
+    handler om, ikke rekkefølgen sidene kommer i.
+    """
+    mønster = rad or _SHELF_RAD
+    # Overskriften alene er ikke nok: den står også i INNHOLDSFORTEGNELSEN,
+    # så «6.2 Hovedkonklusjoner for 2025» matcher to sider i 2025-kroppen.
+    # Kravet er derfor overskrift OG et fullt sett rader — en
+    # innholdsfortegnelse har ingen. Vakten er ikke svekket av det: den
+    # feller fortsatt både null treff og to ekte tabeller.
+    treff = [t for t in sider
+             if overskrift.search(" ".join(t.split()))
+             and len(mønster.findall(t)) == ANTALL_PO]
+    if len(treff) != 1:
+        raise Rapportfeil(
+            f"Oppsummeringstabellen for {aar}: {len(treff)} sider har både "
+            f"overskriften {overskrift.pattern!r} og {ANTALL_PO} rader, "
+            f"ventet nøyaktig én."
+        )
+
+    kategori: dict[str, str] = {}
+    ordrett: dict[str, str] = {}
+    for m in mønster.finditer(treff[0]):
+        po, tekst = m.group(1), " ".join(m.group(2).split())
+        nøkkel = tekst.lower().replace(" ", "")
+        if nøkkel in KATEGORIORD:
+            kategori[po] = KATEGORIORD[nøkkel]
+        else:
+            # Kilden nekter å velge. Vi velger heller ikke.
+            ordrett[po] = tekst
+    _krev_antall({**kategori, **ordrett}, ANTALL_PO,
+                 "oppsummeringstabellens rader", aar)
+    return kategori, ordrett
+
+
+# «PO9            Lav–Moderat*                Like sannsynlig som ikke»
+# To eller flere mellomrom skiller kolonnene i layout-modus.
+_SHELF_RAD = re.compile(
+    r"^\s*PO\s*(\d{1,2})\s{2,}"
+    r"(Lav\s*[–—-]\s*Moderat|Lav|Moderat|Høy|Hoy)\s*\*?\s{2,}",
+    re.M | re.I)
+
+
+# 2023-tabellen har kategorien i SISTE kolonne, ikke den andre, og med
+# usikkerheten limt på som hevet skrift: «Lavmiddels», «Moderatstor».
+# Egen regex og ikke en oppmykning av `_SHELF_RAD`: den andre kolonnen i
+# 2023 er et sannsynlighetsord («Sannsynlig»), og et mønster som tålte
+# begge former ville tatt feil kolonne i den ene av dem.
+_SHELF_RAD_2023 = re.compile(
+    r"^\s*PO\s*(\d{1,2})\b.*?\b(Lav|Moderat|Høy|Hoy)(?:liten|middels|stor)\s*$",
+    re.M)
+
+
+def _shelf_prosa(flat: str, aar: int) -> tuple[dict[str, str], dict[str, str],
+                                               list[Celle]]:
+    """Samme to ordbøker fra AVSNITTENE, pluss cellene.
+
+    Leses uavhengig av tabellen nettopp for at `_kryssjekk()` skal ha to
+    lesinger å sammenligne. Sier de to det samme for alle tretten, er det
+    ikke lenger en påstand om at parseren traff — det er to parsere som
+    traff likt på hver sin representasjon.
+    """
+    kategori: dict[str, str] = {}
+    ordrett: dict[str, str] = {}
+    celler: list[Celle] = []
+
+    for po, seksjon in sorted(_seksjoner(flat).items(), key=lambda p: int(p[0])):
+        m = _KONKLUSJON_UAVKLART.search(seksjon)
+        if m and int(m.group(2)) == aar:
+            ordrett[po] = " ".join(m.group(1).split())
+            celler.append(Celle(po, F_KATEGORI_ORDRETT, ordrett[po], FRA_TEKST))
+            continue
+        kat = _kategori_i_prosa(seksjon, aar)
+        if kat is None:
+            continue
+        kategori[po] = kat
+        celler.append(Celle(po, F_KATEGORI, kat, FRA_TEKST))
+        usikkerhet = _usikkerhet_i_prosa(seksjon)
+        if usikkerhet:
+            celler.append(Celle(po, F_USIKKERHET, usikkerhet, FRA_TEKST))
+
+    _krev_antall({**kategori, **ordrett}, ANTALL_PO,
+                 "konklusjonssetninger i avsnittene", aar)
+    return kategori, ordrett, celler
+
+
+def _uavklart_nøkkel(tekst: str) -> str:
+    """«Lav–Moderat» og «Lav til moderat» -> samme nøkkel.
+
+    Bare for SAMMENLIGNING. Verdien som skrives er kildens egen ordlyd;
+    dette er nøkkelen kryssjekken bruker for å avgjøre om de to lesingene
+    er enige. Lista er lukket som `KATEGORIORD`: en uavklart form vi ikke
+    har sett skal felle uttrekket, ikke normaliseres inn i en vi kjenner.
+    """
+    flat = re.sub(r"\s*(?:til|[–—-])\s*", "-", " ".join(tekst.split()).lower())
+    if flat not in ("lav-moderat",):
+        raise Rapportfeil(
+            f"Ukjent uavklart kategoriform: {tekst!r} (normalisert {flat!r}). "
+            f"Kjente former: 'Lav–Moderat', 'Lav til moderat'."
+        )
+    return flat
+
+
+def _uttrekk_shelf(sider: list[str], flat: str, aar: int,
+                   overskrift: re.Pattern,
+                   rad: re.Pattern | None = None) -> Iterable[Celle]:
+    """Felles kropp for 2023, 2024 og 2025 — men IKKE en generisk parser.
+
+    De tre har samme SHELF-form, og det er målt på alle tre kroppene, ikke
+    antatt: samme konklusjonssetning per PO, samme oppsummeringstabell,
+    samme tre kategorier. Det som skiller dem er hvilken OVERSKRIFT som
+    peker på tabellen, og det sendes inn.
+
+    Hver årgang har fortsatt sin egen inngang i `RAPPORTER` med sin egen
+    funksjon. Skulle 2026 avvike, skrives en ny funksjon ved siden av —
+    ingen av de tre under mykes opp for å ta imot den.
+    """
+    t_kategori, t_ordrett = _shelf_tabell(sider, overskrift, aar, rad)
+    p_kategori, p_ordrett, celler = _shelf_prosa(flat, aar)
+
+    # To uavhengige lesinger av samme kropp må si det samme.
+    _kryssjekk(t_kategori, p_kategori, f"kategori {aar}")
+    # NORMALISERT sammenligning. De to lesingene sier det samme med ulike
+    # ord: tabellen skriver «Lav–Moderat», avsnittet «Lav til moderat».
+    # Kryssjekken spør om de er ENIGE, ikke om de er stavet likt — og
+    # `kategori_ordrett` beholder ordlyden hver av dem faktisk brukte,
+    # med `FRA_TABELL`/`FRA_TEKST` som sier hvilken det er.
+    _kryssjekk({po: _uavklart_nøkkel(v) for po, v in t_ordrett.items()},
+               {po: _uavklart_nøkkel(v) for po, v in p_ordrett.items()},
+               f"uavklart kategori {aar}")
+
+    # Og de må være uenige om NØYAKTIG ingenting: et PO som er avklart i
+    # tabellen og uavklart i prosaen er ikke et sprik i verdi, men i FORM,
+    # og `_kryssjekk` ser bare på nøkler som finnes i begge.
+    blandet = (t_kategori.keys() & p_ordrett.keys()) | (t_ordrett.keys() & p_kategori.keys())
+    if blandet:
+        raise Rapportfeil(
+            f"PO {sorted(blandet, key=int)} er avklart i den ene lesingen og "
+            f"uavklart i den andre for {aar}. Tabell: "
+            f"{ {po: t_kategori.get(po) or t_ordrett.get(po) for po in blandet} }, "
+            f"prosa: { {po: p_kategori.get(po) or p_ordrett.get(po) for po in blandet} }."
+        )
+
+    yield from celler
+    yield from _tallceller(flat)
+
+
+_OVERSKRIFT_2023 = re.compile(r"Tabell\s+3\s+Oppsummering\s+av\s+sannsynlighet", re.I)
+_OVERSKRIFT_2024 = re.compile(r"6\.1\s+Hovedkonklusjoner\s+for\s+2024", re.I)
+_OVERSKRIFT_2024_REV = re.compile(r"Oppdaterte\s+hovedkonklusjoner\s+for\s+2024", re.I)
+_OVERSKRIFT_2025 = re.compile(r"6\.2\s+Hovedkonklusjoner\s+for\s+2025", re.I)
+
+
+def _uttrekk_2023(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
+    """2023-rapporten (Vollset mfl. 2023), 181 sider.
+
+    Samme SHELF-form som 2022. Tabell 3 har en egen kolonne «Konklusjon
+    uttrykt som i tidligere rapporter» der usikkerheten står som HEVET
+    SKRIFT rett etter kategorien og kommer ut limt sammen med den:
+    «Lavmiddels», «Moderatstor». `_SHELF_RAD` krever to mellomrom etter
+    kategorien og treffer derfor ikke den kolonnen — tabellen leses på
+    kategorinavnet alene, og usikkerheten kommer fra prosaen som for 2022.
+
+    Kroppen er AES-kryptert. Se `requirements.txt` og modulens docstring.
+    """
+    yield from _uttrekk_shelf(sider, flat, aar, _OVERSKRIFT_2023,
+                              rad=_SHELF_RAD_2023)
+
+
+def _uttrekk_2024(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
+    """2024-rapporten (Stige mfl. 2024), 157 sider.
+
+    PO9 er «Lav–Moderat*» i Tabell 6.1 og «Lav til moderat» i avsnittet.
+    Begge lesingene er enige om at kilden ikke velger, og da skrives
+    `kategori_ordrett` og ikke `kategori`.
+    """
+    yield from _uttrekk_shelf(sider, flat, aar, _OVERSKRIFT_2024)
+
+
+def _uttrekk_2025(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
+    """2025-rapporten, 162 sider — som dekker TO år.
+
+    Kapittel 6.1 heter «Oppdaterte hovedkonklusjoner for 2024» og er en
+    forenklet ny SHELF-vurdering av 2024 etter at de virtuelle
+    postsmoltmodellene ble oppdatert. Rapporten sier det selv:
+
+        «Oppdateringen innebærer at påvirkningen i PO9 i 2024 blir
+        vurdert til moderat, mens den i fjorårets rapport ble vurdert til
+        å være helt på grensen mellom lav og moderat.»
+
+    Det er en REVISJON i CLAUDE.md 1b-5s forstand: to påstander om samme
+    tidspunkt, gjort på hver sin dato, og begge sanne. Derfor står
+    2025-kroppen i `RAPPORTER` med `aar=(2024, 2025)` — samme form som
+    2021-kroppen, som reviderer 2020.
+
+    Avsnittene i kapittel 6.4 handler om 2025. For 2024 finnes bare
+    tabellen (begrunnelsene ligger i Vedlegg VIII), så kryssjekken har
+    ingen andre lesing å bruke det året — og da leses 2024 av tabellen
+    ALENE, uttrykkelig og ikke stille.
+    """
+    if aar == 2024:
+        kategori, ordrett = _shelf_tabell(sider, _OVERSKRIFT_2024_REV, aar)
+        for po, kat in sorted(kategori.items(), key=lambda p: int(p[0])):
+            yield Celle(po, F_KATEGORI, kat, FRA_TABELL)
+        for po, tekst in sorted(ordrett.items(), key=lambda p: int(p[0])):
+            yield Celle(po, F_KATEGORI_ORDRETT, tekst, FRA_TABELL)
+        return
+    yield from _uttrekk_shelf(sider, flat, aar, _OVERSKRIFT_2025)
+
+
 def _uttrekk_2022(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
     """2022-rapporten (Vollset mfl. 2022), 130 sider.
 
@@ -1441,6 +1720,11 @@ class Utgivelse(NamedTuple):
     # Hvor kroppen faktisk ble hentet fra, når det ikke er `url` selv.
     # Tom streng betyr «url svarer for oss».
     merknad: str = ""
+    # Nasjonalt vitenarkiv serverer ikke kroppen på en fast adresse: den
+    # gir en PRESIGNERT S3-URI som utløper. `url` er da landingssiden —
+    # den siterbare, stabile adressen — og denne er endepunktet som
+    # veksler den inn i en kropp. To ledd, fordi kilden har to ledd.
+    filelink: str = ""
 
 
 # Rapportene vi HAR LEST og skrevet et uttrekk for, ELDST UTGITT FØRST.
@@ -1509,6 +1793,53 @@ RAPPORTER: tuple[Utgivelse, ...] = (
              "b6f5e7d38fe04234b32156131a1eec14/ekspertrapport-tls-2022-1.pdf"),
         uttrekk=_uttrekk_2022,
         merknad="Som 2021: hentes via Internet Archive, se over.",
+    ),
+    Utgivelse(
+        tittel=("Produksjonsområdebasert vurdering av lakselusindusert "
+                "villfiskdødelighet i 2023"),
+        aar=(2023,),
+        url=("https://nva.sikt.no/registration/"
+             "01994cb82ce4-31ac5354-b12a-42ed-820d-53c7742dbf55"),
+        filelink=("https://api.nva.unit.no/publication/"
+                  "01994cb82ce4-31ac5354-b12a-42ed-820d-53c7742dbf55/filelink/"
+                  "88d35371-1588-4a9b-abd6-a84e516ed59c"),
+        uttrekk=_uttrekk_2023,
+        merknad=("Nasjonalt vitenarkiv (NVA). hdl.handle.net/11250/3104585 "
+                 "peker hit; Brage@NINA er migrert inn i NVA. Kroppen er "
+                 "AES-KRYPTERT og krever `cryptography` — se requirements.txt. "
+                 "sha256 verifisert 01.09.2026: 9f66a827d3bf…"),
+    ),
+    Utgivelse(
+        # villAKSdødelighet. NVAs katalogpost sier «villfiskdødelighet»,
+        # men `gjenkjenn()` leser FORSIDEN — og forsiden sier villaks.
+        # Kilden byttet ord mellom 2023 og 2024; katalogen fulgte ikke etter.
+        tittel=("Produksjonsområdebasert vurdering av lakselusindusert "
+                "villaksdødelighet i 2024"),
+        aar=(2024,),
+        url=("https://nva.sikt.no/registration/"
+             "01994cb7facb-da5afa0e-2dc3-4765-a015-38945ec9331c"),
+        filelink=("https://api.nva.unit.no/publication/"
+                  "01994cb7facb-da5afa0e-2dc3-4765-a015-38945ec9331c/filelink/"
+                  "99866763-39ef-4483-8af6-ef05eac433c6"),
+        uttrekk=_uttrekk_2024,
+        merknad=("NVA. hdl.handle.net/11250/3167955. Filnavnet i arkivet er "
+                 "«Ekspertgruppens rapport 2024 endelig.pdf» — tittelen leses "
+                 "av forsiden, ikke av filnavnet."),
+    ),
+    Utgivelse(
+        tittel=("Produksjonsområdebasert vurdering av lakselusindusert "
+                "villaksdødelighet 2025"),
+        aar=(2024, 2025),
+        url=("https://nva.sikt.no/registration/"
+             "019aba84ab68-b20c77b4-309f-44d5-93b6-f2d1f9a2d4c2"),
+        filelink=("https://api.nva.unit.no/publication/"
+                  "019aba84ab68-b20c77b4-309f-44d5-93b6-f2d1f9a2d4c2/filelink/"
+                  "7d9e66c2-f758-405b-9eca-b3dcb42cd0ce"),
+        uttrekk=_uttrekk_2025,
+        merknad=("NVA. hdl.handle.net/11250/5323072. Dekker TO år: kapittel "
+                 "6.1 er «Oppdaterte hovedkonklusjoner for 2024». Merk at "
+                 "tittelen sier villaksDØDELIGHET, ikke villfisk — kilden "
+                 "byttet ord, og `gjenkjenn()` leser ordrett."),
     ),
 )
 
@@ -1612,7 +1943,20 @@ class Ekspertgruppen(Source):
         egen = client is None
         c = client or httpx.Client(timeout=120.0, follow_redirects=True)
         try:
-            svar = _http.get(c, url or utgivelse.url,
+            adresse = url or utgivelse.url
+            if url is None and utgivelse.filelink:
+                # Ledd 1: be NVA om en nedlastingslenke. Svaret er JSON
+                # med en presignert S3-URI under `id`, og den utløper —
+                # derfor slås den opp ved hver henting framfor å stå i
+                # tabellen. Landingssiden i `url` er det som er stabilt,
+                # og det er den som hører hjemme i dokumentasjonen.
+                lenke = _http.get(
+                    c, utgivelse.filelink,
+                    hva=f"ekspertgruppen {utgivelse.aar[-1]} (nedlastingslenke)",
+                    headers={"Accept": "application/json"},
+                ).json()
+                adresse = lenke["id"]
+            svar = _http.get(c, adresse,
                              hva=f"ekspertgruppen {utgivelse.aar[-1]}")
             rå = svar.content
         finally:

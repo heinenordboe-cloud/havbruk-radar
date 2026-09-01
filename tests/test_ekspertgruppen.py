@@ -608,3 +608,133 @@ def test_kilden_setter_utvalg_og_entitetstype():
     kilde = Ekspertgruppen()
     assert kilde.entity_type == "produksjonsomraade"   # joiner mot biomasse
     assert kilde.name == "ekspertgruppen"
+
+
+# ==================================================== 2023, 2024 og 2025
+#
+# Lagt til 01.09.2026. Kroppene ligger i Nasjonalt vitenarkiv; se
+# RAPPORTER for landingssidene og docs/KILDE-EKSPERTGRUPPEN.md for
+# hvordan de ble funnet.
+
+def test_konklusjonsregexen_tar_ikke_foerste_ord_av_en_sammensatt():
+    """PO9 2024/2025: «Konklusjon: Lav til moderat ... i 2025».
+
+    Uten det negative lookaheadet matchet mønsteret «Lav» og skrev
+    kategori=lav — et syntaktisk vellykket treff med feil verdi, som er
+    feilklassen i CLAUDE.md 1b-2. Testen finnes for at oppmykningen ikke
+    skal kunne skje igjen ved et uhell.
+    """
+    from sources.ekspertgruppen import _KONKLUSJON_ETT_AAR, _KONKLUSJON_UAVKLART
+
+    uavklart = "Konklusjon: Lav til moderat lakselusindusert villaksdødelighet i 2025"
+    assert _KONKLUSJON_ETT_AAR.search(uavklart) is None
+    m = _KONKLUSJON_UAVKLART.search(uavklart)
+    assert m and m.group(1) == "Lav til moderat" and m.group(2) == "2025"
+
+    avklart = "Konklusjon: Lav lakselusindusert villaksdødelighet i 2025"
+    m = _KONKLUSJON_ETT_AAR.search(avklart)
+    assert m and m.group(1) == "Lav"
+    assert _KONKLUSJON_UAVKLART.search(avklart) is None
+
+
+def test_bindestrekformen_fanges_ogsaa():
+    """Tabellen skriver «Lav–Moderat», avsnittet «Lav til moderat»."""
+    from sources.ekspertgruppen import _uavklart_nøkkel
+
+    assert _uavklart_nøkkel("Lav–Moderat") == "lav-moderat"
+    assert _uavklart_nøkkel("Lav til moderat") == "lav-moderat"
+    assert _uavklart_nøkkel("Lav - Moderat") == "lav-moderat"
+
+
+def test_ukjent_uavklart_form_feller_uttrekket():
+    """Lukket liste, som KATEGORIORD. En form vi ikke har sett skal ikke
+    normaliseres inn i en vi kjenner."""
+    from sources.ekspertgruppen import Rapportfeil, _uavklart_nøkkel
+
+    with pytest.raises(Rapportfeil, match="Ukjent uavklart"):
+        _uavklart_nøkkel("Moderat til høy")
+
+
+def test_setningstellingen_feller_paa_for_faa_treff():
+    """Et uttrekk som finner 12 av 13 er ikke 92 % riktig — det har
+    sluttet å virke på en måte ingen ser."""
+    from sources.ekspertgruppen import ANTALL_PO, Rapportfeil, _krev_antall
+
+    _krev_antall({str(i): "lav" for i in range(1, ANTALL_PO + 1)},
+                 ANTALL_PO, "prøve", 2025)          # skal ikke kaste
+    with pytest.raises(Rapportfeil, match="fant 12, ventet 13"):
+        _krev_antall({str(i): "lav" for i in range(1, 13)},
+                     ANTALL_PO, "prøve", 2025)
+
+
+def test_tabellen_velges_av_overskriften_ikke_av_bildeteksten():
+    """2025-kroppen har oppsummeringstabellen TO ganger — én for 2024
+    (oppdatert) og én for 2025 — og de er uenige om PO9. Et uttrekk som
+    tok den første siden med riktig bildetekst, leste feil år."""
+    from sources.ekspertgruppen import (
+        ANTALL_PO, Rapportfeil, _OVERSKRIFT_2024_REV, _OVERSKRIFT_2025,
+        _shelf_tabell)
+
+    def side(overskrift, po9):
+        rader = "\n".join(
+            f" PO{i}    {'Moderat' if i != 9 else po9}    Sannsynlig    Usannsynlig"
+            for i in range(1, ANTALL_PO + 1))
+        return f"{overskrift}\nTabell x. Oppsummering av sannsynlighet\n{rader}\n"
+
+    sider = [side("6.1 Oppdaterte hovedkonklusjoner for 2024", "Moderat"),
+             side("6.2 Hovedkonklusjoner for 2025", "Lav–Moderat")]
+
+    kat, _ = _shelf_tabell(sider, _OVERSKRIFT_2024_REV, 2024)
+    assert kat["9"] == "moderat"
+
+    kat, ordrett = _shelf_tabell(sider, _OVERSKRIFT_2025, 2025)
+    assert "9" not in kat and ordrett["9"] == "Lav–Moderat"
+
+    # Og en overskrift som treffer to sider skal felle, ikke velge én.
+    with pytest.raises(Rapportfeil, match="ventet nøyaktig én"):
+        _shelf_tabell(sider * 2, _OVERSKRIFT_2025, 2025)
+
+
+def test_innholdsfortegnelsen_forveksles_ikke_med_tabellen():
+    """Overskriften står også i innholdsfortegnelsen. Den har ingen rader."""
+    from sources.ekspertgruppen import ANTALL_PO, _OVERSKRIFT_2025, _shelf_tabell
+
+    innhold = "6.2 Hovedkonklusjoner for 2025 ........................ 57\n"
+    tabell = ("6.2 Hovedkonklusjoner for 2025\n" + "\n".join(
+        f" PO{i}    Moderat    Sannsynlig    Usannsynlig"
+        for i in range(1, ANTALL_PO + 1)))
+
+    kat, _ = _shelf_tabell([innhold, tabell], _OVERSKRIFT_2025, 2025)
+    assert len(kat) == ANTALL_PO
+
+
+def test_2025_rapporten_dekker_to_aar():
+    """Kapittel 6.1 er «Oppdaterte hovedkonklusjoner for 2024». Det er en
+    revisjon i CLAUDE.md 1b-5s forstand, ikke en gjentakelse."""
+    from sources.ekspertgruppen import RAPPORTER
+
+    r2025 = [r for r in RAPPORTER if r.aar and r.aar[-1] == 2025]
+    assert len(r2025) == 1
+    assert r2025[0].aar == (2024, 2025)
+
+
+def test_alle_aargangene_har_egen_uttrekksfunksjon():
+    """Ingen generisk parser. En ny årgang skal legges til, ikke tas imot."""
+    from sources.ekspertgruppen import RAPPORTER
+
+    for r in RAPPORTER:
+        assert r.uttrekk.__name__.startswith("_uttrekk_"), r.tittel
+    assert len({r.uttrekk for r in RAPPORTER}) == len(RAPPORTER)
+
+
+def test_nva_kroppene_har_landingsside_og_filelink():
+    """`url` skal være den SITERBARE adressen, ikke den presignerte
+    S3-URI-en — den utløper. Nedlastingslenken slås opp ved hver henting."""
+    from sources.ekspertgruppen import RAPPORTER
+
+    nva = [r for r in RAPPORTER if r.filelink]
+    assert len(nva) == 3
+    for r in nva:
+        assert r.url.startswith("https://nva.sikt.no/registration/")
+        assert "/filelink/" in r.filelink
+        assert "X-Amz" not in r.filelink and "X-Amz" not in r.url

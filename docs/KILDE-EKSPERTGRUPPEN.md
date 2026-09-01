@@ -479,3 +479,99 @@ Rapport fra ekspertgruppe for vurdering av lusepåvirkning.
   liten/middels/stor. Markørene strippes fra kategorien.
 - **Appendiksene.** Hver rapport har 7–11 vedlegg med
   underlagsmodellene. De er ikke hentet.
+
+
+## 2023, 2024 og 2025 — funnet i Nasjonalt vitenarkiv (01.09.2026)
+
+De tre årgangene sto som ULOKALISERT fram til 01.09.2026. De ligger
+ikke på trafikklyssystemet.no: `Publikasjoner/Ekspertgrupperapporter`
+er hentet rå og gjennomsøkt, og siden nevner ikke 2023, 2024 eller 2025
+med ett eneste tegn — ingen årsmappe, ingen NVA-lenke. Det samme gjelder
+alle sju søskensidene under `Publikasjoner/`.
+
+De ble funnet i **Nasjonalt vitenarkiv (NVA)** via søke-API-et:
+
+    https://api.nva.unit.no/search/resources?query=lakselusindusert+villfiskdødelighet
+
+| år | landingsside | Brage-handle | sider |
+|---|---|---|---|
+| 2023 | `nva.sikt.no/registration/01994cb82ce4-…` | `hdl.handle.net/11250/3104585` | 181 |
+| 2024 | `nva.sikt.no/registration/01994cb7facb-…` | `hdl.handle.net/11250/3167955` | 157 |
+| 2025 | `nva.sikt.no/registration/019aba84ab68-…` | `hdl.handle.net/11250/5323072` | 162 |
+
+Handlene løser nå til NVA — Brage@NINA er migrert inn.
+
+### Nedlastingen har TO ledd
+
+NVA serverer ikke kroppen på en fast adresse. `GET
+/publication/{id}/filelink/{fil}` gir JSON med en **presignert S3-URI**
+som utløper, og den slås derfor opp ved hver henting. `Utgivelse.url`
+er landingssiden — det som er siterbart og stabilt — og `filelink` er
+endepunktet. En presignert URI i tabellen ville vært en adresse som
+slutter å virke uten at noen har rørt den.
+
+### `/CreationDate`, målt
+
+    2023   D:20231122075159+01'00'   Microsoft Word for Microsoft 365
+    2024   D:20241129084216+01'00'   Microsoft Word for Microsoft 365
+    2025   D:20251120165148+01'00'   Microsoft Word for Microsoft 365
+
+Alle tre i vurderingsårets november, som de fem foregående. Vakten i
+`_utgitt()` passerer for alle tre.
+
+sha256 på kroppene, verifisert 01.09.2026:
+
+    2023   9f66a827d3bfc1c028b75102792ec88fb9af860e2f0f54fe6df5576a39803101
+    2024   b740d4bb020df3017e4d784ba68667646e5d502010c724b818f6ea6308d8b6d4
+    2025   6083b40bf9fa3fc0041c5d4515825d77d28be004fd40b8e128dfcbd0117db546
+
+### 2023-kroppen er AES-kryptert
+
+Den eneste av åtte. `pypdf` kaster `DependencyError` før første side er
+lest, og `cryptography==50.0.1` er derfor pinnet i `requirements.txt`.
+Uten den kan 2023 ikke leses i det hele tatt.
+
+### 2025-rapporten dekker TO år
+
+Kapittel 6.1 heter «Oppdaterte hovedkonklusjoner for 2024» og er en
+forenklet ny SHELF-vurdering etter at de virtuelle postsmoltmodellene
+ble oppdatert. Rapporten sier det selv:
+
+> «Oppdateringen innebærer at påvirkningen i PO9 i 2024 blir vurdert til
+> moderat, mens den i fjorårets rapport ble vurdert til å være helt på
+> grensen mellom lav og moderat.»
+
+Samme form som 2021-kroppen, som reviderer 2020. `aar=(2024, 2025)`, og
+`diff.revisjon()` skrev 14 revisjonsrader til `2024-12-31.2.parquet`.
+
+### PO9: kilden nekter å velge
+
+Både 2024- og 2025-rapporten skriver «Konklusjon: Lav til moderat» i
+avsnittet og «Lav–Moderat*» i tabellen, med fotnote om at
+informasjonsgrunnlaget ikke er tilstrekkelig. Da står `kategori` TOM og
+`kategori_ordrett` bærer ordlyden. Å presse den inn i én av tre ville
+vært å ta et valg kilden uttrykkelig har latt være å ta.
+
+### Tre feller i disse tre kroppene, alle fanget av vakter
+
+1. **`Konklusjon: Lav til moderat` ga treff på `Lav`.** Riktig antall,
+   feil verdi — ville skrevet `kategori=lav` for PO9 i to år.
+   `_KONKLUSJON_ETT_AAR` har nå et negativt lookahead.
+2. **Oppsummeringstabellen finnes to ganger i 2025-kroppen**, én for
+   hvert år, og de er uenige om PO9. Tabellsiden velges nå av
+   OVERSKRIFTEN, som navngir året, ikke av bildeteksten.
+3. **Overskriften står også i innholdsfortegnelsen.** Kravet er nå
+   overskrift OG et fullt sett rader.
+
+2023-tabellen har dessuten kategorien i SISTE kolonne med usikkerheten
+limt på som hevet skrift («Lavmiddels»), mens 2024/2025 har den i den
+andre. Egne radmønstre, ikke ett som tåler begge — et mønster som tålte
+begge ville tatt feil kolonne i den ene.
+
+### ROC-dekningen faller i 2024 og 2025
+
+    2021: 11 PO    2022: 11 PO    2023: 11 PO    2024: 8 PO    2025: 2 PO
+
+Fallet er IKKE undersøkt. Det ser ut som samme feilklasse som PO7-tapet
+i `a0aa8af` — en formulering `_ROC` ikke tåler — men det er en antakelse,
+ikke et funn. Må måles før 2024 og 2025 brukes i et panel.
