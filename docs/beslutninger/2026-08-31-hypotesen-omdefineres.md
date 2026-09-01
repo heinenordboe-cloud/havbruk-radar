@@ -215,11 +215,19 @@ hele poenget med at grensen ble skrevet først.
 
 To ting må avklares før den nye grensen kan settes:
 
-1. **ROC-dekningen for 2025 er 2 av 13 PO.** 2021–2023 gir 11, 2024 gir
-   8, 2025 gir 2. Fallet ser ut som samme feilklasse som PO7-tapet i
-   `a0aa8af` — en formulering uttrekket ikke tåler — og ikke som at
-   ekspertgruppen sluttet å oppgi tallet. Det må undersøkes før 2024 og
-   2025 telles med i et panel.
+1. ~~**ROC-dekningen for 2025 er 2 av 13 PO.**~~ **Undersøkt 01.09.2026,
+   og det var en bug.** Parseren leser nå **12 av 13 i hvert år
+   2021–2025** — 60 celler mot 43 — med PO1 som eneste, ekte fravær.
+   Fem setningsformer og én ny avsnittsetikett felte uttrekket; se
+   `docs/KILDE-EKSPERTGRUPPEN.md`.
+
+   **MEN: tallet 60 er parserens, ikke diskens.** `backfill.py
+   --rapporter` hopper over et år der `published_at` alt finnes, så en
+   PARSERretting kan ikke skrives inn gjennom den veien. Snapshotene bærer
+   fortsatt 43. Skal 60 inn i et panel, må de re-deriveres bevisst — og
+   `diff.revisjon()` kaster `Grunnlagssprik` mellom `source_version` 2 og
+   3, som er riktig: en forskjell kan da like gjerne være vår parser som
+   kildens revisjon.
 2. **PO9 i 2024 og 2025 har ingen `kategori`.** Kilden nekter å velge
    («Lav til moderat»), verdien ligger i `kategori_ordrett`, og cellene
    faller derfor ut av rangbaserte mål. 2024 er senere revidert til

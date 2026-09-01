@@ -979,10 +979,51 @@ _AREALANDEL = re.compile(
 # «er 27 %», «er moderat (33 %)», «er moderat i 2022 (15 %)» og
 # «for hele produksjonsområdet er moderat (25 %)» — innskuddet mellom
 # størrelsen og verbet er valgfritt og kan være flere ord.
+# Utvidet 01.09.2026 etter at ROC-dekningen falt til 8 av 13 i 2024 og 2
+# av 13 i 2025. Målt på kroppene: verdien STO der i 14 av 16 tilfeller,
+# i fire former mønsteret ikke tålte. Se docs/KILDE-EKSPERTGRUPPEN.md.
+#
+#   «høy» faller bort   «Indeksen for risiko for påvirkning er høy (31 %)»
+#   var i stedet for er «Indeksen for risiko for høy påvirkning var 43 %»
+#   lang innskyting     «... er moderat i 2025 for produksjonsområdet
+#                        som helhet (11 %)»
+#   uten parentes       «... var 43 %.»
+#
+# `(?:[^\W\d_]+\s*)*` er borte. Den krevde at alt mellom verbet og
+# tallet var REN BOKSTAVTEKST, og falt derfor på årstallet: «er moderat i
+# 2024 (23 %)» stoppet ordløpet ved «2024» og traff aldri parentesen.
+# Det var den stille halvdelen av feilen — de fire andre formene er den
+# synlige.
 _ROC = re.compile(
-    r"Indeksen\s+for\s+" + _slakk("risiko") + r"\s+for\s+"
-    + _slakk("høy") + r"\s+" + _slakk("påvirkning")
-    + r"[^.%]{0,45}?\s+er\s+(?:[^\W\d_]+\s*)*\(?\s*([^.)]{0,20}?%)", re.I)
+    r"[Ii]ndeksen\s+for\s+" + _slakk("risiko") + r"\s+for\s+"
+    + r"(?:" + _slakk("høy") + r"\s+)?" + _slakk("påvirkning")
+    + r"[^.%]{0,60}?\b(?:er|var)\b"
+      r"[^.%(]{0,60}?\(?\s*([<>]?\s*\d{1,3}(?:[.,]\d+)?\s*%)", re.I)
+
+# «... for POet som helhet er indeksen for risiko for påvirkning høy for
+# 2024 (36 %) ved midtpunktet for utvandring.» — 2024 PO6.
+#
+# OMVENDT ORDSTILLING: verbet står FORAN subjektet. Egen regex og ikke en
+# oppmykning av den over, av samme grunn som `_SHELF_RAD_2023`: et mønster
+# der «er|var» kan stå på begge sider av leddet ville kunne pare et verb
+# fra én setning med et tall fra en annen.
+_ROC_OMVENDT = re.compile(
+    r"\b(?:er|var)\s+indeksen\s+for\s+" + _slakk("risiko") + r"\s+for\s+"
+    + r"(?:" + _slakk("høy") + r"\s+)?" + _slakk("påvirkning")
+    + r"[^.%]{0,40}?\(\s*([<>]?\s*\d{1,3}(?:[.,]\d+)?\s*%)", re.I)
+
+# Vakten. Nevner avsnittet indeksen, SKAL en verdi komme ut.
+#
+# Setningstellingen i `_krev_antall` kunne ikke fange dette, og det er
+# verdt å si hvorfor: den krever et FORVENTET ANTALL, og ROC har ikke ett.
+# PO1 oppgir legitimt ingen indeks i 2024 og 2025, PO7 manglet i 2021 og
+# 2022, PO12 i 2023. En terskel på 13 ville fyrt hver eneste årgang, og
+# en terskel på «det vi fikk sist» er 1b-4s referanse som følger dataene.
+#
+# Denne vakten trenger ikke tallet. Den spør om vi leste det kilden
+# faktisk skrev — og det spørsmålet har et svar for hvert enkelt avsnitt,
+# uten at noen må vite hva summen skal bli.
+_ROC_KANDIDAT = re.compile(r"[Ii]ndeksen\s+for\s+" + _slakk("risiko"), re.I)
 
 # «Gjennomsnittet vektet (22 %) ... uvektede snittet (32 %)»
 _VS_VEKTET_FORST = re.compile(
@@ -1000,13 +1041,30 @@ _VS_BEGGE_UNDER = re.compile(
     r"(under|over)\s+(\d{1,3})\s*%\s*samtlige\s+[åa]r", re.I)
 
 
+# Det løpende sidehodet, som havner MIDT I SETNINGER når sidene limes
+# sammen. 2023 PO12: «Indeksen for risiko for høy Rapport fra
+# ekspertgruppe for vurdering av lusepåvirkning 152 påvirkning er lav
+# (2 %)» — hodet står mellom «høy» og «påvirkning».
+#
+# Det FJERNES framfor at mønstrene mykes opp til å hoppe over vilkårlig
+# tekst. Et mønster som tålte 60 tegn mellom «høy» og «påvirkning» ville
+# tålt hva som helst der, og da er det ikke lenger den setningen vi leser.
+# Hodet er en kjent, fast streng; den skal behandles som støy, ikke som
+# noe matcheren må gjette seg forbi.
+_SIDEHODE = re.compile(
+    r"\s*Rapport\s+fra\s+ekspertgruppe\s+for\s+vurdering\s+av\s+"
+    r"lusep[åa]virkning\s*\d*\s*", re.I)
+
+
 def _hi_avsnitt(seksjon: str, etiketter: tuple[str, ...]) -> str:
     """Teksten etter en avsnittsetikett, fram til neste etikett.
 
     Etikettene varierer mellom rapportene og til og med innenfor én:
     2020 skriver «Smittepress HI:» for PO1 og «HI smittepress:» for
-    resten. Begge former oppgis av kalleren; her velges den som finnes.
+    resten, og 2025 bruker «HI kategorisert smittepress» for åtte av
+    tretten. Alle former oppgis av kalleren; her velges den som finnes.
     """
+    seksjon = _SIDEHODE.sub(" ", seksjon)
     for etikett in etiketter:
         m = re.search(re.escape(etikett) + r"\s*:", seksjon, re.I)
         if m:
@@ -1065,7 +1123,16 @@ def _hi_smittepress(seksjon: str) -> list[tuple[str, str]]:
     til ett felt ville skjult et metodeskifte midt i serien og gjort en
     definisjonsendring til en verdiendring i changeloggen.
     """
-    tekst = _hi_avsnitt(seksjon, ("HI smittepress", "Smittepress HI"))
+    # «HI kategorisert smittepress» kom i 2025 og gjelder 8 av 13 PO —
+    # den samme kroppen bruker BEGGE former. Uten den fant `_hi_avsnitt`
+    # ingenting for de åtte, og da ble avsnittet aldri engang undersøkt:
+    # ROC falt fra 11 til 2 uten at noe sa fra.
+    #
+    # Rekkefølgen er likegyldig fordi hver form krever sitt eget kolon;
+    # figurteksten skriver «indeks for «HI kategorisert smittepress»)»
+    # uten kolon og fanges derfor ikke.
+    tekst = _hi_avsnitt(seksjon, ("HI kategorisert smittepress",
+                                  "HI smittepress", "Smittepress HI"))
     if not tekst:
         return []
 
@@ -1075,11 +1142,21 @@ def _hi_smittepress(seksjon: str) -> list[tuple[str, str]]:
         verdi = _prosent(m.group(1))
         if verdi:
             ut.append((F_AREALANDEL, verdi))
-    m = _ROC.search(tekst)
+    m = _ROC.search(tekst) or _ROC_OMVENDT.search(tekst)
     if m:
         verdi = _prosent(m.group(1))
         if verdi:
             ut.append((F_ROC, verdi))
+
+    # Nevnte avsnittet indeksen uten at noe kom ut, har uttrekket sluttet
+    # å virke. Det skal si fra, ikke levere 8 av 13 og se vellykket ut.
+    if _ROC_KANDIDAT.search(tekst) and not any(f == F_ROC for f, _ in ut):
+        raise Rapportfeil(
+            "HI-avsnittet nevner «Indeksen for risiko», men ingen verdi ble "
+            "lest ut. Formen er ny, og mønsteret skal utvides mot kroppen — "
+            "ikke mykes opp på gjetning. Avsnittet: "
+            f"{' '.join(tekst.split())[:400]!r}"
+        )
     return ut
 
 
@@ -1890,7 +1967,17 @@ class Ekspertgruppen(Source):
     # re-derivering. `diff.revisjon()` vil kaste `Grunnlagssprik` mellom
     # versjonene, som er riktig — en forskjell kan da like gjerne være
     # vår parser som kildens revisjon.
-    version = "2"
+    # Bumpet til "3" 01.09.2026: ROC-uttrekket leste 43 av 60 celler.
+    # `_hi_avsnitt` kjente ikke etiketten «HI kategorisert smittepress»
+    # (2025, 8 av 13 PO), `_ROC` tålte verken «var» for «er», «påvirkning»
+    # uten «høy», lang innskyting mellom verbet og tallet, omvendt
+    # ordstilling eller et sidehode limt inn midt i setningen.
+    #
+    # Snapshotene på disk er skrevet av versjon 1 og 2. De skrives IKKE
+    # om — `diff.revisjon()` kaster `Grunnlagssprik` mellom versjoner, og
+    # det er riktig: en forskjell kan da like gjerne være vår egen parser
+    # som kildens revisjon.
+    version = "3"
     # Samme entitetstype som biomasse, med vilje: en analyse skal kunne
     # joine kategori mot beholdning på `entity_id` uten en oversettelse.
     entity_type = "produksjonsomraade"

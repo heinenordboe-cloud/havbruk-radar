@@ -568,10 +568,48 @@ limt på som hevet skrift («Lavmiddels»), mens 2024/2025 har den i den
 andre. Egne radmønstre, ikke ett som tåler begge — et mønster som tålte
 begge ville tatt feil kolonne i den ene.
 
-### ROC-dekningen faller i 2024 og 2025
+### ROC-dekningen — undersøkt 01.09.2026, og det var en bug
 
-    2021: 11 PO    2022: 11 PO    2023: 11 PO    2024: 8 PO    2025: 2 PO
+Hypotesen stemte. Målt mot kroppene: verdien STO der i 17 av 19
+manglende tilfeller, i fem former mønsteret ikke tålte, pluss én etikett
+`_hi_avsnitt` ikke kjente.
 
-Fallet er IKKE undersøkt. Det ser ut som samme feilklasse som PO7-tapet
-i `a0aa8af` — en formulering `_ROC` ikke tåler — men det er en antakelse,
-ikke et funn. Må måles før 2024 og 2025 brukes i et panel.
+| form | ordrett fra kroppen | traff |
+|---|---|---|
+| «høy» faller bort | «Indeksen for risiko for **påvirkning** er høy (31 %)» | 2024 PO5, PO7; 2025 PO7 |
+| **var** for **er** | «Indeksen for risiko for høy påvirkning **var** 43 %.» | 2025 PO2, PO8, PO9, PO11, PO12 |
+| lang innskyting | «... er moderat i 2025 **for produksjonsområdet som helhet** (11 %)» | 2024 PO4; 2025 PO3, PO4 |
+| omvendt ordstilling | «... **er indeksen** for risiko for påvirkning høy for 2024 (36 %)» | 2024 PO6 |
+| sidehode i setningen | «... for høy **Rapport fra ekspertgruppe for vurdering av lusepåvirkning 152** påvirkning er lav (2 %)» | 2023 PO12 |
+| ny etikett | «**HI kategorisert smittepress**:» | 2025 PO1,2,3,5,7,8,9,10 |
+
+Den stille halvdelen av `_ROC` var `(?:[^\W\d_]+\s*)*`: den krevde REN
+BOKSTAVTEKST mellom verbet og tallet, og falt derfor på ÅRSTALLET — «er
+moderat i 2024 (23 %)» stoppet ordløpet ved «2024».
+
+Sidehodet FJERNES nå i `_hi_avsnitt` framfor at mønstrene mykes opp. Et
+mønster som tålte seksti tegn mellom «høy» og «påvirkning» ville tålt
+hva som helst der, og da er det ikke lenger den setningen vi leser.
+
+**PO1 er dekning, ikke bug.** Rapporten oppgir ingen indeks for PO1 i noe
+år: 2021–2023 gir en AREALANDEL i stedet («forhøyet påvirkning utgjør
+< 1 % av det kystnære arealet»), 2024 og 2025 gir bare en kvalitativ
+vurdering. Uttrekket skal TIE der, ikke kaste.
+
+Etter rettingen leser parseren **12 av 13 PO i hvert år 2021–2025**, med
+PO1 som eneste fravær — 60 ROC-celler mot 43.
+
+### Hvorfor setningstellingen ikke fanget det
+
+`_krev_antall` krever et FORVENTET ANTALL. ROC har ikke ett: PO1 mangler
+legitimt, og en terskel på 13 ville fyrt hver eneste årgang. En terskel
+på «det vi fikk sist» er 1b-4s referanse som følger dataene.
+
+Vakten som fantes var altså riktig bygget for kategorien, der tallet ER
+13, og kunne ikke være det for et felt med ukjent dekning.
+
+`_ROC_KANDIDAT` er svaret: nevner avsnittet «Indeksen for risiko» uten at
+en verdi kommer ut, kastes `Rapportfeil`. Den trenger ikke vite hva
+summen skal bli — den spør om vi leste det kilden faktisk skrev, og det
+spørsmålet har et svar for hvert enkelt avsnitt. Den fant 2023 PO12 med
+det samme.

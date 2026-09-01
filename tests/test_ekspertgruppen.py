@@ -738,3 +738,100 @@ def test_nva_kroppene_har_landingsside_og_filelink():
         assert r.url.startswith("https://nva.sikt.no/registration/")
         assert "/filelink/" in r.filelink
         assert "X-Amz" not in r.filelink and "X-Amz" not in r.url
+
+
+# ============================================ ROC-formene i 2024 og 2025
+#
+# Alle sitatene er ORDRETT fra kroppene, verifisert 01.09.2026. ROC ble
+# lest for 43 av 60 celler; de sytten som manglet fordelte seg på fem
+# former mønsteret ikke tålte, pluss én etikett `_hi_avsnitt` ikke kjente.
+
+@pytest.mark.parametrize("aar,po,setning,ventet", [
+    (2024, 4, "HI smittepress: Indeksen for risiko for høy påvirkning er "
+              "likevel moderat i 2024 for POet som helhet (16 %).", "16"),
+    (2024, 5, "HI smittepress: Indeksen for risiko for påvirkning er "
+              "moderat i 2024 (23 %).", "23"),
+    (2024, 7, "HI smittepress: Indeksen for risiko for påvirkning er "
+              "høy (31 %).", "31"),
+    (2025, 2, "HI kategorisert smittepress: Indeksen for risiko for høy "
+              "påvirkning var 43 %.", "43"),
+    (2025, 3, "HI kategorisert smittepress: Indeksen for risiko for høy "
+              "påvirkning er i 2025 høy (31 %) ved midtpunkt.", "31"),
+    (2025, 7, "HI kategorisert smittepress: Indeksen for risiko for "
+              "påvirkning for POet var moderat (23 %) ved midtpunkt.", "23"),
+    (2025, 9, "HI kategorisert smittepress: Indeksen for risiko for høy "
+              "påvirkning var lav (3 %), og varierte fra 2 % til 6 %.", "3"),
+    (2025, 12, "HI smittepress: Indeksen for risiko for høy påvirkning for "
+               "PO12 som helhet var lav (1 %) og varierte lite.", "1"),
+])
+def test_roc_formene_som_falt_ut(aar, po, setning, ventet):
+    from sources.ekspertgruppen import F_ROC, _hi_smittepress
+
+    assert (F_ROC, ventet) in _hi_smittepress(setning), f"{aar} PO{po}"
+
+
+def test_omvendt_ordstilling():
+    """2024 PO6: verbet står FORAN subjektet."""
+    from sources.ekspertgruppen import F_ROC, _hi_smittepress
+
+    s = ("HI smittepress: For POet som helhet er indeksen for risiko for "
+         "påvirkning høy for 2024 (36 %) ved midtpunktet for utvandring.")
+    assert (F_ROC, "36") in _hi_smittepress(s)
+
+
+def test_sidehode_midt_i_setningen():
+    """2023 PO12: det løpende sidehodet limes inn mellom «høy» og
+    «påvirkning» når sidene settes sammen."""
+    from sources.ekspertgruppen import F_ROC, _hi_smittepress
+
+    s = ("HI smittepress: Indeksen for risiko for høy Rapport fra "
+         "ekspertgruppe for vurdering av lusepåvirkning 152 påvirkning "
+         "er lav (2 %).")
+    assert (F_ROC, "2") in _hi_smittepress(s)
+
+
+def test_ny_etikett_i_2025():
+    """«HI kategorisert smittepress» gjelder 8 av 13 PO i 2025. Uten den
+    ble avsnittet aldri undersøkt, og ROC falt fra 11 til 2."""
+    from sources.ekspertgruppen import F_ROC, _hi_smittepress
+
+    s = ("HI kategorisert smittepress: Indeksen for risiko for høy "
+         "påvirkning er moderat (21 %).")
+    assert (F_ROC, "21") in _hi_smittepress(s)
+
+
+def test_avsnitt_som_nevner_indeksen_uten_verdi_feller_uttrekket():
+    """Vakten setningstellingen ikke kunne være.
+
+    `_krev_antall` trenger et FORVENTET ANTALL, og ROC har ikke ett — PO1
+    oppgir legitimt ingen indeks. Denne spør i stedet om vi leste det
+    kilden faktisk skrev, og det har et svar per avsnitt.
+    """
+    from sources.ekspertgruppen import Rapportfeil, _hi_smittepress
+
+    with pytest.raises(Rapportfeil, match="nevner «Indeksen for risiko»"):
+        _hi_smittepress("HI smittepress: Indeksen for risiko for høy "
+                        "påvirkning ble vurdert av gruppen som helhet.")
+
+
+def test_po1_uten_indeks_er_dekning_ikke_feil():
+    """PO1 2024/2025 oppgir ingen indeks i det hele tatt — bare en
+    kvalitativ vurdering. Da skal uttrekket TIE, ikke kaste."""
+    from sources.ekspertgruppen import _hi_smittepress
+
+    s = ("Smittepress HI: Modellberegningene viser svært lave "
+         "konsentrasjoner av lakselus-kopepoditter i PO1 gjennom hele "
+         "utvandringsperioden. PO1 kategoriseres til å ha lav "
+         "lakselusindusert villaksdødelighet.")
+    assert _hi_smittepress(s) == []
+
+
+def test_arealandelen_er_uroert():
+    """2020-formen skal fortsatt leses, og som ET ANNET FELT."""
+    from sources.ekspertgruppen import F_AREALANDEL, F_ROC, _hi_smittepress
+
+    s = ("HI smittepress: Modellert område med forhøyet påvirkning utgjør "
+         "34 % av det kystnære arealet.")
+    ut = _hi_smittepress(s)
+    assert (F_AREALANDEL, "34") in ut
+    assert not any(f == F_ROC for f, _ in ut)
