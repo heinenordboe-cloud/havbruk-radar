@@ -2,7 +2,7 @@
 dato: 2026-09-01
 tittel: "Kildeleddet mot ROC: stoppregelen kan ikke evalueres — utvandringsvinduet mangler for hver eneste celle"
 status: gjeldende
-commit: [fylles inn]
+commit: 1601d5e
 ---
 
 ## Utfallet
