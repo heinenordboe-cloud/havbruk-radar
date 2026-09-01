@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-01** — [har_rensefisk og har_medikamentell_behandling er datatap hos kilden, ikke en parserfeil](2026-09-01-lusetall-to-felter-er-datatap.md) — gjeldende
 - **2026-08-31** — [Månedlig N_fisk bæres flatt over ukene, ikke interpolert](2026-08-31-manedlig-nfisk-baeres-flatt.md) — gjeldende
 - **2026-08-31** — [Hypotesen omdefineres — ROC er ikke en uavhengig fasit, den er en funksjon av prediktorene våre](2026-08-31-hypotesen-omdefineres.md) — gjeldende
 - **2026-08-31** — [Datakvalitetsvarsler (KREVER TILSYN) skal ikke feile den ukentlige jobben](2026-08-31-tilsyn-feiler-ikke-jobben.md) — besluttet

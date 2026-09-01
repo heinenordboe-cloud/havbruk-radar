@@ -50,6 +50,31 @@ Fra 31.08.2026 gjør en advarsel ikke jobben rød — den blir en
 ::warning::. Merket i commit-meldingen er derfor det som bærer signalet
 her; se `docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md`.
 
+## Ferskheten, målt 01.09.2026
+
+Etterslepet er ikke bare en policy i koden — det er målt på det som
+faktisk ligger på disk, og det er **nøyaktig 28 dager**:
+
+    uke 31  observed_at 2026-07-27  hentet 2026-08-24   28 d
+    uke 32  observed_at 2026-08-03  hentet 2026-08-31   28 d
+
+Sjøtemperatur følger samme takt (28 d for uke 32), som den skal — det er
+den samme rapporten.
+
+Eldre uker i arkivet viser større tall (opptil 170 d), men de er
+backfillet i én omgang 19.08.2026 og sier ingenting om den ukentlige
+rytmen. Bare kjøringer med `fetched_at` etter backfillen måler den.
+
+**Hva en nettside kan love:** ferskeste lusetall er fire uker gamle, og
+det er en KONSTANT, ikke en variabel. Den følger av at kilden henter uke
+N−4 for å få 99,3 % rapportert i stedet for 99,0 % ved N−3. Lover man
+ferskere enn fire uker, lover man noe innsamlingen ikke er innstilt på å
+gi — og innstillingen er et bevisst valg, ikke en begrensning hos
+BarentsWatch.
+
+Det forplanter seg: `kildeledd-delvis.parquet` slutter fire uker bak i
+tid av nøyaktig samme grunn, og det er ikke et hull i beregningen.
+
 ## Ukedato-konvensjonen
 
 Endepunktet tar år og uke; filnavnet må være en dato.

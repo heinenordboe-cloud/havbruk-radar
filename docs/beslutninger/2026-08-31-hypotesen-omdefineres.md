@@ -233,6 +233,69 @@ To ting må avklares før den nye grensen kan settes:
    faller derfor ut av rangbaserte mål. 2024 er senere revidert til
    moderat av 2025-rapporten; 2025 står uavklart.
 
+## Grensen satt på nytt 01.09.2026 — fordi celletallet endret seg
+
+**Dette er ikke en oppmykning etter et resultat. Analysen er fortsatt
+ikke kjørt.** Grunnlaget under grensen falt bort da ROC-parserbugen ble
+rettet (`600554c`), og en grense begrunnet på et celletall som ikke
+stemmer, er ingen grense. De gamle tallene står uendret over; dette er
+en tilføyelse, ikke en overskriving.
+
+### Hva som endret seg
+
+    n           39  ->  60      (13 PO x 3 år  ->  12 PO x 5 år)
+    grupper     13  ->  12      PO1 oppgir legitimt ingen ROC i noe år
+    n per PO     3  ->   5
+    frihetsgrader innen PO   39-13 = 26  ->  60-12 = 48
+
+### Nytt samlet ledd: **R² ≥ 0,67**
+
+Samme metode som før: finn den R² hvis 95 %-intervalls NEDRE kant
+klarerer den fulle Stien-proxyens rho² = 0,494. Fisher-z, df = n − 3.
+
+| n | eksakt løsning | 95 % CI for R² | avrundet grense |
+|---|---|---|---|
+| 39 (gammel) | R² = 0,6948 | [0,494, 0,828] | 0,70 |
+| 60 (ny) | R² = 0,6592 | [0,494, 0,781] | **0,67** |
+
+Grensen faller fordi intervallet er smalere ved n = 60, ikke fordi
+kravet er mildere: nedre kant ligger på samme sted mot samme
+referansepunkt. Ved R² = 0,67 og n = 60 er intervallet
+[0,508, 0,788] — nedre kant over 0,494 (full proxy) og godt over 0,260
+(lusetall alene) og 0,261 (PO-nummer alene).
+
+**0,67 og ikke 0,66,** som den eksakte løsningen ville tillatt: disken
+holder i dag 58 ROC-celler, ikke 60. Differansen er PO7 i 2021 og 2022,
+som ligger i committede v1-snapshots og bevisst ikke er rørt. Ved
+n = 58 gir R² = 0,66 nedre kant 0,4918 — så vidt UNDER referansen —
+mens 0,67 gir 0,5047. Grensen skal ikke avhenge av en beslutning som
+ikke er tatt, og 0,67 klarerer begge.
+
+### Innen-PO-leddet står på **R² ≥ 0,25**
+
+Samme metode gir samme tall. Metoden var aldri «løs for nedre kant lik
+null»; den var «velg |r| = 0,5, og kontroller at den er skilt fra null».
+
+    13 PO à 3 år, df = 26:  R² = 0,25, 95 % CI R² = [0,027, 0,536]
+    12 PO à 5 år, df = 48:  R² = 0,25, 95 % CI R² = [0,068, 0,465]
+
+Leddet er fortsatt **den svakeste delen av regelen** — det påstår bare at
+innen-PO-sammenhengen er skilt fra null, ikke at den er sterk. Det som
+er endret er at **n per gruppe gikk fra 3 til 5**, og med 48
+frihetsgrader mot 26 hviler den samme påstanden på mer: nedre kant har
+flyttet seg fra 0,027 til 0,068.
+
+Terskelen er IKKE senket selv om de 48 frihetsgradene ville tillatt det
+(samme margin som før nås ved R² ≈ 0,12). Å flytte en grense nedover
+etter at grunnlaget ble bedre, uten at spørsmålet er endret, er hvordan
+en stoppregel mister tennene. Marginen beholdes som margin.
+
+### Hvorfor leddet finnes, uendret
+
+Ren geografi — PO-nummeret alene — når |rho| 0,511 mot kategori uten å
+kjenne lus, temperatur eller fisk. Et samlet R² kan i prinsippet være
+utelukkende mellom-PO-variasjon, altså et kart og ikke en mekanisme.
+
 ## Hva som ville snudd det
 
 - Dokumentasjon på at HI bruker en **annen formel eller andre registre**
