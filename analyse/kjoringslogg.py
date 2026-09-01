@@ -77,6 +77,25 @@ ROT = Path(__file__).resolve().parent.parent
 GJELDENDE = "gjeldende"
 FORSTE = "forste"
 
+# ALLE er ETT valg, ikke en blanding av de to over.
+#
+# GJELDENDE og FORSTE gir én fil per dato, og svarer på «hva sier kilden
+# nå om denne DATOEN». Det er riktig spørsmål for et snapshot som helhet,
+# og feil for et enkelt FELT når kilden har revidert bare deler av året.
+#
+# Målt 01.09.2026: 2025-rapporten reviderer 2024, men restaterer bare
+# kategorien — 26 observasjoner mot 2024-rapportens 50. En analyse som
+# leste GJELDENDE mistet hele 2024s ROC og fikk n = 46 der disken har 58,
+# uten at noe sa fra. Utvandringsvinduene forsvinner på samme måte: de
+# finnes bare i 2020-rapporten, og 2020 er revidert av 2021-rapporten.
+#
+# En revisjon som ikke nevner et felt, har ikke TRUKKET TILBAKE feltet.
+# ALLE leverer derfor hver versjon av hver dato, og lar kalleren slå dem
+# sammen per felt på `published_at`. Loggen fører hver enkelt lesing som
+# før, så det er fortsatt lesingen som skriver loggen — det er BREDDEN
+# som er valgt, ikke hvilken påstand som gjelder.
+ALLE = "alle"
+
 # Verdien som skrives der et tidspunkt ikke er kjent. Tom streng ville
 # lest som en kolonne som mangler; dette er en påstand om fravær.
 UKJENT = "(ukjent)"
@@ -223,6 +242,9 @@ class Kjoringslogg:
         `versjonsvalg`:
             GJELDENDE   sist utgitte versjon av hver dato (standard)
             FORSTE      først utgitte
+            ALLE        hver versjon av hver dato, eldst utgitt først.
+                        For en analyse som vil ha gjeldende påstand per
+                        FELT og ikke per fil — se ALLE.
             et heltall  det løpenummeret, der det finnes. Datoer uten det
                         forkastes og føres som forkastet — de forsvinner
                         ikke stille.
@@ -247,6 +269,11 @@ class Kjoringslogg:
                 continue
 
             versjonene = snapshot.versjoner(kilde, dato)
+            if versjonsvalg == ALLE:
+                for nr, ramme in versjonene:
+                    self._foer(kilde, dato, nr, ramme)
+                    ut.append((dato, ramme))
+                continue
             valgt = self._velg(versjonene, versjonsvalg)
             if valgt is None:
                 self._forkastet.append(Forkastet(
@@ -256,20 +283,24 @@ class Kjoringslogg:
                 continue
 
             nr, ramme = valgt
-            self._lesinger.append(Lesing(
-                kilde=kilde,
-                observed_at=dato,
-                versjon=nr,
-                published_at=snapshot.published_at_i(ramme) or UKJENT,
-                fetched_at=snapshot.fetched_at_i(ramme) or UKJENT,
-                source_version=snapshot.source_version_i(ramme) or UKJENT,
-                utvalg=(ramme["utvalg"][0] if "utvalg" in ramme.columns
-                        and not ramme.is_empty() else "") or UKJENT,
-                n_rader=ramme.height,
-            ))
+            self._foer(kilde, dato, nr, ramme)
             ut.append((dato, ramme))
 
         return ut
+
+    def _foer(self, kilde: str, dato: str, nr: int, ramme: pl.DataFrame) -> None:
+        """Én lest fil inn i loggen. Ett sted, brukt av alle versjonsvalg."""
+        self._lesinger.append(Lesing(
+            kilde=kilde,
+            observed_at=dato,
+            versjon=nr,
+            published_at=snapshot.published_at_i(ramme) or UKJENT,
+            fetched_at=snapshot.fetched_at_i(ramme) or UKJENT,
+            source_version=snapshot.source_version_i(ramme) or UKJENT,
+            utvalg=(ramme["utvalg"][0] if "utvalg" in ramme.columns
+                    and not ramme.is_empty() else "") or UKJENT,
+            n_rader=ramme.height,
+        ))
 
     def les_dato(self, kilde: str, dato: str,
                  versjonsvalg: str | int = GJELDENDE) -> pl.DataFrame | None:

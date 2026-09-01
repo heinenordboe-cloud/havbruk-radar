@@ -282,3 +282,80 @@ def test_loggen_skrives_ved_siden_av_resultatet(isolert, tmp_path):
     assert skrevet == sti and sti.exists()
     assert logg.peker == "lusepress.kjoring.log"
     assert sti.read_text(encoding="utf-8").startswith("# kjøringslogg")
+
+
+# ==================================================== versjonsvalget ALLE
+
+def _to_versjoner_av_2024():
+    """2024 skrevet av 2024-rapporten, deretter revidert av 2025-rapporten.
+
+    Revisjonen restaterer BARE kategorien — den nevner ikke ROC, og har
+    dermed ikke trukket den tilbake.
+    """
+    def obs(felt, verdi):
+        return Observation(
+            entity_id="1", entity_type="produksjonsomraade", entity_name="PO1",
+            field=felt, value=verdi, source="ekspertgruppen",
+            observed_at="2024-12-31")
+
+    for felt, verdi, utgitt in (("roc", "12", "2024-11-29T08:42:16+00:00"),
+                                ("kategori", "moderat", "2025-11-20T15:51:48+00:00")):
+        snapshot.write([replace(obs(felt, verdi), fetched_at="2026-09-01T00:00:00+00:00",
+                                published_at=utgitt, source_version="3",
+                                raw_hash="h", utvalg="{}")], "2024-12-31")
+
+
+def test_alle_gir_hver_versjon_av_hver_dato(tmp_path, monkeypatch):
+    """GJELDENDE gir én fil per dato og svarer på «hva sier kilden nå om
+    denne DATOEN». For et enkelt FELT er det feil spørsmål når kilden har
+    revidert bare deler av året.
+
+    Målt 01.09.2026: 2025-rapporten reviderer 2024, men restaterer bare
+    kategorien. En analyse som leste GJELDENDE mistet hele 2024s ROC og
+    fikk n = 46 der disken har 58, uten at noe sa fra.
+    """
+    from analyse import kjoringslogg
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    _to_versjoner_av_2024()
+
+    logg = kjoringslogg.Kjoringslogg("proeve", tmp_path / "p.log")
+    lest = logg.les("ekspertgruppen", "2000-01-01", "2099-12-31",
+                    versjonsvalg=kjoringslogg.ALLE)
+
+    assert len(lest) == 2, "begge versjonene skal komme ut"
+    felter = {r["field"][0] for _, r in lest}
+    assert felter == {"roc", "kategori"}
+
+
+def test_alle_foerer_hver_lesing_i_loggen(tmp_path, monkeypatch):
+    """Loggen skrives fortsatt AV lesingen. Det er bredden som er valgt,
+    ikke hvilken påstand som gjelder."""
+    from analyse import kjoringslogg
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    _to_versjoner_av_2024()
+
+    logg = kjoringslogg.Kjoringslogg("proeve", tmp_path / "p.log")
+    logg.les("ekspertgruppen", "2000-01-01", "2099-12-31",
+             versjonsvalg=kjoringslogg.ALLE)
+    tekst = "\n".join(logg.linjer())
+
+    assert tekst.count("2024-12-31") >= 2
+    assert "2024-11-29" in tekst and "2025-11-20" in tekst
+
+
+def test_alle_er_ett_valg_og_kan_ikke_blandes(tmp_path, monkeypatch):
+    """Vakten mot blandede versjonsvalg gjelder ALLE som de andre — den
+    ble ikke myket opp for å slippe dette igjennom."""
+    from analyse import kjoringslogg
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    _to_versjoner_av_2024()
+
+    logg = kjoringslogg.Kjoringslogg("proeve", tmp_path / "p.log")
+    logg.les("ekspertgruppen", "2000-01-01", "2099-12-31",
+             versjonsvalg=kjoringslogg.ALLE)
+    with pytest.raises(ValueError, match="versjonsvalg"):
+        logg.les("ekspertgruppen", "2000-01-01", "2099-12-31",
+                 versjonsvalg=kjoringslogg.GJELDENDE)
