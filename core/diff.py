@@ -279,7 +279,25 @@ def compare(current: pl.DataFrame, observed_at: str,
     if not changes:
         return pl.DataFrame(schema=CHANGE_SCHEMA)
 
-    return pl.DataFrame(changes).select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
+    # `infer_schema_length=None` — les ALLE radene før typen avgjøres.
+    #
+    # Polars' standard er å utlede skjemaet fra de 100 første radene. Er
+    # de 100 første «ny», er `old_value` None i alle sammen, kolonnen blir
+    # utledet som Null, og den første «borte»-raden med en streng feller
+    # hele byggingen:
+    #
+    #     ComputeError: could not append value: "..." of type: str
+    #
+    # Det har aldri fyrt fordi hver eksisterende kilde blander ny, endret
+    # og borte innenfor de første hundre radene. En kilde som skriver
+    # snapshots med helt DISJUNKTE entitetssett gjør ikke det —
+    # `eierskap_historikk` har én rad per overføring per år, og to
+    # nabosnapshots deler ingen entiteter. Da kommer alle «ny» først.
+    #
+    # Feilen lå i skjemautledningen, ikke i dataene: `.cast()` under ville
+    # gitt riktig type uansett, men rammen rakk aldri å bli bygget.
+    return pl.DataFrame(changes, infer_schema_length=None) \
+        .select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
 
 
 def _vilkaar(eldre: pl.DataFrame, nyere: pl.DataFrame, source: str,
@@ -389,7 +407,25 @@ def revisjon_mellom(eldre: pl.DataFrame, nyere: pl.DataFrame,
     if not changes:
         return pl.DataFrame(schema=CHANGE_SCHEMA)
 
-    return pl.DataFrame(changes).select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
+    # `infer_schema_length=None` — les ALLE radene før typen avgjøres.
+    #
+    # Polars' standard er å utlede skjemaet fra de 100 første radene. Er
+    # de 100 første «ny», er `old_value` None i alle sammen, kolonnen blir
+    # utledet som Null, og den første «borte»-raden med en streng feller
+    # hele byggingen:
+    #
+    #     ComputeError: could not append value: "..." of type: str
+    #
+    # Det har aldri fyrt fordi hver eksisterende kilde blander ny, endret
+    # og borte innenfor de første hundre radene. En kilde som skriver
+    # snapshots med helt DISJUNKTE entitetssett gjør ikke det —
+    # `eierskap_historikk` har én rad per overføring per år, og to
+    # nabosnapshots deler ingen entiteter. Da kommer alle «ny» først.
+    #
+    # Feilen lå i skjemautledningen, ikke i dataene: `.cast()` under ville
+    # gitt riktig type uansett, men rammen rakk aldri å bli bygget.
+    return pl.DataFrame(changes, infer_schema_length=None) \
+        .select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
 
 
 def revisjon(current: pl.DataFrame, observed_at: str) -> pl.DataFrame:

@@ -250,3 +250,128 @@ def test_published_at_settes_ikke(monkeypatch):
     k = Eierskap()
     k.fetch("2026-09-02")
     assert getattr(k, "published_at", "") == ""
+
+
+# ============================================================ historikk
+#
+# Overføringene arver personvernfilteret fra den ukentlige kilden. Testene
+# under sjekker at de FAKTISK gjør det — en kopi som driver fra originalen
+# er nøyaktig feilformen `_tillat()` ble samlet ett sted for å hindre.
+
+TYPER = {"969159570": "LimitedLiabilityCompany",
+         "985937028": "SoleProprietorship"}
+
+
+def _kropp(*overf):
+    return {"ajourDate": "2026-09-02", "transfers": list(overf)}
+
+
+def _overf(orgnr, dato, jnr, navn="EKTE LAKS AS"):
+    return {"identityNr": orgnr, "journalDate": dato,
+            "journalNr": jnr, "officialName": navn}
+
+
+def test_overforing_blir_observasjoner():
+    k = {"A-A-0001": _kropp(_overf("969159570", "2022-12-20", "2022000164"))}
+    obs = list(Eierskap().parse_overforinger(k, TYPER, "2022-12-31"))
+    felt = {o.field: o.value for o in obs}
+    assert felt["tillatelse_nr"] == "A-A-0001"
+    assert felt["mottaker_orgnr"] == "969159570"
+    assert felt["journal_dato"] == "2022-12-20"
+    assert obs[0].entity_id == "A-A-0001|2022000164"
+    assert obs[0].source == eierskap.HISTORIKK_KILDE
+
+
+def test_bare_arets_overforinger_kommer_med():
+    """Ett snapshot er ett tidspunkt. `snapshot.write()` avviser en ramme
+    med flere observed_at, så filtreringen må skje her."""
+    k = {"A": _kropp(_overf("969159570", "2006-09-20", "2006000203"),
+                     _overf("969159570", "2022-12-23", "2022000179"))}
+    for aar, ventet in (("2006", "2006-09-20"), ("2022", "2022-12-23")):
+        obs = list(Eierskap().parse_overforinger(k, TYPER, f"{aar}-12-31"))
+        datoer = {o.value for o in obs if o.field == "journal_dato"}
+        assert datoer == {ventet}
+
+
+def test_to_overforinger_samme_aar_kolliderer_ikke():
+    """SF-SU-0004 ble overført TO ganger i 2006.
+
+    Med tillatelsesnummeret som entity_id ville den ene raden stilltiende
+    overskrevet den andre i `snapshot.NOKKEL`.
+    """
+    k = {"SF-SU-0004": _kropp(
+        _overf("969159570", "2006-09-20", "2006000203", "AQUA FARMS AS"),
+        _overf("969159570", "2006-12-29", "2006000270", "PAN FISH NORWAY AS"))}
+    obs = list(Eierskap().parse_overforinger(k, TYPER, "2006-12-31"))
+    assert len({o.entity_id for o in obs}) == 2
+
+
+def test_datoforbeholdet_staar_paa_hver_rad():
+    """journalDate er journalføringsdato, ikke bekreftet overdragelse.
+
+    Forbeholdet skal følge parqueten, ikke bare kjøringsloggen — samme
+    krav som `aggregering` og `forbehold` i kildeledd (CLAUDE.md 1b-3).
+    """
+    k = {"A": _kropp(_overf("969159570", "2022-12-20", "2022000164"))}
+    obs = list(Eierskap().parse_overforinger(k, TYPER, "2022-12-31"))
+    ider = {o.entity_id for o in obs}
+    for i in ider:
+        forbehold = [o.value for o in obs
+                     if o.entity_id == i and o.field == "dato_forbehold"]
+        assert len(forbehold) == 1
+        assert "JOURNALFØRINGSDATO" in forbehold[0]
+
+
+def test_enk_mottaker_stoppes_i_historikken():
+    """Samme prøve som den ukentlige kilden: ni siffer er ikke nok."""
+    k = {"A": _kropp(_overf("985937028", "2022-12-20", "2022000164"))}
+    assert list(Eierskap().parse_overforinger(k, TYPER, "2022-12-31")) == []
+
+
+def test_ukjent_mottaker_stoppes_i_historikken():
+    """En mottaker som ikke finnes i typekartet har UKJENT type.
+
+    Det gjelder blant annet selskaper som er oppløst siden 2006. «Vet
+    ikke» kan ikke bety «slipp gjennom» i et personvernfilter, og
+    kostnaden i tapt historikk er en pris vi betaler bevisst.
+    """
+    k = {"A": _kropp(_overf("999999999", "2010-05-05", "2010000001"))}
+    assert list(Eierskap().parse_overforinger(k, TYPER, "2010-12-31")) == []
+
+
+def test_tom_identitynr_stoppes():
+    """De tomme er privatpersoner — Fiskeridirektoratet holder tilbake
+    nummeret for fysiske personer, men publiserer navnet."""
+    k = {"A": _kropp(_overf("", "2010-05-05", "2010000001", "NORDMANN, OLA"))}
+    obs = list(Eierskap().parse_overforinger(k, TYPER, "2010-12-31"))
+    assert obs == []
+    assert "NORDMANN" not in repr(obs)
+
+
+def test_ellevesifret_mottaker_stoppes():
+    k = {"A": _kropp(_overf("12345678901", "2010-05-05", "2010000001"))}
+    typer = {**TYPER, "12345678901": "LimitedLiabilityCompany"}
+    assert list(Eierskap().parse_overforinger(k, typer, "2010-12-31")) == []
+
+
+def test_overforing_uten_journalnr_stoppes():
+    """Uten journalNr finnes ingen unik nøkkel, og to overføringer i
+    samme år ville kollidert."""
+    k = {"A": _kropp(_overf("969159570", "2022-12-20", ""))}
+    assert list(Eierskap().parse_overforinger(k, TYPER, "2022-12-31")) == []
+
+
+def test_historikken_bruker_samme_filter_som_ukekilden():
+    """Ikke en kopi. Driver de fra hverandre, er det F6/F7-formen igjen."""
+    import inspect
+    kode = inspect.getsource(Eierskap.parse_overforinger)
+    assert "_tillat(" in kode
+
+
+def test_historikken_skriver_til_egen_kilde():
+    """Egen serie, ikke `eierskap`. Blandet ville feltvakten sett nitten
+    felter forsvinne mellom to snapshots av «samme» kilde."""
+    assert eierskap.HISTORIKK_KILDE != Eierskap.name
+    k = {"A": _kropp(_overf("969159570", "2022-12-20", "2022000164"))}
+    obs = list(Eierskap().parse_overforinger(k, TYPER, "2022-12-31"))
+    assert {o.source for o in obs} == {eierskap.HISTORIKK_KILDE}

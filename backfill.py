@@ -80,6 +80,8 @@ sekunders eller to minutters mellomrom.
 import argparse
 import datetime as dt
 import gzip
+import json
+import re
 import io
 import sys
 import time
@@ -174,6 +176,29 @@ def _uker(fra: tuple[int, int], til: tuple[int, int]):
         iso = d.isocalendar()
         yield iso.year, iso.week
         d += dt.timedelta(weeks=1)
+
+
+# Eierskapshistorikken. Arkivet ligger for seg selv fordi kroppene er
+# per TILLATELSE og ikke per periode, og snapshotene ligger for seg selv
+# fordi feltene er helt andre enn den ukentlige eierskapskildens — se
+# `HISTORIKK_KILDE` i sources/eierskap.py.
+EIERSKAP_ARKIV = "eierskap-overforinger"
+EIERSKAP_HISTORIKK = "eierskap_historikk"
+
+
+def _arkivnavn(tillatelsesnr: str) -> str:
+    """Tillatelsesnummer -> trygt filnavn.
+
+    Numrene er av formen «H-KM-0018» og inneholder ingenting som må
+    rømmes i dag. Vasken står likevel her: et nummer med en skråstrek
+    ville skrevet utenfor arkivmappa, og filnavnet er samtidig
+    fremdriftsloggen — den skal ikke kunne peke feil sted.
+    """
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", tillatelsesnr)
+
+
+def _fra_arkivnavn(filnavn: str) -> str:
+    return filnavn.split(".")[0]
 
 
 def _finnes_allerede(kilde_navn: str, dato: str) -> bool:
@@ -664,6 +689,140 @@ def _backfill_maaneder(kilde, args) -> int:
 
 # ----------------------------------------------------------- rapportmodus
 
+def _backfill_overforinger(kilde, args) -> int:
+    """Eierskapshistorikken: ett kall per tillatelse, ett snapshot per år.
+
+        python backfill.py --kilde eierskap --overforinger
+
+    ## Hvorfor en fjerde modus
+
+    De tre andre henter PERIODER: én kropp per uke, én kropp for alle
+    månedene, N kropper som hver dekker M år. Denne henter én kropp per
+    ENTITET — 3036 tillatelser — og periodene faller ut av innholdet
+    etterpå. Ingen av de tre treffer den formen.
+
+    ## Fremdrift og idempotens er den samme mekanismen
+
+    Arkivfila ER fremdriftsloggen. Hver tillatelse arkiveres under sitt
+    eget nummer, og en tillatelse som allerede har en arkivfil hoppes
+    over uten et kall. Et avbrudd etter 2000 kall koster derfor 1036 kall
+    å gjenoppta, ikke 3036.
+
+    `raw.arkiver_ny()` brukes IKKE, og det er med vilje: den hasher hele
+    arkivmappa ved hvert kall for å finne duplikater, og med 3036 filer
+    er det O(n²). Dens egen docstring sier at den er for arkiver med
+    «titalls filer — ikke titusener». Her holder det å spørre om fila
+    finnes.
+
+    ## Hvorfor snapshotene skrives per ÅR
+
+    Samme mønster som de månedlige biomasse-snapshotene: en overføring
+    hører til det tidspunktet den skjedde, ikke til dagen vi hentet den.
+    `observed_at` blir 31.12 i journalføringsåret, og den eksakte datoen
+    står i `journal_dato` på hver rad.
+    """
+    import httpx
+
+    ut_dir = raw_arkiv.ARKIV_DIR / EIERSKAP_ARKIV
+    ut_dir.mkdir(parents=True, exist_ok=True)
+    pause = (args.pause if args.pause is not None
+             else getattr(kilde, 'PAUSE_S', PAUSE_S))
+
+    c = httpx.Client(timeout=120.0, follow_redirects=True)
+    try:
+        print("Henter tillatelsesliste og eiertyper …")
+        numre = kilde.tillatelsesnumre(c)
+        typer = kilde.eiertyper(c)
+        print(f"  {len(numre)} tillatelser, {len(typer)} selskaper i typekartet")
+
+        hentet = hoppet = feilet = 0
+        feil: list[str] = []
+        for i, nr in enumerate(numre, 1):
+            sti = ut_dir / f"{_arkivnavn(nr)}.json.gz"
+            if sti.exists():
+                hoppet += 1
+                continue
+            try:
+                kropp = kilde.overforinger(nr, c)
+            except Exception as e:
+                feilet += 1
+                feil.append(f"{nr}: {type(e).__name__}: {e}")
+                print(f"  [{i}/{len(numre)}] {nr}: FEIL {type(e).__name__}")
+                continue
+            if not args.torrkjor:
+                with gzip.open(sti, "wb", compresslevel=9) as f:
+                    f.write(json.dumps(kropp, ensure_ascii=False,
+                                       sort_keys=True).encode("utf-8"))
+            hentet += 1
+            if hentet % 100 == 0:
+                print(f"  [{i}/{len(numre)}] hentet {hentet}, "
+                      f"hoppet {hoppet}, feilet {feilet}")
+            time.sleep(pause)
+    finally:
+        c.close()
+
+    print(f"\nHenting ferdig: {hentet} hentet, {hoppet} lå der fra før, "
+          f"{feilet} feilet.")
+    if feil:
+        print(f"{len(feil)} feilet — kjør på nytt for å ta dem:")
+        for f_ in feil[:10]:
+            print(f"  {f_}")
+    if args.torrkjor:
+        print("TØRRKJØRING — ingenting skrevet.")
+        return 0
+    if feilet:
+        # Et ufullstendig grunnlag skal ikke bli til snapshots som ser
+        # komplette ut. Kjør igjen; arkivet husker hva som mangler.
+        print("::error::Noen tillatelser mangler. Snapshots skrives IKKE "
+              "før alle er hentet — et hull ville sett ut som et år uten "
+              "overføringer.")
+        return 1
+
+    # ---- les arkivet og skriv ett snapshot per år ----------------------
+    kropper: dict[str, dict] = {}
+    for sti in sorted(ut_dir.glob("*.json.gz")):
+        with gzip.open(sti, "rb") as f:
+            kropper[_fra_arkivnavn(sti.name)] = json.loads(f.read())
+    print(f"\nLeser {len(kropper)} arkiverte kropper.")
+
+    aar = sorted({str(t.get("journalDate") or "")[:4]
+                  for k in kropper.values()
+                  for t in (k or {}).get("transfers") or []
+                  if t.get("journalDate")})
+    print(f"Årganger med overføringer: {aar[0]}..{aar[-1]} ({len(aar)} år)")
+
+    skrevet = tomme = 0
+    endringer_totalt = 0
+    for a in aar:
+        dato = f"{a}-12-31"
+        if _finnes_allerede(EIERSKAP_HISTORIKK, dato):
+            print(f"  {dato}: ligger skrevet fra før")
+            continue
+        obs = list(runner.stempl(
+            kilde.parse_overforinger(kropper, typer, dato),
+            source_version=kilde.version, raw_hash="",
+            fetched_at=dt.datetime.now(dt.timezone.utc).isoformat(),
+            published_at="", utvalg=getattr(kilde, "utvalg", None)))
+        if not obs:
+            tomme += 1
+            print(f"  {dato}: ingen overføringer igjen etter filtrering")
+            continue
+        ramme = snapshot.to_frame(obs)
+        endr = diff.compare(ramme, dato)
+        filer = snapshot.write(obs, dato)
+        changelog.skriv(endr, dato, versjon=snapshot.versjon_av(filer[0]))
+        skrevet += 1
+        endringer_totalt += endr.height
+        print(f"  {dato}: {ramme.height:>5} observasjoner, "
+              f"{ramme['entity_id'].n_unique():>4} overføringer -> "
+              f"{filer[0].name}")
+
+    print(f"\n{skrevet} årssnapshots skrevet ({endringer_totalt} "
+          f"changelog-rader), {tomme} år tomme etter filtrering.")
+    print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+    return 0
+
+
 def _backfill_rapporter(kilde, args) -> int:
     """Backfill for en kilde der HVER KROPP dekker flere perioder, og
     kroppene OVERLAPPER.
@@ -901,6 +1060,11 @@ def main() -> int:
                         "og skriv hvert år de dekker: førstegangsskriving "
                         "der året er nytt, revisjon der det alt finnes. "
                         "Bare for kilder med utgivelser().")
+    p.add_argument("--overforinger", action="store_true",
+                   help="hent eierskapshistorikken: ett kall per "
+                        "tillatelse, ett snapshot per år. Gjenopptakbar — "
+                        "arkivfila er fremdriftsloggen. Bare for kilder "
+                        "med overforinger().")
     p.add_argument("--reparse", action="store_true",
                    help="les de ARKIVERTE kroppene i stedet for å hente på "
                         "nytt, og skriv årene om igjen med gjeldende "
@@ -922,6 +1086,14 @@ def main() -> int:
         print(f"Ukjent eller inaktiv kilde: {args.kilde}")
         return 1
     # Kilden velger modus, ikke brukeren. Se modulens docstring.
+    if args.overforinger:
+        if not hasattr(kilde, "overforinger"):
+            print(f"{args.kilde} har ingen overforinger(). Modusen gjelder "
+                  f"kilder som henter én kropp per ENTITET, ikke per "
+                  f"periode.")
+            return 1
+        return _backfill_overforinger(kilde, args)
+
     if hasattr(kilde, "utgivelser"):
         if args.arkiv or args.revisjon:
             print("--arkiv og --revisjon gjelder kilder med hent_alt(). "

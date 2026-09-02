@@ -233,6 +233,67 @@ def _lokaliteter(lisens: dict) -> list[str]:
     return sorted(ut)
 
 
+# ------------------------------------------------------------ historikk
+#
+# `/licenses/{nr}/transfers` gir EIERSKAPSKJEDEN for én tillatelse, og
+# den rekker tilbake til 2006. Verifisert 02.09.2026.
+#
+# ## journalDate er den ENESTE datoen, og den er udokumentert
+#
+# Et overføringselement har nøyaktig fire felter, målt over 45
+# overføringer i 60 tillatelser:
+#
+#     identityNr    organisasjonsnummer til MOTTAKER
+#     journalDate   journalføringsdato
+#     journalNr     saksnummer, «2022000164»
+#     officialName  mottakerens navn
+#
+# Det finnes ingen `validFrom`, ingen overdragelsesdato og ingen
+# avgiver. Fiskeridirektoratets Swagger-skall på /pub-aqua/ svarer 404
+# på hver eneste spec-adresse vi har prøvd, og API-katalogen er en SPA
+# som ikke leverer maskinlesbar dokumentasjon. **Ingen offentlig kilde
+# forklarer hva journalDate betyr.**
+#
+# Krysspeiling mot vår egen changelog er PRØVD og virker ikke: de ni
+# tillatelsene som flyttet mellom lokaliteter i vinduet 24.-31.08.2026
+# har ingen overføring i det vinduet. Tilknytningsendring og eierskifte
+# er to ULIKE hendelser, og changeloggen vår ser bare den første.
+#
+# Det som derimot lot seg måle er at serien er INTERNT konsistent, på
+# 120 tillatelser:
+#
+#     journalDate kronologisk sortert            120/120
+#     ingen overføring før grantedTime           120/120
+#     siste overføring == dagens eier             61/62
+#     uten overføringer: dagens eier == tildelt   57/58
+#
+# Kjeden er altså ekte og fullstendig nok til å bære en tidsserie, men
+# datoen er journalføring og ikke nødvendigvis overdragelse. Derfor
+# bæres forbeholdet PÅ HVER RAD (`dato_forbehold`), ikke bare i loggen —
+# samme mønster som `aggregering = "baer_maaned"` i kildeledd.
+DATO_FORBEHOLD = (
+    "journalDate er JOURNALFØRINGSDATO, ikke bekreftet overdragelsesdato. "
+    "Det er den eneste datoen endepunktet oppgir, og Fiskeridirektoratet "
+    "dokumenterer ikke betydningen. Den faktiske overdragelsen kan ligge "
+    "foran journalføringen. Serien er internt konsistent (kronologisk, "
+    "etter tildeling, ender på dagens eier), men datoen skal leses som "
+    "«senest da» og ikke som «akkurat da»."
+)
+
+# Kilden overføringene skrives under. EGEN serie, ikke `eierskap`, og
+# det er ikke kosmetikk: den ukentlige eierskapskilden har helt andre
+# felter og en helt annen kadens. Blandet man dem, ville feltvakten sett
+# nitten felter forsvinne og seks nye dukke opp mellom to snapshots av
+# «samme» kilde — nøyaktig F10s mønster.
+HISTORIKK_KILDE = "eierskap_historikk"
+
+# Sekunder mellom kall. Fiskeridirektoratet er en offentlig etat, ikke
+# en CDN: 3036 kall skal ta en halvtime og ikke felle noen andres
+# oppslag. Tallet er ikke målt mot en rate limit — vi har ikke sett
+# noen — det er valgt for å være åpenbart høflig.
+PAUSE_S = 0.5
+
+
 class Eierskap(Source):
     name = "eierskap"
     entity_type = "tillatelse"
@@ -344,6 +405,102 @@ class Eierskap(Source):
         """Registeret sier hva som gjelder NÅ. Ingen etterslep, som
         `akvakultur` og `enhetsregisteret`."""
         return kjoredato
+
+    # ---- eierskapshistorikk --------------------------------------------
+    #
+    # Egen inngang, ikke en del av den ukentlige `fetch()`. Backfillen
+    # dispatcher på at `overforinger()` finnes — samme egenskapsbaserte
+    # utvelgelse som `utgivelser()` og `hent_alt()`, og av samme grunn:
+    # kilden vet hvilken form den har.
+
+    def tillatelsesnumre(self, c: httpx.Client) -> list[str]:
+        """Alle tillatelsesnumre, sortert. Én liste å iterere over."""
+        return sorted({str(l["licenseNr"]) for l in self._alt(c, "/licenses")
+                       if l.get("licenseNr")})
+
+    def eiertyper(self, c: httpx.Client) -> dict[str, str]:
+        """{organisasjonsnummer: typeValue} for IKKE-personer.
+
+        Dette er oppslaget personvernfilteret trenger for overføringene.
+        `transfers` oppgir bare `identityNr`, ikke entitets-ID-en, så
+        kartet går på organisasjonsnummer.
+
+        Personer er allerede borte når kartet er bygget: en mottaker som
+        ikke finnes her har UKJENT type, og blir stoppet av `_tillat()`.
+        Det er samme retning som i den ukentlige kilden — «vet ikke» kan
+        ikke bety «slipp gjennom» i et personvernfilter.
+        """
+        ut: dict[str, str] = {}
+        for e in self._alt(c, "/entities"):
+            if er_person(e.get("typeValue")):
+                continue
+            nr = str(e.get("openNr") or "").strip()
+            if er_organisasjonsnummer(nr):
+                ut[nr] = str(e.get("typeValue") or "")
+        return ut
+
+    def overforinger(self, nr: str, c: httpx.Client) -> dict:
+        """Rå transfers-respons for ÉN tillatelse.
+
+        Returnerer kroppen slik tjenesten sendte den. Den arkiveres per
+        tillatelse, og filnavnet er tillatelsesnummeret — det er også
+        backfillens fremdriftslogg: finnes fila, er tillatelsen hentet.
+        """
+        base = get("kilder.eierskap.base_url", STANDARD_BASE).rstrip("/")
+        return _http.get(c, f"{base}/licenses/{nr}/transfers",
+                         hva=f"eierskap overføringer {nr}").json()
+
+    def parse_overforinger(self, kropper: dict[str, dict],
+                           typer: dict[str, str],
+                           observed_at: str) -> Iterable[Observation]:
+        """LAG 2 for historikken. Ett år av gangen.
+
+        `kropper` er {tillatelsesnr: rå transfers-respons}, `typer` er
+        kartet fra `eiertyper()`. Bare overføringer med journalDate i
+        `observed_at`s år kommer ut — resten hører til et annet snapshot.
+
+        Filteret er DET SAMME som den ukentlige kilden bruker
+        (`_tillat`), ikke en kopi. En mottaker uten kjent selskapstype
+        eller uten niifret nummer slippes ikke gjennom.
+        """
+        aar = observed_at[:4]
+        for nr, kropp in sorted(kropper.items()):
+            for i, t in enumerate((kropp or {}).get("transfers") or []):
+                dato = str(t.get("journalDate") or "")
+                if dato[:4] != aar:
+                    continue
+                orgnr = str(t.get("identityNr") or "").strip()
+                if not _tillat(typer.get(orgnr), orgnr):
+                    continue
+                jnr = str(t.get("journalNr") or "").strip()
+                if not jnr:
+                    continue
+
+                # Nøkkelen må være unik PER OVERFØRING, ikke per
+                # tillatelse: SF-SU-0004 ble overført to ganger i 2006,
+                # og med tillatelsesnummeret som entity_id ville den ene
+                # raden stilltiende overskrevet den andre i
+                # `snapshot.NOKKEL`.
+                felles = dict(entity_id=f"{nr}|{jnr}",
+                              entity_type="overforing",
+                              entity_name=f"{nr} {dato}",
+                              source=HISTORIKK_KILDE,
+                              observed_at=observed_at)
+                for felt, verdi in (
+                        ("tillatelse_nr", nr),
+                        ("mottaker_orgnr", orgnr),
+                        ("mottaker_navn", t.get("officialName")),
+                        ("mottaker_type", typer.get(orgnr)),
+                        ("journal_dato", dato),
+                        ("journal_nr", jnr),
+                        ("rekkefolge", i + 1),
+                        # Regel 1b-3: verdien som avgjør hva raden BETYR
+                        # står PÅ raden. En parquet på en annen maskin om
+                        # fire måneder skal bære sitt eget forbehold.
+                        ("dato_forbehold", DATO_FORBEHOLD)):
+                    if verdi is None or verdi == "":
+                        continue
+                    yield Observation(field=felt, value=str(verdi), **felles)
 
     # ---- tolkning ------------------------------------------------------
 

@@ -654,3 +654,45 @@ def test_uten_published_at_avgjor_lopenummeret_fortsatt(isolert):
 
     _skriv([_obs(value="4", observed_at="2018-04-30")], "2018-04-30")
     assert snapshot.previous("biomasse", before="2018-04-30")["value"][0] == "3"
+
+
+def test_over_hundre_nye_rader_for_forste_borte(tmp_path, monkeypatch):
+    """Regresjonstest: skjemautledningen skal ikke kuttes ved rad 100.
+
+    Polars utleder som standard typen fra de 100 første radene. Er de
+    alle «ny», er `old_value` None i hver eneste, kolonnen blir utledet
+    som Null, og den første «borte»-raden med en streng feller hele
+    byggingen med ComputeError.
+
+    Det traff `eierskap_historikk` 02.09.2026: én rad per overføring per
+    år, og to nabosnapshots deler ingen entiteter i det hele tatt, så
+    alle «ny» kommer før alle «borte». Ingen eksisterende kilde hadde
+    utløst det, fordi de alle blander de tre typene tidlig.
+    """
+    from core import diff, snapshot
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    def ramme(ider, verdi):
+        return snapshot.to_frame([
+            Observation(entity_id=i, entity_type="overforing",
+                        entity_name=i, field="dato_forbehold",
+                        value=verdi, source="k", observed_at="2007-12-31")
+            for i in ider])
+
+    # Første snapshot: 150 entiteter.
+    gamle = [f"G{i:04d}" for i in range(150)]
+    obs = [Observation(entity_id=i, entity_type="overforing", entity_name=i,
+                       field="dato_forbehold", value="en lang forbeholdstekst",
+                       source="k", observed_at="2006-12-31") for i in gamle]
+    snapshot.write(obs, "2006-12-31")
+
+    # Andre snapshot: 150 HELT ANDRE entiteter -> 150 «ny» + 150 «borte»,
+    # og de nye kommer først.
+    nye = [f"N{i:04d}" for i in range(150)]
+    endr = diff.compare(ramme(nye, "en lang forbeholdstekst"), "2007-12-31")
+
+    typer = dict(zip(endr["change_type"].to_list(), [1] * endr.height))
+    assert "ny" in typer and "borte" in typer
+    assert endr.height == 300
+    assert endr["old_value"].dtype == pl.Utf8
