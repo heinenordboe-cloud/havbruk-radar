@@ -2276,6 +2276,45 @@ class Ekspertgruppen(Source):
         self.advarsler = advarsler
         return rå
 
+    def arkivdato(self, utgivelse: Utgivelse) -> str:
+        """Under hvilken dato en utgivelses kropp er arkivert.
+
+        `_backfill_rapporter` arkiverer under `aar_i(rå)[-1]`, altså
+        siste år kroppen dekker. Regelen står HER og ikke i backfillen,
+        av samme grunn som `aar_i` gjør det: kalleren skal slippe å
+        kjenne PDF-formatet eller navnekonvensjonen for å finne igjen en
+        kropp den selv har lagt vekk.
+        """
+        return siste_dag(utgivelse.aar[-1])
+
+    def gjenkjenn_kropp(self, rå: bytes) -> Utgivelse:
+        """Hvilken rapport en arkivert kropp ER, lest av forsiden.
+
+        Samme svar som `gjenkjenn()`, men uten at kalleren må vite at
+        forsiden er side 0 av et PDF-tekstuttrekk.
+        """
+        return gjenkjenn(_sider(rå, layout=False)[0])
+
+    def utgitt_av(self, rå: bytes, utgivelse: Utgivelse) -> str:
+        """`published_at` for en kropp som kommer fra ARKIVET, ikke fra nettet.
+
+        `hent_rapport()` setter feltet som en sidevirkning av hentingen.
+        En re-parse henter ikke, og skal likevel ende med det SAMME
+        utgivelsestidspunktet — det leses av kroppens `/CreationDate`, og
+        kroppen er byte for byte den samme. Se modulens docstring om
+        hvorfor datoen leses av PDF-en og ikke av en HTTP-header.
+
+        Uten dette måtte `backfill.py --reparse` enten gjettet datoen
+        eller falt tilbake på hentetidspunktet, som er I DAG. Da ville
+        den ELDSTE rapporten fått det NYESTE tidspunktet, og
+        revisjonsaksen lest baklengs — nøyaktig feilen 1b-7 finnes for.
+        """
+        advarsler: list[str] = []
+        self.published_at = _utgitt(rå, utgivelse.aar[-1], advarsler)
+        self.advarsler = advarsler
+        self.utvalg = {}
+        return self.published_at
+
     def aar_i(self, rå: bytes) -> list[str]:
         """Gyldighetsdatoene en kropp bærer, eldst først.
 

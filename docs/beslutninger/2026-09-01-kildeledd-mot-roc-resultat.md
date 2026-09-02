@@ -1,9 +1,16 @@
 ---
 dato: 2026-09-01
 tittel: "Kildeleddet mot ROC: stoppregelen kan ikke evalueres — utvandringsvinduet mangler for hver eneste celle"
-status: gjeldende
+status: erstattet-av 2026-09-01-kildeledd-mot-roc-bestod-ikke.md
 commit: 1601d5e
 ---
+
+> **ERSTATTET 01.09.2026, senere samme dag.** Premisset under — at
+> vinduet bare manglet et uttrekk — var feil. Kilden SLUTTET å
+> publisere utvandringsvinduet etter 2020, og det som finnes for
+> 2021-2025 er midtpunktet alene. Regelen er siden evaluert med et
+> konstruert vindu og BESTOD IKKE. Se
+> [2026-09-01-kildeledd-mot-roc-bestod-ikke.md](2026-09-01-kildeledd-mot-roc-bestod-ikke.md).
 
 ## Utfallet
 

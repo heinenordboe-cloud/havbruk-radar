@@ -197,8 +197,122 @@ def test_vindu_leses_som_datoer():
 
 
 def test_vindu_uten_treff_er_fravaerende():
-    """2016/2017-, 2018-, 2021- og 2022-kroppene har det ikke."""
+    """2020-formen finnes BARE i 2020-kroppen.
+
+    Kilden sluttet å oppgi start- og sluttdato etter 2020. Målt på alle
+    seks arkiverte kroppene 01.09.2026 — se `_vindu_2021` og
+    `_vindu_periode` for hva som kom i stedet.
+    """
     assert eg._vindu("Produksjonsområde 1: ingenting om utvandring.", 2020) is None
+
+
+def test_vindu_2021_er_bare_medianen():
+    """2021-formen oppgir ingen start og ingen slutt, og skal ikke late
+    som den gjør det."""
+    seksjon = ("Produksjonsområde 1: ... Beregnet tidspunkt for 50 % "
+               "utvandring 11. mai (uke 19). Resultater 2021")
+    assert eg._vindu_2021(seksjon, 2021) == {
+        "utvandring_median": "2021-05-11",
+        "utvandring_median_uke": "19",
+    }
+
+
+def test_vindu_2021_taaler_formvariasjonene():
+    """«50%» uten mellomrom, «satt til», og PO13s manglende punktum
+    etter dagen — alle tre står i 2021-kroppen."""
+    for tekst, ventet in (
+            ("Beregnet tidspunkt for 50% utvandring satt til 15. mai (uke 19).",
+             "2021-05-15"),
+            ("Beregnet tidspunkt for 50% utvandring 23 juni (uke 25).",
+             "2021-06-23"),
+    ):
+        assert eg._vindu_2021(tekst, 2021)["utvandring_median"] == ventet
+
+
+def test_vindu_periode_skraastrek_og_manedsnavn():
+    """2022/2023 skriver «15/5», 2024/2025 «15. mai». Samme verdi ut."""
+    a = ("Utvandringsperioden fra elvene i PO1 er fra siste halvdel av "
+         "april til begynnelsen av juni, med beregnet gjennomsnittlig "
+         "midtpunkt 15/5 for hele produksjonsområdet.")
+    b = ("Utvandringsperioden fra elvene i PO1 er fra siste halvdel av "
+         "april til begynnelsen av juni, med beregnet gjennomsnittlig "
+         "midtpunkt 15. mai for hele POet.")
+    assert eg._vindu_periode(a, 2022, eg._VINDU_2022, slash=True) == {
+        "utvandring_median": "2022-05-15",
+        "utvandring_periode_ordrett":
+            "fra siste halvdel av april til begynnelsen av juni",
+    }
+    assert (eg._vindu_periode(b, 2024, eg._VINDU_2024, slash=False)
+            ["utvandring_median"]) == "2024-05-15"
+
+
+def test_periodegrensene_lagres_ordrett_ikke_som_datoer():
+    """«Siste halvdel av april» er ikke en dato, og skal ikke bli en.
+
+    Samme regel som `_prosent`: kildens upresishet er informasjon, og en
+    oversettelse til datoer ville vært vår presisjon på kildens vegne.
+    """
+    tekst = ("Utvandringsperioden fra elvene i PO5 er fra månedsskiftet "
+             "april -mai til første halvdel av juni, med beregnet "
+             "gjennomsnittlig midtpunkt 20/5 for hele produksjonsområdet.")
+    v = eg._vindu_periode(tekst, 2022, eg._VINDU_2022, slash=True)
+    assert v["utvandring_periode_ordrett"] == (
+        "fra månedsskiftet april -mai til første halvdel av juni")
+    assert "utvandring_start" not in v
+    assert "utvandring_slutt" not in v
+
+
+def test_moenstrene_krysser_ikke_hverandre():
+    """Hver årgangs form skal treffe SIN form og ingen annen.
+
+    Uten dette kunne en oppmykning av ett mønster stilltiende overta en
+    annen årgang, og da leses feil form med riktig antall — som er
+    nøyaktig måten prosauttrekkene i denne kilden har feilt før.
+    """
+    tjue = ("Antatt tidspunkt for utvandring: 24. april – 5. juni, med "
+            "50 % utvandring satt til 17. mai (uke 20).")
+    tjueen = "Beregnet tidspunkt for 50 % utvandring 11. mai (uke 19)."
+    periode = ("Utvandringsperioden fra elvene i PO1 er fra siste halvdel "
+               "av april til begynnelsen av juni, med beregnet "
+               "gjennomsnittlig midtpunkt 15/5 for hele produksjonsområdet.")
+    assert eg._vindu_2021(tjue, 2020) is None
+    assert eg._vindu_periode(tjue, 2020, eg._VINDU_2022, True) is None
+    assert eg._vindu(tjueen, 2021) is None
+    assert eg._vindu_periode(tjueen, 2021, eg._VINDU_2022, True) is None
+    assert eg._vindu(periode, 2022) is None
+    assert eg._vindu_2021(periode, 2022) is None
+
+
+def test_vindusvakten_feller_en_ulest_setning():
+    """Nevner avsnittet vinduet uten at noe kommer ut, skal det SMELLE.
+
+    Et hull som ser ut som en ekte utelatelse fra kilden er verre enn en
+    feilmelding — det er den stille formen feilen har hatt før.
+    """
+    seksjon = ("Produksjonsområde 1: Utvandringsperioden fra elvene i PO1 "
+               "er fra en gang i april til en gang i juni, med et midtpunkt "
+               "vi ikke skrev ned.")
+    with pytest.raises(Rapportfeil, match="nevner utvandringsvinduet"):
+        eg._krev_vindu(seksjon, None, "1", 2022)
+
+
+def test_vindusvakten_tier_naar_kilden_ikke_sier_noe():
+    """Et PO kan legitimt mangle vinduet. Vakten skal ikke kreve tretten."""
+    eg._krev_vindu("Produksjonsområde 1: ingenting om saken.", None, "1", 2022)
+
+
+def test_vindusvakten_tier_naar_vinduet_ER_lest():
+    seksjon = "Beregnet tidspunkt for 50 % utvandring 11. mai (uke 19)."
+    eg._krev_vindu(seksjon, eg._vindu_2021(seksjon, 2021), "1", 2021)
+
+
+def test_sidehode_midt_i_vindussetningen_felles_ikke():
+    """Det løpende sidehodet limer seg inn mellom setninger når sidene
+    slås sammen. 2021 PO7 og PO9 har det rett foran vindussetningen."""
+    seksjon = ("samt Årgårdsvassdraget med 14 %. Rapport fra ekspertgruppe "
+               "for vurdering av lusepåvirkning 70 Beregnet tidspunkt for "
+               "50 % utvandring 29. mai (uke 21).")
+    assert eg._vindu_2021(seksjon, 2021)["utvandring_median"] == "2021-05-29"
 
 
 def test_vindusdatoen_faar_vurderingsaaret():

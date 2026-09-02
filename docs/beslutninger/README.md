@@ -9,7 +9,8 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
-- **2026-09-01** — [Kildeleddet mot ROC: stoppregelen kan ikke evalueres — utvandringsvinduet mangler for hver eneste celle](2026-09-01-kildeledd-mot-roc-resultat.md) — gjeldende
+- **2026-09-01** — [Kildeleddet mot ROC: stoppregelen BESTOD IKKE — og kilden sluttet å publisere utvandringsvinduet](2026-09-01-kildeledd-mot-roc-bestod-ikke.md) — gjeldende
+- **2026-09-01** — [Kildeleddet mot ROC: stoppregelen kan ikke evalueres — utvandringsvinduet mangler for hver eneste celle](2026-09-01-kildeledd-mot-roc-resultat.md) — erstattet av [2026-09-01-kildeledd-mot-roc-bestod-ikke.md](2026-09-01-kildeledd-mot-roc-bestod-ikke.md)
 - **2026-09-01** — [har_rensefisk og har_medikamentell_behandling er datatap hos kilden, ikke en parserfeil](2026-09-01-lusetall-to-felter-er-datatap.md) — gjeldende
 - **2026-08-31** — [Månedlig N_fisk bæres flatt over ukene, ikke interpolert](2026-08-31-manedlig-nfisk-baeres-flatt.md) — gjeldende
 - **2026-08-31** — [Hypotesen omdefineres — ROC er ikke en uavhengig fasit, den er en funksjon av prediktorene våre](2026-08-31-hypotesen-omdefineres.md) — gjeldende

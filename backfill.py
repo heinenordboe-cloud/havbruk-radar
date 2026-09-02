@@ -79,6 +79,7 @@ sekunders eller to minutters mellomrom.
 
 import argparse
 import datetime as dt
+import gzip
 import io
 import sys
 import time
@@ -192,6 +193,49 @@ def _finnes_allerede(kilde_navn: str, dato: str) -> bool:
         return False
     return ((mappe / f"{dato}.parquet").exists()
             or any(mappe.glob(f"{dato}.*.parquet")))
+
+
+def _arkivert_kropp(kilde, utgivelse):
+    """Kroppen for én utgivelse, lest av rå-arkivet i stedet for nettet.
+
+    Hele poenget med `data/arkiv/`: en parser som forbedres senere kjører
+    på nytt uten å hente igjen. For ekspertgruppen er det ikke en
+    bekvemmelighet — regjeringen.no svarer 403 for oss, NVAs
+    nedlastingslenker er presignerte og utløper, og Wayback-kopiene er
+    det eneste som står igjen av to av årgangene. En re-parse over
+    nettet ville vært skjørere enn selve rettelsen.
+
+    Arkivfila er navngitt etter SISTE år utgivelsen dekker, som er det
+    `_backfill_rapporter` skriver den under. Finnes flere versjoner, må
+    kroppen selv si at den er riktig rapport: `gjenkjenn()` leser
+    forsiden, og en kropp som ikke er den vi ba om skal felle kjøringen
+    framfor å bli tolket som feil årgang.
+    """
+    merke = ", ".join(str(a) for a in utgivelse.aar)
+    dato = kilde.arkivdato(utgivelse)
+    mappe = raw_arkiv.ARKIV_DIR / kilde.name
+    kandidater = sorted(mappe.glob(f"{dato}.bin.gz")) + \
+        sorted(mappe.glob(f"{dato}.*.bin.gz"))
+    if not kandidater:
+        raise FileNotFoundError(
+            f"Ingen arkivert kropp for {merke} under {dato} i {mappe}. "
+            f"--reparse leser arkivet og henter ikke; er kroppen aldri "
+            f"arkivert, må den hentes med --rapporter uten --reparse."
+        )
+    for sti in kandidater:
+        with gzip.open(sti, "rb") as f:
+            rå = f.read()
+        try:
+            funnet = kilde.gjenkjenn_kropp(rå)
+        except Exception:
+            continue
+        if funnet.tittel == utgivelse.tittel:
+            print(f"  lest fra arkivet: {sti.name}")
+            return rå
+    raise ValueError(
+        f"Ingen av {len(kandidater)} arkiverte kropper under {dato} er "
+        f"«{utgivelse.tittel}». Forsiden avgjør, ikke filnavnet."
+    )
 
 
 def _parse_uke(tekst: str) -> tuple[int, int]:
@@ -663,7 +707,7 @@ def _backfill_rapporter(kilde, args) -> int:
           f"eldst utgitt først"
           + (" (TØRRKJØRING)" if args.torrkjor else ""))
 
-    skrevet = revidert = uendret = hoppet = 0
+    skrevet = revidert = uendret = hoppet = reparset = 0
     endringer_totalt = revisjonsrader = 0
     feil: list[str] = []
     sprik: list[str] = []
@@ -675,7 +719,8 @@ def _backfill_rapporter(kilde, args) -> int:
             print(f"  merknad: {utgivelse.merknad}")
 
         try:
-            rå = kilde.hent_rapport(utgivelse)
+            rå = (_arkivert_kropp(kilde, utgivelse) if args.reparse
+                  else kilde.hent_rapport(utgivelse))
         except Exception as e:
             # Én rapport som ikke lar seg hente skal ikke felle de andre.
             # De ligger på ulike verter, og en 403 hos den ene sier
@@ -687,6 +732,10 @@ def _backfill_rapporter(kilde, args) -> int:
         for advarsel in getattr(kilde, "advarsler", []):
             print(f"  ADVARSEL: {advarsel}")
 
+        if args.reparse:
+            # Kroppen kom fra arkivet, så `hent_rapport()` har ikke satt
+            # feltet. Det leses av kroppen selv — se `utgitt_av`.
+            kilde.utgitt_av(rå, utgivelse)
         utgitt = getattr(kilde, "published_at", "") or ""
         if not utgitt:
             # Uten utgivelsestidspunkt kan kroppen ikke plasseres i
@@ -719,8 +768,14 @@ def _backfill_rapporter(kilde, args) -> int:
         for dato in datoer:
             finnes = _finnes_allerede(kilde.name, dato)
 
+            # Nøkkelen er (utgivelse, parserversjon). Uten versjonen i
+            # nøkkelen kan en PARSERRETTING ikke skrives inn i det hele
+            # tatt: alle årene har alt et snapshot med denne
+            # utgivelsesdatoen, så hvert eneste år ville blitt hoppet
+            # over. Se `--reparse` i modulens docstring.
             if not args.torrkjor and finnes and any(
                     snapshot.published_at_i(r) == utgitt
+                    and snapshot.source_version_i(r) == kilde.version
                     for _, r in snapshot.versjoner(kilde.name, dato)):
                 hoppet += 1
                 continue
@@ -748,7 +803,24 @@ def _backfill_rapporter(kilde, args) -> int:
 
             # Diff FØR skriving, ellers finner previous() (eller
             # forrige_versjon()) årets egen ferske fil og diffen blir tom.
-            if finnes:
+            if finnes and args.reparse:
+                # En RE-PARSE skriver snapshotet, men ALDRI en
+                # revisjonsrad. Forskjellen mot forrige versjon er vår
+                # egen parser — kroppen er byte for byte den samme, og
+                # `raw_hash` viser det. En `revidert`-rad ville påstått
+                # at ekspertgruppen ombestemte seg om et tall vi selv
+                # leste feil, altså en anklage mot en tredjepart for noe
+                # vi gjorde. Se CLAUDE.md 1b-6 om `Grunnlagssprik`:
+                # spørsmålet er ubesvarlig, og da skal det ikke besvares.
+                #
+                # Snapshotet skrives likevel, og det er ikke en
+                # motsetning. Det er en NY LESNING av samme kropp, ført
+                # ved siden av den gamle med sin egen `source_version` —
+                # append-only, ingenting overskrevet, og begge lesningene
+                # står til ettersyn.
+                endr = None
+                reparset += 1
+            elif finnes:
                 try:
                     endr = diff.revisjon(ramme, dato)
                 except diff.Grunnlagssprik as e:
@@ -771,14 +843,20 @@ def _backfill_rapporter(kilde, args) -> int:
 
             filer = snapshot.write(obs, dato)
             versjon = snapshot.versjon_av(filer[0])
-            changelog.skriv(endr, dato, versjon=versjon)
-            hva = "revisjoner" if finnes else "endringer"
-            print(f"  {dato}: {ramme.height:>4} observasjoner, "
-                  f"{ramme['entity_id'].n_unique():>3} områder, "
-                  f"{endr.height:>4} {hva} -> {filer[0].name}")
+            if endr is None:
+                print(f"  {dato}: {ramme.height:>4} observasjoner, "
+                      f"{ramme['entity_id'].n_unique():>3} områder, "
+                      f"RE-PARSE (ingen changelog) -> {filer[0].name}")
+            else:
+                changelog.skriv(endr, dato, versjon=versjon)
+                hva = "revisjoner" if finnes else "endringer"
+                print(f"  {dato}: {ramme.height:>4} observasjoner, "
+                      f"{ramme['entity_id'].n_unique():>3} områder, "
+                      f"{endr.height:>4} {hva} -> {filer[0].name}")
 
     print(f"\n{skrevet} år skrevet første gang ({endringer_totalt} endringer), "
           f"{revidert} år REVIDERT ({revisjonsrader} revisjonsrader), "
+          f"{reparset} år RE-PARSET (nytt snapshot, ingen changelog), "
           f"{uendret} gjentatt uendret, {hoppet} hoppet over (denne "
           f"utgivelsen lå der alt).")
     print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
@@ -823,6 +901,11 @@ def main() -> int:
                         "og skriv hvert år de dekker: førstegangsskriving "
                         "der året er nytt, revisjon der det alt finnes. "
                         "Bare for kilder med utgivelser().")
+    p.add_argument("--reparse", action="store_true",
+                   help="les de ARKIVERTE kroppene i stedet for å hente på "
+                        "nytt, og skriv årene om igjen med gjeldende "
+                        "parserversjon. For når uttrekket er forbedret og "
+                        "kildene er uendret. Krever --rapporter-kilder.")
     p.add_argument("--pause", type=float, default=None,
                    help=f"sekunder mellom kall (standard: kildens egen "
                         f"`pause_s`, ellers {PAUSE_S})")
