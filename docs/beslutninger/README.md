@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-02** — [Eierskapskjeden lukkes via /licenses — og personvernfilteret måtte bli et annet enn det bestilte](2026-09-02-eierskapskjeden.md) — gjeldende
 - **2026-09-02** — [Fravær av kjøring er en egen feilklasse, og ingen eksisterende vakt dekker den](2026-09-02-varsle-paa-stillhet.md) — gjeldende
 - **2026-09-01** — [Kildeleddet mot ROC: stoppregelen BESTOD IKKE — og kilden sluttet å publisere utvandringsvinduet](2026-09-01-kildeledd-mot-roc-bestod-ikke.md) — gjeldende
 - **2026-09-01** — [Kildeleddet mot ROC: stoppregelen kan ikke evalueres — utvandringsvinduet mangler for hver eneste celle](2026-09-01-kildeledd-mot-roc-resultat.md) — erstattet av [2026-09-01-kildeledd-mot-roc-bestod-ikke.md](2026-09-01-kildeledd-mot-roc-bestod-ikke.md)
