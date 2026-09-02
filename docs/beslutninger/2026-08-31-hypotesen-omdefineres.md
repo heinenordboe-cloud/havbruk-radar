@@ -331,3 +331,167 @@ den som eier prosjektets formål — ikke av den som skriver analysen.
 Ingen. Analysen er ikke kjørt, og `analyse/` er urørt i denne økten.
 Det er tilsiktet: notatet skal ligge i git før tallet finnes, slik at
 grensen kan etterprøves mot en commit som er eldre enn resultatet.
+
+## Tilføyelse 01.09.2026 — terskelen som funksjon av n, satt FØR n er kjent
+
+**Analysen er fortsatt ikke kjørt da dette skrives.** Det er hele
+poenget: utvandringsvinduene for 2021–2025 er ikke trukket ut ennå, så
+celletallet er ukjent, og terskelen for hvert mulige celletall kan derfor
+settes uten at noen kan vite hvilken rad som blir den gjeldende.
+
+Notatet over har måttet sette grensen på nytt to ganger — 31.08 på n = 39
+og 01.09 på n = 60 — begge ganger fordi celletallet flyttet seg. Begge
+gangene var regnestykket det samme. **Da er grensen ikke en vurdering som
+må gjøres om; den er en funksjon av n som kan skrives ned én gang.**
+
+### Metoden er uendret
+
+Ordrett den samme som over: den R² der nedre 95 %-kant av
+Fisher-z-intervallet (se = 1/√(n−3)) lander på **0,494**, som er den
+fulle Stien-proxyens rho². Rundet **OPP** til nærmeste 0,01, slik at
+nedre kant klarerer 0,494 sikkert — en avrunding nedover ville flyttet
+kanten under referansen, og da klarerer terskelen ikke det den ble valgt
+for å klarere.
+
+Ingen ny vurdering er gjort. Referansepunktet 0,494 er ikke rørt,
+konfidensnivået er ikke rørt, og retningen på avrundingen er ikke rørt.
+
+### Tabellen
+
+| n | grense | n | grense |
+|---|---|---|---|
+| 20 | 0,77 | 40 | 0,70 |
+| 25 | 0,74 | 45 | 0,69 |
+| 30 | 0,72 | 50 | 0,68 |
+| 35 | 0,71 | 55–60 | 0,67 |
+
+Verdien slås opp på det båndet n faller i. Hele intervallet står her
+framfor bare den raden som viser seg å gjelde, nettopp for at valget av
+rad ikke skal kunne bli et valg.
+
+### Reprodusert, ikke skrevet av
+
+`analyse/terskel_av_n.py` er funksjonen, og den reproduserer de tre
+tallene som allerede sto i notatet før denne tilføyelsen:
+
+    n = 39   eksakt 0,6948   notatet 0,6948   OK
+    n = 58   eksakt 0,6617 ~ 0,662   notatet 0,662    OK
+    n = 60   eksakt 0,6592   notatet 0,6592   OK
+
+To ting kom fram av den kontrollen og skal stå:
+
+**z = 1,96, ikke 1,959964.** De tre tallene reproduseres på den
+avrundede konstanten og ikke på den eksakte z-verdien, som gir 0,6617 →
+0,6617 og 0,6591 for n = 58 og 60. Forskjellen er 0,0003 og uten
+praktisk betydning — men konstanten er et valg som avgjør et tall, og
+den skal stå skrevet framfor å bli gjettet av den neste som regner
+etter. Tabellen over er regnet med notatets egen 1,96.
+
+**n = 60 er den ene raden som ikke er ren avrunding.** `ceil(0,6592)` er
+0,66, ikke 0,67. Båndet står likevel på 0,67 i hele 55–60, og grunnen er
+allerede skrevet i avsnittet «Grensen satt på nytt 01.09.2026»: disken
+holder 58 ROC-celler, og ved n = 58 gir 0,66 en nedre kant på 0,4918 —
+så vidt under referansen. Grensen skal ikke avhenge av en beslutning som
+ikke er tatt. Avviket er merket i `GRENSE`-tabellen i koden framfor å
+være stilltiende, og `avrundet()` gjør fortsatt den rene avrundingen.
+
+Merk at raden ikke kan binde uansett: ROC finnes for 58 celler på disk,
+så n ≤ 58.
+
+### Innen-PO-leddet står på 0,25, uavhengig av n
+
+Uendret, og det er ikke en forglemmelse. Metoden der var en annen:
+**velg |r| = 0,5 og kontroller at den er skilt fra null** — ikke løs for
+hvor nedre kant lander. Et krav som ikke er utledet av n, flytter seg
+ikke når n gjør det.
+
+Setningen fra avsnittet over står ordrett: leddet er **den svakeste
+delen av regelen**. Det påstår bare at innen-PO-sammenhengen er skilt
+fra null, ikke at den er sterk.
+
+### Under n = 20 skal terskelen IKKE ekstrapoleres
+
+Tabellen stopper ved 20, og det er en grense og ikke en mangel. Blir det
+faktiske celletallet lavere enn 20, er utvalget for lite til at regelen
+betyr noe, og **det skal skrives rett ut i resultatnotatet i stedet for
+at det måles**. `grense_for()` kaster framfor å svare, av samme grunn:
+en pre-registrert grense som regnes ut etterpå er ingen pre-registrert
+grense.
+
+## Tilføyelse 01.09.2026 (2) — vindusvalget, skrevet FØR testen kjøres
+
+**Ingen korrelasjon er regnet ut når dette skrives.** Rekkefølgen er den
+samme som resten av notatet krever: valget som avgjør aggregeringen
+føres i git før tallet finnes.
+
+### Forutsetningen om at vinduet finnes som datoer, holder ikke
+
+Uttrekket av utvandringsvinduene er gjort (`sources/ekspertgruppen.py`
+versjon 4, `analyse/vindu_uttrekk.py`). Kilden oppgir IKKE start- og
+sluttdato etter 2020. Målt på alle seks arkiverte kroppene:
+
+| år | form | start/slutt som datoer | årsspesifikk |
+|---|---|---|---|
+| 2020 | «Antatt tidspunkt for utvandring: 24. april – 5. juni, med 50 % utvandring satt til 17. mai (uke 20)» | ja, 13/13 | ja |
+| 2021 | «Beregnet tidspunkt for 50 % utvandring 11. mai (uke 19)» | nei | ja |
+| 2022–2025 | «Utvandringsperioden fra elvene i PO1 er fra siste halvdel av april til begynnelsen av juni, med beregnet gjennomsnittlig midtpunkt 15/5» | nei — grensene er løs prosa | **nei** |
+
+**2022, 2023, 2024 og 2025 er 13/13 identiske i alle seks parvise
+sammenligninger.** Kilden oppgir ikke et årsspesifikt vindu for de fire
+årene; den skriver av en klimatologisk konstant per produksjonsområde.
+2020 og 2021 er derimot årsspesifikke (0/13 og 1/13 sammenfall med de
+øvrige).
+
+Vedlegg I heter «Oversikt over laksevassdrag og utvandringstidspunkt for
+smolt» og ville hatt datoene per elv. Det er **utgitt separat** og
+finnes ikke i noen kropp — bare tittelen står på vedleggssiden.
+Verifisert på 2022, 2024 og 2025.
+
+Det er altså ikke et uttrekk som mangler. Det er en størrelse kilden
+sluttet å publisere.
+
+### Valget: vinduet er MIDTPUNKT ± 20 DAGER
+
+Halvbredden er **vår**, og det skal stå tydelig. Lengden er ikke:
+rapportene oppgir den selv, ordrett i 2024- og 2025-kroppene:
+
+> «Start av utvandring er satt til 10 dager før og slutt av utvandring 30
+> dager etter 25 % utvandring slik at den totale utvandringsperioden er
+> satt til å vare i 40 dager som i tidligere år.»
+
+Vi har kildens 50 %-midtpunkt, ikke dens 25 %-dato, så ±20 dager
+sentrerer de 40 dagene på det punktet vi faktisk har. Det er en
+tilnærming, og den er den eneste frie parameteren i aggregeringen.
+
+### Hvorfor dette ikke er kontrollvariantens feil om igjen
+
+Fordi feilen er MÅLT mot 2020, det ene året der kilden oppgir det ekte
+vinduet, og fordi den ikke lenger følger breddegrad:
+
+|  | snitt Jaccard mot 2020s ekte vindu | korrelasjon mellom treffkvalitet og PO-nummer |
+|---|---|---|
+| fast uke 16–24 | 0,516 | **r = −0,928** |
+| midtpunkt ± 20 d | **0,750** | **r = −0,028** |
+
+Kontrollvarianten var ubrukelig ikke fordi den bommet, men fordi den
+bommet SYSTEMATISK MED BREDDEGRAD — 100 % overlapp i PO1–2 og 0 % i
+PO13 — og dermed var konfundert med den variabelen som slår alle
+prediktorene. Midtpunktsvinduet bommer omtrent like mye i sør som i
+nord. Restfeilen er støy, ikke en gradient som kan forveksles med
+signalet.
+
+Merk hva som IKKE påstås: at ±20 dager er kildens vindu. 2020s ekte
+vinduer varer 30 til 61 dager, snitt 50,5, og de er ikke symmetriske om
+medianen. Konstruksjonen treffer ikke dem eksakt, og Jaccard 0,750 er
+tallet på hvor godt den treffer.
+
+### Hva dette gjør med utfallet, uansett hvilken vei det faller
+
+Resultatet er **ikke** hovedvarianten slik den ble forhåndsregistrert
+31.08. Den krevde kildens faktiske vindu per (po, år), og for 2022–2025
+finnes ikke den størrelsen — verken hos oss eller hos ekspertgruppen.
+Utfallet skal føres som **kildeleddet mot ROC med et konstruert vindu**,
+med Jaccard 0,750 oppgitt ved siden av.
+
+Terskelen er uendret og slås opp på faktisk n i tabellen fra tilføyelse
+(1). Én variant kjøres. Består regelen ikke, er svaret «består ikke».

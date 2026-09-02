@@ -838,6 +838,22 @@ def _vindu(seksjon: str, aar: int) -> dict[str, str] | None:
     }
 
 
+def _vinduceller(flat: str, aar: int, moenster: re.Pattern | None,
+                 slash: bool = False) -> Iterable["Celle"]:
+    """Vinduscellene for ett år, med vakten på hver enkelt seksjon.
+
+    `moenster=None` for årganger der kilden bruker 2021-formen (bare
+    medianen, ingen periode). Kalleren velger — funksjonen leser ikke
+    årstallet for å gjette hvilken form kroppen har.
+    """
+    for po, seksjon in sorted(_seksjoner(flat).items(), key=lambda p: int(p[0])):
+        vindu = (_vindu_2021(seksjon, aar) if moenster is None
+                 else _vindu_periode(seksjon, aar, moenster, slash))
+        _krev_vindu(seksjon, vindu, po, aar)
+        for felt, verdi in (vindu or {}).items():
+            yield Celle(po, felt, verdi, FRA_TEKST)
+
+
 # ------------------------------------------------------- celler og prosa
 
 class Celle(NamedTuple):
@@ -1054,6 +1070,180 @@ _VS_BEGGE_UNDER = re.compile(
 _SIDEHODE = re.compile(
     r"\s*Rapport\s+fra\s+ekspertgruppe\s+for\s+vurdering\s+av\s+"
     r"lusep[åa]virkning\s*\d*\s*", re.I)
+
+
+# ---------------------------------------------- vinduet etter 2020-formen
+
+# Fra og med 2021-rapporten oppgir kilden IKKE lenger start- og sluttdato
+# for utvandringen. Det er ikke en parserbegrensning, og det er målt på
+# alle fem kroppene 01.09.2026:
+#
+#   2020        «Antatt tidspunkt for utvandring: 24. april – 5. juni,
+#                med 50 % utvandring satt til 17. mai (uke 20)»
+#               start + slutt + median, ALLE som datoer.  13/13 PO.
+#   2021        «Beregnet tidspunkt for 50 % utvandring 11. mai (uke 19)»
+#               BARE medianen.  13/13 PO.
+#   2022, 2023  «Utvandringsperioden fra elvene i PO1 er fra siste
+#                halvdel av april til begynnelsen av juni, med beregnet
+#                gjennomsnittlig midtpunkt 15/5 for hele
+#                produksjonsområdet»
+#               medianen som DATO, grensene som LØS PROSA.  13/13 PO.
+#   2024, 2025  samme setning, men medianen skrevet «15. mai».  13/13 PO.
+#
+# To ting følger, og begge er funn og ikke antakelser:
+#
+# 1. `utvandring_start` og `utvandring_slutt` som DATOER finnes bare for
+#    2020. «Fra siste halvdel av april til begynnelsen av juni» er ikke
+#    et datointervall, og å gjøre det om til ett ville vært å finne på
+#    kildens presisjon. Prosaen lagres ORDRETT i stedet, som ulikhetene
+#    i `_prosent` — se modulens docstring.
+#
+# 2. Setningen for 2022, 2023, 2024 og 2025 er IDENTISK ordrett, PO for
+#    PO, i alle fire kroppene. Midtpunktene (15/5, 14/5, 17/5, 18/5,
+#    20/5, 25/5, 2/6, 8/6, 10/6, 13/6, 20/6, 29/6, 27/6) gjentas uendret.
+#    Kilden oppgir altså ikke et ÅRSSPESIFIKT vindu for de fire årene —
+#    den oppgir en klimatologisk konstant per produksjonsområde, og
+#    skriver den av på nytt hvert år.
+#
+#    Det er et innholdsfunn, ikke et parserfunn, og det avgjør hva et
+#    «faktisk utvandringsvindu per (po, år)» KAN være for 2022-2025.
+#    2021 er derimot årsspesifikk: PO1 har median 11. mai der konstanten
+#    er 15. mai og 2020 hadde 17. mai.
+#
+# Vedlegg I heter «Oversikt over laksevassdrag og utvandringstidspunkt
+# for smolt» og ville hatt datoene per elv. Det er UTGITT SEPARAT og
+# finnes ikke i noen av kroppene — bare tittelen står oppført på
+# vedleggssiden. Verifisert på 2022, 2024 og 2025.
+
+F_VINDU_PERIODE_ORDRETT = "utvandring_periode_ordrett"
+
+# «Beregnet tidspunkt for 50 % utvandring 11. mai (uke 19).»
+#
+# Ordstillingen varierer: «50 %» og «50%», med og uten «satt til», og
+# 2021 PO13 skriver «23 juni» UTEN punktum etter dagen. Uketallet står i
+# parentes i alle tretten.
+_VINDU_2021 = re.compile(
+    r"Beregnet\s+tidspunkt\s+for\s+50\s*%\s*utvandring\s*"
+    r"(?:satt\s+til\s+)?"
+    r"(\d{1,2})\.?\s*(" + "|".join(MAANEDER) + r")\s*"
+    r"\(\s*uke\s*(\d{1,2})\s*\)",
+    re.I,
+)
+
+# 2022 og 2023: «... med beregnet gjennomsnittlig midtpunkt 15/5 for
+# hele produksjonsområdet.»  Datoen er DAG/MÅNED med skråstrek.
+#
+# Egen regex og ikke en oppmykning av 2024-formen, av samme grunn som
+# `_ROC_OMVENDT`: et mønster som tok imot både «15/5» og «15. mai» ville
+# godtatt en tredje form ingen har sett, og de to årgangene er lest hver
+# for seg nettopp for at en formendring skal FEILE og ikke gli gjennom.
+#
+# Slakk på «gjennomsnittlig» og «midtpunkt»: kroppene skriver
+# «gjennomsnit tlig» (2022 PO1, 2023 PO1) og «mid tpunkt» (2022 PO9).
+_VINDU_2022 = re.compile(
+    r"[Uu]tvandringsperioden\s+fra\s+elvene\s+i\s+PO\s*(\d{1,2})\s+"
+    r"er\s+(fra\s+.{0,90}?),\s*med\s+beregnet\s+"
+    + _slakk("gjennomsnittlig") + r"\s+" + _slakk("midtpunkt") + r"\s+"
+    r"(\d{1,2})\s*/\s*(\d{1,2})\b",
+    re.I,
+)
+
+# 2024 og 2025: samme setning, men datoen skrevet «15. mai» — og med
+# mellomrom foran punktumet i om lag halvparten («14 . mai»).
+_VINDU_2024 = re.compile(
+    r"[Uu]tvandringsperioden\s+fra\s+elvene\s+i\s+PO\s*(\d{1,2})\s+"
+    r"er\s+(fra\s+.{0,90}?),\s*med\s+beregnet\s+"
+    + _slakk("gjennomsnittlig") + r"\s+" + _slakk("midtpunkt") + r"\s+"
+    r"(\d{1,2})\s*\.\s*(" + "|".join(MAANEDER) + r")\b",
+    re.I,
+)
+
+# Vakten, etter mønster av `_ROC_KANDIDAT`. Nevner seksjonen en av de
+# tre ankerfrasene, SKAL et vindu komme ut av den.
+#
+# Den trenger ikke vite hvor mange vinduer som forventes, og det er med
+# vilje — samme grunn som for ROC: et produksjonsområde kan legitimt
+# mangle (2021 PO13 har ingen ROC, PO1 mangler i 2024 og 2025), og en
+# terskel på 13 ville fyrt på en ekte utelatelse. Spørsmålet vakten
+# stiller har et svar for HVERT ENKELT avsnitt: sa kilden noe her, og
+# leste vi det?
+#
+# Frasene er ANKRE, ikke ordet «utvandring» alene. Et avsnitt nevner
+# utvandring 9-25 ganger — rutene, perioden, modellen — og en vakt på
+# det ordet ville fyrt på hver eneste seksjon i hver eneste årgang.
+_VINDU_KANDIDAT = re.compile(
+    r"Antatt\s+tidspunkt\s+for\s+utvandring"
+    r"|Beregnet\s+tidspunkt\s+for\s+50\s*%\s*utvandring"
+    r"|[Uu]tvandringsperioden\s+fra\s+elvene",
+    re.I,
+)
+
+
+def _krev_vindu(seksjon: str, funn: dict[str, str] | None,
+                po: str, aar: int) -> None:
+    """Nevner avsnittet et vindu, skal et vindu ha kommet ut.
+
+    Samme form som `_ROC_KANDIDAT`-vakten, og den finnes av samme grunn:
+    prosauttrekk fra disse rapportene har feilet STILLE fire ganger, hver
+    gang med riktig form og feil tall. En setning som er der og ikke blir
+    lest, gir et hull som ser ut som en ekte utelatelse fra kilden.
+    """
+    if funn or not _VINDU_KANDIDAT.search(_SIDEHODE.sub(" ", seksjon)):
+        return
+    m = _VINDU_KANDIDAT.search(_SIDEHODE.sub(" ", seksjon))
+    rundt = " ".join(seksjon[max(0, m.start() - 60):m.start() + 220].split())
+    raise Rapportfeil(
+        f"PO{po} i {aar} nevner utvandringsvinduet, men uttrekket fikk "
+        f"ingen dato ut av avsnittet. Ordrett: ...{rundt}... "
+        f"Kroppen er arkivert — dette er en re-parse, ikke tapt "
+        f"historikk. Er formen endret, skal årgangen ha sitt eget "
+        f"mønster framfor at et eksisterende mykes opp."
+    )
+
+
+def _vindu_2021(seksjon: str, aar: int) -> dict[str, str] | None:
+    """Medianen alene, som DATO. 2021-rapporten.
+
+    Ingen start og ingen slutt: kilden oppgir dem ikke. Å låne
+    2020-vinduets bredde hit ville vært å fylle et hull med et
+    standardvindu, og det er nøyaktig det feilen i kontrollvarianten
+    besto i.
+    """
+    m = _VINDU_2021.search(_SIDEHODE.sub(" ", seksjon))
+    if not m:
+        return None
+    return {
+        F_VINDU_MEDIAN: dt.date(
+            aar, MAANEDER[m.group(2).lower()], int(m.group(1))).isoformat(),
+        F_VINDU_MEDIAN_UKE: str(int(m.group(3))),
+    }
+
+
+def _vindu_periode(seksjon: str, aar: int, moenster: re.Pattern,
+                   slash: bool) -> dict[str, str] | None:
+    """Median som dato + periodegrensene ORDRETT. 2022-2025.
+
+    `slash` skiller de to skrivemåtene av datoen: 2022/2023 skriver
+    «15/5», 2024/2025 «15. mai». Kalleren sender inn både mønsteret og
+    formen — funksjonen gjetter ikke hvilken årgang den leser.
+
+    Uketallet avledes IKKE her, av samme grunn som i `_vindu`: samme dato
+    faller i ulik ISO-uke fra år til år, og den omregningen tilhører
+    analyselaget som da står for den selv.
+    """
+    m = moenster.search(_SIDEHODE.sub(" ", seksjon))
+    if not m:
+        return None
+    dag = int(m.group(3))
+    maaned = int(m.group(4)) if slash else MAANEDER[m.group(4).lower()]
+    return {
+        F_VINDU_MEDIAN: dt.date(aar, maaned, dag).isoformat(),
+        # Grensene er PROSA, ikke datoer. De lagres slik kilden skrev dem
+        # — «fra siste halvdel av april til begynnelsen av juni» — fordi
+        # en oversettelse til datoer ville vært vår presisjon på kildens
+        # vegne. Se CLAUDE.md 1b-3 og `_prosent`.
+        F_VINDU_PERIODE_ORDRETT: " ".join(m.group(2).split()),
+    }
 
 
 def _hi_avsnitt(seksjon: str, etiketter: tuple[str, ...]) -> str:
@@ -1501,6 +1691,10 @@ def _uttrekk_2021(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
         kategorier, _ = _felles_prosa(flat, aar, med_usikkerhet=False)
         _kryssjekk(hoved, kategorier, "ekspertgruppen 2021")
         yield from _tallceller(flat)
+        # Vinduet står i AVSNITTENE, som gjelder rapportens eget år.
+        # For 2020 er bare tabellen oppdatert, og 2020-vinduet står i
+        # 2020-rapporten — ikke her. Se `_vindu_2021`.
+        yield from _vinduceller(flat, aar, None)
 
 
 def _krev_antall(funn, ventet: int, hva: str, aar: int) -> None:
@@ -1712,6 +1906,9 @@ def _uttrekk_2023(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
     """
     yield from _uttrekk_shelf(sider, flat, aar, _OVERSKRIFT_2023,
                               rad=_SHELF_RAD_2023)
+    # Skråstrekformen, som 2022. At de to årgangene deler form er MÅLT
+    # på begge kroppene, ikke antatt — se `_VINDU_2022`.
+    yield from _vinduceller(flat, aar, _VINDU_2022, slash=True)
 
 
 def _uttrekk_2024(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
@@ -1722,6 +1919,9 @@ def _uttrekk_2024(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
     `kategori_ordrett` og ikke `kategori`.
     """
     yield from _uttrekk_shelf(sider, flat, aar, _OVERSKRIFT_2024)
+    # «... midtpunkt 15. mai ...» — kilden byttet fra skråstrek til
+    # skrevet månedsnavn mellom 2023 og 2024. Se `_VINDU_2024`.
+    yield from _vinduceller(flat, aar, _VINDU_2024)
 
 
 def _uttrekk_2025(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
@@ -1753,6 +1953,11 @@ def _uttrekk_2025(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
             yield Celle(po, F_KATEGORI_ORDRETT, tekst, FRA_TABELL)
         return
     yield from _uttrekk_shelf(sider, flat, aar, _OVERSKRIFT_2025)
+    # Avsnittene i kapittel 6.4 handler om 2025, og vinduet står der.
+    # 2024-grenen over returnerer før dette: den reviderer BARE
+    # kategorien, og et 2025-vindu stemplet 2024 ville vært en påstand
+    # kroppen ikke gjør.
+    yield from _vinduceller(flat, aar, _VINDU_2024)
 
 
 def _uttrekk_2022(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
@@ -1778,6 +1983,8 @@ def _uttrekk_2022(sider: list[str], flat: str, aar: int) -> Iterable[Celle]:
     _, celler = _felles_prosa(flat, aar, med_usikkerhet=True)
     yield from celler
     yield from _tallceller(flat)
+    # «... midtpunkt 15/5 ...» — skråstrekformen. Se `_VINDU_2022`.
+    yield from _vinduceller(flat, aar, _VINDU_2022, slash=True)
 
 
 # ------------------------------------------------------------- utgivelser
@@ -1977,7 +2184,18 @@ class Ekspertgruppen(Source):
     # om — `diff.revisjon()` kaster `Grunnlagssprik` mellom versjoner, og
     # det er riktig: en forskjell kan da like gjerne være vår egen parser
     # som kildens revisjon.
-    version = "3"
+    # Bumpet til "4" 01.09.2026: utvandringsvinduet trekkes nå ut av
+    # ALLE årgangene og ikke bare 2020. Det er en ny FORM per år, ikke en
+    # oppmykning av 2020-mønsteret — kilden sluttet å oppgi start- og
+    # sluttdato etter 2020, og det som finnes for 2021-2025 er medianen
+    # (pluss løs prosa om grensene fra 2022). Se `_vindu_2021`,
+    # `_vindu_periode` og blokken over dem.
+    #
+    # Snapshotene på disk er skrevet av versjon 1, 2 og 3. De skrives
+    # IKKE om — `diff.revisjon()` kaster `Grunnlagssprik` mellom
+    # versjoner, og det er riktig: en forskjell kan da like gjerne være
+    # vår egen parser som kildens revisjon.
+    version = "4"
     # Samme entitetstype som biomasse, med vilje: en analyse skal kunne
     # joine kategori mot beholdning på `entity_id` uten en oversettelse.
     entity_type = "produksjonsomraade"
