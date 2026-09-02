@@ -9,6 +9,8 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-03** — [Organisasjonsform hentes fra Brreg for oppløste selskaper — skjevheten falt fra 26,4 % til 0,6 %](2026-09-03-organisasjonsform-fra-brreg.md) — gjeldende
+- **2026-09-03** — [diff.compare bygget changeloggen med avkortet skjemautledning — en latent feil siden loggen ble skrevet](2026-09-03-diff-skjemautledning.md) — gjeldende
 - **2026-09-02** — [Eierskapshistorikken hentes, og journalDate blir stående som «senest da»](2026-09-02-eierskapshistorikk-backfill.md) — gjeldende
 - **2026-09-02** — [Eierskapskjeden lukkes via /licenses — og personvernfilteret måtte bli et annet enn det bestilte](2026-09-02-eierskapskjeden.md) — gjeldende
 - **2026-09-02** — [Fravær av kjøring er en egen feilklasse, og ingen eksisterende vakt dekker den](2026-09-02-varsle-paa-stillhet.md) — gjeldende

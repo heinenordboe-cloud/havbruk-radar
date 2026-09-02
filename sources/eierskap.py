@@ -83,10 +83,20 @@ from typing import Any, Iterable
 import httpx
 
 from core.config import get
+from core import persondata
 from core.contract import Observation, Source
 from sources import _http
 
 STANDARD_BASE = "https://api.fiskeridir.no/pub-aqua/api/v1"
+
+# Brregs enhetsregister. Brukes KUN til å slå opp organisasjonsform for
+# historiske organisasjonsnumre — se `brreg_form`. Ingen søk, ingen
+# lister, ingen adresser.
+BRREG_URL = "https://data.brreg.no/enhetsregisteret/api/enheter"
+
+# Pause mellom Brreg-kall. Samme begrunnelse som PAUSE_S: en offentlig
+# etat, ikke en CDN.
+BRREG_PAUSE_S = 0.3
 
 # Tjenesten avviser range-spenn over 100 med 400. Målt: 0-99 gir 100
 # rader, 0-499 gir 400 Bad Request.
@@ -160,8 +170,26 @@ def er_organisasjonsnummer(nr: object) -> bool:
 
 
 def er_person(type_verdi: object) -> bool:
-    """Sant hvis eiertypen betyr «denne eieren er et menneske»."""
-    return isinstance(type_verdi, str) and type_verdi.strip() in PERSONTYPER
+    """Sant hvis eiertypen betyr «denne eieren er et menneske».
+
+    Tåler TO vokabularer, og det er nødvendig fra 03.09.2026:
+
+      * pub-aquas egne ord  — `Person`, `SoleProprietorship`
+      * Brregs koder        — `ENK`, via core/persondata.PERSONFORMER
+
+    Historiske mottakere som er oppløst finnes ikke i pub-aquas
+    `/entities`, og typen deres hentes fra Brreg i stedet. Uten dette
+    leddet ville en Brreg-`ENK` sluppet rett gjennom, fordi `ENK` ikke
+    står i `PERSONTYPER` — og da hadde vi bygget nøyaktig det
+    personregisteret filteret finnes for å hindre.
+
+    `persondata` er den autoritative lista for Brreg-siden. Den kopieres
+    ikke hit: to lister som skal si det samme er formen F6/F7 hadde.
+    """
+    if not isinstance(type_verdi, str):
+        return False
+    t = type_verdi.strip()
+    return t in PERSONTYPER or persondata.er_personform(t)
 
 
 def _tillat(eier_type: object, orgnr: object) -> bool:
@@ -438,6 +466,71 @@ class Eierskap(Source):
             if er_organisasjonsnummer(nr):
                 ut[nr] = str(e.get("typeValue") or "")
         return ut
+
+    # Backfillen spør kilden, ikke modulen: den skal kunne kjøre mot en
+    # hvilken som helst kilde med `overforinger()` uten å importere
+    # nettopp denne fila.
+    er_organisasjonsnummer = staticmethod(er_organisasjonsnummer)
+    PAUSE_S = PAUSE_S
+    BRREG_PAUSE_S = BRREG_PAUSE_S
+
+    def brreg_form(self, orgnr: str, c: httpx.Client) -> dict:
+        """Organisasjonsform fra Brreg for ETT organisasjonsnummer.
+
+        Finnes for å rette en MÅLT skjevhet, ikke for å utvide utvalget.
+        Historiske mottakere som er oppløst mangler i pub-aquas
+        `/entities`, og uten typen deres stoppes overføringen — noe som
+        rammet 677 av 694 filtrerte overføringer, fortrinnsvis de
+        oppkjøpte selskapene. Se
+        docs/beslutninger/2026-09-03-organisasjonsform-fra-brreg.md.
+
+        ## Kroppen REDUSERES før den forlater funksjonen
+
+        Verifisert 03.09.2026: en AKTIV enhet svarer med
+        `forretningsadresse`, `postadresse`, `epostadresse`, `telefon` og
+        `mobil`. For et enkeltpersonforetak er forretningsadressen i
+        praksis hjemmeadressen, og mobilnummeret er personens eget —
+        `985937028` svarer med gateadresse og mobil.
+
+        Rå-arkivet ligger i git og er append-only. Derfor returneres bare
+        tre felter, og NAVNET er ikke blant dem: `officialName` fra
+        overføringen dekker behovet, og et navn fra Brreg ville vært en
+        personopplysning for hver personform.
+
+        ## Statusene, og at ingen av dem betyr «slipp gjennom»
+
+            ok            kjent, ikke-personlig form  -> brukes
+            personform    ENK e.l.                    -> stoppes
+            ikke_funnet   404                         -> stoppes
+            fjernet       410 Gone (juridisk fjernet) -> stoppes
+
+        En SLETTET enhet svarer 200 med `respons_klasse: "SlettetEnhet"`
+        og beholder `organisasjonsform` — det er hele grunnen til at
+        veien er farbar. En FJERNET enhet svarer 410 og oppgir ingenting;
+        den behandles som «vet ikke», altså stoppes, uendret regel.
+        """
+        r = c.get(f"{BRREG_URL}/{orgnr}",
+                  headers={"Accept": "application/json"})
+        if r.status_code == 410:
+            return {"organisasjonsnummer": orgnr, "status": "fjernet"}
+        if r.status_code == 404:
+            return {"organisasjonsnummer": orgnr, "status": "ikke_funnet"}
+        r.raise_for_status()
+        d = r.json()
+        kode = ((d.get("organisasjonsform") or {}).get("kode") or "").strip()
+        if not kode:
+            return {"organisasjonsnummer": orgnr, "status": "ikke_funnet"}
+        if er_person(kode):
+            # Arkiveres IKKE av kalleren. Se `_brreg_typer` i backfill.py:
+            # «fraværende» og «person» gir begge STOPP, så et arkiv uten
+            # personformene oppfører seg identisk — og inneholder da
+            # ingen opplysning om at et gitt nummer tilhører et menneske.
+            return {"organisasjonsnummer": orgnr, "status": "personform",
+                    "organisasjonsform": kode}
+        return {"organisasjonsnummer": orgnr,
+                "organisasjonsform": kode,
+                "slettedato": d.get("slettedato") or "",
+                "status": "ok"}
 
     def overforinger(self, nr: str, c: httpx.Client) -> dict:
         """Rå transfers-respons for ÉN tillatelse.

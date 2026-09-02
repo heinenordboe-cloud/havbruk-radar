@@ -375,3 +375,108 @@ def test_historikken_skriver_til_egen_kilde():
     k = {"A": _kropp(_overf("969159570", "2022-12-20", "2022000164"))}
     obs = list(Eierskap().parse_overforinger(k, TYPER, "2022-12-31"))
     assert {o.source for o in obs} == {eierskap.HISTORIKK_KILDE}
+
+
+# ====================================================== brreg-oppslaget
+#
+# Retter en MÅLT skjevhet: filteret stoppet 677 overføringer fordi
+# mottakeren var oppløst, altså fortrinnsvis de OPPKJØPTE selskapene.
+# Testene under passer på at rettelsen ikke myker opp selve regelen.
+
+class _Svar:
+    def __init__(self, status, data=None):
+        self.status_code = status
+        self._d = data or {}
+    def json(self): return self._d
+    def raise_for_status(self):
+        if self.status_code >= 400: raise AssertionError("skulle ikke skje")
+
+
+class _Klient:
+    def __init__(self, svar): self._svar = svar
+    def get(self, url, **kw): return self._svar
+
+
+def _brreg(status, kode=None, slettedato=None):
+    d = {}
+    if kode: d["organisasjonsform"] = {"kode": kode, "beskrivelse": "x"}
+    if slettedato: d["slettedato"] = slettedato
+    return Eierskap().brreg_form("959352887", _Klient(_Svar(status, d)))
+
+
+def test_slettet_selskap_gir_organisasjonsformen():
+    """Hele grunnlaget for at veien er farbar: en SLETTET enhet svarer
+    200 og beholder organisasjonsform. Verifisert på fem selskaper."""
+    d = _brreg(200, "AS", "2019-12-16")
+    assert d["status"] == "ok"
+    assert d["organisasjonsform"] == "AS"
+    assert d["slettedato"] == "2019-12-16"
+
+
+def test_enk_fra_brreg_stoppes():
+    """Brreg svarer med Brreg-koder, ikke pub-aquas ord. Uten at
+    `er_person` kjenner ENK ville et enkeltpersonforetak sluppet rett
+    gjennom — og da hadde rettelsen brutt regelen den skulle bevare."""
+    d = _brreg(200, "ENK")
+    assert d["status"] == "personform"
+
+
+def test_410_gone_er_vet_ikke_ikke_slipp_gjennom():
+    assert _brreg(410)["status"] == "fjernet"
+
+
+def test_404_er_vet_ikke():
+    assert _brreg(404)["status"] == "ikke_funnet"
+
+
+def test_manglende_organisasjonsform_er_vet_ikke():
+    """200 uten form er ikke et ja. Fraværet av en type er ikke en type."""
+    assert _brreg(200)["status"] == "ikke_funnet"
+
+
+def test_brreg_kroppen_baerer_ingen_persondata():
+    """En AKTIV enhet svarer med forretningsadresse, epost, telefon og
+    mobil — for et ENK er det hjemmeadressen og personens mobil.
+
+    Kroppen som forlater `brreg_form()` skal bære tre felter og ikke
+    navnet: rå-arkivet ligger i git og er append-only.
+    """
+    svar = {"organisasjonsform": {"kode": "AS"}, "slettedato": "",
+            "navn": "NOEN AS",
+            "forretningsadresse": {"adresse": ["Hjemmeveien 3"],
+                                   "postnummer": "5419"},
+            "epostadresse": "noen@example.com", "mobil": "99999999",
+            "telefon": "55555555"}
+    d = Eierskap().brreg_form("959352887", _Klient(_Svar(200, svar)))
+    assert set(d) == {"organisasjonsnummer", "organisasjonsform",
+                      "slettedato", "status"}
+    t = repr(d)
+    for forbudt in ("Hjemmeveien", "5419", "example.com", "99999999",
+                    "55555555", "NOEN AS"):
+        assert forbudt not in t
+
+
+def test_personform_baerer_ikke_slettedato_videre():
+    """Personformen returneres bare for at kalleren skal kunne telle
+    den. Den arkiveres ikke — se `_brreg_typer` i backfill.py."""
+    d = _brreg(200, "ENK", "2019-12-16")
+    assert d["status"] == "personform"
+    assert "slettedato" not in d
+
+
+def test_brreg_type_virker_i_filteret():
+    """Ende-til-ende: en Brreg-kode skal kunne bære en overføring
+    gjennom `_tillat`, og en personform skal ikke."""
+    assert eierskap._tillat("AS", "959352887") is True
+    assert eierskap._tillat("ENK", "985937028") is False
+    assert eierskap._tillat(None, "959352887") is False
+
+
+def test_brreg_kode_slipper_overforingen_gjennom():
+    k = {"A": _kropp(_overf("959352887", "2007-05-05", "2007000001",
+                            "MOWI NORWAY AS"))}
+    obs = list(Eierskap().parse_overforinger(k, {"959352887": "AS"},
+                                             "2007-12-31"))
+    felt = {o.field: o.value for o in obs}
+    assert felt["mottaker_orgnr"] == "959352887"
+    assert felt["mottaker_type"] == "AS"

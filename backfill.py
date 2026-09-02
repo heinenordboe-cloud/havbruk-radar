@@ -183,6 +183,9 @@ def _uker(fra: tuple[int, int], til: tuple[int, int]):
 # fordi feltene er helt andre enn den ukentlige eierskapskildens — se
 # `HISTORIKK_KILDE` i sources/eierskap.py.
 EIERSKAP_ARKIV = "eierskap-overforinger"
+# Brreg-oppslagene. EGEN mappe: kroppene kommer fra en annen tjeneste
+# og er redusert til tre felter, se `Eierskap.brreg_form`.
+EIERSKAP_BRREG = "eierskap-brreg"
 EIERSKAP_HISTORIKK = "eierskap_historikk"
 
 
@@ -689,6 +692,63 @@ def _backfill_maaneder(kilde, args) -> int:
 
 # ----------------------------------------------------------- rapportmodus
 
+def _brreg_typer(kilde, c, mangler: set[str], pause: float,
+                 torrkjor: bool) -> tuple[dict[str, str], dict[str, int]]:
+    """Organisasjonsform fra Brreg for mottakere pub-aqua ikke kjenner.
+
+    Retter en MÅLT skjevhet: 677 av 694 filtrerte overføringer ble
+    stoppet fordi mottakeren er oppløst og mangler i dagens
+    `/entities` — altså fortrinnsvis de oppkjøpte selskapene, som er
+    nøyaktig hendelsene serien finnes for.
+
+    ## Personformene arkiveres IKKE
+
+    Et arkiv som sier «dette organisasjonsnummeret tilhører et
+    enkeltpersonforetak» er en opplysning om et navngitt menneske, og
+    rå-arkivet er append-only. De utelates derfor helt.
+
+    Det koster ingenting i oppførsel: en mottaker som mangler i kartet
+    er UKJENT, og ukjent stoppes — samme utfall som personform. De to
+    tilstandene er ikke til å skille fra hverandre nedstrøms, og det er
+    med vilje. Prisen er at de slås opp på nytt ved en gjenkjøring, og
+    det er en håndfull kall.
+    """
+    mappe = raw_arkiv.ARKIV_DIR / EIERSKAP_BRREG
+    mappe.mkdir(parents=True, exist_ok=True)
+
+    typer: dict[str, str] = {}
+    telling: dict[str, int] = {"fra_arkiv": 0, "ok": 0, "personform": 0,
+                               "ikke_funnet": 0, "fjernet": 0, "feil": 0}
+
+    for i, orgnr in enumerate(sorted(mangler), 1):
+        sti = mappe / f"{_arkivnavn(orgnr)}.json.gz"
+        if sti.exists():
+            with gzip.open(sti, "rb") as f:
+                d = json.loads(f.read())
+            kode = str(d.get("organisasjonsform") or "")
+            if kode:
+                typer[orgnr] = kode
+            telling["fra_arkiv"] += 1
+            continue
+        try:
+            d = kilde.brreg_form(orgnr, c)
+        except Exception as e:
+            telling["feil"] += 1
+            print(f"  [{i}/{len(mangler)}] {orgnr}: FEIL {type(e).__name__}")
+            continue
+        status = d.get("status")
+        telling[status] = telling.get(status, 0) + 1
+        if status == "ok":
+            typer[orgnr] = str(d["organisasjonsform"])
+            if not torrkjor:
+                with gzip.open(sti, "wb", compresslevel=9) as f:
+                    f.write(json.dumps(d, ensure_ascii=False,
+                                       sort_keys=True).encode("utf-8"))
+        time.sleep(pause)
+
+    return typer, telling
+
+
 def _backfill_overforinger(kilde, args) -> int:
     """Eierskapshistorikken: ett kall per tillatelse, ett snapshot per år.
 
@@ -785,17 +845,39 @@ def _backfill_overforinger(kilde, args) -> int:
             kropper[_fra_arkivnavn(sti.name)] = json.loads(f.read())
     print(f"\nLeser {len(kropper)} arkiverte kropper.")
 
+    # Mottakere pub-aqua ikke kjenner -> slå opp formen hos Brreg.
+    mottakere = {str(t.get("identityNr") or "").strip()
+                 for k in kropper.values()
+                 for t in (k or {}).get("transfers") or []}
+    mangler = {m for m in mottakere
+               if m and kilde.er_organisasjonsnummer(m) and m not in typer}
+    if mangler:
+        print(f"\n{len(mangler)} mottakere mangler i /entities — "
+              f"slår opp organisasjonsform hos Brreg …")
+        import httpx as _httpx
+        bc = _httpx.Client(timeout=60.0, follow_redirects=True)
+        try:
+            brreg, telling = _brreg_typer(
+                kilde, bc, mangler,
+                getattr(kilde, "BRREG_PAUSE_S", 0.3), args.torrkjor)
+        finally:
+            bc.close()
+        typer = {**typer, **brreg}
+        print(f"  {telling}")
+        print(f"  typekartet utvidet fra {len(typer) - len(brreg)} "
+              f"til {len(typer)}")
+
     aar = sorted({str(t.get("journalDate") or "")[:4]
                   for k in kropper.values()
                   for t in (k or {}).get("transfers") or []
                   if t.get("journalDate")})
     print(f"Årganger med overføringer: {aar[0]}..{aar[-1]} ({len(aar)} år)")
 
-    skrevet = tomme = 0
+    skrevet = tomme = reparset = 0
     endringer_totalt = 0
     for a in aar:
         dato = f"{a}-12-31"
-        if _finnes_allerede(EIERSKAP_HISTORIKK, dato):
+        if _finnes_allerede(EIERSKAP_HISTORIKK, dato) and not args.reparse:
             print(f"  {dato}: ligger skrevet fra før")
             continue
         obs = list(runner.stempl(
@@ -808,6 +890,22 @@ def _backfill_overforinger(kilde, args) -> int:
             print(f"  {dato}: ingen overføringer igjen etter filtrering")
             continue
         ramme = snapshot.to_frame(obs)
+        finnes = _finnes_allerede(EIERSKAP_HISTORIKK, dato)
+        if finnes and args.reparse:
+            # RE-PARSE: nytt snapshot ved siden av det gamle, og ALDRI en
+            # changelog-rad. Kroppene er byte for byte de samme — det som
+            # er endret er VÅRT filter, ikke kildens påstand. En
+            # «ny»-rad ville sagt at det kom en overføring til, når
+            # sannheten er at vi endelig klarte å lese den vi hadde.
+            #
+            # Samme regel og samme begrunnelse som ekspertgruppens
+            # --reparse. Se CLAUDE.md 1b-6 om Grunnlagssprik.
+            filer = snapshot.write(obs, dato)
+            reparset += 1
+            print(f"  {dato}: {ramme.height:>5} observasjoner, "
+                  f"{ramme['entity_id'].n_unique():>4} overføringer, "
+                  f"RE-PARSE (ingen changelog) -> {filer[0].name}")
+            continue
         endr = diff.compare(ramme, dato)
         filer = snapshot.write(obs, dato)
         changelog.skriv(endr, dato, versjon=snapshot.versjon_av(filer[0]))
@@ -818,7 +916,8 @@ def _backfill_overforinger(kilde, args) -> int:
               f"{filer[0].name}")
 
     print(f"\n{skrevet} årssnapshots skrevet ({endringer_totalt} "
-          f"changelog-rader), {tomme} år tomme etter filtrering.")
+          f"changelog-rader), {reparset} RE-PARSET (ingen changelog), "
+          f"{tomme} år tomme etter filtrering.")
     print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
     return 0
 
