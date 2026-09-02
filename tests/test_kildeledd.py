@@ -286,3 +286,97 @@ def test_kildeledd_py_kan_importeres_og_har_hjelp():
                        capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, r.stderr
     assert "--fra" in r.stdout and "--til" in r.stdout
+
+
+# ------------------------------------------------- dekningen bak middelet
+#
+# Uten disse kolonnene kan ingen skille «lus falt» fra «anleggene med
+# mest lus ble tømt». De to ser IDENTISKE ut i kurven, og forskjellen er
+# hele skillet mellom en riktig og en misvisende graf.
+
+def test_dekningen_telles_per_po_per_uke(rot, tmp_path):
+    """n_i_po teller ALLE, n_rapporterende de som leverte, n_brakklagt
+    de som er markert brakklagt."""
+    skriv(rot, "akvakultur", "2026-01-05",
+          [(str(e), "prodomraade_kode", "3") for e in (100, 200, 300, 400)])
+    skriv(rot, "lusetall", "2020-06-01", [
+        # rapporterer, i drift
+        ("100", "lus_er_rapportert", "True"), ("100", "voksne_hunnlus", "0.5"),
+        ("100", "brakklagt", "False"),
+        ("200", "lus_er_rapportert", "True"), ("200", "voksne_hunnlus", "0.5"),
+        ("200", "brakklagt", "False"),
+        # brakklagt, rapporterer ikke
+        ("300", "lus_er_rapportert", "False"), ("300", "brakklagt", "True"),
+        # I DRIFT, men rapporterte ikke — den interessante gruppa
+        ("400", "lus_er_rapportert", "False"), ("400", "brakklagt", "False"),
+    ])
+    skriv(rot, "sjotemperatur", "2020-06-01",
+          [(str(e), "sjotemperatur", "10.0") for e in (100, 200, 300, 400)])
+
+    d = kjor(tmp_path, rot).filter(pl.col("serie") == "delvis")
+    assert d.height == 1
+    assert d["n_i_po"][0] == 4
+    assert d["n_rapporterende"][0] == 2
+    assert d["n_brakklagt"][0] == 1
+    assert d["n_lokaliteter"][0] == 2
+    # Aktive anlegg som ikke rapporterte: 4 - 1 - 2 = 1
+    assert (d["n_i_po"][0] - d["n_brakklagt"][0] - d["n_rapporterende"][0]) == 1
+
+
+def test_dekningen_telles_foer_filtrene_ikke_etter(rot, tmp_path):
+    """Poenget med tellerne er nettopp de som FALLER UT av middelet.
+
+    Telte vi etter filtrene, ville n_rapporterende vært lik
+    n_lokaliteter, og kolonnen kunne ikke avdekket noe som helst.
+    """
+    skriv(rot, "akvakultur", "2026-01-05",
+          [(str(e), "prodomraade_kode", "3") for e in (100, 200)])
+    skriv(rot, "lusetall", "2020-06-01",
+          [("100", "lus_er_rapportert", "True"), ("100", "voksne_hunnlus", "0.5"),
+           ("200", "lus_er_rapportert", "True"), ("200", "voksne_hunnlus", "0.5")])
+    # 200 mangler TEMPERATUR og faller ut av middelet, men den RAPPORTERTE.
+    skriv(rot, "sjotemperatur", "2020-06-01", [("100", "sjotemperatur", "10.0")])
+
+    d = kjor(tmp_path, rot).filter(pl.col("serie") == "delvis")
+    assert d["n_rapporterende"][0] == 2
+    assert d["n_lokaliteter"][0] == 1
+
+
+def test_po_uke_uten_en_eneste_rapport_gir_ingen_rad(rot, tmp_path):
+    """Tellerne oppretter bøtta for hvert (po, uke). Uten en vakt ville
+    en uke der ingen rapporterte gitt st.mean([]) og krasjet."""
+    skriv(rot, "akvakultur", "2026-01-05", [("100", "prodomraade_kode", "3")])
+    skriv(rot, "lusetall", "2020-06-01",
+          [("100", "lus_er_rapportert", "False"), ("100", "brakklagt", "True")])
+    skriv(rot, "sjotemperatur", "2020-06-01", [("100", "sjotemperatur", "10.0")])
+
+    assert kjor(tmp_path, rot).is_empty()
+
+
+def test_nevnerforbeholdet_staar_paa_hver_rad(rot, tmp_path):
+    """Samme krav som formelen og aggregeringen: parqueten skal bære sin
+    egen begrensning hvis den havner et annet sted (CLAUDE.md 1b-3)."""
+    grunnoppsett(rot, ["2020-06-01"], biomasse={"2020-06-30": 1000})
+    r = kjor(tmp_path, rot)
+    for rad in r.iter_rows(named=True):
+        assert "n_rapporterende" in rad["forbehold"]
+        assert "middel" in rad["forbehold"].lower()
+
+
+def test_dekningskolonnene_staar_i_skjemaet(rot, tmp_path):
+    for felt in ("n_i_po", "n_rapporterende", "n_brakklagt"):
+        assert felt in kildeledd.SKJEMA, f"{felt} mangler i SKJEMA"
+        assert kildeledd.SKJEMA[felt] == pl.Int64
+
+
+def test_manglende_brakklagt_telles_ikke_som_brakklagt(rot, tmp_path):
+    """Et felt som ikke er levert er IKKE en False. Samme skille som
+    lus_er_rapportert gjør en etasje ned."""
+    skriv(rot, "akvakultur", "2026-01-05", [("100", "prodomraade_kode", "3")])
+    skriv(rot, "lusetall", "2020-06-01",
+          [("100", "lus_er_rapportert", "True"), ("100", "voksne_hunnlus", "0.5")])
+    skriv(rot, "sjotemperatur", "2020-06-01", [("100", "sjotemperatur", "10.0")])
+
+    d = kjor(tmp_path, rot).filter(pl.col("serie") == "delvis")
+    assert d["n_brakklagt"][0] == 0
+    assert d["n_i_po"][0] == 1

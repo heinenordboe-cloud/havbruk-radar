@@ -337,6 +337,31 @@ def kildeledd_html() -> str:
         if not r.is_empty():
             forbehold = r["forbehold"][0]
             break
+
+    # DEKNINGEN bak middelet, regnet av serien selv. Et middel over tre
+    # lokaliteter er ikke et områdeestimat, og den begrensningen skal stå
+    # ved siden av kurven — ikke i en logg noen må lete etter.
+    tynt = []
+    for navn in ("full", "delvis"):
+        r = serier.get(navn)
+        if r is None or r.is_empty() or "n_rapporterende" not in r.columns:
+            continue
+        for po in sorted(r["po"].unique().to_list()):
+            d = r.filter(pl.col("po") == po)
+            andel = d.filter(pl.col("n_rapporterende") <= 5).height / d.height
+            if andel > 0.10:
+                tynt.append((navn, po, andel, int(d["n_rapporterende"].median())))
+        break   # samme bilde i begge seriene; vis den ene
+    dekning = ""
+    if tynt:
+        punkter = " · ".join(
+            f"<b>PO{po}</b>: {andel:.0%} av ukene har ≤ 5 rapporterende "
+            f"(median {med})" for _, po, andel, med in tynt)
+        dekning = (
+            f'<br><b class="lav">Tynn dekning:</b> {punkter}. Middelet '
+            f'hviler der på svært få anlegg, og ett anlegg som tømmes '
+            f'svinger kurven uten at lusepresset i sjøen har endret seg. '
+            f'Les <code>n_rapporterende</code> sammen med verdien.')
     formler = " · ".join(
         f'{s.upper()} = {serier[s]["formel"][0]}' for s in ("full", "delvis")
         if s in serier and not serier[s].is_empty())
@@ -360,7 +385,7 @@ def kildeledd_html() -> str:
  beholdningen ved slutten av sin egen måned, ikke interpolert.
  Sprang i FULL som ikke finnes i DELVIS er et månedsskifte i N_fisk,
  ikke en hendelse i sjøen.
- <br><b>Forbehold:</b> {forbehold}
+ <br><b>Forbehold:</b> {forbehold}{dekning}
  <br><span class="dim">{fra} .. {til}. Beregnet av kildeledd.py; denne
  siden leser tallene og regner dem ikke ut på nytt.</span>
 </div>

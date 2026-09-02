@@ -95,6 +95,20 @@ FORBEHOLD = (
     "docs/beslutninger/2026-08-31-hypotesen-omdefineres.md"
 )
 
+# Forbeholdet om NEVNEREN. Står på hver rad av samme grunn som
+# FORBEHOLD og `aggregering`: en parquet som havner et annet sted skal
+# bære sin egen begrensning (CLAUDE.md 1b-3).
+NEVNERFORBEHOLD = (
+    "verdi er et MIDDEL over rapporterende lokaliteter. Slutter en gruppe "
+    "lokaliteter å rapportere — utslakting, brakklegging eller manglende "
+    "innrapportering — endres middelet uten at lusepresset i sjøen har "
+    "endret seg. Les n_rapporterende SAMMEN med verdi: et fall i begge "
+    "samtidig er ikke et fall i lusepress. n_i_po er alle lokaliteter i "
+    "PO-et den uka, n_brakklagt de som er markert brakklagt (isFallow). "
+    "n_i_po - n_brakklagt - n_rapporterende er aktive anlegg som IKKE "
+    "rapporterte."
+)
+
 FORMEL_FULL = "N_fisk_PO * middel_lok(lus * (T + 4,28)^2) * 0,17"
 FORMEL_DELVIS = "middel_lok(lus * (T + 4,28)^2)  [UTEN N_fisk, UTEN 0,17]"
 
@@ -111,6 +125,12 @@ SKJEMA = {
     "iso_aar": pl.Int64,
     "iso_uke": pl.Int64,
     "n_lokaliteter": pl.Int64,
+    # Dekningen bak middelet. Se `bygg` og NEVNERFORBEHOLD: uten disse
+    # kan ingen skille «lus falt» fra «anleggene med mest lus ble tømt»,
+    # og de to ser IDENTISKE ut i kurven.
+    "n_i_po": pl.Int64,
+    "n_rapporterende": pl.Int64,
+    "n_brakklagt": pl.Int64,
     "lus_middel": pl.Float64,
     "temp_middel": pl.Float64,
     "n_fisk": pl.Int64,
@@ -312,8 +332,14 @@ def bygg(logg: kjoringslogg.Kjoringslogg, fra_aar: int, til: str) -> pl.DataFram
         # (po, ukedato) -> lister å ta middel av. Ett pass, ikke to:
         # «hvor mange lokaliteter» og «hva er middelet» er det samme
         # oppslaget, og to tellere for samme sak er formen F6/F7/F8 hadde.
+        # Tellerne bor i SAMME bøtte som middelet, ikke i en egen
+        # struktur ved siden av. To passeringer over de samme radene
+        # ville vært to tellere for samme sak — formen F6, F7 og F8
+        # hadde — og de ville kunnet svare ulikt den dagen et filter
+        # endres i det ene passet og ikke i det andre.
         bøtte: dict[tuple[int, str], dict[str, list]] = defaultdict(
-            lambda: {"delvis": [], "lus": [], "temp": []})
+            lambda: {"delvis": [], "lus": [], "temp": [],
+                     "i_po": 0, "rapporterende": 0, "brakklagt": 0})
 
         for dato, df in logg.les("lusetall", f"{aar}-01-01", min(f"{aar}-12-31", til)):
             bred = df.pivot(values="value", index="entity_id", on="field",
@@ -323,7 +349,17 @@ def bygg(logg: kjoringslogg.Kjoringslogg, fra_aar: int, til: str) -> pl.DataFram
                 po = kart.get(lok)
                 if po is None:
                     continue
-                if r.get("lus_er_rapportert") != "True":
+
+                # Telles FØR filtrene under. Det er hele poenget: de
+                # lokalitetene som faller ut av middelet er nettopp dem
+                # ingen kan se i kurven.
+                b = bøtte[(po, dato)]
+                b["i_po"] += 1
+                rapporterte = r.get("lus_er_rapportert") == "True"
+                b["rapporterende"] += rapporterte
+                b["brakklagt"] += r.get("brakklagt") == "True"
+
+                if not rapporterte:
                     continue
                 lus = r.get(LUS_FELT)
                 if lus in (None, ""):
@@ -332,12 +368,16 @@ def bygg(logg: kjoringslogg.Kjoringslogg, fra_aar: int, til: str) -> pl.DataFram
                 if t is None:
                     continue
                 lus = float(lus)
-                b = bøtte[(po, dato)]
                 b["delvis"].append(lus * (t + STIEN_T0) ** 2)
                 b["lus"].append(lus)
                 b["temp"].append(t)
 
         for (po, dato), b in bøtte.items():
+            # Bøtta finnes nå for hvert (po, uke) der PO-et hadde en
+            # lokalitet i det hele tatt — også der ingen rapporterte.
+            # Uten dette ville st.mean() fått en tom liste.
+            if not b["delvis"]:
+                continue
             iso = dt.date.fromisoformat(dato).isocalendar()
             delvis = st.mean(b["delvis"])
             maaned = dato[:7]
@@ -350,6 +390,14 @@ def bygg(logg: kjoringslogg.Kjoringslogg, fra_aar: int, til: str) -> pl.DataFram
                 "iso_aar": iso.year,
                 "iso_uke": iso.week,
                 "n_lokaliteter": len(b["delvis"]),
+                # n_lokaliteter er de som kom INN i middelet — de måtte
+                # også ha temperatur. n_rapporterende er de som leverte
+                # lusetall. Differansen er lokaliteter vi mistet på
+                # temperatur, ikke på rapportering, og de to skal kunne
+                # skilles.
+                "n_i_po": b["i_po"],
+                "n_rapporterende": b["rapporterende"],
+                "n_brakklagt": b["brakklagt"],
                 "lus_middel": st.mean(b["lus"]),
                 "temp_middel": st.mean(b["temp"]),
                 # Regel 1b-3: verdiene som avgjør hva raden BETYR, står
@@ -358,7 +406,7 @@ def bygg(logg: kjoringslogg.Kjoringslogg, fra_aar: int, til: str) -> pl.DataFram
                 "stien_k": STIEN_K,
                 "stien_t0": STIEN_T0,
                 "aggregering": BAER_MAANED,
-                "forbehold": FORBEHOLD,
+                "forbehold": FORBEHOLD + " || " + NEVNERFORBEHOLD,
             }
 
             rader.append({**felles,
@@ -450,6 +498,13 @@ def main() -> int:
               "publisert tall. Pris: sprang ved månedsskiftene.")
     logg.valg("aggregering.maaned_for_uke", "måneden i mandagens dato (observed_at)")
     logg.valg("forbehold.po_aggregering", FORBEHOLD)
+    logg.valg("forbehold.nevner", NEVNERFORBEHOLD)
+    logg.valg("dekning.felter", "n_i_po, n_rapporterende, n_brakklagt — "
+                                "bæres på HVER rad, ikke bare her")
+    logg.valg("dekning.brakklagt_kilde",
+              "lusetall.brakklagt (BarentsWatch isFallow). Verifisert "
+              "02.09.2026: 100 % dekning i alle 15 årganger, kun "
+              "True/False, ingen null")
     logg.valg("ekstrapolering", "ingen — N_fisk føres ikke bakover før 2017-10, "
                                 "og hull fylles ikke med gjennomsnitt")
 
