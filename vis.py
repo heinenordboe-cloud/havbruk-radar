@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 import kildeledd                            # noqa: E402
+from analyse import revisjoner              # noqa: E402
 from core import changelog, diff, snapshot   # noqa: E402
 from core.paths import DATA_DIR, RAW_DIR      # noqa: E402
 
@@ -368,11 +369,141 @@ def kildeledd_html() -> str:
 """
 
 
+def revisjoner_html() -> str:
+    """Revisjonssammendraget: hvem ombestemmer seg, hvor mye, hvor sent.
+
+    Tom streng når ingen kilde har revidert noe. Tallene REGNES IKKE HER
+    — `analyse/revisjoner.py` eier dem, og denne funksjonen setter dem
+    bare opp. Samme grunn som for kildeleddet: to steder som regner ut
+    samme størrelse er to tellere for samme sak.
+    """
+    rev = revisjoner.hent_revisjoner()
+    if rev.is_empty():
+        return ""
+
+    tid = revisjoner.Tidslinje()
+    rader = revisjoner.sammendrag(rev, tid)
+
+    tr = []
+    for r in rader:
+        endr = ("<span class=\"dim\">ikke tall</span>"
+                if r["median_endring"] is None
+                else f"{r['median_endring'] * 100:.2f} %")
+        storst = ("" if r["storste_endring"] is None
+                  else f"{r['storste_endring'] * 100:.1f} %")
+        if r["dager_median"] is None:
+            sent = "<span class=\"dim\">—</span>"
+        elif r["dager_min"] == r["dager_maks"]:
+            merke = " ≤" if r["er_ovre_grense"] else ""
+            sent = f"{r['dager_median']}{merke}"
+        else:
+            merke = " ≤" if r["er_ovre_grense"] else ""
+            sent = (f"{r['dager_min']}–{r['dager_maks']}"
+                    f" (med. {r['dager_median']}){merke}")
+        tr.append(
+            f"<tr><td>{r['kilde']}</td><td>{r['aar']}</td>"
+            f"<td class=\"n rev\">{r['rader']}</td>"
+            f"<td class=\"n\">{r['enheter']}</td>"
+            f"<td class=\"n\">{r['felter']}</td>"
+            f"<td class=\"n\">{endr}</td><td class=\"n\">{storst}</td>"
+            f"<td class=\"n\">{sent}</td></tr>")
+
+    # Verifiseringen står PÅ SIDA og ikke bare i en logg. Påstanden om at
+    # ingen andre har de gamle versjonene er verdiløs hvis den ikke kan
+    # etterprøves av den som leser tallene.
+    sjekk = revisjoner.verifiser(rev, 5, tid)
+    ok = sum(1 for v in sjekk if v["utfall"] == "OK")
+    spor = []
+    for v in sjekk:
+        spor.append(
+            f"<tr><td>{v['source']}</td><td>{v['observed_at']}</td>"
+            f"<td>{v['entity_id']}</td><td>{v['field']}</td>"
+            f"<td>{v.get('eldst_publisert', '')[:10]}<br>"
+            f"<span class=\"dim\">v{v.get('eldst_versjon', '?')}</span></td>"
+            f"<td>{v.get('gammel_pa_disk')!r}</td>"
+            f"<td>{v.get('nyest_publisert', '')[:10]}<br>"
+            f"<span class=\"dim\">v{v.get('nyest_versjon', '?')}</span></td>"
+            f"<td>{v.get('ny_pa_disk')!r}</td>"
+            f"<td class=\"rev\">{v['utfall']}</td></tr>")
+
+    kilder_nevnt = ", ".join(sorted(rev["source"].unique().to_list()))
+    e = revisjoner.eksempel_po9()
+    eksempel = ""
+    if e:
+        eksempel = f"""
+<div class="fig" style="margin-bottom:1rem">
+ <div class="figh"><b>Ett produksjonsområde, én verdi, ett år imellom</b></div>
+ <b>{e['entity_name']} (PO{e['entity_id']}), vurderingsåret 2024.</b>
+ <br>Ekspertgruppens rapport for 2024, utgitt
+ <b>{e['utgitt_forst'][:10]}</b>, ville ikke plassere PO9 i en kategori.
+ Den skrev <code>{e['kategori_ordrett_2024']}</code> og lot
+ <code>kategori</code> stå tom — et grensetilfelle.
+ <br>Rapporten for 2025, utgitt <b>{e['utgitt_revidert'][:10]}</b>,
+ kapittel 6.1 «Oppdaterte hovedkonklusjoner for 2024», avgjorde det:
+ <code>kategori = <span class="rev">{e['new_value']}</span></code>.
+ <br><b>{e['dager']} dager senere.</b> Samme år, samme område, ny
+ vurdering — og bare den som tok vare på den første påstanden kan se at
+ den ble endret. Fiskeridirektoratets biomassefil overskriver seg selv
+ den 20. hver måned.
+</div>"""
+
+    return f"""
+<h2 class="k2">Revisjoner — når kilden ombestemmer seg</h2>
+<div class="merk">
+ En <span class="rev">revisjon</span> er ikke en feil og ikke en hendelse
+ i sjøen. Det er kilden som uttaler seg om det SAMME tidspunktet en gang
+ til. Radene telles derfor ikke som bevegelse.
+ <br><b>{rev.height}</b> revisjonsrader i changeloggen, fordelt på
+ <b>{rev['source'].n_unique()}</b> kilder: {kilder_nevnt}.
+ <br><b>Havforskningsinstituttet står ikke i tabellen.</b> HI erklærer i
+ egen rapport at hele arkivet fra 2012 kjøres på nytt ved
+ modellendring, så kilden REVIDERER — men vi henter ingen serie fra den
+ som skriver snapshots, og en revisjon vi ikke har to påstander om, kan
+ ikke telles. Fraværet er vårt, ikke kildens.
+</div>
+{eksempel}
+<table>
+<tr><th>kilde</th><th>år</th><th class="n">rader</th><th class="n">områder</th>
+<th class="n">felter</th><th class="n">median endring</th>
+<th class="n">største</th><th class="n">dager etter</th></tr>
+{"".join(tr)}
+</table>
+<div class="merk">
+ «dager etter» er tiden fra den opprinnelige utgivelsen til revisjonen,
+ lest av <code>published_at</code> på hver side.
+ <b>≤</b> betyr ØVRE GRENSE: den nyere påstanden bærer ingen
+ utgivelsesdato, og <code>fetched_at</code> brukes som grense. Det
+ gjelder alle biomasse-radene — de nyere snapshotene er skrevet før
+ <code>published_at</code> fantes, og fylles ikke inn retroaktivt.
+ <br>Biomasse har bare ÉN revisjonshendelse så langt (Wayback-kopien
+ utgitt 2024-07-20 mot dagens fil), så min og maks er samme tall. Det er
+ én måling, ikke en fordeling.
+</div>
+
+<h2 class="k2">Verifisering — kan hver rad spores til de to snapshotene?</h2>
+<div class="merk">
+ Påstanden om at ingen andre har tatt vare på de gamle versjonene holder
+ bare hvis hver revisjonsrad kan gjenfinnes i dataene. Fem rader er
+ slått opp i snapshotene, ikke i koden som skrev dem —
+ <b>{ok} av {len(sjekk)} stemmer</b>.
+ <br>Versjonene sorteres på <code>published_at</code>, aldri på filnavn:
+ for biomasse bærer <code>.2.parquet</code> den ELDSTE påstanden.
+</div>
+<table>
+<tr><th>kilde</th><th>observed_at</th><th>område</th><th>felt</th>
+<th>eldst utgitt</th><th>verdi da</th>
+<th>nyest utgitt</th><th>verdi nå</th><th>utfall</th></tr>
+{"".join(spor)}
+</table>
+"""
+
+
 def html(data: dict) -> str:
     # `</` brytes opp: en verdi som inneholder "</script>" ville ellers
     # lukket taggen og ødelagt sida.
     nyttelast = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     kildeledd = kildeledd_html()
+    revisjon = revisjoner_html()
 
     return f"""<!doctype html>
 <meta charset="utf-8">
@@ -413,6 +544,7 @@ def html(data: dict) -> str:
 <h1>Feltoversikt</h1>
 <div class="sub">Visning 2 av 5. Ett felt per rad, sortert fallende på antall endringer.</div>
 {kildeledd}
+{revisjon}
 <h2 class="k2">Felter</h2>
 
 <input id="sok" placeholder="filtrer på feltnavn…" autofocus>
