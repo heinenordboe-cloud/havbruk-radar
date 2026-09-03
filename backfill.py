@@ -749,6 +749,132 @@ def _brreg_typer(kilde, c, mangler: set[str], pause: float,
     return typer, telling
 
 
+def _backfill_hendelser(kilde, args) -> int:
+    """Hendelseskilder: ett svar, N perioder, ett snapshot per periode.
+
+        python backfill.py --kilde romming --hendelser
+
+    ## Femte modus, og hvorfor
+
+    Ukemodus er én kropp per periode. Månedsmodus er én kropp for alle
+    periodene, men SKRIVES med etterslep gjennom run.py. Rapportmodus er
+    N kropper à M perioder. Overføringsmodus er én kropp per ENTITET.
+
+    Denne er: ÉN kropp som inneholder hendelser fra mange år, der
+    perioden faller ut av HVER RADS egen dato. Kilden sier selv hvilke
+    perioder den fikk, gjennom `aar_i()`.
+
+    ## Idempotens er INNHOLDSBASERT, ikke datobasert
+
+    De andre modusene spør «finnes denne perioden». Det duger ikke her:
+    inneværende år får nye hendelser gjennom hele året, og en
+    datosjekk ville skrevet 2026 én gang i januar og aldri igjen.
+
+    I stedet sammenlignes de nye radene mot NYESTE versjon av året. Er
+    de like, skrives ingenting. Da kan backfillen kjøres ukentlig og
+    koster ett HTTP-kall når ingenting har skjedd.
+    """
+    print(f"Backfill {kilde.name}: hendelser"
+          + (" (TØRRKJØRING)" if args.torrkjor else ""))
+
+    # UTC eksplisitt. `date.today()` er lokal tid, og repoets
+    # tidssonevakt feller den — med rette: kjøredatoen havner i
+    # `fetched_at` og sammenlignes leksikografisk med alt annet.
+    kjoredato = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    rå = kilde.fetch(kjoredato)
+    print(f"  {len(rå)} hendelser hentet")
+    for advarsel in getattr(kilde, "advarsler", []):
+        print(f"  ADVARSEL: {advarsel}")
+
+    perioder = kilde.aar_i(rå)
+    print(f"  perioder: {perioder[0]} .. {perioder[-1]} ({len(perioder)})")
+
+    raw_hash = ""
+    if not args.torrkjor:
+        raw_hash, ble = raw_arkiv.arkiver_ny(kilde.name, perioder[-1], rå)
+        print(f"  {'arkivert' if ble else 'allerede arkivert'}, "
+              f"sha256 {raw_hash[:16]}…")
+
+    hentet_at = dt.datetime.now(dt.timezone.utc).isoformat()
+    skrevet = uendret = 0
+    endringer_totalt = 0
+    sprik: list[str] = []
+
+    for dato in perioder:
+        obs = list(runner.stempl(
+            kilde.parse(rå, dato),
+            source_version=kilde.version, raw_hash=raw_hash,
+            fetched_at=hentet_at, published_at=getattr(kilde, "published_at", "") or "",
+            utvalg=getattr(kilde, "utvalg", None)))
+        if not obs:
+            continue
+        ramme = snapshot.to_frame(obs)
+
+        # Innholdssammenligning mot NYESTE versjon av året. `fetched_at`
+        # og `raw_hash` holdes utenfor: de er BOKFØRING og skiller seg
+        # ved hver kjøring, så en sammenligning som tok dem med ville
+        # aldri sagt «uendret».
+        versjoner = snapshot.versjoner(kilde.name, dato)
+        if versjoner:
+            _, forrige = versjoner[-1]
+            kolonner = ["entity_id", "field", "value"]
+            gammel = forrige.select(kolonner).sort(kolonner)
+            ny = ramme.select(kolonner).sort(kolonner)
+            if gammel.equals(ny):
+                uendret += 1
+                continue
+
+        if args.torrkjor:
+            print(f"  {dato}: {ramme.height:>5} observasjoner, "
+                  f"{ramme['entity_id'].n_unique():>4} hendelser [ville skrevet]")
+            skrevet += 1
+            continue
+
+        # Changeloggen skrives BARE mot en tidligere versjon av SAMME
+        # periode, aldri mot forrige periode.
+        #
+        # `diff.compare()` går langs tida og sammenligner et snapshot med
+        # det forrige DATERTE. For en hendelseskilde er nabodatoene helt
+        # disjunkte: rømmingene i 2017 deler ingen entiteter med dem i
+        # 2016, så alt ville blitt «ny» pluss «borte». Målt på første
+        # forsøk: 23914 changelog-rader som alle var støy, og de ville
+        # talt som BEVEGELSE i enhver signalregel.
+        #
+        # Den ekte endringen for denne kilden er at et år får nye rader
+        # etterpå — en ny rømming meldt, eller et endelig antall fylt
+        # inn. Det er `diff.revisjon()`s akse: samme observed_at, ulike
+        # hentinger. Se CLAUDE.md 1b-6.
+        endr = None
+        if versjoner:
+            try:
+                endr = diff.revisjon(ramme, dato)
+            except diff.Grunnlagssprik as e:
+                print(f"  {dato}: GRUNNLAGSSPRIK {e}")
+                sprik.append(f"{dato}  {e}")
+                continue
+        filer = snapshot.write(obs, dato)
+        skrevet += 1
+        if endr is None:
+            print(f"  {dato}: {ramme.height:>5} observasjoner, "
+                  f"{ramme['entity_id'].n_unique():>4} hendelser, "
+                  f"førstegang (ingen changelog) -> {filer[0].name}")
+        else:
+            changelog.skriv(endr, dato, versjon=snapshot.versjon_av(filer[0]))
+            endringer_totalt += endr.height
+            print(f"  {dato}: {ramme.height:>5} observasjoner, "
+                  f"{ramme['entity_id'].n_unique():>4} hendelser, "
+                  f"{endr.height:>4} revisjonsrader -> {filer[0].name}")
+
+    print(f"\n{skrevet} perioder skrevet ({endringer_totalt} "
+          f"revisjonsrader), {uendret} uendret.")
+    if sprik:
+        print(f"{len(sprik)} perioder kunne IKKE vurderes som revisjon:")
+        for x in sprik:
+            print(f"  {x}")
+    print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+    return 0
+
+
 def _backfill_overforinger(kilde, args) -> int:
     """Eierskapshistorikken: ett kall per tillatelse, ett snapshot per år.
 
@@ -1159,6 +1285,11 @@ def main() -> int:
                         "og skriv hvert år de dekker: førstegangsskriving "
                         "der året er nytt, revisjon der det alt finnes. "
                         "Bare for kilder med utgivelser().")
+    p.add_argument("--hendelser", action="store_true",
+                   help="hendelseskilde: ett svar med hendelser fra mange "
+                        "perioder, ett snapshot per periode. Idempotent på "
+                        "INNHOLD, så den kan kjøres ukentlig. Krever at "
+                        "kilden har aar_i().")
     p.add_argument("--overforinger", action="store_true",
                    help="hent eierskapshistorikken: ett kall per "
                         "tillatelse, ett snapshot per år. Gjenopptakbar — "
@@ -1185,6 +1316,13 @@ def main() -> int:
         print(f"Ukjent eller inaktiv kilde: {args.kilde}")
         return 1
     # Kilden velger modus, ikke brukeren. Se modulens docstring.
+    if args.hendelser:
+        if not hasattr(kilde, "aar_i"):
+            print(f"{args.kilde} har ingen aar_i(). Modusen gjelder kilder "
+                  f"som får hendelser fra mange perioder i ETT svar.")
+            return 1
+        return _backfill_hendelser(kilde, args)
+
     if args.overforinger:
         if not hasattr(kilde, "overforinger"):
             print(f"{args.kilde} har ingen overforinger(). Modusen gjelder "

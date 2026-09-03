@@ -325,7 +325,18 @@ PAUSE_S = 0.5
 class Eierskap(Source):
     name = "eierskap"
     entity_type = "tillatelse"
-    version = "1"
+    # Bumpet til "2" 03.09.2026: personvernfilteret leser nå Brregs
+    # koder i tillegg til pub-aquas ord (`er_person`), og historiske
+    # mottakere får organisasjonsformen slått opp hos Brreg. Uttrekket
+    # gir dermed et ANNET resultat av samme kropp — 1934 overføringer
+    # ble til 2611.
+    #
+    # Merk hva bumpen IKKE retter: snapshotene som alt ligger på disk er
+    # skrevet av to ulike filtre og bærer BEGGE `source_version = "1"`.
+    # De er ikke til å skille fra hverandre i dataene, bare på
+    # `fetched_at`. Se docs/KILDE-EIERSKAP.md — det er en kjent defekt
+    # som ikke kan rettes på plass, fordi filene er append-only.
+    version = "2"
 
     # UKENTLIG, som systemets kadens. Eierskap endres sjeldnere enn
     # lusetall — målt på 250 tillatelser spenner overføringene fra 2006

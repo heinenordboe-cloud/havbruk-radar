@@ -190,6 +190,22 @@ kilder:
     aktiv: true
     base_url: "https://api.fiskeridir.no/pub-aqua/api/v1"
 
+  romming:
+    # Rømmingshendelser rapportert fra oppdretter, Fiskeridirektoratets
+    # ArcGIS-tjeneste. Verifisert 03.09.2026, se docs/beslutninger/
+    # 2026-09-03-romming.md og sources/romming.py.
+    #
+    # KJØRES AV backfill.py, ikke av run.py: kilden skriver ett snapshot
+    # per rømmingsår, og run.py skriver ett snapshot per kjøring.
+    # `aktiv` styrer om backfillen finner den.
+    #
+    # Feltvalget ligger i sources/romming.py og ikke her. Det er ikke
+    # bare en kontrakt mot historikken: TO av feltene tjenesten tilbyr
+    # inneholder navngitte privatpersoner med telefonnummer, og hvilke
+    # felter vi nekter å hente skal ikke kunne endres ved et uhell i en
+    # YAML-fil.
+    aktiv: true
+
   ekspertgruppen:
     # Ekspertgruppen for vurdering av lusepåvirkning — kategori per
     # produksjonsområde per år, altså fasiten trafikklyssystemet styres
