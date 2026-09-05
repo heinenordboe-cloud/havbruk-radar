@@ -1,0 +1,114 @@
+# MAL for én prediksjon. Kopier blokken under inn i en NY fil som heter
+# predictions/<datoen-du-skriver-den>.yml — for eksempel 2026-09-07.yml.
+#
+# ═══ HVORFOR DENNE FILA HETER .yaml OG IKKE .yml ═══
+#
+# `core.predictions.last()` leser `predictions/*.yml`. Het malen `.yml`,
+# ville kjørejobben lest den som et ekte anslag, `forsegl.py` ville
+# forseglet den, og treffraten ville inneholdt en mal.
+#
+# Endelsen er altså ikke kosmetikk — den er det som holder malen utenfor.
+# Bytter du den til `.yml`, blir malen en prediksjon.
+#
+# ═══ FELTENE ═══
+#
+# Fire av dem finnes for skeptikeren, ikke for deg:
+#
+#   vindu.til    avgjørelsesdatoen. Uten den er påstanden ikke
+#                falsifiserbar — den er bare utsatt til den passer.
+#   feil_hvis    hva som ville gjort påstanden GAL, skrevet før du vet.
+#                Skrives den etterpå, blir hvert bomskudd et treff «egentlig».
+#   konfidens    hvor sikker du var, i prosent. Uten den kan loggen si hvor
+#                ofte du traff, men ikke om du var trygg når du burde vært
+#                det. En som treffer 70 % og sa 70 % er kalibrert; en som
+#                treffer 70 % og sa 95 % er det ikke, og det er en annen
+#                og verre feil.
+#   utfall       står TOM til vinduet er ute. Nøkkelen skal finnes fra
+#                dag én: mangler den, kan et utfall legges til senere uten
+#                at noen ser at det kom til. Feltet er sin egen kvittering.
+#
+# `forsegl.py` nekter å forsegle en fil der noen av dem mangler.
+
+prediksjoner:
+  - # ─── identitet ───────────────────────────────────────────────────
+    # Unik på tvers av ALLE filer. Konvensjonen er <fildato>-<løpenr>.
+    id: "2026-09-07-1"
+
+    # ─── den falsifiserbare påstanden ────────────────────────────────
+    # entitet + kilde + felt peker på nøyaktig én tallrekke i arkivet.
+    # Er kombinasjonen feil, blir utfallet `kan_ikke_avgjores`, ikke bom —
+    # og en logg full av uavgjorte anslag måler formatet, ikke deg.
+    entitet: "10029"                 # entity_id: orgnr eller lokalitetsnr
+    kilde: "akvakultur"              # må matche en kilde i sources/
+    felt: "kapasitet"                # må være et felt kilden faktisk leverer
+
+    # type: endring | verdi | uendret
+    #
+    #   endring   feltet beveger seg minst terskel_prosent i retning
+    #             (krever: retning, terskel_prosent)
+    #   verdi     feltet tar en bestemt verdi
+    #             (krever: verdi)
+    #   uendret   feltet holder seg innenfor ±terskel_prosent hele vinduet
+    #             (krever: terskel_prosent)
+    type: "endring"
+    retning: "opp"                   # opp | ned
+    terskel_prosent: 10
+
+    # ─── dato skrevet, og avgjørelsesdato ────────────────────────────
+    # `fra` må være filnavnets dato eller senere. Valideringen håndhever
+    # det, og det er den regelen som gjør at du ikke kan spå fortiden.
+    # `til` er avgjørelsesdatoen: den dagen påstanden må ha vist seg.
+    vindu:
+      fra: "2026-09-07"
+      til: "2027-03-07"
+
+    # ─── begrunnelse ─────────────────────────────────────────────────
+    # Minst 25 tegn, håndhevet. Et anslag uten begrunnelse lærer ingenting
+    # når det bommer — da er det en myntkast man kan huske selektivt.
+    #
+    # Skriv MEKANISMEN, ikke konklusjonen. «Kapasiteten går opp» er ikke
+    # et grunnlag; «tillatelser ble flyttet hit i juli, og kapasiteten
+    # følger tillatelsen» er det, fordi det siste kan vise seg galt på en
+    # måte du lærer noe av.
+    grunnlag: >
+      Skriv hvorfor du tror dette, med mekanismen som gjør at det skulle
+      skje. Minst 25 tegn.
+
+    # ─── hva som ville gjort den feil ────────────────────────────────
+    # Det viktigste feltet i fila, og det eneste som ikke kan skrives
+    # etterpå uten at loggen mister sin verdi.
+    #
+    # Kan du ikke skrive noe konkret her, er påstanden ikke falsifiserbar,
+    # og da måler den ingenting uansett hvor ofte den «treffer».
+    feil_hvis: >
+      Hva som konkret ville vist at du tok feil. Ikke «hvis det ikke
+      skjer» — det er bare påstanden speilvendt. Skriv den observasjonen
+      som ville fått deg til å si at mekanismen du beskrev ikke stemmer.
+
+    # ─── konfidens ───────────────────────────────────────────────────
+    # Tall mellom 0 og 100, eksklusive. 50 er ikke lov å bruke som
+    # skjulested: et anslag du er 50 % sikker på er et myntkast, og det
+    # er lov — men skriv det da fordi det ER et myntkast, ikke for å
+    # slippe å ta stilling.
+    konfidens: 70
+
+    # ─── utfall: STÅR TOMT TIL AVGJØRELSESDATOEN ─────────────────────
+    # Fylles ut ÉN gang, når vinduet er ute. Lovlige verdier:
+    #   traff | bom | kan_ikke_avgjores
+    #
+    # Bommene skal stå her, i samme fil, med samme id. En logg der bare
+    # treffene ble ført inn er ikke en logg — den er en utstilling, og en
+    # skeptiker vil lese den som det.
+    #
+    # `run.py` avgjør anslagene automatisk og skriver resultatet til
+    # data/prediksjoner/<dato>.parquet. Det du skriver her skal stemme
+    # med det den fant. Er du uenig med maskinen, hører uenigheten hjemme
+    # i utfall_note — ikke i et utfall du overstyrer.
+    utfall: ""
+    utfall_dato: ""                  # ISO-dato. Kreves når utfall er satt.
+    utfall_kilde: ""                 # f.eks. "data/prediksjoner/2027-03-08.parquet"
+    utfall_note: ""                  # valgfri: hva du lærte, særlig ved bom
+
+    # Utfallsfeltene over holdes UTENFOR kjernehashen i predictions/SEGL.txt.
+    # Derfor kan de fylles inn senere uten at ankeret brytes: påstanden er
+    # forseglet, utfallet er ikke. Se forsegl.py.

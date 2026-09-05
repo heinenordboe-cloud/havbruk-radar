@@ -1,0 +1,38 @@
+# SEGL — havbruk-radar/predictions
+#
+# Generert av forsegl.py. Ikke rediger for hånd: hver linje er en
+# hash av noe annet, og en rettet hash er ikke en rettelse.
+#
+# filhash    SHA-256 over filas rå bytes. Verifiser selv med:
+#                shasum -a 256 predictions/<fil>
+#            Endres når et utfall skrives inn. Det er meningen.
+#
+# kjernehash SHA-256 over påstandsfeltene alene. Endres IKKE når
+#            utfallet skrives inn. Det er denne som forankres.
+#
+# rot        SHA-256 over alle linjene mellom BEGIN og END under.
+#            Ett tall å publisere. Alt annet henger under det.
+
+BEGIN
+fil        2026-08-18.yml
+filhash    1816cc9e0801fa101265d39e181d7369006681fa14bb95c6a5e2b69b0ff73674
+  anslag   2026-08-18-1
+  kjerne   3d5c4b381ee7bcbaa884c8294f57da9a5cd843dbabc76b357907d3c7cb5ac545
+  utfall   (åpen)
+  merknad  førformat: skrevet før konfidens ble krevd, teller ikke i kalibreringen
+  anslag   2026-08-18-2
+  kjerne   0fb60fc6a3a065e0cbe0f941fcbbfe02fc775563241aa64d1162a1b497b840b3
+  utfall   (åpen)
+  merknad  førformat: skrevet før konfidens ble krevd, teller ikke i kalibreringen
+  anslag   2026-08-18-3
+  kjerne   a5f057cd1f3dd027e93369e850bf3481ca5c410c112b7b335879bb53db7b45c7
+  utfall   (åpen)
+  merknad  førformat: skrevet før konfidens ble krevd, teller ikke i kalibreringen
+
+END
+
+rot        f2361f46a1314fb2338feeefc71cd4a8df2e817c39b2800cec78c05dcc940d7e
+
+# Forankre ROT-tallet over et sted du ikke kontrollerer, og noter
+# hvor i predictions/README.md. Et segl som bare ligger i repoet
+# beviser ingenting: det er skrevet av den det skal binde.
