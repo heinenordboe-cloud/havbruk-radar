@@ -219,3 +219,19 @@ kilder:
     # dokumentet, og å kunne bytte adresse uten å bytte parser ville vært
     # å invitere en kropp inn i feil leser.
     aktiv: true
+
+  trafikklysvedtak:
+    # Departementets FARGE per produksjonsområde per tildelingsrunde, lest
+    # av kapasitetsjusteringsforskriftene på lovdata.no. Den andre siden
+    # av trafikklyssystemet: ekspertgruppen gir RÅDET, denne gir VEDTAKET.
+    # Verifisert mot fire nedlastede forskriftskropper 05.09.2026, se
+    # docs/KILDE-TRAFIKKLYSVEDTAK.md.
+    #
+    # Ingen nøkkel og ingen avtale: forskriftene er offentlige. URL-ene
+    # ligger IKKE her, men i `FORSKRIFTER` i kildefila — samme begrunnelse
+    # som for ekspertgruppen: hver adresse hører sammen med nøyaktig én
+    # uttrekksfunksjon skrevet mot nøyaktig det dokumentet.
+    #
+    # Runde 2026 mangler med vilje. Forskriften var på høring og ikke
+    # fastsatt da kilden ble skrevet; fravær framfor gjetning.
+    aktiv: true

@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-05** — [Vedtaket hentes som kilde — og koblingen mellom råd og farge finnes ikke i regelverket](2026-09-05-vedtakskilden.md) — gjeldende
 - **2026-09-03** — [Rømming som kilde — hendelsesdata fra 2016, uten fritekst og uten oppdretternavn](2026-09-03-romming.md) — gjeldende
 - **2026-09-03** — [Organisasjonsform hentes fra Brreg for oppløste selskaper — skjevheten falt fra 26,4 % til 0,6 %](2026-09-03-organisasjonsform-fra-brreg.md) — gjeldende
 - **2026-09-03** — [diff.compare bygget changeloggen med avkortet skjemautledning — en latent feil siden loggen ble skrevet](2026-09-03-diff-skjemautledning.md) — gjeldende
