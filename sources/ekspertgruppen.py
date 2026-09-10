@@ -1995,7 +1995,7 @@ class Utgivelse(NamedTuple):
 
     # Ordrett fra kroppens forside. Dette er hvordan `parse()` VET hvilken
     # rapport den har fått — den gjetter ikke ut fra filnavn, URL eller
-    # rekkefølge. Verifisert på alle fem kroppene.
+    # rekkefølge. Verifisert på alle åtte kroppene.
     tittel: str
     # Årene rapporten uttaler seg om, ELDST FØRST.
     aar: tuple[int, ...]
@@ -2019,14 +2019,16 @@ class Utgivelse(NamedTuple):
 # deretter revideres av de nyere. Går den motsatt vei, ville hver eldre
 # rapport blitt en `Feilrekkefolge` mot en nyere påstand som alt lå der.
 #
-# 2019, 2023, 2024 og 2025 står IKKE her, og det er ikke en forglemmelse:
+# 2019 står IKKE her, og det er ikke en forglemmelse:
 #
 #   2019   trafikklyssystemet.no har en årstallsoverskrift med TOMT
 #          innhold. Vi vet ikke om rapporten finnes. Ubesvart spørsmål,
 #          ikke bekreftet fravær — se docs/KILDE-EKSPERTGRUPPEN.md.
-#   2023   hovedrapporten er ikke lokalisert på noen åpen adresse. Bare
-#   2024   vedleggene ligger ute. Departementet publiserte dem, og
-#   2025   regjeringen.no svarer 403 på både artikkelsider og PDF-er.
+#
+# 2023, 2024 og 2025 sto her på samme liste fram til 01.09.2026, da de ble
+# funnet i Nasjonalt vitenarkiv og fikk hver sin uttrekksfunksjon. Denne
+# kommentaren ble ikke rettet den gangen og påsto i åtte dager det motsatte
+# av tabellen rett under. Se docs/REVISJON-2026-09-09.md.
 #
 # En kilde skal ikke emittere for et år den ikke har en lest kropp og en
 # skrevet uttrekksfunksjon for. Fravær framfor gjetning.
@@ -2141,7 +2143,7 @@ def gjenkjenn(flat_forside: str) -> Utgivelse:
     eller spilt av på nytt fra arkivet — og en kropp som blir tolket som
     feil rapport ville fått riktig form og feil år.
 
-    Titlene er verifisert ordrett på alle fem kroppene, og de skiller seg
+    Titlene er verifisert ordrett på alle åtte kroppene, og de skiller seg
     fra hverandre: 2022 begynner til og med med et annet ord.
     """
     normalisert = " ".join(flat_forside.split())

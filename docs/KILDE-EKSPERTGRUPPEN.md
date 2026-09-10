@@ -410,13 +410,15 @@ proveniensen på raden, og den er akseptert, ikke oversett.
 | 2016–2018 | **dekket** | |
 | **2019** | **UBESVART SPØRSMÅL — ikke bekreftet fravær** | `trafikklyssystemet.no/Publikasjoner/Ekspertgrupperapporter` har en årstallsoverskrift «2019» med TOMT innhold. Ingen rapport lenket, ingen appendiks. 2018-rapporten sier at gruppen «er forespurt om å fortsette dette arbeidet i 2018 og 2019», så en 2019-vurdering kan ha eksistert uten å bli lagt ut. Vi vet ikke. |
 | 2020–2022 | **dekket** | |
-| 2023 | **ikke lokalisert** | Rapporten finnes (sitert som Vollset mfl. 2023). Bare vedlegg 1, 5, 6 og 7 ligger i `trafikklyssystemet.no/Portals/3/Publikasjoner/2023/`. Hovedrapporten er publisert av departementet; regjeringen.no svarer 403 på både artikkelsider og PDF-er for oss. |
-| 2024 | **ikke lokalisert** | Levert NFD juni 2025. Bare `Vedlegg III Modellrapport HI 2024.pdf` er funnet. |
-| 2025 | **ikke lokalisert** | Levert NFD desember 2025 (regjeringen.no id3141673). |
+| 2023 | **dekket** — funnet 01.09.2026 | Var ført som «ikke lokalisert» så lenge søket gikk mot trafikklyssystemet.no og regjeringen.no. Ligger i Nasjonalt vitenarkiv; se seksjonen «2023, 2024 og 2025 — funnet i Nasjonalt vitenarkiv» nedenfor. |
+| 2024 | **dekket** — funnet 01.09.2026 | Samme. |
+| 2025 | **dekket** — funnet 01.09.2026 | Samme. Kroppen dekker også 2024. |
 
-Skillet mellom 2019 og 2023–2025 er reelt og skal ikke viskes ut. For
-2023–2025 VET vi at rapportene finnes og at vi ikke når dem. For 2019 vet
-vi ikke om det finnes noe å nå.
+Skillet mellom 2019 og 2023–2025 var reelt så lenge det sto: for
+2023–2025 visste vi at rapportene fantes og at vi ikke nådde dem, for 2019
+vet vi ikke om det finnes noe å nå. Etter 01.09.2026 gjelder bare den
+andre halvdelen — 2023–2025 er hentet, og **2019 er fortsatt det eneste
+ubesvarte spørsmålet i denne tabellen.**
 
 Indekssiden er levende — nyeste oppslag er fra 02.06.2026 — men
 dokumentlistene stopper på 2022.
@@ -465,11 +467,13 @@ Rapport fra ekspertgruppe for vurdering av lusepåvirkning.
 
 ## 12. Det som IKKE er bygget
 
-- **2022-rapportens sannsynlighetsfordeling.** SHELF-metoden gir en
-  fordeling over de tre kategoriene per PO («Det er mer sannsynlig enn
-  ikke at … var mellom 10 og 30 %»). Rikere enn kategorien, men finnes
-  bare fra 2022 og ville gitt et felt med ett års historikk. Kroppen er
-  arkivert; det er en re-parse den dagen noen vil ha den.
+- **SHELF-sannsynlighetsfordelingen.** SHELF-metoden gir en fordeling
+  over de tre kategoriene per PO («Det er mer sannsynlig enn ikke at …
+  var mellom 10 og 30 %»). Rikere enn kategorien. Da dette ble skrevet
+  fantes den bare i 2022-kroppen og ville gitt et felt med ett års
+  historikk; etter 01.09.2026 finnes den også i 2023-, 2024- og
+  2025-kroppene, i ulik tabellform. Kroppene er arkivert; det er en
+  re-parse den dagen noen vil ha dem.
 - **VI og SINTEFs kontinuerlige estimater.** Formene er kartlagt (punkt
   5) men ikke uttrukket. VI ville gitt 18 celler, SINTEF 16.
 - **Usikkerhet per metode i 2018.** Den er cellefarge og finnes ikke i

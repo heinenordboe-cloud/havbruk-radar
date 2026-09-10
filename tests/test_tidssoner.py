@@ -40,6 +40,7 @@ import pytest
 from core import runner, snapshot
 from core.contract import Observation
 from sources.biomasse import _utgitt
+from sources.reguleringsomraader import publisert_i
 
 ROT = Path(__file__).resolve().parent.parent
 
@@ -55,7 +56,14 @@ SKRIVENDE = ([ROT / "run.py", ROT / "backfill.py"]
 # skal føres her sammen med en oppførselstest rett under, slik `_utgitt`
 # har. Å utvide lista uten testen er å flytte antakelsen tilbake til der
 # ingen ser den.
-SKRIVERE_AV_PUBLISHED_AT = {"_utgitt"}
+#
+# `publisert_i` løser oppgaven på den andre måten: den produserer en ISO-
+# DATO uten klokkeslett, fordi kilden den leser (HIs rapportside) bare
+# oppgir en dato. Da finnes det ikke noe offset å normalisere feil — og
+# det er nettopp derfor den er trygg. Å skrive `T00:00:00+00:00` på den
+# ville vært å finne på et klokkeslett ingen har oppgitt, som er den
+# samme feilen 1b-7 punkt 1 forbyr ett hakk lenger opp.
+SKRIVERE_AV_PUBLISHED_AT = {"_utgitt", "publisert_i"}
 
 
 @pytest.fixture
@@ -169,6 +177,39 @@ def test_utgitt_uten_header_er_tom_ikke_klokka():
     """«Vet ikke» skal se ut som «vet ikke». Se CLAUDE.md 1b-7 punkt 1."""
     assert _utgitt({}) == ""
     assert _utgitt({"Last-Modified": "ikke en dato"}) == ""
+
+
+
+def test_publisert_i_gir_dato_uten_paafunnet_klokkeslett():
+    """`sources/reguleringsomraader.publisert_i()` er den andre skriveren.
+
+    Den leser «Publisert: 29.06.2026» fra HIs egen metadatablokk. Det
+    kilden oppgir er en DATO, og det er en dato som skrives — ikke en dato
+    med et klokkeslett vi har funnet på.
+
+    Sorteringen i `snapshot.publisert()` er leksikografisk på ISO-strenger,
+    og en ren dato sorterer foran ethvert tidsstempel på samme dag. Det er
+    riktig vei: «senest denne datoen» er en øvre grense, som `fetched_at`
+    er det for `published_at`.
+    """
+    ut = publisert_i("<div>Publisert: <em>29.06.2026</em></div>")
+    assert ut == "2026-06-29"
+    assert dt.date.fromisoformat(ut) == dt.date(2026, 6, 29)
+    # Ingen tidssone å ta feil av, fordi det ikke er noe klokkeslett.
+    assert "T" not in ut and "+" not in ut
+
+
+def test_publisert_i_uten_dato_er_tom_ikke_klokka():
+    """Samme regel som `_utgitt`: «vet ikke» skal se ut som «vet ikke»."""
+    assert publisert_i("<html>ingen dato her</html>") == ""
+    assert publisert_i("") == ""
+
+
+def test_ren_dato_sorterer_foran_tidsstempel_samme_dag():
+    """Antakelsen som gjør den rene datoen trygg, testet i stedet for trodd."""
+    assert "2026-06-29" < "2026-06-29T00:00:00+00:00"
+    assert "2026-06-29" < "2026-06-30"
+    assert "2026-06-28T23:59:59+00:00" < "2026-06-29"
 
 
 def test_stempl_skriver_fetched_at_i_utc():

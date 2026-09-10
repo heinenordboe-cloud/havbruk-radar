@@ -1,5 +1,13 @@
 # Øktstatus 27.08.2026 — ekspertgruppen som kilde
 
+> **Note 09.09.2026.** Dette er et øktreferat fra 27.08.2026 og er ikke
+> omskrevet. To ting i det er siden blitt feil, og begge gjelder
+> ekspertgruppen: hovedrapportene for 2023, 2024 og 2025 ER lokalisert
+> (Nasjonalt vitenarkiv, 01.09.2026), så dekningstallene i punkt 3b
+> gjelder bare fram til den datoen; og dokumentasjonen som står som
+> «mangler» i punktet under er skrevet — beslutningsnotatet fikk dato
+> 2026-08-27, ikke 2026-08-26. Se `docs/REVISJON-2026-09-09.md`.
+
 Kilden er lukket og målt. Analysen er ikke kjørt.
 
 **Testsuiten er grønn: 482 passerte.** Branchen

@@ -23,3 +23,10 @@ dashboard/.evidence/
 # regenereres — og en generert fil som skrives om hver kjøring er
 # nøyaktig mønsteret som får repoet til å vokse kvadratisk.
 analyse/ut/
+
+# PDF-utskrift og normalisert utskrift av ekspertgruppe-kroppene. Ren
+# funksjon av `data/arkiv/ekspertgruppen/`: uttrekk_tekst.py -> tekst/,
+# normaliser.py -> tekst-norm/. Samme mønster som kildeledd-parquetene —
+# avledet, regenererbart, og 2 MB som ville ligget dobbelt i historikken.
+analyse/tekst/
+analyse/tekst-norm/

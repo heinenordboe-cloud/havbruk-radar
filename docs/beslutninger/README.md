@@ -9,7 +9,11 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-09** — [HIs 28 reguleringsområder hentes som kilde — grensetallene arkiveres uten å bli det](2026-09-09-reguleringsomraader.md) — utkast
+- **2026-09-09** — [Styringsgruppens råd som kilde — og sammenslåingen som forsvant i 2020](2026-09-09-styringsgruppens-rad-som-kilde.md) — utkast
+- **2026-09-09** — [Departementets PO9-begrunnelse hviler på en udatert ekspertversjon — funnet er om departementet, ikke om datamodellen](2026-09-09-departementets-po9-begrunnelse.md) — utkast
 - **2026-09-05** — [Vedtaket hentes som kilde — og koblingen mellom råd og farge finnes ikke i regelverket](2026-09-05-vedtakskilden.md) — gjeldende
+- **2026-09-03** — [Prediksjonsloggen forankres utenfor repoet, og utfallet skrives ved siden av påstanden](2026-09-03-prediksjonslogg-forankring.md) — utkast
 - **2026-09-03** — [Rømming som kilde — hendelsesdata fra 2016, uten fritekst og uten oppdretternavn](2026-09-03-romming.md) — gjeldende
 - **2026-09-03** — [Organisasjonsform hentes fra Brreg for oppløste selskaper — skjevheten falt fra 26,4 % til 0,6 %](2026-09-03-organisasjonsform-fra-brreg.md) — gjeldende
 - **2026-09-03** — [diff.compare bygget changeloggen med avkortet skjemautledning — en latent feil siden loggen ble skrevet](2026-09-03-diff-skjemautledning.md) — gjeldende
@@ -28,6 +32,7 @@ Nyeste øverst.
 - **2026-08-26** — [published_at, og at løpenummeret sluttet å være kronologi](2026-08-26-published-at.md) — gjeldende
 - **2026-08-25** — [Utvalget skiller ukjent fra ingen filtrering](2026-08-25-utvalg-skiller-ukjent-fra-ingen-filtrering.md) — gjeldende
 - **2026-08-25** — [Feltvakten måler levering, ikke innhold](2026-08-25-feltvakten-maler-levering-ikke-innhold.md) — utkast
+- **2026-08-24** — [Utvalgsutvidelse er ikke endring](2026-08-24-utvalgsutvidelse-er-ikke-endring.md) — utkast
 - **2026-08-24** — [Miljøvariabler sjekkes samlet før innsamlingen, ikke ved første bruk](2026-08-24-miljovariabler-sjekkes-for-innsamling.md) — utkast
 - **2026-08-22** — [Innsamlingen henter kodrepoet med token, ikke med åpenhet](2026-08-22-kodrepo-er-privat.md) — utkast
 - **2026-08-22** — [Enkeltpersonforetak filtreres bort i kilden](2026-08-22-enk-filtreres-i-kilden.md) — utkast

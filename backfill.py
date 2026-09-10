@@ -1124,7 +1124,7 @@ def _backfill_rapporter(kilde, args) -> int:
         if not utgitt:
             # Uten utgivelsestidspunkt kan kroppen ikke plasseres i
             # rekkefølgen, og `snapshot.publisert()` ville falt tilbake
-            # på hentetidspunktet — som er I DAG for alle fem kroppene.
+            # på hentetidspunktet — som er I DAG for alle åtte kroppene.
             # Da ville den ELDSTE rapporten fått det NYESTE tidspunktet
             # og revisjonsaksen lest baklengs. Samme vilkår som --arkiv.
             feil.append(f"{merke}: ingen published_at")

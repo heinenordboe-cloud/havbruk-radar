@@ -1,9 +1,17 @@
 ---
 dato: 2026-08-27
 tittel: Ekspertgruppen er en kilde, ikke en fasitfil — og dekningsgevinsten ga ikke styrke
-status: gjeldende
+status: gjeldende — dekningstallene er utdatert, se note under
 commit: [fylles inn]
 ---
+
+> **Note 09.09.2026.** Beslutningen står. Tallene gjør det ikke:
+> notatet er skrevet da `RAPPORTER` hadde fem kropper 2016–2022. Den
+> 01.09.2026 kom 2023, 2024 og 2025 til fra Nasjonalt vitenarkiv, og
+> tabellen har nå åtte. Hver setning om «fem rapporter», om hvilke år
+> som er dekket og om hvor mange celler kilden gir, skal leses som en
+> måling gjort 27.08.2026. Teksten er ikke omskrevet — se
+> `docs/REVISJON-2026-09-09.md`.
 
 ## Hva som ble bestemt
 

@@ -235,3 +235,24 @@ kilder:
     # Runde 2026 mangler med vilje. Forskriften var på høring og ikke
     # fastsatt da kilden ble skrevet; fravær framfor gjetning.
     aktiv: true
+
+  reguleringsomraader:
+    # HIs FORSLAG om å dele de 13 produksjonsområdene i 28
+    # reguleringsområder for utslipp av lakselus. Et råd til NFD avgitt
+    # 29.06.2026 — ikke forskrift. Verifisert mot begge levende kilder
+    # 09.09.2026, se docs/beslutninger/2026-09-09-reguleringsomraader.md.
+    #
+    # STATISK. Kilden skriver ÉN dato (2026-06-29) og henter ikke igjen
+    # så lenge den ligger. Ingen ny henting betyr ikke at ingenting kan
+    # skje: `datasett_versjon` og rapportens utgivelsesdato felles begge
+    # av parse() om HI publiserer en ny utgave.
+    aktiv: true
+
+    # To adresser fordi kilden henter TO framstillinger av samme grense
+    # og sammenligner dem. Geojson-fila er den som lagres; rapportens
+    # appendiks 7.1 er kontrollen. De ligger her og ikke i kildefila
+    # fordi ingen av dem er bundet til én uttrekksfunksjon slik
+    # ekspertgruppens og trafikklysvedtakets adresser er — samme fil,
+    # samme parser, uansett vert.
+    geojson_url: "https://ftp.nmdc.no/nmdc/IMR/Smittepress/regomr.geojson"
+    rapport_url: "https://www.hi.no/hi/nettrapporter/rapport-fra-havforskningen-2026-28"
