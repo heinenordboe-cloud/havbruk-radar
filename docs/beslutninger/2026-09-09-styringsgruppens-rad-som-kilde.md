@@ -115,7 +115,7 @@ Regelen er etterprøvd på to runder, uavhengig av hverandre. For
 2018-2019: seks områder spriker (PO 2, 3, 4, 5, 7, 10), og rådet er det
 verste av de to i alle seks. For 2016–2017, lest av 2018-kroppens
 Tabell 1: fire spriker (PO 2, 4, 6, 7), og rådet er det verste i alle
-fire. Åtte av åtte.
+fire. Ti av ti.
 
 **Fra 2020-kroppen finnes verken kolonnen eller regelen.** Overskriften
 er `Styringsgruppens vurderinger for 2020`, tabellen har én årskolonne,
