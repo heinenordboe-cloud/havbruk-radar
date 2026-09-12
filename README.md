@@ -57,7 +57,10 @@ reguleringsområdene:
 
 Reguleringsområdene er et **forslag** til Nærings- og
 fiskeridepartementet, ikke gjeldende regelverk, og bæres som det i
-dataene.
+dataene. Geodatasettet er under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.no),
+bekreftet av Pål Næverlid Sævik ved Havforskningsinstituttet
+09.09.2026.
 
 Ingen av etatene eller institusjonene har medvirket til, eller innestår
 for, bearbeidingen eller tolkningene som er gjort her. Samme attribusjon
