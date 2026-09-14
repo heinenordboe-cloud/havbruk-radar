@@ -921,6 +921,10 @@ Kostnaden står her så den ikke oppdages senere: en framtidig
 `sources/styringsgruppen.py` som følger ekspertgruppens navnekonvensjon
 vil lete under årsslutt-datoer og ikke finne kroppene.
 
+**Fila finnes ikke ennå.** Kilden er besluttet 09.09.2026 og ikke bygget;
+beslutningsnotatet står som `status: utkast`. Hver omtale av
+`sources/styringsgruppen.py` i dette dokumentet er om noe planlagt.
+
     2017-05-16.bin.gz    2020-11-27.bin.gz    2023-11-22.bin.gz
     2017-10-30.bin.gz    2021-11-11.bin.gz    2024-11-29.bin.gz
     2018-11-27.bin.gz    2022-12-01.bin.gz    2025-11-21.bin.gz

@@ -20,7 +20,7 @@ Entitet er produksjonsområde (`entity_type = "produksjonsomraade"`, samme
 som ekspertgruppen og biomasse), `observed_at` er siste dag i
 tildelingsrunden, og `published_at` er forskriftens ikrafttredelse.
 
-## 2. Inventaret — fire forskrifter, ikke fem
+## 2. Inventaret — FEM forskrifter fra 11.09.2026
 
 Trafikklyset er fargelagt i rundene 2018, 2020, 2022, 2024 og 2026.
 
@@ -30,9 +30,45 @@ Trafikklyset er fargelagt i rundene 2018, 2020, 2022, 2024 og 2026.
 | 2020 | FOR-2020-02-04-105 | 04.02.2020 | 04.02.2020 | 05.02.2020 |
 | 2022 | FOR-2022-06-07-972 | 07.06.2022 | 07.06.2022 | 07.06.2022 |
 | 2024 | FOR-2024-03-22-515 | 22.03.2024 | 22.03.2024 | 26.03.2024 |
-| 2026 | **finnes ikke** | — | — | — |
+| 2026 | FOR-2026-08-20-1764 | 20.08.2026 | 20.08.2026 | 11.09.2026 |
 
-### Hvordan fraværet av 2026 er FASTSLÅTT
+### 2026-forskriften kom, og den er ARKIVERT men ikke PARSET
+
+Målt 14.09.2026. Registersøket under fant ingenting 05.09.2026 og
+finner den nå, på `search=kapasitetsjustering`:
+
+    https://lovdata.no/dokument/LTI/forskrift/2026-08-20-1764
+
+**Datoen er ikke den som ble oppgitt muntlig.** Kroppen selv sier
+`Dato FOR-2026-08-20-1764`, «Fastsatt av Nærings- og fiskeridepartementet
+20. august 2026» og «Ikrafttredelse 20.08.2026». Kunngjøringen i Norsk
+Lovtidend er 11.09.2026 kl. 10.20, og pressemeldingen kom 10.09.2026.
+Fastsettelsen ligger altså tre uker FØR den ble kunngjort — vedtaket var
+fattet 20.08 og offentliggjort 10.–11.09. Kroppen er kilden til begge
+datoene; ingen av dem er gjettet.
+
+`_utgitt()`-vakten passerer: ikrafttredelse 20.08.2026 er lik
+fastsettelsesdatoen i FOR-nummeret, så
+`published_at = 2026-08-20T12:00:00+00:00`. Kjørt mot den arkiverte
+kroppen, ikke regnet ut for hånd.
+
+**Kroppen ligger i `data/arkiv/trafikklysvedtak/2026-12-31.bin.gz`**
+(77 143 byte, sha256 `08b6090d993b9644…`), arkivert 14.09.2026 gjennom
+`core/raw.arkiver_ny()`.
+
+**Men runden står fortsatt ikke i `FORSKRIFTER`, og kilden emitterer
+ikke for 2026.** Det er ikke en forglemmelse. § 4-tabellen har nå FIRE
+runder per rad («Produksjonsområde 3 (gult lys i 2020, rødt lys i 2022,
+rødt lys i 2024, rødt lys i 2026)»), mot tre i 2024-kroppen. Punkt 5 sier
+hvorfor det krever en egen uttrekksfunksjon og ikke en gjenbrukt: en
+generisk parser over den spredningen gir riktig FORM og feil TALL.
+Arkivering og uttrekk er to jobber, og bare den første har en frist.
+
+Det kroppen bærer, lest men ikke emittert: § 3 gir grønt til PO 1, 12 og
+13; § 4 gir PO3 rødt, PO4 gult og PO5 gult i 2026. Vederlaget er
+270 000 kr/tonn (§ 10), søknadsfristen 28.09.2026 (§ 11).
+
+### Hvordan fraværet av 2026 BLE fastslått, 05.09.2026
 
 Lovdatas søk (`/sok`) svarer 405 for oss. Registeret over Norsk
 Lovtidend gjør ikke det, og det søker i tittelfeltet:
@@ -49,8 +85,13 @@ Departementet sendte utkastet på høring 19.06.2026 med frist
 31.07.2026, og kunngjorde fargeleggingen i pressemelding. Vedtaket i
 forskrifts form fantes ikke 05.09.2026.
 
-**Runden står derfor ikke i `FORSKRIFTER`.** Fravær framfor gjetning,
-samme regel som ekspertgruppens manglende årganger.
+**Målingen var riktig da den ble gjort.** Forskriften var fastsatt
+20.08.2026, men ikke kunngjort i Norsk Lovtidend før 11.09 — og
+registeret kan bare finne det som er kunngjort. Avstanden mellom
+fastsettelse og kunngjøring er 22 dager for denne runden, mot 0–14 for
+de fire foregående. Et registersøk svarer på «er dette kunngjort», ikke
+på «er dette vedtatt», og de to spørsmålene falt sammen helt til de ikke
+gjorde det.
 
 ## 3. `published_at` — ikrafttredelsen, og HTTP har ingenting å tilby
 

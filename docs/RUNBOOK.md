@@ -217,6 +217,31 @@ python backfill.py --kilde biomasse --revisjon
 **Hører i cron, ved siden av `run.py`.** Én gang i måneden, etter den
 20. — det er da Fiskeridirektoratet publiserer fila på nytt.
 
+## Auksjonsarkivering — kjører av seg selv, men bare i sesongen
+
+```bash
+python arkiver_auksjon.py --torrkjor      # se hva den ville hentet
+python arkiver_auksjon.py                 # arkiver
+```
+
+Auksjonen for tildelingsrunde 2026 holdes **27.09.2026**. Prisene per
+produksjonsområde publiseres én gang og kan ikke hentes i ettertid.
+
+`auksjon.yml` i datarepoet fyrer **64 ganger over 42 døgn**: tre ganger i
+døgnet 20.–30.09 (06, 14 og 20 UTC) og daglig gjennom oktober. Det er
+ikke overdrevet — GitHubs cron er best effort, og `arkiver_ny()` skriver
+bare når innholdet er nytt, så en kjøring som ikke finner noe koster
+ingenting og committer ingenting.
+
+**En commit fra denne jobben BETYR at noe nytt ble publisert.** Stillhet
+er normaltilstanden.
+
+Mistet en dag? Kjør `workflow_dispatch` med `fra` satt bakover —
+Wayback holder kroppen selv om Fiskeridirektoratet bytter den ut.
+
+Kroppene er RÅ og ikke parset. Uttrekket av priser per produksjonsområde
+er en egen jobb uten frist; hentingen har fristen.
+
 Hva den gjør: leser biomassefila og sjekker om kilden har OMBESTEMT SEG
 om måneder vi allerede har skrevet. Der noe er endret, skrives
 `<dato>.2.parquet` ved siden av den gamle — som blir stående urørt — og
