@@ -42,8 +42,18 @@ biomassestatistikk og rømmingsstatistikk. Tilgjengeliggjort under
 **Lovdata** — kapasitetsjusteringsforskriftene.
 
 **BarentsWatch** — ukentlige lusetellinger og sjøtemperatur per
-lokalitet, som BarentsWatch henter fra Mattilsynet. Se
-[barentswatch.no](https://www.barentswatch.no/) for kildens egne vilkår.
+lokalitet, som BarentsWatch henter fra Mattilsynet. Under
+[NLOD, etter BarentsWatch' API-vilkår](https://www.barentswatch.no/artikler/api-vilkar)
+(sist oppdatert 02.11.2023, lest 12.09.2026). Kommersiell bruk er
+uttrykkelig tillatt.
+
+Attribusjonen skal være synlig for **sluttbruker**, ikke bare her. Begge
+setningene er ordrette krav:
+
+> Data levert av BarentsWatch
+
+> Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra
+> Mattilsynet.
 
 **Havforskningsinstituttet** — ekspertgruppens vurderinger av
 lakselusindusert villfiskdødelighet, og de foreslåtte
@@ -65,6 +75,10 @@ bekreftet av Pål Næverlid Sævik ved Havforskningsinstituttet
 Ingen av etatene eller institusjonene har medvirket til, eller innestår
 for, bearbeidingen eller tolkningene som er gjort her. Samme attribusjon
 følger med overalt hvor data herfra publiseres.
+
+Lisens, hjemmel, ordrett attribusjonskrav og lesedato per kilde står i
+[`docs/LISENSKJEDE.md`](docs/LISENSKJEDE.md). Der en lisens ikke er
+funnet, står den som UBELAGT — ikke som antatt greit.
 
 ## Personvern
 

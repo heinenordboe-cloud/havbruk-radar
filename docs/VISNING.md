@@ -121,6 +121,38 @@ ikke før du vet hva du ser etter.
 CSS og JS inline. Avhengigheter som hentes fra nett råtner over to år,
 og det er samme argument som pinningen av `requirements.txt`.
 
+## TODO — attribusjonen må stå synlig for sluttbruker
+
+**Ikke gjort. Blokkerer enhver publisert visning, ikke den interne.**
+
+BarentsWatch' API-vilkår (lest 12.09.2026) krever at attribusjonen er
+synlig for **sluttbrukeren**, ikke bare i et repo eller i en
+kildekommentar. To setninger, ordrett, og begge gjelder alt som viser
+lusetall eller sjøtemperatur:
+
+> Data levert av BarentsWatch
+
+> Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra
+> Mattilsynet.
+
+Fiskeridirektoratets NLOD-attribusjon («Kilde: Fiskeridirektoratet»)
+har samme form: den skal følge tallene ut, ikke bli stående i
+`docs/`. Se `docs/LISENSKJEDE.md` for hele kjeden og for hvilke kilder
+som ennå er UBELAGT — `ekspertgruppen` er det, og en publisert visning
+skal ikke lene seg på den før luken er lukket.
+
+**Hvorfor dette står som en TODO og ikke som en «bør»:** dagens visning
+er intern, gitignorert og skrives til `HAVBRUK_DATA_DIR`. Der er kravet
+ikke utløst, og derfor er det ingenting som fyrer i dag. Nøyaktig den
+formen er grunnen til at det skrives ned nå: vilkåret biter først den
+dagen noen gjør visningen tilgjengelig for andre, og da er det for sent
+å oppdage det. Samme mønster som feltvakten — en kontroll som er riktig
+helt til den ikke er det, og som er stille i mellomtiden.
+
+**Når den gjøres:** en fotnote nederst i `oversikt.html` holder, så
+lenge den er i den genererte HTML-en og ikke i `vis.py`s docstring.
+Kravet er synlighet for den som leser, ikke for den som kjører.
+
 ## Teknisk form
 
 Python i `vis.py`, polars til å lese parquet, en HTML-streng ut.
