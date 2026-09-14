@@ -1,14 +1,19 @@
 # Styringsgruppen — formatkartlegging
 
-Kartlegging, ikke kilde. Ingenting er skrevet til `data/`, ingen kilde er
-lagt i `sources/`, og `analyse/fasit/ekspertgruppen-po-kategori.csv` er
-ikke rørt.
+Kartlegging, ikke kilde. Ingen kilde er lagt i `sources/`, og
+`analyse/fasit/ekspertgruppen-po-kategori.csv` er ikke rørt. Det eneste
+som er skrevet til `data/` er de RÅ kroppene under
+`data/arkiv/styringsgruppen/` — se nederst. Ingen observasjoner.
 
 Alt her er MÅLT på kropper hentet 08.09.2026. Kroppene er lagret rått og
 uendret FØR noe ble parset, og sha256 under er regnet på de lagrede
-bytene. De ligger i sesjonens arbeidsmappe og IKKE i `data/arkiv/` —
-oppgaven forbød det, så en framtidig kilde må hente dem på nytt og
-arkivere selv. Hashene under er det som gjør den hentingen etterprøvbar.
+bytene.
+
+**De kroppene forsvant med sesjonen.** 10.09.2026 er alle hentet på nytt
+og arkivert i `data/arkiv/styringsgruppen/` — byte-identiske med disse,
+hash for hash — og kartleggingen er kontrollert mot dem. Se seksjonen
+«Kroppene er arkivert» nederst for hva kontrollen ga, og for to avvik i
+målingene under.
 
 Styringsgruppen for vurdering av lakseluspåvirkning er leddet mellom
 ekspertgruppens kategori (`sources/ekspertgruppen.py`) og departementets
@@ -41,6 +46,15 @@ ytterste leddene.
 Spørsmålet var om NINA Brage har alle årgangene og dermed kan erstatte
 trafikklyssystemet.no, hi.no og regjeringen.no. Svaret er nei, av to
 grunner, og begge er målt.
+
+> **Etterprøvd 12.09.2026 og BEKREFTET.** Et søketreff 11.09 så ut til å
+> vise levende Brage-sider, blant annet samlingen «Trafikklyssystemet i
+> havbruk» (`11250/2788898`). Målt på nytt: `brage.unit.no` har ingen
+> adresse, `curl` gir 000 og en annen klient gir `getaddrinfo
+> ENOTFOUND`. Treffet var søkemotorens indeks. Konklusjonen under står.
+> Én presisering: PUBLIKASJONShandler 302-er til NVA og virker;
+> SAMLINGShandelen 302-er til brage.nina.no og er en blindvei. Se
+> `docs/PROVENIENS-2026-09-11.md` § 3c.
 
 **`brage.nina.no` finnes ikke lenger.** Navnet er en CNAME til
 `brage.unit.no`, som ikke har noen adresse — `curl` feiler med kode 6,
@@ -126,6 +140,14 @@ Alle ti faller i vurderingsårets mai–desember. Vakten i
 `ekspertgruppen._utgitt()` — datoen må ligge i `[nyeste vurderingsår, +1]`
 — ville passert for alle.
 
+**FORBEHOLD, de to skannkroppene (2017 mai og 2017 sept):** produsenten er
+en kopimaskin, så `/CreationDate` er når arket ble SKANNET, ikke når rådet
+ble gitt. 2017 sept står med `published_at` 2017-10-30 — samme dag som
+departementets fargelegging — mens rapporten selv heter «september 2017».
+For disse to er `published_at` altså en øvre grense for utgivelsen, ikke
+utgivelsen. De åtte øvrige er Word- og Adobe-eksporter, der eksportdatoen
+ligger nær utgivelsen.
+
 To merknader som ikke skal gjettes bort: 2017 sept-kroppen har
 `/CreationDate` i **oktober**, ikke september, selv om URL-en sier
 «september-2017». Og 2018-kroppens førsteside er datert «11. november
@@ -167,7 +189,8 @@ tekst å søke i (se under).
 ### 2017 mai — `Råd fra styringsgruppe til NFD 16mai17.pdf`
 
 **Kroppen har ingen tekst.** Fire sider, 99 187 byte, og pypdf trekker ut
-**3 tegn totalt**. Produsenten er `Xerox WorkCentre 7530` — en
+**3 tegn totalt**. (**Rettet 10.09.2026: 0 tegn.** De 3 var sideskillene
+fra sammenliming av fire tomme sider. Se «To avvik» nederst.) Produsenten er `Xerox WorkCentre 7530` — en
 kopimaskin. Dokumentet er et skannet papirark uten OCR-lag.
 
 1. **Vurderingsår:** kan ikke besvares fra kroppen. Ingen setning å sitere.
@@ -187,7 +210,8 @@ OCR er ikke gjort.
 
 ### 2017 sept — `Raad-fra-styringsgruppa-til-NFD-september-2017-.pdf`
 
-Samme sak. Elleve sider, 5,2 MB, **10 tegn** uttrukket. Produsent
+Samme sak. Elleve sider, 5,2 MB, **10 tegn** uttrukket. (**Rettet
+10.09.2026: 0 tegn**; de 10 var sideskillene mellom elleve tomme sider.) Produsent
 `KONICA MINOLTA bizhub C654`. Alle sju spørsmål er ubesvarlige av samme
 grunn, og ingen av dem er gjettet.
 
@@ -800,7 +824,10 @@ fall må tåle, og hvert punkt er målt over:
    mellom 2023 og 2024; `10‒30 %` skifter tegn; `Produksjonsområde N`
    blir `PON` i 2023; punktlista forsvinner helt i 2025.
 4. **2024-kroppen mangler ordmellomrom.** Mønstre med `\s+` finner null
-   rader der.
+   rader der. **Rettet 10.09.2026:** det gjelder bare
+   `extraction_mode="layout"`. I plain-modus — den `_sider(layout=False)`
+   er dokumentert for, og den avsnitt leses med — har punktlista
+   mellomrom, og `\s+` finner alle 13 radene. Se «To avvik» nederst.
 5. **Kryssjekken finnes for 2018–2024 og ikke for 2025.** En vakt som
    krever to lesinger vil felle 2025-kroppen; en som ikke krever det,
    mister kontrollen for alle de andre.
@@ -813,3 +840,195 @@ fall må tåle, og hvert punkt er målt over:
    nå svarer 403.
 8. **To kropper er stemplet `UO § 15.3 (UTSATT OFFENTLIGHET)`:**
    2018-2019 og 2020.
+
+---
+
+## Kroppene er arkivert — 10.09.2026
+
+Kartleggingen over ble gjort 08.09.2026 på kropper som lå i sesjonens
+arbeidsmappe og forsvant med den. Verken kodrepoet eller datarepoet
+inneholdt dem, og hele funnet om at sammenslåingen forsvant i 2020
+hvilte dermed på dette dokumentet, ikke på data. Det bryter regel 2.
+
+**10.09.2026 er alle kroppene hentet på nytt og arkivert rått i
+datarepoet**, i `data/arkiv/styringsgruppen/`, før noe ble lest. Ingen
+kilde er bygget, ingen observasjon emittert, ingen fasit-CSV rørt.
+Kontrollen under er kjørt på de ARKIVERTE bytene, ikke på hentingen.
+
+### Adressene
+
+Dokumentet oppga vert og filnavn, men ingen URL-er. De ble funnet slik:
+regjeringen.no-kroppene gjennom Waybacks CDX-API — 2020 direkte, og
+2021/2022 ved at styringsgruppens og ekspertgruppens rapport for samme
+år ligger i SAMME `contentassets`-mappe, som `sources/ekspertgruppen.py`
+allerede oppgir. Alle tre tidsstemplene i tabellen over ble bekreftet i
+CDX-svaret. NVA-kroppene gjennom søke-API-et, som gir nøyaktig de fire
+årgangene 2022–2025 dokumentet oppgir.
+
+`trafikklyssystemet.no`-kroppen svarer **200 uten `?ver=`-hash**.
+Parameteren er ikke nødvendig for denne fila, og bytetallet er identisk
+med kartleggingens.
+
+| kropp | HTTP | byte | sha256 (16) | `published_at` (UTC) | `Last-Modified` |
+|---|---|---|---|---|---|
+| 2017 mai | 200 | 99 187 | `f8dcce580ffc9561` | 2017-05-16T15:57:11 | Mon, 23 May 2022 11:14:38 GMT |
+| 2017 sept | 200 | 5 173 096 | `048d769d93b9ec41` | 2017-10-30T12:34:16 | Wed, 30 Oct 2019 14:53:29 GMT |
+| 2018 | 200 | 493 443 | `8d1cab45deb3cd45` | 2018-11-27T13:04:21 | Thu, 29 Nov 2018 06:28:41 GMT |
+| 2018-2019 | 200 | 730 607 | `b849614f9cf1c2ce` | 2019-11-17T13:29:53 | Tue, 04 Feb 2020 07:37:21 GMT |
+| 2020 (Wayback) | 200 | 776 717 | `51ad591fe3c82902` | 2020-11-27T12:32:29 | `X-Archive-Orig`: Fri, 18 Dec 2020 15:13:41 GMT |
+| 2021 (Wayback) | 200 | 1 544 699 | `79b21f55240226da` | 2021-11-11T11:05:19 | `X-Archive-Orig`: Tue, 16 Nov 2021 19:28:26 GMT |
+| 2022 (Wayback) | 200 | 898 889 | `4200e7e934a712ef` | 2022-12-01T09:36:21 | `X-Archive-Orig`: Mon, 05 Dec 2022 16:16:04 GMT |
+| 2022 (NVA) | 200 | 841 071 | `906fea0154aea86c` | 2022-12-01T09:36:21 | Mon, 15 Sep 2025 09:32:40 GMT |
+| 2023 (NVA) | 200 | 941 861 | `aed5a118fc81c8ba` | 2023-11-22T09:39:50 | Mon, 15 Sep 2025 09:32:35 GMT |
+| 2024 (NVA) | 200 | 912 109 | `23ab0291fd1b9035` | 2024-11-29T12:48:06 | Mon, 15 Sep 2025 09:32:37 GMT |
+| 2025 (NVA) | 200 | 924 172 | `82a6c4967fadc7d0` | 2025-11-21T09:58:11 | Mon, 01 Dec 2025 14:52:27 GMT |
+
+NVA-kroppene for 2022, 2023 og 2024 bærer samme migreringsbatch —
+15.09.2025 kl. 09:32:40, :35 og :37, tre kropper innenfor fem sekunder.
+
+`published_at` er oppgitt i UTC her og med `+01:00` i tabellene lenger
+oppe. Det er samme øyeblikk skrevet på to måter, ikke to verdier.
+
+**Elleve kropper for ti rapporter.** 2022 finnes i to eksporter med
+ulike hasher, og begge er arkivert. Å beholde bare den ene ville slettet
+nettopp det funnet «Samme rapport, to hasher» beskriver.
+
+### Wayback: avstand mellom `Memento-Datetime` og `published_at`
+
+Forbeholdet skal følge kroppen: arkivets hentetidspunkt er ikke kildens
+utgivelse, og for disse tre ligger de langt fra hverandre.
+
+| kropp | `Memento-Datetime` | avstand fra `published_at` |
+|---|---|---|
+| 2020 | Thu, 21 Jan 2021 01:06:28 GMT | **54 dager** |
+| 2021 | Sun, 01 Jan 2023 21:23:43 GMT | **416 dager** |
+| 2022 | Thu, 08 Jun 2023 07:37:28 GMT | **188 dager** |
+
+Det er samme skille som `CLAUDE.md` 1b-7 gjør for biomassekroppen fra
+Wayback: `Memento-Datetime` er da ARKIVET hentet, `published_at` er da
+KILDEN utga. Bare den andre er brukt.
+
+### Arkivfilene
+
+Filnavnet er **utgivelsesdatoen lest av `/CreationDate`**, ikke en
+observasjonsdato og ikke hentedatoen. Det er et bevisst avvik fra
+`ekspertgruppen`, som arkiverer under siste dag i siste vurderingsår:
+to av ti kropper er skann uten tekstlag, og hvilke år de vurderer kan
+ikke leses av dem. Å datere dem etter vurderingsår ville krevd et gjett
+nøyaktig der kartleggingen selv nekter å svare.
+
+Kostnaden står her så den ikke oppdages senere: en framtidig
+`sources/styringsgruppen.py` som følger ekspertgruppens navnekonvensjon
+vil lete under årsslutt-datoer og ikke finne kroppene.
+
+    2017-05-16.bin.gz    2020-11-27.bin.gz    2023-11-22.bin.gz
+    2017-10-30.bin.gz    2021-11-11.bin.gz    2024-11-29.bin.gz
+    2018-11-27.bin.gz    2022-12-01.bin.gz    2025-11-21.bin.gz
+    2019-11-17.bin.gz    2022-12-01.2.bin.gz
+
+Løpenummeret `.2` er NVA-eksporten av 2022. De to deler utgivelsesdato
+fordi de ER samme publisering — det er den ene gangen et løpenummer sier
+noe sant om innholdet.
+
+### Hva kontrollen ga
+
+**Kroppene er byte-identiske med dem kartleggingen ble gjort på.** Alle
+elleve sha256 og alle elleve bytetall stemmer eksakt med tabellene over,
+og det samme gjør alle `Last-Modified`, alle `/CreationDate` og alle
+sidetall. Kartleggingen er dermed etterprøvbar for første gang, og den
+er etterprøvd mot nøyaktig det den ble skrevet av.
+
+Kontrollen som skulle passere, passerer:
+
+    2018-kroppen, Tabell 1, «Råd 2017 For 2016–2017»
+      rader lest                     : 13
+      PO med ulik kategori 2016/2017 : [2, 4, 6, 7]   (n=4)
+      råd = verste av de to i alle   : ja
+
+    2018-2019-kroppen, Tabell 3, «Råd 2018-2019»
+      rader lest                     : 13
+      PO med ulik kategori 2018/2019 : [2, 3, 4, 5, 7, 10]   (n=6)
+      råd = verste av de to i alle   : ja
+
+Fire og seks, til sammen ti sprik, alle løst til året med høyest risiko.
+Cellene stemmer verdi for verdi med tabellene lenger oppe.
+
+Videre bekreftet, kropp for kropp:
+
+1. **PO-tabell med én rad per produksjonsområde:** ja i alle åtte
+   maskinlesbare kropper, 13 rader hver. Kolonneoverskriftene er ordrett
+   som oppgitt — også detaljene: bannerlinja `Vurderingen 2020
+   (konklusjonusikkerhet)` uten skilletegn, `Produksjons -område` delt
+   over to linjer i 2023, konklusjonskolonnen flyttet fra siste til
+   andre plass i 2024, og figurstreken U+2012 i `10‒30 %` (2022 og 2023,
+   én forekomst hver).
+2. **Sammenslåing av to vurderingsår:** ja i 2018 (`Råd 2017 For
+   2016–2017`) og 2018-2019 (`Råd 2018-2019`), **nei i 2020, 2021, 2022,
+   2023, 2024 og 2025.** Et bredt søk etter rådskolonne for to år,
+   «konservativ», «lik vekting» og «samlet vurdering» ga treff i 2020 og
+   2021 — alle på «samlet vurdering» om ekspertgruppens sammenveiing av
+   METODER, ikke av år. Et treff på «lik vekting» i 2018-kroppen gjelder
+   vekting av VASSDRAG etter sårbarhet. Ingen av dem er sammenslåing av
+   år, og kartleggingens påstand om at regelen først formuleres i
+   2018-2019-kroppen står.
+3. **2021 særskilt:** kroppen omtaler begge år og har begge på bordet —
+   `Vurderingen 2021`, `Oppdatert vurdering 2020` og en historikktabell
+   `PO | 2016 | 2017 | 2018 | 2019 | 2020 | 2021`. Setningen «har
+   modellene har blitt videreutviklet siden vurderingene i 2020, og
+   Ekspertgruppen har derfor oppdatert sine vurderinger for 2020 i årets
+   rapport» står ordrett, ordfeilen inkludert. **Ingen sammenslåing
+   finnes.** Kroppen som bærer mest vekt, bærer den.
+4. **Prosagjentakelse etter tabellen:** 2018 har 13 `Konklusjon:`-avsnitt
+   pluss den kategorigrupperte prosaen; 2018-2019, 2020, 2021 og 2022 har
+   13 × `Produksjonsområde N sannsynlig dødelighet`; 2023 og 2024 har
+   13 × `PON sannsynlig dødelighet`; **2025 har null treff på enhver
+   form.** Formskiftet i 2023 og bortfallet i 2025 er begge bekreftet.
+
+Også bekreftet: `UO § 15.3 (UTSATT OFFENTLIGHET)` finnes i nøyaktig to
+kropper, 2018-2019 og 2020. 2025s Tabell 8 har 13 rader, to årskolonner
+og **ingen PO som endrer kategori mellom 2024 og 2025**. De to
+2022-kroppene har identisk tekst — 30 046 tegn, tegn for tegn — med to
+ulike sha256. Og 2024-kroppen skriver PO9 som `Lav-Moderat` der
+2025-kroppen skriver PO9 for 2024 som `Moderat (11)`.
+
+### To avvik mellom kartleggingen og kroppene
+
+Begge gjelder kartleggingens egne MÅLINGER, ikke funnene om kilden.
+Ingen av dem rører 2020-funnet.
+
+**Avvik 1 — 2024-kroppens manglende ordmellomrom er et LAYOUT-artefakt,
+og påstanden er for bred.** Punkt 4 under «For en framtidig kilde» sier:
+«Et mønster med `\s+` mellom ordene finner null rader i denne ene
+kroppen.» Målt på den arkiverte kroppen med pypdf 6.16.2, som er den
+versjonen `requirements.txt` pinner:
+
+    extraction_mode="layout"   PO1sannsynligdødelighet     13 uten, 0 med
+    extraction_mode="plain"    PO1 sannsynlig dødelighet   13 med, 0 uten
+
+Skaden er ekte — `vurderi nger` står i BEGGE modus, og `vurdererstatus`
+i layout — men den gjelder ikke prosalista i plain-modus. Og plain er
+nettopp modusen `_sider(layout=False)` er dokumentert for: «løpende
+tekst med bevarte ordmellomrom, som er det avsnittene leses med».
+
+Følgen er praktisk: en framtidig kilde kan lese 2024-punktlista med et
+helt vanlig `\s+`-mønster og få alle 13 rader. Advarselen slik den står
+kan få noen til å bygge en omvei som ikke trengs — eller til å lese et
+korrekt uttrekk som ødelagt.
+
+**Avvik 2 — de to skannene trekker ut NULL tegn, ikke 3 og 10.**
+Kartleggingen oppgir «3 tegn totalt» for 2017 mai og «10 tegn» for
+2017 sept. Målt: **0 tegn i begge, i begge uttrekksmodus.** Tallene 3 og
+10 er antall sideskiller — 4 sider gir 3 skilletegn, 11 sider gir 10 —
+altså et artefakt av at sidene ble limt sammen med linjeskift før de ble
+telt.
+
+Kartleggingens konklusjon endres ikke; den blir sterkere. Kroppene har
+ikke «nesten ingen» tekst, de har **ingen**.
+
+### AVVIK FUNNET
+
+To avvik, begge i kartleggingens egne målinger, begge rettet over.
+Kartleggingens funn om kilden — at sammenslåingen finnes i 2018 og
+2018-2019, forsvinner i 2020-kroppen, og ikke er gjeninnført i noen
+senere kropp inkludert 2025 — er **bekreftet i sin helhet** mot kropper
+som nå er arkiverte og hashet.
