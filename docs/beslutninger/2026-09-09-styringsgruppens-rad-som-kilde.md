@@ -21,6 +21,13 @@ tekstlag og hentes ikke.
 «følger departementet rådet» besvarbart for rundene fra og med 2022.**
 Se «Sammenslåingen forsvant, og med den spørsmålet».
 
+> **Presisert 12.09.2026.** Funnet er målt på styringsgruppens ti ÅRLIGE
+> vurderinger. Ti øvrige dokumenter fra gruppen er siden arkivert og
+> målt på samme spørsmål: ingen av dem har en sammenslått kategori per
+> produksjonsområde heller — men toårsprinsippet ble anbefalt «på det
+> sterkeste» av gruppens eget ekspertutvalg i desember 2021 uten å bli
+> ført tilbake i den årlige vurderingen. Se «Hvor påstanden gjelder».
+
 ## Hvorfor nå
 
 `docs/beslutninger/2026-09-05-vedtakskilden.md` listet dette som ett av
@@ -117,6 +124,74 @@ verste av de to i alle seks. For 2016–2017, lest av 2018-kroppens
 Tabell 1: fire spriker (PO 2, 4, 6, 7), og rådet er det verste i alle
 fire. Ti av ti.
 
+### Regelen finnes i tre formuleringer, og to av dem har en betingelse
+
+Presisert 12.09.2026. Sitatet over er styringsgruppens egen ordlyd, og
+den er UBETINGET: spriker kategoriene, velges den konservative
+tilnærmingen. Departementet gjengir samme regel to ganger i 2017, og
+begge gangene MED en betingelse om usikkerhetsgrad:
+
+    Styringsgruppen,      «Der ekspertgruppens vurderinger … er
+    2018-2019-kroppen     forskjellig i 2018 og 2019 har
+    (17.11.2019)          styringsgruppen … valgt en konservativ
+                          tilnærming»                  — INGEN betingelse
+
+    NFD, høringsnotat     «Der vurderingene er forskjellig for et
+    2017                  område i de to årene OG USIKKERHETEN ER
+                          MIDDELS ELLER STOR, har styringsgruppen
+                          valgt en konservativ tilnærming»
+
+    NFD, pressemelding    «… OG USIKKERHETEN ER MIDDELS ELLER HØY,
+    30.10.2017            har styringsgruppen valgt en konservativ
+                          tilnærming. Dette innebærer konkret at det
+                          er det året med høyest risiko … som har
+                          blitt førende for rådet»
+
+«Stor» og «høy» er samme grad i ekspertgruppens skala (liten / middels /
+stor); avviket er leksikalsk. Den reelle forskjellen er om betingelsen
+finnes eller ikke — og den skiller KILDEN fra DEPARTEMENTET, ikke
+2017-runden fra 2019-runden. 2018-kroppen, som restaterer 2016–2017-rådet
+i Tabell 1, bruker ikke ordet `konservativ` i det hele tatt (null treff).
+
+**Forskjellen er utestet i alt tilgjengelig materiale.** Betingelsen
+biter bare i en celle der kategoriene spriker OG usikkerheten er liten.
+En slik celle finnes ikke i noen av de to rundene:
+
+    2016–2017 (2018-kroppens Tabell 1; ÉN felles usikkerhetskolonne
+    for paret, ikke én per år)
+
+      PO 2   10-30%  /  < 10%   usikkerhet 2016–2017: Stor      råd 10-30%
+      PO 4   10-30%  /  > 30%   usikkerhet 2016–2017: Middels   råd  > 30%
+      PO 6   10-30%  /  < 10%   usikkerhet 2016–2017: Stor      råd 10-30%
+      PO 7   10-30%  /  < 10%   usikkerhet 2016–2017: Middels   råd 10-30%
+
+    2018-2019 (2018-2019-kroppens Tabell 3; én usikkerhet PER ÅR)
+
+      PO  2  10-30%  /  < 10%   Middels / Middels   råd 10-30%
+      PO  3   > 30%  / 10-30%   Middels / Middels   råd  > 30%
+      PO  4  10-30%  /  > 30%   Middels / Middels   råd  > 30%
+      PO  5  10-30%  /  > 30%   Middels / Middels   råd  > 30%
+      PO  7  10-30%  /  < 10%   Stor    / Stor      råd 10-30%
+      PO 10  < 10%   / 10-30%   Liten   / Stor      råd 10-30%
+
+Null celler har liten usikkerhet gjennomgående. Betingelsen blir dermed
+aldri motbevist — og aldri prøvd.
+
+**PO10 i 2018-2019 er det nærmeste vi kommer en prøve, og den peker mot
+den ubetingede lesingen.** Usikkerheten er `Liten` i 2018 og `Stor` i
+2019. Leses betingelsen per år, faller PO10 utenfor den — og rådet er
+konservativt likevel. Leses den om området samlet, er PO10 dekket.
+Kroppen selv peker på nettopp denne cella: «produksjonsområde 10, hvor
+sikkerheten varierer over to kategorier (fra liten til stor)». Gruppen
+så altså den splittede usikkerheten og anvendte den konservative
+tilnærmingen uansett.
+
+Det som skal sies om regelen er derfor dette, og ikke mer: **rådet er
+det verste av de to årene i alle ti sprikende cellene over to runder.
+Styringsgruppen oppgir regelen uten betingelse; departementet oppgir den
+med en betingelse om at usikkerheten er middels eller stor. Ingen celle i
+materialet skiller de to formuleringene fra hverandre.**
+
 **Fra 2020-kroppen finnes verken kolonnen eller regelen.** Overskriften
 er `Styringsgruppens vurderinger for 2020`, tabellen har én årskolonne,
 og ingen setning sier hvordan to år veies. Det er ikke en glipp:
@@ -128,6 +203,91 @@ slår dem likevel ikke sammen.
 2025-kroppen dekker to år i overskrift og tabell, men har én kolonne per
 år og ingen sammenslått. Spørsmålet oppstår ikke, fordi «ingen av
 produksjonsområdene endret kategori fra 2024 til 2025».
+
+### Hvor påstanden gjelder — presisert 12.09.2026
+
+Påstanden over er målt på **styringsgruppens ti årlige vurderinger**, og
+den gjelder DEM. Det er verdt å si eksplisitt, fordi gruppen har
+publisert mer enn de årlige vurderingene, og de øvrige dokumentene ble
+ikke undersøkt da notatet ble skrevet 09.09.
+
+12.09.2026 ble **ti øvrige styringsgruppe-dokumenter arkivert** og målt
+på det samme spørsmålet (`data/arkiv/styringsgruppen-ovrige/`,
+`data/arkiv/styringsgruppen-mandater/`). Resultatet snevrer ikke inn
+påstanden, men det flytter grensen for hva den sier:
+
+**1. Ingen av de ti har en sammenslått kategori per produksjonsområde
+over to år.** Ingen av dem gjør det Tabell 3 i 2018-2019-kroppen gjør.
+Det gjelder også de tre som har PO-tabeller (utredningen om variabel MTB
+i PO4, Trendgruppens rapport og Myklebust mfl. 2024). Påstanden er
+dermed ikke bare sann for de årlige vurderingene — den er sann for alt
+gruppen har publisert.
+
+**2. Men toårsPRINSIPPET lever, og det ble presset på gruppen etter
+2020.** Trendgruppen (Vollset mfl., desember 2021), som styringsgruppen
+selv oppnevnte på NFDs bestilling, skriver ordrett:
+
+> «Det anbefales derfor på det sterkeste at en toårig vurdering bør
+> legge like stor vekt på hvert av årene og ikke mer vekt på det siste.»
+
+Det er samme prinsipp som «lik vekting av årene 2018 og 2019» i
+2018-2019-kroppen — anbefalt **på det sterkeste**, i desember 2021,
+halvannet år etter at rådskolonnen forsvant.
+
+Styringsgruppen sluttet seg til poenget i sin egen vurdering av
+rapporten (Boxaspen, Biering & Næsje, 31.08.2022):
+
+> «Rapporten påpeker spesifikt at siden norsk oppdrett av laks i dag
+> gjerne strekker seg over to år, kan det være direkte feil å vurdere
+> utviklingen i lakselusindusert villfiskdødelighet fra ett år til et
+> annet. … Dette bør ikke få konsekvenser for det året det settes farge,
+> og **begge årene bør derfor sees under ett.**»
+
+Setningen står i gruppens KOMMENTAR til Trendgruppens kapittel 3, og
+begrunnelsen er produksjonssyklusen: lakseutslippet er systematisk
+høyere i andre år av en syklus, så en sammenligning år mot år måler
+syklusen og ikke utviklingen. Det er en **metodisk advarsel om hvordan
+de to årene skal LESES**, ikke en regel for hvordan et sammenslått råd
+skal SETTES. Den produserer ingen kategori.
+
+**Følgen for hvordan påstanden skal formuleres:** det som forsvant i
+2020 er *rådskolonnen og regelen for å fylle den* — ikke tanken om at de
+to årene hører sammen. Den ble tvert imot gjentatt av gruppens eget
+ekspertutvalg i 2021 og sluttet seg til av gruppen i 2022, uten at den
+ble ført tilbake i den årlige vurderingen. Det er en spenning i kilden,
+og den er et sterkere funn enn fraværet alene: **anbefalingen om lik
+vekting fantes, og ble ikke omsatt.**
+
+**3. Mandatrevisjonen er nå lest i originalen.** 09.09 og 10.09 hvilte
+den på kroppenes egen gjengivelse, fordi vedlegget er et bilde i alle
+årgangene som har det. Selve mandatene ligger som tekst på
+trafikklyssystemet.no og er arkivert. Målt på dem:
+
+    2018-06-26  «Rapportene skal danne grunnlag for det rådet
+                Styringsgruppen skal gi departementet knyttet til
+                kapasitetsjusteringer i oppdrettsnæringen i ODDETALLSÅR.»
+    2020-05-18  «Styringsgruppen skal gjennomgå og evaluere
+                ekspertgruppens rapport, og levere en OPPSUMMERING av
+                denne med relevante faglige vurderinger … Disse
+                leveransene skal SAMMEN danne grunnlag for … beslutning
+                for FARGELEGGING av produksjonsområdene.»
+
+`oddetallsår` og `kapasitetsjuster` forekommer null ganger i
+2020-mandatet; `fargelegging` forekommer null ganger i 2018-mandatet.
+`/CreationDate` på begge 2020-filene er **2020-05-18 kl. 12:14**, som
+daterer revisjonen presist.
+
+Én tekstlig forskjell skal noteres: mandatet skriver «Disse leveransene
+skal **sammen** danne grunnlag», mens de årlige kroppene siterer det
+uten «sammen». Kroppenes gjengivelse er altså ikke helt ordrett.
+
+**4. Det mandatet SATTE I GANG.** Samme revisjon la til en oppgave som
+ikke fantes før: «Styringsgruppen skal etter spesifikke oppdrag fra
+departementet gi råd om utviklingen av trafikklyssystemet, herunder
+forslag til naturfaglige kriterier for vekting, og om hvordan sjøørret
+og sjørøye kan inkluderes …». De øvrige dokumentene fra 2021 og framover
+er leveranser under nettopp den klausulen. Revisjonen fjernet ett slags
+råd og skapte et annet.
 
 ### Følgen: spørsmålet er ikke besvarbart fra runde 2022
 
