@@ -121,6 +121,24 @@ kilder:
     # fyrt konstant.
     gulv_margin: 0.01
 
+  biomasselag:
+    # Fiskeridirektoratets Biomasse-lag i Yggdrasil-katalogen: står det
+    # fisk på lokaliteten, og hvilken art. Verifisert mot levende
+    # tjeneste 10.09.2026. Målingene ligger i modulens docstring og i
+    # docs/beslutninger/2026-09-10-biomasselag.md. NLOD, ingen nøkkel —
+    # attribusjon «Kilde: Fiskeridirektoratet» kreves.
+    #
+    # IKKE samme kilde som `biomasse` over. Den er antall fisk per
+    # PRODUKSJONSOMRÅDE per måned, med hele serien i hver nedlasting.
+    # Denne er ja/nei per LOKALITET, uten historikk og uten mengde.
+    #
+    # NÅTILSTAND UTEN HISTORIKK. Laget bærer én tilstand, og forrige
+    # ukes finnes ikke noe sted etter at den er overskrevet. En uke som
+    # ikke hentes er permanent tapt — det er derfor kadensen er ukentlig
+    # og ikke sjeldnere.
+    aktiv: true
+    base_url: "https://gis.fiskeridir.no/server/rest/services/Yggdrasil/Biomasse/MapServer/0"
+
   biomasse:
     # Fiskeridirektoratets biomassestatistikk etter produksjonsområde.
     # Verifisert mot levende tjeneste 25.08.2026, se

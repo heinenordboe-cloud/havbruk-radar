@@ -9,6 +9,8 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-12** — [Lisens per kilde er et krav før publisering, og udokumentert lisens er UBELAGT](2026-09-12-lisenskjeden.md) — utkast
+- **2026-09-10** — [Biomasselaget som kilde — ja/nei per lokalitet, fordi antallet aldri blir åpent](2026-09-10-biomasselag.md) — utkast
 - **2026-09-09** — [HIs 28 reguleringsområder hentes som kilde — grensetallene arkiveres uten å bli det](2026-09-09-reguleringsomraader.md) — utkast
 - **2026-09-09** — [Styringsgruppens råd som kilde — og sammenslåingen som forsvant i 2020](2026-09-09-styringsgruppens-rad-som-kilde.md) — utkast
 - **2026-09-09** — [Departementets PO9-begrunnelse hviler på en udatert ekspertversjon — funnet er om departementet, ikke om datamodellen](2026-09-09-departementets-po9-begrunnelse.md) — utkast
