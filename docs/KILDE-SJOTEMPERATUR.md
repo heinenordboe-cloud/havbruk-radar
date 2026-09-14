@@ -347,7 +347,48 @@ om det ikke var det som skjedde her.
 Målt: 534 uker på 74 minutter med denne pausen, inkludert 38 minutter
 søvn — altså ~36 minutter reell kjøretid for 534 uker.
 
-## 11. Det som IKKE er bygget
+## 11. Lisens og attribusjon
+
+Vilkårene på `www.barentswatch.no/artikler/api-vilkar` er sist oppdatert
+02.11.2023 og lest 12.09.2026. Etter mønster av
+`docs/KILDE-BIOMASSE.md` punkt 10; hele kjeden står i
+`docs/LISENSKJEDE.md`.
+
+Data fra BarentsWatch-API-ene er gjort tilgjengelig under **NLOD** med
+mindre API-dokumentasjonen sier noe annet. **Kommersiell bruk er
+uttrykkelig tillatt.**
+
+**Attribusjonen skal være synlig for SLUTTBRUKER**, ikke bare i et repo:
+
+> «Data levert av BarentsWatch»
+
+**Og i praksis også dataeiersetningen, av en grunn som er særegen for
+denne kilden.** Vilkårenes andre setning gjelder lakselus, rensefisk og
+medikamentbruk:
+
+> «Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra
+> Mattilsynet.»
+
+Sjøtemperatur er ikke i den oppregningen, og isolert sett utløser ikke
+denne kilden kravet. Men punkt 1 slår fast at temperaturen kommer fra
+**den samme rapporten** som lusetallene — utvalget er
+`{"rapporttype": ["Lice"]}`, se punkt 9 — og punkt 4 at koblingen mot
+`lusetall` er 100 %. En visning som viser sjøtemperatur fra denne
+serien, viser i praksis et uttrekk av lusetallsrapporten, og da skal
+begge setningene stå. Å skille dem ville vært å påberope seg et
+teknisk skille vi selv ikke har i innsamlingen.
+
+**Enhver visning, rapport eller publisering som bruker disse tallene må
+bære attribusjonen.** Det er et lisensvilkår, ikke en høflighet.
+
+De fire øvrige pliktene — registrering ved kommersiell bruk, kontakt før
+høytrafikkbruk, «BarentsWatch» ikke i tjenestenavnet, og at
+datainnholdet ikke skal endres — er felles for begge BarentsWatch-kilder
+og står i `docs/KILDE-LUSETALL.md` og `docs/LISENSKJEDE.md` merknad F.
+Plikten om høytrafikkbruk er den som angår denne kilden mest konkret:
+se punkt 10 om ratebegrensning og de 534 ukene backfillen hentet.
+
+## 12. Det som IKKE er bygget
 
 Stien-formelen (`N_fisk × N_hunnlus × 0,17 × (T + 4,28)²`) er ikke
 implementert. Antall fisk mangler fortsatt, og en formel med to av tre

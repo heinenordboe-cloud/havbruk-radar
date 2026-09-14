@@ -183,6 +183,55 @@ Regel 6. Ikke verifisert før tallene er sett i fila.
 5. Kjør backfill mot 2011 og bekreft at den stopper og sier fra, ikke
    skriver tomme filer.
 
+## Lisens og attribusjon
+
+Vilkårene på `www.barentswatch.no/artikler/api-vilkar` er sist oppdatert
+02.11.2023 og lest 12.09.2026. Etter mønster av
+`docs/KILDE-BIOMASSE.md` punkt 10; hele kjeden står i
+`docs/LISENSKJEDE.md`.
+
+Data fra BarentsWatch-API-ene er gjort tilgjengelig under **NLOD** med
+mindre API-dokumentasjonen sier noe annet. **Kommersiell bruk er
+uttrykkelig tillatt.**
+
+**Attribusjonen skal være synlig for SLUTTBRUKER**, ikke bare i et repo
+eller i en kildekommentar. To setninger, og begge er ordrette krav:
+
+> «Data levert av BarentsWatch»
+
+> «Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra
+> Mattilsynet.»
+
+Den andre er **dataeierattribusjonen**, og den er ikke valgfri fordi vi
+henter fra BarentsWatch i stedet for fra Mattilsynet — det er nettopp
+da den trengs. Den dekker nøyaktig de feltene denne kilden bærer:
+lusetallene, `har_rensefisk` og `har_medikamentell_behandling`. At de to
+siste har sluttet å bære informasjon (se
+`docs/beslutninger/2026-09-01-lusetall-to-felter-er-datatap.md`) endrer
+ikke attribusjonsplikten — vi henter dem fortsatt, og de ligger i
+snapshotene.
+
+**Enhver visning, rapport eller publisering som bruker disse tallene må
+bære begge setningene.** Det er et lisensvilkår, ikke en høflighet.
+
+Fire plikter til, som ikke er attribusjon og derfor lett faller ut:
+
+1. **Kommersielle brukere bes registrere API-klienten** med formål,
+   firma og kontaktperson.
+2. **BarentsWatch skal kontaktes før høytrafikkbruk**, ellers kan de
+   fakturere serverkostnader. Én ukentlig kjøring er ikke det. En ny
+   backfill over de 762 ukene er nettopp det plikten handler om — se
+   «Backfill» over.
+3. **«BarentsWatch» kan ikke inngå i tjenestenavnet.**
+4. **Datainnholdet skal ikke endres.** Arkivlaget oppfyller dette av seg
+   selv: rå-kroppen lagres uendret og hashet før noe parses. Det som
+   avledes (`kildeledd`) er merket som avledet og er ikke en gjengivelse
+   av kildens data.
+
+Plikt 1 og 2 krever en HANDLING fra oss, ikke bare en setning i en
+visning. Ingen av dem er utført per 14.09.2026, og ingen av dem er
+utløst ennå.
+
 ## Hva som ville snudd det
 
 At rapporteringsandelen viser seg å variere sesongmessig på en måte som
