@@ -4,7 +4,8 @@ Alt i dette notatet er **målt** mot levende tjenester 02.–03.09.2026.
 Der noe bare er lest og ikke verifisert, står det uttrykkelig.
 
 **Kilde: Fiskeridirektoratet** (pub-aqua) og **Brønnøysundregistrene**
-(Enhetsregisteret). NLOD for begge; attribusjonen er et vilkår.
+(Enhetsregisteret). NLOD for begge; attribusjonen er et vilkår, og de
+to krever hver sin setning — se punkt 8.
 
 To kilder, ikke én:
 
@@ -244,3 +245,72 @@ Lokalitetstilknytningen er **dagens**. Overføringene rekker til 2006,
 men en tillatelse som lå på en annen lokalitet i 2012 blir tilskrevet
 dagens. Vår akvakultur-serie har tre snapshots (17., 24., 31.08.2026), og
 koblingen lokalitet → selskap rekker ikke lenger bakover enn det.
+
+## 8. Lisens og attribusjon
+
+Kilden henter fra **to registre under hver sin lisensgiver**, og de
+krever hver sin attribusjonssetning. Etter mønster av
+`docs/KILDE-BIOMASSE.md` punkt 10; hele kjeden står i
+`docs/LISENSKJEDE.md`.
+
+### Fiskeridirektoratet (`pub-aqua`) — NLOD
+
+Lisenssiden lest 25.08.2026:
+
+> «Den som tar i bruk data fra Fiskeridirektoratet godtar automatisk
+> lisensen.»
+
+Ingen registrering, ingen avtale, ingen søknad, ingen nøkkel. Godkjente
+attribusjonsformer er «Kilde: Fiskeridirektoratet», «Kilde rådata:
+Fiskeridirektoratet» eller «Kilde for rådata som vi har benyttet i vår
+sammenstilling: Fiskeridirektoratet». Attribusjonen skal ikke
+fremstilles som om Fiskeridirektoratet anbefaler eller går god for vår
+sammenstilling.
+
+### Brønnøysundregistrene — NLOD 2.0
+
+`brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/`, lest
+14.09.2026:
+
+> «Datasettene følger Norsk lisens for åpne data (NLOD). Det er ikke
+> nødvendig å registrere seg for å ta datasettet i bruk.»
+
+API-dokumentasjonen på `data.brreg.no` fester versjonen til **NLOD 2.0**
+og lenker til lisensteksten på `data.norge.no/nlod/no/2.0`.
+
+**Brreg oppgir ingen egen attribusjonsform**, til forskjell fra
+Fiskeridirektoratet. Da gjelder NLOD 2.0 punkt 5, ordrett:
+
+> «Hvis lisensgiver ikke spesifiserer hvordan navngivelse bør foretas,
+> skal lisenstaker normalt oppgi følgende: "Inneholder data under Norsk
+> lisens for offentlige data (NLOD) tilgjengeliggjort av [navnet på
+> lisensgiver]".»
+
+Setningen vår blir dermed:
+
+> **«Inneholder data under Norsk lisens for offentlige data (NLOD)
+> tilgjengeliggjort av Brønnøysundregistrene»**
+
+NLOD 2.0 bruker ikke ordet «kommersiell». Retten følger av at lisensen
+er «ikke-eksklusiv, vederlagsfri og uten tidsmessige eller geografiske
+begrensninger» — ingen begrensning, ikke en uttrykkelig tillatelse.
+
+### Lisensen gjelder det FRIE nivået, og bare det
+
+Enhetsregisteret har et **autorisert API** ved siden av de åpne dataene:
+roller inklusive fødselsnummer, oppslag på fødselsnummer, sikret med
+Maskinporten og eget scope. Punkt 3 viser hva vi faktisk kaller —
+`data.brreg.no/.../enheter/{orgnr}` for organisasjonsform — og det
+ligger i sin helhet på det frie nivået.
+
+Det autoriserte nivået er den grensen **CLAUDE.md regel 3** forbyr oss å
+krysse, og forbudet er strengere enn lisensen: roller hentes ikke selv
+om noen skulle innvilge tilgangen. Se punkt 5 om hva `/entities` allerede
+bar av persondata uten at noen hadde bedt om det.
+
+**Enhver visning, rapport eller publisering som bruker disse tallene må
+bære begge attribusjonssetningene.** Det er et lisensvilkår, ikke en
+høflighet. NLOD godtar at kildehenvisningen står på en «Om»-side så lenge
+den ikke er «bortgjemt, eller vanskelig å finne»; blandes dataene med
+BarentsWatch-kilder i samme visning, er det deres strengere krav om
+synlighet for sluttbruker som gjelder.

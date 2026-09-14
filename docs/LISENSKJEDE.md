@@ -24,8 +24,8 @@ tidspunktet tilhører KILDEN, ikke oss.
 | `biomasse` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
 | `biomasselag` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
 | `romming` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
-| `eierskap` | NLOD | samme + Brreg, se under | «Kilde: Fiskeridirektoratet» og «Brønnøysundregistrene» | **ja** | 25.08. / **ULEST** |
-| `enhetsregisteret` | NLOD | **ULEST** — se merknad B | «Brønnøysundregistrene» | **ja** (følger av NLOD) | **ULEST** |
+| `eierskap` | NLOD (Fiskeridir.) + **NLOD 2.0** (Brreg) | [fiskeridir.no](https://www.fiskeridir.no/statistikk-tall-og-analyse/lisens-for-bruk-av-fiskeridirektoratets-data) + [brreg.no/…/apne-data](https://www.brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/) | «Kilde: Fiskeridirektoratet» **+** «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 25.08. / 14.09.2026 |
+| `enhetsregisteret` | **NLOD 2.0** — gjelder det **frie** nivået, se merknad B | [brreg.no/…/apne-data](https://www.brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/), lisenstekst [data.norge.no/nlod/no/2.0](https://data.norge.no/nlod/no/2.0) | «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 14.09.2026 |
 | `lusetall` | NLOD | [barentswatch.no/artikler/api-vilkar](https://www.barentswatch.no/artikler/api-vilkar) | «Data levert av BarentsWatch» **+** «Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra Mattilsynet.» | **ja, uttrykkelig** | 12.09.2026 |
 | `sjotemperatur` | NLOD | samme | «Data levert av BarentsWatch» | **ja, uttrykkelig** | 12.09.2026 |
 | `trafikklysvedtak` | NLOD 2.0, via unntaket i Lovdatas punkt 2.3 | [lovdata.no/info/brukeravtale](https://lovdata.no/info/brukeravtale) | «hvis du oppgir Lovdata som kilde og ellers følger vilkårene i NLOD 2.0» | **ja**, men se merknad C | 12.09.2026 |
@@ -52,18 +52,104 @@ sammenstilling.
 Gjelder alle fem fiskeridirektoratkildene: `akvakultur`, `biomasse`,
 `biomasselag`, `romming` og `eierskap` (`pub-aqua`).
 
-## Merknad B — Brønnøysundregistrene er en KJENT LUKE
+## Merknad B — Brønnøysundregistrene, og HVILKET nivå lisensen gjelder
 
-`docs/KILDE-EIERSKAP.md` linje 6–7 sier «NLOD for begge; attribusjonen
-er et vilkår». Det er repoets egen påstand, og den er trolig riktig —
-men **ingen har lest Brregs egen lisensside og skrevet ned ordlyden**,
-slik det er gjort for Fiskeridirektoratet.
+Luken fra 12.09.2026 er lukket 14.09.2026. Raden sto som ULEST fordi
+ingen hadde lest Brregs egen lisensside; det er nå gjort.
 
-Derfor står hjemmel og lesedato som ULEST, ikke som en URL vi ikke har
-åpnet. Lisensen er ikke i tvil; det som mangler er den ordrette
-attribusjonssetningen, og den trengs før Enhetsregisteret bærer en
-publisert visning. Dette er den ene raden i tabellen som er et
-arbeidsstykke og ikke et funn.
+### Lisensen, ordrett fra Brregs egen side
+
+Fra `brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/`:
+
+> «Datasettene følger Norsk lisens for åpne data (NLOD). Det er ikke
+> nødvendig å registrere seg for å ta datasettet i bruk.»
+
+API-dokumentasjonen på `data.brreg.no` er mer presis om versjonen og
+lenker til lisensteksten:
+
+> «License: Norsk lisens for offentlige data (NLOD)» →
+> `data.norge.no/nlod/no/2.0`
+
+**NLOD 2.0** er altså versjonen. Ingen registrering, ingen avtale, ingen
+nøkkel — samme form som Fiskeridirektoratet.
+
+### Attribusjonssetningen kommer fra NLOD, ikke fra Brreg
+
+Dette er forskjellen fra Fiskeridirektoratet, og den er verdt å skrive
+ned i stedet for å pusse bort: **Brreg oppgir ingen egen
+attribusjonsform.** Fiskeridirektoratet lister tre godkjente varianter
+av «Kilde: Fiskeridirektoratet»; Brreg sier bare at datasettene følger
+NLOD.
+
+Det er nettopp tilfellet NLOD 2.0 punkt 5 er skrevet for. Ordrett fra
+lisensteksten, lest 14.09.2026:
+
+> «Hvis lisensgiver ikke spesifiserer hvordan navngivelse bør foretas,
+> skal lisenstaker normalt oppgi følgende: "Inneholder data under Norsk
+> lisens for offentlige data (NLOD) tilgjengeliggjort av [navnet på
+> lisensgiver]".»
+
+Med lisensgiver satt inn blir setningen vår:
+
+> **«Inneholder data under Norsk lisens for offentlige data (NLOD)
+> tilgjengeliggjort av Brønnøysundregistrene»**
+
+Den er ordrett i den forstand som teller — den er lisensgiverens egen
+foreskrevne form, ikke vår omskriving. At den måtte hentes ett ledd
+lenger ut enn Fiskeridirektoratets, er en opplysning om kjeden og ikke
+en svakhet ved den.
+
+**Kommersiell bruk:** NLOD 2.0 bruker ikke ordet «kommersiell» i det
+hele tatt. Retten følger av at lisensen gir rett til å «kopiere, bruke
+og tilgjengeliggjøre informasjon» og er «ikke-eksklusiv, vederlagsfri og
+uten tidsmessige eller geografiske begrensninger». Ja i tabellen betyr
+altså **ingen begrensning**, ikke en uttrykkelig tillatelse — til
+forskjell fra BarentsWatch, som sier det rett ut. Skillet er lite og
+skal likevel stå.
+
+**Hvor attribusjonen må stå.** NLOD 2.0 er mildere enn BarentsWatch her,
+og det er verdt å vite hvilken av dem som setter kravet:
+
+> «det er ikke et krav at navngivelse foregår på samme side som
+> informasjonen presenteres på, det er nok at kildehenvisningen blir
+> plassert på en "Om"-side eller lignende … Kildehenvisningen må likevel
+> ikke være bortgjemt, eller vanskelig å finne.»
+
+En «Om»-side holder for NLOD. Den holder **ikke** for BarentsWatch, som
+krever synlighet for sluttbruker. Den strengeste plikten er den som
+gjelder i en visning som blander kildene — se TODO-en i
+`docs/VISNING.md`.
+
+### Hvilket NIVÅ lisensen gjelder: bare det frie
+
+Enhetsregisteret har to tilgangsnivåer, og **vi bruker utelukkende det
+frie**. Det er ikke en detalj: lisensen over gjelder de åpne
+datasettene, og ville ikke uten videre dekket det andre nivået.
+
+| nivå | hva | bruker vi? |
+|---|---|---|
+| `data.brreg.no/enhetsregisteret/api/enheter` — åpne data | grunndata, næringskode, organisasjonsform, ansatte, konkurs- og avviklingsflagg. Ingen nøkkel, ingen avtale | **ja, bare dette** |
+| `data.brreg.no/enhetsregisteret/autorisert-api/…` | roller **inklusive fødselsnummer** for personer, oppslag på fødselsnummer. Sikret med Maskinporten, krever scope `brreg:data:enhetsregisteret:roller:person:oppslag:fnr` | **nei** |
+
+Det autoriserte nivået er ikke bare en annen lisens — det er nøyaktig
+den grensen **CLAUDE.md regel 3** forbyr oss å krysse. Roller med
+fødselsnummer ville gjort repoet til et personregister med
+behandlingsansvar. Kilden henter ikke roller i det hele tatt, og det er
+en beslutning som står uavhengig av hva lisensen måtte tillate:
+**regelen er strengere enn vilkåret, og det er regelen som gjelder.**
+
+En tredje vei finnes også, og den er heller ikke vår: et abonnement på
+«full tilgang» med signert avtale og årlig vederlag for private aktører.
+Det gir teknisk tilgang, ikke andre data enn nivåene over.
+
+**Én ting i premisset er IKKE bekreftet.** At det autoriserte API-et er
+forbeholdt kredittopplysningsforetak og finansforetak, er ikke å finne i
+Brregs egen dokumentasjon: API-dokumentasjonen navngir ingen
+kvalifiserte grupper, bare Maskinporten-kravet og scopet.
+Abonnementssiden skiller på offentlige og private aktører, ikke på
+bransje. Hvem som faktisk innvilges scopet er dermed **ULEST** — det
+endrer ingenting for oss, siden vi uansett ikke søker, men det skal ikke
+stå i denne fila som om det var etterprøvd.
 
 ## Merknad C — Lovdata, og grensen som faktisk biter
 
@@ -204,8 +290,11 @@ av dem er utført per 14.09.2026, og ingen av dem er utløst ennå.
 Rekkefølgen er den samme som alvorlighetsgraden:
 
 1. **`ekspertgruppen` er UBELAGT.** Avklar med HI/NINA før en visning
-   lener seg på rapportene.
-2. **Brregs ordrette attribusjonssetning er ikke lest.** Merknad B.
-3. **De to BarentsWatch-setningene må stå synlig for sluttbruker.** Se
-   TODO-en i `docs/VISNING.md`.
-4. **Registrering hos BarentsWatch** hvis bruken blir kommersiell.
+   lener seg på rapportene. Eneste gjenstående hull i kjeden.
+2. **De to BarentsWatch-setningene må stå synlig for sluttbruker**, og
+   Brregs NLOD-setning må med der Enhetsregisteret vises. Se TODO-en i
+   `docs/VISNING.md`.
+3. **Registrering hos BarentsWatch** hvis bruken blir kommersiell.
+
+Lukket 14.09.2026: Brregs ordrette attribusjonssetning, som sto som
+ULEST fra 12.09. Se merknad B.

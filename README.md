@@ -37,7 +37,13 @@ biomassestatistikk og rømmingsstatistikk. Tilgjengeliggjort under
 [Norsk lisens for offentlige data (NLOD)](https://data.norge.no/nlod/no/).
 
 **Brønnøysundregistrene** — Enhetsregisteret, under
-[NLOD](https://data.norge.no/nlod/no/).
+[NLOD 2.0](https://data.norge.no/nlod/no/2.0) (lest 14.09.2026). Bare de
+frie, åpne datasettene hentes — ikke det autoriserte API-et med roller
+og fødselsnummer. Brreg oppgir ingen egen attribusjonsform, så NLOD 2.0
+punkt 5 gjelder:
+
+> Inneholder data under Norsk lisens for offentlige data (NLOD)
+> tilgjengeliggjort av Brønnøysundregistrene
 
 **Lovdata** — kapasitetsjusteringsforskriftene.
 

@@ -135,11 +135,21 @@ lusetall eller sjøtemperatur:
 > Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra
 > Mattilsynet.
 
-Fiskeridirektoratets NLOD-attribusjon («Kilde: Fiskeridirektoratet»)
-har samme form: den skal følge tallene ut, ikke bli stående i
-`docs/`. Se `docs/LISENSKJEDE.md` for hele kjeden og for hvilke kilder
-som ennå er UBELAGT — `ekspertgruppen` er det, og en publisert visning
-skal ikke lene seg på den før luken er lukket.
+Fiskeridirektoratets NLOD-attribusjon («Kilde: Fiskeridirektoratet») og
+Brregs («Inneholder data under Norsk lisens for offentlige data (NLOD)
+tilgjengeliggjort av Brønnøysundregistrene») skal følge tallene ut, ikke
+bli stående i `docs/`. Se `docs/LISENSKJEDE.md` for hele kjeden og for
+hvilke kilder som ennå er UBELAGT — `ekspertgruppen` er det, og en
+publisert visning skal ikke lene seg på den før luken er lukket.
+
+**De to regelsettene er ikke like strenge, og den strengeste vinner.**
+NLOD 2.0 godtar at kildehenvisningen står på en «Om»-side, så lenge den
+ikke er «bortgjemt, eller vanskelig å finne». BarentsWatch krever
+synlighet for sluttbruker. En visning som blander kildene — og det gjør
+enhver visning av lusetall ved siden av lokalitetsdata — må oppfylle
+BarentsWatch-kravet for alle sammen. Å legge NLOD-setningene på en
+«Om»-side og lusesetningene et annet sted er to plasseringer å holde
+styr på der én holder.
 
 **Hvorfor dette står som en TODO og ikke som en «bør»:** dagens visning
 er intern, gitignorert og skrives til `HAVBRUK_DATA_DIR`. Der er kravet
