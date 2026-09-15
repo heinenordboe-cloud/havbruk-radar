@@ -3244,3 +3244,74 @@ def test_godta_felt_kvitterer_ogsaa_innholdsalarmen(tmp_path, monkeypatch):
 
     assert ok and "nullstilte innholdsstrekket for flagg" in melding
     assert health.les()["falsk"]["innhold_nullstrekk"] == {}
+
+
+# ------------------------------------------ antall_filtrert i kroppen
+
+
+def test_meta_blokken_er_ikke_en_enhet():
+    """`meta` skal hoppes over av `_enheter`, ikke siles bort senere.
+
+    Uten den eksplisitte skippen faller posten gjennom til `else` og
+    yieldes som om den var et foretak. parse() ville forkastet den fordi
+    den mangler organisasjonsnummer — men da hviler korrektheten på at en
+    feil verdi tilfeldigvis blir silt bort lenger ute, og det er
+    mønsteret CLAUDE.md 1b-2 handler om.
+    """
+    from sources.enhetsregisteret import _enheter
+
+    sider = [
+        {"naeringskode": "03.211", "side": 0,
+         "svar": {"_embedded": {"enheter": [{"organisasjonsnummer": "1"}]},
+                  "page": {"totalPages": 1}}},
+        {"meta": {"antall_filtrert": 201, "filtrert_per_form": {"ENK": 201}}},
+    ]
+
+    ut = list(_enheter(sider))
+    assert ut == [{"organisasjonsnummer": "1"}]
+
+
+def test_gammelt_arkiv_uten_meta_parses_som_for():
+    """Arkivfilene fra før 14.09.2026 har ingen meta-post. De skal
+    fortsatt kunne re-parses — det er hele grunnen til at arkivet
+    finnes."""
+    from sources.enhetsregisteret import _enheter
+
+    gammelt = [
+        {"naeringskode": "03.211", "side": 0,
+         "svar": {"_embedded": {"enheter": [{"organisasjonsnummer": "1"}]},
+                  "page": {"totalPages": 1}}},
+    ]
+    flatt_enda_eldre = [{"organisasjonsnummer": "2"}]
+
+    assert [e["organisasjonsnummer"] for e in _enheter(gammelt)] == ["1"]
+    assert [e["organisasjonsnummer"] for e in _enheter(flatt_enda_eldre)] == ["2"]
+
+
+def test_meta_blokken_baerer_bare_antall():
+    """Regel 3: aggregatet, aldri en markør på en enkeltenhet.
+
+    Et ENK ER innehaveren, så en rad som sa «her sto en fysisk person»
+    ville vært nøyaktig den opplysningen filteret finnes for å unngå.
+    Testen holder den grensen: ingen verdi i meta-posten skal se ut som
+    et organisasjonsnummer.
+    """
+    import json
+    import re
+
+    meta = {"meta": {"antall_filtrert": 201,
+                     "filtrert_per_form": {"ENK": 201}}}
+
+    tekst = json.dumps(meta)
+    assert not re.search(r"\b\d{9}\b", tekst), (
+        "meta-posten inneholder noe som ser ut som et organisasjonsnummer")
+    assert all(isinstance(v, int)
+               for v in meta["meta"]["filtrert_per_form"].values())
+
+
+def test_filtrert_antall_er_null_for_fetch():
+    """En leser som spør et objekt som aldri hentet noe, skal få 0 og
+    ikke en AttributeError."""
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    assert Enhetsregisteret().filtrert_antall == 0

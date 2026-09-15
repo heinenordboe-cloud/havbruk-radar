@@ -144,10 +144,15 @@ Skillet fantes i dataene (`organisasjonsform`), men ble ikke båret over i
 kontrollen. Se
 `docs/beslutninger/2026-08-22-enk-filtreres-i-kilden.md`.
 
-Tallet skrives til kjøringsloggen fordi filtreringen er stille av natur:
-en enhet som aldri blir en observasjon etterlater seg ingen rad å savne,
-og et hopp fra 201 til 900 ville ellers bety at søket har endret seg uten
-at noe sa fra.
+Tallet skrives **to steder** fordi filtreringen er stille av natur: en
+enhet som aldri blir en observasjon etterlater seg ingen rad å savne, og
+et hopp fra 201 til 900 ville ellers bety at søket har endret seg uten at
+noe sa fra.
+
+1. **Til kjøringsloggen**, som en linje et menneske leser mandag morgen.
+2. **Inn i arkivkroppen** som en `meta`-post, fra 14.09.2026. Det er den
+   som varer — stdout er borte når Actions-loggen utløper, og det er
+   arkivet som skal kunne svare i ettertid. Se punkt 5.2.
 
 ## 5. Forbehold
 
@@ -245,17 +250,47 @@ drift. Det er det ikke — og serien er uansett for kort til å svare:
 måtte måles er om slettingene overstiger nyregistreringene over et år —
 og svaret er en egenskap ved bransjen, ikke ved innsamlingen.
 
-#### Den ene luken i målingen
+#### Luken i målingen — LUKKET fra 14.09.2026, åpen bakover
 
 Rå-arkivet skrives **etter** ENK-filteret (punkt 4). En uke der flere
-foretak ble omklassifisert til ENK ville se ut nøyaktig som en uke der
-foretak ble slettet — begge gir færre orgnr i arkivet.
+foretak ble omklassifisert til ENK ser derfor byte for byte ut som en
+uke der foretak ble slettet: begge gir færre orgnumre i arkivet, og
+begge ser ut som et volumfall.
 
-For DISSE tre ukene er luken lukket, fordi alle fem avgangene er
-forklart med `slettedato`. Men filterets antall lagres ikke per kjøring,
-så luken åpner igjen neste gang tallet faller. **Det som måtte til for å
-lukke den permanent: skriv `antall_filtrert` til kjøringsloggen eller
-til arkivet, slik `eierskap` gjør med `personer_fjernet`.**
+**Fra 14.09.2026 bærer kroppen antallet selv.** Siste post i arkivfila
+er en `meta`-post etter samme mønster som `eierskap` sitt
+`personer_fjernet`:
+
+    {"meta": {"antall_filtrert": 201,
+              "filtrert_per_form": {"ENK": 201}}}
+
+Bare aggregatet. Ingen organisasjonsnumre, ingen navn, ingen markør på
+en enkeltenhet — et ENK ER innehaveren (regel 3), så en rad som sa «her
+sto en fysisk person» ville vært nøyaktig den opplysningen filteret
+finnes for å unngå.
+
+Dermed kan et snapshot fra og med denne datoen alene svare på om et fall
+kom av sletting eller av omklassifisering: falt orgnr-tallet mens
+`antall_filtrert` steg tilsvarende, er foretakene fortsatt der og bare
+flyttet over på den andre siden av filteret. Det er prøven i regel 1b-3,
+og svaret var nei fram til nå.
+
+**Luken står åpen for de tre ukene som allerede er målt.**
+Arkivfilene for **24.08, 31.08, 07.09 og 14.09** har ingen `meta`-post og
+får den aldri — append-only, regel 2. For dem finnes tallet ikke, og det
+kan ikke rekonstrueres: et gammelt arkiv er allerede filtrert, og hvem
+som ble filtrert bort er ikke bevart noe sted.
+
+At fallet 24.08–14.09 likevel er MÅLT, skyldes en omvei som ikke er
+tilgjengelig i sin alminnelighet: alle fem avgangene ble slått opp hos
+Brreg i ettertid og hadde `slettedato`. Det virket fordi avgangene var
+fem og fordi Brreg fortsatt svarer på slettede orgnumre. Ved tjue
+avganger, eller for et register som ikke svarer på slettede enheter,
+ville spørsmålet vært ubesvarlig.
+
+Det er grunnen til at luken ble lukket nå og ikke ved neste fall:
+tiltaket virker bare framover, og hver uke som går uten det er en uke
+som aldri kan besvares.
 
 ### 5.3 Pagineringstaket merkes ikke i dataene
 

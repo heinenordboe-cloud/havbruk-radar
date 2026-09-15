@@ -128,12 +128,13 @@ forklarer. Det har ikke skjedd.
 
 **Gjør i mellomtiden det billige.** To ting som ikke er en ny vakt:
 
-* **Skriv `antall_filtrert` til kjøringsloggen eller arkivet**, slik
-  `eierskap` gjør med `personer_fjernet`. I dag er rå-arkivet skrevet
-  ETTER ENK-filteret, så en uke der flere foretak ble omklassifisert til
-  ENK ser ut nøyaktig som en uke der foretak ble slettet. For disse tre
-  ukene er luken lukket fordi alle fem avgangene har `slettedato` — men
-  den åpner igjen ved neste fall.
+* ~~Skriv `antall_filtrert` til kjøringsloggen eller arkivet~~ —
+  **GJORT 14.09.2026.** Arkivkroppen bærer nå en `meta`-post med
+  antallet, samme mønster som `eierskap` sitt `personer_fjernet`. En uke
+  der foretak ble omklassifisert til ENK kan nå skilles fra en uke der de
+  ble slettet. Tiltaket virker bare framover: arkivfilene til og med
+  14.09 har ingen slik post og får den aldri. Se
+  `docs/KILDE-ENHETSREGISTERET.md` punkt 5.2.
 * **Rapporter volumendring per uke i kjøringsloggen**, som et tall
   mennesker leser, ikke som en terskel maskiner fyrer på.
   Commit-meldingen leses på telefonen hver mandag; «enhetsregisteret

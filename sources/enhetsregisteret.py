@@ -212,9 +212,20 @@ def _enheter(raw: list[dict]) -> Iterable[dict]:
 
     Diskriminatoren er `svar`-nøkkelen. En enhet fra Brreg har aldri et
     felt som heter det.
+
+    `meta`-posten (fra 14.09.2026) er ikke en enhet og hoppes over. Uten
+    den linja ville den falt gjennom til `else` og blitt yieldet som om
+    den var et foretak — parse() ville riktignok forkastet den fordi den
+    mangler `organisasjonsnummer`, men da hviler korrektheten på at en
+    feil verdi tilfeldigvis blir silt bort lenger ute. Det er mønsteret
+    1b-2 handler om, og det er billigere å si det her.
     """
     for post in raw:
-        if isinstance(post, dict) and "svar" in post:
+        if not isinstance(post, dict):
+            yield post
+        elif "meta" in post:
+            continue
+        elif "svar" in post:
             yield from post["svar"].get("_embedded", {}).get("enheter", [])
         else:
             yield post
@@ -292,6 +303,13 @@ class Enhetsregisteret(Source):
     # ekte nyregistrering fra et selskap som har eksistert siden 1995 og
     # bare nå kom innenfor søket vårt.
     startdatofelt = "registreringsdato"
+
+    # Antall foretak siste `fetch()` filtrerte bort som fysisk person.
+    # Klasseattributt så den kan leses uten at fetch() har kjørt — en
+    # leser som får 0 av et objekt som aldri hentet noe, skal ikke få en
+    # AttributeError i stedet. Tallet som TELLER ligger i arkivkroppen;
+    # dette er bekvemmelighet for kalleren i samme kjøring.
+    filtrert_antall = 0
 
     def fetch(self, kjoredato: str) -> list[dict]:
         """Én post per SIDE, med pagineringskonvolutten intakt.
@@ -392,12 +410,43 @@ class Enhetsregisteret(Source):
 
                 treff_per_kode[kode] = antall
 
+        unike = (set().union(*filtrert_per_form.values())
+                 if filtrert_per_form else set())
+        per_form = {form: len(orgnr)
+                    for form, orgnr in sorted(filtrert_per_form.items())}
+        self.filtrert_antall = len(unike)
+
         if filtrert_per_form:
-            unike = set().union(*filtrert_per_form.values())
-            detaljer = ", ".join(f"{form} {len(orgnr)}" for form, orgnr
-                                 in sorted(filtrert_per_form.items()))
+            detaljer = ", ".join(f"{form} {n}" for form, n in per_form.items())
             print(f"    {len(unike)} foretak filtrert bort som fysisk person "
                   f"({detaljer})")
+
+        # ANTALLET FØLGER KROPPEN, ikke bare stdout. Samme mønster som
+        # `eierskap` sitt `personer_fjernet`, og av samme grunn.
+        #
+        # Rå-arkivet skrives ETTER filteret. Uten dette tallet er en uke
+        # der foretak ble OMKLASSIFISERT til ENK byte for byte umulig å
+        # skille fra en uke der foretak ble SLETTET — begge gir færre
+        # orgnumre i arkivet, og begge ser ut som et volumfall. Den luken
+        # sto åpen fram til 14.09.2026, og fallet 24.08–14.09 måtte
+        # lukkes ved å slå opp `slettedato` hos Brreg i ettertid. Det er
+        # en jobb ingen skal måtte gjøre igjen, og som ikke lar seg gjøre
+        # for et gammelt arkiv i det hele tatt.
+        #
+        # Regel 1b-3: en verdi som avgjør hva dataene BETYR lagres sammen
+        # med dem. Prøven er «kan et snapshot alene svare på hva denne
+        # verdien var da raden ble skrevet», og fram til nå var svaret
+        # nei.
+        #
+        # BARE ANTALL. Ingen organisasjonsnumre, ingen navn, ingen markør
+        # på en enkeltenhet. Et ENK ER innehaveren (regel 3), så en rad
+        # som sa «her sto en fysisk person» ville vært nøyaktig den
+        # opplysningen filteret finnes for å unngå. Aggregatet bærer alt
+        # vakten trenger og ingenting mer.
+        sider.append({"meta": {
+            "antall_filtrert": len(unike),
+            "filtrert_per_form": per_form,
+        }})
 
         # Sett, ikke append — se Source.advarsler.
         self.advarsler = _varsle_tomme_sok(treff_per_kode, tillat_tomt)
