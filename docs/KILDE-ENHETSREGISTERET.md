@@ -29,10 +29,21 @@ er 20, konfigurert til 100. Utvalget er en filtrering på næringskode.
     10.203   produksjon av annen bearbeidet fisk
     10.912   produksjon av fiskefôr
 
-**`10.209` er IKKE i bruk.** Den sto i en tidligere liste og ble tatt ut
-17.08.2026 samtidig som `03.222` og `10.203` kom inn. Et notat utenfor
-repoet lister seks koder med `10.209` blant dem; den listen er feil på to
-måter — feil kode med, og tre koder manglende.
+**`10.209` er IKKE i bruk, og har aldri bidratt med en rad.** Koden er
+utgått i gjeldende SN2007 — innholdet ligger nå i `10.202` og `10.203` —
+og en utgått kode svarer `200 OK` med tom liste, ikke med en feil. Den
+sto i `config.yml` i to dager (15.–17.08.2026) og ga null treff hele
+tiden. Fjernet 17.08 22:07, samtidig som `03.222` og `10.203` kom inn.
+
+Et notat utenfor repoet lister seks koder med `10.209` blant dem. **Den
+lista var riktig 15.08 og er utdatert fra 17.08** — samme forhold som
+dekningstallene i `docs/KILDE-AKVAKULTUR.md` punkt 4.2. Historikken står
+i `docs/beslutninger/2026-08-24-utvalgsutvidelse-er-ikke-endring.md`.
+
+At 10.209 kunne stå i to dager uten at noe sa fra, er grunnen til at
+`_varsle_tomme_sok()` finnes: volumvakten måler totalen per KILDE og ser
+ikke enkeltsøk, så ett av ni søk kan falle til null mens totalen holder
+seg innenfor terskelen.
 
 At listen ligger i `utvalg`-kolonnen og ikke bare i `config.yml`, er
 CLAUDE.md 1b-3: et snapshot skal alene kunne svare på hva vi LETTE ETTER,

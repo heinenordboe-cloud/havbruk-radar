@@ -125,7 +125,8 @@ dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
 ## Når volumvarselet fyrer
 
 Kjøringen er grønn, men commiten er merket `DELVIS:` og loggen har en
-linje som denne:
+linje som denne — **formen er hentet fra `core/health.py`, tallene er
+konstruerte, og vakten har aldri fyrt i praksis:**
 
     enhetsregisteret (volum 62% av referanse 27074: 16786 observasjoner, uke 1)
 
@@ -163,11 +164,53 @@ om at det lave tallet er sant.
 Commit den — uten commit er kvitteringen borte neste gang Actions
 sjekker ut repoet på nytt, og alarmen fyrer igjen mandag.
 
-    git commit -am "Godtar volum 16786 for enhetsregisteret: NACE 10.209 flyttet til eget register"
+    git commit -am "Godtar volum <N> for <kilde>: <hva som faktisk skjedde>"
 
 Skriv HVORFOR nivået ble godtatt, ikke bare at det ble det. Om fire
 måneder er den commit-meldingen eneste sted som skiller "registeret
 krympet" fra "vi ga opp en tirsdag".
+
+**Det finnes ingen ekte kvittering å vise til.** Volumvakten har aldri
+fyrt for noen kilde — null `--godta-volum` i hele commit-historikken per
+14.09.2026 — så både tallene og begrunnelsen i eksempelet over måtte
+vært oppdiktet. De er derfor tatt ut.
+
+Fram til 14.09.2026 sto her et eksempel som så målt ut og ikke var det:
+
+> «Godtar volum 16786 for enhetsregisteret: NACE 10.209 flyttet til eget
+> register»
+
+Ingenting av det hadde hendt. `27074` er et ekte tall — 17.08-snapshotet
+— men **16786 har aldri forekommet i noe snapshot**, og 10.209 ble
+aldri «flyttet til eget register». Koden er utgått i gjeldende SN2007;
+innholdet ligger nå i 10.202 og 10.203. Den sto i `config.yml` i to
+dager, ga **null treff hele tiden**, og ble fjernet 17.08.2026.
+
+Legg merke til hva det gjør med eksempelet: fordi 10.209 bidro med null
+rader, kunne fjerningen av den **ikke** gi noe volumfall i det hele tatt
+— langt mindre et fall til 62 %. Eksempelet illustrerte ikke bare en
+hendelse som ikke skjedde, men en hendelse som ikke KUNNE skje.
+
+En ekte hendelse ligger i `sources/enhetsregisteret._varsle_tomme_sok()`:
+en utgått kode svarer `200 OK` med tom liste, ikke med en feil, og
+volumvakten måler totalen per kilde og ser ikke enkeltsøk. Det er den
+vakten som fanget 10.209 — ikke volumvakten.
+
+### Det nærmeste en ekte sak, og hvorfor den ikke fyrte
+
+Enhetsregisteret falt 51 622 → 51 524 mellom 24.08 og 14.09.2026. Fallet
+er ekte, målt og forklart: fem aksjeselskaper fikk `slettedato` hos Brreg
+og falt ut av søket, to konkursbo kom inn. Se
+`docs/KILDE-ENHETSREGISTERET.md` punkt 5.2.
+
+**Vakten sa likevel ingenting, og det var riktig.** 0,19 % er langt over
+terskelen. Saken er derfor et eksempel på et ekte fall som IKKE skal
+kvitteres ut — nivået er friskt, referansen følger med opp av seg selv,
+og det er ingenting å godta.
+
+Den dagen vakten faktisk fyrer, erstatt avsnittet over med den saken.
+Et kjørt eksempel er verdt mer enn et konstruert, og et konstruert som
+ser kjørt ut er verre enn ingen.
 
 ## Når innholdsvarselet fyrer
 
