@@ -5,7 +5,7 @@ Der noe bare er lest og ikke verifisert, står det uttrykkelig.
 
 **Kilde: Fiskeridirektoratet** (pub-aqua) og **Brønnøysundregistrene**
 (Enhetsregisteret). NLOD for begge; attribusjonen er et vilkår, og de
-to krever hver sin setning — se punkt 8.
+to krever hver sin setning — se punkt 9.
 
 To kilder, ikke én:
 
@@ -246,7 +246,74 @@ men en tillatelse som lå på en annen lokalitet i 2012 blir tilskrevet
 dagens. Vår akvakultur-serie har tre snapshots (17., 24., 31.08.2026), og
 koblingen lokalitet → selskap rekker ikke lenger bakover enn det.
 
-## 8. Lisens og attribusjon
+## 8. Dekning på LOKALITETSNIVÅ — og de 57 som aldri kan dekkes
+
+Punkt 7 teller tillatelser. Dette punktet teller **lokaliteter**, og det
+er den brøken enhver «hvem eier kapasiteten»-analyse hviler på.
+
+Målt 14.09.2026 mot `akvakultur`-snapshotet fra samme dag:
+
+    lokaliteter i akvakultur         1782
+    med selskapskobling              1722      96,6 %
+    uten                               60       3,4 %
+
+### Oppdelingen av de 60
+
+| grunn | antall | kan det tettes? |
+|---|---|---|
+| eier er privatperson eller ENK — stoppet av personvernfilteret | **57** | **NEI, aldri** |
+| ingen aktiv tillatelse i registeret | 3 | ja, når registeret får en |
+
+**De 57 er permanent utelukket.** De er ikke et hull i innsamlingen, en
+feil som skal rettes eller en oppgave noen kan ta. De er prisen for at
+repoet ikke skal være et personregister, og prisen betales hver eneste
+uke. CLAUDE.md regel 3 er strengere enn både lisensen og API-et: dataene
+FINNES åpent hos Fiskeridirektoratet, og vi henter dem likevel ikke.
+
+Konsekvensen skal stå ved siden av enhver analyse av eierskap:
+**3,2 % av lokalitetene er systematisk usynlige, og de er ikke tilfeldig
+fordelt.** De er små, personeide anlegg. En analyse som sier «X % av
+kapasiteten eies av de ti største» regner på et utvalg der de minste
+eierne mangler per konstruksjon, og skjevheten peker samme vei hver gang.
+
+### Hvordan tallet ble målt, og hvorfor det er vanskelig
+
+**Snapshotet alene kan ikke svare.** Personvernfilteret fjerner hele
+tillatelsen i `fetch()`, før arkivering. En lokalitet som bare har
+personeide tillatelser ser i snapshotet nøyaktig ut som en lokalitet uten
+tillatelse i det hele tatt — begge har ingen rad. Målt mot snapshotet
+alene blir svaret «60, alle uten tillatelse», og oppdelingen 57/3 er
+usynlig.
+
+Rå-arkivet kan heller ikke svare. Det lagrer `personer_fjernet: 84` —
+antall tillatelser filteret tok — men de fjernede tillatelsene er borte,
+så koblingen til lokalitet finnes ikke.
+
+Oppdelingen ble derfor målt ved å kjøre kildens egne `/entities`- og
+`/licenses`-kall og gjøre tellingen **i minnet**, uten å skrive noe. Det
+er den eneste veien, og den gir bare aggregater: 57 og 3, ingen navn,
+ingen numre.
+
+**Det er et 1b-3-brudd med vitende og vilje.** Verdien som avgjør hva
+dekningstallet BETYR lagres ikke sammen med dataene, og et snapshot kan
+derfor ikke alene svare på hvorfor en lokalitet mangler. Å lagre den
+ville krevd en markør per fjernet tillatelse, og en markør på «her sto en
+privatperson» er nettopp opplysningen filteret finnes for å unngå. De to
+reglene står mot hverandre her, og regel 3 vinner.
+
+Merk hva det gjør med etterprøvbarheten: **57 og 3 kan ikke regnes ut på
+nytt fra repoet.** De kan bare måles på nytt mot det levende registeret,
+og svaret vil da gjelde den dagen målingen gjøres — ikke denne.
+
+### Tallene beveger seg
+
+    02.09.2026    1719 av 1779    96,6 %    57 / 3
+    14.09.2026    1722 av 1782    96,6 %    57 / 3
+
+Brøken har stått stille på 96,6 % og oppdelingen på 57/3 gjennom to
+målinger tolv dager fra hverandre. Absoluttallene følger registeret.
+
+## 9. Lisens og attribusjon
 
 Kilden henter fra **to registre under hver sin lisensgiver**, og de
 krever hver sin attribusjonssetning. Etter mønster av
