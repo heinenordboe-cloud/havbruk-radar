@@ -53,7 +53,7 @@ endringer (96,7 %) før merkingen kom på plass. Se
 | 2026-09-14 | **51 524** | **1 807** | 32 | 12 |
 
 Størrelsesorden: **ca. 51 500 observasjoner og ca. 1 807 foretak per
-kjøring.**
+kjøring.** Fallet siden 24.08 er målt og forklart — se punkt 5.2.
 
 **Et notat utenfor repoet oppgir «ca. 53 000». Målt er 51 524 —
 overdrevet med ca. 1 500, altså 2,9 %.** Serien har dessuten falt hver
@@ -157,11 +157,105 @@ De 1 807 foretakene er de som har en av ni næringskoder registrert. Et
 oppdrettsselskap med feil eller manglende næringskode finnes ikke for
 oss. Dekningen mot «alle selskaper i havbruk» er ukjent og ikke målt.
 
-### 5.2 Volumet faller, og årsaken er ikke målt
+### 5.2 Volumet faller — MÅLT: slettede foretak, ikke vår parse
 
-51 622 → 51 524 over tre uker. Om det er avviklinger, omklassifiseringer
-eller endret rapportering hos Brreg er **ikke** undersøkt. Volumvakten
-måler mot et høyvannsmerke og har ikke fyrt.
+51 622 → 51 524 over tre uker, 0,19 %. Målt 14.09.2026. **Fallet er
+ekte, riktig, og skal ikke rettes.**
+
+#### Råsvaret krymper i takt med snapshotet
+
+Runbookens prosedyre for volumvarsel: krymper råsvaret, har registeret
+endret seg; er råsvaret uendret, er det vår parse. Målt mot
+`data/arkiv/enhetsregisteret/`:
+
+| dato | råsvar (byte) | enheter i svaret | unike orgnr | snapshot foretak |
+|---|---|---|---|---|
+| 2026-08-24 | 3 969 755 | 1 857 | 1 810 | 1 810 |
+| 2026-08-31 | 3 969 681 | 1 857 | 1 810 | 1 810 |
+| 2026-09-07 | 3 965 202 | 1 855 | 1 808 | 1 808 |
+| 2026-09-14 | 3 962 238 | 1 854 | 1 807 | 1 807 |
+
+**Unike orgnr i råsvaret er identisk med foretak i snapshotet, hver
+eneste uke.** Parsen taper ingenting.
+
+Radregnskapet sier det samme. De 98 radene fordeler seg eksakt:
+
+    rader 24.08                              51 622
+      − rader fra 5 foretak som forsvant       −141
+      + rader fra 2 nye foretak                 +42
+      ± endring blant de 1 805 felles            +1
+    rader 14.09                              51 524   ✔
+
+**+1 rad over tre uker fordelt på 1 805 foretak.** Et felt som sluttet å
+bli parset ville gitt et tall i hundretallsklassen her.
+
+#### Hvem som forsvinner: slettede aksjeselskaper
+
+Alle fem er `AS`, og alle fem har fått `slettedato` hos Brreg innenfor
+vinduet. Slått opp mot `data.brreg.no/enhetsregisteret/api/enheter/`
+14.09.2026:
+
+    832072842   slettet 2026-08-25   sto som under_avvikling
+    916784430   slettet 2026-09-05
+    916586124   slettet 2026-09-07   sto som under_avvikling
+    923584609   slettet 2026-09-08   sto som konkurs
+    912479943   slettet 2026-09-10   sto som konkurs
+
+Et slettet foretak mister næringskoden sin, og faller derfor ut av
+søket. Det er ikke omklassifisering og ikke endret rapportering — det er
+sletting etter avvikling eller konkurs.
+
+Changeloggen er enig, uavhengig målt: `data/changelog/enhetsregisteret/`
+har for de tre ukene **fem entiteter med 28–29 `borte`-rader hver** —
+altså hele entiteten, ikke enkeltfelter. De øvrige `borte`-radene er
+enkeltfelter som ble tomme.
+
+#### Og det går begge veier
+
+To nye foretak kom inn i samme vindu, begge med organisasjonsform
+**`KBO` — konkursbo**, registrert 27.08 og 08.09.
+
+Det er samme prosess sett fra den andre enden: et selskap går konkurs,
+boet registreres som egen enhet med næringskode, og selskapet slettes
+etter hvert. **Serien er en fødsels- og dødsprosess, ikke en lekkasje.**
+
+| uke | foretak | ut | inn | netto |
+|---|---|---|---|---|
+| 2026-08-31 | 1 810 | 1 | 1 | ±0 |
+| 2026-09-07 | 1 808 | 2 | 0 | −2 |
+| 2026-09-14 | 1 807 | 2 | 1 | −1 |
+
+Brutto omsetning over tre uker: 7 av 1 810 = **0,39 %**, mot netto
+0,17 %. Mer enn dobbelt så mye beveger seg som nettotallet viser.
+
+#### Kan trenden ekstrapoleres? NEI
+
+«0,2 % i uka blir 10 % på et år» forutsetter at fallet er ensrettet
+drift. Det er det ikke — og serien er uansett for kort til å svare:
+
+* **Fire punkter, tre differanser.** Alt før 24.08 er uforlignbart:
+  næringskodelista ble utvidet 17.08 og foretakstallet gikk 938 → 1 810.
+  Serien med dagens utvalg begynner 24.08.
+* **Radtallet faller monotont** (−6, −58, −34), **men foretakstallet gjør
+  det ikke** — 1 810, 1 810, 1 808, 1 807. Én av tre uker er flat.
+* Tre negative differanser på rad har sannsynlighet 1/8 under ren støy.
+  Det er ikke et signal.
+
+**UBELAGT: om nivået fortsetter å falle.** Det krever flere uker. Det som
+måtte måles er om slettingene overstiger nyregistreringene over et år —
+og svaret er en egenskap ved bransjen, ikke ved innsamlingen.
+
+#### Den ene luken i målingen
+
+Rå-arkivet skrives **etter** ENK-filteret (punkt 4). En uke der flere
+foretak ble omklassifisert til ENK ville se ut nøyaktig som en uke der
+foretak ble slettet — begge gir færre orgnr i arkivet.
+
+For DISSE tre ukene er luken lukket, fordi alle fem avgangene er
+forklart med `slettedato`. Men filterets antall lagres ikke per kjøring,
+så luken åpner igjen neste gang tallet faller. **Det som måtte til for å
+lukke den permanent: skriv `antall_filtrert` til kjøringsloggen eller
+til arkivet, slik `eierskap` gjør med `personer_fjernet`.**
 
 ### 5.3 Pagineringstaket merkes ikke i dataene
 
