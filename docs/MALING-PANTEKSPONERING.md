@@ -17,6 +17,42 @@ som ikke kan, og hva som måtte samles inn.
 
 ---
 
+## ETTERSKRIFT 15.09.2026 — ett av de fem gapene er lukket
+
+Målingen under står som den ble gjort 14.09.2026 og rettes ikke. Denne
+etterskriften sier hva som har endret seg siden, slik at ingen leser et
+dagsgammelt tall som dagens.
+
+**Gap 4 («2026-fargen inn i `FORSKRIFTER`») er lukket.**
+FOR-2026-08-20-1764 fikk en uttrekksfunksjon 15.09.2026, og runde 2026
+emitteres nå av kilden. Fargen for PO4 i 2026 er GUL — den samme verdien
+målingen under leste manuelt av kroppen, nå lest av en parser med vakter
+og med `farge__lesemaate = ordrett`.
+
+Tallene som er utdaterte i teksten under:
+
+| står under | var 14.09 | er 15.09 |
+|---|---|---|
+| dekningsflate, trafikklys | 40 av 65 celler (61,5 %) | **46 av 65 (70,8 %)** |
+| samme, med parser | 40 av 52 | **46 av 65** — alle fem runder har nå parser |
+| «2026 bidrar med 0» | 0 celler | **6 celler** (PO 1, 3, 4, 5, 12, 13) |
+| «2026-fargen er ikke i dataene» | manuelt lest | **emittert av `parse()`** |
+
+**Det som IKKE endret seg, og som bærer kortsvaret:** de fire andre
+gapene står urørt. Null felter om pant, heftelser eller tinglysing;
+produksjonsområdet er fortsatt DAGENS og ikke historisk; `eierskap` har
+fortsatt to snapshots tolv dager fra hverandre; `journal_dato` er
+fortsatt «senest da».
+
+Den sammensatte dekningen i punkt d) beveget seg heller ikke. Det
+svakeste leddet er `tillatelse → produksjonsområde` på 38,8 %, og
+fargeleddet lå over det både før og etter. **11 % er fortsatt 11 %** —
+å legge seks celler til et ledd som ikke var flaskehalsen endrer ikke
+hva kjeden tåler. Det er selve poenget med å bære dekningen gjennom
+ledd for ledd.
+
+---
+
 ## a) Feltene vi faktisk har
 
 ### Det som finnes

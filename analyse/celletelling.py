@@ -56,7 +56,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import backfill                                              # noqa: E402
 from sources.trafikklysvedtak import (ANTALL_PO,             # noqa: E402
                                       FORSKRIFTER, F_FARGE,
-                                      KAPITTELHJEMMEL, LESEMAATE_SUFFIKS,
+                                      KAPITTELHJEMMEL, KAPITTELOVERSKRIFT,
+                                      LESEMAATE_SUFFIKS, ORDRETT,
                                       Trafikklysvedtak, siste_dag)
 
 UT_FIL = Path(__file__).resolve().parent / "fasit" / "celletelling.md"
@@ -87,6 +88,47 @@ def emisjoner() -> list[tuple[str, int, str, str, str]]:
                 ut.append((forskrift.forskrift_id, runde, po,
                            farge[po], lesemaate[po]))
     return ut
+
+
+# De fem utfallene en (runde, PO)-celle kan ha. Skillet som betyr noe er
+# om et FARGEORD står i kroppen eller ikke: `ordrett` og
+# `kapitteloverskrift` er lest, `kapittelhjemmel` er utledet av hvilket
+# kapittel området står under, og `ingen` er et hull.
+#
+# `ordrett` og `kapitteloverskrift` skilles likevel, fordi de to er ulike
+# steder i dokumentet — en bestemmelse mot en overskrift — og fordi en
+# celle kan ha begge (PO4 og PO5 i 2020, lest av 2020-kroppens
+# kapittelhode og restatert ordrett av tre senere kropper).
+ORDRETT_OG_OVERSKRIFT = "ordrett+kapitteloverskrift"
+BLANDET_M_HJEMMEL = "blandet_med_kapittelhjemmel"
+INGEN = "ingen"
+
+KATEGORIER = (ORDRETT, ORDRETT_OG_OVERSKRIFT, KAPITTELOVERSKRIFT,
+              KAPITTELHJEMMEL, BLANDET_M_HJEMMEL, INGEN)
+
+
+def kategori(lesemaater: list[str] | None) -> str:
+    """Hvilket av de fem utfallene denne cellen har.
+
+    `lesemaater` er alle lesemåtene kroppene ga cellen, eller None hvis
+    ingen kropp emitterte den. Rekkefølgen er uten betydning her — det
+    er SETTET som avgjør hvordan cellen kan leses.
+    """
+    if not lesemaater:
+        return INGEN
+    s = set(lesemaater)
+    if s == {KAPITTELHJEMMEL}:
+        return KAPITTELHJEMMEL
+    if KAPITTELHJEMMEL in s:
+        # Utledet i én kropp, lest i en annen. Finnes ikke i dag, og har
+        # sin egen bøtte nettopp for at den ikke skal smelte inn i en av
+        # de andre den dagen den oppstår.
+        return BLANDET_M_HJEMMEL
+    if s == {KAPITTELOVERSKRIFT}:
+        return KAPITTELOVERSKRIFT
+    if s == {ORDRETT}:
+        return ORDRETT
+    return ORDRETT_OG_OVERSKRIFT
 
 
 def main() -> int:
@@ -158,6 +200,32 @@ def main() -> int:
         linjer.append(
             f"| {runde} | {len(har)} | "
             f"{', '.join('PO' + po for po in mangler) if mangler else '—'} |")
+
+    linjer += [
+        "",
+        "## Per runde og lesemåte — hvordan cellen kan leses",
+        "",
+        "`ordrett` og `kapitteloverskrift` betyr at et FARGEORD står i",
+        "kroppen; `kapittelhjemmel` at det ikke gjør det og fargen er",
+        "utledet av hvilket kapittel området står under. `ingen` er hull.",
+        "",
+        "| runde | ordrett | ordrett+overskrift | bare overskrift | "
+        "kapittelhjemmel | blandet m/hjemmel | ingen |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    sum_kat: dict[str, int] = {k: 0 for k in KATEGORIER}
+    for runde in runder:
+        rad = {k: 0 for k in KATEGORIER}
+        for po in ALLE_PO:
+            k = kategori(celler.get((runde, po)))
+            rad[k] += 1
+            sum_kat[k] += 1
+        linjer.append(
+            f"| {runde} | " + " | ".join(str(rad[k]) for k in KATEGORIER)
+            + " |")
+    linjer.append(
+        "| **sum** | " + " | ".join(f"**{sum_kat[k]}**" for k in KATEGORIER)
+        + " |")
 
     linjer += [
         "",

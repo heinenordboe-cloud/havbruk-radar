@@ -5,8 +5,9 @@ Sammenstilling: `analyse/vedtak_mot_rad.py`
 Forbehold: `analyse/FORBEHOLD-vedtak-mot-rad.md`
 Beslutning: `docs/beslutninger/2026-09-05-vedtakskilden.md`
 
-Alt i dette notatet er MÅLT på nedlastede kropper 05.09.2026, ikke lest
-ut av en oppsummering. Der noe er utledet framfor lest, står det.
+Alt i dette notatet er MÅLT på nedlastede kropper — de fire første
+05.09.2026, 2026-kroppen 15.09.2026 — ikke lest ut av en oppsummering.
+Der noe er utledet framfor lest, står det.
 
 ## 1. Hva dette er
 
@@ -32,7 +33,7 @@ Trafikklyset er fargelagt i rundene 2018, 2020, 2022, 2024 og 2026.
 | 2024 | FOR-2024-03-22-515 | 22.03.2024 | 22.03.2024 | 26.03.2024 |
 | 2026 | FOR-2026-08-20-1764 | 20.08.2026 | 20.08.2026 | 11.09.2026 |
 
-### 2026-forskriften kom, og den er ARKIVERT men ikke PARSET
+### 2026-forskriften kom, ble arkivert 14.09 og parset 15.09
 
 Målt 14.09.2026. Registersøket under fant ingenting 05.09.2026 og
 finner den nå, på `search=kapasitetsjustering`:
@@ -56,17 +57,33 @@ kroppen, ikke regnet ut for hånd.
 (77 143 byte, sha256 `08b6090d993b9644…`), arkivert 14.09.2026 gjennom
 `core/raw.arkiver_ny()`.
 
-**Men runden står fortsatt ikke i `FORSKRIFTER`, og kilden emitterer
-ikke for 2026.** Det er ikke en forglemmelse. § 4-tabellen har nå FIRE
-runder per rad («Produksjonsområde 3 (gult lys i 2020, rødt lys i 2022,
-rødt lys i 2024, rødt lys i 2026)»), mot tre i 2024-kroppen. Punkt 5 sier
-hvorfor det krever en egen uttrekksfunksjon og ikke en gjenbrukt: en
-generisk parser over den spredningen gir riktig FORM og feil TALL.
-Arkivering og uttrekk er to jobber, og bare den første har en frist.
+**Runden står i `FORSKRIFTER` fra 15.09.2026**, med `_uttrekk_2026` som
+sin egen uttrekksfunksjon. § 4-tabellen har FIRE runder per rad
+(«Produksjonsområde 3 (gult lys i 2020, rødt lys i 2022, rødt lys i 2024,
+rødt lys i 2026)»), mot tre i 2024-kroppen, og `_krev_runder` får derfor
+`(2020, 2022, 2024, 2026)` inn. Punkt 5 sier hvorfor årgangen har et eget
+uttrekk og ikke et gjenbrukt.
 
-Det kroppen bærer, lest men ikke emittert: § 3 gir grønt til PO 1, 12 og
-13; § 4 gir PO3 rødt, PO4 gult og PO5 gult i 2026. Vederlaget er
-270 000 kr/tonn (§ 10), søknadsfristen 28.09.2026 (§ 11).
+Det kroppen bærer, nå emittert: § 3 gir grønt til PO 1, 12 og 13; § 4 gir
+PO3 rødt, PO4 gult og PO5 gult i 2026 — seks celler, alle `ordrett`.
+Vederlaget er 270 000 kr/tonn (§ 10), søknadsfristen 28.09.2026 (§ 11).
+
+Kroppen restaterer i tillegg 2020, 2022 og 2024 i § 4-tabellen, og den
+er MÅLT enig med de tidligere kroppene i hver eneste overlappende celle:
+
+    runde   kropp                  PO3    PO4    PO5
+    2020    FOR-2020-02-04-105      —     rød    rød
+    2020    FOR-2022-06-07-972     gul    rød    rød
+    2020    FOR-2024-03-22-515     gul    rød    rød
+    2020    FOR-2026-08-20-1764    gul    rød    rød
+    2022    FOR-2022-06-07-972     rød    rød    gul
+    2022    FOR-2024-03-22-515     rød    rød    gul
+    2022    FOR-2026-08-20-1764    rød    rød    gul
+    2024    FOR-2024-03-22-515     rød    rød    gul
+    2024    FOR-2026-08-20-1764    rød    rød    gul
+
+Null revisjoner. Hadde de spriket, ville det ikke vært en feil, men to
+påstander om samme tidspunkt gjort på hver sin dato — se punkt 9.
 
 ### Hvordan fraværet av 2026 BLE fastslått, 05.09.2026
 
@@ -99,7 +116,7 @@ Biomasse tar `published_at` fra `Last-Modified`. Ekspertgruppen kan
 ikke, fordi headeren der er en CMS-migreringsdato. Her er situasjonen en
 tredje: **lovdata.no sender ingen `Last-Modified` i det hele tatt.**
 
-Målt 05.09.2026 med `curl -I` på alle fire dokumentene. Svaret har
+Målt 05.09.2026 med `curl -I` på de fire første dokumentene. Svaret har
 `date:` (nå) og `cache-control: max-age=7200`, og ingen
 `Last-Modified`, ingen `ETag`. Det finnes ikke noe HTTP-alternativ å ta
 feil av.
@@ -111,10 +128,12 @@ tidspunktet vedtaket VIRKER fra.
 ### Vakten
 
 `_utgitt()` KREVER at ikrafttredelsen er lik fastsettelsesdatoen i
-FOR-nummeret. Alle fire kroppene passerer (tabellen over). Skiller de
+FOR-nummeret. Alle fem kroppene passerer (tabellen over). Skiller de
 seg, er vedtaket utsatt eller gitt tilbakevirkende kraft, og da svarer
 ikrafttredelsen på et annet spørsmål enn `published_at` stiller —
-feltet settes tomt med en advarsel. Vakten finnes for den femte kroppen.
+feltet settes tomt med en advarsel. 2026-kroppen var den første prøven
+på vakten mot et dokument den ikke var skrevet for, og den passerte:
+fastsatt og ikraft samme dag, 20.08.2026.
 
 Klokkeslettet settes til 12:00 UTC. Lovdata oppgir bare dato for
 ikrafttredelse; et klokkeslett vi ikke har ville vært oppdiktet presisjon
@@ -150,6 +169,7 @@ Kroppene er MÅLT forskjellige dokumenter:
 | 2020 | «røde», bare i kapittel 4s overskrift | tre kapittelledd | nei |
 | 2022 | «(grønne)», «X lys i ÅÅÅÅ» | to kapittelledd | ja, 2 runder/rad |
 | 2024 | «(grønne)», «X lys i ÅÅÅÅ» | to kapittelledd | ja, 3 runder/rad |
+| 2026 | «(grønne)», «X lys i ÅÅÅÅ» | to kapittelledd | ja, 4 runder/rad |
 
 ### 2018-kroppen inneholder ikke ett eneste fargeord
 
@@ -171,20 +191,44 @@ nøyaktig ut som et gult.
 begge ordrett i samme dokument, men i to setninger — derfor lesemåte
 `kapitteloverskrift` og ikke `ordrett`.
 
-### 2022- og 2024-kroppene er IKKE samme dokument
+### 2022-, 2024- og 2026-kroppene er IKKE samme dokument
 
-De ligner, og det er nettopp derfor de har hvert sitt uttrekk. Tre
-målte forskjeller:
+De ligner, og det er nettopp derfor de har hvert sitt uttrekk. Målte
+forskjeller:
 
-1. den grønne lista er åtte områder i 2022 og seks i 2024,
-2. hver tabellrad bærer to runder i 2022 og tre i 2024, og
+1. den grønne lista er åtte områder i 2022, seks i 2024 og **tre** i
+   2026 (PO 1, 12, 13),
+2. hver tabellrad bærer to runder i 2022, tre i 2024 og **fire** i 2026,
+   og
 3. § 4 i 2024 har i tillegg løpende tekst som omtaler
    «produksjonsområde 3 og 4» og «produksjonsområde 5» med **liten**
    forbokstav. Tabellmønsteret krever stor P nettopp for å ikke lese de
-   tre prosaomtalene som tabellrader.
+   tre prosaomtalene som tabellrader. 2026-kroppen har ingen slik
+   prosaomtale — den viser til «forskrift 22. mars 2024 nr. 515 kapittel
+   4» i stedet.
 
 Å kalle 2022-uttrekket fra 2024 ville vært riktig i dag og stille feil
 den dagen en av de tre forskjellene betydde noe.
+
+**2026 viser hva vakten er verdt.** `_uttrekk_2026` er tegn for tegn lik
+`_uttrekk_2024` bortsett fra to tall: `Celle(2026, …)` i den grønne lista
+og rundetuppelen `_krev_runder` får inn. Selve LESINGEN er den samme —
+`_tabellceller` plukker alle parentesene uansett hvor mange årstall de
+har, og den grønne lista leses av samme mønster.
+
+Et gjenbruk ville derfor vært fristende. Kjørt mot den arkiverte
+2026-kroppen 15.09.2026 feller `_uttrekk_2024` seg selv:
+
+    FOR-2024-03-22-515: § 4-tabellen uttaler seg om rundene
+    (2020, 2022, 2024, 2026), men FORSKRIFTER sier (2020, 2022, 2024).
+
+Det er `_krev_runder` som fanger det, og den fanger det bare fordi det
+ventede settet sendes INN utenfra i stedet for å utledes av tabellen.
+Hadde vakten telt parenteser i stedet, ville gjenbruket gitt tre
+celler per rad, riktig FORM og en tapt runde — som er den formen
+CLAUDE.md 1b-2 navngir. At et gjenbruk faller høylytt her er et
+resultat av vaktens utforming, ikke av at funksjonen kjenner
+dokumentet.
 
 ## 6. Vaktene
 
@@ -235,7 +279,9 @@ tar. Den er kontrollert så langt kroppene tillater:
 
 ## 8. Dekningsflaten
 
-40 av 65 mulige celler (13 områder × 5 runder) har en farge.
+46 av 65 mulige celler (13 områder × 5 runder) har en farge. Tallene er
+generert av `analyse/celletelling.py` over de arkiverte kroppene — se
+`analyse/fasit/celletelling.md`.
 
 | runde | celler | grønn | gul | rød | hull |
 |---|---|---|---|---|---|
@@ -243,17 +289,22 @@ tar. Den er kontrollert så langt kroppene tillater:
 | 2020 | 12 | 9 | 1 | 2 | PO 10 |
 | 2022 | 11 | 8 | 1 | 2 | PO 2, 7 |
 | 2024 | 9 | 6 | 1 | 2 | PO 2, 6, 7, 8 |
-| 2026 | 0 | — | — | — | alle 13 |
+| 2026 | 6 | 3 | 2 | 1 | PO 2, 6, 7, 8, 9, 10, 11 |
 
-Lesemåte over de 40: 23 `ordrett`, 17 `kapittelhjemmel`, 0
-`kapitteloverskrift` (de to `kapitteloverskrift`-cellene i 2020-kroppen
-er senere restatert ORDRETT, og den sist utgitte lesemåten er den som
-gjelder ved lesing).
+Lesemåte over de 46: 29 der et FARGEORD står i kroppen, 17
+`kapittelhjemmel` der det ikke gjør det. De 29 fordeler seg på 27 rene
+`ordrett` og 2 som er lest begge veier (PO4 og PO5 i 2020 —
+`kapitteloverskrift` i 2020-kroppen, restatert `ordrett` av de tre
+senere). Ingen celle har `kapitteloverskrift` som eneste lesemåte.
+
+Alle 17 `kapittelhjemmel` er fra rundene 2018 og 2020. Fra 2022 skriver
+forskriftene fargen selv, og 2026 er ingen unntak: alle seks cellene er
+`ordrett`.
 
 ### Hullene er ikke tilfeldige
 
-De 7 hullene i 2022 og 2024 er områder som verken står i den grønne
-lista eller i § 4-tabellen. Systemet har tre farger, så «verken grønn
+De 13 hullene i 2022, 2024 og 2026 er områder som verken står i den
+grønne lista eller i § 4-tabellen. Systemet har tre farger, så «verken grønn
 eller rød» peker mot gul — og det er nettopp poenget: **gule områder er
 de som ikke utløser noe tiltak, og derfor de som ikke trenger å nevnes i
 en forskrift om kapasitetsjustering.** Utvalget av celler med vedtak

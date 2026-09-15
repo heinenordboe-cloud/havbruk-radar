@@ -1,9 +1,10 @@
 """Departementets FARGE per produksjonsområde per tildelingsrunde, lest av
 kapasitetsjusteringsforskriftene på lovdata.no.
 
-Verifisert mot fire nedlastede forskriftskropper 05.09.2026, se
-docs/KILDE-TRAFIKKLYSVEDTAK.md. Alt i denne docstringen er MÅLT på de
-arkiverte kroppene, ikke lest ut av en oppsummering.
+Verifisert mot fem nedlastede forskriftskropper — fire 05.09.2026 og
+2026-kroppen 15.09.2026 — se docs/KILDE-TRAFIKKLYSVEDTAK.md. Alt i denne
+docstringen er MÅLT på de arkiverte kroppene, ikke lest ut av en
+oppsummering.
 
 `sources/ekspertgruppen.py` har den ene siden av trafikklyssystemet:
 RÅDET, altså hvilken risikokategori ekspertgruppen setter på hvert
@@ -15,49 +16,68 @@ De to er ikke samme skala, og de er ikke koblet av noe regelverk. Det er
 kildens viktigste funn, og det står i sin helhet under «Koblingen
 mellom råd og vedtak er ikke definert».
 
-## Fire runder, ikke fem
+## Fem runder, fem forskrifter
 
 Trafikklyset er fargelagt i tildelingsrundene 2018, 2020, 2022, 2024 og
-2026. Bare de FIRE første har en fastsatt forskrift.
+2026, og alle fem har nå en fastsatt forskrift:
 
-Målt 05.09.2026 mot Lovdatas register over Norsk Lovtidend avdeling I
-(`/register/lovtidend?avdeling=LTI&year=YYYY&search=…`), som søker i
-tittelfeltet:
+    runde   forskrift                 fastsatt      kunngjort
+    2018    FOR-2017-12-20-2397       20.12.2017    03.01.2018
+    2020    FOR-2020-02-04-105        04.02.2020    05.02.2020
+    2022    FOR-2022-06-07-972        07.06.2022    07.06.2022
+    2024    FOR-2024-03-22-515        22.03.2024    26.03.2024
+    2026    FOR-2026-08-20-1764       20.08.2026    11.09.2026
 
-    runde   forskrift                 kunngjort
-    2018    FOR-2017-12-20-2397       03.01.2018
-    2020    FOR-2020-02-04-105        05.02.2020
-    2022    FOR-2022-06-07-972        07.06.2022
-    2024    FOR-2024-03-22-515        26.03.2024
-    2026    finnes ikke
+## Et register svarer på «er dette KUNNGJORT», ikke «er dette VEDTATT»
 
-Søk på «matfisk», «kapasitet», «akvakultur», «produksjonsomr»,
-«regnbue» og «tillatelser» for 2026 gir ingen kapasitetsjusterings-
-forskrift. Departementet sendte utkastet på høring 19.06.2026 med frist
-31.07.2026; fargeleggingen for 2026 er kunngjort i en pressemelding, men
-VEDTAKET i forskrifts form fantes ikke da kilden ble skrevet.
+Fram til 15.09.2026 sto det «fire runder, ikke fem» her, og fraværet av
+2026 var MÅLT 05.09.2026 mot Lovdatas register over Norsk Lovtidend
+avdeling I (`/register/lovtidend?avdeling=LTI&year=YYYY&search=…`), som
+søker i tittelfeltet. Søk på «matfisk», «kapasitet», «akvakultur»,
+«produksjonsomr», «regnbue» og «tillatelser» for 2026 ga ingen
+kapasitetsjusteringsforskrift, mens de samme ordene for 2018-2025 fant
+alle fire de andre.
 
-Derfor står 2026 ikke i `FORSKRIFTER`. En kilde skal ikke emittere for
-en runde den ikke har en lest kropp for — fravær framfor gjetning, samme
-regel som ekspertgruppens manglende årganger.
+Målingen var riktig, og konklusjonen var likevel feil. Forskriften var
+fastsatt 20.08.2026 — 16 dager FØR søket — men ikke kunngjort før
+11.09.2026, og et register kan bare finne det som er kunngjort.
+Avstanden mellom fastsettelse og kunngjøring er 22 dager for denne
+runden, mot 0-14 for de fire foregående.
+
+Det er samme form som CLAUDE.md 1b-2: en mekanisme som måler noe som
+LIGNER det den skal måle, og som er riktig i akkurat de tilfellene der
+de to faller sammen. «Kunngjort» og «vedtatt» falt sammen i fire runder
+på rad. Skal fraværet av en runde fastslås igjen, må det spørres et sted
+som kjenner fastsettelsen — ikke bare kunngjøringen.
+
+Regelen som ikke endret seg: en kilde skal ikke emittere for en runde
+den ikke har en lest kropp for — fravær framfor gjetning, samme regel
+som ekspertgruppens manglende årganger. 2026 står i `FORSKRIFTER` nå
+fordi kroppen er lest, ikke fordi fargeleggingen er kjent fra en
+pressemelding.
 
 ## Kildens form: N KROPPER som hver dekker M RUNDER
 
 Samme form som ekspertgruppen, og av samme grunn: forskriftene uttaler
-seg om hverandres runder. § 4-tabellen i 2024-forskriften skriver
-«Produksjonsområde 3 (gult lys i 2020, rødt lys i 2022, rødt lys i
-2024)» — én rad, tre påstander, om tre ulike runder.
+seg om hverandres runder. § 4-tabellen i 2026-forskriften skriver
+«Produksjonsområde 3 (gult lys i 2020, rødt lys i 2022, rødt lys i 2024,
+rødt lys i 2026)» — én rad, fire påstander, om fire ulike runder.
 
     kropp   uttaler seg om
     2018    2018
     2020    2020
     2022    2020, 2022
     2024    2020, 2022, 2024
+    2026    2020, 2022, 2024, 2026
+
+Antall runder per tabellrad vokser med én for hver kropp, og det er
+derfor `_krev_runder` finnes: uttrekket som leser tre parenteser av
+fire gir riktig antall RADER og mister den eldste runden.
 
 To forskrifter som er uenige om 2020 ville ikke vært en feil, men to
 påstander om samme tidspunkt gjort på hver sin dato. De er MÅLT enige:
-2022- og 2024-kroppen sier begge PO3 gult, PO4 rødt og PO5 rødt i 2020.
-Se CLAUDE.md 1b-5 og `diff.revisjon()`.
+2022-, 2024- og 2026-kroppen sier alle PO3 gult, PO4 rødt og PO5 rødt i
+2020. Se CLAUDE.md 1b-5 og `diff.revisjon()`.
 
 ## KJENT AVVIK: revisjonsaksens entitetssemantikk passer ikke her
 
@@ -100,7 +120,7 @@ entiteter, og den er implementert i `analyse/vedtak_mot_rad.les_vedtak()`.
 
 Biomasse tar `published_at` fra `Last-Modified`. Det er ikke et valg
 her: målt 05.09.2026 sender lovdata.no **ingen `Last-Modified`-header i
-det hele tatt** på disse fire dokumentene — bare `date:` (nå) og
+det hele tatt** på de fire første dokumentene — bare `date:` (nå) og
 `cache-control: max-age=7200`. Headeren finnes ikke å ta feil av.
 
 Det som finnes er dokumentets eget metadatafelt:
@@ -109,11 +129,12 @@ Det som finnes er dokumentets eget metadatafelt:
     FOR-2020-02-04-105    Ikrafttredelse 04.02.2020
     FOR-2022-06-07-972    Ikrafttredelse 07.06.2022
     FOR-2024-03-22-515    Ikrafttredelse 22.03.2024
+    FOR-2026-08-20-1764   Ikrafttredelse 20.08.2026
 
 Ikrafttredelsen er valgt framfor kunngjøringsdatoen fordi den er det
-tidspunktet vedtaket VIRKER fra. For alle fire faller den sammen med
-fastsettelsesdatoen i FOR-nummeret; kunngjøringen ligger 0–14 dager
-etter. `_utgitt()` KREVER at de to faller sammen og setter
+tidspunktet vedtaket VIRKER fra. For alle fem faller den sammen med
+fastsettelsesdatoen i FOR-nummeret; kunngjøringen ligger 0–22 dager
+etter, og den ytterste avstanden er 2026-runden. `_utgitt()` KREVER at de to faller sammen og setter
 `published_at` tom med en advarsel hvis de ikke gjør det — en
 ikrafttredelse som ligger langt fra fastsettelsen ville betydd en
 utsatt eller tilbakevirkende virkning, og da er «da kilden utga dette»
@@ -288,7 +309,7 @@ ANTALL_PO = 13
 # nøkkelverdi har en tendens til å bli to ulike strenger.
 GRONN, GUL, ROD = "gronn", "gul", "rod"
 
-# Ordformene vi har SETT i de fire kroppene. Lista er lukket med vilje:
+# Ordformene vi har SETT i de fem kroppene. Lista er lukket med vilje:
 # en form vi ikke kjenner skal felle uttrekket, ikke gjettes inn i en av
 # de tre. Kildene skriver intetkjønn («rødt lys») i tabellen og flertall
 # («røde produksjonsområder», «(grønne)») i overskrifter og ledd.
@@ -438,18 +459,19 @@ def _utgitt(flat: str, advarsler: list[str] | None = None) -> str:
     """`published_at` for en forskriftskropp: IKRAFTTREDELSEN.
 
     Lovdata sender ingen `Last-Modified` for disse dokumentene — målt
-    05.09.2026 på alle fire — så det finnes ikke noe HTTP-alternativ å
-    velge feil. Det som finnes er dokumentets eget metadatafelt.
+    05.09.2026 på de fire første — så det finnes ikke noe HTTP-alternativ
+    å velge feil. Det som finnes er dokumentets eget metadatafelt.
 
     ## Vakten
 
     Ikrafttredelsen KREVES å falle sammen med fastsettelsesdatoen i
-    FOR-nummeret. For alle fire kroppene gjør den det:
+    FOR-nummeret. For alle fem kroppene gjør den det:
 
         FOR-2017-12-20-2397   Ikrafttredelse 20.12.2017
         FOR-2020-02-04-105    Ikrafttredelse 04.02.2020
         FOR-2022-06-07-972    Ikrafttredelse 07.06.2022
         FOR-2024-03-22-515    Ikrafttredelse 22.03.2024
+        FOR-2026-08-20-1764   Ikrafttredelse 20.08.2026
 
     Skiller de seg, er vedtaket enten utsatt eller gitt tilbakevirkende
     kraft, og da er «da kilden utga dette svaret» et annet spørsmål enn
@@ -733,7 +755,7 @@ def _kapitteloverskrift(kropp: str, nr: int) -> str:
 
 # Hjemmelen som gjør et kapittel til et GRØNT kapittel: produksjons-
 # områdeforskriften § 11 «Tilbud om kapasitetsøkning (akseptabel
-# miljøpåvirkning)». Alle fire kroppene siterer den i hjemmelslinja.
+# miljøpåvirkning)». Alle fem kroppene siterer den i hjemmelslinja.
 _HJEMMEL_11 = re.compile(r"produksjonsområdeforskriften\)\s*§\s*11")
 
 
@@ -835,8 +857,9 @@ def _uttrekk_2020(kropp: str) -> list[Celle]:
 
     Ingen av dem står i § 3. PO 3 får sin farge for 2020 av
     2022-kroppen, som skriver «gult lys i 2020» ordrett. PO 10 for 2020
-    står ingen steder i noen av de fire kroppene, og blir stående som et
-    hull.
+    står ingen steder i noen av de fem kroppene — heller ikke i
+    2026-kroppen, som restaterer 2020 med de samme tre radene — og blir
+    stående som et hull.
     """
     seksjon3 = _paragraf(kropp, "3", "4")
     hode2 = _kapitteloverskrift(kropp, 2)
@@ -952,6 +975,61 @@ def _uttrekk_2024(kropp: str) -> list[Celle]:
     return gronne + tabell
 
 
+def _uttrekk_2026(kropp: str) -> list[Celle]:
+    """FOR-2026-08-20-1764, tildelingsrundene 2020, 2022, 2024 og 2026.
+
+    Samme to former som 2022- og 2024-kroppen — «(grønne)» i § 3 og
+    «farge lys i ÅÅÅÅ» i § 4-tabellen — og likevel sitt eget uttrekk. Tre
+    forskjeller mot 2024-kroppen, alle målt på den arkiverte kroppen
+    15.09.2026:
+
+      * den grønne lista er TRE områder (1, 12, 13), ikke seks,
+      * hver tabellrad bærer FIRE runder, ikke tre, og
+      * § 4 har ingen prosaomtale av «produksjonsområde N» med liten
+        forbokstav — den løpende teksten viser til «forskrift 22. mars
+        2024 nr. 515 kapittel 4» i stedet.
+
+    Selve LESINGEN er den samme som i `_uttrekk_2024` — `_tabellceller`
+    plukker alle parentesene uansett hvor mange årstall de har. Det som
+    skiller funksjonene er to tall: runden cellene i den grønne lista
+    får, og settet `_krev_runder` kontrollerer mot.
+
+    Et gjenbruk faller derfor ikke stille. Målt mot den arkiverte
+    2026-kroppen 15.09.2026 feller `_uttrekk_2024` seg selv på sin egen
+    vakt:
+
+        FOR-2024-03-22-515: § 4-tabellen uttaler seg om rundene
+        (2020, 2022, 2024, 2026), men FORSKRIFTER sier (2020, 2022, 2024).
+
+    Det kommer av at det ventede settet sendes INN utenfra. En vakt som
+    i stedet telte parenteser ville sluppet gjenbruket gjennom med tre
+    celler per rad — riktig FORM, tapt runde, ingen lyd. Se CLAUDE.md
+    1b-2.
+
+    ## PO 2, 6, 7, 8, 9, 10 og 11 emitteres ikke
+
+    Sju områder står verken i den grønne lista eller i tabellen — flere
+    enn i noen tidligere kropp, fordi den grønne lista krympet fra seks
+    til tre mens tabellen ble stående på tre rader. Se modulens docstring
+    om hvorfor «verken grønn eller rød» ikke skrives som gul.
+    """
+    seksjon3 = _paragraf(kropp, "3", "4")
+    ledd3 = _ledd_for(seksjon3, 3)
+    _krev_ordlyd(ledd3, "(grønne)",
+                 "§ 3 skal merke kapittel 3-lista «(grønne)»")
+
+    gronne = [Celle(2026, po, navn, GRONN, ORDRETT)
+              for po, navn in _omraader(ledd3)]
+    _krev_alle_omraader(ledd3, gronne, "§ 3 annet ledd (kapittel 3)")
+
+    seksjon4 = _paragraf(kropp, "4", "5")
+    tabell = _tabellceller(seksjon4)
+    _krev_alle_tabellrader(seksjon4, tabell)
+    _krev_runder(tabell, (2020, 2022, 2024, 2026), "FOR-2026-08-20-1764")
+
+    return gronne + tabell
+
+
 def _krev_runder(celler: list[Celle], ventet: tuple[int, ...],
                  hvem: str) -> None:
     """Rundene tabellen NEVNER skal være nøyaktig de vi har skrevet opp.
@@ -1056,7 +1134,23 @@ FORSKRIFTER: tuple[Forskrift, ...] = (
         aar=(2020, 2022, 2024),
         url="https://lovdata.no/dokument/LTI/forskrift/2024-03-22-515",
         uttrekk=_uttrekk_2024,
-        merknad="Nyeste FASTSATTE runde. 2026 er på høring, ikke vedtatt.",
+        merknad=("Siste kropp med TRE runder per tabellrad. Den grønne "
+                 "lista krympet fra åtte til seks her."),
+    ),
+    Forskrift(
+        tittel=("Forskrift om kapasitetsjusteringer for tillatelser til "
+                "akvakultur med matfisk i sjø av laks, ørret og "
+                "regnbueørret i 2026"),
+        forskrift_id="FOR-2026-08-20-1764",
+        aar=(2020, 2022, 2024, 2026),
+        url="https://lovdata.no/dokument/LTI/forskrift/2026-08-20-1764",
+        uttrekk=_uttrekk_2026,
+        merknad=("Nyeste FASTSATTE runde. Fastsatt 20.08.2026, kunngjort "
+                 "i Norsk Lovtidend 11.09.2026 — 22 dager, mot 0-14 for "
+                 "de fire foregående. Registersøket 05.09 fant den ikke "
+                 "fordi et register svarer på «er dette kunngjort», ikke "
+                 "på «er dette vedtatt». § 4-tabellen bærer FIRE runder "
+                 "per rad."),
     ),
 )
 

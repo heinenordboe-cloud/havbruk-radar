@@ -1,7 +1,8 @@
 # Forbehold: hva sammenstillingen av råd og vedtak IKKE kan si
 
 Hører til `analyse/vedtak_mot_rad.py` og `sources/trafikklysvedtak.py`.
-Skrevet 05.09.2026.
+Skrevet 05.09.2026, oppdatert 15.09.2026 da runde 2026 fikk en
+uttrekksfunksjon og dekningen gikk fra 40 til 46 av 65 celler.
 
 **Disse forbeholdene hører til i brødteksten der tallene brukes, ikke i
 en fotnote.** Hvert av dem endrer hva et tall betyr, ikke hvor presist
@@ -186,42 +187,55 @@ oppdiktet valg mellom to år.
 
 ## 6. Hvor mange vedtakceller hviler på VÅR utledning
 
-17 av 40 vedtakceller har lesemåte `kapittelhjemmel`: forskriften nevner
+17 av 46 vedtakceller har lesemåte `kapittelhjemmel`: forskriften nevner
 ikke farge i det hele tatt, og grønt er utledet av at området står under
 kapittelet som gjennomfører produksjonsområdeforskriften § 11
 («Tilbud om kapasitetsøkning (akseptabel miljøpåvirkning)»).
 
-Alle 17 er fra rundene 2018 og 2020. Utledningen er etterprøvd så langt
-det lar seg gjøre: den samme strukturelle plassen er merket «(grønne)»
-ORDRETT i både 2022- og 2024-forskriften. Men den er en utledning, og
-`farge__lesemaate` bærer den på hver rad slik at ingen analyse kan bruke
-den uten å se den.
+Alle 17 er fra rundene 2018 og 2020. Antallet har ikke endret seg da
+2026 kom inn — 2026-kroppen skriver fargen selv, og alle seks cellene
+dens er `ordrett`. Andelen som hviler på utledning falt derfor fra
+17/40 = 43 % til 17/46 = 37 %, uten at ett eneste utledet tall ble
+etterprøvd på nytt.
+
+Utledningen er etterprøvd så langt det lar seg gjøre: den samme
+strukturelle plassen er merket «(grønne)» ORDRETT i 2022-, 2024- OG
+2026-forskriften. Tre av tre tilgjengelige kontroller stemmer. Men den
+er en utledning, og `farge__lesemaate` bærer den på hver rad slik at
+ingen analyse kan bruke den uten å se den.
 
 ---
 
-## 7. 25 av 65 celler har ikke noe vedtak å lese
+## 7. 19 av 65 celler har ikke noe vedtak å lese
 
 Ikke fordi vedtaket mangler i verden — fordi forskriften ikke uttaler seg.
 
-* **13 celler (runde 2026):** ingen fastsatt forskrift. Fargeleggingen er
-  kunngjort i pressemelding, utkastet var på høring med frist 31.07.2026,
-  og målt 05.09.2026 finnes ingen kapasitetsjusteringsforskrift for 2026 i
-  Norsk Lovtidend avdeling I.
 * **5 celler (runde 2018):** FOR-2017-12-20-2397 inneholder ikke ett
   eneste fargeord og har intet kapittel om nedjustering. Et rødt område
   ser der nøyaktig ut som et gult.
 * **1 celle (runde 2020, PO10):** unevnt i 2020-forskriften og restatert
   av ingen senere forskrift.
-* **2 celler (runde 2022) og 4 celler (runde 2024):** områder som verken
-  står i den grønne lista eller i § 4-tabellen.
+* **2 celler (runde 2022), 4 celler (runde 2024) og 7 celler (runde
+  2026):** områder som verken står i den grønne lista eller i
+  § 4-tabellen.
 
-De 7 siste (2022 og 2024) er de eneste der utelukkelse peker et sted:
+Fram til 15.09.2026 sto det 25 her, fordi hele runde 2026 manglet: målt
+05.09.2026 fantes ingen kapasitetsjusteringsforskrift for 2026 i Norsk
+Lovtidend avdeling I. Den var fastsatt 20.08.2026 og kunngjort
+11.09.2026, og et register kan bare finne det som er kunngjort. De 13
+hullene ble til 6 emitterte celler og 7 hull.
+
+**Runde 2026 har flest hull av alle rundene med en tabellforskrift.**
+Den grønne lista krympet fra åtte områder (2022) via seks (2024) til tre
+(PO 1, 12, 13), mens § 4-tabellen ble stående på tre rader. De 13 siste
+hullene (2022, 2024 og 2026) er de eneste der utelukkelse peker et sted:
 systemet har tre farger, så «verken grønn eller rød» peker mot gul.
 Slutningen krever at forskriften er uttømmende om farge, og
 2018-forskriften viser at den ikke trenger å være det. **Hullene er
 altså ikke jevnt fordelt, og det er ikke tilfeldig hvilke områder som
 mangler:** de gule er nettopp de som ikke utløser noe tiltak, og derfor
 de som ikke trenger å nevnes i en forskrift om kapasitetsjustering.
+Skjevheten vokser med hver runde der den grønne lista krymper.
 
 En analyse som bare bruker celler med vedtak, arbeider derfor på et
 utvalg som systematisk underrepresenterer gult.

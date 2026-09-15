@@ -53,6 +53,7 @@ TITTEL_2020 = ("Forskrift om kapasitetsjusteringer for tillatelser til "
                "regnbueørret i 2020")
 TITTEL_2022 = TITTEL_2020.replace("i 2020", "i 2022")
 TITTEL_2024 = TITTEL_2020.replace("i 2020", "i 2024")
+TITTEL_2026 = TITTEL_2020.replace("i 2020", "i 2026")
 
 
 # 2018: «Kapittel 2 OM ØKT KAPASITET … gjelder», punktmarkør «a)», og
@@ -144,6 +145,21 @@ KROPP_2024 = _kropp_tabell(
     "får utnyttelsesgraden redusert med 6 prosent. ",
 )
 
+# 2026: FIRE runder per tabellrad, og en grønn liste på tre områder. § 4
+# har INGEN prosaomtale med liten forbokstav — den viser til «forskrift
+# 22. mars 2024 nr. 515 kapittel 4» i stedet.
+KROPP_2026 = _kropp_tabell(
+    "a. Område 1: Svenskegrensen til Jæren b. Område 12: Vest-Finnmark "
+    "c. Område 13: Øst-Finnmark.",
+    "a. Produksjonsområde 3 (gult lys i 2020, rødt lys i 2022, rødt lys i "
+    "2024, rødt lys i 2026) Ned 6 pst. 88,36 pst. 83,06 pst. "
+    "b. Produksjonsområde 5 (rødt lys i 2020, gult lys i 2022, gult lys i "
+    "2024, gult lys i 2026) Ingen justering 94 pst. 94 pst.",
+    "Tillatelser som etter forskrift 22. mars 2024 nr. 515 kapittel 4 har "
+    "fått fastsatt sin tillatelseskapasitet, får ved nedjustering endret "
+    "sin utnyttelsesgrad etter kolonnen «justering» over. ",
+)
+
 
 KROPPER = {
     "FOR-2017-12-20-2397": _side("FOR-2017-12-20-2397", "20.12.2017",
@@ -154,6 +170,8 @@ KROPPER = {
                                 TITTEL_2022, KROPP_2022),
     "FOR-2024-03-22-515": _side("FOR-2024-03-22-515", "22.03.2024",
                                 TITTEL_2024, KROPP_2024),
+    "FOR-2026-08-20-1764": _side("FOR-2026-08-20-1764", "20.08.2026",
+                                 TITTEL_2026, KROPP_2026),
 }
 
 
@@ -297,20 +315,76 @@ def test_2024_leser_ikke_prosaomtale_som_tabellrad():
     assert "4" not in _farger(KROPPER["FOR-2024-03-22-515"], "2024-12-31")
 
 
-def test_uttrekkene_er_fire_ulike_funksjoner():
+def test_2026_uttaler_seg_om_fire_runder():
+    """§ 4-tabellen i FOR-2026-08-20-1764 bærer FIRE runder per rad — én
+    mer enn 2024-kroppen. Leses bare tre av parentesene, mister uttrekket
+    en runde uten å endre antall rader, og `_krev_runder` feller det."""
+    rå = KROPPER["FOR-2026-08-20-1764"]
+    assert _farger(rå, "2020-12-31") == {"3": "gul", "5": "rod"}
+    assert _farger(rå, "2022-12-31") == {"3": "rod", "5": "gul"}
+    assert _farger(rå, "2024-12-31") == {"3": "rod", "5": "gul"}
+    assert _farger(rå, "2026-12-31") == {"1": "gronn", "12": "gronn",
+                                         "13": "gronn",
+                                         "3": "rod", "5": "gul"}
+
+
+def test_2026_gronn_liste_er_tre_omraader():
+    """Krympet fra åtte (2022) via seks (2024) til tre. Vakten på
+    områdelista teller ikke — den krever bare at hvert område som er
+    NEVNT ga en farge — så tallet står her i stedet."""
+    gronne = [po for po, farge in _farger(
+        KROPPER["FOR-2026-08-20-1764"], "2026-12-31").items()
+        if farge == "gronn"]
+    assert sorted(gronne, key=int) == ["1", "12", "13"]
+
+
+def test_2026_restaterer_de_tre_foregaaende_rundene_likt():
+    """2024-kroppen og 2026-kroppen er to påstander om 2020, 2022 og 2024,
+    gjort på hver sin dato. De er MÅLT enige for de PO-ene begge nevner —
+    hadde de vært uenige, ville det vært en revisjon og ikke en feil.
+    Se CLAUDE.md 1b-5."""
+    for dato in ("2020-12-31", "2022-12-31", "2024-12-31"):
+        fra_2024 = _farger(KROPPER["FOR-2024-03-22-515"], dato)
+        fra_2026 = _farger(KROPPER["FOR-2026-08-20-1764"], dato)
+        felles = set(fra_2024) & set(fra_2026)
+        assert felles
+        assert {po: fra_2024[po] for po in felles} == \
+               {po: fra_2026[po] for po in felles}
+
+
+def test_uttrekkene_er_fem_ulike_funksjoner():
     """Én uttrekker per forskriftsår. Deler to årganger funksjon, er
     antakelsen om likt format skrevet inn i koden i stedet for prøvd mot
-    kroppen — CLAUDE.md 1b-2."""
+    kroppen — CLAUDE.md 1b-2.
+
+    2026-kroppen er den skarpeste prøven på regelen: lesingen er den
+    samme som i `_uttrekk_2024`, og det som skiller dem er rundetuppelen
+    `_krev_runder` får inn. Se `test_gjenbrukt_uttrekk_feller_seg_selv`
+    for hva et gjenbruk faktisk gjør."""
     funksjoner = [f.uttrekk for f in tv.FORSKRIFTER]
     assert len(set(id(f) for f in funksjoner)) == len(tv.FORSKRIFTER)
 
 
-def test_2026_staar_ikke_i_tabellen():
-    """Fargeleggingen for 2026 er kunngjort i en pressemelding, men
-    forskriften var ikke fastsatt 05.09.2026. En kilde skal ikke
-    emittere for en runde den ikke har en lest kropp for."""
-    assert 2026 not in {r for f in tv.FORSKRIFTER for r in f.aar}
-    assert tv.NYESTE_RUNDE == 2024
+def test_gjenbrukt_uttrekk_feller_seg_selv():
+    """`_uttrekk_2024` på 2026-kroppen skal FALLE, ikke gi tre celler.
+
+    Lesingen er den samme — `_tabellceller` plukker alle parentesene
+    uansett hvor mange årstall de har. Det er `_krev_runder` som skiller
+    dem, og bare fordi det ventede settet sendes INN utenfra. En vakt som
+    telte parenteser i stedet ville sluppet gjenbruket gjennom med riktig
+    FORM og en tapt runde. Se CLAUDE.md 1b-2."""
+    kropp = tv._forskriftstekst(
+        tv._tekst(KROPPER["FOR-2026-08-20-1764"]))
+    with pytest.raises(Forskriftsfeil, match=r"2020, 2022, 2024, 2026"):
+        tv._uttrekk_2024(kropp)
+
+
+def test_2026_er_nyeste_fastsatte_runde():
+    """Forskriften ble fastsatt 20.08.2026 og kunngjort 11.09.2026.
+    Registersøket 05.09 fant den ikke fordi et register svarer på «er
+    dette kunngjort», ikke på «er dette vedtatt»."""
+    assert 2026 in {r for f in tv.FORSKRIFTER for r in f.aar}
+    assert tv.NYESTE_RUNDE == 2026
 
 
 # ---- vaktene ----------------------------------------------------------
@@ -412,11 +486,19 @@ def test_aar_i_gir_alle_runder_eldst_forst():
     kilde = Trafikklysvedtak.__new__(Trafikklysvedtak)
     assert kilde.aar_i(KROPPER["FOR-2024-03-22-515"]) == [
         "2020-12-31", "2022-12-31", "2024-12-31"]
+    assert kilde.aar_i(KROPPER["FOR-2026-08-20-1764"]) == [
+        "2020-12-31", "2022-12-31", "2024-12-31", "2026-12-31"]
 
 
 def test_gjelder_for_er_nyeste_fastsatte_runde_ikke_kjoreaaret():
+    """Kjøredatoen ligger i 2027; nyeste fastsatte runde er 2026.
+
+    Datoen er valgt UTENFOR et rundeår med vilje. Fram til 15.09.2026 sto
+    det «2026-09-05» her, og da spriket de to med to år. Nå er 2026
+    fastsatt, og en kjøredato i 2026 ville gitt samme svar av begge
+    grunner — testen ville bestått uten å prøve noe."""
     kilde = Trafikklysvedtak.__new__(Trafikklysvedtak)
-    assert kilde.gjelder_for("2026-09-05") == "2024-12-31"
+    assert kilde.gjelder_for("2027-03-01") == "2026-12-31"
 
 
 def test_hver_farge_faar_en_lesemaate():

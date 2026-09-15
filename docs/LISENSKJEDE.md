@@ -187,7 +187,7 @@ egen unntaksliste. Kommersiell bruk er dermed tillatt gjennom NLOD 2.0.
 > «Massenedlasting og systematiske uttrekk er ikke tillatt. For større
 > nedlastinger, bruk våre åpne API-er.»
 
-Kilden henter fire kropper, én gang hver, og arkiverer dem. Det er ikke
+Kilden henter fem kropper, én gang hver, og arkiverer dem. Det er ikke
 massenedlasting. Men skulle `trafikklysvedtak` noen gang utvides til å
 tråle Lovdata bredt, er dette vilkåret det som stenger veien, og da er
 det API-et som er inngangen — ikke flere HTTP-kall mot nettsidene.
