@@ -194,3 +194,84 @@ def test_lusetall_tokenfeil_400_beholder_den_gode_meldingen(monkeypatch, fersk_c
         lusetall.Lusetall()._hent_token()
 
     assert kall["n"] == 1
+
+
+# --------------------------------------------------------- User-Agent
+
+
+def test_brukeragent_uten_kontakt(monkeypatch):
+    """Uten HAVBRUK_KONTAKT identifiserer vi oss, men uten vei tilbake."""
+    monkeypatch.delenv("HAVBRUK_KONTAKT", raising=False)
+    assert _http.brukeragent() == "havbruk-radar/1.0"
+
+
+def test_brukeragent_med_kontakt(monkeypatch):
+    monkeypatch.setenv("HAVBRUK_KONTAKT", "https://eksempel.no/kontakt")
+    assert _http.brukeragent() == (
+        "havbruk-radar/1.0 (+https://eksempel.no/kontakt)")
+
+
+def test_get_setter_user_agent(monkeypatch):
+    """Hver forespørsel gjennom get() bærer agenten, uansett hvilken
+    klient kilden bygde. Det er hele poenget med å sette den per kall."""
+    monkeypatch.delenv("HAVBRUK_KONTAKT", raising=False)
+    sett = {}
+
+    class FalskKlient:
+        def get(self, url, **kwargs):
+            sett.update(kwargs)
+            return httpx.Response(200, request=httpx.Request("GET", url))
+
+    _http.get(FalskKlient(), "https://eksempel.no/x")
+    assert sett["headers"]["User-Agent"] == "havbruk-radar/1.0"
+
+
+def test_get_beholder_kallerens_headers(monkeypatch):
+    """Accept og Authorization er kildens, og skal ikke røres."""
+    monkeypatch.delenv("HAVBRUK_KONTAKT", raising=False)
+    sett = {}
+
+    class FalskKlient:
+        def get(self, url, **kwargs):
+            sett.update(kwargs)
+            return httpx.Response(200, request=httpx.Request("GET", url))
+
+    _http.get(FalskKlient(), "https://eksempel.no/x",
+              headers={"Accept": "application/json", "Authorization": "Bearer t"})
+    assert sett["headers"]["Accept"] == "application/json"
+    assert sett["headers"]["Authorization"] == "Bearer t"
+    assert sett["headers"]["User-Agent"] == "havbruk-radar/1.0"
+
+
+def test_agenten_kan_ikke_overstyres_av_kalleren(monkeypatch):
+    """En kilde som setter sin egen User-Agent skal IKKE vinne. Strengen
+    er et proveniensspor, og et spor som varierer per kilde er ikke et
+    spor — det var nettopp det som gjorde de to
+    reguleringsområde-kroppene uetterprøvelige."""
+    monkeypatch.delenv("HAVBRUK_KONTAKT", raising=False)
+    sett = {}
+
+    class FalskKlient:
+        def get(self, url, **kwargs):
+            sett.update(kwargs)
+            return httpx.Response(200, request=httpx.Request("GET", url))
+
+    _http.get(FalskKlient(), "https://eksempel.no/x",
+              headers={"User-Agent": "curl/8.7.1"})
+    assert sett["headers"]["User-Agent"] == "havbruk-radar/1.0"
+
+
+def test_post_setter_user_agent(monkeypatch):
+    """Tokenkallet går gjennom post() uten delt klient, og skal bære
+    agenten det også."""
+    monkeypatch.delenv("HAVBRUK_KONTAKT", raising=False)
+    sett = {}
+
+    def falsk_post(url, **kwargs):
+        sett.update(kwargs)
+        return httpx.Response(200, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(_http.httpx, "post", falsk_post)
+    _http.post("https://eksempel.no/token", data={"a": "b"})
+    assert sett["headers"]["User-Agent"] == "havbruk-radar/1.0"
+    assert sett["data"] == {"a": "b"}

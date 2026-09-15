@@ -26,14 +26,75 @@ forespørsel koster ingenting, en tapt uke koster permanent.
 
 Retry erstatter ikke feilisoleringen i runner. Den flytter grensen for
 hva som regnes som en feil verdt å felle kilden for.
+
+## Hvem vi sier at vi er
+
+Målt 14.09.2026: INGEN av de elleve kildene satte `User-Agent`. Alle sendte
+httpx' standard, `python-httpx/0.28.1` — en streng som sier hvilket
+bibliotek som ringte og ingenting om hvem som ringte.
+
+Det ble oppdaget bakfra. To arkiverte kropper av samme
+reguleringsområde-dato viste seg å oppgi `curl/8.7.1` og
+`ChatGPT-User/1.0` i Havforskningsinstituttets eget ekko av headeren —
+altså hentet med verktøy utenfor pipelinen, uten at noe i arkivet sa fra.
+Et arkiv skal kunne svare på hvem som hentet kroppen, og vårt svarte
+«en eller annen httpx».
+
+`BRUKERAGENT` settes derfor på HVER forespørsel gjennom `get()` og
+`post()`, ikke på klienten. Grunnen er at hver kilde bygger sin egen
+`httpx.Client(...)` — en klientdefault ville krevd en endring i elleve
+filer og ville glippet neste gang noen bygger en klient uten å vite om
+regelen. En header satt per forespørsel vinner over klientens egen, så
+strengen blir den samme uansett hvem som bygde klienten.
+
+Dette er ikke bare høflighet. BarentsWatchs API-vilkår ber kommersielle
+brukere registrere klienten med formål, firma og kontaktperson, og
+Lovdatas brukeravtale skiller mellom enkeltoppslag og systematiske
+uttrekk. Begge forutsetter at motparten kan se hvem vi er.
+
+**Kontaktadressen leses av `HAVBRUK_KONTAKT`.** Er den ikke satt, sender
+vi prosjektnavn og versjon uten kontaktledd — identifiserende, men uten
+en vei tilbake til oss. Adressen er BEVISST ikke hardkodet: den havner i
+hver eneste forespørsel til Fiskeridirektoratet, Lovdata, BarentsWatch,
+Brreg og HI, og hvilken adresse som tåler det er ikke et kodevalg.
 """
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Callable
 
 import httpx
+
+# Navnet motparten ser. Versjonen er kildelagets, ikke httpx'.
+PROSJEKT = "havbruk-radar/1.0"
+
+
+def brukeragent() -> str:
+    """`User-Agent` for alle utgående kall.
+
+    Slås opp ved KALL og ikke ved import, slik at en test kan sette
+    `HAVBRUK_KONTAKT` uten å laste modulen på nytt — samme grunn som
+    `utfor()` slår opp `time.sleep` ved kall.
+    """
+    kontakt = os.environ.get("HAVBRUK_KONTAKT", "").strip()
+    return f"{PROSJEKT} (+{kontakt})" if kontakt else PROSJEKT
+
+
+def _med_agent(kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Legger `User-Agent` inn i kallets headers uten å røre resten.
+
+    En header kalleren har satt selv vinner IKKE — strengen skal være
+    den samme for alle kilder, ellers er den ikke et proveniensspor.
+    Alt annet kalleren sender (`Accept`, `Authorization`) står urørt.
+    """
+    kwargs = dict(kwargs)
+    headers = dict(kwargs.get("headers") or {})
+    headers["User-Agent"] = brukeragent()
+    kwargs["headers"] = headers
+    return kwargs
+
 
 # Antall forsøk TOTALT, ikke antall omforsøk. Fire kall, tre pauser.
 FORSOK = 4
@@ -110,11 +171,14 @@ def utfor(kall: Callable[[], httpx.Response], hva: str,
 
 def get(client: httpx.Client, url: str, hva: str | None = None,
         **kwargs: Any) -> httpx.Response:
-    """client.get() med retry. Kaster hvis statusen ikke er 2xx."""
-    return utfor(lambda: client.get(url, **kwargs), hva or f"GET {url}")
+    """client.get() med retry og prosjektets `User-Agent`. Kaster hvis
+    statusen ikke er 2xx."""
+    kw = _med_agent(kwargs)
+    return utfor(lambda: client.get(url, **kw), hva or f"GET {url}")
 
 
 def post(url: str, hva: str | None = None, **kwargs: Any) -> httpx.Response:
     """httpx.post() med retry, uten delt klient. For tokenkall og annet
     som skjer én gang og ikke hører hjemme i kildens økt."""
-    return utfor(lambda: httpx.post(url, **kwargs), hva or f"POST {url}")
+    kw = _med_agent(kwargs)
+    return utfor(lambda: httpx.post(url, **kw), hva or f"POST {url}")

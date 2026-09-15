@@ -99,18 +99,100 @@ seg; her har den ikke gjort det.
 
 ---
 
-## Sidefunn: ingen av kroppene ble hentet av kilden selv
+## Sidefunn, presisert 14.09.2026: ÉN av tre deler kom utenfra
 
-`sources/reguleringsomraader.py` setter ingen `User-Agent`. HI ekkoer den
-den får, og de to kroppene oppgir `curl/8.7.1` og
-`Mozilla/5.0 … ChatGPT-User/1.0; +https://openai.com/bot`.
+Første versjon av dette notatet sa at «ingen av kroppene ble hentet av
+kilden selv». **Det var for bredt, og målingen under viser hvorfor.**
 
-Ingen av delene er kildens egen henting gjennom `_http.py` — begge
-kroppene er hentet med verktøy utenfor pipelinen, og den ene identifiserte
-seg som en OpenAI-bot. Det endrer ingenting ved dataene, som er målt like,
-men det betyr at **proveniensen for denne kilden er svakere enn arkivet
-antyder**: et arkiv skal kunne si hvem som hentet kroppen, og her sier det
-to ulike ting som ingen av dem er oss.
+HI ekkoer `User-Agent` inn i sidene den serverer. Lest per delkropp:
 
-Notert, ikke rettet. En `User-Agent` som navngir prosjektet hører i
-`_http.py` og gjelder alle kilder — det er en egen beslutning.
+| delkropp | lokal (09.09) | origin (14.09) | ny (14.09) |
+|---|---|---|---|
+| `rapport` | `curl/8.7.1` | `…ChatGPT-User/1.0…` | `havbruk-radar/1.0` |
+| `grensetall_2026-36` | `python-httpx/0.28.1` | `python-httpx/0.28.1` | `havbruk-radar/1.0` |
+| `grensetall_2026-37` | `python-httpx/0.28.1` | `python-httpx/0.28.1` | `havbruk-radar/1.0` |
+
+`python-httpx/0.28.1` ER pipelinen — det var httpx' standardstreng fram
+til 14.09.2026, fordi ingen kilde satte `User-Agent`.
+
+Så: **to av tre delkropper kom fra `_hent_bevaring()` gjennom
+`_http.get()` i begge de gamle kroppene.** Det er bare `rapport`-feltet
+som bærer et fremmed verktøy — og det gjør det i BEGGE, med hvert sitt
+verktøy. Mønsteret er ikke «noen hentet hele kroppen med curl»; det er at
+`rapport`-feltet ble fylt utenfra to ganger, med to ulike verktøy.
+
+Hvorfor akkurat det feltet, vet vi ikke. `hent_begge()` henter
+`geojson` og `rapport` gjennom samme `_http.get()`-kall som de to andre,
+så koden slik den står i dag ville gitt `python-httpx` på alle tre.
+
+`geojson` kan ikke måles på denne måten — den er ikke HTML og bærer
+intet ekko. Men den er byte-identisk i alle tre kroppene
+(`e62b5686355a4586`), så spørsmålet har ingen praktisk vekt for
+nyttelasten.
+
+## Den tredje kroppen: første henting med kjent proveniens
+
+Hentet 14.09.2026 gjennom `Reguleringsomraader.hent_begge()`, etter at
+`_http.py` fikk en fast `User-Agent`. Arkivert som
+`reguleringsomraader/2026-06-29.2.json.gz`, sha256 `f045861311ff3c16…`.
+
+Den beviser seg selv: alle tre HI-sidene ekkoer nå `havbruk-radar/1.0`
+tilbake. Det er første kropp i denne kilden der arkivet kan svare på hvem
+som hentet den.
+
+**De to gamle er ikke slettet.** De er observasjoner av at noe ble hentet
+utenfor pipelinen, og den observasjonen er hele grunnen til at
+`User-Agent` nå er satt. Regel 2 gjelder uansett, men her er den ikke en
+formalitet: sletter man dem, sletter man beviset.
+
+`geojson` er identisk i alle tre, så den nye kroppen er ikke en revisjon
+og det er ikke skrevet noe nytt snapshot. Den eksisterende radens
+`raw_hash` peker fortsatt på origin-kroppen, og det er en sann påstand om
+hvor de radene kom fra.
+
+---
+
+## Hele arkivet skannet: 4 756 kropper, 21 kilder
+
+Målt 14.09.2026, ikke gjettet. Skriptet leser hver `.gz` i
+`data/arkiv/`, pakker ut JSON-kropper og skanner både rå og innmat etter
+agentstrenger (`curl/`, `python-httpx/`, `requests/`, `Wget/`,
+`ChatGPT-User/`, `GPTBot/`, `havbruk-radar/`) og etter vertens
+`<!-- AGENT … -->`-ekko.
+
+**Resultat: `reguleringsomraader` er den ENESTE kilden med et målbart
+spor, 2 av 2 kropper. De øvrige 4 754 bærer ingenting.**
+
+| kilde | kropper | spor |
+|---|---|---|
+| `reguleringsomraader` | 2 | ekko i begge |
+| alle 20 øvrige | 4 754 | ingen |
+
+De største kildene uten spor: `eierskap-overforinger` 3 029,
+`lusetall` 764, `sjotemperatur` 764, `eierskap-brreg` 110.
+
+### Hva et fravær av spor IKKE betyr
+
+**UBESVARLIG, ikke «i orden».** De aller fleste verter ekkoer ikke
+`User-Agent` tilbake — Fiskeridirektoratet, BarentsWatch, Brreg og
+Lovdata gjør det ikke. For dem kan kroppen ikke svare på hvem som hentet
+den, uansett hvem det var.
+
+Havforskningsinstituttet er unntaket, og det er ren flaks at den ene
+kilden der proveniensen sviktet også er den ene kilden med en vert som
+røper det. Hadde `rapport`-feltet vært hentet fra Fiskeridirektoratet i
+stedet, ville avviket vært usynlig og fortsatt vært der.
+
+Derfor er `User-Agent` i `_http.py` ikke en opprydding etter ett funn.
+Den er det eneste som gjør spørsmålet besvarbart framover for de kildene
+som ikke har en vert som ekkoer — vi kan i det minste vite hva vi selv
+sendte, og kropper hentet etter 14.09.2026 hos en ekkoende vert bærer
+beviset.
+
+### Sporet gjelder bare framover
+
+Ingen av de 4 754 eldre kroppene får proveniens av dette. De er hentet
+med `python-httpx/0.28.1`, som er sant for pipelinen og like sant for
+ethvert annet Python-skript på maskinen. Skillet mellom «kilden hentet
+den» og «noen kjørte httpx utenfor pipelinen» lar seg ikke gjenopprette
+for dem, og skal ikke påstås.
