@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-15** — [Taushet er ikke tilbaketrekking — diff kan ikke skille «sa ingenting» fra «fjernet verdien»](2026-09-15-taushet-er-ikke-tilbaketrekking.md) — utkast, ingen beslutning tatt
 - **2026-09-12** — [Lisens per kilde er et krav før publisering, og udokumentert lisens er UBELAGT](2026-09-12-lisenskjeden.md) — utkast
 - **2026-09-10** — [Biomasselaget som kilde — ja/nei per lokalitet, fordi antallet aldri blir åpent](2026-09-10-biomasselag.md) — utkast
 - **2026-09-09** — [HIs 28 reguleringsområder hentes som kilde — grensetallene arkiveres uten å bli det](2026-09-09-reguleringsomraader.md) — utkast
