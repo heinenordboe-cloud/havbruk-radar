@@ -38,7 +38,7 @@ from pathlib import Path
 import pytest
 
 from core import runner, snapshot
-from core.contract import Observation
+from core.contract import Observation, Source
 from sources.biomasse import _utgitt
 from sources.reguleringsomraader import publisert_i
 
@@ -220,7 +220,8 @@ def test_stempl_skriver_fetched_at_i_utc():
     """
     obs = Observation(entity_id="1", entity_type="lokalitet", entity_name="X",
                       field="f", value="v", source="k", observed_at="2026-01-01")
-    stemplet = runner.stempl([obs], source_version="1", raw_hash="h")
+    stemplet = runner.stempl([obs], source_version="1", raw_hash="h",
+                             kilde=Source())
     assert stemplet[0].fetched_at.endswith("+00:00")
     # ... og det er et EKTE tidspunkt, ikke en streng som tilfeldigvis
     # slutter riktig.

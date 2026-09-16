@@ -20,7 +20,7 @@ import pytest
 
 from core import changelog, diff, signals, snapshot
 from core import raw as raw_arkiv
-from core.contract import Observation
+from core.contract import Observation, Source
 
 
 # ---- oppsett ---------------------------------------------------------
@@ -424,7 +424,8 @@ def test_standarden_er_ikke_hentetidspunktet():
     Sto fetched_at her, ville hver kilde påstått en utgivelsesdato ingen
     har gått god for."""
     from core import runner
-    obs = runner.stempl([_obs()], source_version="1", raw_hash="h")
+    obs = runner.stempl([_obs()], source_version="1", raw_hash="h",
+                        kilde=Source())
     assert obs[0].published_at == ""
     assert obs[0].fetched_at != ""
 

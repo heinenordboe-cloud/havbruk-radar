@@ -10,6 +10,7 @@ formatet.
 import pytest
 
 from core import runner, snapshot, utvalg as utvalg_modul
+from core.contract import Source
 from sources import sjotemperatur
 from sources.sjotemperatur import (Kolonnefeil, Sjotemperatur, mandag,
                                    rapportert_andel, _les_csv, _tall,
@@ -220,7 +221,7 @@ def test_utvalget_stemples_paa_raden():
     kilde.utvalg = {"rapporttype": ["Lice"]}
     obs = runner.stempl(kilde.parse(_csv(_rad(10029)), "2026-08-24"),
                         source_version="1", raw_hash="abc",
-                        utvalg=kilde.utvalg)
+                        utvalg=kilde.utvalg, kilde=kilde)
     assert obs
     assert {o.utvalg for o in obs} == {'{"rapporttype":["Lice"]}'}
     assert utvalg_modul.les(obs[0].utvalg) == {"rapporttype": ["Lice"]}
@@ -233,7 +234,7 @@ def test_en_verdi_per_entitet_og_felt():
     Leverer kilden to rader for samme par, forsvinner den ene stille."""
     obs = list(Sjotemperatur().parse(
         _csv(_rad(1, temp="12.0"), _rad(2, temp="13.0")), "2026-08-24"))
-    ramme = snapshot.to_frame(runner.stempl(obs, "1", ""))
+    ramme = snapshot.to_frame(runner.stempl(obs, "1", "", kilde=Source()))
     assert ramme.height == len(obs)
 
 

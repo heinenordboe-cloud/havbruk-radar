@@ -352,7 +352,7 @@ def test_backfillede_rader_baerer_utvalg(monkeypatch):
                         lambda *a, **kw: _Svar(_csv(*_alle_po())))
     rå = k.hent_alt()
     obs = runner.stempl(k.parse(rå, "2026-04-30"), source_version="1",
-                        raw_hash="x", utvalg=k.utvalg)
+                        raw_hash="x", utvalg=k.utvalg, kilde=k)
     assert {o.utvalg for o in obs} == {utvalg_modul.serialiser({})}
 
 
@@ -472,7 +472,7 @@ def test_published_at_stemples_paa_raden(monkeypatch):
     rå = k.hent_alt()
     obs = runner.stempl(k.parse(rå, "2026-04-30"), source_version="1",
                         raw_hash="x", published_at=k.published_at,
-                        utvalg=k.utvalg)
+                        utvalg=k.utvalg, kilde=k)
     assert {o.published_at for o in obs} == {"2026-08-20T04:38:18+00:00"}
 
 
@@ -482,7 +482,7 @@ def test_kilde_uten_header_gir_tomt_felt_ikke_hentetidspunktet(monkeypatch):
                         lambda *a, **kw: _Svar(_csv(*_alle_po()), headere={}))
     rå = k.hent_alt()
     obs = runner.stempl(k.parse(rå, "2026-04-30"), source_version="1",
-                        raw_hash="x", published_at=k.published_at)
+                        raw_hash="x", published_at=k.published_at, kilde=k)
     assert {o.published_at for o in obs} == {""}
     assert {o.fetched_at for o in obs} != {""}
 

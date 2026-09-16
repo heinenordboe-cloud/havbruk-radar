@@ -32,7 +32,7 @@ class Result:
 
 def stempl(observasjoner, source_version: str, raw_hash: str,
            fetched_at: str | None = None, utvalg: dict | None = None,
-           published_at: str = "", domene: object = None) -> list[Observation]:
+           published_at: str = "", *, kilde) -> list[Observation]:
     """Setter proveniensfeltene på hver observasjon.
 
     Ligger her og ikke i hver kaller fordi stemplingen er kjernens
@@ -49,6 +49,13 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     et arkiv, der de to ligger år fra hverandre. Se
     Observation.published_at.
 
+    `kilde` er OBLIGATORISK og nøkkelordbasert. Den er her bare for
+    `domene`, og bare fordi det feltet settes av `parse()` — se
+    kommentaren i kroppen. De øvrige feltene sendes som verdier, og det
+    er ikke inkonsekvens: `source_version`, `utvalg` og `published_at`
+    settes alle av `fetch()`, som er ferdig før kalleren i det hele tatt
+    bygger argumentlista. For dem finnes ingen rekkefølgefelle å lukke.
+
     `utvalg` er hva kilden BA OM, satt av dens egen `fetch()`. Den
     stemples her av samme grunn som de tre andre: skulle hver kilde
     sette den på hver Observation, ville en kilde som glemte det gitt et
@@ -59,18 +66,24 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     naa = fetched_at or datetime.now(timezone.utc).isoformat()
     merket = utvalg_modul.serialiser(utvalg)
 
-    # Observasjonene MÅ materialiseres før domenet serialiseres: kilder
-    # yielder, og et generatoruttrykk kan bare leses én gang. Uten dette
-    # ville `serialiser()` tømt strømmen og løkka under fått null rader.
+    # RETT HER er hele grunnen til at `kilde` sendes inn og ikke
+    # `domene`-verdien.
     #
-    # MERK at dette ikke er nok alene. `domene` settes av `parse()` mens
-    # den leser kroppen, og KALLERENS argumenter evalueres før
-    # generatorens kropp kjører. Derfor materialiserer hvert kallsted
-    # OGSÅ — `stempl(list(kilde.parse(...)), …, domene=getattr(...))` —
-    # ellers leses domenet fra forrige kall. Det er samme rekkefølgefelle
-    # som F6 og F7: to oppslag som kan svare ulikt om det samme kallet.
-    # `test_domenet_leses_etter_parse` holder det sant.
+    # `domene` settes av `parse()` MENS den leser kroppen, og et
+    # kallsted som skrev `stempl(kilde.parse(...), domene=kilde.domene)`
+    # ville lest verdien FØR generatorens kropp kjørte — altså fra
+    # forrige kall, eller None på det første. Snapshotet ville fått et
+    # domene som beskriver en annen periode enn radene sine. Det er samme
+    # rekkefølgefelle som F6 og F7: to oppslag som kan svare ulikt om det
+    # samme kallet.
+    #
+    # Fram til 15.09.2026 ble den holdt i sjakk av at hvert av de sju
+    # kallstedene skrev `list(kilde.parse(...))`. Det er en regel ingen
+    # kan SE ved lesing, og et åttende kallsted ville ikke blitt fanget.
+    # Nå materialiseres strømmen her, og domenet leses etterpå — fra
+    # kilden, av den ene funksjonen som vet at rekkefølgen betyr noe.
     batch = list(observasjoner)
+    erklart = getattr(kilde, "domene", None)
 
     # Domenet stemples her og ikke i kilden, av samme grunn som de fire
     # andre proveniensfeltene: en kilde som glemte det ville gitt et
@@ -78,7 +91,7 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     # mangler. `serialiser()` får det ERKLÆRTE domenet og parene som
     # faktisk kom ut, og kaster hvis erklæringen ikke dekker emisjonene.
     domene_merket = domene_modul.serialiser(
-        domene, {(o.entity_id, o.field) for o in batch})
+        erklart, {(o.entity_id, o.field) for o in batch})
 
     return [
         replace(obs, fetched_at=naa, source_version=source_version,
@@ -168,23 +181,18 @@ def run_all(
             # det kallet som nettopp ble gjort. Leste vi den før, ville vi
             # hatt to oppslag som kan svare ulikt — F6/F7/F8 om igjen.
             #
-            # `list()` rundt parse() er samme sak en etasje ned, og den
-            # er lett å overse: `domene` settes av `parse()` mens den
-            # leser kroppen, og argumentene under evalueres FØR en
-            # generators kropp kjører. Uten `list()` ville
-            # `getattr(source, "domene", ...)` lest verdien fra FORRIGE
-            # kall — None på det første — og snapshotet fått et domene
-            # som beskriver en annen runde enn radene sine.
+            # `domene` er den ene som IKKE kan sendes som verdi herfra:
+            # den settes av `parse()`, som ikke har kjørt ennå når denne
+            # argumentlista bygges. Derfor tar `stempl()` kilden.
             batch = stempl(
-                list(source.parse(rawdata, gjelder)),
+                source.parse(rawdata, gjelder),
                 source_version=source.version,
                 raw_hash=raw_hash,
                 utvalg=getattr(source, "utvalg", None),
                 # LESES ETTER fetch(), som utvalget og av samme grunn:
                 # verdien skal beskrive det kallet som nettopp ble gjort.
                 published_at=getattr(source, "published_at", "") or "",
-                # Samme: uttrekket setter den mens det leser kroppen.
-                domene=getattr(source, "domene", None),
+                kilde=source,
             )
             observations.extend(batch)
             results.append(

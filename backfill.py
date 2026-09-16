@@ -380,10 +380,11 @@ def _arkivkopi(kilde, args) -> int:
             hoppet += 1
             continue
 
-        obs = runner.stempl(list(kilde.parse(rå, dato)),
+        obs = runner.stempl(kilde.parse(rå, dato),
                             source_version=kilde.version, raw_hash=raw_hash,
                             fetched_at=hentet_at, published_at=utgitt,
-                            utvalg=getattr(kilde, "utvalg", None))
+                            utvalg=getattr(kilde, "utvalg", None),
+                            kilde=kilde)
         ramme = snapshot.to_frame(obs)
 
         if args.torrkjor:
@@ -600,7 +601,7 @@ def _backfill_maaneder(kilde, args) -> int:
             continue
 
         try:
-            obs = runner.stempl(list(kilde.parse(rå, dato)),
+            obs = runner.stempl(kilde.parse(rå, dato),
                                 source_version=kilde.version,
                                 raw_hash=raw_hash, fetched_at=hentet_at,
                                 # LESES ETTER hent_alt(), som utvalget.
@@ -610,7 +611,8 @@ def _backfill_maaneder(kilde, args) -> int:
                                 # rekkefølgen fra hentetidspunktet.
                                 published_at=getattr(kilde, "published_at",
                                                      "") or "",
-                                utvalg=getattr(kilde, "utvalg", None))
+                                utvalg=getattr(kilde, "utvalg", None),
+                                kilde=kilde)
         except Exception as e:
             # En måned som mangler i fila er et HULL, ikke et avbrudd.
             # De øvrige månedene ligger i det samme svaret og er like
@@ -802,10 +804,11 @@ def _backfill_hendelser(kilde, args) -> int:
 
     for dato in perioder:
         obs = list(runner.stempl(
-            list(kilde.parse(rå, dato)),
+            kilde.parse(rå, dato),
             source_version=kilde.version, raw_hash=raw_hash,
-            fetched_at=hentet_at, published_at=getattr(kilde, "published_at", "") or "",
-            utvalg=getattr(kilde, "utvalg", None)))
+            fetched_at=hentet_at,
+            published_at=getattr(kilde, "published_at", "") or "",
+            utvalg=getattr(kilde, "utvalg", None), kilde=kilde))
         if not obs:
             continue
         ramme = snapshot.to_frame(obs)
@@ -1007,10 +1010,11 @@ def _backfill_overforinger(kilde, args) -> int:
             print(f"  {dato}: ligger skrevet fra før")
             continue
         obs = list(runner.stempl(
-            list(kilde.parse_overforinger(kropper, typer, dato)),
+            kilde.parse_overforinger(kropper, typer, dato),
             source_version=kilde.version, raw_hash="",
             fetched_at=dt.datetime.now(dt.timezone.utc).isoformat(),
-            published_at="", utvalg=getattr(kilde, "utvalg", None)))
+            published_at="", utvalg=getattr(kilde, "utvalg", None),
+            kilde=kilde))
         if not obs:
             tomme += 1
             print(f"  {dato}: ingen overføringer igjen etter filtrering")
@@ -1166,10 +1170,10 @@ def _backfill_rapporter(kilde, args) -> int:
 
             try:
                 obs = runner.stempl(
-                    list(kilde.parse(rå, dato)),
+                    kilde.parse(rå, dato),
                     source_version=kilde.version, raw_hash=raw_hash,
                     fetched_at=hentet_at, published_at=utgitt,
-                    utvalg=getattr(kilde, "utvalg", None))
+                    utvalg=getattr(kilde, "utvalg", None), kilde=kilde)
             except Exception as e:
                 # Et år som ikke lar seg tolke er et HULL, ikke et
                 # avbrudd. De øvrige årene ligger i den samme kroppen og
@@ -1465,9 +1469,10 @@ def main() -> int:
         # proveniens enn en ukentlig og kan ikke svare på hva vi lette
         # etter (regel 1b-3). Kilden setter den i hent_uke(), som er
         # kallet over — derfor leses den her og ikke før løkka.
-        obs = runner.stempl(list(kilde.parse(rå, dato)),
+        obs = runner.stempl(kilde.parse(rå, dato),
                             source_version=kilde.version, raw_hash=raw_hash,
-                            utvalg=getattr(kilde, "utvalg", None))
+                            utvalg=getattr(kilde, "utvalg", None),
+                            kilde=kilde)
         if not obs:
             # Ikke "ferdig" — dette er stoppvilkåret. En tom uke fra et
             # endepunkt som svarer 200 betyr at året ikke finnes.

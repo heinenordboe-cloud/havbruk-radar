@@ -40,12 +40,22 @@ def _obs(entity_id, field="farge", value="gronn",
     )
 
 
+class _Erklaerer(Source):
+    """Bærer en ferdig erklæring. `stempl()` tar KILDEN og ikke verdien,
+    så selv en syntetisk test må gå gjennom den samme døra."""
+
+    name = "vedtak"
+
+    def __init__(self, dom):
+        self.domene = dom
+
+
 def _ramme(observasjoner, dom, utgitt="2026-08-20T12:00:00+00:00"):
     """Et snapshot med domenet stemplet på, slik kjernen gjør det."""
     return snapshot.to_frame(stempl(
         observasjoner, source_version="1", raw_hash="x",
         fetched_at="2026-09-15T00:00:00+00:00", published_at=utgitt,
-        domene=dom,
+        kilde=_Erklaerer(dom),
     ))
 
 
@@ -261,21 +271,31 @@ def test_kjernen_stempler_domenet_ikke_kilden():
     published_at. En kilde som satte feltet selv ville kunne glemme det
     på en rad."""
     obs = stempl([_obs("3")], source_version="1", raw_hash="x",
-                 domene={("3", "farge")})
+                 kilde=_Erklaerer({("3", "farge")}))
     assert obs[0].domene == "{}"
 
 
-def test_domenet_leses_etter_parse():
-    """REKKEFØLGEFELLE: `parse()` setter domenet mens den leser kroppen,
-    og kallerens argumenter evalueres FØR en generators kropp kjører.
+def test_domenet_kan_ikke_leses_for_parse_har_kjort():
+    """Rekkefølgefella er LUKKET, og dette er verifiseringen.
 
-    Kilden her setter `self.domene` inne i `parse()`, som er der en
-    dokumentkilde faktisk vet det. Sender kalleren generatoren rett inn i
-    `stempl()`, leses domenet fra forrige kall — None på det første — og
-    snapshotet får et domene som beskriver en annen runde enn radene.
+    Fram til 15.09.2026 tok `stempl()` domenet som en VERDI. `domene`
+    settes av `parse()` mens den leser kroppen, og kallerens argumenter
+    evalueres før en generators kropp kjører — så
+    `stempl(kilde.parse(...), domene=kilde.domene)` leste verdien fra
+    forrige kall, eller None på det første. Den ble holdt i sjakk av at
+    hvert av de sju kallstedene skrev `list(kilde.parse(...))`: en regel
+    ingen kan SE ved lesing, og som et åttende kallsted ikke ville
+    arvet.
 
-    Samme familie som F6 og F7: to oppslag som kan svare ulikt om det
-    samme kallet. Fanges bare av at hvert kallsted materialiserer.
+    Nå tar `stempl()` KILDEN. Strømmen materialiseres inni, og
+    erklæringen leses etterpå. Testen sender derfor generatoren rett inn
+    — nøyaktig kallformen som FØR ga tom streng — og krever at domenet
+    likevel er riktig.
+
+    Den gamle testen kunne vise at den feilaktige veien feilet. Den
+    veien finnes ikke lenger å uttrykke: `domene` er ikke et argument,
+    så et kallsted KAN ikke lese det for tidlig. Det som kan sjekkes er
+    at den tidligere ødelagte formen nå er riktig, og det er dette.
     """
     class Sen(Source):
         name = "sen"
@@ -291,18 +311,29 @@ def test_domenet_leses_etter_parse():
 
     kilde = Sen()
     rå = kilde.fetch("2026-01-01")
+    assert kilde.domene is None, "parse() har ikke kjørt ennå"
 
-    # FEIL vei: generatoren rett inn, domenet lest for tidlig.
-    feil = stempl(kilde.parse(rå, "2026-01-01"), source_version="1",
-                  raw_hash="x", domene=getattr(kilde, "domene", None))
-    assert feil[0].domene == "", (
-        "forventet at den umaterialiserte veien leser domenet for tidlig "
-        "— gjør den ikke det, er fella borte og testen kan slettes"
+    # Generatoren rett inn — den formen som FØR leste domenet for tidlig.
+    obs = stempl(kilde.parse(rå, "2026-01-01"), source_version="1",
+                 raw_hash="x", kilde=kilde)
+
+    assert {o.domene for o in obs} == {"{}"}, (
+        "domenet skal beskrive DETTE kallet. Er det tomt, leses "
+        "erklæringen før parse() har satt den."
     )
 
-    # RIKTIG vei: materialisert først, slik hvert kallsted gjør.
-    kilde2 = Sen()
-    rader = list(kilde2.parse(rå, "2026-01-01"))
-    riktig = stempl(rader, source_version="1", raw_hash="x",
-                    domene=getattr(kilde2, "domene", None))
-    assert riktig[0].domene == "{}"
+
+def test_stempl_krever_kilden():
+    """Nøkkelordkrav og ikke standardverdi. En standard ville gjort et
+    glemt argument usynlig — og usynlig er nøyaktig det den gamle
+    list()-regelen var."""
+    with pytest.raises(TypeError, match="kilde"):
+        stempl([_obs("3")], source_version="1", raw_hash="x")
+
+
+def test_kilde_uten_erklaering_gir_ukjent():
+    """En kilde som aldri har tenkt på spørsmålet skal lese som «vet
+    ikke», ikke som en påstand."""
+    obs = stempl([_obs("3")], source_version="1", raw_hash="x",
+                 kilde=Source())
+    assert obs[0].domene == ""
