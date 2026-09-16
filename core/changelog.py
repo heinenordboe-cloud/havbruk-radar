@@ -75,6 +75,7 @@ from pathlib import Path
 
 import polars as pl
 
+from core import domene
 from core.paths import CHANGELOG_DIR, GAMMEL_CHANGELOG as GAMMEL_FIL  # noqa: F401
 
 
@@ -311,6 +312,131 @@ def merk_utvalgsutvidelse(
         if not mot or not egen:
             return "ny"
         return diff.UTVALGSUTVIDELSE if egen <= mot else "ny"
+
+    nye = [merk(r) for r in endringer.iter_rows(named=True)]
+    return endringer.with_columns(
+        pl.Series("change_type", nye, dtype=pl.Utf8)
+    )
+
+
+# Kilder der en KROPP kan tie om en celle uten å ha fjernet den, og der
+# de allerede skrevne radene derfor ikke kan leses som tilbaketrekkinger.
+#
+# Brukes bare av `merk_taushet()` under, altså på rader skrevet FØR
+# `domene` fantes (15.09.2026). Rader fra og med da bærer domenet selv,
+# og `diff` skriver ikke slike rader i det hele tatt.
+#
+# Lista er MÅLT, ikke antatt. 15.09.2026, over hele changeloggen, via
+# kjeden published_at -> snapshotversjon -> raw_hash -> arkivkropp:
+#
+#     kilde              kropp uttømmende?   falske rader
+#     trafikklysvedtak   NEI, § 4 har 3 rader   34 revidert + 8 borte
+#     ekspertgruppen     NEI, tabellerer valgt   2 revidert + 40 borte
+#     biomasse           JA, hele serien          0 av 1809
+#     romming            JA, alle hendelser       0
+#
+# De øvrige kildene skriver `borte` fordi en entitet FAKTISK forsvant fra
+# et register — lusetall 35587, sjotemperatur 12220 — og de skal ikke
+# røres. Derfor en lukket liste og ikke en heuristikk: en kilde som ikke
+# står her blir stående som før, og usikkerhet ser ut som usikkerhet.
+TAUSHETSKILDER = frozenset({"trafikklysvedtak", "ekspertgruppen"})
+
+
+def _taushet_av_domenet(rad: dict) -> bool | None:
+    """Sier radens eget `domene` at dette var taushet? None = vet ikke.
+
+    Raden alene er nok, og det er en følge av at bare DIFFERANSEN lagres:
+    at `new_value` er null betyr at paret ikke ble emittert, så
+    tilhørigheten til domenet avgjøres av differansen alene. Ingen
+    snapshot trengs. Se core/domene.py.
+    """
+    fra_disk = str(rad.get("domene") or "")
+    if not fra_disk:
+        return None
+    if fra_disk == domene.UTTOMMENDE:
+        return False          # kroppen dekker alt: fraværet ER en fjerning
+    lest = domene.les(fra_disk)
+    if lest is None or lest == domene.UTTOMMENDE:
+        return None
+    return [str(rad["entity_id"]), str(rad["field"])] not in lest
+
+
+def merk_taushet(endringer: pl.DataFrame,
+                 kilder: frozenset[str] | None = None,
+                 ogsaa_tidsaksen: bool = False) -> pl.DataFrame:
+    """Merker rader som sier at noe forsvant, men der kilden bare TIDDE.
+    Returnerer en NY ramme — rører ingen fil.
+
+    Fra 15.09.2026 skriver `diff.compare()` og `diff.revisjon_mellom()`
+    ikke slike rader i det hele tatt, fordi snapshotene da begynte å bære
+    hvilke par kroppen uttaler seg om (`domene`). Radene som ble skrevet
+    FØR det kan ikke rettes: changeloggen er append-only i praksis, og en
+    fil som skrives om er den ene tingen dette repoet ikke gjør.
+
+    Derfor merkes de ved LESING i stedet, nøyaktig som
+    `merk_utvalgsutvidelse()` gjør det for den andre halvdelen av samme
+    problem. Formen er den samme: rader skrevet etterpå bærer svaret
+    selv, eldre rader må avgjøres av noe som fortsatt ligger der.
+
+    To veier inn, i denne rekkefølgen:
+
+      1. **Radens eget `domene`.** Presist, etterprøvbart fra raden
+         alene.
+      2. **`TAUSHETSKILDER`.** For rader uten domenet: kilder der det er
+         MÅLT at kroppen kan tie. Se konstantens egen dokumentasjon for
+         målingen og for hvorfor lista er lukket.
+
+    ## Bare REVISJONSAKSEN, med mindre du ber om noe annet
+
+    `revidert` sammenligner to kroppers syn på SAMME `observed_at`. Der er
+    taushet en usann påstand: at 2026-forskriften ikke gjentar PO9s farge
+    for 2024 betyr ikke at fargen ble trukket tilbake.
+
+    `borte` sammenligner to ULIKE `observed_at`. «PO5 har ingen
+    metode_bur_kategori i 2021» er sant om 2021 uansett hvorfor — året har
+    ingen slik verdi hos oss. Målt 15.09.2026: av ekspertgruppens 358
+    borte-rader er 318 et helt FELT som forsvant fra rapportserien, og at
+    ekspertgruppen sluttet å bruke en metode er en ekte endring i hva
+    kilden publiserer. Å merke dem `taushet` ville skjult den.
+
+    `ogsaa_tidsaksen=True` tar med `borte` likevel. Den finnes fordi det
+    gjenstår en svakhet der — for en kilde med hull er «borte» et HULL og
+    ikke et fravær av verdi — men det er et annet spørsmål enn dette, og
+    det skal avgjøres for seg. Se docs/KILDE-TRAFIKKLYSVEDTAK.md punkt 8.
+
+    Rader den IKKE rører:
+      * alt som ikke har `new_value = null`
+      * `borte` (med mindre `ogsaa_tidsaksen`)
+      * kilder som ikke står i `TAUSHETSKILDER` og som mangler domenet
+      * rader der `domene` sier UTTOMMENDE — der ER fraværet en fjerning
+
+    Alle fire lar raden stå. Å gjette ville snudd en ekte fjerning til en
+    ikke-hendelse, og det er den motsatte feilen av den denne funksjonen
+    finnes for.
+    """
+    from core import diff as diff_modul      # sent: unngår importsyklus
+
+    if endringer.is_empty() or "change_type" not in endringer.columns:
+        return endringer
+
+    aktuelle = TAUSHETSKILDER if kilder is None else kilder
+    har_domene = "domene" in endringer.columns
+
+    gyldige = ({diff_modul.REVIDERT, "borte"} if ogsaa_tidsaksen
+               else {diff_modul.REVIDERT})
+
+    def merk(rad: dict) -> str:
+        ct = str(rad["change_type"])
+        if ct not in gyldige:
+            return ct
+        if rad.get("new_value") is not None:
+            return ct
+        if har_domene:
+            sagt = _taushet_av_domenet(rad)
+            if sagt is not None:
+                return diff_modul.TAUSHET if sagt else ct
+        return (diff_modul.TAUSHET
+                if str(rad.get("source")) in aktuelle else ct)
 
     nye = [merk(r) for r in endringer.iter_rows(named=True)]
     return endringer.with_columns(

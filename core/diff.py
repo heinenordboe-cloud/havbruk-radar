@@ -26,6 +26,7 @@ kan vise at den andre påstanden erstattet den første. Se CLAUDE.md 1b-5.
 
 import polars as pl
 
+from core import domene as domene_modul
 from core import snapshot
 from core import utvalg
 
@@ -37,10 +38,19 @@ UTVALGSUTVIDELSE = "utvalgsutvidelse"
 # stille, og det var KILDEN som flyttet seg. Se `revisjon()`.
 REVIDERT = "revidert"
 
+# Kilden uttalte seg ikke om cellen — den har ikke fjernet verdien.
+#
+# Settes BARE av `changelog.merk_taushet()`, på rader som alt er skrevet.
+# `revisjon_mellom()` skriver ikke slike rader i det hele tatt fra
+# 15.09.2026; den hopper over dem. Samme asymmetri som
+# `utvalgsutvidelse`: kjernen håndterer det selv nå, og merket finnes for
+# historikken som ikke kan rettes.
+TAUSHET = "taushet"
+
 # Endringstypene som beskriver at noe skjedde i verden. Alt utenfor er
 # noe som skjedde med OSS eller med KILDEN, og telles ikke som aktivitet
 # — se `bevegelse()`.
-IKKE_BEVEGELSE = frozenset({UTVALGSUTVIDELSE, REVIDERT})
+IKKE_BEVEGELSE = frozenset({UTVALGSUTVIDELSE, REVIDERT, TAUSHET})
 
 
 class Feilrekkefolge(RuntimeError):
@@ -129,6 +139,12 @@ CHANGE_SCHEMA = {
     # dag og er utgitt for to år siden.
     "published_at": pl.Utf8,
     "forrige_published_at": pl.Utf8,
+    # Domenet hver av de to sidene uttalte seg om. Bæres på raden av
+    # samme grunn som `utvalg`: den som leser changeloggen om to år skal
+    # kunne se HVORFOR en rad om noe som forsvant ble skrevet — eller
+    # ikke ble det — uten å slå opp i snapshotene. Tom streng = vet ikke.
+    "domene": pl.Utf8,
+    "forrige_domene": pl.Utf8,
 }
 
 
@@ -215,6 +231,12 @@ def compare(current: pl.DataFrame, observed_at: str,
         forrige_utgitt = snapshot.published_at_i(old) or ""
         utgitt = snapshot.published_at_i(group) or ""
 
+        # Domenet bæres videre til raden selv om `compare()` ikke bruker
+        # det til en prøve — se kommentaren ved "borte" under. Den som
+        # leser changeloggen om to år skal kunne se hva kroppen uttalte
+        # seg om uten å gå til snapshotet.
+        dom = snapshot.domene_i(group)
+
         # Entitetene som ble til i verden etter forrige snapshot. De
         # skal STÅ som "ny" selv i en utvidelsesuke — se docstringen.
         # Tom mengde når kilden ikke oppgir noe startdatofelt, eller når
@@ -256,6 +278,28 @@ def compare(current: pl.DataFrame, observed_at: str,
                     else "ny"
                 )
             elif new_value is None:
+                # MERK at taushetsprøven IKKE står her, men bare i
+                # `revisjon_mellom()`. Det er et skille mellom aksene, og
+                # det er målt:
+                #
+                # Tidsaksen sammenligner TO ULIKE observed_at. «PO5 har
+                # ingen metode_bur_kategori i 2021» er en sann påstand om
+                # 2021, uansett om kroppen tidde eller uttalte seg — året
+                # har ingen slik verdi hos oss. Av ekspertgruppens 358
+                # borte-rader er 318 et helt felt som forsvant fra
+                # rapportserien, og det ER en endring i hva kilden
+                # publiserer.
+                #
+                # Revisjonsaksen sammenligner samme observed_at sett av
+                # TO KROPPER. Der er taushet en usann påstand: at
+                # 2026-forskriften ikke gjentar PO9s farge for 2024
+                # betyr ikke at fargen ble trukket tilbake.
+                #
+                # Det gjenstår en svakhet her: for en kilde med hull er
+                # «borte» på tidsaksen et hull og ikke et fravær av
+                # verdi. Den er dokumentert i
+                # docs/KILDE-TRAFIKKLYSVEDTAK.md punkt 8 og er et annet
+                # spørsmål enn dette feltet løser.
                 change_type = "borte"
             else:
                 change_type = "endret"
@@ -274,6 +318,8 @@ def compare(current: pl.DataFrame, observed_at: str,
                 "forrige_fetched_at": forrige_hentet,
                 "published_at": utgitt,
                 "forrige_published_at": forrige_utgitt,
+                "domene": dom,
+                "forrige_domene": snapshot.domene_i(old),
             })
 
     if not changes:
@@ -372,6 +418,12 @@ def revisjon_mellom(eldre: pl.DataFrame, nyere: pl.DataFrame,
     felles_felter = (set(eldre["field"].unique().to_list())
                      & set(nyere["field"].unique().to_list()))
 
+    # Domenet den NYERE kroppen uttalte seg om. Samme prøve som i
+    # compare(), og den trengs mest her: revisjonsaksen er der de 36
+    # falske radene sto. Se core/domene.py.
+    dom = snapshot.domene_i(nyere)
+    emittert = domene_modul.par_i(nyere)
+
     key = ["entity_id", "field"]
     joined = nyere.join(
         eldre.select(key + ["value"]).rename({"value": "old_value"}),
@@ -385,6 +437,16 @@ def revisjon_mellom(eldre: pl.DataFrame, nyere: pl.DataFrame,
             continue
         new_value, old_value = row.get("value"), row.get("old_value")
         if new_value == old_value:
+            continue
+
+        # Den nyere kroppen har ingen verdi for paret. Uttalte den seg om
+        # det? Nei -> taushet, ingen rad. Feltnavnfilteret over er
+        # ENTITETSBLINDT og fanger ikke dette: står `farge` i den nyere
+        # kroppen for PO3, overlever `farge` for alle tretten områdene.
+        # Det var rotårsaken til de 34 radene hos trafikklysvedtak og de
+        # 2 hos ekspertgruppen — der er det ETT felt for ÉN entitet.
+        if new_value is None and not domene_modul.uttaler_seg_om(
+                dom, emittert, (row["entity_id"], row["field"])):
             continue
 
         changes.append({
@@ -402,6 +464,8 @@ def revisjon_mellom(eldre: pl.DataFrame, nyere: pl.DataFrame,
             "forrige_fetched_at": snapshot.fetched_at_i(eldre) or "",
             "published_at": snapshot.published_at_i(nyere) or "",
             "forrige_published_at": snapshot.published_at_i(eldre) or "",
+            "domene": dom,
+            "forrige_domene": snapshot.domene_i(eldre),
         })
 
     if not changes:

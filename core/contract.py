@@ -76,6 +76,33 @@ class Observation:
     # hvis søket bare finnes i en fil som skrives om. Se core/utvalg.py.
     utvalg: str = ""
 
+    # Hvilke (entity_id, field)-par KROPPEN UTTALER SEG OM — kanonisk
+    # JSON fra core/domene.py. Fire tilstander, se den modulen:
+    #
+    #   ""        ukjent          fravær av en verdi leses som FJERNING
+    #   "*"       uttømmende      fravær leses som FJERNING
+    #   "{}"      = det emitterte fravær leses som TAUSHET
+    #   [[e,f]…]  + disse parene  taushet, unntatt disse
+    #
+    # `utvalg` sier hva vi BA OM. Dette sier hva kilden SVARTE OM, og de
+    # er ikke det samme. Uten skillet kan `diff` ikke se forskjell på at
+    # en kilde TIDDE om en celle og at den FJERNET verdien — begge blir
+    # `new_value = null`, og den raden leses som en tilbaketrekking.
+    #
+    # Målt 15.09.2026 over hele changeloggen: 36 av 1873 revisjonsrader
+    # var taushet lest som tilbaketrekking, og 34 av dem hos
+    # trafikklysvedtak, der ingen forskrift noensinne har trukket tilbake
+    # en farge. § 4-tabellen har bare tre rader.
+    #
+    # Bare DIFFERANSEN mot det emitterte lagres. Snapshotet bærer alt hva
+    # som kom ut; det eneste som mangler er hva kroppen uttalte seg om
+    # uten å gi en verdi. En full parliste på hver rad ble målt til 24x
+    # filstørrelse hos ekspertgruppen og forkastet.
+    #
+    # Stemples av kjernen som de fire over. Kilden oppgir den i
+    # `Source.domene`, og bare der den har LEST hva kroppen omtaler.
+    domene: str = ""
+
     def as_dict(self) -> dict:
         return asdict(self)
 
@@ -154,6 +181,39 @@ class Source:
     # ikke» — et svar er utgitt i det øyeblikket det gis; spørsmålet er
     # bare om noen skrev ned når.
     published_at: str = ""
+
+    # Hvilke (entity_id, field)-par KROPPEN UTTALER SEG OM.
+    #
+    # SETTES av uttrekket i det kallet som leser kroppen, leses av kjernen
+    # etterpå — samme mekanikk og samme begrunnelse som `utvalg` og
+    # `published_at`. Sto den i en egen metode, ville det vært et ANDRE
+    # oppslag som kan svare noe annet enn det kallet faktisk fikk.
+    #
+    # FIRE tilstander (se core/domene.py):
+    #
+    #   None                     ukjent — kilden sier ingenting
+    #   domene.UTTOMMENDE        kroppen dekker hele nøkkelrommet
+    #   {("3", "farge"), ...}    kroppen uttaler seg om NØYAKTIG disse
+    #
+    # De to siste er de eneste som sier noe. Standarden er None, ikke
+    # UTTOMMENDE: en kilde som aldri har tenkt på spørsmålet skal ikke
+    # automatisk påstå at kroppen dekker alt.
+    #
+    # ## Den ERKLÆRES, den utledes ikke
+    #
+    # Settet skal si hva kroppen UTTALER SEG OM, ikke hva `parse()`
+    # returnerte. For hver kilde i repoet i dag er de to like, og et
+    # uttrekk som returnerte «det jeg emitterte» ville bestått hver test.
+    # Det er nøyaktig formen 1b-2 navngir.
+    #
+    # Den dagen en forskrift skriver «Produksjonsområde 9: ingen
+    # justering», har kroppen uttalt seg om PO9 uten å gi en farge. Et
+    # utledet domene ville kalt det taushet og undertrykt en ekte
+    # fjerning; et erklært domene sier at PO9 ble omtalt, og raden
+    # overlever. `domene.serialiser()` kaster hvis et emittert par
+    # mangler i erklæringen — men den kan ikke oppdage det motsatte, og
+    # derfor står regelen her.
+    domene: object = None
 
     # Feltet som bærer entitetens EGEN startdato i verden — datoen den ble
     # til, ikke datoen vi først så den. For Enhetsregisteret er det

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 
 from core import health
+from core import domene as domene_modul
 from core import utvalg as utvalg_modul
 from core import raw as raw_arkiv
 from core.contract import Observation, Source
@@ -31,7 +32,7 @@ class Result:
 
 def stempl(observasjoner, source_version: str, raw_hash: str,
            fetched_at: str | None = None, utvalg: dict | None = None,
-           published_at: str = "") -> list[Observation]:
+           published_at: str = "", domene: object = None) -> list[Observation]:
     """Setter proveniensfeltene på hver observasjon.
 
     Ligger her og ikke i hver kaller fordi stemplingen er kjernens
@@ -57,10 +58,33 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     """
     naa = fetched_at or datetime.now(timezone.utc).isoformat()
     merket = utvalg_modul.serialiser(utvalg)
+
+    # Observasjonene MÅ materialiseres før domenet serialiseres: kilder
+    # yielder, og et generatoruttrykk kan bare leses én gang. Uten dette
+    # ville `serialiser()` tømt strømmen og løkka under fått null rader.
+    #
+    # MERK at dette ikke er nok alene. `domene` settes av `parse()` mens
+    # den leser kroppen, og KALLERENS argumenter evalueres før
+    # generatorens kropp kjører. Derfor materialiserer hvert kallsted
+    # OGSÅ — `stempl(list(kilde.parse(...)), …, domene=getattr(...))` —
+    # ellers leses domenet fra forrige kall. Det er samme rekkefølgefelle
+    # som F6 og F7: to oppslag som kan svare ulikt om det samme kallet.
+    # `test_domenet_leses_etter_parse` holder det sant.
+    batch = list(observasjoner)
+
+    # Domenet stemples her og ikke i kilden, av samme grunn som de fire
+    # andre proveniensfeltene: en kilde som glemte det ville gitt et
+    # snapshot som ser komplett ut og ikke kan svare på hvorfor en celle
+    # mangler. `serialiser()` får det ERKLÆRTE domenet og parene som
+    # faktisk kom ut, og kaster hvis erklæringen ikke dekker emisjonene.
+    domene_merket = domene_modul.serialiser(
+        domene, {(o.entity_id, o.field) for o in batch})
+
     return [
         replace(obs, fetched_at=naa, source_version=source_version,
-                raw_hash=raw_hash, utvalg=merket, published_at=published_at)
-        for obs in observasjoner
+                raw_hash=raw_hash, utvalg=merket, published_at=published_at,
+                domene=domene_merket)
+        for obs in batch
     ]
 
 
@@ -143,14 +167,24 @@ def run_all(
             # setter den mens den henter, så verdien beskriver nødvendigvis
             # det kallet som nettopp ble gjort. Leste vi den før, ville vi
             # hatt to oppslag som kan svare ulikt — F6/F7/F8 om igjen.
+            #
+            # `list()` rundt parse() er samme sak en etasje ned, og den
+            # er lett å overse: `domene` settes av `parse()` mens den
+            # leser kroppen, og argumentene under evalueres FØR en
+            # generators kropp kjører. Uten `list()` ville
+            # `getattr(source, "domene", ...)` lest verdien fra FORRIGE
+            # kall — None på det første — og snapshotet fått et domene
+            # som beskriver en annen runde enn radene sine.
             batch = stempl(
-                source.parse(rawdata, gjelder),
+                list(source.parse(rawdata, gjelder)),
                 source_version=source.version,
                 raw_hash=raw_hash,
                 utvalg=getattr(source, "utvalg", None),
                 # LESES ETTER fetch(), som utvalget og av samme grunn:
                 # verdien skal beskrive det kallet som nettopp ble gjort.
                 published_at=getattr(source, "published_at", "") or "",
+                # Samme: uttrekket setter den mens det leser kroppen.
+                domene=getattr(source, "domene", None),
             )
             observations.extend(batch)
             results.append(

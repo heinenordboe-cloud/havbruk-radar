@@ -34,6 +34,11 @@ SCHEMA = [
     # Da KILDEN utga svaret. Tom streng = vet ikke. Se
     # Observation.published_at for hvorfor det ikke er `fetched_at`.
     "published_at",
+    # Hvilke par kroppen UTTALER SEG OM. Bare differansen mot det
+    # emitterte lagres, så verdien er "*", "{}" eller en kort parliste —
+    # målt 1,04x filstørrelse mot 24x for en full parliste. Se
+    # core/domene.py.
+    "domene",
 ]
 
 
@@ -277,6 +282,15 @@ def _les(sti: Path) -> pl.DataFrame:
     if "published_at" not in frame.columns:
         frame = frame.with_columns(
             pl.lit("", dtype=pl.Utf8).alias("published_at"))
+
+    # Og snapshots skrevet før 15.09.2026 har ingen `domene`. Samme
+    # behandling, samme begrunnelse — og her er fallbacken særlig viktig:
+    # tom streng leses som «vet ikke», og `domene.uttaler_seg_om()` svarer
+    # da SANT, altså dagens oppførsel. 1873 revisjonsrader er skrevet uten
+    # feltet, og en fallback som sa «nei» ville stilltiende undertrykt dem
+    # alle — inkludert biomasses 1809 ekte.
+    if "domene" not in frame.columns:
+        frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias("domene"))
     return frame
 
 
@@ -357,6 +371,21 @@ def utvalg_i(frame: pl.DataFrame) -> dict | None:
     """
     rå = _en_verdi(frame, "utvalg")
     return None if rå is None else utvalg_modul.les(rå)
+
+
+def domene_i(frame: pl.DataFrame) -> str:
+    """Den RÅ domenestrengen et snapshot bærer. Tom streng = vet ikke.
+
+    Returnerer strengen og ikke den tolkede formen, fordi
+    `domene.uttaler_seg_om()` trenger både den og rammens egne par for å
+    svare — og rammen er det kalleren allerede har. Å tolke her ville
+    vært en halv avgjørelse tatt et sted til.
+
+    Spriker radene, er svaret tom streng: en ramme satt sammen av flere
+    snapshots har ikke ETT domene, og å plukke det første ville påstått
+    at den ene kroppens taushet gjaldt den andres rader.
+    """
+    return _en_verdi(frame, "domene") or ""
 
 
 def previous(source: str, before: str) -> pl.DataFrame | None:
