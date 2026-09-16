@@ -414,6 +414,12 @@ class Kjoringslogg:
         ut += [
             "",
             self._linje("personformer", ", ".join(sorted(persondata.PERSONFORMER))),
+            # Sektorene føres ved siden av formene fordi de er det ANDRE
+            # leddet i samme prøve fra 16.09.2026, og fordi de er det som
+            # kan fjerne en entitet loggen ellers ikke kan gjøre rede
+            # for: en form som ikke står på lista over.
+            self._linje("personsektorer",
+                        ", ".join(sorted(persondata.PERSONSEKTORER))),
             self._linje("personformer.virker", "ved lesing, i snapshot._les()"),
         ]
 

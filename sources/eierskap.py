@@ -123,9 +123,11 @@ MAKS_SIDER = 400
 # FREG). `SoleProprietorship` er enkeltpersonforetak — regel 3 og
 # core/persondata.PERSONFORMER sier at foretaket ER innehaveren.
 #
-# DA, ANS og partrederi står IKKE her, og det er samme vurdering som i
-# core/persondata.py: de er egne rettssubjekter med eget
-# organisasjonsnummer og egen partsevne.
+# `Person` står her og ikke i `core/persondata.py`, fordi det er en
+# pub-aqua-type uten Brreg-motstykke: en privatperson har ikke
+# organisasjonsform. Resten av spørsmålet stilles til `persondata` via
+# `FORM_KART` — se `er_person()`. Det er derfor DA, ANS og partrederi
+# IKKE står her selv om de filtreres fra 16.09.2026: én liste, ett sted.
 PERSONTYPER = frozenset({"Person", "SoleProprietorship"})
 
 # pub-aqua-type -> Brreg-kode. VERIFISERT ved å krysse eiernes
@@ -138,15 +140,23 @@ PERSONTYPER = frozenset({"Person", "SoleProprietorship"})
 # ANS. Det er nettopp derfor kartet er målt og ikke gjettet.
 #
 # Formene uten overlapp (Foundation, Municipality, Association,
-# JointlyOwnedShippingCompany, OrganizationalSection) står BEVISST ikke
-# her: vi har ikke Brregs ord for dem, og en gjettet kode ville vært en
-# påstand på en tredjeparts vegne. De får `eier_type` ordrett i stedet.
+# OrganizationalSection) står BEVISST ikke her: vi har ikke Brregs ord
+# for dem, og en gjettet kode ville vært en påstand på en tredjeparts
+# vegne. De får `eier_type` ordrett i stedet.
+#
+# `JointlyOwnedShippingCompany` sto i den lista fram til 16.09.2026, og
+# flyttet ned i kartet fordi den ble MÅLT den dagen: registerets eneste
+# enhet av typen, `954744469`, slås opp hos Brreg til organisasjonsform
+# `PRE` (Partrederi) i sektor 2300. Det er 1 av 1, ikke 367 av 367 som
+# de fem over — men det er hele populasjonen, og det er et oppslag og
+# ikke en slutning fra navnelikhet.
 FORM_KART = {
     "LimitedLiabilityCompany": "AS",
     "PublicLimitedCompany": "ASA",
     "JointLiabilityCompany": "DA",
     "UnlimitedLiabilityCompany": "ANS",
     "CoopCompany": "SA",
+    "JointlyOwnedShippingCompany": "PRE",
     # Juridisk sikkert, ikke målt: et enkeltpersonforetak ER et ENK.
     # Står her for at core/snapshot.py sin vakt skal ha noe å bite på
     # dersom en slik rad noen gang overlever begge filtrene.
@@ -175,7 +185,8 @@ def er_person(type_verdi: object) -> bool:
     Tåler TO vokabularer, og det er nødvendig fra 03.09.2026:
 
       * pub-aquas egne ord  — `Person`, `SoleProprietorship`
-      * Brregs koder        — `ENK`, via core/persondata.PERSONFORMER
+      * Brregs koder        — `ENK`, `DA`, `ANS`, `PRE`, via
+        core/persondata.PERSONFORMER
 
     Historiske mottakere som er oppløst finnes ikke i pub-aquas
     `/entities`, og typen deres hentes fra Brreg i stedet. Uten dette
@@ -183,13 +194,31 @@ def er_person(type_verdi: object) -> bool:
     står i `PERSONTYPER` — og da hadde vi bygget nøyaktig det
     personregisteret filteret finnes for å hindre.
 
+    ## Pub-aqua-typen OVERSETTES før spørsmålet stilles
+
+    Fra 16.09.2026 filtreres DA, ANS og partrederi (sektor 2300). Den
+    utvidelsen ligger i `persondata`, og den ville vært virkningsløs her
+    uten oversettelsen: pub-aqua sier `JointLiabilityCompany`, ikke
+    `DA`, så `er_personform("JointLiabilityCompany")` er usant uansett
+    hva lista inneholder.
+
+    Verre enn virkningsløs, faktisk. Snapshotet bærer den OVERSATTE
+    koden — `organisasjonsform = DA` via `FORM_KART` — så vakten i
+    `snapshot.write()` ville felt hele eierskaps-snapshotet mens filteret
+    slapp de samme radene gjennom. Kilden og vakten må stille spørsmålet
+    i samme vokabular.
+
     `persondata` er den autoritative lista for Brreg-siden. Den kopieres
     ikke hit: to lister som skal si det samme er formen F6/F7 hadde.
+    `FORM_KART` er oversettelsen mellom vokabularene, ikke en andre liste
+    over hvem som er en person.
     """
     if not isinstance(type_verdi, str):
         return False
     t = type_verdi.strip()
-    return t in PERSONTYPER or persondata.er_personform(t)
+    return (t in PERSONTYPER
+            or persondata.er_personform(t)
+            or persondata.er_personform(FORM_KART.get(t, "")))
 
 
 def _tillat(eier_type: object, orgnr: object) -> bool:

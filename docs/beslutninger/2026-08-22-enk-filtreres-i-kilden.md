@@ -82,6 +82,12 @@ ikke er et eget rettssubjekt.
 for ved formen ENK. Det ville tatt ut 32 DA, 31 ANS og 1 partrederi i
 tillegg, og er en linje i `core/persondata.py`.
 
+> **AVGJORT 16.09.2026: grensa går ved sektor 2300.** Alle 64 filtreres,
+> ikke bare de 46 med personnavn. Se
+> [2026-09-16-grensa-gaar-ved-sektor-2300.md](2026-09-16-grensa-gaar-ved-sektor-2300.md).
+> Avsnittet over står som det ble skrevet — det er begrunnelsen som ble
+> veid, ikke den som gjelder.
+
 ## Hva som er gjort
 
 **Filteret ligger to steder, med hver sin grunn.**

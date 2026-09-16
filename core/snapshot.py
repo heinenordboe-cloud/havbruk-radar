@@ -77,8 +77,7 @@ def to_frame(observations: list[Observation]) -> pl.DataFrame:
 
 
 def _vakt_mot_personformer(source: str, group: pl.DataFrame) -> None:
-    """Nekter å skrive et snapshot som inneholder en filtrert
-    organisasjonsform.
+    """Nekter å skrive et snapshot som inneholder en fysisk person.
 
     Filteret i kilden er der data faktisk holdes ute. Denne vakten er der
     fordi et filter noen glemmer å oppdatere ikke er en garanti: en ny
@@ -87,26 +86,44 @@ def _vakt_mot_personformer(source: str, group: pl.DataFrame) -> None:
     tre ender her, i den ene trakta alt skrives gjennom. Samme plassering
     og samme begrunnelse som datokontrollen under.
 
-    Hva vakten IKKE dekker, sagt rett ut: den ser bare rader der feltet
-    heter `organisasjonsform`. En kilde som kaller det noe annet, eller
-    som ikke oppgir formen i det hele tatt, går forbi. Den fanger at et
-    kjent filter sviktet — ikke at lista over personformer er riktig.
+    TO felter, ikke ett, fra 16.09.2026: `organisasjonsform` mot
+    `PERSONFORMER` og `institusjonell_sektorkode` mot `PERSONSEKTORER`.
+    Grensa går ved sektoren (se core/persondata.py), og en vakt som bare
+    leste formlista ville sluppet gjennom nøyaktig det tilfellet
+    sektorleddet finnes for: en form ingen har rukket å føre opp.
+
+    Hva vakten IKKE dekker, sagt rett ut: den ser bare de to feltnavnene.
+    En kilde som kaller dem noe annet, eller som ikke oppgir noen av dem,
+    går forbi — `eierskap` oppgir formen for 2839 av 2953 tillatelser og
+    sektoren for ingen. Den fanger at et kjent filter sviktet, ikke at
+    listene er riktige.
     """
-    if persondata.FORM_FELT not in group["field"].to_list():
+    felter = set(group["field"].to_list())
+    verdi = pl.col("value").str.strip_chars()
+
+    treff = []
+    if persondata.FORM_FELT in felter:
+        treff.append(group.filter(
+            (pl.col("field") == persondata.FORM_FELT)
+            & verdi.str.to_uppercase().is_in(sorted(persondata.PERSONFORMER))))
+    if persondata.SEKTOR_FELT in felter:
+        treff.append(group.filter(
+            (pl.col("field") == persondata.SEKTOR_FELT)
+            & verdi.is_in(sorted(persondata.PERSONSEKTORER))))
+
+    funn = [t for t in treff if not t.is_empty()]
+    if not funn:
         return
 
-    funn = (
-        group.filter(pl.col("field") == persondata.FORM_FELT)
-        .filter(pl.col("value").str.strip_chars().str.to_uppercase()
-                .is_in(sorted(persondata.PERSONFORMER)))
-    )
-    if funn.is_empty():
-        return
+    enheter = set()
+    verdier = set()
+    for t in funn:
+        enheter |= set(t["entity_id"].to_list())
+        verdier |= set(t["value"].to_list())
 
-    former = sorted(set(funn["value"].to_list()))
     raise ValueError(
-        f"{source}: {funn.height} enhet(er) med organisasjonsform {former} "
-        f"i radene. Formen er en fysisk person, ikke et selskap "
+        f"{source}: {len(enheter)} enhet(er) med {sorted(verdier)} i radene. "
+        f"Det er en fysisk person, ikke et selskap "
         f"(se core/persondata.py), og snapshotet skrives ikke. Filteret i "
         f"kilden har sviktet eller er omgått — rett det der, ikke her."
     )
@@ -257,7 +274,27 @@ def _les(sti: Path) -> pl.DataFrame:
     slik: den nekter at `read_parquet` dukker opp i denne modulen mer enn
     én gang, eller i en annen modul som kjenner RAW_DIR.
     """
-    frame = persondata.fjern_personformer(pl.read_parquet(sti))
+    return _les_med_tall(sti)[0]
+
+
+def _les_med_tall(sti: Path) -> tuple[pl.DataFrame, dict[str, int]]:
+    """Døra, og HVA DEN TOK: (ramme, {organisasjonsform: antall}).
+
+    Den ene `read_parquet`-en i repoet står her, og det er grunnen til at
+    telleren må bo i samme funksjon: et andre oppslag for å finne ut hva
+    det første fjernet, ville vært en andre lesevei — og da er ikke
+    filteret én dør lenger.
+
+    Filtrering er stille av natur. `_les()` returnerer en ramme det ikke
+    står noe i om at 64 entiteter forsvant på veien, og uten tallet kan
+    `publiseringsvakt.py --rapport` ikke skille «filteret tok 64» fra
+    «det var ingen der». Se `persondata.tell_personer()`.
+
+    Kallerne som ikke bryr seg, kaller `_les()` og ser ingen forskjell.
+    """
+    raa = pl.read_parquet(sti)
+    fjernet = persondata.tell_personer(raa)
+    frame = persondata.fjern_personformer(raa)
 
     # Snapshots skrevet før 24.08.2026 har ingen `utvalg`-kolonne. De
     # skal kunne leses, og de skal lese som «vet ikke» — ikke som «ingen
@@ -291,7 +328,7 @@ def _les(sti: Path) -> pl.DataFrame:
     # alle — inkludert biomasses 1809 ekte.
     if "domene" not in frame.columns:
         frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias("domene"))
-    return frame
+    return frame, fjernet
 
 
 def _en_verdi(frame: pl.DataFrame, kolonne: str) -> str | None:
@@ -504,6 +541,35 @@ def versjoner(source: str, observed_at: str) -> list[tuple[int, pl.DataFrame]]:
                   if _dato_og_versjon(p.stem)[0] == observed_at]
     lest = [(_dato_og_versjon(p.stem)[1], _les(p)) for p in samme_dato]
     return sorted(lest, key=lambda par: (publisert(par[1]), par[0]))
+
+
+def filtrert_bort(source: str, observed_at: str) -> dict[str, int]:
+    """{organisasjonsform: antall} som lesedøra tok ut av denne datoen.
+
+    Summert over alle versjoner av datoen, og derfor et TAK og ikke et
+    eksakt antall distinkte personer: står samme DA i både `.parquet` og
+    `.2`, telles den to ganger. Det er riktig vei å ta feil på for en
+    rapport som skal si «filteret virket», og det er sagt her framfor
+    gjettet av leseren.
+
+    AGGREGAT. Ingen entitets-ID-er, ingen navn — se `tell_personer()`.
+
+    Finnes for `publiseringsvakt.py --rapport`, som skal kunne si hvor
+    mange personer som ble holdt ute hver eneste gang den kjører. Et
+    grønt bygg skal ikke kunne bety «ingen persondata» uten at noen har
+    sett tallet.
+    """
+    target_dir = RAW_DIR / source
+    if not target_dir.exists():
+        return {}
+
+    ut: dict[str, int] = {}
+    for sti in sorted(target_dir.glob("*.parquet")):
+        if _dato_og_versjon(sti.stem)[0] != observed_at:
+            continue
+        for form, antall in _les_med_tall(sti)[1].items():
+            ut[form] = ut.get(form, 0) + antall
+    return dict(sorted(ut.items()))
 
 
 def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]]:

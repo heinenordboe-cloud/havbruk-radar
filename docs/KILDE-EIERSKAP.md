@@ -168,10 +168,28 @@ Tre vilkår, i denne rekkefølgen:
 
 1. **Typen må være KJENT.** «Vet ikke» betyr aldri «slipp gjennom».
 2. **Typen må ikke være en personform** — `Person`,
-   `SoleProprietorship` (pub-aqua) eller `ENK` (Brreg, via
-   `core/persondata.PERSONFORMER`).
+   `SoleProprietorship` (pub-aqua) eller en kode i
+   `core/persondata.PERSONFORMER` (Brreg).
 3. **Nummeret må være ni siffer.** Andre lås, ikke hovedregelen: 8 av 8
    enkeltpersonforetak i registeret har ni siffer.
+
+**Vilkår 2 går gjennom `FORM_KART` fra 16.09.2026.** Grensa ble flyttet
+til SSB-sektor 2300, og utvidelsen ligger i `persondata` — i BRREGS
+koder. pub-aqua sier `JointLiabilityCompany`, ikke `DA`, så uten
+oversettelsen ville utvidelsen vært virkningsløs her. Verre enn
+virkningsløs: snapshotet bærer den OVERSATTE koden, så vakten i
+`snapshot.write()` ville felt hele snapshotet mens filteret slapp de
+samme radene gjennom. Kilden og vakten må stille spørsmålet i samme
+vokabular.
+
+Målt 16.09.2026 mot levende register: filteret fjerner **93 av 3035
+tillatelser**, mot 84 før utvidelsen.
+
+    Person                        62
+    SoleProprietorship            22
+    JointLiabilityCompany (DA)     6     nye 16.09.2026
+    UnlimitedLiabilityCompany (ANS) 2    nye 16.09.2026
+    JointlyOwnedShippingCompany (PRE) 1  ny 16.09.2026
 
 Personformer fra Brreg **arkiveres ikke i det hele tatt**. Et arkiv som
 sier «dette nummeret tilhører et ENK» er en opplysning om et menneske.
@@ -246,32 +264,44 @@ men en tillatelse som lå på en annen lokalitet i 2012 blir tilskrevet
 dagens. Vår akvakultur-serie har tre snapshots (17., 24., 31.08.2026), og
 koblingen lokalitet → selskap rekker ikke lenger bakover enn det.
 
-## 8. Dekning på LOKALITETSNIVÅ — og de 57 som aldri kan dekkes
+## 8. Dekning på LOKALITETSNIVÅ — og de 63 som aldri kan dekkes
 
 Punkt 7 teller tillatelser. Dette punktet teller **lokaliteter**, og det
 er den brøken enhver «hvem eier kapasiteten»-analyse hviler på.
 
-Målt 14.09.2026 mot `akvakultur`-snapshotet fra samme dag:
+Målt 16.09.2026 mot levende register, etter at grensa flyttet seg til
+SSB-sektor 2300:
 
     lokaliteter i akvakultur         1782
-    med selskapskobling              1722      96,6 %
-    uten                               60       3,4 %
+    med selskapskobling              1716      96,3 %
+    uten                               66       3,7 %
 
-### Oppdelingen av de 60
+**Tallet falt fra 96,63 % til 96,30 % den 16.09.2026.** 9 tillatelser
+til ble filtrert (DA 6, ANS 2, partrederi 1), fordelt på 5 eiere, og
+**6 lokaliteter** mistet sin eneste selskapskobling. Se
+`docs/beslutninger/2026-09-16-grensa-gaar-ved-sektor-2300.md`.
+
+### Oppdelingen av de 66
 
 | grunn | antall | kan det tettes? |
 |---|---|---|
 | eier er privatperson eller ENK — stoppet av personvernfilteret | **57** | **NEI, aldri** |
+| eier er DA, ANS eller partrederi — SSB-sektor 2300, stoppet fra 16.09.2026 | **6** | **NEI, aldri** |
 | ingen aktiv tillatelse i registeret | 3 | ja, når registeret får en |
 
-**De 57 er permanent utelukket.** De er ikke et hull i innsamlingen, en
+**De 63 er permanent utelukket.** De er ikke et hull i innsamlingen, en
 feil som skal rettes eller en oppgave noen kan ta. De er prisen for at
 repoet ikke skal være et personregister, og prisen betales hver eneste
 uke. CLAUDE.md regel 3 er strengere enn både lisensen og API-et: dataene
 FINNES åpent hos Fiskeridirektoratet, og vi henter dem likevel ikke.
 
+De 6 skiller seg fra de 57 på ett punkt som er verdt å merke seg: de er
+utelukket av en GRENSE VI SATTE, ikke av at eieren er en privatperson.
+Flyttes grensa tilbake, kommer de tilbake — og det er nettopp derfor
+beslutningen står skrevet med hva som ville snudd den.
+
 Konsekvensen skal stå ved siden av enhver analyse av eierskap:
-**3,2 % av lokalitetene er systematisk usynlige, og de er ikke tilfeldig
+**3,5 % av lokalitetene er systematisk usynlige, og de er ikke tilfeldig
 fordelt.** De er små, personeide anlegg. En analyse som sier «X % av
 kapasiteten eies av de ti største» regner på et utvalg der de minste
 eierne mangler per konstruksjon, og skjevheten peker samme vei hver gang.
@@ -294,6 +324,11 @@ Oppdelingen ble derfor målt ved å kjøre kildens egne `/entities`- og
 er den eneste veien, og den gir bare aggregater: 57 og 3, ingen navn,
 ingen numre.
 
+Oppdelingen 57/6/3 ble målt på samme måte 16.09.2026: kildens egne
+`/entities`- og `/licenses`-kall, tellingen i minnet, med
+personprøven kjørt to ganger — én gang med grensa slik den var, én gang
+slik den er. Differansen ER de 6.
+
 **Det er et 1b-3-brudd med vitende og vilje.** Verdien som avgjør hva
 dekningstallet BETYR lagres ikke sammen med dataene, og et snapshot kan
 derfor ikke alene svare på hvorfor en lokalitet mangler. Å lagre den
@@ -309,9 +344,13 @@ og svaret vil da gjelde den dagen målingen gjøres — ikke denne.
 
     02.09.2026    1719 av 1779    96,6 %    57 / 3
     14.09.2026    1722 av 1782    96,6 %    57 / 3
+    16.09.2026    1716 av 1782    96,3 %    57 / 6 / 3
 
-Brøken har stått stille på 96,6 % og oppdelingen på 57/3 gjennom to
-målinger tolv dager fra hverandre. Absoluttallene følger registeret.
+Brøken sto stille på 96,6 % og oppdelingen på 57/3 gjennom to målinger
+tolv dager fra hverandre. Fallet 16.09 er **ikke** registeret som
+beveget seg — det er vår egen grense. Absoluttallene følger registeret;
+denne raden følger en beslutning, og de to skal kunne skilles i
+ettertid.
 
 ## 9. Lisens og attribusjon
 

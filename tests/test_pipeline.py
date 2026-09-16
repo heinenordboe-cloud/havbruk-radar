@@ -14,7 +14,7 @@ import polars as pl
 import pytest
 
 from core import changelog, diff, feltnormal, health, runner, signals, snapshot
-from core import utvalg
+from core import persondata, utvalg
 from core import raw as raw_arkiv
 from core.contract import Observation, Source
 
@@ -2003,18 +2003,39 @@ def test_enk_gir_ingen_observasjoner():
     assert {o.entity_id for o in obs} == {"222222222"}
 
 
-def test_da_og_ans_beholdes():
-    """Et bevisst valg, ikke en forglemmelse: DA og ANS er egne
-    rettssubjekter, og deltakerne står bare i rolleregisteret vi aldri
-    spør etter. Se core/persondata.py. Faller denne, er valget endret —
-    og da skal beslutningen endres med den."""
+def test_da_ans_og_partrederi_filtreres():
+    """Grensa flyttet fra formen ENK til SSB-sektor 2300 16.09.2026.
+
+    Denne testen sto omvendt fram til da — `test_da_og_ans_beholdes`, med
+    begrunnelsen at et ansvarlig selskap er et eget rettssubjekt. Det er
+    fortsatt riktig om rettssubjektet, men det avgjorde ikke spørsmålet:
+    feltsettet vi lagrer om et DA er det samme som gjorde de 34 ENK-ene
+    til persondata. Se docs/beslutninger/2026-09-16-grensa-gaar-ved-
+    sektor-2300.md."""
     from sources.enhetsregisteret import Enhetsregisteret
 
     obs = list(Enhetsregisteret().parse(
-        [_enhet("333333333", "DA"), _enhet("444444444", "ANS")], "2026-08-24"
+        [_enhet("333333333", "DA"), _enhet("444444444", "ANS"),
+         _enhet("555555555", "PRE"), _enhet("666666666", "AS")],
+        "2026-08-24"
     ))
 
-    assert {o.entity_id for o in obs} == {"333333333", "444444444"}
+    assert {o.entity_id for o in obs} == {"666666666"}
+
+
+def test_ukjent_form_i_personsektor_filtreres_av_sektoren():
+    """Det andre leddet, og hele grunnen til at det finnes: en form ingen
+    har ført opp i PERSONFORMER stoppes likevel, fordi registeret selv
+    plasserer den i sektor 2300.
+
+    En formliste er en oppregning noen må huske å utvide. Sektoren er et
+    felt Brreg fyller ut."""
+    from sources.enhetsregisteret import Enhetsregisteret
+
+    enhet = _enhet("777777777", "ZZZ")
+    enhet["institusjonellSektorkode"] = {"kode": "2300"}
+
+    assert list(Enhetsregisteret().parse([enhet], "2026-08-24")) == []
 
 
 def test_gammelt_arkiv_med_enk_reparses_uten_enk():
@@ -2167,10 +2188,12 @@ def test_vakten_nekter_snapshot_med_personform(tmp_path, monkeypatch):
 
 
 def test_vakten_slipper_gjennom_selskapsformer(tmp_path, monkeypatch):
+    """SA og ikke DA fra 16.09.2026: DA er en personform nå, og en test
+    som brukte den ville målt at vakten IKKE virker."""
     monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
 
     filer = snapshot.write(
-        [_obs_form("222222222", "AS"), _obs_form("333333333", "DA")],
+        [_obs_form("222222222", "AS"), _obs_form("333333333", "SA")],
         "2026-08-24",
     )
 
@@ -2317,6 +2340,56 @@ def test_enk_som_forsvinner_blir_ikke_en_endring(tmp_path, monkeypatch):
 
     assert endringer.height == 0
     assert "111111111" not in endringer["entity_id"].to_list()
+
+
+def test_sektorleddet_fjerner_en_form_lista_ikke_kjenner(tmp_path, monkeypatch):
+    """Det andre leddet i lesedøra, og hele grunnen til at det finnes.
+
+    Entiteten har organisasjonsform `ZZZ` — ingenting vi har ført opp —
+    men Brreg plasserer den i sektor 2300. En formliste er en oppregning
+    noen må huske å utvide; sektoren er et felt registeret fyller ut."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+
+    rader = [Observation(
+        entity_id="999999999", entity_type="selskap", entity_name="Ukjent",
+        field=felt, value=verdi, source="enhetsregisteret",
+        observed_at="2026-08-17",
+    ) for felt, verdi in [("organisasjonsform", "ZZZ"),
+                          ("institusjonell_sektorkode", "2300"),
+                          ("navn", "Berg Nilsen")]]
+    _skriv_gammelt_snapshot(rader)
+
+    ramme = snapshot.previous("enhetsregisteret", before="2026-08-24")
+    assert ramme is not None and ramme.is_empty()
+
+
+def test_doren_teller_hva_den_tok(tmp_path, monkeypatch):
+    """Filtrering er stille av natur. Uten et tall kan ingen skille
+    «filteret tok 64» fra «det var ingen der» — og en rapport som ikke
+    kan si det, lar «bygget er grønt» bety «ingen persondata»."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    _skriv_gammelt_snapshot(_snapshot_med_enk())
+
+    assert snapshot.filtrert_bort("enhetsregisteret", "2026-08-17") == {"ENK": 1}
+    assert snapshot.filtrert_bort("enhetsregisteret", "2026-08-24") == {}
+
+
+def test_telleren_og_filteret_svarer_paa_det_samme(tmp_path, monkeypatch):
+    """To uttrykk for samme spørsmål er formen F6 og F7 hadde. Her ville
+    de gitt en rapport som sier noe annet enn døra gjorde."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    rader = _snapshot_med_enk() + [Observation(
+        entity_id="333333333", entity_type="selskap", entity_name="X DA",
+        field=felt, value=verdi, source="enhetsregisteret",
+        observed_at="2026-08-17",
+    ) for felt, verdi in [("organisasjonsform", "DA"), ("navn", "Berg Nilsen")]]
+    _skriv_gammelt_snapshot(rader)
+
+    ramme = pl.read_parquet(tmp_path / "enhetsregisteret" / "2026-08-17.parquet")
+    for_ = ramme["entity_id"].n_unique()
+    etter = persondata.fjern_personformer(ramme)["entity_id"].n_unique()
+
+    assert sum(persondata.tell_personer(ramme).values()) == for_ - etter
 
 
 def test_akvakultur_gaar_urort_gjennom_filteret(tmp_path, monkeypatch):

@@ -44,8 +44,28 @@ def test_persontyper_kjennes_igjen(t):
 
 
 @pytest.mark.parametrize("t", [
+    "JointLiabilityCompany",        # DA
+    "UnlimitedLiabilityCompany",    # ANS
+    "JointlyOwnedShippingCompany",  # PRE
+])
+def test_sektor_2300_stoppes_i_pub_aquas_eget_vokabular(t):
+    """Grensa flyttet til sektor 2300 16.09.2026, og utvidelsen ligger i
+    `core/persondata.PERSONFORMER` — i BRREGS koder.
+
+    pub-aqua sier `JointLiabilityCompany`, ikke `DA`, så uten
+    oversettelsen gjennom `FORM_KART` ville utvidelsen vært virkningsløs
+    her uansett hva lista inneholder. Verre: snapshotet bærer den
+    OVERSATTE koden, så vakten i snapshot.write() ville felt hele
+    snapshotet mens filteret slapp radene gjennom.
+
+    Faller denne, stiller kilden og vakten spørsmålet i hvert sitt
+    vokabular igjen."""
+    assert eierskap.er_person(t) is True
+    assert eierskap._tillat(t, "969159570") is False
+
+
+@pytest.mark.parametrize("t", [
     "LimitedLiabilityCompany", "PublicLimitedCompany",
-    "JointLiabilityCompany", "UnlimitedLiabilityCompany",
     "Foundation", "Municipality", None, "",
 ])
 def test_selskapsformer_slipper_gjennom(t):
@@ -82,6 +102,20 @@ def test_enk_er_samme_vurdering_som_kjernens():
         kode = eierskap.FORM_KART.get(t)
         if kode:
             assert persondata.er_personform(kode)
+
+
+def test_form_kart_gjor_hver_personform_stoppbar():
+    """Den andre retningen: hver Brreg-kode i PERSONFORMER som pub-aqua
+    HAR et ord for, skal stoppes når ordet kommer inn.
+
+    Uten denne ville en utvidelse av `PERSONFORMER` kunne se ut til å
+    virke — `er_personform("DA")` er sant — mens kilden slapp `DA`-ene
+    gjennom under navnet `JointLiabilityCompany`."""
+    for ord_, kode in eierskap.FORM_KART.items():
+        if kode in persondata.PERSONFORMER:
+            assert eierskap.er_person(ord_), (
+                f"{ord_} oversettes til {kode}, som er en personform, "
+                f"men slipper gjennom filteret")
 
 
 # ------------------------------------------------- lag 1: fetch()

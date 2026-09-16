@@ -21,7 +21,7 @@ Tre ting holdes bevisst utenfor:
   gir geografien uten å bygge et boligregister.
 - **Telefon og målform.** Kontaktdata uten tolkningsverdi over tid.
 
-## Om enkeltpersonforetak
+## Om personlige foretak
 
 Feltvalget over var ikke nok. Et ENK ER innehaveren — foretaket er ikke
 et eget rettssubjekt — så selv uten gateadressen er navn, kommune,
@@ -29,16 +29,24 @@ postnummer, næring og konkursflagg opplysninger om en identifiserbar
 fysisk person. 34 slike lå i utvalget, og ~20 av dem bærer innehaverens
 navn som foretaksnavn.
 
-Derfor filtreres personformer bort TO steder, med hver sin grunn:
+Fra 16.09.2026 gjelder det samme DA, ANS og partrederi. Grensa går ved
+SSB-sektor 8200 og 2300, «personlige foretak», og ikke ved formen ENK
+alene: feltsettet vi lagrer om et ansvarlig selskap er det samme som
+gjorde ENK-ene til persondata, og deltakerne hefter personlig. 64 slike
+lå i utvalget 14.09.2026.
+
+Derfor filtreres personene bort TO steder, med hver sin grunn:
 
 - I `fetch()`, før noe arkiveres. Rå-arkivet lagrer hele API-svaret, og
   der lå gateadressen til alle 34 — feltvalget i `FELTER` gjelder bare
   snapshotet, ikke arkivet. Data som aldri hentes inn kan ikke lekke.
-- I `parse()`, fordi arkivfilene fra før 22.08.2026 fortsatt inneholder
-  dem. En re-parse av et gammelt arkiv skal ikke føre dem inn igjen.
+- I `parse()`, fordi arkivfilene fra før 22.08.2026 (ENK) og før
+  16.09.2026 (DA/ANS/PRE) fortsatt inneholder dem. En re-parse av et
+  gammelt arkiv skal ikke føre dem inn igjen.
 
-Hvilke former som regnes som personer — og hvorfor DA og ANS ikke gjør
-det — står i `core/persondata.py`.
+Prøven spør om `organisasjonsform` OG `institusjonellSektorkode`, aldri
+om navnet eller om hvor mange siffer nummeret har. Hvorfor — og hvilke
+koder som står på lista — står i `core/persondata.py`.
 
 ## Om klassifisering
 
@@ -236,6 +244,28 @@ def _organisasjonsform(enhet: dict) -> Any:
     return _nested("organisasjonsform", "kode")(enhet)
 
 
+def _sektorkode(enhet: dict) -> Any:
+    """SSB-sektoren til én enhet. Samme oppslag som FELTER bruker."""
+    return _nested("institusjonellSektorkode", "kode")(enhet)
+
+
+def _er_person(enhet: dict) -> bool:
+    """Begge leddene i personprøven, stilt til registerets egne felter.
+
+    `organisasjonsform` er det som virker når sektoren mangler — `KBO` og
+    `NUF` oppgir ingen. `institusjonell_sektorkode` er det som virker når
+    formen er ny for oss: kommer det en form ingen har ført opp, og
+    plasserer Brreg den i 8200 eller 2300, stoppes den uten at noen har
+    måttet huske noe.
+
+    Verken navnet eller organisasjonsnummerets lengde inngår. Begge er
+    syntaktiske prøver på et semantisk spørsmål, og begge er MÅLT
+    verdiløse — se core/persondata.py.
+    """
+    return (persondata.er_personform(_organisasjonsform(enhet))
+            or persondata.er_personsektor(_sektorkode(enhet)))
+
+
 def _uten_personer(enheter: list[dict]) -> tuple[list[dict], dict[str, set[str]]]:
     """Deler enhetene i (dem vi beholder, orgnumrene vi droppet per form).
 
@@ -243,6 +273,13 @@ def _uten_personer(enheter: list[dict]) -> tuple[list[dict], dict[str, set[str]]
     aldri blir en observasjon etterlater seg ingen rad å savne — og et
     plutselig hopp fra 202 til 900 ville da bety at søket har endret seg
     uten at noe sa fra. Tallet skrives til kjøringsloggen.
+
+    PER FORM, selv om grensa går ved sektoren. Sektoren er hvorfor de
+    filtreres; formen er hva de ER, og den er det eneste av de to som
+    skiller 32 DA fra 31 ANS i loggen. En teller per sektor ville slått
+    dem sammen til «2300: 64» og gjort et skifte mellom to personformer
+    usynlig. Enheter som bare sektorleddet fanget — ingen i dag — føres
+    under formkoden sin uansett, og under `(uten form)` om den mangler.
 
     ORGNUMRE, ikke en teller. Kilden søker på ni næringskoder, og samme
     foretak kan komme i retur fra flere av dem — 15 selskaper gjorde det
@@ -255,9 +292,10 @@ def _uten_personer(enheter: list[dict]) -> tuple[list[dict], dict[str, set[str]]
     fjernet: dict[str, set[str]] = {}
 
     for enhet in enheter:
-        kode = _organisasjonsform(enhet)
-        if persondata.er_personform(kode):
-            fjernet.setdefault(str(kode), set()).add(
+        if _er_person(enhet):
+            kode = _organisasjonsform(enhet)
+            merke = str(kode).strip().upper() if kode else "(uten form)"
+            fjernet.setdefault(merke, set()).add(
                 str(enhet.get("organisasjonsnummer"))
             )
         else:
@@ -457,11 +495,16 @@ class Enhetsregisteret(Source):
 
         Filtreringen gjentas her selv om `fetch()` allerede har gjort den.
         Det er ikke belte og bukseseler: arkivfilene fra før 22.08.2026
-        inneholder personformene, og parse() er nettopp veien de kommer
-        inn igjen på ved en re-parse.
+        inneholder ENK-ene, og arkivfilene fra før 16.09.2026 inneholder
+        DA, ANS og partrederiene. parse() er nettopp veien de kommer inn
+        igjen på ved en re-parse.
+
+        Samme prøve som i `fetch()` — `_er_person()`, ett sted — og ikke
+        en kopi av den. To lister som skal si det samme er formen F6 og
+        F7 hadde.
         """
         for enhet in _enheter(raw):
-            if persondata.er_personform(_organisasjonsform(enhet)):
+            if _er_person(enhet):
                 continue
 
             orgnr = enhet.get("organisasjonsnummer")

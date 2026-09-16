@@ -118,14 +118,17 @@ sikret med Maskinporten — er den CLAUDE.md regel 3 forbyr oss å krysse.
 Vi bruker utelukkende det frie nivået. Se `docs/LISENSKJEDE.md`
 merknad B.
 
-## 4. Enkeltpersonforetak filtreres bort — 201 per kjøring
+## 4. Personlige foretak filtreres bort — 265 per kjøring
 
-**Målt 14.09.2026 ved å kjøre kildens egen `fetch()`:**
+**Målt 16.09.2026 ved å kjøre kildens egen `fetch()`:**
 
-    201 foretak filtrert bort som fysisk person (ENK 201)
+    265 foretak filtrert bort som fysisk person (ANS 31, DA 32, ENK 201, PRE 1)
 
-Alle 201 er organisasjonsformen `ENK`. Et notat utenfor repoet oppgir
-203; målingen er 201.
+201 av dem er `ENK`. De 64 øvrige kom til 16.09.2026, da grensa ble
+flyttet fra formen ENK til **SSB-sektor 8200 og 2300** — husholdninger og
+personlige foretak. Se
+`docs/beslutninger/2026-09-16-grensa-gaar-ved-sektor-2300.md`.
+Tallet var 201 ved forrige måling (14.09.2026).
 
 **Hvorfor det må gjøres.** Et ENK er ikke et eget rettssubjekt —
 foretaket ER innehaveren. Selv uten gateadressen er navn, kommune,
@@ -133,14 +136,26 @@ postnummer, næring og konkursflagg opplysninger om en identifiserbar
 fysisk person, og omtrent tjue av dem bærer innehaverens navn som
 foretaksnavn.
 
+For DA, ANS og partrederi er rettssubjektet et annet — selskapet er sitt
+eget — men FELTSETTET er det samme, og deltakerne hefter personlig. Det
+avgjørende er ikke hva foretaket er, men om raden peker på et navngitt
+menneske.
+
+**Prøven spør om to felter, aldri om navnet.** `organisasjonsform` mot
+`PERSONFORMER`, og `institusjonellSektorkode` mot `PERSONSEKTORER`. Det
+andre leddet er det eneste som kan fange en form ingen har ført opp; det
+første er det eneste som virker for `KBO` og `NUF`, som mangler
+sektorkode. En navneprøve ble målt verdiløs: to-tre ord uten bedriftsord
+treffer 1278 av 1807 entiteter, hvorav 1196 er AS.
+
 **To lag, med hver sin grunn:**
 
 1. **I `fetch()`, før noe arkiveres.** Rå-arkivet lagrer hele API-svaret,
    og der lå gateadressen til hvert eneste ENK. Feltvalget gjelder bare
    snapshotet, ikke arkivet. Data som aldri hentes inn kan ikke lekke.
-2. **I `parse()`**, fordi arkivfiler fra før 22.08.2026 fortsatt
-   inneholder dem. En re-parse av et gammelt arkiv skal ikke føre dem
-   inn igjen.
+2. **I `parse()`**, fordi arkivfiler fra før 22.08.2026 (ENK) og før
+   16.09.2026 (DA, ANS, PRE) fortsatt inneholder dem. En re-parse av et
+   gammelt arkiv skal ikke føre dem inn igjen.
 
 **Filteret teller ORGNUMRE, ikke treff.** Kilden søker på ni
 næringskoder, og samme foretak kan komme i retur fra flere — 15 selskaper
@@ -314,6 +329,14 @@ Det er et kjent brudd på 1b-3, med vitende og vilje. Se beslutningen fra
 Lista i `core/persondata.py` brukes også i `parse()`, så en endring i den
 endrer hva et gammelt snapshot inneholder ved re-parse. Også et kjent
 1b-3-brudd, også med vitende og vilje.
+
+Utvidelsen 16.09.2026 er den første gangen bruddet har fått en virkning:
+snapshotene fra 17.08 til 14.09 leser fra da av uten sine 64 DA/ANS/PRE,
+uten at noe i fila sier at de var der. `publiseringsvakt.py --rapport`
+skriver tallet ved hver kjøring, og `analyse/kjoringslogg.py` fører både
+`personformer` og `personsektorer` — men et gammelt RESULTAT vet fortsatt
+ikke hvilken liste det ble regnet ut under. Se
+`docs/FORSLAG-personformer-versjonering.md`.
 
 ## 6. Frekvens
 
