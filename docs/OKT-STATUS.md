@@ -256,24 +256,45 @@ ligger utenfor denne kilden.
 
 ---
 
-## 4. `[din vurdering]` — punkter som krever Heines dom
+## 4. `[din vurdering]` — AVKLART 16.09.2026, se hvor
 
-1. **Er `/CreationDate` god nok proveniens?** Den er lest fra dokumentet,
-   ikke gjettet, men den er eksporttidspunktet — ikke en utgivelsesdato
-   noen har gått god for. Alternativet er tom `published_at` for alle
-   fem, og da kan revisjonsaksen ikke ordne kroppene i det hele tatt.
-2. **Skal fasitfila `ekspertgruppen-po-kategori.csv` beholdes for 2023 og
-   2024?** De to årgangene finnes ikke i kilden og kan ikke etterprøves.
-   Å slette dem er å miste noens lesing; å beholde dem er å ha to fasiter
-   med ulik proveniens side om side.
-3. **Er `hi_smittepress_arealandel` og `hi_smittepress_roc_indeks` samme
-   størrelse?** De er lagret som to felt fordi ordlyden er ulik og ingen
-   av rapportene definerer dem mot hverandre. Slås de sammen, blir et
-   metodeskifte til en verdiendring; holdes de fra hverandre, blir serien
-   brutt i to.
-4. **Skal 2022-rapportens sannsynlighetsfordeling trekkes ut?** Den er
-   rikere enn kategorien, men finnes bare fra 2022 og ville gitt et felt
-   med ett års historikk.
+De fire punktene som sto her lå åpne siden 27.08. Alle fire er besvart
+et annet sted i mellomtiden, og ingen av dem var løsbærende ved
+gjennomgangen 16.09.2026. De er derfor tatt ut herfra — regelen i
+`docs/APNE-SPORSMAL.md` gjelder: **et spørsmål som er besvart, men
+fortsatt står oppført som åpent, sender arbeid etter noe som allerede er
+gjort.** Spørsmålene står igjen med hvor svaret ligger, ikke slettet
+sporløst.
+
+| spørsmålet | svaret ligger i | hva det ble |
+|---|---|---|
+| 1. Er `/CreationDate` god nok proveniens? | `docs/KILDE-EKSPERTGRUPPEN.md` punkt 3 | **Ja, MED vakt mot re-eksport.** Målt: `Last-Modified` er en CMS-migreringsdato på to av to verter. Datoen kreves innenfor `[vurderingsår, +1]`, ellers settes `published_at` tom. Samme valg er senere tatt for styringsgruppen. |
+| 2. Skal fasitens 2023 og 2024 beholdes? | `2026-08-27-ekspertgruppen-som-kilde.md` og `KILDE-EKSPERTGRUPPEN.md` punkt 9 | **Beholdes, men degradert** til «et menneskes lesing uten sporbart dokument». Premisset er dessuten borte: hovedrapportene ble funnet 01.09.2026, og kilden HAR nå 2023, 2024 og 2025. |
+| 3. Er arealandel og ROC samme størrelse? | `2026-08-27-ekspertgruppen-som-kilde.md`, «UTFALL av stoppregelen» | **Ja.** Definisjonene er ordrett like i 2020, 2021 og 2022, de er perfekt komplementære over 39 PO-år, og det er ingen sprang ved formuleringsskiftet. De lagres fortsatt som to felt — sammenslåingen er analysens valg, ikke innsamlingens. |
+| 4. Skal 2022-sannsynlighetsfordelingen trekkes ut? | `KILDE-EKSPERTGRUPPEN.md` punkt 12, og docstringen i `_uttrekk_2022()` | **Ikke nå.** Innvendingen var ett års historikk; etter 01.09.2026 finnes fordelingen også i 2023-, 2024- og 2025-kroppene, i ulik tabellform. Kroppene er arkivert — det er en re-parse den dagen noen vil ha dem. |
+
+**Ingen av de fire er samme spørsmål som grensa ved sektor 2300**
+(`2026-09-16-grensa-gaar-ved-sektor-2300.md`). Det spørsmålet lå i
+ENK-notatet fra 22.08, ikke her. Punkt 1 deler riktignok FEILFAMILIE med
+det — en stedfortreder som er riktig akkurat så lenge den faller sammen
+med det man egentlig spør om (CLAUDE.md 1b-2) — men `/CreationDate` mot
+`published_at` og navneform mot personform er to ulike spørsmål med hvert
+sitt svar.
+
+**Ett funn fra gjennomgangen, som ikke er et åpent spørsmål men en
+retting:** punkt 2s premiss falt bort, og da ble fasiten etterprøvbar for
+første gang for 2023 og 2024. Målt 16.09.2026 mot snapshotene:
+
+    2020   13 av 13 enige
+    2021   13 av 13 enige
+    2022   13 av 13 enige
+    2023   13 av 13 enige
+    2024   12 av 13 — PO9: fasiten sier «lav», rapporten sier «moderat»
+
+Den ene uenige raden er nettopp den fasiten selv merker `utledet` og ikke
+`verifisert`, og `lusepress_mot_fasit.py` har allerede en seksjon 4b som
+kjører uten 2024 av den grunn. Raden er ikke rettet her — det er en
+endring i en fasitfil med egen proveniens, og den skal gjøres bevisst.
 
 ---
 
