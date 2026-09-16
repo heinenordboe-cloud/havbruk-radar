@@ -84,6 +84,7 @@ from typing import Any, Iterable
 import httpx
 
 from core.config import get
+from core.domene import UTTOMMENDE
 from core.contract import Observation, Source
 from sources import _http
 
@@ -282,6 +283,15 @@ class Romming(Source):
 
         Samme begrunnelse og samme form som `enhetsregisteret.parse()`.
         """
+        # Kroppen er UTTØMMENDE: ArcGIS-spørringen returnerer ALLE
+        # hendelser for året, så en melding som forsvinner er trukket og
+        # ikke fortiet. Se core/domene.py.
+        #
+        # SETTES FØR løkka, ikke inne i den. Et år uten rader ville ellers
+        # latt verdien fra forrige kall stå — og et domene som beskriver
+        # en annen periode enn radene er nøyaktig F6/F7-formen.
+        self.domene = UTTOMMENDE
+
         aar = observed_at[:4]
         for rad in raw or []:
             dato = _dato(rad.get("rommingsdato"))

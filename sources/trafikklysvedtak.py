@@ -134,8 +134,9 @@ Det som finnes er dokumentets eget metadatafelt:
 Ikrafttredelsen er valgt framfor kunngjøringsdatoen fordi den er det
 tidspunktet vedtaket VIRKER fra. For alle fem faller den sammen med
 fastsettelsesdatoen i FOR-nummeret; kunngjøringen ligger 0–22 dager
-etter, og den ytterste avstanden er 2026-runden. `_utgitt()` KREVER at de to faller sammen og setter
-`published_at` tom med en advarsel hvis de ikke gjør det — en
+etter, og den ytterste avstanden er 2026-runden. `_utgitt()` KREVER at
+de to faller sammen og setter `published_at` tom med en advarsel hvis de
+ikke gjør det — en
 ikrafttredelse som ligger langt fra fastsettelsen ville betydd en
 utsatt eller tilbakevirkende virkning, og da er «da kilden utga dette»
 et annet spørsmål enn feltet svarer på.
@@ -1398,6 +1399,25 @@ class Trafikklysvedtak(Source):
                 f"{runde}, men uttrekket ga null celler for den. "
                 f"FORSKRIFTER og uttrekket er uenige."
             )
+
+        # Hvilke par KROPPEN UTTALER SEG OM for denne runden. Erklært
+        # her, ikke utledet av det som yields under — se
+        # Source.domene og core/domene.py.
+        #
+        # At settet i dag er identisk med emisjonene er ikke et
+        # sammentreff, og det er heller ikke noe å bygge på: det følger
+        # av VAKTENE. `_krev_alle_omraader` feller uttrekket hvis § 3
+        # nevner et «Område N:» uten at en farge kom ut, og
+        # `_krev_alle_tabellrader` gjør det samme for hver
+        # «Produksjonsområde N» i § 4. Så lenge de står, er «omtalt» og
+        # «emittert» BEVIST like for denne kilden.
+        #
+        # Den dagen en forskrift skriver «Produksjonsområde 9: ingen
+        # justering», er de ikke like lenger — kroppen har omtalt PO9
+        # uten å gi en farge, og da skal domenet si det mens emisjonene
+        # ikke kan. Derfor står erklæringen her og ikke som en utledning.
+        self.domene = {(c.po, felt) for c in celler
+                       for felt in (F_FARGE, F_FARGE + LESEMAATE_SUFFIKS)}
 
         # Områdenavnet står bare i § 3-listene. En celle fra
         # § 4-tabellen har ingen, og arver den lista har for samme

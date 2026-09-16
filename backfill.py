@@ -380,7 +380,7 @@ def _arkivkopi(kilde, args) -> int:
             hoppet += 1
             continue
 
-        obs = runner.stempl(kilde.parse(rå, dato),
+        obs = runner.stempl(list(kilde.parse(rå, dato)),
                             source_version=kilde.version, raw_hash=raw_hash,
                             fetched_at=hentet_at, published_at=utgitt,
                             utvalg=getattr(kilde, "utvalg", None))
@@ -600,7 +600,7 @@ def _backfill_maaneder(kilde, args) -> int:
             continue
 
         try:
-            obs = runner.stempl(kilde.parse(rå, dato),
+            obs = runner.stempl(list(kilde.parse(rå, dato)),
                                 source_version=kilde.version,
                                 raw_hash=raw_hash, fetched_at=hentet_at,
                                 # LESES ETTER hent_alt(), som utvalget.
@@ -802,7 +802,7 @@ def _backfill_hendelser(kilde, args) -> int:
 
     for dato in perioder:
         obs = list(runner.stempl(
-            kilde.parse(rå, dato),
+            list(kilde.parse(rå, dato)),
             source_version=kilde.version, raw_hash=raw_hash,
             fetched_at=hentet_at, published_at=getattr(kilde, "published_at", "") or "",
             utvalg=getattr(kilde, "utvalg", None)))
@@ -1007,7 +1007,7 @@ def _backfill_overforinger(kilde, args) -> int:
             print(f"  {dato}: ligger skrevet fra før")
             continue
         obs = list(runner.stempl(
-            kilde.parse_overforinger(kropper, typer, dato),
+            list(kilde.parse_overforinger(kropper, typer, dato)),
             source_version=kilde.version, raw_hash="",
             fetched_at=dt.datetime.now(dt.timezone.utc).isoformat(),
             published_at="", utvalg=getattr(kilde, "utvalg", None)))
@@ -1166,7 +1166,7 @@ def _backfill_rapporter(kilde, args) -> int:
 
             try:
                 obs = runner.stempl(
-                    kilde.parse(rå, dato),
+                    list(kilde.parse(rå, dato)),
                     source_version=kilde.version, raw_hash=raw_hash,
                     fetched_at=hentet_at, published_at=utgitt,
                     utvalg=getattr(kilde, "utvalg", None))
@@ -1465,7 +1465,7 @@ def main() -> int:
         # proveniens enn en ukentlig og kan ikke svare på hva vi lette
         # etter (regel 1b-3). Kilden setter den i hent_uke(), som er
         # kallet over — derfor leses den her og ikke før løkka.
-        obs = runner.stempl(kilde.parse(rå, dato),
+        obs = runner.stempl(list(kilde.parse(rå, dato)),
                             source_version=kilde.version, raw_hash=raw_hash,
                             utvalg=getattr(kilde, "utvalg", None))
         if not obs:

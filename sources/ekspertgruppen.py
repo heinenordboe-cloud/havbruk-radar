@@ -2405,6 +2405,18 @@ class Ekspertgruppen(Source):
                 f"re-parse og ikke tapt historikk."
             )
 
+        # Hvilke par KROPPEN UTTALER SEG OM for dette året. Erklært av
+        # uttrekket, ikke utledet av det som yields under — se
+        # Source.domene og core/domene.py.
+        #
+        # Denne kilden er grunnen til at granulariteten er PAR og ikke
+        # entitet: 2021-rapporten tabellerer
+        # `metode_hi_virtuell_smolt_retning` for PO2 og ikke for PO6, og
+        # de to radene det ga var 2 av de 36 falske. Et domene på
+        # entitetsnivå ville latt dem stå.
+        self.domene = {(c.po, felt) for c in celler
+                       for felt in (c.felt, c.felt + SIKKERHET_SUFFIKS)}
+
         sett: set[tuple[str, str]] = set()
         for celle in celler:
             if (celle.po, celle.felt) in sett:

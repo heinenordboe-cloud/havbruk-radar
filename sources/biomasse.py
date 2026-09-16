@@ -236,6 +236,7 @@ from typing import Iterable
 import httpx
 
 from core.config import get
+from core.domene import UTTOMMENDE
 from core.contract import Observation, Source
 from sources import _http
 
@@ -702,6 +703,14 @@ class Biomasse(Source):
             art = (rad.get(KOL_ART) or "").strip()
             if art in arter:
                 arter[art] += _tall(rad.get(SUMFELT["beholdning_antall"]))
+
+        # Kroppen er UTTØMMENDE: biomassefila bærer hele serien i
+        # hver publisering, og hver (PO, felt) er med i hver måned.
+        # Derfor er et par som forsvinner en EKTE fjerning — en lokalitet
+        # omklassifisert ut av måneden — og ikke taushet. Målt
+        # 15.09.2026: 0 av 1809 revisjonsrader var taushet.
+        # Se core/domene.py.
+        self.domene = UTTOMMENDE
 
         # Nevneren for `andel_av_beholdning`. Summert over ALLE fjorten
         # entitetene, `uten_po` inkludert — det er hele poenget med
