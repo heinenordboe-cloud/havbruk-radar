@@ -1,0 +1,73 @@
+{# Grunnmalen. Alt som er FELLES for hver publisert side, og ingenting
+   som er design.
+
+   Ingen CSS-rammeverk, ingen webfonter, ingen JavaScript. Tallene skal
+   stå i kildekoden — en side der tallene tegnes av et skript er en side
+   som ikke kan siteres, ikke kan arkiveres av Wayback, og ikke kan leses
+   av noen som slår av JS. Se docs/VISNING.md: «Ingen CDN, ingen npm,
+   ingen server.»
+
+   CSS-en under er det minimum som skal til for at en tabell med tjue
+   kolonner er lesbar. Design kommer senere, og det er det ENESTE i denne
+   oppgaven som kan endres uten at lenker dør — se
+   docs/beslutninger/2026-09-16-url-struktur.md. #}
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ tittel }}</title>
+<meta name="description" content="{{ beskrivelse }}">
+{# schema.org/Dataset. Bygget i Python og dumpet som JSON, ikke skrevet
+   som mal — en håndskrevet JSON-mal med {{ }} i er en syntaksfeil som
+   venter på et navn med anførselstegn i. #}
+<script type="application/ld+json">{{ jsonld }}</script>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; line-height: 1.5;
+         max-width: 62rem; margin: 0 auto; padding: 1rem; }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 2rem; }
+  caption { text-align: left; font-weight: 600; padding: 0.5rem 0; }
+  th, td { border: 1px solid; padding: 0.25rem 0.5rem; text-align: left;
+           vertical-align: top; }
+  th[scope="col"] { position: sticky; top: 0; }
+  td.tall { text-align: right; font-variant-numeric: tabular-nums; }
+  .tabellramme { overflow-x: auto; }
+  footer { border-top: 1px solid; margin-top: 3rem; padding-top: 1rem;
+           font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+{% block innhold %}{% endblock %}
+</main>
+
+{# ATTRIBUSJONEN. Synlig for sluttbruker, på samme side som tallene.
+
+   BarentsWatch krever synlighet for sluttbruker; NLOD 2.0 godtar en
+   «Om»-side. Den strengeste plikten gjelder hele siden — se
+   docs/VISNING.md og docs/LISENSKJEDE.md merknad B. Å legge
+   NLOD-setningene på /om/ og lusesetningene her ville vært to
+   plasseringer å holde styr på der én holder.
+
+   Setningene er ORDRETT fra lisensgiverne og bygges av `KILDEVILKAAR`
+   i nettsted.py ut fra hvilke kilder siden faktisk bruker. En side som
+   bruker en kilde uten dokumentert vilkår rendres ikke i det hele
+   tatt. #}
+<footer>
+  <h2 id="kilder">Kilder og vilkår</h2>
+  <ul>
+    {% for setning in attribusjon %}
+    <li>{{ setning }}</li>
+    {% endfor %}
+  </ul>
+  <p>
+    Siden er bygget {{ bygget }} av snapshots i havbruk-radar.
+    Hver verdi bærer datoen den gjelder for. Tallene er gjengitt
+    uendret fra kildene; sammenstillingen er vår, og verken
+    Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch eller
+    Mattilsynet går god for den.
+  </p>
+</footer>
+</body>
+</html>

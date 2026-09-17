@@ -123,7 +123,19 @@ og det er samme argument som pinningen av `requirements.txt`.
 
 ## TODO — attribusjonen må stå synlig for sluttbruker
 
-**Ikke gjort. Blokkerer enhver publisert visning, ikke den interne.**
+**Gjort for den PUBLISERTE siden 16.09.2026, ikke for den interne.**
+
+`nettsted.py` bygger bunnteksten av `KILDEVILKAAR` ut fra hvilke kilder
+siden faktisk bruker, og en kilde uten dokumentert vilkår kaster
+`UbelagtKilde` i stedet for å rendre. Setningene står i den genererte
+HTML-en, ikke i en docstring — kravet er synlighet for den som LESER.
+Verifisert på `/lokalitet/31397/`, og håndhevet av
+`tests/test_nettsted.py`.
+
+`oversikt.html` — den interne visningen denne fila beskriver — har det
+fortsatt ikke, og kravet er fortsatt ikke utløst der: den er
+gitignorert og skrives til `HAVBRUK_DATA_DIR`. Resten av dette punktet
+gjelder den.
 
 BarentsWatch' API-vilkår (lest 12.09.2026) krever at attribusjonen er
 synlig for **sluttbrukeren**, ikke bare i et repo eller i en

@@ -1,0 +1,234 @@
+{# Lokalitetssiden. Fem tabeller, fem ankere, ingen design.
+
+   Ankernavnene er <kilde>-<hva> og kommer fra
+   docs/beslutninger/2026-09-16-url-struktur.md. De er utledet av
+   kildenavnet i data/raw/ og av feltvokabularet — ikke av rekkefølgen
+   på siden og ikke av overskriftsteksten. En ny tabell endrer ikke
+   noen av dem. #}
+{% extends "base.html.j2" %}
+
+{% block innhold %}
+<h1>Lokalitet {{ lok.loknr }} <span data-navn>{{ lok.navn }}</span></h1>
+
+<p>
+  {{ lok.kommune }} kommune, {{ lok.fylke }}.
+  {% if lok.po_kode %}Produksjonsområde {{ lok.po_kode }} — {{ lok.po_navn }}.{% endif %}
+  Registerdata fra snapshotet
+  <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.
+</p>
+
+{# ---------------------------------------------------- hva er dette #}
+<div class="tabellramme">
+<table id="akvakultur-register">
+  <caption>
+    Hva registeret sier om lokaliteten.
+    Kilde: Akvakulturregisteret, snapshot
+    <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Felt</th>
+      <th scope="col">Verdi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for felt, verdi in lok.register %}
+    <tr>
+      <th scope="row">{{ felt }}</th>
+      <td>{{ verdi }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ------------------------------------------------- hvem eier den nå #}
+<div class="tabellramme">
+<table id="eierskap-tillatelser">
+  <caption>
+    Hvem eier tillatelsene på lokaliteten nå.
+    {{ lok.tillatelser|length }} tillatelser, snapshot
+    <time datetime="{{ lok.eierskap_dato }}">{{ lok.eierskap_dato }}</time>.
+    «Tildelt» er da tillatelsen ble gitt første gang, og til hvem.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Tillatelse</th>
+      <th scope="col">Eier nå</th>
+      <th scope="col">Organisasjonsnummer</th>
+      <th scope="col">Type</th>
+      <th scope="col">Kapasitet</th>
+      <th scope="col">Tildelt</th>
+      <th scope="col">Tildelt til</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in lok.tillatelser %}
+    <tr>
+      <th scope="row">{{ t.nr }}</th>
+      <td class="eier">{{ t.eier_navn }}</td>
+      <td class="tall">{{ t.eier_orgnr }}</td>
+      <td>{{ t.type }}</td>
+      <td class="tall">{{ t.kapasitet }} {{ t.kapasitet_enhet }}</td>
+      <td>{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
+      <td class="eier">{{ t.tildelt_navn }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ------------------------------------------------------- siden når #}
+<div class="tabellramme">
+<table id="eierskap_historikk-overforinger">
+  <caption>
+    Journalførte overføringer av tillatelsene, eldst først.
+    {{ lok.overforinger|length }} overføringer.
+    <strong>Datoen er journalføringsdato, ikke bekreftet
+    overdragelsesdato</strong> — den skal leses som «senest da».
+    Serien skiller ikke konserninterne flyttinger fra ekte oppkjøp;
+    det lar seg ikke gjøre med offentlige data.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Journalført</th>
+      <th scope="col">Tillatelse</th>
+      <th scope="col">Til</th>
+      <th scope="col">Organisasjonsnummer</th>
+      <th scope="col">Nr. i rekka</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for o in lok.overforinger %}
+    <tr>
+      <td><time datetime="{{ o.dato }}">{{ o.dato }}</time></td>
+      <th scope="row">{{ o.tillatelse }}</th>
+      <td class="eier">{{ o.mottaker_navn }}</td>
+      <td class="tall">{{ o.mottaker_orgnr }}</td>
+      <td class="tall">{{ o.rekkefolge }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ------------------------------------------------------- lusetallene #}
+<div class="tabellramme">
+<table id="lusetall-uke">
+  <caption>
+    Voksne hunnlus per fisk, siste {{ lok.lus|length }} uker.
+    Serien vi har for lokaliteten dekker
+    <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
+    {{ lok.lus_uker }} uker; denne siden viser slutten av den.
+    Datoen er mandag i ISO-uka. Tallet hentes fire uker på etterskudd
+    fordi ferskere uker er ufullstendige.
+    <strong>«–» betyr at kilden ikke oppgir noe tall</strong> — ikke at
+    tallet var null. For denne lokaliteten er det {{ lok.lus_uten_tall }} av {{ lok.lus_uker }}
+    uker, og i alle sammen står «Rapportert: nei». Et anlegg som er
+    brakklagt teller ikke lus.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Uke</th>
+      <th scope="col">Dato</th>
+      <th scope="col">Voksne hunnlus</th>
+      <th scope="col">Rapportert</th>
+      <th scope="col">Laksefisk</th>
+      <th scope="col">Brakklagt</th>
+      <th scope="col">Medikamentell</th>
+      <th scope="col">Mekanisk</th>
+      <th scope="col">Rensefisk</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in lok.lus %}
+    <tr>
+      <th scope="row">{{ u.uke }}</th>
+      <td><time datetime="{{ u.dato }}">{{ u.dato }}</time></td>
+      <td class="tall">{{ u.voksne_hunnlus }}</td>
+      <td>{{ u.lus_er_rapportert }}</td>
+      <td>{{ u.har_laksefisk }}</td>
+      <td>{{ u.brakklagt }}</td>
+      <td>{{ u.har_medikamentell_behandling }}</td>
+      <td>{{ u.har_mekanisk_fjerning }}</td>
+      <td>{{ u.har_rensefisk }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ------------------------------------------------- hva har endret seg #}
+<div class="tabellramme">
+<table id="endringer-register">
+  <caption>
+    Hva som har endret seg i registrene om lokaliteten, nyest først.
+    {{ lok.endringer|length }} endringer.
+    Loggen dekker
+    {% for d in lok.dekning_fra %}{{ d.kilde }} fra
+    <time datetime="{{ d.fra }}">{{ d.fra }}</time>{% if not loop.last %},
+    {% endif %}{% endfor %} —
+    en endring som skjedde før det, har vi ikke sett skje.
+    Bare REGISTERENDRINGER: noen har fattet et vedtak eller rettet en
+    oppføring. Ukentlige måleserier står i sine egne tabeller og telles
+    ikke som endringer her; hvorfor står under.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Dato</th>
+      <th scope="col">Gjelder</th>
+      <th scope="col">Kilde</th>
+      <th scope="col">Felt</th>
+      <th scope="col">Fra</th>
+      <th scope="col">Til</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in lok.endringer %}
+    <tr>
+      <td><time datetime="{{ e.dato }}">{{ e.dato }}</time></td>
+      <td>{{ e.gjelder }}</td>
+      <td>{{ e.kilde }}</td>
+      <th scope="row">{{ e.felt }}</th>
+      <td>{{ e.fra }}</td>
+      <td>{{ e.til }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2 id="hva-teller-som-endring">Hva som telles som en endring her</h2>
+<p>
+  Tabellen over viser endringer i <strong>registeropplysninger</strong>:
+  hvilke tillatelser som ligger på lokaliteten, hvem som eier dem, hvilke
+  artsbegrensninger som gjelder. Det er opplysninger noen har fattet en
+  beslutning om, og datoen er datoen vi så beslutningen — ikke
+  nødvendigvis datoen den ble tatt.
+</p>
+<p>
+  <strong>Måleseriene telles ikke som endringer.</strong> Lusetall og
+  sjøtemperatur leverer et nytt tall hver uke, og hvert nye tall er en
+  rad i changeloggen vår. For denne lokaliteten er det
+  {{ lok.maaleserie_rader }} slike rader mot
+  {{ lok.endringer|length }} registerendringer. Tas de med, drukner det
+  som faktisk er en hendelse i noe som bare er neste måling. Lusetallene
+  står som en serie i sin egen tabell, som er formen de hører hjemme i.
+</p>
+<p>
+  <strong>En verdi som svinger fram og tilbake vises som flere rader.</strong>
+  {{ lok.navn }} har <code>artsbegrensninger_antall</code> som har gått
+  3&nbsp;→&nbsp;0&nbsp;→&nbsp;3&nbsp;→&nbsp;0 i løpet av tre uker. Vi slår
+  dem ikke sammen til «ingen endring». Å gjøre det ville vært en tolkning
+  av at svingningen er støy, og det vet vi ikke — det kan like gjerne
+  være en oppføring som rettes fram og tilbake.
+</p>
+<p>
+  <strong>To ting filtreres bort, og begge fordi de ikke er hendelser i
+  sjøen.</strong> En <em>utvalgsutvidelse</em> er rader som dukker opp
+  fordi vi begynte å hente noe vi ikke hentet før. En <em>revisjon</em>
+  er at kilden har ombestemt seg om et tidspunkt den allerede hadde
+  uttalt seg om. I begge tilfeller står verden stille og det er vi eller
+  kilden som har flyttet oss.
+</p>
+{% endblock %}

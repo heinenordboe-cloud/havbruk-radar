@@ -291,9 +291,13 @@ Rekkefølgen er den samme som alvorlighetsgraden:
 
 1. **`ekspertgruppen` er UBELAGT.** Avklar med HI/NINA før en visning
    lener seg på rapportene. Eneste gjenstående hull i kjeden.
-2. **De to BarentsWatch-setningene må stå synlig for sluttbruker**, og
-   Brregs NLOD-setning må med der Enhetsregisteret vises. Se TODO-en i
-   `docs/VISNING.md`.
+2. ~~**De to BarentsWatch-setningene må stå synlig for sluttbruker**, og
+   Brregs NLOD-setning må med der Enhetsregisteret vises.~~ **Gjort
+   16.09.2026** for den publiserte siden: `nettsted.py` bygger
+   bunnteksten av denne tabellen, per kilde siden faktisk bruker, og
+   nekter å rendre en side som lener seg på en UBELAGT kilde. Den
+   interne `oversikt.html` har det fortsatt ikke, og kravet er ikke
+   utløst der. Se TODO-en i `docs/VISNING.md`.
 3. **Registrering hos BarentsWatch** hvis bruken blir kommersiell.
 
 Lukket 14.09.2026: Brregs ordrette attribusjonssetning, som sto som
