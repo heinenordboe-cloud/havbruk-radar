@@ -119,6 +119,71 @@ class Source:
     enabled: bool = True
     version: str = "1"
 
+    # Setningene lisensgiveren krever, ORDRETT, der kildens tall vises.
+    #
+    # ## Hvorfor den bor på kilden og ikke hos den som publiserer
+    #
+    # Vilkåret er en egenskap ved kilden på linje med endepunktet og
+    # feltvalget. Lå lista hos publiseringsleddet, ville en ny kilde
+    # kunne legges til uten at attribusjonen fulgte med — og den
+    # manglende setningen ville vist seg først den dagen noen publiserte,
+    # altså for sent. Samme form som `utvalg`: verdien settes der den er
+    # kjent, ikke der den brukes.
+    #
+    # Dette er den femte utgaven av samme resonnement i denne fila.
+    # `utvalg`, `published_at`, `domene` og `startdatofelt` ligger alle på
+    # kilden fordi kilden er den eneste som VET, og fordi et andre sted å
+    # slå det opp er et sted de to kan svare ulikt (F6, F7, F8).
+    #
+    # ## TO tilstander, og den tomme tuppelen er FORBUDT
+    #
+    #   None                 UBELAGT — kilden sier ingenting
+    #   ("setning", ...)     dette kreves, ordrett
+    #   ()                   ugyldig, kaster
+    #
+    # `utvalg` har tre tilstander fordi «vi ba om alt» er en meningsfull
+    # påstand. Her er den tredje ikke sluppet inn, og det er et bevisst
+    # valg av hvilken vei feilen skal peke: `()` og `None` er begge usanne
+    # i Python, og en kilde som ved et uhell fikk `()` ville publisert
+    # uten attribusjon i stillhet. `None` stopper publiseringen.
+    #
+    # En kilde som faktisk ikke krever navngivelse — CC0, offentlig
+    # eiendom — finnes ikke i repoet i dag. Den dagen den kommer, er den
+    # tredje tilstanden en kontraktsendring med et beslutningsnotat, ikke
+    # en tom tuppel noen skrev. `()` er reservert for det, ikke ledig.
+    #
+    # ## UBELAGT er ikke det samme som fritt
+    #
+    # `None` betyr at vilkåret er lett etter og ikke funnet, eller at
+    # ingen har lett. Begge deler er «vi vet ikke». En UBELAGT kilde kan
+    # brukes i analyse og dokumentasjon; den skal ikke bære en publisert
+    # visning. Se docs/LISENSKJEDE.md og
+    # docs/beslutninger/2026-09-12-lisenskjeden.md.
+    #
+    # `core/` håndhever ikke den regelen — det gjør den som publiserer
+    # (`nettsted.py`). Kjernen sier hva som er erklært; hva det får lov
+    # til å bety er publiseringsleddets sak, fordi grensen går ulikt for
+    # analyse og for publisering.
+    attribusjon: tuple[str, ...] | None = None
+
+    # Andre kildenavn denne kilden SKRIVER rader under.
+    #
+    # `eierskap` skriver både `eierskap` (ukentlig, hvem eier hva nå) og
+    # `eierskap_historikk` (backfill, journalførte overføringer). Det er
+    # to serier med helt ulike felter og kadens — se `HISTORIKK_KILDE` i
+    # sources/eierskap.py for hvorfor de ikke er én.
+    #
+    # Uten denne er navnerommet i `data/raw/` STØRRE enn navnerommet
+    # `registry.discover()` kjenner, og et oppslag fra kildenavn til
+    # kilde er da ikke totalt. Det merkes ikke før noen slår opp
+    # `eierskap_historikk` og får ingenting — og for `attribusjon` ville
+    # «ingenting» betydd UBELAGT, altså en side som nekter å bygge av
+    # feil grunn.
+    #
+    # Aliasene arver kildens attribusjon. Samme lisensgiver, samme
+    # vilkår: det er den samme tjenesten som svarer.
+    skriver_ogsaa: tuple[str, ...] = ()
+
     # Ting kilden vil si fra om uten å felle seg selv.
     #
     # Noen feil er for alvorlige til å ties i hjel, men for små til at
@@ -303,3 +368,71 @@ class Source:
         innsamlingsløypa, ikke bare for kildens egen parse().
         """
         return kjoredato
+
+
+def erklaert_attribusjon(kilde: "Source") -> tuple[str, ...] | None:
+    """Kildens attribusjon, validert. `None` = UBELAGT.
+
+    Validerer framfor å stole på deklarasjonen, av samme grunn som
+    `utvalg.normaliser()` gjør det: feltet settes av en kildeforfatter
+    som skriver én fil og aldri leser denne, og en feilform her kommer
+    ikke til syne før noen publiserer.
+
+    De tre feilformene som stoppes:
+
+      * `()` — se `Source.attribusjon`. Den tomme tuppelen er reservert
+        for en framtidig CC0-tilstand, ikke ledig som «ingen krav».
+      * en naken streng. `attribusjon = "Kilde: X"` er den nærliggende
+        skrivefeilen, og den ville iterert som enkelttegn — en
+        bunntekst med 13 punkter på én bokstav hver.
+      * en tom setning i lista. En setning som ikke sier noe er ikke en
+        attribusjon, og den ville stått som et tomt punktmerke.
+    """
+    erklaert = getattr(kilde, "attribusjon", None)
+    if erklaert is None:
+        return None
+
+    if isinstance(erklaert, (str, bytes)):
+        raise ValueError(
+            f"{kilde.name}: attribusjon er en streng, ikke en sekvens av "
+            f"setninger. Skriv ('{erklaert}',) med komma — uten den ville "
+            f"lista iterert som enkelttegn.")
+
+    setninger = tuple(str(s) for s in erklaert)
+    if not setninger:
+        raise ValueError(
+            f"{kilde.name}: attribusjon er tom. Tom betyr ikke «ingen krav» "
+            f"— det skrives som None (UBELAGT), og «krever ingen "
+            f"navngivelse» er en kontraktsendring med et beslutningsnotat. "
+            f"Se Source.attribusjon.")
+    if any(not s.strip() for s in setninger):
+        raise ValueError(
+            f"{kilde.name}: attribusjon inneholder en tom setning.")
+    return setninger
+
+
+def attribusjon_per_kilde(kilder: "Iterable[Source]") -> dict[str, tuple[str, ...] | None]:
+    """{kildenavn: setninger eller None} for alle navn kildene SKRIVER under.
+
+    Indeksen er på NAVN og ikke på klasse, fordi det er navnet som står i
+    `data/raw/<kilde>/` og i changeloggens `source`-kolonne — det er den
+    strengen den som publiserer har i hånda.
+
+    `skriver_ogsaa` er med i indeksen, og aliasene arver kildens
+    attribusjon. Uten det ville `eierskap_historikk` slått opp til
+    ingenting, og ingenting leses som UBELAGT.
+
+    Et navn som kolliderer er en feil og ikke en sammenslåing: to kilder
+    som skriver under samme navn skriver i den samme mappa, og da er det
+    ikke attribusjonen som er problemet.
+    """
+    ut: dict[str, tuple[str, ...] | None] = {}
+    for kilde in kilder:
+        setninger = erklaert_attribusjon(kilde)
+        for navn in (kilde.name, *getattr(kilde, "skriver_ogsaa", ())):
+            if navn in ut:
+                raise ValueError(
+                    f"to kilder skriver under navnet {navn!r}. Navnet er "
+                    f"mappa i data/raw/ — de ville skrevet oppå hverandre.")
+            ut[str(navn)] = setninger
+    return ut
