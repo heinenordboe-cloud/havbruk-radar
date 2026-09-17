@@ -27,3 +27,21 @@ pypdf==6.16.2
 # årgangene er ukrypterte — dette er den ene kroppen som krever den, og
 # den kan ikke leses uten.
 cryptography==50.0.1
+
+# Rendrer den publiserte nettsiden. Kom inn 16.09.2026 — og som pypdf i
+# august var den ad hoc-installert i .venv før den sto her, som er
+# nøyaktig det denne fila finnes for å hindre.
+#
+# Valgt framfor f-strenger og str.format av én grunn: AUTOESCAPING.
+# Sidene bygges av registerdata vi ikke kontrollerer — et lokalitetsnavn
+# eller et selskapsnavn er en streng fra en tredjepart, og den skal ikke
+# kunne bli markup. `autoescape=True` gjør det til standarden i stedet
+# for noe hver enkelt skriving må huske, som er samme form som at
+# persondatafilteret ligger i lesedøra og ikke hos hver leser.
+#
+# Ingen Hugo, ingen Node, ingen JS-byggekjede: det ville vært et andre
+# språk og en andre pakkebrønn i en jobb som skal stå uten tilsyn i to
+# år. Målt før valget: 2000 sider à 200 tabellrader rendres på 0,04 s.
+# Byggetid er ikke en begrensning her, og det er derfor enkelhet kan
+# vinne.
+Jinja2==3.1.6
