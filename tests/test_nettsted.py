@@ -117,6 +117,23 @@ def test_alias_arver_kildens_attribusjon():
 
 # ---- markupen ---------------------------------------------------------
 
+def _uke_raa(**overstyr) -> dict:
+    """Én uke slik `_lusserie()` returnerer den: kildens egne verdier.
+
+    `True`/`False` og ikke `ja`/`nei`, tom streng og ikke «–». Skillet
+    er hele grunnen til at `til_visning()` finnes — CSV-en bærer det
+    kilden sa, HTML-en det et menneske leser."""
+    uke = {
+        "dato": "2026-08-10", "iso_aar": "2026", "iso_uke": "33",
+        "voksne_hunnlus": "0.0045454544", "lus_er_rapportert": "True",
+        "har_laksefisk": "True", "brakklagt": "False",
+        "har_medikamentell_behandling": "False",
+        "har_mekanisk_fjerning": "False", "har_rensefisk": "False",
+    }
+    uke.update(overstyr)
+    return uke
+
+
 def _side(**overstyr) -> str:
     """En rendret lokalitetsside av konstruerte data.
 
@@ -141,15 +158,15 @@ def _side(**overstyr) -> str:
             "mottaker_navn": "SALMAR FARMING AS",
             "mottaker_orgnr": "966840528", "rekkefolge": "1",
         }],
-        "lus": [{
-            "uke": "2026 uke 33", "dato": "2026-08-10",
-            "voksne_hunnlus": "0.0045454544", "lus_er_rapportert": "ja",
-            "har_laksefisk": "ja", "brakklagt": "nei",
-            "har_medikamentell_behandling": "nei",
-            "har_mekanisk_fjerning": "nei", "har_rensefisk": "nei",
-        }],
+        # RÅSERIEN, slik `_lusserie()` gir den: kildens egne verdier og
+        # tom streng for fravær. `lus` er den samme raden kjørt gjennom
+        # `til_visning()`, og at de to bygges av SAMME liste her er
+        # poenget — CSV-en og tabellen kan ikke bli uenige.
+        "lus_serie": [_uke_raa()],
+        "lus": nettsted.til_visning([_uke_raa()]),
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207,
+        "csv_filnavn": nettsted.CSV_FILNAVN,
         "endringer": [{
             "dato": "2026-08-31", "gjelder": "lokaliteten",
             "kilde": "akvakultur", "felt": "tillatelser_antall",
@@ -184,11 +201,10 @@ def test_malen_krever_alle_feltene_bygg_lokalitet_lager():
     # `voksne_hunnlus` skal felle malen og ikke gi en tom celle. Det er
     # nettopp denne som fanget at 207 av OTERNESETs 764 uker ikke har
     # feltet i det hele tatt.
+    mangler = {k: v for k, v in nettsted.til_visning([_uke_raa()])[0].items()
+               if k != "voksne_hunnlus"}
     with pytest.raises(UndefinedError):
-        _side(lus=[{"uke": "2026 uke 29", "dato": "2026-07-13",
-                    "lus_er_rapportert": "nei", "har_laksefisk": "ja",
-                    "brakklagt": "ja", "har_medikamentell_behandling": "nei",
-                    "har_mekanisk_fjerning": "nei", "har_rensefisk": "nei"}])
+        _side(lus=[mangler])
 
 
 ANKERE = {
@@ -370,15 +386,19 @@ def test_manglende_lusetall_er_ikke_null():
     En 0 i cellen ville vært en påstand kilden ikke har gjort; en tom
     celle ville latt leseren gjette."""
     assert nettsted.INGEN_VERDI not in ("0", "", None)
-    html = _side(lus=[{
-        "uke": "2026 uke 29", "dato": "2026-07-13",
-        "voksne_hunnlus": nettsted.INGEN_VERDI, "lus_er_rapportert": "nei",
-        "har_laksefisk": "ja", "brakklagt": "ja",
-        "har_medikamentell_behandling": "nei",
-        "har_mekanisk_fjerning": "nei", "har_rensefisk": "nei",
-    }])
+
+    # Gjennom `til_visning()` og ikke med ferdigrendrede verdier: det er
+    # oversettelsen som skal prøves, ikke om malen kan skrive ut en
+    # streng den fikk servert.
+    brakklagt = _uke_raa(voksne_hunnlus="", lus_er_rapportert="False",
+                         brakklagt="True")
+    html = _side(lus_serie=[brakklagt],
+                 lus=nettsted.til_visning([brakklagt]))
+
     assert f'<td class="tall">{nettsted.INGEN_VERDI}</td>' in html
     assert '<td class="tall">0</td>' not in html
+    # Og raden bærer fortsatt det som GJØR fraværet lesbart.
+    assert "<td>nei</td>" in html
 
 
 def test_janei_har_ingen_standardverdi():
@@ -386,6 +406,166 @@ def test_janei_har_ingen_standardverdi():
     fallback: en verdi kilden ikke har sendt skal ikke bli til «nei»."""
     assert nettsted.JANEI == {"True": "ja", "False": "nei"}
     assert nettsted.JANEI.get("kanskje") is None
+
+
+# ---- den siterbare CSV-en ---------------------------------------------
+#
+# Tabellen viser 52 uker, serien er 764. Hele den skal kunne siteres, og
+# da må den ligge på en adresse noen kan lenke til. Se
+# docs/beslutninger/2026-09-16-url-struktur.md punkt 8.
+
+
+def _csv(**overstyr) -> str:
+    lok = {
+        "loknr": "31397", "navn": "OTERNESET", "kommune": "HARSTAD",
+        "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
+        "lus_uker": 764, "lus_uten_tall": 207,
+        "lus_serie": [_uke_raa()],
+    }
+    lok.update(overstyr)
+    return nettsted.csv_tekst(lok, nettsted.attribusjon(["lusetall"]),
+                              "2026-09-16")
+
+
+def _datarader(tekst: str) -> list[str]:
+    return [l for l in tekst.splitlines() if l and not l.startswith("#")]
+
+
+def test_csv_bærer_attribusjonen_i_fila():
+    """Ikke i en sidecar. En sidecar er borte i det øyeblikket noen
+    laster ned CSV-en alene, som er nøyaktig det man gjør med en CSV —
+    og BarentsWatch krever synlighet for SLUTTBRUKER, ikke for den som
+    fant begge filene."""
+    tekst = _csv()
+    assert "# Data levert av BarentsWatch" in tekst
+    assert ("# Opplysninger om lakselus, rensefisk og medikamentbruk er "
+            "hentet fra Mattilsynet.") in tekst
+
+
+def test_csv_attribusjonen_hentes_fra_kilden():
+    """Samme indeks som bunnteksten på siden bruker, så de to kan ikke
+    bli uenige. Skrevet av her, ville CSV-en blitt stående med gammel
+    ordlyd den dagen vilkåret endres."""
+    for setning in nettsted.attribusjon(["lusetall"]):
+        assert f"# {setning}" in _csv()
+
+
+def test_csv_bærer_BARE_lusetallkildens_attribusjon():
+    """Fila inneholder bare lusetall. Å legge alle fire kildenes
+    setninger i hodet ville vært en påstand om at Fiskeridirektoratet har
+    levert noe her."""
+    tekst = _csv()
+    assert "Kilde: Fiskeridirektoratet" not in tekst
+    assert "Brønnøysundregistrene" not in tekst
+
+
+def test_csv_sier_hvordan_den_skal_leses():
+    """RFC 4180 kjenner ingen kommentarsyntaks. En leser som ikke hopper
+    over `#`-linjene får den første som kolonneoverskrifter — og derfor
+    står lesemåten i fila og ikke bare i et notat."""
+    assert 'comment_prefix="#"' in _csv()
+
+
+def test_csv_har_hele_serien_ikke_utsnittet():
+    """Hele poenget. Tabellen viser slutten av serien; fila er serien."""
+    uker = [_uke_raa(dato=f"2026-0{m}-01", iso_uke=f"{m:02d}")
+            for m in range(1, 10)]
+    rader = _datarader(_csv(lus_serie=uker, lus_uker=len(uker)))
+    assert len(rader) == 1 + len(uker)          # overskrift + radene
+
+
+def test_csv_har_kildens_egne_verdier_uoversatt():
+    """BarentsWatch-vilkåret sier uttrykkelig at datainnholdet ikke skal
+    endres. `ja`/`nei` og «–» er VÅR lesning, og de hører hjemme i
+    HTML-en."""
+    rad = _datarader(_csv())[1]
+    assert "True" in rad and "ja" not in rad
+    assert nettsted.INGEN_VERDI not in rad
+
+
+def test_csv_lar_fravaer_vaere_tomt_og_ikke_null():
+    """Samme skille som i HTML, uttrykt slik en parser leser det: en tom
+    celle er ikke tallet 0. `lus_er_rapportert` på samme rad er det som
+    gjør fraværet lesbart."""
+    tomt = _uke_raa(voksne_hunnlus="", lus_er_rapportert="False")
+    rad = _datarader(_csv(lus_serie=[tomt]))[1]
+    felter = rad.split(",")
+    kolonner = list(nettsted.CSV_KOLONNER)
+    assert felter[kolonner.index("voksne_hunnlus")] == ""
+    assert felter[kolonner.index("lus_er_rapportert")] == "False"
+
+
+def test_csv_kan_leses_av_en_vanlig_parser():
+    """Prøven som teller: går fila gjennom `csv`-modulen med
+    kommentarlinjene hoppet over, og kommer tallene ut igjen?"""
+    import csv as csvmodul
+
+    tekst = _csv()
+    rader = list(csvmodul.DictReader(_datarader(tekst)))
+    assert len(rader) == 1
+    assert rader[0]["lokalitetsnummer"] == "31397"
+    assert rader[0]["voksne_hunnlus"] == "0.0045454544"
+    assert rader[0]["iso_aar"] == "2026" and rader[0]["iso_uke"] == "33"
+
+
+def test_csv_kolonnene_er_en_kontrakt():
+    """Kolonnenavn er en kontrakt mot enhver som har lastet ned fila.
+    Endres ett av dem, er det en brutt lesning for alle som har skrevet
+    et skript mot den — samme klasse løfte som ankerne."""
+    assert nettsted.CSV_KOLONNER == (
+        "lokalitetsnummer", "dato", "iso_aar", "iso_uke",
+        "voksne_hunnlus", "lus_er_rapportert", "har_laksefisk", "brakklagt",
+        "har_medikamentell_behandling", "har_mekanisk_fjerning",
+        "har_rensefisk")
+
+
+def test_csv_filnavnet_staar_ett_sted():
+    """Navnet står på disk, i lenka fra sida og i `contentUrl`. Tre
+    strenger som skal si det samme er formen F6 og F7 hadde."""
+    html = _side()
+    assert f'href="{nettsted.CSV_FILNAVN}"' in html
+    assert _jsonld_av(html)["distribution"][0]["contentUrl"] == \
+        nettsted.CSV_FILNAVN
+
+
+def test_jsonld_distribution_peker_paa_hele_serien():
+    d = _jsonld_av(_side())
+    [dist] = d["distribution"]
+    assert dist["@type"] == "DataDownload"
+    assert dist["encodingFormat"] == "text/csv"
+    assert dist["creditText"] == "Data levert av BarentsWatch"
+    assert "764 uker" in dist["description"]
+
+
+def test_jsonld_contentUrl_er_relativ():
+    """Domenet finnes ikke ennå. JSON-LD løser relative IRI-er mot
+    dokumentets egen adresse, så «lusetall.csv» peker riktig uansett
+    hvilket vertsnavn siden havner på — og et påfunnet domene ville vært
+    en påstand om noe som ikke er avgjort."""
+    url = _jsonld_av(_side())["distribution"][0]["contentUrl"]
+    assert not url.startswith(("http://", "https://", "/"))
+
+
+def test_siden_lenker_til_csv_en():
+    """Fila er ikke siterbar hvis ingen finner den."""
+    html = _side()
+    assert f'<a href="{nettsted.CSV_FILNAVN}">' in html
+    assert "764 uker" in html
+
+
+def test_serien_og_tabellen_kommer_fra_samme_liste():
+    """Det som gjør at CSV-en og tabellen ikke kan bli uenige.
+
+    `bygg_lokalitet()` legger hele serien i `lus_serie` og viser slutten
+    av den i `lus`. Leste de to hver sin kilde, kunne de sagt forskjellig
+    om samme uke — og da ville fila og siden vært to påstander."""
+    uker = [_uke_raa(dato=f"2026-0{m}-01", voksne_hunnlus=f"0.{m}")
+            for m in range(1, 5)]
+    vist = nettsted.til_visning(list(reversed(uker))[:2])
+    html = _side(lus_serie=uker, lus=vist, lus_uker=len(uker))
+
+    assert "0.4" in html and "0.3" in html      # de to viste ukene
+    assert ">0.1</td>" not in html              # resten står i fila
 
 
 # ---- hva som telles som en endring ------------------------------------

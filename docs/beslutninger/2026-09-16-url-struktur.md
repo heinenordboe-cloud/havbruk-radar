@@ -241,10 +241,67 @@ hvem som finnes, selv om hver side skulle være tom. Se
   `/en/` som legges til og norsk som blir stående på roten — ellers
   flyttes hver eksisterende side.
 - **Paginering av lange serier.** Lusetallserien for OTERNESET er 764
-  uker. Hvordan den deles opp er et designspørsmål, men det er ikke et
-  URL-spørsmål før noen vil lenke til en bit av den. Skjer det, er svaret
-  en anker-fragment eller `/lokalitet/31397/lusetall/` — en UTVIDELSE av
-  strukturen, ikke en endring av den.
+  uker. Hvordan den deles opp i VISNINGEN er et designspørsmål. Selve
+  serien er lagt ut som CSV — se punkt 8, lagt til 17.09.2026.
+
+## 8. Datafiler: `/lokalitet/<nr>/<kilde>.csv`
+
+Lagt til 17.09.2026, da hele lusetallserien ble lagt ut som siterbar
+fil. Tabellen på siden viser 52 uker; serien er 764, og en side som bare
+viser et utsnitt gjør resten usiterbar.
+
+    /lokalitet/31397/lusetall.csv
+
+### Hvorfor i entitetens EGEN mappe
+
+Alternativet var et eget datanavnerom — `/data/lusetall/31397.csv`. Det
+ble forkastet fordi det gir samme entitet to hjem, og da er koblingen
+mellom dem en konvensjon noen må huske. Her arver fila identiteten fra
+stien den ligger i, og den stien er allerede låst.
+
+Følgen er at **mappa er selvstendig**: kopierer noen `/lokalitet/31397/`,
+følger både siden og tallene med. Det er samme egenskap som gjør at
+attribusjonen ligger i CSV-ens kommentarhode og ikke i en sidecar — en
+ting som bare virker så lenge to deler holder sammen, svikter stille.
+
+### Filendelsen er tillatt HER, og det motsier ikke punkt 3
+
+Punkt 3 sier «ingen filendelse», med den begrunnelsen at `.html` binder
+adressen til et presentasjonsformat: skal siden en dag serveres som noe
+annet, er endelsen en løgn som ikke lar seg rette uten å bryte lenken.
+
+For en datafil er det motsatt. **Formatet ER ressursen.** Den som siterer
+`lusetall.csv` siterer en bestemt serialisering med bestemte kolonner, og
+endelsen er en opplysning om hva de får — ikke en tilfeldighet ved hvordan
+vi serverer den. Kommer det en Parquet-utgave en dag, er den
+`lusetall.parquet` ved siden av, ikke en innholdsforhandling på samme
+adresse.
+
+Skillet er: `.html` sier hvordan noe VISES, `.csv` sier hva noe ER.
+
+### `<kilde>.csv`, og hvorfor ikke `data.csv`
+
+Filnavnet er kildenavnet slik det står i `data/raw/<kilde>/` — samme
+vokabular som tabellankerne bruker (punkt 5). En lokalitet kan få flere
+serier: `sjotemperatur.csv` er den nærliggende neste, og `biomasselag.csv`
+etter det. `data.csv` ville vært ledig én gang og deretter i veien.
+
+Ankeret og fila er dermed søsken:
+
+    /lokalitet/31397/#lusetall-uke      tabellen på siden
+    /lokalitet/31397/lusetall.csv       hele serien
+
+### Hva som IKKE ble gjort
+
+- **Ingen versjon i navnet.** `lusetall-2026-09-17.csv` ville gitt en ny
+  adresse hver uke, og da er ingen av dem verdt å sitere — samme
+  begrunnelse som at det ikke er dato i stien. Fila er den ferskeste
+  serien; hvilket snapshot den er bygget fra står i kommentarhodet.
+- **Ingen `?format=csv`.** Punkt 3 gjelder: en parameter gjør identiteten
+  til et argument, og en statisk fil har ingenting som leser den.
+- **Ingen innholdsforhandling.** `Accept: text/csv` på sideadressen ville
+  gitt samme URL to representasjoner, og en sitering kunne ikke sagt
+  hvilken.
 
 ## Ville snudd det
 
@@ -264,6 +321,12 @@ hvem som finnes, selv om hver side skulle være tom. Se
   bestå ved siden av, blir `/produksjonsomrade/<nr>/` et historisk
   navnerom. Da skal det bli stående og si at det er historisk — ikke
   fjernes, og ikke gjenbrukes.
+
+- **At datafilene blir mange nok til å trenge sitt eget hjem.** Én CSV
+  per lokalitet per kilde er ryddig; tjue er en mappe man ikke ser
+  skogen for. Da er svaret en underkatalog — `/lokalitet/31397/data/` —
+  og de eksisterende filene blir stående der de er. En sti gjenbrukes
+  ikke, men den kan få naboer.
 
 **Ville IKKE snudd det:** at en navneslug ville sett penere ut i en
 lenkeforhåndsvisning. Det er et designargument mot en

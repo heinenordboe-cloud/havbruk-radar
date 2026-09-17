@@ -372,6 +372,155 @@ def test_personeksponert_er_null_naar_doren_virker(snapshotmappe):
     assert vakt.personeksponerte() == {}
 
 
+# ---- CSV: kolonneoverskriften ER merkingen ---------------------------
+#
+# En .csv ved siden av sida er ikke mindre publisert enn HTML-en — den er
+# verre, fordi den er laget for å lastes ned og leve videre. Fra
+# 16.09.2026 ligger hele lusetallserien der, og vakten må se INN i den.
+
+
+def _csv(*rader: str) -> str:
+    return "\n".join(rader) + "\n"
+
+
+def test_navn_i_navnekolonne_felles(lister):
+    """Prøven som IKKE fantes før 16.09.2026.
+
+    `ukjent_navn` leter etter en HTML-merking (`data-navn`,
+    `class="eier"`), og en CSV har ingen. Målt på en konstruert fil: et
+    navn i en `navn`-kolonne ga null funn. I en CSV er
+    KOLONNEOVERSKRIFTEN merkingen — generatorens egen, fra det samme
+    feltvokabularet."""
+    orgnr, navn = lister
+    tekst = _csv("navn,kommune", "Kari Nordmann,BODØ")
+    funn = vakt.gransk_csv(tekst, orgnr, navn, "x.csv")
+    assert [f.slag for f in funn] == ["ukjent_navn"]
+    assert "Kari" not in str(funn[0]) and "Nordmann" not in str(funn[0])
+
+
+def test_kjent_navn_i_navnekolonne_felles_ikke(lister):
+    orgnr, navn = lister
+    tekst = _csv("navn,kommune", "Testlaks AS,BODØ")
+    assert vakt.gransk_csv(tekst, orgnr, navn | {"Testlaks AS"}, "x.csv") == []
+
+
+def test_orgnummer_i_csv_celle_felles(lister):
+    """MÅLT retting 16.09.2026.
+
+    `NI_SIFFER` krever at tallet ikke har komma på noen av sidene —
+    regelen ble satt for HTML, der et komma betyr desimaltall. I en CSV
+    er kommaet DELIMITEREN, så `999888777,Kari` ga null funn. Et
+    orgnummer i en CSV-kolonne var usynlig for vakten, i nøyaktig den
+    filtypen som er laget for å lastes ned."""
+    orgnr, navn = lister
+    tekst = _csv("orgnr,navn", "999888777,Testlaks AS")
+    funn = vakt.gransk_csv(tekst, orgnr, navn | {"Testlaks AS"}, "x.csv")
+    assert [f.slag for f in funn] == ["ukjent_orgnr"]
+    assert funn[0].utdrag == "…8777"
+
+
+def test_desimaltall_i_csv_celle_felles_ikke(lister):
+    """Og den andre halvdelen: rettingen skal ikke gjeninnføre den
+    falske alarmen den erstattet. «96697320.109» er biomasse i kilo."""
+    orgnr, navn = lister
+    tekst = _csv("loknr,biomasse", "31397,96697320.109")
+    assert vakt.gransk_csv(tekst, orgnr, navn, "x.csv") == []
+
+
+def test_personform_leses_av_kolonnen_og_ikke_av_teksten(lister):
+    """I en CSV ligger overskriften en hel rad fra verdien, og
+    nabokolonnen ett tegn unna. Tekstvinduet HTML-prøven bruker treffer
+    derfor feil i begge retninger.
+
+    `kapasitet_enhet: DA` er dekar. `organisasjonsform: ENK` er en
+    person."""
+    orgnr, navn = lister
+    tekst = _csv("organisasjonsform,kapasitet_enhet",
+                 "AS,DA")
+    assert vakt.gransk_csv(tekst, orgnr, navn, "x.csv") == []
+
+    tekst = _csv("organisasjonsform,kapasitet_enhet", "ENK,DA")
+    funn = vakt.gransk_csv(tekst, orgnr, navn, "x.csv")
+    assert [f.slag for f in funn] == ["personform"]
+    assert funn[0].utdrag == "['ENK']"
+
+
+def test_personform_i_en_DA_kolonne_felles(lister):
+    """Og DA felles når den står i formkolonnen, der den betyr «delt
+    ansvar» og ikke dekar."""
+    orgnr, navn = lister
+    funn = vakt.gransk_csv(_csv("organisasjonsform", "DA"), orgnr, navn, "x.csv")
+    assert [f.slag for f in funn] == ["personform"]
+
+
+def test_sektorkolonnen_felles_ogsaa(lister):
+    """Det andre leddet i personprøven virker også i en CSV. En form
+    ingen har ført opp stoppes av sektoren — se core/persondata.py."""
+    orgnr, navn = lister
+    tekst = _csv("organisasjonsform,institusjonell_sektorkode", "ZZZ,2300")
+    funn = vakt.gransk_csv(tekst, orgnr, navn, "x.csv")
+    assert [f.slag for f in funn] == ["personform"]
+
+
+def test_kommentarhodet_granskes_som_tekst(lister):
+    """Vår egen CSV bærer attribusjonen i `#`-linjer. En annen
+    generators kan bære hva som helst."""
+    orgnr, navn = lister
+    tekst = _csv("# organisasjonsform ENK", "dato,verdi", "2026-01-01,1")
+    funn = vakt.gransk_csv(tekst, orgnr, navn, "x.csv")
+    assert [f.slag for f in funn] == ["personform"]
+
+
+def test_samme_navn_i_mange_rader_gir_ETT_funn(lister):
+    """En CSV med 764 rader kan bære samme navn i hver. 764 like funn er
+    en rapport ingen leser."""
+    orgnr, navn = lister
+    tekst = _csv("navn", *["Kari Nordmann"] * 50)
+    funn = vakt.gransk_csv(tekst, orgnr, navn, "x.csv")
+    assert len(funn) == 1 and funn[0].antall == 50
+
+
+def test_tsv_avgrenses_av_tabulator_og_ikke_av_komma(tmp_path, lister,
+                                                     monkeypatch):
+    """MÅLT feil 17.09.2026, i vaktens EGEN dekningspåstand.
+
+    `KOLONNETYPER` var et sett med `.csv` og `.tsv`, og `csv.reader`
+    brukte standardavgrenseren — komma — for begge. Hele overskriftsrada
+    i en TSV ble da ÉN kolonne som het `navn\tkommune`, som ikke står i
+    NAVNEFELT, og et navn i navnekolonnen var usynlig.
+
+    Vakten sa at den dekket `.tsv`. Den gjorde det ikke."""
+    orgnr, navn = lister
+    monkeypatch.setattr(vakt, "hviteliste", lambda: (orgnr, navn))
+    monkeypatch.setattr(vakt, "_snapshotrammer", lambda: iter(()))
+    (tmp_path / "serie.tsv").write_text(
+        "navn\tkommune\nKari Nordmann\tBODØ\n", encoding="utf-8")
+
+    funn = [f for f in vakt.gransk(tmp_path) if f.fil == "serie.tsv"]
+    assert [f.slag for f in funn] == ["ukjent_navn"]
+
+
+def test_avgrenseren_staar_sammen_med_filtypen():
+    """Ikke gjettet, ikke sniffet. En avgrenser som utledes av innholdet
+    kan utledes feil av en fil med ett komma i et navn."""
+    assert vakt.KOLONNETYPER == {".csv": ",", ".tsv": "\t"}
+
+
+def test_gransk_dispatcher_csv_til_kolonneproven(tmp_path, lister, monkeypatch):
+    """Hele veien: `gransk()` skal velge kolonneprøven for .csv.
+
+    Uten dispatchen ville CSV-en gått gjennom tekstprøvene, og navnet i
+    navnekolonnen vært usynlig."""
+    orgnr, navn = lister
+    monkeypatch.setattr(vakt, "hviteliste", lambda: (orgnr, navn))
+    monkeypatch.setattr(vakt, "_snapshotrammer", lambda: iter(()))
+    (tmp_path / "serie.csv").write_text(
+        _csv("navn,verdi", "Kari Nordmann,1"), encoding="utf-8")
+
+    funn = [f for f in vakt.gransk(tmp_path) if f.fil == "serie.csv"]
+    assert [f.slag for f in funn] == ["ukjent_navn"]
+
+
 # ---- porten hører IKKE hjemme her, og det er målt --------------------
 
 def test_porten_kan_ikke_vaere_en_pytest_test():

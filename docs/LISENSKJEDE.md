@@ -294,10 +294,20 @@ Rekkefølgen er den samme som alvorlighetsgraden:
 2. ~~**De to BarentsWatch-setningene må stå synlig for sluttbruker**, og
    Brregs NLOD-setning må med der Enhetsregisteret vises.~~ **Gjort
    16.09.2026** for den publiserte siden: `nettsted.py` bygger
-   bunnteksten av denne tabellen, per kilde siden faktisk bruker, og
+   bunnteksten av kildenes egne `Source.attribusjon` (flyttet dit
+   16.09.2026, se beslutningen), per kilde siden faktisk bruker, og
    nekter å rendre en side som lener seg på en UBELAGT kilde. Den
    interne `oversikt.html` har det fortsatt ikke, og kravet er ikke
    utløst der. Se TODO-en i `docs/VISNING.md`.
+
+   **Og det gjelder DATAFILENE, ikke bare sidene.**
+   `/lokalitet/<nr>/lusetall.csv` bærer setningene i et kommentarhode i
+   FILA — ikke i en sidecar, som ville vært borte i det øyeblikket noen
+   laster ned CSV-en alene. Et vilkår som bare er oppfylt så lenge to
+   filer holder sammen, svikter stille. CSV-en bærer BARE
+   lusetallkildens setninger: den inneholder ingen data fra
+   Fiskeridirektoratet eller Brreg, og et hode som sa noe annet ville
+   vært en påstand om at de har levert noe her.
 3. **Registrering hos BarentsWatch** hvis bruken blir kommersiell.
 
 Lukket 14.09.2026: Brregs ordrette attribusjonssetning, som sto som

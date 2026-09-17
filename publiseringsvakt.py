@@ -64,10 +64,38 @@ Denne spør om noe annet: kom dette tallet fra en kilde vi har filtrert?
 Ingen av de tre later som om de er uttømmende. Det er med vilje: en vakt
 som lover mer enn den kan holde, er verre enn ingen vakt, fordi den blir
 trodd.
+
+## Og ett hull som er MÅLT og står åpent
+
+`ukjent_orgnr` leter i to ledd: først finner den kandidattall i teksten,
+så spør den om de er gjort rede for. Andre ledd er sterkt — det er
+proveniens og ikke mønster. Første ledd er en TOKENISERING, og den er
+format-avhengig.
+
+Målt 17.09.2026, samme nisifrede tall i ti innpakninger:
+
+    <td>999888777</td>            finnes
+    {"orgnr": "999888777"}        finnes
+    {"orgnr": 999888777}          finnes
+    orgnr;999888777               finnes
+    | 999888777 | (markdown)      finnes
+    999888777,Kari  (rå CSV)      USYNLIG — kommaet er avgrenseren
+    [999888777, 123]  (JSON)      USYNLIG — samme komma
+
+CSV-en er lukket: `.csv` og `.tsv` parses nå per kolonne, og
+avgrenseren er borte før prøven stilles. **JSON er ikke lukket.** Et
+nisifret tall i en JSON-LISTE er usynlig for vakten i dag.
+
+Det biter ingen generator vi har — `.json` skrives ikke, og JSON-LD-en i
+`nettsted.py` bærer ingen organisasjonsnumre — men det er en påstand om
+i dag og ikke om i morgen. Vurderingen av hvorfor prøven har feilet tre
+ganger, og hva som eventuelt bør gjøres med den, står i
+`docs/VURDERING-NI-SIFFER-PROVEN.md`.
 """
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import re
 import sys
@@ -108,6 +136,19 @@ NI_SIFFER = re.compile(r"(?<![\d.,])\d{9}(?![\d.,])")
 # trygt.
 TEKSTTYPER = {".html", ".htm", ".css", ".js", ".json", ".csv", ".tsv",
               ".md", ".txt", ".svg", ".xml"}
+
+# Filtypene der KOLONNEOVERSKRIFTEN er merkingen, og der prøvene derfor
+# stilles per kolonne framfor på teksten. Se `gransk_csv`.
+#
+# Avgrenseren står SAMMEN med typen og gjettes ikke. Første utkast hadde
+# `{".csv", ".tsv"}` som et sett og lot `csv.reader` bruke standarden —
+# altså komma — for begge. Målt 17.09.2026 på en konstruert TSV: hele
+# overskriftsrada ble ÉN kolonne som het `navn\tkommune`, som ikke står i
+# NAVNEFELT, og et navn i navnekolonnen var usynlig.
+#
+# Formen på feilen er kjent: vakten sa at den dekket `.tsv`, og gjorde det
+# ikke. En vakt som lover mer enn den holder, er verre enn ingen vakt.
+KOLONNETYPER = {".csv": ",", ".tsv": "\t"}
 
 # Felter der en verdi er et NAVN. Brukes til å bygge hvitelista.
 NAVNEFELT = ("navn", "entity_name", "eier_navn", "tildelt_navn",
@@ -266,6 +307,28 @@ def tvetydige_koder(rammer: Iterable[pl.DataFrame]) -> set[str]:
     return ut
 
 
+def _ukjente_orgnr(tekst: str, orgnr_ok: set[str], fil: str) -> list[Funn]:
+    """Ni-sifrede tall som ikke er gjort rede for. Én rad per NUMMER.
+
+    Egen funksjon fordi den gjelder uansett filformat: et orgnummer i en
+    CSV-celle er like publisert som ett i en tabellcelle, og prøven er
+    den samme — finnes tallet igjen blant orgnumrene i de filtrerte
+    snapshotene?
+
+    Teller forekomster framfor å melde hver enkelt. En CSV med 764 rader
+    kan bære samme nummer 764 ganger, og 764 like funn er en rapport
+    ingen leser.
+    """
+    ukjente: dict[str, int] = {}
+    for treff in NI_SIFFER.findall(tekst):
+        if treff not in orgnr_ok:
+            ukjente[treff] = ukjente.get(treff, 0) + 1
+    # Bare de fire siste sifrene i rapporten. Et funn skal kunne finnes
+    # igjen i fila uten at rapporten selv blir en lekkasje.
+    return [Funn(fil, "ukjent_orgnr", f"…{nr[-4:]}", antall)
+            for nr, antall in sorted(ukjente.items())]
+
+
 def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
                  fil: str = "", tvetydige: Iterable[str] = ()) -> list[Funn]:
     """De tre prøvene på én filkropp. Returnerer funnene, tom = rent.
@@ -275,16 +338,7 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     strengeste lesningen: en kaller som ikke har målt noe, får alle
     kodene prøvd som hele ord.
     """
-    funn: list[Funn] = []
-
-    ukjente: dict[str, int] = {}
-    for treff in NI_SIFFER.findall(tekst):
-        if treff not in orgnr_ok:
-            ukjente[treff] = ukjente.get(treff, 0) + 1
-    for nr, antall in sorted(ukjente.items()):
-        # Bare de fire siste sifrene i rapporten. Et funn skal kunne
-        # finnes igjen i fila uten at rapporten selv blir en lekkasje.
-        funn.append(Funn(fil, "ukjent_orgnr", f"…{nr[-4:]}", antall))
+    funn = _ukjente_orgnr(tekst, orgnr_ok, fil)
 
     tvetydige = {k.strip().upper() for k in tvetydige}
     treff_form: list[str] = []
@@ -309,6 +363,124 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
         if navn not in navn_ok:
             funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn)))
 
+    return funn
+
+
+# --------------------------------------------------- CSV
+#
+# En `.csv` ved siden av sida er ikke mindre publisert enn HTML-en — den
+# er verre, fordi den er laget for å lastes ned og leve videre et annet
+# sted. Fra 16.09.2026 legger `/lokalitet/<nr>/lusetall.csv` hele
+# lusetallserien ut som siterbar fil, og da må vakten se INN i den.
+#
+# Den kunne ikke det. Målt 16.09.2026 på en konstruert CSV med en
+# `navn`-kolonne: `ukjent_navn` fant ingenting. Prøven leter etter en
+# HTML-merking (`data-navn`, `class="eier"`), og en CSV har ingen.
+#
+# I en CSV er det KOLONNEOVERSKRIFTEN som er merkingen. Den er
+# generatorens egen, akkurat som HTML-attributtet, og den kommer fra det
+# samme feltvokabularet. Det er den samme regelen i et annet format, ikke
+# en ny og løsere regel.
+
+# Kommentarlinjer i en CSV. Vår egen bærer attribusjonen; en annen
+# generators kan bære hva som helst, og linjene granskes derfor som
+# vanlig tekst.
+CSV_KOMMENTAR = "#"
+
+
+def _csv_rader(tekst: str, avgrenser: str = ","):
+    """(overskrifter, rader) fra en CSV med `#`-kommentarer. Tåler rot.
+
+    Returnerer `(None, [])` for noe som ikke lar seg lese som CSV. Det er
+    IKKE «rent»: kallerne kjører tekstprøvene uansett, og en fil vakten
+    ikke forstår strukturen i får dermed den svakere granskningen framfor
+    ingen. At den er svakere står i `gransk_csv`.
+    """
+    linjer = [l for l in tekst.splitlines()
+              if not l.lstrip().startswith(CSV_KOMMENTAR)]
+    if not linjer:
+        return None, []
+    try:
+        rader = list(csv.reader(linjer, delimiter=avgrenser))
+    except csv.Error:
+        return None, []
+    if not rader:
+        return None, []
+    return [h.strip() for h in rader[0]], rader[1:]
+
+
+def gransk_csv(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
+               fil: str = "", avgrenser: str = ",") -> list[Funn]:
+    """Prøvene på en CSV-kropp, med KOLONNEOVERSKRIFTEN som merking.
+
+    Tre prøver, som i HTML, men to av dem stilt på en annen måte:
+
+      1. `ukjent_orgnr` — uendret. Et ni-sifret tall er et ni-sifret tall
+         uansett hvilken kolonne det står i.
+      2. `personform` — leses av KOLONNEN og ikke av teksten. En
+         `organisasjonsform`-kolonne med `ENK` er et funn; en
+         `kapasitet_enhet`-kolonne med `DA` er dekar og er det ikke.
+         Tekstvinduet HTML-prøven bruker duger ikke her: i en CSV ligger
+         overskriften og verdien en hel rad fra hverandre, og
+         nabokolonnen ligger ett tegn unna.
+      3. `ukjent_navn` — verdiene i kolonner som HETER noe i `NAVNEFELT`.
+
+    Kommentarlinjene granskes som vanlig tekst med de ENTYDIGE kodene.
+    Vår egen CSV har attribusjonen der; en annens kan ha hva som helst.
+
+    Hva den IKKE dekker, sagt rett ut: en kolonne med et navn i, som
+    heter noe annet enn feltene i `NAVNEFELT`. Det er den samme grensen
+    som i HTML — vakten ser det generatoren merker — og den er billigere
+    å leve med enn en prøve som gjetter på hva som er et navn og fyrer
+    på hvert stedsnavn i datasettet.
+    """
+    overskrifter, rader = _csv_rader(tekst, avgrenser)
+    kommentarer = "\n".join(l for l in tekst.splitlines()
+                             if l.lstrip().startswith(CSV_KOMMENTAR))
+
+    # ORGNUMRENE LESES PER CELLE, ikke av råteksten, og det er en MÅLT
+    # retting fra 16.09.2026.
+    #
+    # `NI_SIFFER` krever at tallet ikke har siffer, punktum eller komma
+    # på noen av sidene. Regelen ble satt for HTML, der «96697320.109» er
+    # biomasse i kilo og ikke et orgnummer. I en CSV er kommaet
+    # DELIMITEREN: `999888777,Kari` gir et komma rett etter tallet, og
+    # prøven fant ingenting. Et orgnummer i en CSV-kolonne var altså
+    # usynlig for vakten — i nøyaktig den filtypen som er laget for å
+    # lastes ned.
+    #
+    # Cellene skilles med linjeskift i stedet. Da er delimiteren borte,
+    # mens desimaltallet INNE i en celle fortsatt er beskyttet av samme
+    # regel.
+    celler = "\n".join(v for rad in ([overskrifter or []] + rader)
+                        for v in rad)
+    funn = _ukjente_orgnr(celler + "\n" + kommentarer, orgnr_ok, fil)
+    former: list[str] = []
+    entydig = _personformmonster(persondata.PERSONFORMER)
+    if entydig and kommentarer:
+        former += entydig.findall(kommentarer)
+
+    ukjente_navn: dict[str, int] = {}
+    if overskrifter:
+        for rad in rader:
+            for kolonne, verdi in zip(overskrifter, rad):
+                verdi = (verdi or "").strip()
+                if not verdi:
+                    continue
+                if kolonne == persondata.FORM_FELT:
+                    if persondata.er_personform(verdi):
+                        former.append(verdi.upper())
+                elif kolonne == persondata.SEKTOR_FELT:
+                    if persondata.er_personsektor(verdi):
+                        former.append(verdi)
+                elif kolonne in NAVNEFELT and verdi not in navn_ok:
+                    ukjente_navn[verdi] = ukjente_navn.get(verdi, 0) + 1
+
+    if former:
+        funn.append(Funn(fil, "personform", f"{sorted(set(former))}",
+                         len(former)))
+    for navn, antall in sorted(ukjente_navn.items()):
+        funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn), antall))
     return funn
 
 
@@ -486,8 +658,12 @@ def gransk(mappe: Path) -> list[Funn]:
             # ikke har lest den framfor å tie.
             funn.append(Funn(rel, "ugranska", sti.suffix or "(uten endelse)"))
             continue
-        funn.extend(gransk_tekst(tekst, orgnr_ok, navn_ok, fil=rel,
-                                 tvetydige=tvetydige))
+        if sti.suffix.lower() in KOLONNETYPER:
+            funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
+                                   avgrenser=KOLONNETYPER[sti.suffix.lower()]))
+        else:
+            funn.extend(gransk_tekst(tekst, orgnr_ok, navn_ok, fil=rel,
+                                     tvetydige=tvetydige))
     return funn
 
 

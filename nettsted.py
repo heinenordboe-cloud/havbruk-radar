@@ -58,7 +58,9 @@ stille.
 from __future__ import annotations
 
 import argparse
+import csv
 import datetime as dt
+import io
 import json
 import sys
 from collections import defaultdict
@@ -228,12 +230,19 @@ def _overforinger() -> dict[str, dict[str, str]]:
     return ut
 
 
-def _uke(dato: str) -> str:
-    """«2026 uke 34» av en dato. Lusetall daterer hver uke til MANDAGEN i
-    ISO-uka (docs/KILDE-LUSETALL.md), så ukenummeret er en annen skriving
-    av den samme datoen og ikke et nytt tall."""
+def _isouke(dato: str) -> tuple[int, int]:
+    """(ISO-år, ISO-uke) av en dato.
+
+    Lusetall daterer hver uke til MANDAGEN i ISO-uka
+    (docs/KILDE-LUSETALL.md), så ukenummeret er en annen skriving av den
+    samme datoen og ikke et nytt tall.
+
+    ISO-året, ikke kalenderåret: 2019-12-30 er mandag i uke 1 av 2020, og
+    et kalenderår i den kolonnen ville gitt «2019 uke 01» ved siden av
+    «2019 uke 52» — to uker som ligger ett år fra hverandre.
+    """
     aar, uke, _ = dt.date.fromisoformat(dato).isocalendar()
-    return f"{aar} uke {uke:02d}"
+    return aar, uke
 
 
 # Feltene lusetabellen viser, i kolonnerekkefølge. Eksplisitt liste og
@@ -278,11 +287,19 @@ def _lusserie(loknr: str) -> list[dict]:
     dyrere enn å lese én bred fil, men det finnes ingen bred fil — og
     det er den samme døra alt annet går gjennom.
 
-    Hver uke får ALLE feltene i `LUSEFELT`, med `INGEN_VERDI` der kilden
+    Hver uke får ALLE feltene i `LUSEFELT`, med tom streng der kilden
     tidde. Utfyllingen skjer her og ikke i malen: `StrictUndefined` gjør
     en manglende nøkkel til en feil i stedet for en tom celle, og det er
     riktig — men da må den som leser dataene bestemme hva fraværet BETYR,
     og det kan ikke en HTML-mal.
+
+    KILDENS EGNE VERDIER, uoversatt. `True`/`False` blir ikke til
+    `ja`/`nei` her, og fravær blir ikke til «–». Det er `til_visning()`
+    som gjør det, og skillet er ikke pedanteri: CSV-en skal bære det
+    kilden sa, og HTML-en skal bære det et menneske kan lese. Skjedde
+    oversettelsen her, ville CSV-en vært en gjengivelse av VÅR lesning
+    — og BarentsWatch-vilkåret sier uttrykkelig at datainnholdet ikke
+    skal endres.
     """
     rader = []
     for dato in snapshot.datoer("lusetall"):
@@ -292,15 +309,39 @@ def _lusserie(loknr: str) -> list[dict]:
                 continue
             raa = {str(f): v for f, v in
                    sub.select(["field", "value"]).iter_rows()}
-            uke = {}
-            for felt in LUSEFELT:
-                verdi = raa.get(felt)
-                uke[felt] = (INGEN_VERDI if verdi in (None, "")
-                             else JANEI.get(verdi, verdi))
+            uke = {felt: (raa.get(felt) or "") for felt in LUSEFELT}
+            aar, ukenr = _isouke(dato)
             uke["dato"] = dato
-            uke["uke"] = _uke(dato)
+            uke["iso_aar"] = str(aar)
+            uke["iso_uke"] = f"{ukenr:02d}"
             rader.append(uke)
     return rader
+
+
+def til_visning(rader: list[dict]) -> list[dict]:
+    """Kildens verdier til noe et menneske leser. Rører ikke `rader`.
+
+    To oversettelser, og begge er presentasjon og ikke data:
+
+      * `True`/`False` -> `ja`/`nei`, fordi siden er på norsk.
+      * tom -> «–», fordi en tom celle i en HTML-tabell ikke kan skilles
+        fra en feil i malen.
+
+    `INGEN_VERDI` er ikke «0» og ikke blankt. Målt 16.09.2026 på
+    OTERNESET: 207 av 764 uker har ingen `voksne_hunnlus`-rad, og i alle
+    207 er `lus_er_rapportert` False — lokaliteten var brakklagt. Feltet
+    er FRAVÆRENDE, ikke null, og det er nøyaktig skillet
+    `lus_er_rapportert` finnes for.
+    """
+    ut = []
+    for rad in rader:
+        vist = dict(rad)
+        for felt in LUSEFELT:
+            verdi = rad.get(felt, "")
+            vist[felt] = INGEN_VERDI if verdi == "" else JANEI.get(verdi, verdi)
+        vist["uke"] = f"{rad['iso_aar']} uke {rad['iso_uke']}"
+        ut.append(vist)
+    return ut
 
 
 # ------------------------------------------------- hva er en endring
@@ -451,19 +492,109 @@ def bygg_lokalitet(loknr: str) -> dict:
             }
             for o in overforinger
         ],
-        "lus": list(reversed(serie[-LUSEUKER:])),
+        "lus": til_visning(list(reversed(serie[-LUSEUKER:]))),
         "lus_fra": serie[0]["dato"] if serie else "",
         "lus_til": serie[-1]["dato"] if serie else "",
         "lus_uker": len(serie),
         # Telles her og skrives ikke inn i malen for hånd. Et tall i en
         # mal er et tall som ikke oppdateres når dataene gjør det, og da
         # er siden usann neste uke uten at noen rørte den.
-        "lus_uten_tall": sum(1 for u in serie
-                             if u["voksne_hunnlus"] == INGEN_VERDI),
+        "lus_uten_tall": sum(1 for u in serie if u["voksne_hunnlus"] == ""),
+        # Hele serien, urørt. CSV-en skrives av den; tabellen viser
+        # slutten av den. At de to kommer fra SAMME liste er det som
+        # gjør at de ikke kan bli uenige.
+        "lus_serie": serie,
+        "csv_filnavn": CSV_FILNAVN,
         "endringer": endringer,
         "maaleserie_rader": maaleserie_rader,
         "dekning_fra": _dekning_fra(),
     }
+
+
+# ---------------------------------------------------- den siterbare CSV-en
+#
+# Tabellen på siden viser 52 uker. Serien er 764. Hele den skal kunne
+# siteres, og da må den ligge på en adresse noen kan lenke til — ikke
+# bare i et snapshot i et privat repo.
+#
+# Filnavnet er `<kilde>.csv` i lokalitetens egen mappe. Begrunnelsen for
+# akkurat den adressen står i
+# docs/beslutninger/2026-09-16-url-struktur.md punkt 8.
+
+# Filnavnet, ett sted. Det står i tre: på disk, i lenka fra sida, og i
+# `contentUrl` i JSON-LD-en. Tre strenger som skal si det samme er
+# formen F6 og F7 hadde.
+CSV_FILNAVN = "lusetall.csv"
+
+CSV_KOLONNER = ("lokalitetsnummer", "dato", "iso_aar", "iso_uke") + LUSEFELT
+
+
+def csv_kommentar(lok: dict, setninger: list[str], bygget: str) -> list[str]:
+    """Hodet som gjør CSV-en selvstendig. Uten `#`-prefiks — det settes på.
+
+    ## Hvorfor i FILA og ikke i en sidecar
+
+    Alternativet var en `lusetall.csv.txt` ved siden av, og det ble
+    forkastet: en sidecar er borte i det øyeblikket noen laster ned CSV-en
+    alene, som er nøyaktig det man gjør med en CSV. Et vilkår som bare er
+    oppfylt så lenge to filer holder sammen, er et vilkår som svikter
+    stille — og BarentsWatch krever synlighet for SLUTTBRUKER, ikke for
+    den som fant begge filene.
+
+    Prisen er reell og skal ikke pusses bort: RFC 4180 kjenner ingen
+    kommentarsyntaks. En leser som ikke hopper over `#`-linjene får dem
+    som datarader, og den aller første blir lest som kolonneoverskrifter.
+    Derfor sier siste kommentarlinje hvordan fila skal leses, og derfor
+    står den der og ikke bare i et notat.
+
+    Byttehandelen er: en leser som ikke leser hodet får en synlig feil
+    med én gang, mens en sidecar som blir borte gir en usynlig mangel som
+    varer. Den første feilen er den billigste.
+
+    Attribusjonen HENTES fra kilden, ikke skrives her. Samme indeks som
+    bunnteksten på siden bruker, så de to kan ikke bli uenige.
+    """
+    linjer = [
+        f"Voksne hunnlus per fisk for akvakulturlokalitet "
+        f"{lok['loknr']} {lok['navn']}, {lok['kommune']}.",
+        f"Ukentlig serie {lok['lus_fra']} til {lok['lus_til']}, "
+        f"{lok['lus_uker']} uker. Datoen er MANDAG i ISO-uka.",
+        "",
+    ]
+    linjer += setninger
+    linjer += [
+        "",
+        "Tom voksne_hunnlus betyr at kilden ikke oppgir noe tall - ikke at "
+        "tallet var null.",
+        "Se lus_er_rapportert paa samme rad. "
+        f"{lok['lus_uten_tall']} av {lok['lus_uker']} uker er slik.",
+        "",
+        f"Bygget {bygget} av havbruk-radar fra snapshots. Tallene er "
+        f"gjengitt uendret fra kilden.",
+        "Kommentarlinjer starter med #. Les f.eks. med "
+        "polars.read_csv(..., comment_prefix=\"#\").",
+    ]
+    return linjer
+
+
+def csv_tekst(lok: dict, setninger: list[str], bygget: str) -> str:
+    """Hele CSV-en som tekst: kommentarhode, overskriftsrad, 764 rader.
+
+    `\r\n` og `QUOTE_MINIMAL` er `csv`-modulens standard og RFC 4180s
+    form. Den beholdes framfor å pyntes til `\n`: en fil som skal
+    siteres bør være den formen flest verktøy forventer, og vår
+    lesbarhet i en terminal er ikke et argument mot det.
+    """
+    ut = io.StringIO()
+    for linje in csv_kommentar(lok, setninger, bygget):
+        ut.write(f"# {linje}\n" if linje else "#\n")
+
+    skriver = csv.writer(ut)
+    skriver.writerow(CSV_KOLONNER)
+    for rad in lok["lus_serie"]:
+        skriver.writerow([lok["loknr"]] + [rad.get(k, "")
+                                           for k in CSV_KOLONNER[1:]])
+    return ut.getvalue()
 
 
 def jsonld(lok: dict) -> str:
@@ -531,7 +662,26 @@ def jsonld(lok: dict) -> str:
                 "longitude": lok["lengdegrad"],
             },
         }
-    if lok["lus"]:
+    if lok["lus_serie"]:
+        # DataDownload for hele serien, ikke for de 52 ukene tabellen
+        # viser. Det er den fila som er ment å siteres.
+        #
+        # `contentUrl` er RELATIV, og det er ikke slurv. JSON-LD løser
+        # relative IRI-er mot dokumentets egen adresse, så «lusetall.csv»
+        # peker riktig uansett hvilket vertsnavn siden havner på. Et
+        # påfunnet domene ville vært en påstand om noe som ikke er
+        # avgjort — samme grunn som at `url` ikke står her i det hele
+        # tatt.
+        data["distribution"] = [{
+            "@type": "DataDownload",
+            "name": f"Lusetall for lokalitet {lok['loknr']}, hele serien",
+            "description": (
+                f"{lok['lus_uker']} uker, {lok['lus_fra']} til "
+                f"{lok['lus_til']}. CSV med kommentarhode."),
+            "contentUrl": CSV_FILNAVN,
+            "encodingFormat": "text/csv",
+            "creditText": (indeks.get("lusetall") or ("",))[0],
+        }]
         data["variableMeasured"] = [{
             "@type": "PropertyValue",
             "name": "voksne_hunnlus",
@@ -597,8 +747,13 @@ def _miljo() -> Environment:
     )
 
 
-def skriv_lokalitet(loknr: str, rot: Path = UT) -> Path:
-    """Rendrer og skriver én lokalitetsside. Returnerer stien."""
+def skriv_lokalitet(loknr: str, rot: Path = UT) -> list[Path]:
+    """Rendrer og skriver lokalitetssiden OG dens CSV. Returnerer stiene.
+
+    Begge filene i samme mappe, som er hva en avsluttende skråstrek
+    betyr. Mappa er dermed selvstendig: kopierer noen
+    `/lokalitet/31397/`, følger både siden og tallene med.
+    """
     lok = bygg_lokalitet(loknr)
     setninger = attribusjon(SIDENS_KILDER)          # kaster på UBELAGT
 
@@ -619,7 +774,16 @@ def skriv_lokalitet(loknr: str, rot: Path = UT) -> Path:
     mappe.mkdir(parents=True, exist_ok=True)
     sti = mappe / "index.html"
     sti.write_text(html, encoding="utf-8")
-    return sti
+
+    # CSV-en bærer BARE lusetall, og derfor bare lusetallkildens
+    # attribusjon. Å legge alle fire kildenes setninger i et hode over en
+    # fil som ikke inneholder dem, ville vært en påstand om at
+    # Fiskeridirektoratet har levert noe her.
+    csv_sti = mappe / CSV_FILNAVN
+    csv_sti.write_text(
+        csv_tekst(lok, attribusjon(["lusetall"]), dt.date.today().isoformat()),
+        encoding="utf-8")
+    return [sti, csv_sti]
 
 
 # --------------------------------------------------------- porten
@@ -659,10 +823,11 @@ def main() -> int:
     args = ap.parse_args()
 
     rot = Path(args.ut)
-    sti = skriv_lokalitet(args.lokalitet, rot)
-    kb = sti.stat().st_size / 1024
-    print(f"{sti}  ({kb:.0f} kB)")
+    filer = skriv_lokalitet(args.lokalitet, rot)
+    for f in filer:
+        print(f"{f}  ({f.stat().st_size / 1024:.0f} kB)")
     print(f"  URL: /lokalitet/{args.lokalitet}/")
+    print(f"  CSV: /lokalitet/{args.lokalitet}/{CSV_FILNAVN}")
 
     if args.uten_vakt:
         print("\nVAKTEN ER HOPPET OVER. Siden skal ikke publiseres.")
