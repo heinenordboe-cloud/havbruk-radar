@@ -333,6 +333,18 @@ def _varsle_tomme_sok(treff: dict[str, int], tillat_tomt: set[str]) -> list[str]
 
 class Enhetsregisteret(Source):
     name = "enhetsregisteret"
+
+    # NLOD 2.0. Brreg oppgir ingen egen attribusjonsform, så setningen er
+    # lisensens egen foreskrevne form med lisensgiver satt inn — NLOD 2.0
+    # punkt 5, lest 14.09.2026. Se docs/LISENSKJEDE.md merknad B.
+    #
+    # Gjelder det FRIE nivået, som er det eneste vi bruker. Det
+    # autoriserte API-et med roller og fødselsnummer er en annen lisens
+    # og en grense CLAUDE.md regel 3 forbyr oss å krysse uansett.
+    attribusjon = (
+        "Inneholder data under Norsk lisens for offentlige data (NLOD) "
+        "tilgjengeliggjort av Brønnøysundregistrene",
+    )
     entity_type = "selskap"
     enabled = True
 

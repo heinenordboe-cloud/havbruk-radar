@@ -503,6 +503,11 @@ def _formater(felt: str, verdi: float) -> str:
 
 class Biomasse(Source):
     name = "biomasse"
+
+    # NLOD. Lisenssiden lest 25.08.2026: «Den som tar i bruk data fra
+    # Fiskeridirektoratet godtar automatisk lisensen.» Ordlyden er en av
+    # de tre godkjente formene — se docs/LISENSKJEDE.md merknad A.
+    attribusjon = ("Kilde: Fiskeridirektoratet",)
     entity_type = "produksjonsomraade"
 
     # Sju for en månedlig kilde. Se modulens docstring — dette er ikke en

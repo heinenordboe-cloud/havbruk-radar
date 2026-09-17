@@ -164,6 +164,11 @@ FELTER: dict[str, Callable[[dict], Any]] = {
 
 class Akvakulturregisteret(Source):
     name = "akvakultur"
+
+    # NLOD. Lisenssiden lest 25.08.2026: «Den som tar i bruk data fra
+    # Fiskeridirektoratet godtar automatisk lisensen.» Ordlyden er en av
+    # de tre godkjente formene — se docs/LISENSKJEDE.md merknad A.
+    attribusjon = ("Kilde: Fiskeridirektoratet",)
     entity_type = "lokalitet"
 
     def __init__(self) -> None:

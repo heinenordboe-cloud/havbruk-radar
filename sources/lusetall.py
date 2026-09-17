@@ -90,6 +90,21 @@ FELTER: dict[str, Callable[[dict], Any]] = {
 
 class Lusetall(Source):
     name = "lusetall"
+
+    # BEGGE setningene, ordrett fra api-vilkårene lest 12.09.2026.
+    #
+    # Den andre er dataeierattribusjonen, og den er ikke valgfri: den
+    # trengs NETTOPP fordi vi henter fra BarentsWatch og ikke fra
+    # Mattilsynet. Se docs/LISENSKJEDE.md merknad F.
+    #
+    # BarentsWatch krever synlighet for SLUTTBRUKER, ikke bare i et repo.
+    # Det er den strengeste plikten i hele lisenskjeden, og den gjelder
+    # hele siden når kildene blandes — se docs/VISNING.md.
+    attribusjon = (
+        "Data levert av BarentsWatch",
+        "Opplysninger om lakselus, rensefisk og medikamentbruk er hentet "
+        "fra Mattilsynet.",
+    )
     entity_type = "lokalitet"
     min_dager_mellom = 7
 

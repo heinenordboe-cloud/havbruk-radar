@@ -233,6 +233,11 @@ def _vurder_rapportering(rader: list[dict[str, str]], aar: int, uke: int) -> lis
 
 class Sjotemperatur(Source):
     name = "sjotemperatur"
+
+    # Samme vilkår som lusetall, men bare den ene setningen:
+    # Mattilsynet-setningen gjelder lakselus, rensefisk og medikamentbruk,
+    # og sjøtemperatur er ingen av delene. Lest 12.09.2026.
+    attribusjon = ("Data levert av BarentsWatch",)
     entity_type = "lokalitet"
 
     # Temperaturen kommer i det samme ukeskjemaet som lustallet, altså én

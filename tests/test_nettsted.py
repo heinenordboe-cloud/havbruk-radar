@@ -72,19 +72,47 @@ def test_ubelagt_kilde_kan_ikke_publiseres():
 
 
 def test_ukjent_kilde_stoppes_ogsaa():
-    """En ny kilde uten rad i KILDEVILKAAR er samme sak som en UBELAGT:
-    ingen har sagt hva vilkåret er."""
+    """Et kildenavn ingen Source skriver under er samme sak som en
+    UBELAGT: ingen har sagt hva vilkåret er."""
     with pytest.raises(nettsted.UbelagtKilde, match="nykilde"):
         nettsted.attribusjon(["nykilde"])
 
 
-def test_hver_kilde_i_vilkaarstabellen_har_en_utgiver_eller_ingen():
+def test_hver_kilde_med_utgiver_har_ogsaa_attribusjon():
     """Vaktposten mot en halvferdig rad: en kilde med attribusjon men
     uten utgiver er greit (Lovdata bærer utgiveren i setningen), men en
     utgiver uten attribusjon er en rad noen har begynt på."""
+    indeks = nettsted.kildevilkaar()
     for kilde in nettsted.UTGIVER:
-        assert kilde in nettsted.KILDEVILKAAR, kilde
-        assert nettsted.KILDEVILKAAR[kilde], f"{kilde} har utgiver men ingen setning"
+        assert kilde in indeks, kilde
+        assert indeks[kilde], f"{kilde} har utgiver men ingen setning"
+
+
+def test_attribusjonen_kommer_fra_kilden_og_ikke_fra_nettsted():
+    """Flyttingen 16.09.2026, håndhevet.
+
+    Sto lista i `nettsted.py` igjen, ville en ny kilde kunne legges til
+    uten at attribusjonen fulgte med — og den manglende setningen ville
+    vist seg først den dagen noen publiserte. Se
+    docs/beslutninger/2026-09-16-attribusjon-folger-kilden.md."""
+    from core import registry
+    from core.contract import erklaert_attribusjon
+
+    kilder = {k.name: k for k in registry.discover()}
+    assert erklaert_attribusjon(kilder["lusetall"]) == tuple(
+        nettsted.attribusjon(["lusetall"]))
+    assert not hasattr(nettsted, "KILDEVILKAAR"), (
+        "tabellen er flyttet til Source.attribusjon — to lister som skal si "
+        "det samme er formen F6 og F7 hadde")
+
+
+def test_alias_arver_kildens_attribusjon():
+    """`eierskap_historikk` skrives av `sources/eierskap.py` under et
+    eget navn. Uten `skriver_ogsaa` slår navnet opp til ingenting, og
+    ingenting leses som UBELAGT — altså en side som nekter å bygge av
+    feil grunn."""
+    indeks = nettsted.kildevilkaar()
+    assert indeks["eierskap_historikk"] == indeks["eierskap"]
 
 
 # ---- markupen ---------------------------------------------------------

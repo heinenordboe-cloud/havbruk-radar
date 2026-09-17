@@ -1200,6 +1200,16 @@ def gjenkjenn(flat: str) -> Forskrift:
 class Trafikklysvedtak(Source):
     name = "trafikklysvedtak"
 
+    # Lovdatas brukeravtale punkt 2.3 gjør unntak fra hovedregelen for
+    # regelverk i Norsk Lovtidend — som er nøyaktig det kilden leser
+    # (LTI-kroppene, ikke SF) — «hvis du oppgir Lovdata som kilde og
+    # ellers følger vilkårene i NLOD 2.0». Lest 12.09.2026, se
+    # docs/LISENSKJEDE.md merknad C.
+    attribusjon = (
+        "Kilde: Lovdata. Inneholder data under Norsk lisens for "
+        "offentlige data (NLOD) 2.0",
+    )
+
     version = "1"
 
     # Samme entitetstype som ekspertgruppen og biomasse, med vilje: en

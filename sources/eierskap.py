@@ -353,6 +353,25 @@ PAUSE_S = 0.5
 
 class Eierskap(Source):
     name = "eierskap"
+
+    # TO lisensgivere, og de krever hver sin setning. Tillatelsene kommer
+    # fra Fiskeridirektoratets pub-aqua; organisasjonsformen for
+    # historiske mottakere slås opp hos Brreg (`brreg_form`), og da er
+    # Brregs data med i det som publiseres.
+    #
+    # Brreg oppgir ingen egen attribusjonsform, så setningen er NLOD 2.0
+    # punkt 5 sin foreskrevne form med lisensgiver satt inn. Lest
+    # 14.09.2026 — se docs/LISENSKJEDE.md merknad B.
+    attribusjon = (
+        "Kilde: Fiskeridirektoratet",
+        "Inneholder data under Norsk lisens for offentlige data (NLOD) "
+        "tilgjengeliggjort av Brønnøysundregistrene",
+    )
+
+    # Overføringene skrives under et EGET kildenavn, og det navnet må
+    # kunne slås opp til denne attribusjonen. Se `HISTORIKK_KILDE` og
+    # `Source.skriver_ogsaa`.
+    skriver_ogsaa = (HISTORIKK_KILDE,)
     entity_type = "tillatelse"
     # Bumpet til "2" 03.09.2026: personvernfilteret leser nå Brregs
     # koder i tillegg til pub-aquas ord (`er_person`), og historiske

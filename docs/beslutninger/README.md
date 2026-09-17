@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-16** — [Attribusjonen flyttes til Source.attribusjon — vilkåret følger kilden](2026-09-16-attribusjon-folger-kilden.md) — besluttet
 - **2026-09-16** — [URL-struktur og ankere — registerets ID som slug, aldri navnet](2026-09-16-url-struktur.md) — besluttet
 - **2026-09-16** — [Grensa går ved SSB-sektor 2300, ikke ved formen ENK](2026-09-16-grensa-gaar-ved-sektor-2300.md) — besluttet
 - **2026-09-15** — [Publiseringsvakten blokkerer, den varsler ikke — og prøven er en hviteliste](2026-09-15-publiseringsvakten.md) — besluttet 16.09

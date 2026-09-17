@@ -552,6 +552,14 @@ def sammenlign(omraader: list[Omraade],
 class Reguleringsomraader(Source):
     name = "reguleringsomraader"
 
+    # CC BY 4.0, bekreftet mot NMDCs landingsside for datasettet
+    # 14.09.2026. Merk at datasettets tittel ikke er rapportens tittel —
+    # se docs/LISENSKJEDE.md merknad D.
+    attribusjon = (
+        "Havforskningsinstituttet, «Smittekontakt (lakselus) mellom "
+        "oppdrettsanlegg og oppholdsområder for villfisk», CC BY 4.0",
+    )
+
     version = "1"
 
     # Egen entitetstype. IKKE `produksjonsomraade`, selv om `4A` ligger

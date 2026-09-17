@@ -2164,6 +2164,21 @@ def gjenkjenn(flat_forside: str) -> Utgivelse:
 class Ekspertgruppen(Source):
     name = "ekspertgruppen"
 
+    # UBELAGT — `attribusjon` står med vilje IKKE her.
+    #
+    # Søkt 14.09.2026 og ikke funnet: Brage-handlene videresender til en
+    # SPA uten rettighetserklæring, og HIs egne sider for «Rapport fra
+    # havforskningen» oppgir ISSN og serieinformasjon, men ingen
+    # gjenbruksvilkår. Se docs/LISENSKJEDE.md merknad E.
+    #
+    # `None` fra kontrakten betyr «vi vet ikke», ikke «fritt». Å lese,
+    # sitere og trekke ut tall for analyse er dekket av sitatretten og av
+    # at dette er offentlige utredninger — det er å REPUBLISERE kroppene
+    # som ikke er belagt. Derfor nekter `nettsted.py` å bygge en side som
+    # lener seg på denne kilden, mens analysen bruker den fritt.
+    #
+    # Luken lukkes med ett spørsmål til HI eller NINA, ikke med mer kode.
+
     # Bumpet fra "1" 27.08.2026: `_AREALANDEL` og `_ROC` fikk slakk for
     # orddelingsmellomrom («påv irkning») og for innskutte ord mellom
     # størrelsen og verbet («... for hele produksjonsområdet er ...»).

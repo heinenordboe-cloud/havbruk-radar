@@ -73,6 +73,7 @@ sys.path.insert(0, str(ROOT))
 
 import publiseringsvakt                                    # noqa: E402
 from core import changelog, diff, snapshot                 # noqa: E402
+from core.contract import attribusjon_per_kilde            # noqa: E402
 from core.paths import DATA_DIR                            # noqa: E402
 
 MALER = ROOT / "maler"
@@ -94,61 +95,29 @@ SIDENS_KILDER = ("akvakultur", "eierskap", "eierskap_historikk", "lusetall")
 # ---------------------------------------------------------------------
 # VILKÅRENE
 #
-# Ordrett fra lisensgiverne, kopiert fra docs/LISENSKJEDE.md og ikke
-# gjengitt fra hukommelsen. Tabellen er den som avgjør hva som havner i
-# bunnteksten, og den er indeksert på KILDENAVN — det samme navnet som
-# `data/raw/<kilde>/` og changeloggens `source`-kolonne.
+# Tabellen som sto her fram til 16.09.2026 er flyttet til
+# `Source.attribusjon` i core/contract.py. Grunnen står i
+# docs/beslutninger/2026-09-16-attribusjon-folger-kilden.md: vilkåret er
+# en egenskap ved KILDEN, og en liste hos publiseringsleddet kunne bli
+# stående uendret når en ny kilde kom til. Den manglende setningen ville
+# vist seg først den dagen noen publiserte.
 #
-# En kilde som ikke står her kan ikke publiseres. Det er
-# `docs/beslutninger/2026-09-12-lisenskjeden.md` sin regel utført i kode:
-# **udokumentert lisens er UBELAGT, ikke antatt greit.** `ekspertgruppen`
-# er UBELAGT og står derfor med en tom liste — bruker en side den,
-# kaster byggingen i stedet for å publisere noe vi ikke har hjemmel for.
-#
-# Hvorfor tabellen ligger HER og ikke på `Source` i core/contract.py:
-# det ville vært en utvidelse av kontrakten, og CLAUDE.md regel 1 sier at
-# en slik utvidelse er brukerens avgjørelse og ikke en sidevirkning av en
-# oppgave. Se «Kjente svakheter» nederst.
-KILDEVILKAAR: dict[str, list[str]] = {
-    "akvakultur": ["Kilde: Fiskeridirektoratet"],
-    "biomasse": ["Kilde: Fiskeridirektoratet"],
-    "biomasselag": ["Kilde: Fiskeridirektoratet"],
-    "romming": ["Kilde: Fiskeridirektoratet"],
-    "eierskap": [
-        "Kilde: Fiskeridirektoratet",
-        "Inneholder data under Norsk lisens for offentlige data (NLOD) "
-        "tilgjengeliggjort av Brønnøysundregistrene",
-    ],
-    "eierskap_historikk": [
-        "Kilde: Fiskeridirektoratet",
-        "Inneholder data under Norsk lisens for offentlige data (NLOD) "
-        "tilgjengeliggjort av Brønnøysundregistrene",
-    ],
-    "enhetsregisteret": [
-        "Inneholder data under Norsk lisens for offentlige data (NLOD) "
-        "tilgjengeliggjort av Brønnøysundregistrene",
-    ],
-    # Begge setningene, og den andre er ikke valgfri: den er
-    # dataeierattribusjonen, og den trengs nettopp FORDI vi henter fra
-    # BarentsWatch og ikke fra Mattilsynet.
-    "lusetall": [
-        "Data levert av BarentsWatch",
-        "Opplysninger om lakselus, rensefisk og medikamentbruk er hentet "
-        "fra Mattilsynet.",
-    ],
-    "sjotemperatur": ["Data levert av BarentsWatch"],
-    "trafikklysvedtak": [
-        "Kilde: Lovdata. Inneholder data under Norsk lisens for "
-        "offentlige data (NLOD) 2.0",
-    ],
-    "reguleringsomraader": [
-        "Havforskningsinstituttet, «Smittekontakt (lakselus) mellom "
-        "oppdrettsanlegg og oppholdsområder for villfisk», CC BY 4.0",
-    ],
-    # UBELAGT per 14.09.2026 — søkt etter og ikke funnet. Tom liste er
-    # ikke «ingen krav»; det er «vi vet ikke», og da publiseres den ikke.
-    "ekspertgruppen": [],
-}
+# Det som er igjen her er POLITIKKEN, og den hører hjemme her: en
+# UBELAGT kilde kan brukes i analyse og dokumentasjon, men skal ikke
+# bære en publisert visning. Kjernen sier hva som er erklært; hva det
+# får lov til å bety er publiseringsleddets sak.
+
+
+def kildevilkaar() -> dict[str, tuple[str, ...] | None]:
+    """{kildenavn: setninger eller None} for alle kilder repoet har.
+
+    Bygget av `registry.discover()` ved hvert kall og ikke bufret: en
+    buffer ville vært et andre sted sannheten kan bli stående gammel, og
+    det er nøyaktig feilen flyttingen retter.
+    """
+    from core import registry
+    return attribusjon_per_kilde(registry.discover())
+
 
 # Lisens-URL per kilde, for JSON-LD. Bare der versjonen er BELAGT i
 # lisenskjeden. Fiskeridirektoratets side sier «NLOD» uten versjon, og en
@@ -178,27 +147,34 @@ class UbelagtKilde(Exception):
     """
 
 
-def attribusjon(kilder) -> list[str]:
+def attribusjon(kilder, vilkaar=None) -> list[str]:
     """Setningene som må stå synlig, for de kildene siden faktisk bruker.
 
     Deduplisert med rekkefølgen intakt: `eierskap` og
     `eierskap_historikk` krever de samme to setningene, og den som leser
     bunnteksten skal ikke lure på hvorfor det står to like.
 
-    Kaster på UBELAGT. Se `KILDEVILKAAR`.
+    Kaster på UBELAGT — og på et kildenavn ingen kilde skriver under.
+    De to er samme sak: i begge tilfeller er det ingen som har sagt hva
+    vilkåret er.
+
+    `vilkaar` kan sendes inn av en test. Standarden er registeret.
     """
+    indeks = kildevilkaar() if vilkaar is None else vilkaar
     ut: list[str] = []
     for kilde in kilder:
-        if kilde not in KILDEVILKAAR:
+        if kilde not in indeks:
             raise UbelagtKilde(
-                f"{kilde} står ikke i KILDEVILKAAR. Udokumentert lisens er "
-                f"UBELAGT, ikke antatt greit — se docs/LISENSKJEDE.md.")
-        if not KILDEVILKAAR[kilde]:
+                f"{kilde} er ikke et kildenavn noen Source skriver under. "
+                f"Attribusjonen bor på kilden (Source.attribusjon); et navn "
+                f"uten kilde har ingen som har gått god for vilkåret. "
+                f"Skriver kilden under flere navn, se Source.skriver_ogsaa.")
+        if indeks[kilde] is None:
             raise UbelagtKilde(
-                f"{kilde} er UBELAGT i docs/LISENSKJEDE.md: vilkåret er "
-                f"lett etter og ikke funnet. Siden bygges ikke. Lukk luken "
+                f"{kilde} er UBELAGT: vilkåret er lett etter og ikke funnet "
+                f"(se docs/LISENSKJEDE.md). Siden bygges ikke. Lukk luken "
                 f"med et spørsmål til utgiveren, ikke med mer kode.")
-        for setning in KILDEVILKAAR[kilde]:
+        for setning in indeks[kilde]:
             if setning not in ut:
                 ut.append(setning)
     return ut
@@ -510,12 +486,13 @@ def jsonld(lok: dict) -> str:
     **`temporalCoverage` er MÅLT**, ikke satt til «siden 2012»: det er
     spennet i lusetallserien for akkurat denne lokaliteten.
     """
+    indeks = kildevilkaar()
     kilder = []
     for kilde in SIDENS_KILDER:
         node = {
             "@type": "Dataset",
             "name": kilde,
-            "creditText": KILDEVILKAAR[kilde][0],
+            "creditText": (indeks.get(kilde) or ("",))[0],
         }
         if kilde in UTGIVER:
             node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}

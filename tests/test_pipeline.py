@@ -199,6 +199,114 @@ def test_knekt_kildefil_stopper_ikke_de_andre(tmp_path, monkeypatch):
     assert {r.source: r.ok for r in res} == {"frisk": True, "knekt": False}
 
 
+# ---------------------------------------------------- attribusjonen
+#
+# Flyttet fra nettsted.KILDEVILKAAR til Source.attribusjon 16.09.2026.
+# Vilkåret er en egenskap ved kilden: lå lista hos publiseringsleddet,
+# kunne en ny kilde legges til uten at attribusjonen fulgte med, og den
+# manglende setningen ville vist seg først den dagen noen publiserte. Se
+# docs/beslutninger/2026-09-16-attribusjon-folger-kilden.md.
+
+
+def test_hver_kilde_erklaerer_attribusjon_eller_er_ubelagt():
+    """Alle kilder svarer på spørsmålet — også ved å si «vet ikke».
+
+    UBELAGT er et gyldig svar og ikke en mangel: `ekspertgruppen` er
+    lett etter og ikke funnet. Det testen håndhever er at svaret har en
+    FORM som kan leses, altså at ingen har skrevet en naken streng eller
+    en tom tuppel."""
+    from core import registry
+    from core.contract import erklaert_attribusjon
+
+    for kilde in registry.discover():
+        erklaert_attribusjon(kilde)      # kaster på feil form
+
+
+def test_bare_ekspertgruppen_er_ubelagt():
+    """Lista over UBELAGTE kilder er en påstand i docs/LISENSKJEDE.md.
+    Blir den lengre uten at noen la merke til det, er det her man møter
+    det — og da skal enten vilkåret hentes inn, eller notatet oppdateres.
+    """
+    from core import registry
+    from core.contract import erklaert_attribusjon
+
+    ubelagt = {k.name for k in registry.discover()
+               if erklaert_attribusjon(k) is None}
+    assert ubelagt == {"ekspertgruppen"}
+
+
+def test_tom_attribusjon_er_forbudt_og_ikke_ingen_krav():
+    """`()` og `None` er begge usanne i Python, og en kilde som ved et
+    uhell fikk `()` ville publisert uten attribusjon i stillhet.
+
+    En kilde som faktisk ikke krever navngivelse — CC0 — finnes ikke i
+    repoet. Den dagen den kommer er det en kontraktsendring med et
+    beslutningsnotat, ikke en tom tuppel noen skrev."""
+    from core.contract import Source, erklaert_attribusjon
+
+    class Tom(Source):
+        name = "tom"
+        attribusjon = ()
+
+    with pytest.raises(ValueError, match="tom"):
+        erklaert_attribusjon(Tom())
+
+
+def test_naken_streng_er_forbudt():
+    """`attribusjon = "Kilde: X"` er den nærliggende skrivefeilen, og
+    den ville iterert som enkelttegn — en bunntekst med ett punktmerke
+    per bokstav."""
+    from core.contract import Source, erklaert_attribusjon
+
+    class Streng(Source):
+        name = "streng"
+        attribusjon = "Kilde: Fiskeridirektoratet"
+
+    with pytest.raises(ValueError, match="streng"):
+        erklaert_attribusjon(Streng())
+
+
+def test_kildenavn_til_attribusjon_er_et_TOTALT_oppslag():
+    """Hvert navn i data/raw/ må kunne slås opp til en attribusjon.
+
+    `eierskap` skriver under to navn, og uten `skriver_ogsaa` slår
+    `eierskap_historikk` opp til ingenting — som leses som UBELAGT.
+    Siden ville da nektet å bygge av feil grunn, og feilmeldingen ville
+    pekt på en lisens som er helt i orden."""
+    from core import registry
+    from core.contract import attribusjon_per_kilde
+    from core.paths import RAW_DIR
+
+    indeks = attribusjon_per_kilde(registry.discover())
+    assert "eierskap_historikk" in indeks
+    assert indeks["eierskap_historikk"] == indeks["eierskap"]
+
+    if RAW_DIR.exists():                 # tom i suiten, full i drift
+        for mappe in RAW_DIR.iterdir():
+            if mappe.is_dir():
+                assert mappe.name in indeks, (
+                    f"data/raw/{mappe.name}/ har ingen kilde som skriver "
+                    f"under det navnet — se Source.skriver_ogsaa")
+
+
+def test_to_kilder_kan_ikke_skrive_under_samme_navn():
+    """Navnet er mappa i data/raw/. To kilder med samme navn skriver oppå
+    hverandre, og da er ikke attribusjonen problemet."""
+    from core.contract import Source, attribusjon_per_kilde
+
+    class A(Source):
+        name = "kollisjon"
+        attribusjon = ("A",)
+
+    class B(Source):
+        name = "annen"
+        attribusjon = ("B",)
+        skriver_ogsaa = ("kollisjon",)
+
+    with pytest.raises(ValueError, match="kollisjon"):
+        attribusjon_per_kilde([A(), B()])
+
+
 def test_modulnavn_er_kildenavn():
     """Invarianten: sources/<navn>.py inneholder kilden som heter <navn>.
 
