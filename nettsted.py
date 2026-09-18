@@ -63,7 +63,9 @@ import datetime as dt
 import io
 import json
 import sys
+import time
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 import polars as pl
@@ -230,6 +232,112 @@ def _overforinger() -> dict[str, dict[str, str]]:
     return ut
 
 
+# ------------------------------------------------------- FELLESLESINGEN
+#
+# `bygg_lokalitet()` er skrevet for ÉN side, og den leser da alt den
+# trenger selv. Det er riktig for én side og umulig for 1782: målt
+# 17.09.2026 koster den 9,06 s, hvorav 6,37 s er hele changeloggen og
+# 2,59 s er alle 764 lusetallsnapshots — to lesinger som ikke avhenger
+# av hvilken lokalitet det spørres om. Naivt over 1782 sider er det
+# **4,5 timer**.
+#
+# `Felles` er de lesingene gjort ÉN gang. Det er ikke en optimalisering
+# av den trege delen — den trege delen er like treg, og står uendret i
+# `bygg_lokalitet()` når den kalles alene. Det er forskjellen på en
+# byggejobb som kan kjøre og en som ikke kan.
+#
+# Én side alene koster fortsatt 9 s. Det er MENINGEN at det synes.
+
+
+@dataclass(frozen=True)
+class Felles:
+    """Alt som er likt for hver side, lest én gang.
+
+    Indeksene er dicts og ikke polars-filtre med vilje: et filter over en
+    ramme med 985 031 rader er billig én gang og dyrt 1782 ganger, og
+    det var nettopp den formen som ga 4,5 timer.
+    """
+
+    akva_dato: str
+    akva: dict[str, dict[str, str]]
+    eierskap_dato: str
+    eierskap: dict[str, dict[str, str]]
+    tillatelser_per_lokalitet: dict[str, set[str]]
+    overforinger_per_tillatelse: dict[str, list[dict]]
+    lusserier: dict[str, list[dict]]
+    lusetall_snapshots: list[str]
+    registerendringer: dict[str, list[dict]]
+    maaleserierader: dict[str, int]
+    dekning_fra: list[dict]
+    vilkaar: dict
+
+
+def les_felles() -> Felles:
+    """Leser snapshots og changelog én gang. Tar ~14 s.
+
+    Rekkefølgen er lesningens og ikke tilfeldig: lusetallindeksen er den
+    som koster minne (målt 1,1 GB for 1 322 004 ukerader over 2705
+    lokaliteter), og den bygges sist så resten er ferdig hvis den feller
+    maskinen.
+    """
+    akva_dato, akva = _siste("akvakultur")
+    eierskap_dato, eierskap = _siste("eierskap")
+
+    till_per_lok: dict[str, set[str]] = defaultdict(set)
+    for nr, d in eierskap.items():
+        for lok in (d.get("lokaliteter") or "").split(";"):
+            if lok.strip():
+                till_per_lok[lok.strip()].add(nr)
+
+    ovf_per_till: dict[str, list[dict]] = defaultdict(list)
+    for o in _overforinger().values():
+        ovf_per_till[o.get("tillatelse_nr", "")].append(o)
+
+    # Changeloggen én gang. `bevegelse()` har alt filtrert bort
+    # utvalgsutvidelse og revisjon — se docs/ARKITEKTUR.md.
+    alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
+    beveg = diff.bevegelse(alle)
+    maaleserie = sorted(MAALESERIER)
+
+    register: dict[str, list[dict]] = defaultdict(list)
+    for r in (beveg.filter(~pl.col("source").is_in(maaleserie))
+              .sort("observed_at", descending=True).iter_rows(named=True)):
+        register[str(r["entity_id"])].append(r)
+
+    maalt: dict[str, int] = defaultdict(int)
+    for eid in beveg.filter(pl.col("source").is_in(maaleserie))["entity_id"]:
+        maalt[str(eid)] += 1
+
+    serier: dict[str, list[dict]] = defaultdict(list)
+    lusedatoer = snapshot.datoer("lusetall")
+    for dato in lusedatoer:
+        aar, ukenr = _isouke(dato)
+        for _nr, ramme in snapshot.versjoner("lusetall", dato):
+            per_lok: dict[str, dict[str, str]] = defaultdict(dict)
+            for eid, felt, verdi in ramme.select(
+                    ["entity_id", "field", "value"]).iter_rows():
+                per_lok[str(eid)][str(felt)] = verdi
+            for eid, raa in per_lok.items():
+                uke = {felt: (raa.get(felt) or "") for felt in LUSEFELT}
+                uke["dato"] = dato
+                uke["iso_aar"] = str(aar)
+                uke["iso_uke"] = f"{ukenr:02d}"
+                serier[eid].append(uke)
+
+    return Felles(
+        akva_dato=akva_dato, akva=akva,
+        eierskap_dato=eierskap_dato, eierskap=eierskap,
+        tillatelser_per_lokalitet=dict(till_per_lok),
+        overforinger_per_tillatelse=dict(ovf_per_till),
+        lusserier=dict(serier),
+        lusetall_snapshots=lusedatoer,
+        registerendringer=dict(register),
+        maaleserierader=dict(maalt),
+        dekning_fra=_dekning_fra(),
+        vilkaar=kildevilkaar(),
+    )
+
+
 def _isouke(dato: str) -> tuple[int, int]:
     """(ISO-år, ISO-uke) av en dato.
 
@@ -390,21 +498,49 @@ def _endringer(loknr: str, tillatelser: list[str]) -> tuple[list[dict], int]:
     maaleserie = mine.filter(pl.col("source").is_in(sorted(MAALESERIER))).height
 
     register = mine.filter(~pl.col("source").is_in(sorted(MAALESERIER)))
-    rader = []
-    for r in register.sort("observed_at", descending=True).iter_rows(named=True):
-        rader.append({
-            "dato": str(r["observed_at"]),
-            "gjelder": ("lokaliteten" if str(r["entity_id"]) == loknr
-                        else f"tillatelse {r['entity_id']}"),
-            "kilde": str(r["source"]),
-            "felt": str(r["field"]),
-            "fra": r["old_value"] if r["old_value"] is not None else "",
-            "til": r["new_value"] if r["new_value"] is not None else "",
-        })
+    rader = [_endringsrad(r, loknr) for r in
+             register.sort("observed_at", descending=True).iter_rows(named=True)]
     return rader, maaleserie
 
 
+def _endringsrad(r: dict, loknr: str) -> dict:
+    """Én changelog-rad til én tabellrad. Ett sted, to kallere.
+
+    `gjelder` skiller endringer om LOKALITETEN fra endringer om en
+    TILLATELSE på den. Det andre er en indirekte kobling, og den står i
+    en kolonne framfor å pusses bort — et eierskifte er noe av det
+    viktigste som kan skje med en lokalitet, men raden gjelder
+    tillatelsen.
+    """
+    return {
+        "dato": str(r["observed_at"]),
+        "gjelder": ("lokaliteten" if str(r["entity_id"]) == loknr
+                    else f"tillatelse {r['entity_id']}"),
+        "kilde": str(r["source"]),
+        "felt": str(r["field"]),
+        "fra": r["old_value"] if r["old_value"] is not None else "",
+        "til": r["new_value"] if r["new_value"] is not None else "",
+    }
+
+
 # --------------------------------------------------------- sida
+
+
+def _endringer_av_indeks(loknr: str, tillatelser: list[str],
+                         felles: Felles) -> tuple[list[dict], int]:
+    """Samme svar som `_endringer()`, men av en ferdig indeks.
+
+    To funksjoner som skal si det samme er formen F6 og F7 hadde, og
+    derfor deler de radformen: `_endringsrad()` er den ene stedet en
+    changelog-rad blir til en tabellrad.
+    """
+    rader = list(felles.registerendringer.get(loknr, ()))
+    for nr in tillatelser:
+        rader += [r for r in felles.registerendringer.get(nr, ())
+                  if r["source"] in ("eierskap", "eierskap_historikk")]
+    rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
+    return ([_endringsrad(r, loknr) for r in rader],
+            felles.maaleserierader.get(loknr, 0))
 
 
 def _dekning_fra() -> list[dict]:
@@ -430,28 +566,50 @@ def _dekning_fra() -> list[dict]:
     return ut
 
 
-def bygg_lokalitet(loknr: str) -> dict:
-    """Alle dataene én lokalitetsside trenger. Ingen HTML her."""
-    akva_dato, akva = _siste("akvakultur")
+def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
+    """Alle dataene én lokalitetsside trenger. Ingen HTML her.
+
+    `felles` er de delte lesingene gjort på forhånd — se `les_felles()`.
+    Uten den leser funksjonen alt selv, og da koster ett kall 9 s. Det er
+    riktig for én side og umulig for 1782, og forskjellen skal være
+    synlig i kallet framfor gjemt i en buffer.
+
+    Resultatet er det SAMME uansett vei. `test_batch_gir_samme_side_som_enkelt`
+    håndhever det: to veier til samme side som kan svare ulikt, er formen
+    F6 og F7 hadde.
+    """
+    if felles is None:
+        akva_dato, akva = _siste("akvakultur")
+    else:
+        akva_dato, akva = felles.akva_dato, felles.akva
     if loknr not in akva:
         raise SystemExit(f"lokalitet {loknr} finnes ikke i "
                          f"akvakultur-snapshotet {akva_dato}")
     a = akva[loknr]
 
-    eierskap_dato, eierskap = _siste("eierskap")
-    mine_till = {
-        nr: d for nr, d in eierskap.items()
-        if loknr in [x.strip() for x in (d.get("lokaliteter") or "").split(";")]
-    }
+    if felles is None:
+        eierskap_dato, eierskap = _siste("eierskap")
+        mine_till = {
+            nr: d for nr, d in eierskap.items()
+            if loknr in [x.strip() for x in (d.get("lokaliteter") or "").split(";")]
+        }
+        ovf = list(_overforinger().values())
+        serie = _lusserie(loknr)
+        endringer, maaleserie_rader = _endringer(loknr, sorted(mine_till))
+    else:
+        eierskap_dato, eierskap = felles.eierskap_dato, felles.eierskap
+        mine_till = {nr: eierskap[nr] for nr in
+                     felles.tillatelser_per_lokalitet.get(loknr, ())}
+        ovf = [o for nr in mine_till
+               for o in felles.overforinger_per_tillatelse.get(nr, ())]
+        serie = felles.lusserier.get(loknr, [])
+        endringer, maaleserie_rader = _endringer_av_indeks(
+            loknr, sorted(mine_till), felles)
 
-    ovf = _overforinger()
     overforinger = sorted(
-        (o for o in ovf.values() if o.get("tillatelse_nr") in mine_till),
+        (o for o in ovf if o.get("tillatelse_nr") in mine_till),
         key=lambda o: (o.get("journal_dato", ""), o.get("tillatelse_nr", "")),
     )
-
-    serie = _lusserie(loknr)
-    endringer, maaleserie_rader = _endringer(loknr, sorted(mine_till))
 
     return {
         "loknr": loknr,
@@ -496,6 +654,11 @@ def bygg_lokalitet(loknr: str) -> dict:
         "lus_fra": serie[0]["dato"] if serie else "",
         "lus_til": serie[-1]["dato"] if serie else "",
         "lus_uker": len(serie),
+        # Hvor mange ukesnapshots vi HAR. Uten det kan en side med null
+        # uker ikke skille «vi har ikke sett etter» fra «vi har sett i
+        # 764 uker og ikke funnet den».
+        "lusetall_snapshots": (len(felles.lusetall_snapshots) if felles
+                               else len(snapshot.datoer("lusetall"))),
         # Telles her og skrives ikke inn i malen for hånd. Et tall i en
         # mal er et tall som ikke oppdateres når dataene gjør det, og da
         # er siden usann neste uke uten at noen rørte den.
@@ -507,7 +670,7 @@ def bygg_lokalitet(loknr: str) -> dict:
         "csv_filnavn": CSV_FILNAVN,
         "endringer": endringer,
         "maaleserie_rader": maaleserie_rader,
-        "dekning_fra": _dekning_fra(),
+        "dekning_fra": (felles.dekning_fra if felles else _dekning_fra()),
     }
 
 
@@ -557,18 +720,35 @@ def csv_kommentar(lok: dict, setninger: list[str], bygget: str) -> list[str]:
     linjer = [
         f"Voksne hunnlus per fisk for akvakulturlokalitet "
         f"{lok['loknr']} {lok['navn']}, {lok['kommune']}.",
-        f"Ukentlig serie {lok['lus_fra']} til {lok['lus_til']}, "
-        f"{lok['lus_uker']} uker. Datoen er MANDAG i ISO-uka.",
-        "",
     ]
+    # MÅLT 17.09.2026: 4 av 1782 lokaliteter har ingen uker. Første
+    # utgave skrev «Ukentlig serie  til , 0 uker» — to tomme spenn og en
+    # påstand om en serie som ikke finnes.
+    if lok["lus_uker"]:
+        linjer += [
+            f"Ukentlig serie {lok['lus_fra']} til {lok['lus_til']}, "
+            f"{lok['lus_uker']} uker. Datoen er MANDAG i ISO-uka.",
+            "",
+        ]
+    else:
+        linjer += [
+            f"INGEN UKER. Lokaliteten finnes ikke i noen av de "
+            f"{lok['lusetall_snapshots']} ukesnapshotene vi har.",
+            "Fila har hode og null rader med vilje: det er et svar, og "
+            "404 er det ikke.",
+            "",
+        ]
     linjer += setninger
+    linjer += [""]
+    if lok["lus_uker"]:
+        linjer += [
+            "Tom voksne_hunnlus betyr at kilden ikke oppgir noe tall - ikke "
+            "at tallet var null.",
+            "Se lus_er_rapportert paa samme rad. "
+            f"{lok['lus_uten_tall']} av {lok['lus_uker']} uker er slik.",
+            "",
+        ]
     linjer += [
-        "",
-        "Tom voksne_hunnlus betyr at kilden ikke oppgir noe tall - ikke at "
-        "tallet var null.",
-        "Se lus_er_rapportert paa samme rad. "
-        f"{lok['lus_uten_tall']} av {lok['lus_uker']} uker er slik.",
-        "",
         f"Bygget {bygget} av havbruk-radar fra snapshots. Tallene er "
         f"gjengitt uendret fra kilden.",
         "Kommentarlinjer starter med #. Les f.eks. med "
@@ -747,17 +927,25 @@ def _miljo() -> Environment:
     )
 
 
-def skriv_lokalitet(loknr: str, rot: Path = UT) -> list[Path]:
+def skriv_lokalitet(loknr: str, rot: Path = UT,
+                    felles: Felles | None = None,
+                    mal=None) -> list[Path]:
     """Rendrer og skriver lokalitetssiden OG dens CSV. Returnerer stiene.
 
     Begge filene i samme mappe, som er hva en avsluttende skråstrek
     betyr. Mappa er dermed selvstendig: kopierer noen
     `/lokalitet/31397/`, følger både siden og tallene med.
-    """
-    lok = bygg_lokalitet(loknr)
-    setninger = attribusjon(SIDENS_KILDER)          # kaster på UBELAGT
 
-    html = _miljo().get_template("lokalitet.html.j2").render(
+    `felles` og `mal` er gjenbruk for en batch — se `skriv_alle()`. Uten
+    dem gjør funksjonen nøyaktig det den gjorde før: leser alt selv og
+    kompilerer malen på nytt.
+    """
+    lok = bygg_lokalitet(loknr, felles)
+    vilkaar = felles.vilkaar if felles else None
+    setninger = attribusjon(SIDENS_KILDER, vilkaar)  # kaster på UBELAGT
+    mal = mal or _miljo().get_template("lokalitet.html.j2")
+
+    html = mal.render(
         lok=lok,
         tittel=f"Lokalitet {lok['loknr']} {lok['navn']} — havbruk-radar",
         beskrivelse=(
@@ -779,11 +967,98 @@ def skriv_lokalitet(loknr: str, rot: Path = UT) -> list[Path]:
     # attribusjon. Å legge alle fire kildenes setninger i et hode over en
     # fil som ikke inneholder dem, ville vært en påstand om at
     # Fiskeridirektoratet har levert noe her.
+    #
+    # SKRIVES OGSÅ NÅR SERIEN ER TOM. Målt 17.09.2026: 4 av 1782
+    # lokaliteter finnes ikke i noe lusetallsnapshot. En CSV med hode og
+    # null rader sier «vi har sett etter og ikke funnet noe»; en
+    # manglende fil sier ingenting, og 404 er ikke et svar. Lenka fra
+    # sida er den samme uansett, og kommentarhodet oppgir 0 uker.
     csv_sti = mappe / CSV_FILNAVN
     csv_sti.write_text(
-        csv_tekst(lok, attribusjon(["lusetall"]), dt.date.today().isoformat()),
+        csv_tekst(lok, attribusjon(["lusetall"], vilkaar),
+                  dt.date.today().isoformat()),
         encoding="utf-8")
     return [sti, csv_sti]
+
+
+# ------------------------------------------------------------- batchen
+
+
+@dataclass
+class Byggelogg:
+    """Hva som ikke gikk rent. Tellere, ikke lister med identiteter.
+
+    Et bygg over 1782 sider som bare sier «ferdig» skjuler nøyaktig det
+    man trenger å vite. Hver kategori her er noe som ble HÅNDTERT — og
+    håndteringen står i koden ved siden av telleren, ikke i en
+    fallback-verdi ingen ser.
+    """
+
+    sider: int = 0
+    uten_eier: list[str] = None
+    uten_tillatelser: list[str] = None
+    uten_koordinater: list[str] = None
+    uten_lusetall: list[str] = None
+    uten_prodomraade: list[str] = None
+    uten_endringer: list[str] = None
+    feilet: list[tuple[str, str]] = None
+
+    def __post_init__(self):
+        for felt in ("uten_eier", "uten_tillatelser", "uten_koordinater",
+                     "uten_lusetall", "uten_prodomraade", "uten_endringer",
+                     "feilet"):
+            if getattr(self, felt) is None:
+                setattr(self, felt, [])
+
+
+def skriv_alle(rot: Path = UT, grense: int | None = None
+               ) -> tuple[Byggelogg, dict[str, float]]:
+    """Alle lokaliteter i nyeste akvakultur-snapshot. (logg, tider).
+
+    Feiler ÉN side, feller den ikke de andre. Samme regel som
+    `runner.run_all()` og av samme grunn: én knekt ting skal koste én
+    ting, ikke alt. Feilen føres med lokalitetsnummer og melding, og
+    byggingen ender rødt.
+    """
+    tider: dict[str, float] = {}
+    t0 = time.perf_counter()
+    felles = les_felles()
+    tider["felleslesing"] = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    mal = _miljo().get_template("lokalitet.html.j2")
+    tider["malkompilering"] = time.perf_counter() - t0
+
+    logg = Byggelogg()
+    ider = sorted(felles.akva, key=lambda e: int(e) if e.isdigit() else 0)
+    if grense:
+        ider = ider[:grense]
+
+    t0 = time.perf_counter()
+    for loknr in ider:
+        a = felles.akva[loknr]
+        try:
+            skriv_lokalitet(loknr, rot, felles, mal)
+        except Exception as feil:                    # noqa: BLE001
+            logg.feilet.append((loknr, f"{type(feil).__name__}: {feil}"))
+            continue
+
+        logg.sider += 1
+        if not felles.tillatelser_per_lokalitet.get(loknr):
+            logg.uten_eier.append(loknr)
+        if not (a.get("tillatelser") or "").strip():
+            logg.uten_tillatelser.append(loknr)
+        if not (a.get("breddegrad") or "").strip() or \
+                not (a.get("lengdegrad") or "").strip():
+            logg.uten_koordinater.append(loknr)
+        if not felles.lusserier.get(loknr):
+            logg.uten_lusetall.append(loknr)
+        if not (a.get("prodomraade_kode") or "").strip():
+            logg.uten_prodomraade.append(loknr)
+        if not felles.registerendringer.get(loknr):
+            logg.uten_endringer.append(loknr)
+    tider["rendring_og_skriving"] = time.perf_counter() - t0
+    return logg, tider
 
 
 # --------------------------------------------------------- porten
@@ -813,21 +1088,61 @@ def gransk_og_meld(rot: Path) -> int:
     return 1
 
 
+def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
+    """Byggerapporten. Tallene, ikke inntrykket.
+
+    Kategoriene skrives ALLTID, også når de er null. Et tall man bare
+    ser når det er galt, er et tall ingen kjenner normalverdien til —
+    samme begrunnelse som at `--rapport` teller de filtrerte hver gang.
+    """
+    total = sum(tider.values())
+    bytes_ = sum(f.stat().st_size for f in rot.rglob("*") if f.is_file())
+    print(f"\n{logg.sider} sider skrevet til {rot}")
+    print(f"  byggetid      {total:8.1f} s")
+    for merke, t in tider.items():
+        print(f"    {merke:22} {t:7.1f} s  ({t / total * 100:4.1f} %)")
+    print(f"  på disk       {bytes_ / 1e6:8.1f} MB"
+          f"  ({bytes_ / max(logg.sider, 1) / 1024:.0f} kB per side)")
+
+    print("\n  ikke rent:")
+    for merke, liste in (
+            ("uten eier (ingen tillatelse i eierskap)", logg.uten_eier),
+            ("uten tillatelser i akvakultur", logg.uten_tillatelser),
+            ("uten koordinater", logg.uten_koordinater),
+            ("uten lusetall noen gang", logg.uten_lusetall),
+            ("uten produksjonsområde", logg.uten_prodomraade),
+            ("uten registerendringer", logg.uten_endringer),
+            ("FEILET", logg.feilet)):
+        print(f"    {merke:38} {len(liste):>5}")
+    for loknr, feil in logg.feilet[:20]:
+        print(f"      {loknr}: {feil}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--lokalitet", default="31397",
                     help="lokalitetsnummer å bygge (standard: 31397)")
+    ap.add_argument("--alle", action="store_true",
+                    help="bygg hver lokalitet i nyeste akvakultur-snapshot")
+    ap.add_argument("--grense", type=int, default=None,
+                    help="med --alle: bygg bare de N første (for en prøve)")
     ap.add_argument("--ut", default=str(UT), help="målmappe")
     ap.add_argument("--uten-vakt", action="store_true",
                     help="hopp over publiseringsvakten (bare utvikling)")
     args = ap.parse_args()
 
     rot = Path(args.ut)
-    filer = skriv_lokalitet(args.lokalitet, rot)
-    for f in filer:
-        print(f"{f}  ({f.stat().st_size / 1024:.0f} kB)")
-    print(f"  URL: /lokalitet/{args.lokalitet}/")
-    print(f"  CSV: /lokalitet/{args.lokalitet}/{CSV_FILNAVN}")
+    if args.alle:
+        logg, tider = skriv_alle(rot, args.grense)
+        _meld_bygg(logg, tider, rot)
+        if logg.feilet:
+            return 1
+    else:
+        filer = skriv_lokalitet(args.lokalitet, rot)
+        for f in filer:
+            print(f"{f}  ({f.stat().st_size / 1024:.0f} kB)")
+        print(f"  URL: /lokalitet/{args.lokalitet}/")
+        print(f"  CSV: /lokalitet/{args.lokalitet}/{CSV_FILNAVN}")
 
     if args.uten_vakt:
         print("\nVAKTEN ER HOPPET OVER. Siden skal ikke publiseres.")

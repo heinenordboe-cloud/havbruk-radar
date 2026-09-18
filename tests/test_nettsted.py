@@ -408,6 +408,163 @@ def test_janei_har_ingen_standardverdi():
     assert nettsted.JANEI.get("kanskje") is None
 
 
+# ---- batchen: 1782 sider, og de to veiene til samme side --------------
+#
+# `bygg_lokalitet()` er skrevet for ÉN side og leser da alt selv. Målt
+# 17.09.2026 koster ett kall 9,06 s — 6,4 s changelog, 2,6 s alle 764
+# lusetallsnapshots — og naivt over 1782 sider er det 4,5 timer.
+#
+# `les_felles()` gjør de samme lesingene én gang. Det er forskjellen på
+# en byggejobb som kan kjøre og en som ikke kan, og den er bare trygg så
+# lenge de to veiene gir NØYAKTIG samme side.
+
+
+@pytest.fixture
+def datamappe(tmp_path, monkeypatch):
+    """Et lite, ekte snapshotsett: to lokaliteter, én med lusetall.
+
+    Bygget av `snapshot.write()` og ikke av håndskrevne parquet-filer:
+    da går dataene gjennom den samme døra og de samme vaktene som i
+    drift, og testen måler generatoren framfor sin egen fikstur.
+    """
+    from core import snapshot as snap
+    from core.contract import Observation
+
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snap, "RAW_DIR", rot)
+
+    def obs(eid, felt, verdi, kilde, dato, navn=""):
+        return Observation(entity_id=eid, entity_type="lokalitet",
+                           entity_name=navn, field=felt, value=verdi,
+                           source=kilde, observed_at=dato)
+
+    # To lokaliteter. 10001 har alt; 10002 har verken eier eller lusetall.
+    akva = []
+    for eid, navn in (("10001", "TESTHOLMEN"), ("10002", "TOMHOLMEN")):
+        for felt, verdi in (("navn", navn), ("kommune", "BODØ"),
+                            ("fylke", "NORDLAND"), ("breddegrad", "67.1"),
+                            ("lengdegrad", "14.2"), ("kapasitet", "780.0")):
+            akva.append(obs(eid, felt, verdi, "akvakultur", "2026-09-14", navn))
+    akva.append(obs("10001", "tillatelser", "N-T-0001", "akvakultur",
+                    "2026-09-14", "TESTHOLMEN"))
+    snap.write(akva, "2026-09-14")
+
+    eierskap = [
+        Observation(entity_id="N-T-0001", entity_type="tillatelse",
+                    entity_name="N-T-0001", field=felt, value=verdi,
+                    source="eierskap", observed_at="2026-09-14")
+        for felt, verdi in (("eier_navn", "TESTLAKS AS"),
+                            ("eier_orgnr", "912345678"),
+                            ("organisasjonsform", "AS"),
+                            ("lokaliteter", "10001"))
+    ]
+    snap.write(eierskap, "2026-09-14")
+
+    for dato, lus in (("2026-08-10", "0.12"), ("2026-08-17", "")):
+        rader = [obs("10001", "lus_er_rapportert",
+                     "True" if lus else "False", "lusetall", dato, "TESTHOLMEN")]
+        if lus:
+            rader.append(obs("10001", "voksne_hunnlus", lus, "lusetall",
+                             dato, "TESTHOLMEN"))
+        snap.write(rader, dato)
+    return rot
+
+
+def test_batch_gir_samme_side_som_enkelt(datamappe):
+    """Den ene invarianten hele batchen hviler på.
+
+    To veier til samme side som kan svare ulikt, er formen F6 og F7
+    hadde: et andre oppslag som i visse tilfeller gir noe annet enn det
+    første. Her ville følgen vært at en side bygget alene og den samme
+    sida bygget i batch viste ulike tall — og ingen av dem ville sagt fra."""
+    felles = nettsted.les_felles()
+    for loknr in ("10001", "10002"):
+        assert nettsted.bygg_lokalitet(loknr) == \
+            nettsted.bygg_lokalitet(loknr, felles)
+
+
+def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_path):
+    ut = tmp_path / "nettsted"
+    logg, tider = nettsted.skriv_alle(ut)
+
+    assert logg.sider == 2
+    assert logg.feilet == []
+    for loknr in ("10001", "10002"):
+        assert (ut / "lokalitet" / loknr / "index.html").is_file()
+        assert (ut / "lokalitet" / loknr / nettsted.CSV_FILNAVN).is_file()
+    assert set(tider) == {"felleslesing", "malkompilering", "rendring_og_skriving"}
+
+
+def test_byggelogget_teller_det_som_ikke_gikk_rent(datamappe, tmp_path):
+    """Et bygg som bare sier «ferdig» skjuler nøyaktig det man trenger å
+    vite. Kategoriene skrives også når de er null — et tall man bare ser
+    når det er galt, er et tall ingen kjenner normalverdien til."""
+    logg, _ = nettsted.skriv_alle(tmp_path / "nettsted")
+
+    assert logg.uten_eier == ["10002"]
+    assert logg.uten_tillatelser == ["10002"]
+    assert logg.uten_lusetall == ["10002"]
+    assert logg.uten_koordinater == []
+    assert sorted(logg.uten_prodomraade) == ["10001", "10002"]
+
+
+def test_en_feilende_side_feller_ikke_de_andre(datamappe, tmp_path, monkeypatch):
+    """Samme regel som `runner.run_all()`: én knekt ting koster én ting.
+
+    Feilen føres med lokalitetsnummer og melding, og byggingen ender
+    rødt — den forsvinner ikke."""
+    ekte = nettsted.bygg_lokalitet
+
+    def sprekk(loknr, felles=None):
+        if loknr == "10001":
+            raise ValueError("konstruert feil")
+        return ekte(loknr, felles)
+
+    monkeypatch.setattr(nettsted, "bygg_lokalitet", sprekk)
+    logg, _ = nettsted.skriv_alle(tmp_path / "nettsted")
+
+    assert logg.sider == 1
+    assert logg.feilet == [("10001", "ValueError: konstruert feil")]
+    assert (tmp_path / "nettsted" / "lokalitet" / "10002" / "index.html").is_file()
+
+
+def test_lokalitet_uten_lusetall_gir_ingen_tom_datetime(datamappe, tmp_path):
+    """MÅLT 17.09.2026 over alle 1782 sider: 4 lokaliteter finnes ikke i
+    noe lusetallsnapshot, og de fikk `<time datetime=""></time>` og
+    «siste 0 uker … 0 av 0 uker, og i alle sammen står Rapportert: nei».
+
+    `datetime=""` er ugyldig HTML, og setningen er en påstand om uker som
+    ikke finnes. INGENTING KASTET: `StrictUndefined` fanger en manglende
+    NØKKEL, ikke en tom VERDI. Det ble funnet ved å lese utputtet, ikke
+    ved at bygget ble rødt — og det er derfor denne testen finnes."""
+    ut = tmp_path / "nettsted"
+    nettsted.skriv_alle(ut)
+    html = (ut / "lokalitet" / "10002" / "index.html").read_text()
+
+    assert 'datetime=""' not in html
+    assert "Ingen lusetall for denne lokaliteten." in html
+    assert "siste 0 uker" not in html
+    # ...og ankeret står, så en lenke til tabellen ikke dør av at den er tom
+    assert '<table id="lusetall-uke">' in html
+
+
+def test_csv_uten_uker_paastaar_ikke_et_spenn(datamappe, tmp_path):
+    """Første utgave skrev «Ukentlig serie  til , 0 uker» — to tomme
+    spenn og en påstand om en serie som ikke finnes.
+
+    Fila skrives likevel: «vi har sett etter og ikke funnet noe» er et
+    svar, og 404 er det ikke."""
+    ut = tmp_path / "nettsted"
+    nettsted.skriv_alle(ut)
+    csv = (ut / "lokalitet" / "10002" / nettsted.CSV_FILNAVN).read_text()
+
+    assert "Ukentlig serie  til" not in csv
+    assert "INGEN UKER" in csv
+    assert "Data levert av BarentsWatch" in csv
+    assert csv.strip().splitlines()[-1].startswith("lokalitetsnummer,")
+
+
 # ---- den siterbare CSV-en ---------------------------------------------
 #
 # Tabellen viser 52 uker, serien er 764. Hele den skal kunne siteres, og

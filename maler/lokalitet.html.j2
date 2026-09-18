@@ -115,7 +115,21 @@
 {# ------------------------------------------------------- lusetallene #}
 <div class="tabellramme">
 <table id="lusetall-uke">
+  {# To captions, fordi det er to ulike påstander.
+
+     MÅLT 17.09.2026 over alle 1782 sider: 4 lokaliteter finnes ikke i
+     noe lusetallsnapshot. Den første utgaven rendret dem med samme
+     caption som de andre, og resultatet var «siste 0 uker», «serien
+     dekker <time datetime="">–<time datetime="">» og «0 av 0 uker, og i
+     alle sammen står Rapportert: nei».
+
+     `datetime=""` er ugyldig HTML, og setningen er en påstand om uker
+     som ikke finnes. Ingenting kastet: `StrictUndefined` fanger en
+     manglende NØKKEL, ikke en tom VERDI, og Jinja rendrer tom streng
+     uten å mukke. Det er den stille varianten, og den ble funnet ved å
+     lese utputtet — ikke ved at bygget ble rødt. #}
   <caption>
+    {% if lok.lus_uker %}
     Voksne hunnlus per fisk, siste {{ lok.lus|length }} uker.
     Serien vi har for lokaliteten dekker
     <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
@@ -130,6 +144,16 @@
     <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a></strong>
     — {{ lok.lus_uker }} uker, med kildens egne verdier og
     attribusjonen i et kommentarhode.
+    {% else %}
+    <strong>Ingen lusetall for denne lokaliteten.</strong>
+    Den finnes ikke i noe av de {{ lok.lusetall_snapshots }} ukesnapshotene
+    vi har fra BarentsWatch — ikke i én uke med tomt tall, men ikke i
+    registeret i det hele tatt. Det er ventet for anlegg som ikke har
+    laksefisk: lusetellingen gjelder laks og ørret i sjø.
+    <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> finnes
+    likevel, med hode og null rader — «vi har sett etter og ikke funnet
+    noe» er et svar, og 404 er det ikke.
+    {% endif %}
   </caption>
   <thead>
     <tr>
