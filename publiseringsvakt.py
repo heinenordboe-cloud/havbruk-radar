@@ -122,6 +122,7 @@ ganger, og hva som eventuelt bør gjøres med den, står i
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import hashlib
 import html
 import re
@@ -202,6 +203,7 @@ class Funn:
 
     fil: str
     slag: str        # ukjent_orgnr | personform | ukjent_navn | ugranska
+                     # | ukjent_partisjon | feilerklaert_partisjon
     utdrag: str
     antall: int = 1
 
@@ -210,14 +212,106 @@ class Funn:
 
 
 # --------------------------------------------------- hvitelista
+#
+# HVILKE DATOER som leses er en egenskap ved KILDEN, ikke ved vakten:
+#
+#   "verden"    ALLE datoer. Snapshotene er ulike tidsrom som gjelder
+#               samtidig, og en visning av serien er en visning av dem
+#               alle — lokalitetssiden viser 764 uker lusetall og 21
+#               årganger overføringer.
+#   "henting"   NYESTE dato. Et navn fra forrige ukes uttrekk er et navn
+#               som ikke gjelder lenger, og en visning skal ikke hente
+#               fra det.
+#   ""          NYESTE, altså den strengeste lesningen — og et funn. Se
+#               `grunnlagsfunn()`.
+#
+# Erklæringen ligger på kilden (`Source.partisjonering`), og
+# klassifiseringen er målt i docs/MALING-PARTISJONERING.md. Fram til
+# 19.09.2026 leste denne fila NYESTE for alle, og det ga **961 av 1030
+# portfunn**: generatoren leser alle 21 årgangene av
+# `eierskap_historikk`, hvitelista bare 2026-fila.
+#
+# Målt kostnad for regelen: 7,17-7,54 s mot 0,07-0,08 s for nyeste alene,
+# og lusetall er 5 av de 7 sekundene. Det den kjøper er 13 navn og 5
+# orgnumre som IKKE hvitelistes — de eldre partisjonene til
+# henting-kildene. Lite, men det er innstrammingen `hviteliste()` finnes
+# for å ha.
+
+
+def _erklaeringene() -> tuple[dict[str, str], dict]:
+    """({kildenavn: partisjonering}, {kildenavn: kilden}).
+
+    Bygget av `registry.discover()` ved hvert kall og ikke bufret, som
+    `nettsted.kildevilkaar()`: en port som leser en gammel erklæring er
+    en port som svarer på gårsdagens kode.
+    """
+    from core import registry
+    from core.contract import kilder_per_navn, partisjonering_per_kilde
+
+    kilder = registry.discover()
+    return partisjonering_per_kilde(kilder), kilder_per_navn(kilder)
+
+
+def _datoene(kilde: str, partisjonering: str) -> list[str]:
+    """Datoene hvitelista skal lese for kilden. Regelen, ett sted."""
+    if partisjonering == "verden":
+        return snapshot.datoer(kilde)
+    siste = snapshot.siste_dato(kilde)
+    return [siste] if siste else []
+
 
 def _snapshotrammer() -> Iterable[pl.DataFrame]:
-    """Nyeste snapshot per kilde, LEST GJENNOM `snapshot._les()`.
+    """Rammene hvitelista bygges av, LEST GJENNOM `snapshot._les()`.
 
     Veien er ikke likegyldig. `_les()` er den ene døra, og den kjører
     `persondata.fjern_personformer()`. Bygges hvitelista med
     `pl.read_parquet()` i stedet, inneholder den nøyaktig de orgnumrene
     og navnene vakten finnes for å stoppe — og vakten ville godkjent dem.
+
+    Døra er likevel ikke nok for enhver kilde, og det er MÅLT:
+    `eierskap_historikk` har 36 360 rader over 21 årganger og 0 med
+    `organisasjonsform` eller `institusjonell_sektorkode` — døra fjerner
+    0. Derfor spørres KILDEN i tillegg (`fjern_egne_personer()`), ellers
+    ville regelen over hvitelistet de fire personformede mottakerne i
+    stedet for å filtrere dem. Stillhet kjøpt for sikkerhet.
+    """
+    if not RAW_DIR.exists():
+        return
+    partisjonering, kilder = _erklaeringene()
+    for kdir in sorted(RAW_DIR.iterdir()):
+        if not kdir.is_dir():
+            continue
+        for ramme in _rammene_for(kdir.name, partisjonering, kilder):
+            yield ramme
+
+
+def _rammene_for(kilde: str, partisjonering: dict[str, str],
+                 kilder: dict) -> Iterable[pl.DataFrame]:
+    """Rammene for én kilde, etter regelen og med kildens eget tillegg."""
+    for dato in _datoene(kilde, partisjonering.get(kilde, "")):
+        for _versjon, ramme in snapshot.versjoner(kilde, dato):
+            eier = kilder.get(kilde)
+            if eier is None:
+                yield ramme
+                continue
+            etter = eier.fjern_egne_personer(ramme)
+            if etter.height > ramme.height:
+                # Hooken er et TILLEGG til døra og kan bare fjerne. En
+                # kilde som leverer flere rader tilbake har ikke
+                # filtrert, og en hviteliste bygget av det er større enn
+                # dataene den skal gjøre rede for.
+                raise ValueError(
+                    f"{kilde}.fjern_egne_personer() ga {etter.height} rader "
+                    f"tilbake av {ramme.height} for {dato}. Hooken skal "
+                    f"filtrere, ikke legge til — se Source.fjern_egne_personer.")
+            yield etter
+
+
+def _gamle_snapshotrammer() -> Iterable[pl.DataFrame]:
+    """Nyeste snapshot per kilde, uten regelen. Bare for målinger.
+
+    Beholdt fordi tallene i docs/MALING-PARTISJONERING.md er målt mot
+    den, og et tall uten en kjørbar kilde er et tall ingen kan etterprøve.
     """
     if not RAW_DIR.exists():
         return
@@ -234,11 +328,16 @@ def _snapshotrammer() -> Iterable[pl.DataFrame]:
 def hviteliste() -> tuple[set[str], set[str]]:
     """(orgnumre, navn) som ER gjort rede for. Begge lest gjennom døra.
 
-    Tar NYESTE snapshot per kilde og ikke hele historikken. Det er en
-    bevisst innstramming: en generator som viser et selskap som forsvant
-    ut av registeret for et år siden, henter fra et sted vakten ikke
-    kjenner, og det skal rapporteres framfor godkjennes. Trenger en
-    visning eldre data, er utvidelsen her og skal begrunnes.
+    Hvilke datoer som leses er KILDENS erklæring og ikke vaktens valg —
+    alle for «verden», nyeste for «henting». Se kommentaren over
+    `_snapshotrammer()`.
+
+    Innstrammingen som sto her fram til 19.09.2026 — nyeste dato for ALLE
+    kilder — er ikke gitt opp, den er gjort presis. Den var riktig om
+    `enhetsregisteret`, der forrige ukes navn ikke gjelder lenger, og feil
+    om `eierskap_historikk`, der 2009-årgangen er et annet tidsrom og ikke
+    en utdatert versjon av 2026. Målt: den beholder 13 navn og 5 orgnumre
+    utenfor hvitelista som «alle datoer for alt» ville sluppet inn.
     """
     orgnr: set[str] = set()
     navn: set[str] = set()
@@ -744,11 +843,132 @@ def filtrert_bort() -> dict[str, int]:
 
 # --------------------------------------------------- inngangen
 
+# --------------------------------------------------- grunnlaget
+#
+# De tre prøvene gransker UTPUTTET. Denne granskes GRUNNLAGET: stemmer
+# erklæringen hvitelista bygges etter med dataene den bygges av?
+#
+# Spørsmålet finnes fordi de to feilretningene ikke er like:
+#
+#   «verden» erklært som «henting»   hvitelista blir for LITEN. Hvert navn
+#                                    i historikken meldes som ukjent_navn.
+#                                    Høyt, irriterende, ufarlig.
+#   «henting» erklært som «verden»   hvitelista blir for STOR. Et navn som
+#                                    forsvant ut av registeret for et år
+#                                    siden er plutselig gjort rede for, og
+#                                    en visning som viser det PASSERER.
+#                                    Stille.
+#
+# Den andre er grunnen til at denne prøven finnes. En vakt som bare kan
+# felle den støyende retningen er ikke en vakt mot den stille.
+
+# Hvor mange snapshots som må til før «verden» kan motbevises. Med ett
+# snapshot er 0 dagers avvik uinformativt: en kilde som ble hentet samme
+# dag som tidsrommet den gjelder for ser ut som en henting-kilde, og det
+# er ikke en feil — det er fravær av grunnlag. Med to er et sammenfall i
+# BEGGE en påstand dataene ikke bærer.
+MINST_FOR_AA_MOTBEVISE_VERDEN = 2
+
+
+def _avvik(kilde: str, dato: str) -> int | None:
+    """Dager mellom `observed_at` og datoen i `fetched_at`. None = ukjent.
+
+    Snapshots skrevet før `fetched_at` fantes kan ikke måles, og de skal
+    ikke felle noe: fravær av et tidsstempel er ikke en feil erklæring.
+    """
+    for _versjon, ramme in snapshot.versjoner(kilde, dato):
+        hentet = snapshot.fetched_at_i(ramme)
+        if not hentet:
+            continue
+        try:
+            return (dt.date.fromisoformat(dato)
+                    - dt.date.fromisoformat(hentet[:10])).days
+        except ValueError:
+            return None
+    return None
+
+
+def grunnlagsfunn() -> list[Funn]:
+    """Erklæringer som ikke kan gjøres rede for mot dataene.
+
+    To slag:
+
+      * `ukjent_partisjon` — kilden har ikke erklært seg. Hvitelista leser
+        da nyeste dato alene, som er den strengeste lesningen, men
+        stillhet skal ikke belønnes: en ny kilde som glemmer erklæringen
+        skal stoppe publiseringen, akkurat som en UBELAGT attribusjon
+        gjør det.
+      * `feilerklaert_partisjon` — dataene motsier erklæringen.
+
+    Prøven er MÅLT mulig, og det er hele grunnen til at den kan stå:
+    19.09.2026 har de fire henting-kildene 0 dagers avvik i HVERT enkelt
+    snapshot — min og maks, ikke bare median — og de åtte verden-kildene
+    median mellom −77 og −3532. Skillet er ikke gradvist. Se
+    docs/MALING-PARTISJONERING.md punkt 1.
+    """
+    if not RAW_DIR.exists():
+        return []
+    partisjonering, _kilder = _erklaeringene()
+    funn: list[Funn] = []
+
+    for kdir in sorted(RAW_DIR.iterdir()):
+        if not kdir.is_dir():
+            continue
+        kilde = kdir.name
+        datoer = snapshot.datoer(kilde)
+        if not datoer:
+            continue
+        erklaert = partisjonering.get(kilde)
+
+        if erklaert is None:
+            funn.append(Funn(f"data/raw/{kilde}", "ukjent_partisjon",
+                             "ingen kilde skriver under navnet"))
+            continue
+        if not erklaert:
+            funn.append(Funn(f"data/raw/{kilde}", "ukjent_partisjon",
+                             "Source.partisjonering er ikke satt"))
+            continue
+
+        avvik = [(d, _avvik(kilde, d)) for d in datoer]
+        maalte = [(d, a) for d, a in avvik if a is not None]
+        if not maalte:
+            continue                      # ingen fetched_at å måle mot
+
+        if erklaert == "henting":
+            # Ett eneste snapshot som gjelder for et annet tidsrom enn
+            # dagen det ble hentet, motsier «henting». Her trengs ingen
+            # terskel: påstanden er at de ALLTID faller sammen.
+            uenige = [(d, a) for d, a in maalte if a != 0]
+            if uenige:
+                d, a = uenige[0]
+                funn.append(Funn(
+                    f"data/raw/{kilde}", "feilerklaert_partisjon",
+                    f"erklært «henting», men {len(uenige)} av {len(maalte)} "
+                    f"snapshots gjelder for et annet tidsrom enn hentingen "
+                    f"({d}: {a} dager). Er kilden «verden», leser hvitelista "
+                    f"bare nyeste dato av den"))
+        elif erklaert == "verden":
+            if (len(maalte) >= MINST_FOR_AA_MOTBEVISE_VERDEN
+                    and all(a == 0 for _d, a in maalte)):
+                funn.append(Funn(
+                    f"data/raw/{kilde}", "feilerklaert_partisjon",
+                    f"erklært «verden», men alle {len(maalte)} snapshots er "
+                    f"datert dagen de ble hentet. Er kilden «henting», "
+                    f"hvitelister vi navn som ikke gjelder lenger"))
+    return funn
+
+
 def gransk(mappe: Path) -> list[Funn]:
-    """Alle filer under `mappe`. Tom liste = ingenting å innvende."""
+    """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
+
+    Grunnlagsfunnene er med i samme liste fordi de har samme følge: en
+    hviteliste bygget på en feil erklæring er en hviteliste som gjør rede
+    for noe den ikke har sett, og et grønt bygg på den er verre enn et
+    rødt. Porten skiller dem ikke, og exit-koden dekker begge.
+    """
+    funn: list[Funn] = list(grunnlagsfunn())
     orgnr_ok, navn_ok = hviteliste()
     tvetydige = tvetydige_koder(_snapshotrammer())
-    funn: list[Funn] = []
     for sti in sorted(p for p in mappe.rglob("*") if p.is_file()):
         rel = str(sti.relative_to(mappe))
         tekst = _tekst(sti)

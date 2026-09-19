@@ -242,10 +242,31 @@ def _overforinger() -> dict[str, dict[str, str]]:
     tilfeldigvis: v2 er en ekte overmengde av v1. Den dagen en versjon
     restaterer bare en DEL, gir «siste fil» feil svar igjen. Se
     docs/KILDE-EIERSKAP.md punkt 1.
+
+    ## Kilden spørres i tillegg til døra, og det er ikke valgfritt
+
+    `snapshot.versjoner()` kjører `persondata.fjern_personformer()`. Den
+    fjerner MÅLT 0 av 36 360 rader her, fordi kilden skriver 0 rader
+    `organisasjonsform` og 0 `institusjonell_sektorkode` — formen står i
+    `mottaker_type`, i pub-aquas vokabular.
+    `Source.fjern_egne_personer()` er tillegget for nettopp det.
+
+    Uten kallet ville fire overføringer til en personform stått på
+    sidene, og `publiseringsvakt.hviteliste()` — som leser de samme
+    årgangene gjennom det samme tillegget — ville meldt dem som
+    `ukjent_navn` og blokkert publiseringen. Generatoren og porten må
+    lese LIKT; to lesemåter av samme kilde som kan svare ulikt er formen
+    F6 og F7 hadde.
     """
+    from core import registry
+    from core.contract import kilder_per_navn
+
+    kilde = kilder_per_navn(registry.discover()).get("eierskap_historikk")
     ut: dict[str, dict[str, str]] = defaultdict(dict)
     for dato in snapshot.datoer("eierskap_historikk"):
         for _nr, ramme in snapshot.versjoner("eierskap_historikk", dato):
+            if kilde is not None:
+                ramme = kilde.fjern_egne_personer(ramme)
             for eid, felt, verdi in ramme.select(
                     ["entity_id", "field", "value"]).iter_rows():
                 ut[str(eid)][str(felt)] = verdi

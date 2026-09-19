@@ -710,3 +710,301 @@ def test_kommandolinja_returnerer_0_paa_rent_utputt(tmp_path, snapshotmappe):
         assert vakt.main() == 0
     finally:
         monkey.undo()
+
+
+# ---- regelen: hvilke datoer hvitelista leser ---------------------------
+#
+# Erklært av KILDEN (`Source.partisjonering`), ikke valgt av vakten.
+# Fram til 19.09.2026 leste hvitelista nyeste dato for alle kilder, og
+# det ga 961 av 1030 portfunn: generatoren leser alle 21 årgangene av
+# `eierskap_historikk`, hvitelista bare 2026-fila.
+
+
+def _flerdato(rot, kilde, datoer_og_navn, partisjonering="verden"):
+    """Skriver ett snapshot per (dato, navn) og erklærer partisjonen."""
+    from core.contract import Source
+
+    mappe = rot / kilde
+    mappe.mkdir(parents=True, exist_ok=True)
+    for dato, navn in datoer_og_navn:
+        rader = [Observation(
+            entity_id="912345678", entity_type="selskap", entity_name="",
+            field="navn", value=navn, source=kilde, observed_at=dato,
+            fetched_at=f"{dato}T10:00:00+00:00")]
+        pl.DataFrame([o.as_dict() for o in rader]).write_parquet(
+            mappe / f"{dato}.parquet")
+
+    class Kilden(Source):
+        name = kilde
+    Kilden.partisjonering = partisjonering
+    return Kilden()
+
+
+def test_verden_kilde_leses_over_ALLE_datoer(tmp_path, monkeypatch):
+    """21 årganger er 21 tidsrom som gjelder samtidig, ikke 20 utdaterte."""
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+    kilde = _flerdato(rot, "historikk", [("2009-12-31", "Gammelt Navn AS"),
+                                         ("2026-12-31", "Nytt Navn AS")])
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"historikk": "verden"}, {"historikk": kilde}))
+
+    _orgnr, navn = vakt.hviteliste()
+    assert {"Gammelt Navn AS", "Nytt Navn AS"} <= navn
+
+
+def test_henting_kilde_leses_bare_paa_NYESTE_dato(tmp_path, monkeypatch):
+    """Forrige ukes uttrekk er utdatert, ikke et annet tidsrom. Et navn
+    som forsvant ut av registeret skal ikke være gjort rede for."""
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+    kilde = _flerdato(rot, "register", [("2026-09-07", "Forsvant AS"),
+                                        ("2026-09-14", "Finnes AS")],
+                      partisjonering="henting")
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"register": "henting"}, {"register": kilde}))
+
+    _orgnr, navn = vakt.hviteliste()
+    assert "Finnes AS" in navn
+    assert "Forsvant AS" not in navn
+
+
+def test_uerklaert_kilde_leses_som_den_STRENGESTE(tmp_path, monkeypatch):
+    """«Vet ikke» gir nyeste dato alene — og et eget funn, se
+    `test_uerklaert_partisjon_er_et_funn`."""
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+    kilde = _flerdato(rot, "taus", [("2026-09-07", "Gammel AS"),
+                                    ("2026-09-14", "Ny AS")],
+                      partisjonering="")
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"taus": ""}, {"taus": kilde}))
+
+    _orgnr, navn = vakt.hviteliste()
+    assert "Gammel AS" not in navn
+
+
+def test_datoene_er_regelen_paa_ett_sted(tmp_path, monkeypatch):
+    """Regelen er én funksjon, og den svarer på alle tre tilstandene.
+
+    To steder som skal si det samme om hvilke datoer som leses, er formen
+    F6 og F7 hadde — derfor spør både `_snapshotrammer()` og enhver
+    framtidig leser denne."""
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+    _flerdato(rot, "kilde", [("2009-12-31", "A"), ("2026-12-31", "B")])
+
+    assert vakt._datoene("kilde", "verden") == ["2009-12-31", "2026-12-31"]
+    assert vakt._datoene("kilde", "henting") == ["2026-12-31"]
+    assert vakt._datoene("kilde", "") == ["2026-12-31"]
+    assert vakt._datoene("finnes_ikke", "verden") == []
+    assert vakt._datoene("finnes_ikke", "henting") == []
+
+
+# ---- kildens eget tillegg til døra -------------------------------------
+
+def test_kildens_eget_filter_holdes_UTE_av_hvitelista(tmp_path, monkeypatch):
+    """`fjern_egne_personer()` er tillegget for det døra ikke ser.
+
+    MÅLT: døra fjerner 0 av 36 360 rader fra eierskap_historikk, fordi
+    kilden skriver 0 `organisasjonsform` og 0 sektorkode. Uten tillegget
+    ville hvitelista GJORT REDE FOR mottakerne i stedet for å filtrere
+    dem — stillhet kjøpt for sikkerhet, og porten ville sagt grønt."""
+    from core.contract import Source
+
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+    _flerdato(rot, "historikk", [("2009-12-31", "Hansen og Olsen DA")])
+
+    class MedTillegg(Source):
+        name = "historikk"
+        partisjonering = "verden"
+
+        def fjern_egne_personer(self, frame):
+            return frame.filter(pl.col("value") != "Hansen og Olsen DA")
+
+    kilde = MedTillegg()
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"historikk": "verden"}, {"historikk": kilde}))
+
+    _orgnr, navn = vakt.hviteliste()
+    assert "Hansen og Olsen DA" not in navn, (
+        "kilden filtrerte raden, og hvitelista gjorde likevel rede for navnet")
+
+
+def test_et_tillegg_som_LEGGER_TIL_rader_felles(tmp_path, monkeypatch):
+    """Hooken er et tillegg til døra og kan bare fjerne. En hviteliste
+    bygget av flere rader enn dataene har, gjør rede for noe som ikke er
+    der."""
+    from core.contract import Source
+
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+    _flerdato(rot, "historikk", [("2009-12-31", "Noe AS")])
+
+    class Legger(Source):
+        name = "historikk"
+        partisjonering = "verden"
+
+        def fjern_egne_personer(self, frame):
+            return pl.concat([frame, frame])
+
+    kilde = Legger()
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"historikk": "verden"}, {"historikk": kilde}))
+
+    with pytest.raises(ValueError, match="filtrere, ikke legge til"):
+        vakt.hviteliste()
+
+
+# ---- grunnlaget: stemmer erklæringen med dataene? ---------------------
+#
+# Den viktigste prøven i denne fila, fordi den er den ENESTE som kan
+# felle den stille feilretningen. En «verden»-kilde som erklærer seg
+# «henting» gir støyende funn; en «henting»-kilde som erklærer seg
+# «verden» gir en for stor hviteliste, og da PASSERER et navn som
+# forsvant ut av registeret for et år siden.
+
+
+def _medavvik(rot, kilde, par):
+    """Snapshots med styrt avvik: (observed_at, fetched_at-dato)."""
+    mappe = rot / kilde
+    mappe.mkdir(parents=True, exist_ok=True)
+    for observed, hentet in par:
+        rader = [Observation(
+            entity_id="912345678", entity_type="selskap", entity_name="",
+            field="navn", value="Noe AS", source=kilde,
+            observed_at=observed, fetched_at=f"{hentet}T10:00:00+00:00")]
+        pl.DataFrame([o.as_dict() for o in rader]).write_parquet(
+            mappe / f"{observed}.parquet")
+
+
+@pytest.fixture
+def grunnlag(tmp_path, monkeypatch):
+    rot = tmp_path / "raw"
+    rot.mkdir()
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+    return rot
+
+
+def test_henting_som_er_verden_felles(grunnlag, monkeypatch):
+    """Den STØYENDE retningen. Ett snapshot som gjelder for et annet
+    tidsrom enn hentingen motsier «henting» — ingen terskel trengs, for
+    påstanden er at de ALLTID faller sammen."""
+    _medavvik(grunnlag, "kilde", [("2026-09-14", "2026-09-14"),
+                                  ("2012-01-02", "2026-09-14")])
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"kilde": "henting"}, {}))
+
+    funn = vakt.grunnlagsfunn()
+    assert [f.slag for f in funn] == ["feilerklaert_partisjon"]
+    assert "erklært «henting»" in funn[0].utdrag
+
+
+def test_verden_som_er_henting_felles(grunnlag, monkeypatch):
+    """DEN STILLE RETNINGEN, og grunnen til at prøven finnes.
+
+    Alle snapshots datert dagen de ble hentet — da er «verden» en påstand
+    dataene ikke bærer, og hvitelista ville gjort rede for hvert navn
+    kilden noensinne har hatt."""
+    _medavvik(grunnlag, "kilde", [("2026-09-07", "2026-09-07"),
+                                  ("2026-09-14", "2026-09-14")])
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"kilde": "verden"}, {}))
+
+    funn = vakt.grunnlagsfunn()
+    assert [f.slag for f in funn] == ["feilerklaert_partisjon"]
+    assert "erklært «verden»" in funn[0].utdrag
+
+
+def test_ETT_snapshot_kan_ikke_motbevise_verden(grunnlag, monkeypatch):
+    """Med ett snapshot er 0 dagers avvik uinformativt: en kilde hentet
+    samme dag som tidsrommet den gjelder for ser ut som en henting-kilde,
+    og det er fravær av grunnlag — ikke en feil erklæring. En vakt som
+    feller på det, feller en ny kilde på dens første kjøring."""
+    _medavvik(grunnlag, "kilde", [("2026-09-14", "2026-09-14")])
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"kilde": "verden"}, {}))
+
+    assert vakt.grunnlagsfunn() == []
+
+
+def test_snapshot_uten_fetched_at_feller_ingenting(grunnlag, monkeypatch):
+    """Snapshots skrevet før `fetched_at` fantes kan ikke måles. Fravær
+    av et tidsstempel er ikke en feil erklæring — enhetsregisteret har
+    ett slikt snapshot (2026-08-16), og det skal ikke felle noe."""
+    mappe = grunnlag / "kilde"
+    mappe.mkdir(parents=True)
+    rader = [Observation(entity_id="912345678", entity_type="selskap",
+                         entity_name="", field="navn", value="Noe AS",
+                         source="kilde", observed_at="2026-09-14")]
+    pl.DataFrame([o.as_dict() for o in rader]).write_parquet(
+        mappe / "2026-09-14.parquet")
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"kilde": "henting"}, {}))
+
+    assert vakt.grunnlagsfunn() == []
+
+
+def test_uerklaert_partisjon_er_et_funn(grunnlag, monkeypatch):
+    """Stillhet skal ikke belønnes. En ny kilde som glemmer erklæringen
+    stopper publiseringen, akkurat som en UBELAGT attribusjon gjør."""
+    _medavvik(grunnlag, "kilde", [("2026-09-14", "2026-09-14")])
+    monkeypatch.setattr(vakt, "_erklaeringene", lambda: ({"kilde": ""}, {}))
+
+    funn = vakt.grunnlagsfunn()
+    assert [f.slag for f in funn] == ["ukjent_partisjon"]
+
+
+def test_mappe_uten_kilde_er_ogsaa_ukjent_partisjon(grunnlag, monkeypatch):
+    """En mappe i data/raw/ som ingen kilde skriver under kan ikke svare
+    på spørsmålet i det hele tatt. Samme form som en attribusjon uten
+    kilde: det er ingen som har gått god for noe."""
+    _medavvik(grunnlag, "foreldrelos", [("2026-09-14", "2026-09-14")])
+    monkeypatch.setattr(vakt, "_erklaeringene", lambda: ({}, {}))
+
+    funn = vakt.grunnlagsfunn()
+    assert [f.slag for f in funn] == ["ukjent_partisjon"]
+    assert "ingen kilde" in funn[0].utdrag
+
+
+def test_riktig_erklaering_gir_ingen_grunnlagsfunn(grunnlag, monkeypatch):
+    _medavvik(grunnlag, "verden_kilde", [("2012-01-02", "2026-09-14"),
+                                         ("2026-08-17", "2026-09-14")])
+    _medavvik(grunnlag, "henting_kilde", [("2026-09-07", "2026-09-07"),
+                                          ("2026-09-14", "2026-09-14")])
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"verden_kilde": "verden",
+                                  "henting_kilde": "henting"}, {}))
+
+    assert vakt.grunnlagsfunn() == []
+
+
+def test_gransk_tar_grunnlagsfunnene_med(tmp_path, grunnlag, monkeypatch):
+    """Exit-koden skal dekke begge: en hviteliste bygget på en feil
+    erklæring gjør rede for noe den ikke har sett, og et grønt bygg på
+    den er verre enn et rødt."""
+    _medavvik(grunnlag, "kilde", [("2026-09-07", "2026-09-07"),
+                                  ("2026-09-14", "2026-09-14")])
+    monkeypatch.setattr(vakt, "_erklaeringene",
+                        lambda: ({"kilde": "verden"}, {}))
+
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "ren.html").write_text("<p>ingenting</p>", encoding="utf-8")
+
+    funn = vakt.gransk(ut)
+    assert [f.slag for f in funn] == ["feilerklaert_partisjon"]
