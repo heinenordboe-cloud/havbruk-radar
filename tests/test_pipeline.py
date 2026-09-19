@@ -307,6 +307,159 @@ def test_to_kilder_kan_ikke_skrive_under_samme_navn():
         attribusjon_per_kilde([A(), B()])
 
 
+# ------------------------------------------------- partisjoneringen
+#
+# HVA DATOEN I FILNAVNET ER: tidsrommet raden gjelder for («verden»)
+# eller dagen vi spurte («henting»). Erklært av kilden, av samme grunn
+# som `attribusjon` og `domene` er det.
+#
+# Testene her prøver KONTRAKTEN på konstruerte kilder. At de ekte
+# kildene erklærer seg, og at erklæringen stemmer med dataene, prøves
+# for seg — se docs/MALING-PARTISJONERING.md.
+
+
+def test_uerklaert_partisjonering_er_tom_for_hvert_navn():
+    """Tom streng er en TILSTAND — ikke erklært — og ikke en verdi.
+
+    Kjernen tvinger ingen tolkning: hva «vet ikke» får bety er
+    publiseringsleddets sak, akkurat som for UBELAGT attribusjon."""
+    from core.contract import Source, erklaert_partisjonering
+
+    class Taus(Source):
+        name = "taus"
+        skriver_ogsaa = ("taus_historikk",)
+
+    assert erklaert_partisjonering(Taus()) == {"taus": "", "taus_historikk": ""}
+
+
+def test_ukjent_partisjonsverdi_kaster():
+    """`"ukentlig"` er den nærliggende skrivefeilen, og den ville lest
+    som «ikke erklært» — altså nyeste dato alene, i stillhet."""
+    from core.contract import Source, erklaert_partisjonering
+
+    class Feil(Source):
+        name = "feil"
+        partisjonering = "ukentlig"
+
+    with pytest.raises(ValueError, match="ukentlig"):
+        erklaert_partisjonering(Feil())
+
+
+def test_dict_maa_dekke_hvert_navn_kilden_skriver():
+    """Den glemte aliasen er feilen dict-formen finnes for å fange.
+
+    `eierskap` skriver to serier med ulik partisjonering. Glemmes
+    `eierskap_historikk`, leses 20 av 21 årganger aldri — og det er
+    nøyaktig den feilen hele regelen skal rette."""
+    from core.contract import Source, erklaert_partisjonering
+
+    class Halv(Source):
+        name = "halv"
+        skriver_ogsaa = ("halv_historikk",)
+        partisjonering = {"halv": "henting"}
+
+    with pytest.raises(ValueError, match="halv_historikk"):
+        erklaert_partisjonering(Halv())
+
+
+def test_dict_kan_ikke_nevne_et_navn_kilden_ikke_skriver():
+    """En erklæring om en ANNEN kilde ville sett riktig ut for alltid."""
+    from core.contract import Source, erklaert_partisjonering
+
+    class Fremmed(Source):
+        name = "fremmed"
+        partisjonering = {"fremmed": "henting", "en_annen": "verden"}
+
+    with pytest.raises(ValueError, match="en_annen"):
+        erklaert_partisjonering(Fremmed())
+
+
+def test_partisjonering_maa_vaere_streng_eller_dict():
+    from core.contract import Source, erklaert_partisjonering
+
+    class Liste(Source):
+        name = "liste"
+        partisjonering = ["verden"]
+
+    with pytest.raises(ValueError, match="list"):
+        erklaert_partisjonering(Liste())
+
+
+def test_alias_kan_ha_ANNEN_partisjonering_enn_kilden():
+    """Hele grunnen til dict-formen: én klasse, to serier, to typer.
+
+    `eierskap` er ukentlig («henting») og `eierskap_historikk` er datert
+    etter journalføringsåret («verden»). Én skalar kan ikke dekke begge,
+    og en skalar som dekket begge ville tatt feil om én av dem."""
+    from core.contract import Source, partisjonering_per_kilde
+
+    class Begge(Source):
+        name = "begge"
+        skriver_ogsaa = ("begge_historikk",)
+        partisjonering = {"begge": "henting", "begge_historikk": "verden"}
+
+    assert partisjonering_per_kilde([Begge()]) == {
+        "begge": "henting", "begge_historikk": "verden"}
+
+
+def test_to_kilder_kan_ikke_erklaere_samme_navn():
+    from core.contract import Source, partisjonering_per_kilde
+
+    class A(Source):
+        name = "krasj"
+        partisjonering = "verden"
+
+    class B(Source):
+        name = "annen"
+        skriver_ogsaa = ("krasj",)
+        partisjonering = "henting"
+
+    with pytest.raises(ValueError, match="krasj"):
+        partisjonering_per_kilde([A(), B()])
+
+
+def test_kilder_per_navn_peker_alias_til_samme_instans():
+    """Aliaset er ikke en egen kilde — det er den samme kilden med en
+    annen serie. Den som leser skal kunne spørre den om
+    `fjern_egne_personer()` uansett hvilket navn den kom inn på."""
+    from core.contract import Source, kilder_per_navn
+
+    class Med(Source):
+        name = "med"
+        skriver_ogsaa = ("med_historikk",)
+
+    kilde = Med()
+    indeks = kilder_per_navn([kilde])
+    assert indeks["med"] is kilde
+    assert indeks["med_historikk"] is kilde
+
+
+def test_navnene_kilden_skriver_har_name_forst():
+    """Rekkefølgen er en kontrakt: `name` er kildens eget navn, og en
+    leser som tar det første elementet skal få det."""
+    from core.contract import Source, navnene_kilden_skriver
+
+    class Flere(Source):
+        name = "egen"
+        skriver_ogsaa = ("alias_en", "alias_to")
+
+    assert navnene_kilden_skriver(Flere()) == ("egen", "alias_en", "alias_to")
+
+
+def test_fjern_egne_personer_rorer_ikke_ramma_som_standard():
+    """Standarden er å ikke gjøre noe, og det er riktig for elleve av
+    tolv kilder. En standard som gjorde noe annet ville vært en påstand
+    om data kjernen ikke har sett."""
+    import polars as pl
+
+    from core.contract import Source
+
+    ramme = pl.DataFrame({"entity_id": ["1"], "field": ["navn"],
+                          "value": ["Noe"]})
+    ut = Source().fjern_egne_personer(ramme)
+    assert ut.equals(ramme)
+
+
 def test_modulnavn_er_kildenavn():
     """Invarianten: sources/<navn>.py inneholder kilden som heter <navn>.
 

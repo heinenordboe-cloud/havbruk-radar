@@ -310,6 +310,109 @@ class Source:
     # dagens snapshot for de andre på nytt.
     min_dager_mellom: int = 7
 
+    # HVA DATOEN I FILNAVNET ER — verden eller oss.
+    #
+    #   "verden"    `observed_at` er tidsrommet raden GJELDER FOR. En ny
+    #               dato er et nytt tidsrom, og de gamle står ved lag.
+    #               lusetall (uka), biomasse (måneden), eierskap_historikk
+    #               (journalføringsåret), trafikklysvedtak (vedtaksåret).
+    #   "henting"   `observed_at` er dagen VI spurte. En ny dato erstatter
+    #               den forrige som svar på «hva gjelder nå».
+    #               enhetsregisteret, akvakultur, eierskap, biomasselag.
+    #   ""          ikke erklært. Kjernen tvinger ikke en tolkning; se
+    #               under for hva den som leser skal gjøre med den.
+    #
+    # Dette er 1b-7 gjort til en egenskap ved kilden: `observed_at`
+    # handler om VERDEN, `fetched_at` om OSS — og hvilken av de to som
+    # BESTEMMER PARTISJONEN er ikke noe kjernen kan slutte seg til.
+    #
+    # ## Hvorfor den bor på kilden
+    #
+    # Sjette utgave av samme resonnement i denne fila. `utvalg`,
+    # `published_at`, `domene`, `startdatofelt` og `attribusjon` ligger
+    # alle her fordi kilden er den eneste som VET, og fordi et andre sted
+    # å slå det opp er et sted de to kan svare ulikt (F6, F7, F8). En
+    # liste i `core/` over hvilke kilder som er hva, ville i tillegg
+    # brutt regel 1: en ny revisjonskilde ville krevd en endring i
+    # kjernen for å bli lest riktig.
+    #
+    # ## Hva den brukes til, og hvorfor det ikke er en detalj
+    #
+    # `publiseringsvakt.hviteliste()` leser ALLE datoer for en
+    # "verden"-kilde og NYESTE for en "henting"-kilde. Grunnen er at en
+    # visning av en "verden"-kilde med rette viser hele serien —
+    # lokalitetssiden viser 764 uker lusetall og 21 årganger overføringer
+    # — mens et navn fra forrige ukes `enhetsregisteret` er et navn som
+    # ikke gjelder lenger, og som en visning ikke skal hente fra.
+    #
+    # ## PER NAVN, fordi én klasse kan skrive to serier
+    #
+    # `eierskap` skriver ukentlig under sitt eget navn ("henting") og
+    # backfiller under `eierskap_historikk` ("verden") — se
+    # `skriver_ogsaa`. Én skalar kan derfor ikke dekke begge, og
+    # erklæringen tar også en dict:
+    #
+    #     partisjonering = {"eierskap": "henting",
+    #                       "eierskap_historikk": "verden"}
+    #
+    # Er den en dict, må HVERT navn kilden skriver under stå der.
+    # `erklaert_partisjonering()` kaster på et manglende navn framfor å
+    # falle tilbake på en standard: en glemt alias er nettopp den feilen
+    # som ellers blir stille.
+    #
+    # ## En FEIL erklæring, og hvilken vei den peker
+    #
+    # Erklærer en "verden"-kilde seg som "henting", blir hvitelista for
+    # liten, og porten melder hvert navn i historikken som `ukjent_navn`.
+    # Det er høyt og irriterende, og det er den ufarlige retningen.
+    #
+    # Erklærer en "henting"-kilde seg som "verden", blir hvitelista for
+    # stor: et navn som forsvant ut av registeret for et år siden er
+    # plutselig gjort rede for, og en visning som viser det passerer
+    # porten. Det er den stille retningen, og derfor etterprøver porten
+    # erklæringen mot dataene — for en "henting"-kilde er `observed_at`
+    # lik datoen i `fetched_at` i HVERT snapshot (målt 18.09.2026: 0
+    # dagers avvik i alle fire), og for en "verden"-kilde er den det
+    # ikke. Se `publiseringsvakt.grunnlagsfunn()`.
+    partisjonering: "str | dict[str, str]" = ""
+
+    def fjern_egne_personer(self, frame: Any) -> Any:
+        """Rader KILDEN vet peker på en person, men som kjernen ikke ser.
+
+        `persondata.fjern_personformer()` spør om `organisasjonsform` og
+        `institusjonell_sektorkode` — registerets egne klassifiseringer.
+        Den er døra, og den er nok for enhver kilde som skriver de to
+        feltene.
+
+        Noen kilder skriver dem ikke. MÅLT 18.09.2026 på
+        `eierskap_historikk`: 21 årganger, 36 360 rader, **0 rader med
+        `organisasjonsform` og 0 med `institusjonell_sektorkode`** —
+        formen står i `mottaker_type`, i pub-aquas vokabular. Døra fjerner
+        derfor 0 rader fra den kilden, og 4 overføringer som dagens grense
+        utelukker blir stående.
+
+        Standarden her er å ikke røre ramma. Det er riktig for elleve av
+        tolv kilder, og en standard som gjorde noe annet ville vært en
+        påstand om data kjernen ikke har sett.
+
+        ## Hvorfor en HOOK og ikke en liste i `core/`
+
+        16.09-notatet avviste å lukke dette med at «`core/` kjenner en
+        kildes vokabular — to lister som skal si det samme, altså formen
+        F6 og F7 hadde». Innvendingen gjelder en LISTE, ikke en
+        delegering: her finnes oversettelsen på ett sted,
+        `sources/eierskap.FORM_KART`, og kjernen spør den som eier den.
+        Kjernen lærer ingen koder.
+
+        ## Den er et TILLEGG, aldri en erstatning
+
+        Den kalles i tillegg til døra og kan bare fjerne mer. En kilde
+        som overstyrer denne til å returnere flere rader enn den fikk,
+        har ikke filtrert — den har lagt til, og `publiseringsvakt`
+        feller det.
+        """
+        return frame
+
     def fetch(self, kjoredato: str) -> Any:
         """Hent rådata for kjøringen som skjer `kjoredato`.
 
@@ -435,4 +538,116 @@ def attribusjon_per_kilde(kilder: "Iterable[Source]") -> dict[str, tuple[str, ..
                     f"to kilder skriver under navnet {navn!r}. Navnet er "
                     f"mappa i data/raw/ — de ville skrevet oppå hverandre.")
             ut[str(navn)] = setninger
+    return ut
+
+
+# De to lovlige verdiene for `Source.partisjonering`. Tom streng er en
+# tredje TILSTAND — ikke erklært — og ikke en verdi: den står ikke her,
+# slik at en kilde ikke kan erklære «ikke erklært».
+PARTISJONERINGER = ("verden", "henting")
+
+
+def navnene_kilden_skriver(kilde: "Source") -> tuple[str, ...]:
+    """Hvert navn kilden skriver rader under. `name` først.
+
+    Ett sted, fordi tre funksjoner trenger den samme lista og en fjerde
+    variant av `(kilde.name, *skriver_ogsaa)` er et sted den kan bli
+    uenig med de andre.
+    """
+    return (str(kilde.name), *(str(n) for n in getattr(kilde, "skriver_ogsaa", ())))
+
+
+def erklaert_partisjonering(kilde: "Source") -> dict[str, str]:
+    """{navn: "verden" | "henting" | ""} for hvert navn kilden skriver.
+
+    Validerer framfor å stole på deklarasjonen, av samme grunn som
+    `erklaert_attribusjon()` gjør det: feltet settes av en kildeforfatter
+    som skriver én fil og aldri leser denne.
+
+    De fire feilformene som stoppes:
+
+      * en ukjent verdi. `"ukentlig"` er den nærliggende skrivefeilen, og
+        den ville lest som «ikke erklært» og dermed gitt den strengeste
+        tolkningen i stillhet.
+      * en dict som mangler et navn kilden skriver under. Den glemte
+        aliasen er nettopp feilen denne formen finnes for å fange —
+        `eierskap_historikk` uten erklæring leses som nyeste dato alene,
+        og det er 20 av 21 årganger usett.
+      * en dict med et navn kilden IKKE skriver under. Da er erklæringen
+        om en annen kilde, og den ville sett riktig ut for alltid.
+      * noe som verken er streng eller dict.
+    """
+    erklaert = getattr(kilde, "partisjonering", "")
+    navn = navnene_kilden_skriver(kilde)
+
+    if isinstance(erklaert, str):
+        if erklaert and erklaert not in PARTISJONERINGER:
+            raise ValueError(
+                f"{kilde.name}: partisjonering {erklaert!r} er ikke en av "
+                f"{PARTISJONERINGER}. En ukjent verdi ville lest som «ikke "
+                f"erklært», altså nyeste dato alene, uten at noen så det.")
+        return {n: erklaert for n in navn}
+
+    if not isinstance(erklaert, dict):
+        raise ValueError(
+            f"{kilde.name}: partisjonering er {type(erklaert).__name__}, "
+            f"og skal være en streng eller en dict per navn. Se "
+            f"Source.partisjonering.")
+
+    ut: dict[str, str] = {}
+    for n in navn:
+        if n not in erklaert:
+            raise ValueError(
+                f"{kilde.name}: partisjonering er en dict, og da må hvert "
+                f"navn kilden skriver under stå der. {n!r} mangler — og en "
+                f"glemt serie leses som nyeste dato alene.")
+        verdi = str(erklaert[n])
+        if verdi not in PARTISJONERINGER:
+            raise ValueError(
+                f"{kilde.name}: partisjonering[{n!r}] = {verdi!r} er ikke en "
+                f"av {PARTISJONERINGER}.")
+        ut[n] = verdi
+
+    ukjente = set(erklaert) - set(navn)
+    if ukjente:
+        raise ValueError(
+            f"{kilde.name}: partisjonering nevner {sorted(ukjente)}, som "
+            f"kilden ikke skriver under. En erklæring om en annen kilde "
+            f"ville sett riktig ut for alltid.")
+    return ut
+
+
+def partisjonering_per_kilde(kilder: "Iterable[Source]") -> dict[str, str]:
+    """{kildenavn: "verden" | "henting" | ""} for alle navn kildene skriver.
+
+    Indeksen er på NAVN og ikke på klasse, av samme grunn som i
+    `attribusjon_per_kilde()`: navnet er mappa i `data/raw/`, og det er
+    strengen den som leser har i hånda.
+    """
+    ut: dict[str, str] = {}
+    for kilde in kilder:
+        for navn, verdi in erklaert_partisjonering(kilde).items():
+            if navn in ut:
+                raise ValueError(
+                    f"to kilder skriver under navnet {navn!r}. Navnet er "
+                    f"mappa i data/raw/ — de ville skrevet oppå hverandre.")
+            ut[navn] = verdi
+    return ut
+
+
+def kilder_per_navn(kilder: "Iterable[Source]") -> dict[str, "Source"]:
+    """{kildenavn: kilden som skriver under navnet}.
+
+    Brukes av den som leser til å spørre kilden selv —
+    `fjern_egne_personer()` er den ene grunnen i dag. Alias peker på
+    samme instans som kilden sin: det er én kilde med to serier.
+    """
+    ut: dict[str, "Source"] = {}
+    for kilde in kilder:
+        for navn in navnene_kilden_skriver(kilde):
+            if navn in ut:
+                raise ValueError(
+                    f"to kilder skriver under navnet {navn!r}. Navnet er "
+                    f"mappa i data/raw/ — de ville skrevet oppå hverandre.")
+            ut[navn] = kilde
     return ut
