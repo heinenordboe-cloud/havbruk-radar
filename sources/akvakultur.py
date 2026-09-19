@@ -171,6 +171,12 @@ class Akvakulturregisteret(Source):
     attribusjon = ("Kilde: Fiskeridirektoratet",)
     entity_type = "lokalitet"
 
+    # Ukentlig registeruttrekk: `gjelder_for()` returnerer kjøredatoen,
+    # og snapshotet svarer på «hva står i registeret nå». En ny dato
+    # ERSTATTER den forrige som svar på det spørsmålet. Målt: 0 dagers
+    # avvik mellom observed_at og fetched_at i alle 5 snapshots.
+    partisjonering = "henting"
+
     def __init__(self) -> None:
         self.enabled = bool(get("kilder.akvakultur.aktiv", False))
 

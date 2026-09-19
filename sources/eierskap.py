@@ -81,6 +81,7 @@ import re
 from typing import Any, Iterable
 
 import httpx
+import polars as pl
 
 from core.config import get
 from core import persondata
@@ -372,6 +373,23 @@ class Eierskap(Source):
     # kunne slås opp til denne attribusjonen. Se `HISTORIKK_KILDE` og
     # `Source.skriver_ogsaa`.
     skriver_ogsaa = (HISTORIKK_KILDE,)
+
+    # TO SERIER, TO PARTISJONSTYPER — og dette er kilden dict-formen i
+    # `Source.partisjonering` finnes for.
+    #
+    #   eierskap             ukentlig uttrekk; snapshotet svarer på «hvem
+    #                        eier hva NÅ», og en ny dato erstatter den
+    #                        forrige. Målt: 0 dagers avvik i begge.
+    #   eierskap_historikk   JOURNALFØRINGSÅRET; alle 21 årgangene står
+    #                        ved lag samtidig. Målt: median 3532 dager,
+    #                        og nyeste er datert 120 dager fram i tid.
+    #
+    # Én skalar kunne ikke dekket begge, og en skalar som prøvde ville
+    # tatt feil om én av dem: leses historikken som «henting», er 20 av
+    # 21 årganger usett — som er nøyaktig de 961 portfunnene regelen
+    # finnes for å rette.
+    partisjonering = {name: "henting", HISTORIKK_KILDE: "verden"}
+
     entity_type = "tillatelse"
     # Bumpet til "2" 03.09.2026: personvernfilteret leser nå Brregs
     # koder i tillegg til pub-aquas ord (`er_person`), og historiske
@@ -653,6 +671,71 @@ class Eierskap(Source):
                     if verdi is None or verdi == "":
                         continue
                     yield Observation(field=felt, value=str(verdi), **felles)
+
+    def fjern_egne_personer(self, frame: Any) -> Any:
+        """Overføringer til en person, ut av en ramme som ALLEREDE er skrevet.
+
+        `Source.fjern_egne_personer` er hooken for det lesedøra ikke kan
+        se, og denne kilden er grunnen til at den finnes.
+
+        ## Hvorfor døra ikke duger her
+
+        `persondata.fjern_personformer()` spør om `organisasjonsform` og
+        `institusjonell_sektorkode`. MÅLT 19.09.2026 over de 21
+        årgangene: **36 360 rader, 0 med `organisasjonsform` og 0 med
+        `institusjonell_sektorkode`** — døra fjerner 0 rader. Formen står
+        i `mottaker_type`, i pub-aquas vokabular, og kjernen skal ikke
+        lære det. Se docs/MALING-PARTISJONERING.md punkt 3.
+
+        Uten dette ville `publiseringsvakt.hviteliste()` — som fra i dag
+        leser alle årgangene — GJORT REDE FOR de personformede
+        mottakerne i stedet for å filtrere dem. Stillhet kjøpt for
+        sikkerhet, og den verste varianten: porten ville sagt grønt.
+
+        ## `er_person()`, ikke `FORM_KART` — og det er målt hvorfor
+
+        `mottaker_type` finnes på 2611 av 2611 overføringer, og
+        `er_person()` treffer 4:
+
+            3 stk.  mottaker_type = "DA"                  Brregs kode
+            1 stk.  mottaker_type = "JointLiabilityCompany"  pub-aquas ord
+
+        **`FORM_KART.get("DA")` er `None`** — kartet oversetter FRA
+        pub-aquas navn TIL Brregs koder, ikke motsatt. En implementasjon
+        som bare slo opp i kartet ville tatt 1 av 4 og sett riktig ut.
+        `er_person()` spør begge veier, og den er den SAMME funksjonen
+        `fetch()` og `parse()` bruker — to filtre som skal si det samme,
+        men er skrevet hver for seg, er formen F6, F7 og F8 hadde.
+
+        At feltet bærer to vokabularer er ikke en feil: historiske
+        mottakere som er oppløst finnes ikke i pub-aquas `/entities`, og
+        formen deres slås opp hos Brreg (`fa35000`).
+
+        ## HELE entiteten, og bare `mottaker_type`
+
+        Hele overføringen fjernes, ikke bare typeraden — ellers står
+        navnet og orgnummeret igjen uten etiketten som gjorde dem
+        gjenkjennelige, og det er verre enn ingen filtrering. Samme
+        begrunnelse som i `persondata.fjern_personformer()`.
+
+        Den ukentlige seriens `eier_type` står UTTRYKKELIG ikke her, og
+        det er et valg: en slik rad forsvinner fra neste snapshot av seg
+        selv, fordi `fetch()` og `parse()` stopper den — målt på
+        arkivkroppen fra 14.09, der dagens kode dropper H-FJ-0018 helt.
+        De 21 årgangene blir derimot aldri parset på nytt. Å ta
+        `eier_type` med her ville vært B1 fra 18.09, som ble vurdert og
+        ikke valgt.
+        """
+        if frame.is_empty() or {"entity_id", "field", "value"} - set(frame.columns):
+            return frame
+
+        typerader = frame.filter(pl.col("field") == "mottaker_type")
+        personer = {eid for eid, verdi
+                    in typerader.select(["entity_id", "value"]).iter_rows()
+                    if er_person(verdi)}
+        if not personer:
+            return frame
+        return frame.filter(~pl.col("entity_id").is_in(sorted(personer)))
 
     # ---- tolkning ------------------------------------------------------
 

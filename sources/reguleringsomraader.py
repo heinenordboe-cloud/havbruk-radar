@@ -569,6 +569,10 @@ class Reguleringsomraader(Source):
     # er det man vil.
     entity_type = "reguleringsomraade"
 
+    # DATOEN RÅDET BLE AVGITT. Ett snapshot i dag, med 77 dagers avvik
+    # fra hentingen — se `gjelder_for()`.
+    partisjonering = "verden"
+
     # Sju for en STATISK kilde. Se modulens docstring — dette er ikke en
     # påstand om hvor ofte HI reviderer, men om hvor ofte kjøringen skal
     # få spørre `finnes_allerede()` om 2026-06-29 er skrevet.

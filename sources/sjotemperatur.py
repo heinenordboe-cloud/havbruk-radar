@@ -240,6 +240,10 @@ class Sjotemperatur(Source):
     attribusjon = ("Data levert av BarentsWatch",)
     entity_type = "lokalitet"
 
+    # ISO-uka målingen gjelder for, som lusetall. Målt: 764 datoer fra
+    # 2012-01-02, median 2675 dager.
+    partisjonering = "verden"
+
     # Temperaturen kommer i det samme ukeskjemaet som lustallet, altså én
     # ny verdi per lokalitet per uke. Uke er den frekvensen kilden
     # FAKTISK endrer seg med, ikke en frekvens valgt for å ligne på

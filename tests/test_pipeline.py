@@ -318,6 +318,62 @@ def test_to_kilder_kan_ikke_skrive_under_samme_navn():
 # for seg — se docs/MALING-PARTISJONERING.md.
 
 
+def test_hver_kilde_erklaerer_partisjonering():
+    """Ingen kilde står uerklært, og formen er lesbar for alle.
+
+    En uerklært kilde leses av porten som nyeste dato alene OG meldes som
+    `ukjent_partisjon`. Det er den høye retningen, men den er en
+    blokkering: en ny kilde som glemmer erklæringen stopper
+    publiseringen. Denne testen er der man møter det først."""
+    from core import registry
+    from core.contract import erklaert_partisjonering
+
+    uerklaert = []
+    for kilde in registry.discover():
+        for navn, verdi in erklaert_partisjonering(kilde).items():
+            if not verdi:
+                uerklaert.append(navn)
+    assert uerklaert == [], (
+        f"{uerklaert} erklærer ikke Source.partisjonering. Se "
+        f"docs/MALING-PARTISJONERING.md for hvordan typen måles.")
+
+
+def test_partisjoneringen_er_den_malte():
+    """Klassifiseringen fra docs/MALING-PARTISJONERING.md, håndhevet.
+
+    Målt 19.09.2026 som `observed_at` mot `fetched_at` over hvert
+    snapshot: fire kilder har 0 dagers avvik i ALLE sine snapshots, åtte
+    har median mellom −77 og −3532. Endres en av dem her uten at
+    målingen er gjort på nytt, er det denne testen som sier fra."""
+    from core import registry
+    from core.contract import partisjonering_per_kilde
+
+    assert partisjonering_per_kilde(registry.discover()) == {
+        "akvakultur": "henting",
+        "biomasselag": "henting",
+        "eierskap": "henting",
+        "enhetsregisteret": "henting",
+        "biomasse": "verden",
+        "eierskap_historikk": "verden",
+        "ekspertgruppen": "verden",
+        "lusetall": "verden",
+        "reguleringsomraader": "verden",
+        "romming": "verden",
+        "sjotemperatur": "verden",
+        "trafikklysvedtak": "verden",
+    }
+
+
+def test_eierskap_erklaerer_sine_to_serier_ULIKT():
+    """Kilden dict-formen finnes for. Ukentlig uttrekk og backfill etter
+    journalføringsår kan ikke dele én partisjonstype."""
+    from core.contract import erklaert_partisjonering
+    from sources.eierskap import Eierskap
+
+    assert erklaert_partisjonering(Eierskap()) == {
+        "eierskap": "henting", "eierskap_historikk": "verden"}
+
+
 def test_uerklaert_partisjonering_er_tom_for_hvert_navn():
     """Tom streng er en TILSTAND — ikke erklært — og ikke en verdi.
 

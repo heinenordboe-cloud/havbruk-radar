@@ -358,6 +358,9 @@ class Biomasselag(Source):
     entity_type = "lokalitet"
     version = "1"
 
+    # Ukentlig, som akvakultur. Målt: 0 dagers avvik i begge snapshots.
+    partisjonering = "henting"
+
     # Ukentlig, som akvakultur. Laget oppdateres når oppdretterne sender
     # månedsrapport, så en uke uten endring er vanlig — men uka som IKKE
     # hentes er borte, og det er asymmetrien som setter kadensen.

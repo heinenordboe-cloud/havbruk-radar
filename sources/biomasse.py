@@ -510,6 +510,16 @@ class Biomasse(Source):
     attribusjon = ("Kilde: Fiskeridirektoratet",)
     entity_type = "produksjonsomraade"
 
+    # SISTE DAG I MÅNEDEN tallene gjelder for. Alle 104 månedene står
+    # ved lag, og en ny måned erstatter ingen av dem. Målt: median 1821
+    # dager mellom måneden og hentingen.
+    #
+    # Merk at partisjonstypen ikke sier noe om REVISJON: denne kilden
+    # publiserer på nytt den 20. hver måned og kan endre tall tilbake til
+    # 2017 (12,3 % av radene, målt 25.08). Det er et annet spørsmål, og
+    # det svares av `diff.revisjon()` og av `fetched_at` på raden.
+    partisjonering = "verden"
+
     # Sju for en månedlig kilde. Se modulens docstring — dette er ikke en
     # påstand om hvor ofte fila endrer seg, men om hvor ofte kjøringen
     # skal få lov til å spørre `finnes_allerede()` om måneden er skrevet.

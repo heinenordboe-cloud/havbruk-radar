@@ -346,6 +346,11 @@ class Enhetsregisteret(Source):
         "tilgjengeliggjort av Brønnøysundregistrene",
     )
     entity_type = "selskap"
+
+    # Ukentlig registeruttrekk: snapshotet sier hva registeret sier NÅ,
+    # og forrige uke er utdatert og ikke et annet tidsrom. Målt: 0 dagers
+    # avvik i alle 6 snapshots.
+    partisjonering = "henting"
     enabled = True
 
     # Brregs eget ord for «da ble selskapet til». Se Source.startdatofelt:

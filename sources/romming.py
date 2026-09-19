@@ -199,6 +199,18 @@ class Romming(Source):
     entity_type = "romming"
     version = "1"
 
+    # RØMMINGSÅRET for de elleve backfillede snapshotene. Mappa er MÅLT
+    # blandet 19.09.2026: elleve årsfiler (2016-12-31 … 2026-12-31) fra
+    # backfillen, og to kjøredatoer (2026-09-07, 2026-09-14) fra den
+    # ukentlige veien, der `gjelder_for()` returnerer kjøredatoen.
+    #
+    # Erklæringen gjelder serien slik den er BÆREVERDIG: en rømming
+    # hører til året den skjedde, og hele historikken fra 2016 er
+    # gyldig samtidig. De to kjøredaterte filene leses da også, og det
+    # er den ufarlige retningen — men det er en blanding, og den skal
+    # ikke oppstå i en ny kilde uten at noen har ment det.
+    partisjonering = "verden"
+
     # Kjøres av backfill.py, ikke av run.py — se modulens docstring.
     # Står likevel her fordi kontrakten krever den, og fordi den er
     # riktig for den anbefalte kadensen: ukentlig gjenkjøring av

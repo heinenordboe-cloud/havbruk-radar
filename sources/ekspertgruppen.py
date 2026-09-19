@@ -2217,6 +2217,11 @@ class Ekspertgruppen(Source):
     # joine kategori mot beholdning på `entity_id` uten en oversettelse.
     entity_type = "produksjonsomraade"
 
+    # VURDERINGSÅRET, ikke kjøreåret — se `gjelder_for()`, der de to
+    # spriker med fire år. Alle ni årgangene står ved lag samtidig. Målt:
+    # median 1706 dager mellom året og hentingen.
+    partisjonering = "verden"
+
     # Sju for en ÅRLIG kilde. Se modulens docstring — dette er ikke en
     # påstand om publiseringstakt, men om hvor ofte kjøringen skal få
     # spørre `finnes_allerede()`. Publiseringsmåneden er målt til å

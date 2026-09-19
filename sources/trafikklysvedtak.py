@@ -1217,6 +1217,12 @@ class Trafikklysvedtak(Source):
     # `entity_id` uten en oversettelse.
     entity_type = "produksjonsomraade"
 
+    # VEDTAKSÅRET, ikke kjøreåret — se `gjelder_for()`, der de to spriker
+    # med to år. Hver fastsatte runde er et eget tidsrom, og 2018 blir
+    # aldri noe annet. Målt: median 1344 dager mellom runden og hentingen,
+    # og nyeste snapshot er datert 107 dager FRAM I TID fra hentingen.
+    partisjonering = "verden"
+
     # Sju for en TOÅRIG kilde. Se modulens docstring — dette er ikke en
     # påstand om vedtakstakt, men om hvor ofte kjøringen skal få spørre
     # `finnes_allerede()`.

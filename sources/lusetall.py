@@ -106,6 +106,16 @@ class Lusetall(Source):
         "fra Mattilsynet.",
     )
     entity_type = "lokalitet"
+
+    # ISO-UKA tellingen gjelder for — ikke dagen vi hentet den. Det er
+    # rettelsen av F6, og den gjør kilden til en «verden»-kilde: uke 30
+    # blir aldri noe annet, og alle 764 datoene står ved lag.
+    #
+    # Målt 19.09.2026: 764 datoer fra 2012-01-02, median 2669 dager
+    # mellom uka raden gjelder for og dagen vi hentet den. Premisset da
+    # regelen ble formulert var at denne kilden var «henting»; det holdt
+    # ikke. Se docs/MALING-PARTISJONERING.md punkt 1.
+    partisjonering = "verden"
     min_dager_mellom = 7
 
     def __init__(self) -> None:

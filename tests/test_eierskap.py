@@ -514,3 +514,111 @@ def test_brreg_kode_slipper_overforingen_gjennom():
     felt = {o.field: o.value for o in obs}
     assert felt["mottaker_orgnr"] == "959352887"
     assert felt["mottaker_type"] == "AS"
+
+
+# ------------------------------------- fjern_egne_personer (lag 3)
+#
+# Lesedøra spør om `organisasjonsform` og `institusjonell_sektorkode`.
+# MÅLT 19.09.2026 over de 21 årgangene: 36 360 rader, 0 med hvert av de
+# to feltene — døra fjerner 0 rader. Formen står i `mottaker_type`, og
+# kjernen skal ikke lære pub-aquas ord. Se
+# docs/MALING-PARTISJONERING.md punkt 3 og 4.
+
+
+def _historikkramme(*par):
+    """En eierskap_historikk-ramme: (entity_id, mottaker_type)-par."""
+    import polars as pl
+
+    rader = []
+    for eid, type_ in par:
+        for felt, verdi in (("tillatelse_nr", eid.split("|")[0]),
+                            ("mottaker_navn", f"NAVN {eid}"),
+                            ("mottaker_orgnr", "959352887"),
+                            ("mottaker_type", type_)):
+            rader.append({"entity_id": eid, "field": felt, "value": verdi})
+    return pl.DataFrame(rader)
+
+
+def test_fjerner_overforing_til_personform_i_brregs_vokabular():
+    """Tre av de fire ekte tilfellene bærer Brreg-koden `DA`."""
+    ramme = _historikkramme(("A-A-0001|2009000002", "DA"),
+                            ("A-A-0002|2009000003", "AS"))
+    ut = Eierskap().fjern_egne_personer(ramme)
+    assert set(ut["entity_id"]) == {"A-A-0002|2009000003"}
+
+
+def test_fjerner_overforing_til_personform_i_pub_aquas_vokabular():
+    """Den fjerde bærer `JointLiabilityCompany`."""
+    ramme = _historikkramme(("A-A-0001|2014000149", "JointLiabilityCompany"),
+                            ("A-A-0002|2014000150", "LimitedLiabilityCompany"))
+    ut = Eierskap().fjern_egne_personer(ramme)
+    assert set(ut["entity_id"]) == {"A-A-0002|2014000150"}
+
+
+def test_FORM_KART_ALENE_ville_tatt_1_AV_4():
+    """Grunnen til at filteret spør `er_person()` og ikke kartet.
+
+    Kartet oversetter FRA pub-aquas navn TIL Brregs koder, så
+    `FORM_KART.get("DA")` er None. En implementasjon som slo opp i kartet
+    ville sluppet gjennom de tre `DA`-ene og bare stoppet den ene
+    `JointLiabilityCompany` — og sett riktig ut."""
+    assert eierskap.FORM_KART.get("DA") is None
+    assert eierskap.FORM_KART.get("JointLiabilityCompany") == "DA"
+
+    # Og likevel stoppes begge, fordi er_person() spør persondata direkte.
+    assert eierskap.er_person("DA") is True
+    assert eierskap.er_person("JointLiabilityCompany") is True
+
+
+def test_fjerner_HELE_overforingen_ikke_bare_typeraden():
+    """Står navnet og orgnummeret igjen uten etiketten, er det verre enn
+    ingen filtrering: persondataene er der, og neste revisjon finner dem
+    ikke. Samme begrunnelse som i persondata.fjern_personformer()."""
+    ramme = _historikkramme(("A-A-0001|2009000002", "DA"))
+    assert "NAVN A-A-0001|2009000002" in set(ramme["value"])
+
+    ut = Eierskap().fjern_egne_personer(ramme)
+    assert ut.height == 0
+    assert "NAVN A-A-0001|2009000002" not in set(ut["value"])
+    assert "959352887" not in set(ut["value"])
+
+
+def test_rorer_ikke_en_ramme_uten_mottaker_type():
+    """Den ukentlige serien, akvakultur, lusetall — alt uten feltet skal
+    gå urørt gjennom. Hooken er et TILLEGG til døra."""
+    import polars as pl
+
+    ramme = pl.DataFrame({"entity_id": ["10001"], "field": ["navn"],
+                          "value": ["TESTHOLMEN"]})
+    assert Eierskap().fjern_egne_personer(ramme).equals(ramme)
+
+
+def test_eier_type_staar_UTTRYKKELIG_ikke_i_hooken():
+    """Den ukentlige seriens `eier_type` er ikke med, og det er et valg.
+
+    En slik rad forsvinner fra neste snapshot av seg selv — `fetch()` og
+    `parse()` stopper den, målt på arkivkroppen fra 14.09. De 21
+    årgangene parses aldri på nytt. Å ta `eier_type` med ville vært B1
+    fra 18.09, som ble vurdert og ikke valgt.
+
+    Faller denne, er valget endret — og da skal beslutningen endres med
+    den."""
+    import polars as pl
+
+    ramme = pl.DataFrame([
+        {"entity_id": "H-FJ-0018", "field": "eier_type",
+         "value": "JointlyOwnedShippingCompany"},
+        {"entity_id": "H-FJ-0018", "field": "eier_navn", "value": "NOE ANS"},
+    ])
+    assert Eierskap().fjern_egne_personer(ramme).equals(ramme)
+
+
+def test_hooken_kan_bare_fjerne_aldri_legge_til():
+    """Kontrakten sier at den er et tillegg til døra. En overstyring som
+    returnerte flere rader har ikke filtrert."""
+    ramme = _historikkramme(("A-A-0001|2009000002", "DA"),
+                            ("A-A-0002|2009000003", "AS"),
+                            ("A-A-0003|2009000004", "Municipality"))
+    ut = Eierskap().fjern_egne_personer(ramme)
+    assert ut.height <= ramme.height
+    assert set(ut["entity_id"]) <= set(ramme["entity_id"])
