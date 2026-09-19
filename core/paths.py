@@ -31,6 +31,18 @@ HEALTH_PATH = DATA_DIR / "health.json"
 # fil per gang normalen etableres eller kvitteres — se core/feltnormal.py
 # for hvorfor den ikke bor i health.json.
 FELTNORMAL_DIR = DATA_DIR / "feltnormal"
+
+# Kvitterte funn fra publiseringsvakten. Append-only, én fil per
+# kvittering — se `publiseringsvakt.kvitteringer()`.
+#
+# Den ligger i DATAREPOET og ikke i kodrepoet, og det er en personvernsak:
+# en kvittering navngir nøyaktig det funnet den gjelder, altså navnet og
+# organisasjonsnummeret. Kodrepoet er privat i dag, men
+# docs/beslutninger/2026-08-18-repoene-er-private.md sier selv at det kan
+# åpnes «den dagen det trengs» — og «offentlig kan ikke gjøres ugjort»,
+# for commit-historikken følger med. Datarepoet er privat fordi det ER
+# historikken, og det er samme rom som snapshotene navnet alt står i.
+KVITTERING_DIR = DATA_DIR / "kvitteringer"
 COMMIT_MSG_PATH = DATA_DIR / "siste_kjoring.txt"
 
 # Fra da endringsloggen lå i én fil. Leses fortsatt, skrives aldri til.
