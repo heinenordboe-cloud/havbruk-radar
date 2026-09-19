@@ -376,6 +376,105 @@ def test_lokalitetsnavnet_er_merket():
     assert "<span data-navn>" in _side()
 
 
+def test_endringstabellen_merker_verdicellene_med_feltnavnet():
+    """Fra- og til-cellene bærer changeloggens `old_value`/`new_value`,
+    altså verdier fra ELDRE snapshots enn dem hvitelista er bygget av.
+
+    MÅLT 18.09.2026: 24 navneverdier sto i disse cellene uten at
+    `ukjent_navn` kunne se én av dem, fordi cellene var umerkede. En
+    statisk klasse duger ikke — samme `<td>` bærer `siste_rapport` i én
+    rad og `eier_navn` i neste — så merkingen er radens felt.
+    """
+    import publiseringsvakt as vakt
+
+    side = _side(endringer=[{
+        "dato": "2026-09-17", "gjelder": "tillatelse N-T-0001",
+        "kilde": "eierskap", "felt": "eier_navn",
+        "fra": "TESTVIK OG STRAUM DA", "til": "TESTLAKS AS",
+    }])
+    assert ("eier_navn", "TESTVIK OG STRAUM DA") in vakt.felt_verdier(side)
+    assert ("eier_navn", "TESTLAKS AS") in vakt.felt_verdier(side)
+
+
+def test_registertabellen_merker_verdicellene_med_feltnavnet():
+    import publiseringsvakt as vakt
+
+    side = _side(register=[("navn", "OTERNESET"), ("kapasitet", "8000.0")])
+    merket = dict(vakt.felt_verdier(side))
+    assert merket["navn"] == "OTERNESET"
+    assert merket["kapasitet"] == "8000.0"
+
+
+def test_et_navn_i_endringstabellen_felles_av_porten(tmp_path):
+    """Hele veien, av den rendrede sida: et personformnavn i en
+    changelog-verdi skal bli et funn, og det skal IKKE bli et funn hvis
+    merkingen fjernes. Det andre leddet er poenget — uten det måler
+    testen at porten fyrer, ikke at merkingen er grunnen.
+    """
+    import re
+
+    import publiseringsvakt as vakt
+
+    side = _side(endringer=[{
+        "dato": "2026-09-17", "gjelder": "tillatelse N-T-0001",
+        "kilde": "eierskap", "felt": "eier_navn",
+        "fra": "TESTVIK OG STRAUM DA", "til": "TESTLAKS AS",
+    }])
+    # Hvitelista som om alt annet på sida var gjort rede for.
+    navn_ok = {n for _f, n in vakt.felt_verdier(side)} | set(vakt.navn_i(side))
+    navn_ok.discard("TESTVIK OG STRAUM DA")
+    orgnr_ok = set(vakt.NI_SIFFER.findall(side))
+
+    # `DA` er MÅLT tvetydig i dataene — 748 rader `kapasitet_enhet` er
+    # dekar — så `personform` fyrer ikke på endelsen i navnet. Det er
+    # nettopp derfor merkingen må bære prøven: uten den er navnet
+    # usynlig, og det er andre halvdel av denne testen.
+    funn = vakt.gransk_tekst(side, orgnr_ok, navn_ok, fil="index.html",
+                             tvetydige={"DA"})
+    assert [f.slag for f in funn] == ["ukjent_navn"]
+
+    umerket = re.sub(r'\s*data-felt="[^"]*"', "", side)
+    assert vakt.gransk_tekst(umerket, orgnr_ok, navn_ok,
+                             tvetydige={"DA"}) == []
+
+
+# ---- eierskap_historikk vises IKKE i endringstabellen ------------------
+
+def test_eierskap_historikk_er_uttrykkelig_utelatt():
+    """En tilsiktet utelatelse som ser ut som en feil blir rettet.
+
+    Fram til 18.09.2026 sto kilden i filteret og var DØD KODE: MÅLT har
+    30 104 av 30 104 rader `entity_id` på formen `F-A-0034|2007000034`,
+    så `entity_id in tillatelser` kunne treffe 0. Å «rette» det er en
+    publiseringsbeslutning og ikke en opprydding — to av radene bærer
+    navnet på et DA i sektor 2300, og lesedøra kan ikke se dem.
+
+    Faller denne, er valget endret — og da skal beslutningen endres med
+    den. Se docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md
+    """
+    assert "eierskap_historikk" in nettsted.ENDRINGER_UTELATT
+    assert "eierskap_historikk" not in nettsted.ENDRINGER_VIA_TILLATELSE
+    assert not (nettsted.ENDRINGER_UTELATT & nettsted.ENDRINGER_VIA_TILLATELSE)
+
+
+def test_utelatt_kilde_naar_ikke_endringstabellen():
+    """Oppførselen, ikke bare konstanten: en rad fra den utelatte kilden
+    på en tillatelse vi VISER, skal ikke bli en tabellrad."""
+    from types import SimpleNamespace
+
+    def rad(kilde):
+        return {"entity_id": "N-T-0001", "source": kilde,
+                "field": "mottaker_navn", "old_value": "", "new_value": "X",
+                "observed_at": "2026-09-17", "change_type": "ny"}
+
+    felles = SimpleNamespace(
+        registerendringer={"N-T-0001": [rad("eierskap"),
+                                        rad("eierskap_historikk")]},
+        maaleserierader={})
+    rader, _ = nettsted._endringer_av_indeks("10001", ["N-T-0001"], felles)
+    assert [r["kilde"] for r in rader] == ["eierskap"]
+
+
 # ---- rendringen av fravær ---------------------------------------------
 
 def test_manglende_lusetall_er_ikke_null():

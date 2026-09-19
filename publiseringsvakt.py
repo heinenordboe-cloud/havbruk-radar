@@ -65,6 +65,32 @@ Ingen av de tre later som om de er uttømmende. Det er med vilje: en vakt
 som lover mer enn den kan holde, er verre enn ingen vakt, fordi den blir
 trodd.
 
+## Merkingen prøve 2 og 3 leser: FELTVOKABULARET, ikke en attributtliste
+
+En prøve på HTML kan bare se det generatoren MERKER. Fram til 18.09.2026
+var merkingen en liste attributtnavn — `data-navn`, `class="navn|eier"`
+— og den holdt for de tabellene der kolonnen er kjent på forhånd: et
+eiernavn står alltid i eierkolonnen.
+
+Den duger ikke for en FELT-VERDI-tabell. I endringstabellen og i
+registertabellen bærer samme `<td>` `siste_rapport` i én rad og
+`eier_navn` i neste; en statisk klasse ville enten merket alt som navn
+eller ingenting. Merkingen må da utledes av RADEN, og feltnavnet er det
+generatoren allerede har.
+
+`data-felt="<feltnavn>"` er derfor konvensjonen, og `felt_verdier()`
+leser den mot `NAVNEFELT`, `persondata.FORM_FELT` og
+`persondata.SEKTOR_FELT` — ikke mot en liste attributtnavn. Det er
+SAMME regel `gransk_csv` har hatt siden 16.09: kolonneoverskriften er
+merkingen, og den kommer fra generatorens eget feltvokabular. To
+formater, én regel.
+
+Hva den ikke dekker: en celle uten `data-felt`. Den er usynlig for prøve
+3 med mindre den også har en av de gamle merkingene — og en umerket
+celle er nøyaktig hullet som ble målt 18.09.2026, da 24 navneverdier fra
+changeloggen sto i endringstabellen uten at `ukjent_navn` kunne se dem.
+Se docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md.
+
 ## Og ett hull som er MÅLT og står åpent
 
 `ukjent_orgnr` leter i to ledd: først finner den kandidattall i teksten,
@@ -97,6 +123,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import html
 import re
 import sys
 from dataclasses import dataclass
@@ -355,13 +382,38 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
             vindu = tekst[m.end():m.end() + KONTEKSTVINDU]
             treff_form += tvetydig.findall(vindu)
 
+    # De FELTMERKEDE cellene: samme regel som `gransk_csv` stiller på en
+    # kolonne. En `organisasjonsform`-celle med `DA` er delt ansvar, og
+    # den trenger ikke tekstvinduet over — merkingen SIER hva feltet er.
+    ukjente_navn: dict[str, int] = {}
+    for felt, verdi in felt_verdier(tekst):
+        if felt in NAVNEFELT:
+            if verdi not in navn_ok:
+                ukjente_navn[verdi] = ukjente_navn.get(verdi, 0) + 1
+        elif felt == persondata.FORM_FELT:
+            if persondata.er_personform(verdi):
+                treff_form.append(verdi.upper())
+        elif felt == persondata.SEKTOR_FELT:
+            if persondata.er_personsektor(verdi):
+                treff_form.append(verdi)
+
     if treff_form:
         funn.append(Funn(fil, "personform",
                          f"{sorted(set(treff_form))}", len(treff_form)))
 
+    # De gamle merkingene først, så kan den feltmerkede prøven la et navn
+    # som alt er meldt være. Meldes det to ganger, er det fordi cellen
+    # har to merkinger — og to funnrader om samme navn i samme fil er
+    # støy, ikke informasjon.
+    meldt: set[str] = set()
     for navn in navn_i(tekst):
         if navn not in navn_ok:
             funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn)))
+            meldt.add(navn)
+
+    for navn, antall in sorted(ukjente_navn.items()):
+        if navn not in meldt:
+            funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn), antall))
 
     return funn
 
@@ -509,8 +561,56 @@ def navn_i(tekst: str) -> list[str]:
     datasettet, og en vakt som alltid fyrer blir slått av — som er
     nøyaktig hvordan `\\b\\d{9}\\b`-forbudet ville endt.
     """
-    return [m.group(1).strip() for m in NAVNEMERKE.finditer(tekst)
-            if m.group(1).strip()]
+    return [v for v in (_celleverdi(m.group(1))
+                        for m in NAVNEMERKE.finditer(tekst)) if v]
+
+
+# Merkingen på en FELT-VERDI-celle: feltnavnet ordrett, slik generatoren
+# selv kjenner det. `<td data-felt="eier_navn">…</td>`.
+#
+# Verdien fanges i sin helhet og ikke med et lengdevindu som NAVNEMERKE:
+# der er mønsteret en gjetning på hvor navnet slutter, her SIER merkingen
+# at hele cellen er verdien av det feltet. Taket på 500 tegn er en sperre
+# mot en regex som løper, ikke en påstand om feltlengder.
+FELTMERKE = re.compile(
+    r'data-felt="([A-Za-z0-9_.\-]{1,60})"[^>]*>\s*([^<>\n]{0,500}?)\s*<')
+
+
+def felt_verdier(tekst: str) -> list[tuple[str, str]]:
+    """(feltnavn, verdi) for hver celle generatoren har feltmerket.
+
+    Dette er prøve 2 og 3 lest av FELTVOKABULARET framfor av en liste
+    attributtnavn — se modulens docstring. Kalleren spør `NAVNEFELT`,
+    `persondata.FORM_FELT` og `persondata.SEKTOR_FELT`, og ikke denne
+    funksjonen, om hva et felt BETYR: to steder som skulle svart det
+    samme om det, er formen F6 og F7 hadde.
+
+    Tomme celler faller bort. En `<td data-felt="kapasitet"></td>` er
+    ikke en verdi, og et funn på den ville vært et funn på fravær.
+    """
+    ut: list[tuple[str, str]] = []
+    for m in FELTMERKE.finditer(tekst):
+        verdi = _celleverdi(m.group(2))
+        if verdi:
+            ut.append((m.group(1), verdi))
+    return ut
+
+
+def _celleverdi(raa: str) -> str:
+    """Celleteksten som en VERDI — avkodet, slik hvitelista har den.
+
+    HTML-en er escapet og snapshotene er ikke. Sammenlignes de to
+    direkte, sammenligner vi to alfabeter: MÅLT 18.09.2026 på
+    `data/nettsted` meldte `ukjent_navn` **54 funn** på ett eneste navn —
+    `EGIL KRISTOFFERSEN &amp; SØNNER AS`, et AS som ligger i hvitelista
+    med `&`. Alle 54 var falske, og en vakt som feiler feil blir slått
+    av.
+
+    Avkodingen skjer per VERDI og ikke på filkroppen. Prøvd på kroppen
+    ville den også endret inputtet til `ukjent_orgnr`, og den prøven er
+    en tokenisering der ett tegn til eller fra avgjør — se `NI_SIFFER`.
+    """
+    return html.unescape(raa).strip()
 
 
 def _anonymiser(navn: str) -> str:

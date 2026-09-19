@@ -31,11 +31,16 @@
       <th scope="col">Verdi</th>
     </tr>
   </thead>
+  {# `data-felt` er merkingen publiseringsvakten leser, og den må stå
+     her framfor å være en klasse: samme <td> bærer `navn` i én rad og
+     `kapasitet` i neste, så merkingen er en egenskap ved RADEN.
+     Feltnavnet er kildens eget, og vakten spør `NAVNEFELT` om hva det
+     betyr — se publiseringsvakt.felt_verdier(). #}
   <tbody>
     {% for felt, verdi in lok.register %}
     <tr>
       <th scope="row">{{ felt }}</th>
-      <td>{{ verdi }}</td>
+      <td data-felt="{{ felt }}">{{ verdi }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -211,6 +216,14 @@
       <th scope="col">Til</th>
     </tr>
   </thead>
+  {# Fra- og til-cellene bærer changeloggens `old_value`/`new_value`, og
+     det er verdier fra ELDRE snapshots enn det hvitelista er bygget av.
+     De var umerkede fram til 18.09.2026, og `ukjent_navn` var da blind
+     for dem: MÅLT sto 24 navneverdier i disse cellene uten at prøven
+     kunne se én. `data-felt` er merkingen, utledet av radens felt av
+     samme grunn som i registertabellen over.
+
+     Se docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md #}
   <tbody>
     {% for e in lok.endringer %}
     <tr>
@@ -218,8 +231,8 @@
       <td>{{ e.gjelder }}</td>
       <td>{{ e.kilde }}</td>
       <th scope="row">{{ e.felt }}</th>
-      <td>{{ e.fra }}</td>
-      <td>{{ e.til }}</td>
+      <td data-felt="{{ e.felt }}">{{ e.fra }}</td>
+      <td data-felt="{{ e.felt }}">{{ e.til }}</td>
     </tr>
     {% endfor %}
   </tbody>

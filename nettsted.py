@@ -53,6 +53,26 @@ alle selskapsnavn er `class="eier"`. Skriver en framtidig mal et
 selskapsnavn uten merket, er vakten blind for akkurat det navnet — og
 det er en grense vakten selv dokumenterer, ikke en feil som oppstår
 stille.
+
+### Og for en FELT-VERDI-tabell er merkingen feltnavnet
+
+De to merkingene over duger der kolonnen er kjent på forhånd. I
+registertabellen og i endringstabellen er den ikke det: samme `<td>`
+bærer `siste_rapport` i én rad og `eier_navn` i neste. En statisk klasse
+ville merket alt som navn eller ingenting.
+
+Fra 18.09.2026 bærer verdicellene i de to tabellene derfor
+`data-felt="<feltnavn>"`, og `publiseringsvakt.felt_verdier()` leser
+merkingen mot `NAVNEFELT` og mot personvernfeltene. Det er SAMME regel
+`gransk_csv` har for en CSV — kolonneoverskriften er merkingen — og
+feltnavnet er kildens eget, ikke en presentasjonsklasse vi har funnet
+opp.
+
+Endringstabellen var den som trengte det: cellene bærer changeloggens
+`old_value`/`new_value`, altså verdier fra ELDRE snapshots enn dem
+hvitelista bygges av. MÅLT 18.09.2026 sto 24 navneverdier der uten at
+`ukjent_navn` kunne se én av dem. Se
+`docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md`.
 """
 
 from __future__ import annotations
@@ -473,6 +493,43 @@ def til_visning(rader: list[dict]) -> list[dict]:
 # framfor å forsvinne.
 MAALESERIER = frozenset({"lusetall", "sjotemperatur"})
 
+# Kildene hvis changelog-rader kan vises via en TILLATELSE på
+# lokaliteten. Endringen gjelder tillatelsen og ikke lokaliteten, og
+# koblingen er `entity_id` == tillatelsesnummeret.
+ENDRINGER_VIA_TILLATELSE = frozenset({"eierskap"})
+
+# `eierskap_historikk` står UTTRYKKELIG IKKE over, og utelatelsen er en
+# BESLUTNING — ikke en forglemmelse og ikke noe som skal rettes av den
+# neste som leser filteret.
+#
+# Fram til 18.09.2026 sto kilden i lista, og den var DØD KODE. MÅLT over
+# hele changeloggen: `eierskap_historikk` har `entity_id` på formen
+# `F-A-0034|2007000034` — tillatelse|journalnr, fordi en overføring er én
+# entitet og en tillatelse har mange. **30 104 av 30 104 rader har
+# rørtegnet**, så `entity_id in tillatelser` kunne treffe 0. Klausulen
+# navnga en kilde den ikke kunne matche.
+#
+# Å «rette» den er ikke en opprydding — det er en publiseringsbeslutning
+# med et målt innhold: 30 104 rader ville begynt å nå sidene, og to av
+# dem bærer navnet på et DA (sektor 2300 etter dagens grense) hentet inn
+# 02.09, før grensa flyttet seg. De kan ikke fjernes av lesedøra, som
+# leser `organisasjonsform` og `institusjonell_sektorkode` — en
+# overføringsrad har `mottaker_type` i pub-aquas vokabular og ingen av
+# de to.
+#
+# Tre ting måtte vært på plass før kilden kan vises:
+#
+#   1. En uttrykkelig kobling. Tillatelsesdelen av den sammensatte
+#      id-en må splittes ut med vilje, ikke matche ved et sammentreff.
+#   2. Merkingen fra publiseringsvakten. PÅ PLASS fra 18.09.2026:
+#      endringstabellens celler bærer `data-felt`, og `ukjent_navn` ser
+#      dem. Uten den var en visning usynlig for porten.
+#   3. En avklaring av de to DA-navnene — de er en åpen beslutning, se
+#      notatet under.
+#
+# docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md
+ENDRINGER_UTELATT = frozenset({"eierskap_historikk"})
+
 
 def _endringer(loknr: str, tillatelser: list[str]) -> tuple[list[dict], int]:
     """(registerendringer nyest først, antall måleserierader).
@@ -485,13 +542,18 @@ def _endringer(loknr: str, tillatelser: list[str]) -> tuple[list[dict], int]:
 
     `diff.bevegelse()` er allerede kjørt: `utvalgsutvidelse` og
     `revidert` er ikke bevegelse. Se docs/ARKITEKTUR.md.
+
+    Hvilke kilder som kan komme inn via en tillatelse står i
+    `ENDRINGER_VIA_TILLATELSE`, og hvilken som uttrykkelig ikke kan, i
+    `ENDRINGER_UTELATT`. Lista står der og ikke her fordi
+    `_endringer_av_indeks()` skal svare det samme.
     """
     alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
     beveg = diff.bevegelse(alle)
 
     mine = beveg.filter(
         (pl.col("entity_id") == loknr)
-        | ((pl.col("source").is_in(["eierskap", "eierskap_historikk"]))
+        | ((pl.col("source").is_in(sorted(ENDRINGER_VIA_TILLATELSE)))
            & pl.col("entity_id").is_in(tillatelser))
     )
 
@@ -532,12 +594,15 @@ def _endringer_av_indeks(loknr: str, tillatelser: list[str],
 
     To funksjoner som skal si det samme er formen F6 og F7 hadde, og
     derfor deler de radformen: `_endringsrad()` er den ene stedet en
-    changelog-rad blir til en tabellrad.
+    changelog-rad blir til en tabellrad. Av samme grunn leser de
+    kildelista fra `ENDRINGER_VIA_TILLATELSE` framfor å ha den hver for
+    seg — den utelatte kilden skal ikke kunne bli utelatt i bare én av
+    de to.
     """
     rader = list(felles.registerendringer.get(loknr, ()))
     for nr in tillatelser:
         rader += [r for r in felles.registerendringer.get(nr, ())
-                  if r["source"] in ("eierskap", "eierskap_historikk")]
+                  if r["source"] in ENDRINGER_VIA_TILLATELSE]
     rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
     return ([_endringsrad(r, loknr) for r in rader],
             felles.maaleserierader.get(loknr, 0))

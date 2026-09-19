@@ -293,6 +293,127 @@ def test_navneproven_ser_bare_det_generatoren_MERKER(lister):
     assert vakt.gransk_tekst(umerket, orgnr, navn) == []
 
 
+def test_html_escapet_navn_sammenlignes_avkodet(snapshotmappe, monkeypatch,
+                                                tmp_path):
+    """Hvitelista har `&`, HTML-en har `&amp;`, og det er samme navn.
+
+    MÅLT 18.09.2026 på `data/nettsted`: `ukjent_navn` meldte 54 funn på
+    ett eneste navn — et AS som ligger i hvitelista — fordi cellen ble
+    sammenlignet escapet mot en uescapet liste. Alle 54 var falske, og en
+    vakt som feiler feil blir slått av.
+    """
+    rader = [_obs("912345678", "navn", "Egil & Sønner")]
+    mappe = snapshotmappe / "eierskap"
+    mappe.mkdir(parents=True)
+    pl.DataFrame([o.as_dict() for o in rader]).write_parquet(
+        mappe / "2026-09-15.parquet")
+
+    orgnr, navn = vakt.hviteliste()
+    assert "Egil & Sønner" in navn
+
+    side = _side('<td class="eier">Egil &amp; Sønner</td>')
+    assert vakt.gransk_tekst(side, orgnr, navn) == []
+
+    # Og kontrollen av kontrollen: et ANNET escapet navn felles fortsatt.
+    ukjent = _side('<td class="eier">Kari &amp; Nordmann</td>')
+    assert [f.slag for f in vakt.gransk_tekst(ukjent, orgnr, navn)] \
+        == ["ukjent_navn"]
+
+
+# ---- merkingen er FELTVOKABULARET, ikke en attributtliste --------------
+#
+# En felt-verdi-tabell kan ikke merkes med en statisk klasse: samme <td>
+# bærer `siste_rapport` i én rad og `eier_navn` i neste. Merkingen er
+# derfor `data-felt="<feltnavn>"`, og prøven leser den mot NAVNEFELT —
+# samme regel `gransk_csv` har for en kolonneoverskrift.
+
+def test_feltmerket_navn_utenfor_hvitelista_felles(lister):
+    orgnr, navn = lister
+    side = _side('<td data-felt="eier_navn">Kari Nordmann</td>')
+    funn = vakt.gransk_tekst(side, orgnr, navn)
+    assert [f.slag for f in funn] == ["ukjent_navn"]
+
+
+def test_feltmerket_navn_i_hvitelista_slipper_gjennom(lister):
+    orgnr, navn = lister
+    side = _side('<td data-felt="eier_navn">Nordlaks Oppdrett</td>')
+    assert vakt.gransk_tekst(side, orgnr, navn) == []
+
+
+def test_merkingen_leses_mot_NAVNEFELT_og_ikke_mot_attributtnavnet(lister):
+    """Det er FELTET som avgjør, ikke at cellen er merket.
+
+    En `kapasitet`-celle med en navnelignende verdi er ikke et navn, og
+    en vakt som fyrte på den ville fyrt på hver verdi i registertabellen
+    — 29 merkede celler på én ekte side. Motsatt vei må et hvilket som
+    helst felt i `NAVNEFELT` felles, også et vi ikke har tenkt på her:
+    lista er ett sted, og prøven spør den.
+    """
+    orgnr, navn = lister
+    fritt = _side('<td data-felt="kapasitet">Kari Nordmann</td>')
+    assert vakt.gransk_tekst(fritt, orgnr, navn) == []
+
+    for felt in vakt.NAVNEFELT:
+        side = _side(f'<td data-felt="{felt}">Kari Nordmann</td>')
+        assert [f.slag for f in vakt.gransk_tekst(side, orgnr, navn)] \
+            == ["ukjent_navn"], f"{felt} står i NAVNEFELT og skal felles"
+
+
+def test_feltmerket_organisasjonsform_felles_uten_tekstvinduet(lister):
+    """`DA` er dekar i 748 rader, og felles ellers bare nær feltnavnet.
+
+    Med merkingen trengs ikke vinduet: cellen SIER at feltet er
+    organisasjonsform. Det er den samme skjerpingen `gransk_csv` fikk av
+    kolonneoverskriften 16.09.
+    """
+    orgnr, navn = lister
+    side = _side('<td data-felt="organisasjonsform">DA</td>')
+    funn = vakt.gransk_tekst(side, orgnr, navn, tvetydige={"DA"})
+    assert "personform" in [f.slag for f in funn]
+
+    # Samme verdi i et annet felt er en arealenhet og skal ikke felle.
+    areal = _side('<td data-felt="kapasitet_enhet">DA</td>')
+    assert vakt.gransk_tekst(areal, orgnr, navn, tvetydige={"DA"}) == []
+
+
+def test_feltmerket_sektorkode_felles_ogsaa(lister):
+    orgnr, navn = lister
+    side = _side('<td data-felt="institusjonell_sektorkode">2300</td>')
+    assert "personform" in [
+        f.slag for f in vakt.gransk_tekst(side, orgnr, navn)]
+
+
+def test_feltmerket_tom_celle_er_ikke_et_funn(lister):
+    """Fravær er ikke en verdi. En tom celle i endringstabellen betyr at
+    feltet ikke fantes før — `_endringsrad()` skriver tom streng der."""
+    orgnr, navn = lister
+    side = _side('<td data-felt="eier_navn"></td>'
+                 '<td data-felt="eier_navn">   </td>')
+    assert vakt.gransk_tekst(side, orgnr, navn) == []
+    assert vakt.felt_verdier(side) == []
+
+
+def test_samme_feltmerkede_navn_i_mange_rader_gir_ETT_funn(lister):
+    """En endringstabell kan bære samme navn i mange rader. Én funnrad
+    per navn, med antallet — samme form som CSV-prøven, og av samme
+    grunn: 764 like funn er en rapport ingen leser."""
+    orgnr, navn = lister
+    side = _side('<td data-felt="eier_navn">Kari Nordmann</td>' * 5)
+    funn = vakt.gransk_tekst(side, orgnr, navn)
+    assert len(funn) == 1
+    assert funn[0].antall == 5
+
+
+def test_dobbeltmerket_celle_meldes_en_gang(lister):
+    """Bærer en celle både den gamle og den nye merkingen, er det ett
+    navn og skal være én funnrad. To rader om samme navn i samme fil er
+    støy, ikke informasjon."""
+    orgnr, navn = lister
+    side = _side('<td class="eier" data-felt="eier_navn">Kari Nordmann</td>')
+    funn = vakt.gransk_tekst(side, orgnr, navn)
+    assert [f.slag for f in funn] == ["ukjent_navn"]
+
+
 # ---- filer vakten ikke kan lese ---------------------------------------
 
 def test_ulesbar_fil_rapporteres_ikke_antas_trygg(tmp_path,
