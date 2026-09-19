@@ -71,12 +71,12 @@
     {% for t in lok.tillatelser %}
     <tr>
       <th scope="row">{{ t.nr }}</th>
-      <td class="eier">{{ t.eier_navn }}</td>
+      <td class="eier" data-felt="eier_navn">{{ t.eier_navn }}</td>
       <td class="tall">{{ t.eier_orgnr }}</td>
       <td>{{ t.type }}</td>
       <td class="tall">{{ t.kapasitet }} {{ t.kapasitet_enhet }}</td>
       <td>{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
-      <td class="eier">{{ t.tildelt_navn }}</td>
+      <td class="eier" data-felt="tildelt_navn">{{ t.tildelt_navn }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -108,7 +108,7 @@
     <tr>
       <td><time datetime="{{ o.dato }}">{{ o.dato }}</time></td>
       <th scope="row">{{ o.tillatelse }}</th>
-      <td class="eier">{{ o.mottaker_navn }}</td>
+      <td class="eier" data-felt="mottaker_navn">{{ o.mottaker_navn }}</td>
       <td class="tall">{{ o.mottaker_orgnr }}</td>
       <td class="tall">{{ o.rekkefolge }}</td>
     </tr>

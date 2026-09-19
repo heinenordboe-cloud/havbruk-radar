@@ -425,14 +425,24 @@ def test_et_navn_i_endringstabellen_felles_av_porten(tmp_path):
     navn_ok.discard("TESTVIK OG STRAUM DA")
     orgnr_ok = set(vakt.NI_SIFFER.findall(side))
 
-    # `DA` er MÅLT tvetydig i dataene — 748 rader `kapasitet_enhet` er
-    # dekar — så `personform` fyrer ikke på endelsen i navnet. Det er
-    # nettopp derfor merkingen må bære prøven: uten den er navnet
-    # usynlig, og det er andre halvdel av denne testen.
+    # TO funn fra 19.09.2026, og det er en SKJERPING: `DA` er målt
+    # tvetydig i dataene — 748 rader `kapasitet_enhet` er dekar — så
+    # tekstprøven fyrer ikke på endelsen. Men `DA` som siste ord i en
+    # celle merket `data-felt="eier_navn"` er delt ansvar, og merkingen
+    # sier hvilket av de to det er. Fram til 19.09 meldte denne bare
+    # `ukjent_navn`.
     funn = vakt.gransk_tekst(side, orgnr_ok, navn_ok, fil="index.html",
                              tvetydige={"DA"})
-    assert [f.slag for f in funn] == ["ukjent_navn"]
+    assert sorted(f.slag for f in funn) == ["personform", "ukjent_navn"]
 
+    # Og personform-funnet er ATTRIBUERT, altså kvitterbart: nøkkelen er
+    # feltet og verdien, ikke slaget.
+    pf = [f for f in funn if f.slag == "personform"][0]
+    assert pf.noekkel.startswith("eier_navn/")
+    assert "TESTVIK" not in str(pf)
+
+    # Andre halvdel, og poenget: uten merkingen ser porten ingenting.
+    # Begge funnene forsvinner, ikke bare det ene.
     umerket = re.sub(r'\s*data-felt="[^"]*"', "", side)
     assert vakt.gransk_tekst(umerket, orgnr_ok, navn_ok,
                              tvetydige={"DA"}) == []

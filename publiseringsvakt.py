@@ -125,6 +125,7 @@ import csv
 import datetime as dt
 import hashlib
 import html
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -137,7 +138,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from core import persondata, snapshot                      # noqa: E402
-from core.paths import RAW_DIR                              # noqa: E402
+from core.paths import KVITTERING_DIR, RAW_DIR              # noqa: E402
 
 # Ni siffer, men som et HELT TALL og ikke som en sifferstreng inni et
 # lengre tall. Oppgaven ba om `\b\d{9}\b`; den varianten er MÅLT for
@@ -207,8 +208,137 @@ class Funn:
     utdrag: str
     antall: int = 1
 
+    # Kvitteringen som dekker funnet, eller tom streng. Et kvittert funn
+    # STÅR I RAPPORTEN og teller ikke i exit-koden — det er forskjellen
+    # på en påstand om at funnet er forstått og en bryter som gjør
+    # vakten stille. Se `kvitteringer()`.
+    kvittert: str = ""
+
+    # Nøkkelen en kvittering slås opp på: `(felt, signatur)` som streng,
+    # eller tom for et funn som ikke kan kvitteres. Den står HER og
+    # utledes ikke av `utdrag` — rapporten er en tekst for mennesker, og
+    # en teller som parset den ville vært en teller som måler
+    # formateringen. Første utgave gjorde nettopp det og meldte «2
+    # kvitteringer traff ingen funn» mens alle tre traff.
+    noekkel: str = ""
+
     def __str__(self) -> str:
-        return f"{self.fil}: {self.slag} — {self.utdrag} (x{self.antall})"
+        hale = f"  [KVITTERT {self.kvittert}]" if self.kvittert else ""
+        return (f"{self.fil}: {self.slag} — {self.utdrag} "
+                f"(x{self.antall}){hale}")
+
+
+# --------------------------------------------------- kvitteringene
+
+
+def _signatur(verdi: str) -> str:
+    """Nøkkelen en kvittering slår opp på. Ikke verdien selv.
+
+    Samme hash som `_anonymiser()` bruker, men lengre: 16 tegn framfor 6.
+    Seks er nok til å kjenne igjen et navn i en rapport man leser ved
+    siden av fila; en NØKKEL skal ikke kunne kollidere med et annet navn
+    i det hele tatt.
+    """
+    return hashlib.sha256(verdi.encode("utf-8")).hexdigest()[:16]
+
+
+def kvitteringer() -> dict[tuple[str, str], dict]:
+    """{(felt, navnesignatur): kvitteringen} — hva som er FORSTÅTT.
+
+    ## En kvittering er en påstand, ikke en bryter
+
+    Samme form som `health.godta_volum()`: kvitteringen er ikke et flagg
+    som slår av vakten, men en verdi skrevet til en fil som committes.
+    Git-loggen sier når, fila sier hvorfor og av hvem, og funnet BLIR
+    STÅENDE I RAPPORTEN — `--rapport` teller kvitterte funn hver kjøring,
+    slik at «porten er grønn» aldri kan bety «ingen funn».
+
+    ## Den kvitterer ut ET FUNN, aldri et SLAG
+
+    Nøkkelen er `(felt, signaturen til den enkelte verdien)`. Det er et
+    bevisst valg framfor `slag = "personform"`:
+
+        kvittert: personform            hele prøven er død. Et femte navn
+                                        passerer i stillhet.
+        kvittert: (tildelt_navn, #ab..) nøyaktig denne verdien i nøyaktig
+                                        dette feltet. Et femte navn har
+                                        ingen kvittering og feller porten.
+
+    Det er samme skille som `godta_felt()` mot `godta_volum()`: to
+    kvitteringer for to spørsmål, framfor én som svelger begge.
+
+    ## Formatet
+
+    `data/kvitteringer/<dato>.json`, append-only som `data/feltnormal/`:
+
+        {"dato": "2026-09-19",
+         "kvittert_av": "Heine Nordboe",
+         "begrunnelse": "...hele resonnementet, ikke en stikktittel...",
+         "saker": [{"felt": "tildelt_navn",
+                    "navn": "<verdien ordrett>",
+                    "navn_signatur": "<sha256[:16] av navnet>",
+                    "orgnr": "<organisasjonsnummer>",
+                    "entiteter": ["H-AV-0006"],
+                    "status": "kvittert"}]}
+
+    `navn` står ordrett i fila, og det er grunnen til at fila ligger i
+    DATAREPOET — se `core.paths.KVITTERING_DIR`. Porten trenger den ikke:
+    den slår opp på signaturen, som den regner ut av det den finner i
+    utputtet. Navnet er der for mennesket som skal etterprøve
+    kvitteringen.
+
+    Signaturen KONTROLLERES mot navnet. En kvittering som oppgir et navn
+    og en signatur som ikke hører sammen, er en kvittering for noe annet
+    enn den ser ut som — og den ville kvittert ut et funn ingen har lest.
+
+    `status = "trukket"` trekker en tidligere kvittering. Filene leses i
+    datorekkefølge, og den siste som nevner en sak avgjør. Å slette en
+    fil er ikke veien: de er append-only, og en trukket kvittering skal
+    kunne leses i ettertid.
+    """
+    if not KVITTERING_DIR.exists():
+        return {}
+
+    ut: dict[tuple[str, str], dict] = {}
+    for sti in sorted(KVITTERING_DIR.glob("*.json"),
+                      key=lambda p: _dato_og_nummer(p.stem)):
+        data = json.loads(sti.read_text(encoding="utf-8"))
+        dato = str(data.get("dato") or sti.stem)
+        av = str(data.get("kvittert_av") or "").strip()
+        grunn = str(data.get("begrunnelse") or "").strip()
+        if not av or not grunn:
+            raise ValueError(
+                f"{sti.name}: en kvittering uten `kvittert_av` og "
+                f"`begrunnelse` er et flagg, ikke en kvittering.")
+
+        for sak in data.get("saker") or []:
+            felt = str(sak.get("felt") or "").strip()
+            sig = str(sak.get("navn_signatur") or "").strip()
+            if not felt or not sig:
+                raise ValueError(
+                    f"{sti.name}: en sak mangler `felt` eller "
+                    f"`navn_signatur`, og kan ikke slås opp.")
+            navn = sak.get("navn")
+            if navn and _signatur(str(navn)) != sig:
+                raise ValueError(
+                    f"{sti.name}: `navn_signatur` {sig} hører ikke til "
+                    f"navnet i samme sak. Kvitteringen gjelder da noe annet "
+                    f"enn den ser ut som.")
+            nøkkel = (felt, sig)
+            if str(sak.get("status") or "kvittert") == "trukket":
+                ut.pop(nøkkel, None)
+                continue
+            ut[nøkkel] = {"dato": dato, "kvittert_av": av,
+                          "begrunnelse": grunn, "fil": sti.name,
+                          "orgnr": sak.get("orgnr"),
+                          "entiteter": sak.get("entiteter") or []}
+    return ut
+
+
+def _dato_og_nummer(stem: str) -> tuple[str, int]:
+    """`2026-09-19.2` -> `("2026-09-19", 2)`. Som snapshot-løpenumrene."""
+    dato, _, n = stem.partition(".")
+    return dato, int(n) if n.isdigit() else 1
 
 
 # --------------------------------------------------- hvitelista
@@ -456,29 +586,73 @@ def _ukjente_orgnr(tekst: str, orgnr_ok: set[str], fil: str) -> list[Funn]:
 
 
 def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
-                 fil: str = "", tvetydige: Iterable[str] = ()) -> list[Funn]:
+                 fil: str = "", tvetydige: Iterable[str] = (),
+                 kvittert: dict | None = None) -> list[Funn]:
     """De tre prøvene på én filkropp. Returnerer funnene, tom = rent.
 
     `tvetydige` er kodene som også betyr noe annet i dataene — de søkes
     bare i en organisasjonsform-sammenheng. Standarden er tom, altså den
     strengeste lesningen: en kaller som ikke har målt noe, får alle
     kodene prøvd som hele ord.
+
+    `kvittert` er `kvitteringer()` — {(felt, signatur): kvitteringen}.
+    Standarden er ingen: en kaller som ikke har lest kvitteringene skal
+    ikke få dem gratis. Et kvittert funn RETURNERES som funn, med
+    `Funn.kvittert` satt; det er kalleren (`main()`) som lar det stå
+    utenfor exit-koden.
     """
     funn = _ukjente_orgnr(tekst, orgnr_ok, fil)
+    kvittert = kvittert or {}
 
     tvetydige = {k.strip().upper() for k in tvetydige}
     treff_form: list[str] = []
 
+    # EN PERSONFORMKODE INNE I EN FELTMERKET NAVNEVERDI er attribuerbar,
+    # og det er forskjellen på et funn som kan kvitteres ut og et som
+    # ikke kan. «hele fila inneholder ordet ANS» kan bare kvitteres som
+    # et SLAG; «tildelt_navn på denne siden er en verdi med signatur
+    # #ab…» kan kvitteres som ETT FUNN, og et femte navn har da ingen
+    # kvittering.
+    #
+    # Her brukes ALLE kodene, også de tvetydige. `DA` i en
+    # `kapasitet_enhet`-celle er dekar, men `DA` som siste ord i et
+    # NAVNEFELT er en personform — merkingen sier hvilket av de to det er,
+    # og det er den samme skjerpingen `gransk_csv` fikk av
+    # kolonneoverskriften 16.09.
+    alle_koder = _personformmonster(persondata.PERSONFORMER)
+    attribuert: dict[tuple[str, str], int] = {}
+    navnespenn: list[tuple[int, int]] = []
+    for m in FELTMERKE.finditer(tekst):
+        felt, verdi = m.group(1), _celleverdi(m.group(2))
+        if felt not in NAVNEFELT or not verdi:
+            continue
+        n = len(alle_koder.findall(verdi)) if alle_koder else 0
+        if n:
+            nøkkel = (felt, verdi)
+            attribuert[nøkkel] = attribuert.get(nøkkel, 0) + n
+            navnespenn.append((m.start(2), m.end(2)))
+
+    # Resten av teksten er det som IKKE kunne attribueres. Navneverdiene
+    # maskeres framfor å trekkes fra, så posisjonene står — tekstvinduet
+    # under er posisjonsavhengig, og et fratrekk kunne blitt negativt.
+    if navnespenn:
+        biter = list(tekst)
+        for start, slutt in navnespenn:
+            biter[start:slutt] = " " * (slutt - start)
+        resten = "".join(biter)
+    else:
+        resten = tekst
+
     # De ENTYDIGE kodene: hele ordet, hvor som helst i fila.
     entydig = _personformmonster(persondata.PERSONFORMER - tvetydige)
     if entydig:
-        treff_form += entydig.findall(tekst)
+        treff_form += entydig.findall(resten)
 
     # De TVETYDIGE: bare der feltnavnet står like foran.
     tvetydig = _personformmonster(tvetydige)
     if tvetydig:
-        for m in re.finditer("organisasjonsform", tekst, re.I):
-            vindu = tekst[m.end():m.end() + KONTEKSTVINDU]
+        for m in re.finditer("organisasjonsform", resten, re.I):
+            vindu = resten[m.end():m.end() + KONTEKSTVINDU]
             treff_form += tvetydig.findall(vindu)
 
     # De FELTMERKEDE cellene: samme regel som `gransk_csv` stiller på en
@@ -499,6 +673,19 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     if treff_form:
         funn.append(Funn(fil, "personform",
                          f"{sorted(set(treff_form))}", len(treff_form)))
+
+    # De attribuerte, én funnrad per (felt, verdi) — og hver av dem slås
+    # opp mot kvitteringene. Rapporten bærer signaturen og ikke navnet:
+    # en kvittering skal kunne etterprøves fra loggen, og loggen skal
+    # ikke være stedet navnet står.
+    for (felt, verdi), antall in sorted(attribuert.items()):
+        sig = _signatur(verdi)
+        k = kvittert.get((felt, sig))
+        funn.append(Funn(
+            fil, "personform",
+            f"{felt} {_anonymiser(verdi)} sig={sig[:8]}", antall,
+            kvittert=(f"{k['dato']} {k['kvittert_av']}" if k else ""),
+            noekkel=f"{felt}/{sig}"))
 
     # De gamle merkingene først, så kan den feltmerkede prøven la et navn
     # som alt er meldt være. Meldes det to ganger, er det fordi cellen
@@ -969,6 +1156,7 @@ def gransk(mappe: Path) -> list[Funn]:
     funn: list[Funn] = list(grunnlagsfunn())
     orgnr_ok, navn_ok = hviteliste()
     tvetydige = tvetydige_koder(_snapshotrammer())
+    kvittert = kvitteringer()
     for sti in sorted(p for p in mappe.rglob("*") if p.is_file()):
         rel = str(sti.relative_to(mappe))
         tekst = _tekst(sti)
@@ -983,11 +1171,62 @@ def gransk(mappe: Path) -> list[Funn]:
                                    avgrenser=KOLONNETYPER[sti.suffix.lower()]))
         else:
             funn.extend(gransk_tekst(tekst, orgnr_ok, navn_ok, fil=rel,
-                                     tvetydige=tvetydige))
+                                     tvetydige=tvetydige, kvittert=kvittert))
     return funn
 
 
-def _rapport() -> None:
+def ukvittert(funn: Iterable[Funn]) -> list[Funn]:
+    """Funnene som IKKE er gjort rede for. Det er disse porten faller på.
+
+    Egen funksjon, og ikke en `if` i `main()`: `nettsted.gransk_og_meld()`
+    er den andre kalleren, og to steder som skal si det samme om hva som
+    feller publiseringen er formen F6 og F7 hadde.
+    """
+    return [f for f in funn if not f.kvittert]
+
+
+def _kvitterte_funn(funn: Iterable[Funn]) -> None:
+    """Hva som er kvittert ut, HVER kjøring.
+
+    Dette er hele grunnen til at kvitteringen ikke er en bryter. Et funn
+    som er forstått, skal fortsatt telles og navngis — ellers betyr «0
+    funn» to helt ulike ting («ingen fant noe» og «noen har sagt at det er
+    greit»), og den som leser kan ikke se hvilket.
+
+    Samme begrunnelse som `filtrert_bort()` under: et tall som bare vises
+    når noe er galt, er et tall ingen kjenner normalverdien til.
+    """
+    kvitterte = [f for f in funn if f.kvittert]
+    alle = kvitteringer()
+    print(f"\nKvitterte funn i denne kjøringen: {len(kvitterte)}"
+          f"   ({len(alle)} kvitteringer finnes i {KVITTERING_DIR})")
+    per_sak: dict[str, int] = {}
+    for f in kvitterte:
+        per_sak[f"{f.utdrag}  [{f.kvittert}]"] = (
+            per_sak.get(f"{f.utdrag}  [{f.kvittert}]", 0) + f.antall)
+    for sak, antall in sorted(per_sak.items()):
+        print(f"    {antall:>4}x  {sak}")
+
+    # Kvitteringer som ikke traff noe. En kvittering for et funn som ikke
+    # finnes lenger er ikke farlig, men den er RØTE: den ser ut som en
+    # levende påstand og dekker ingenting. Tallet gjør den synlig, og
+    # veien ut er `status: "trukket"`.
+    truffet = {f.noekkel for f in kvitterte if f.noekkel}
+    ubrukte = sorted(f"{felt}/{sig}" for felt, sig in alle
+                     if f"{felt}/{sig}" not in truffet)
+    if ubrukte:
+        print(f"    {len(ubrukte)} kvittering(er) traff ingen funn i denne")
+        print("    kjøringen — funnet kan være borte fra utputtet:")
+        for n in ubrukte:
+            felt, _, sig = n.partition("/")
+            print(f"      {felt} sig={sig[:8]}")
+
+    print("  En kvittering er en påstand om at funnet er FORSTÅTT, ikke at")
+    print("  det er borte. Den dekker ÉN verdi i ÉTT felt; en ny verdi har")
+    print("  ingen kvittering og feller porten. Se kvitteringer().")
+
+
+def _rapport(funn: Iterable[Funn] = ()) -> None:
     """Hvem grensa holder ute, og hvem den slipper gjennom. Begge tall.
 
     Skrives HVER gang `--rapport` er med, uavhengig av om granskningen
@@ -1013,6 +1252,8 @@ def _rapport() -> None:
         print("  Over 0 betyr at noe kom inn utenom snapshot._les().")
         print("  Se personeksponert() — dette skal være 0 fra 16.09.2026.")
 
+    _kvitterte_funn(funn)
+
     print("\nIngen av tallene sier at utputtet er trygt. De tre prøvene")
     print("ser bare det som kom UTENOM døra — se modulens docstring.")
 
@@ -1033,14 +1274,28 @@ def main() -> int:
 
     funn = gransk(mappe)
     if "--rapport" in sys.argv:
-        _rapport()
+        _rapport(funn)
 
-    if not funn:
-        print(f"\n{mappe}: ingenting å innvende.")
+    igjen = ukvittert(funn)
+    kvitterte = [f for f in funn if f.kvittert]
+
+    if kvitterte:
+        # Skrives ALLTID, ikke bare med --rapport. Exit 0 med kvitterte
+        # funn skal aldri kunne leses som «ingen funn».
+        print(f"\n{len(kvitterte)} funn er KVITTERT UT:")
+        for f in kvitterte:
+            print(f"  {f}")
+
+    if not igjen:
+        if kvitterte:
+            print(f"\n{mappe}: ingen ukvitterte funn. De {len(kvitterte)} "
+                  f"over står, og de er forstått — se {KVITTERING_DIR}.")
+        else:
+            print(f"\n{mappe}: ingenting å innvende.")
         return 0
 
-    print(f"\n{len(funn)} funn:")
-    for f in funn:
+    print(f"\n{len(igjen)} ukvitterte funn:")
+    for f in igjen:
         print(f"  {f}")
     print("\nPUBLISERING STOPPET.")
     return 1

@@ -1008,3 +1008,193 @@ def test_gransk_tar_grunnlagsfunnene_med(tmp_path, grunnlag, monkeypatch):
 
     funn = vakt.gransk(ut)
     assert [f.slag for f in funn] == ["feilerklaert_partisjon"]
+
+
+# ---- kvitteringene -----------------------------------------------------
+#
+# En kvittering er en PÅSTAND om at funnet er forstått, ikke en bryter
+# som gjør vakten stille. Samme form som `health.godta_volum()`: en verdi
+# skrevet til en fil som committes, med begrunnelse, dato og hvem.
+#
+# Den kvitterer ut ETT FUNN — (felt, signaturen til verdien) — og aldri
+# et SLAG. Kvitteres «personform» som helhet, passerer et femte navn i
+# stillhet, og det er nøyaktig den feilen kvitteringen ikke skal kunne
+# gjøre.
+
+def _kvittering(tmp_path, monkeypatch, saker, dato="2026-09-19",
+                av="Heine Nordboe", grunn="Målt, se notatet.",
+                filnavn=None):
+    import json
+
+    mappe = tmp_path / "kvitteringer"
+    mappe.mkdir(exist_ok=True)
+    (mappe / (filnavn or f"{dato}.json")).write_text(json.dumps({
+        "dato": dato, "kvittert_av": av, "begrunnelse": grunn,
+        "saker": saker}), encoding="utf-8")
+    monkeypatch.setattr(vakt, "KVITTERING_DIR", mappe)
+    return mappe
+
+
+def _sak(navn, felt="tildelt_navn", **resten):
+    return {"felt": felt, "navn": navn,
+            "navn_signatur": vakt._signatur(navn), **resten}
+
+
+def test_kvittert_funn_staar_i_rapporten_men_feller_ikke(lister, tmp_path,
+                                                         monkeypatch):
+    """Begge halvdeler i én test, fordi det er de to sammen som er
+    forskjellen på en kvittering og en bryter."""
+    orgnr, navn = lister
+    _kvittering(tmp_path, monkeypatch, [_sak("Hansen og Olsen ANS")])
+    side = _side('<td data-felt="tildelt_navn">Hansen og Olsen ANS</td>')
+
+    funn = vakt.gransk_tekst(side, orgnr, navn | {"Hansen og Olsen ANS"},
+                             kvittert=vakt.kvitteringer())
+    personform = [f for f in funn if f.slag == "personform"]
+    assert len(personform) == 1, "funnet skal STÅ"
+    assert personform[0].kvittert.startswith("2026-09-19")
+    assert vakt.ukvittert(funn) == [], "og det skal ikke felle porten"
+
+
+def test_en_FEMTE_verdi_i_samme_felt_feller_fortsatt(lister, tmp_path,
+                                                     monkeypatch):
+    """Hele grunnen til at nøkkelen er verdien og ikke slaget."""
+    orgnr, navn = lister
+    _kvittering(tmp_path, monkeypatch, [_sak("Hansen og Olsen ANS")])
+    side = _side('<td data-felt="tildelt_navn">Hansen og Olsen ANS</td>'
+                 '<td data-felt="tildelt_navn">Straumen og Vik ANS</td>')
+
+    funn = vakt.gransk_tekst(side, orgnr,
+                             navn | {"Hansen og Olsen ANS",
+                                     "Straumen og Vik ANS"},
+                             kvittert=vakt.kvitteringer())
+    igjen = vakt.ukvittert(funn)
+    assert [f.slag for f in igjen] == ["personform"]
+    assert "#1" not in igjen[0].utdrag  # signaturen, ikke navnet
+    assert igjen[0].kvittert == ""
+
+
+def test_kvitteringen_gjelder_ETT_felt(lister, tmp_path, monkeypatch):
+    """Samme verdi i et annet felt er et annet funn. `tildelt_navn` er en
+    historisk tildelingsopplysning; `eier_navn` er dagens eier, og de to
+    er ikke samme påstand om verden."""
+    orgnr, navn = lister
+    _kvittering(tmp_path, monkeypatch, [_sak("Hansen og Olsen ANS")])
+    side = _side('<td data-felt="eier_navn">Hansen og Olsen ANS</td>')
+
+    funn = vakt.gransk_tekst(side, orgnr, navn | {"Hansen og Olsen ANS"},
+                             kvittert=vakt.kvitteringer())
+    assert len(vakt.ukvittert(funn)) == 1
+
+
+def test_ingen_kvitteringer_er_standarden(lister, tmp_path, monkeypatch):
+    """En kaller som ikke har lest kvitteringene får dem ikke gratis."""
+    orgnr, navn = lister
+    _kvittering(tmp_path, monkeypatch, [_sak("Hansen og Olsen ANS")])
+    side = _side('<td data-felt="tildelt_navn">Hansen og Olsen ANS</td>')
+
+    funn = vakt.gransk_tekst(side, orgnr, navn | {"Hansen og Olsen ANS"})
+    assert all(not f.kvittert for f in funn)
+
+
+def test_kvittering_uten_begrunnelse_eller_navn_kaster(tmp_path, monkeypatch):
+    """En kvittering uten hvem og hvorfor er et flagg. Da er den ikke en
+    påstand noen har gått god for, og den skal ikke kunne leses."""
+    for manglende in ("av", "grunn"):
+        felter = {"av": "Noen", "grunn": "Fordi."}
+        felter[manglende] = ""
+        _kvittering(tmp_path, monkeypatch, [_sak("Hansen og Olsen ANS")],
+                    **felter)
+        with pytest.raises(ValueError, match="flagg, ikke en kvittering"):
+            vakt.kvitteringer()
+
+
+def test_signatur_som_ikke_horer_til_navnet_kaster(tmp_path, monkeypatch):
+    """Fila er håndskrevet. En kvittering som oppgir navn A og signaturen
+    til navn B ville kvittert ut et funn ingen har lest."""
+    sak = _sak("Hansen og Olsen ANS")
+    sak["navn_signatur"] = vakt._signatur("Et helt annet navn AS")
+    _kvittering(tmp_path, monkeypatch, [sak])
+
+    with pytest.raises(ValueError, match="hører ikke til"):
+        vakt.kvitteringer()
+
+
+def test_kvitteringen_kan_TREKKES_av_en_nyere_fil(tmp_path, monkeypatch):
+    """Append-only: veien tilbake er en ny fil, ikke en sletting. En
+    trukket kvittering skal kunne leses i ettertid."""
+    import json
+
+    mappe = _kvittering(tmp_path, monkeypatch, [_sak("Hansen og Olsen ANS")])
+    assert len(vakt.kvitteringer()) == 1
+
+    sak = _sak("Hansen og Olsen ANS")
+    sak["status"] = "trukket"
+    (mappe / "2026-09-26.json").write_text(json.dumps({
+        "dato": "2026-09-26", "kvittert_av": "Heine Nordboe",
+        "begrunnelse": "Trukket: Brreg-oppslaget gjorde spørsmålet målbart.",
+        "saker": [sak]}), encoding="utf-8")
+
+    assert vakt.kvitteringer() == {}
+
+
+def test_lopenummer_sorteres_som_snapshotene(tmp_path, monkeypatch):
+    """`.10` skal komme etter `.2`, ikke mellom `.1` og `.2`. Samme
+    sortering som `snapshot.versjoner()`, og samme grunn: rekkefølgen
+    avgjør hvilken kvittering som gjelder."""
+    assert vakt._dato_og_nummer("2026-09-19") == ("2026-09-19", 1)
+    assert vakt._dato_og_nummer("2026-09-19.2") == ("2026-09-19", 2)
+    assert (vakt._dato_og_nummer("2026-09-19.10")
+            > vakt._dato_og_nummer("2026-09-19.2"))
+
+
+def test_personformkoden_attribueres_til_feltmerket_verdi(lister):
+    """Attribusjonen er det som gjør et funn kvitterbart i det hele tatt.
+
+    «fila inneholder ordet ANS» kan bare kvitteres som et SLAG. «denne
+    verdien i dette feltet» kan kvitteres som ETT funn."""
+    orgnr, navn = lister
+    side = _side('<td data-felt="tildelt_navn">Hansen og Olsen ANS</td>')
+    funn = vakt.gransk_tekst(side, orgnr, navn | {"Hansen og Olsen ANS"})
+
+    personform = [f for f in funn if f.slag == "personform"]
+    assert len(personform) == 1
+    assert personform[0].utdrag.startswith("tildelt_navn ")
+    assert personform[0].noekkel == f"tildelt_navn/{vakt._signatur('Hansen og Olsen ANS')}"
+    # Navnet står IKKE i rapporten.
+    assert "Hansen" not in str(personform[0])
+
+
+def test_tvetydig_kode_i_et_NAVNEFELT_felles(lister):
+    """`DA` er dekar i en `kapasitet_enhet`-celle, og delt ansvar som
+    siste ord i et navnefelt. Merkingen sier hvilket av de to det er, og
+    da trengs ikke tekstvinduet."""
+    orgnr, navn = lister
+    side = _side('<td data-felt="tildelt_navn">Hansen og Olsen DA</td>')
+    funn = vakt.gransk_tekst(side, orgnr, navn | {"Hansen og Olsen DA"},
+                             tvetydige={"DA"})
+    assert [f.slag for f in funn] == ["personform"]
+
+    areal = _side('<td data-felt="kapasitet_enhet">DA</td>')
+    assert vakt.gransk_tekst(areal, orgnr, navn, tvetydige={"DA"}) == []
+
+
+def test_attribuert_treff_telles_ikke_dobbelt(lister):
+    """Koden inne i en merket verdi skal meldes ÉN gang, ikke både som
+    attribuert funn og som løs kode i teksten."""
+    orgnr, navn = lister
+    side = _side('<td data-felt="tildelt_navn">Hansen og Olsen ANS</td>')
+    funn = vakt.gransk_tekst(side, orgnr, navn | {"Hansen og Olsen ANS"})
+    assert len([f for f in funn if f.slag == "personform"]) == 1
+
+
+def test_umerket_personformkode_meldes_fortsatt_som_slag(lister):
+    """Det som ikke kan attribueres, kan ikke kvitteres — og skal
+    fortsatt meldes. Ellers ville merkingen blitt en vei til å gjøre et
+    funn usynlig."""
+    orgnr, navn = lister
+    side = _side("<p>Foretaket er et ENK.</p>")
+    funn = vakt.gransk_tekst(side, orgnr, navn)
+    personform = [f for f in funn if f.slag == "personform"]
+    assert personform and personform[0].utdrag == "['ENK']"
+    assert personform[0].noekkel == ""

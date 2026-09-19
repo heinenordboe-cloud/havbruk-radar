@@ -1163,12 +1163,26 @@ def gransk_og_meld(rot: Path) -> int:
     som bærer persondata uten at noen av datafiltrene ser det.
     """
     funn = publiseringsvakt.gransk(rot)
-    publiseringsvakt._rapport()
-    if not funn:
-        print(f"\n{rot}: ingenting å innvende.")
+    publiseringsvakt._rapport(funn)
+
+    # Kvitterte funn STÅR, og de skrives alltid. Exit 0 med kvitterte
+    # funn skal aldri kunne leses som «ingen funn» — det er hele skillet
+    # mellom en kvittering og en bryter. `ukvittert()` er det ene stedet
+    # som avgjør hva som feller publiseringen; to steder som skulle svart
+    # det samme er formen F6 og F7 hadde.
+    kvitterte = [f for f in funn if f.kvittert]
+    if kvitterte:
+        print(f"\n{len(kvitterte)} funn er KVITTERT UT:")
+        for f in kvitterte:
+            print(f"  {f}")
+
+    igjen = publiseringsvakt.ukvittert(funn)
+    if not igjen:
+        print(f"\n{rot}: ingen ukvitterte funn"
+              f"{f' — de {len(kvitterte)} over står' if kvitterte else ''}.")
         return 0
-    print(f"\n{len(funn)} funn:")
-    for f in funn:
+    print(f"\n{len(igjen)} ukvitterte funn:")
+    for f in igjen:
         print(f"  {f}")
     print("\nPUBLISERING STOPPET.")
     return 1

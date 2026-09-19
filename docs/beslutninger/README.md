@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-19** — [De tildelte navnene beholdes og kvitteres ut — én verdi i ett felt, ikke prøven](2026-09-19-de-tre-tildelte-navnene-kvitteres-ut.md) — besluttet
 - **2026-09-19** — [Hvitelista leser datoene kilden erklærer — og kilden filtrerer det døra ikke ser](2026-09-19-partisjoneringen-erklaeres-av-kilden.md) — besluttet
 - **2026-09-18** — [Changeloggens persondata blir liggende — publiseringsveien lukkes i stedet](2026-09-18-changeloggens-persondata-ligger-stille.md) — besluttet
 - **2026-09-16** — [Attribusjonen flyttes til Source.attribusjon — vilkåret følger kilden](2026-09-16-attribusjon-folger-kilden.md) — besluttet
