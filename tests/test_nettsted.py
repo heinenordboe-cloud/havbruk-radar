@@ -400,9 +400,14 @@ def test_registertabellen_merker_verdicellene_med_feltnavnet():
     import publiseringsvakt as vakt
 
     side = _side(register=[("navn", "OTERNESET"), ("kapasitet", "8000.0")])
-    merket = dict(vakt.felt_verdier(side))
-    assert merket["navn"] == "OTERNESET"
-    assert merket["kapasitet"] == "8000.0"
+    # PAR og ikke dict: samme feltnavn kan stå i to tabeller med hver sin
+    # betydning. Fra 19.09.2026 bærer både registertabellen og
+    # eierskapstabellen `data-felt="kapasitet"` — lokalitetens kapasitet
+    # og tillatelsens — og begge er riktige, for begge kildene kaller
+    # feltet det. En dict her ville skjult den ene bak den andre.
+    merket = vakt.felt_verdier(side)
+    assert ("navn", "OTERNESET") in merket
+    assert ("kapasitet", "8000.0") in merket
 
 
 def test_et_navn_i_endringstabellen_felles_av_porten(tmp_path):
@@ -504,10 +509,17 @@ def test_manglende_lusetall_er_ikke_null():
     html = _side(lus_serie=[brakklagt],
                  lus=nettsted.til_visning([brakklagt]))
 
-    assert f'<td class="tall">{nettsted.INGEN_VERDI}</td>' in html
-    assert '<td class="tall">0</td>' not in html
+    # Cellen finnes via MERKINGEN og ikke via en attributtstreng: hvilke
+    # klasser en celle har er fritt (se docs/beslutninger/
+    # 2026-09-19-markup-er-en-kontrakt.md), og en test som låste
+    # `class="tall"` ville felt neste designrunde uten grunn.
+    import publiseringsvakt as vakt
+
+    merket = vakt.felt_verdier(html)
+    assert ("voksne_hunnlus", nettsted.INGEN_VERDI) in merket
+    assert ("voksne_hunnlus", "0") not in merket
     # Og raden bærer fortsatt det som GJØR fraværet lesbart.
-    assert "<td>nei</td>" in html
+    assert ("lus_er_rapportert", "nei") in merket
 
 
 def test_janei_har_ingen_standardverdi():

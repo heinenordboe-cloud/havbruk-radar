@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-19** — [CSS er fritt, markup er en kontrakt — og kontrakten har en test](2026-09-19-markup-er-en-kontrakt.md) — besluttet
 - **2026-09-19** — [Vi ligger på pub-aquas pagineringstak — og ArcGIS sier «for bredt» med 200 OK](2026-09-19-vi-ligger-paa-pagineringstaket.md) — besluttet
 - **2026-09-19** — [De tildelte navnene beholdes og kvitteres ut — én verdi i ett felt, ikke prøven](2026-09-19-de-tre-tildelte-navnene-kvitteres-ut.md) — besluttet
 - **2026-09-19** — [Hvitelista leser datoene kilden erklærer — og kilden filtrerer det døra ikke ser](2026-09-19-partisjoneringen-erklaeres-av-kilden.md) — besluttet

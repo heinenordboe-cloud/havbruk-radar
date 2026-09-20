@@ -72,10 +72,10 @@
     <tr>
       <th scope="row">{{ t.nr }}</th>
       <td class="eier" data-felt="eier_navn">{{ t.eier_navn }}</td>
-      <td class="tall">{{ t.eier_orgnr }}</td>
-      <td>{{ t.type }}</td>
-      <td class="tall">{{ t.kapasitet }} {{ t.kapasitet_enhet }}</td>
-      <td>{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
+      <td class="tall" data-felt="eier_orgnr">{{ t.eier_orgnr }}</td>
+      <td data-felt="tillatelse_type">{{ t.type }}</td>
+      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }} {{ t.kapasitet_enhet }}</td>
+      <td data-felt="tildelt_tid">{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
       <td class="eier" data-felt="tildelt_navn">{{ t.tildelt_navn }}</td>
     </tr>
     {% endfor %}
@@ -106,11 +106,11 @@
   <tbody>
     {% for o in lok.overforinger %}
     <tr>
-      <td><time datetime="{{ o.dato }}">{{ o.dato }}</time></td>
+      <td data-felt="journal_dato"><time datetime="{{ o.dato }}">{{ o.dato }}</time></td>
       <th scope="row">{{ o.tillatelse }}</th>
       <td class="eier" data-felt="mottaker_navn">{{ o.mottaker_navn }}</td>
-      <td class="tall">{{ o.mottaker_orgnr }}</td>
-      <td class="tall">{{ o.rekkefolge }}</td>
+      <td class="tall" data-felt="mottaker_orgnr">{{ o.mottaker_orgnr }}</td>
+      <td class="tall" data-felt="rekkefolge">{{ o.rekkefolge }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -177,14 +177,14 @@
     {% for u in lok.lus %}
     <tr>
       <th scope="row">{{ u.uke }}</th>
-      <td><time datetime="{{ u.dato }}">{{ u.dato }}</time></td>
-      <td class="tall">{{ u.voksne_hunnlus }}</td>
-      <td>{{ u.lus_er_rapportert }}</td>
-      <td>{{ u.har_laksefisk }}</td>
-      <td>{{ u.brakklagt }}</td>
-      <td>{{ u.har_medikamentell_behandling }}</td>
-      <td>{{ u.har_mekanisk_fjerning }}</td>
-      <td>{{ u.har_rensefisk }}</td>
+      <td data-felt="dato"><time datetime="{{ u.dato }}">{{ u.dato }}</time></td>
+      <td class="tall" data-felt="voksne_hunnlus">{{ u.voksne_hunnlus }}</td>
+      <td data-felt="lus_er_rapportert">{{ u.lus_er_rapportert }}</td>
+      <td data-felt="har_laksefisk">{{ u.har_laksefisk }}</td>
+      <td data-felt="brakklagt">{{ u.brakklagt }}</td>
+      <td data-felt="har_medikamentell_behandling">{{ u.har_medikamentell_behandling }}</td>
+      <td data-felt="har_mekanisk_fjerning">{{ u.har_mekanisk_fjerning }}</td>
+      <td data-felt="har_rensefisk">{{ u.har_rensefisk }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -227,9 +227,9 @@
   <tbody>
     {% for e in lok.endringer %}
     <tr>
-      <td><time datetime="{{ e.dato }}">{{ e.dato }}</time></td>
-      <td>{{ e.gjelder }}</td>
-      <td>{{ e.kilde }}</td>
+      <td data-felt="observed_at"><time datetime="{{ e.dato }}">{{ e.dato }}</time></td>
+      <td data-felt="gjelder">{{ e.gjelder }}</td>
+      <td data-felt="source">{{ e.kilde }}</td>
       <th scope="row">{{ e.felt }}</th>
       <td data-felt="{{ e.felt }}">{{ e.fra }}</td>
       <td data-felt="{{ e.felt }}">{{ e.til }}</td>
