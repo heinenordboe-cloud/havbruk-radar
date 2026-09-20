@@ -637,7 +637,11 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # Én fase per sidetype, og hver fase MÅLES. En fase som ikke måles
     # er en fase ingen ser vokse.
     assert set(tider) == {"felleslesing", "malkompilering",
-                          "rendring_og_skriving", "produksjonsomraader"}
+                          "rendring_og_skriving", "produksjonsomraader",
+                          "selskaper"}
+    # Fiksturen har én eier med én tillatelse.
+    assert logg.selskapssider == 1
+    assert (ut / "selskap" / "912345678" / "index.html").is_file()
     # Fiksturen har ingen lokalitet med produksjonsområde, så det skal
     # ikke bli noen PO-side — og det er en ekte prøve på at lista bygges
     # av dataene og ikke av tretten hardkodede numre.
@@ -1095,3 +1099,147 @@ def test_ubelagte_utledes_av_kilden_ikke_listet():
     """En liste her ville vært et andre sted sannheten kan bli gammel."""
     assert nettsted.ubelagte(nettsted.kildevilkaar()) == {"ekspertgruppen"}
     assert nettsted.ubelagte({"a": None, "b": ("x",)}) == {"a"}
+
+
+# ---- selskapssiden ----------------------------------------------------
+#
+# Én side per organisasjonsnummer som eier minst én tillatelse. MÅLT
+# 20.09.2026: 482 eiere, 360 med registerdata og 122 uten.
+
+def _selskap(**overstyr) -> str:
+    sel = {
+        "orgnr": "912345678", "navn": "TESTLAKS AS",
+        "har_registerdata": True,
+        "register": [("navn", "TESTLAKS AS"), ("organisasjonsform", "AS")],
+        "uten_registerdata_tekst": nettsted.UTEN_REGISTERDATA,
+        "enhet_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
+        "akva_dato": "2026-09-14",
+        "tillatelser": nettsted._tillatelsesrader(
+            {"N-T-0001": {"eier_navn": "TESTLAKS AS",
+                          "eier_orgnr": "912345678",
+                          "tillatelse_type": "KOMM-MATF",
+                          "kapasitet": "780.0", "kapasitet_enhet": "TN",
+                          "tildelt_tid": "2004-09-29T00:00:00Z",
+                          "tildelt_navn": "TESTLAKS AS"}}, []),
+        "tillatelser_antall": 1,
+        "lokaliteter": [{"loknr": "10001", "navn": "TESTHOLMEN",
+                         "kommune": "BODØ", "po_kode": "8",
+                         "po_navn": "Helgeland til Bodø"}],
+        "lokaliteter_antall": 1,
+        "overforinger": [{"dato": "2018-03-13", "tillatelse": "N-T-0001",
+                          "rekkefolge": "1"}],
+    }
+    sel.update(overstyr)
+    return nettsted._miljo().get_template("selskap.html.j2").render(
+        sel=sel, tittel="T", beskrivelse="B",
+        jsonld=nettsted.jsonld_selskap(sel, nettsted.kildevilkaar()),
+        attribusjon=nettsted.attribusjon(nettsted.SELSKAPSKILDER),
+        bygget="2026-09-20")
+
+
+def test_selskap_uten_registerdata_SIER_det():
+    """122 av 482. En tom registertabell ville latt leseren tro at
+    selskapet ikke finnes, når det er UTVALGET vårt som ikke når det."""
+    html = " ".join(_selskap(har_registerdata=False, register=[]).split())
+    assert "Vi har ingen registerdata for dette selskapet" in html
+    assert nettsted.UTEN_REGISTERDATA in html
+    assert "122 av 482" in html
+
+
+def test_manglende_registerdata_merkes_som_eget_felt():
+    import publiseringsvakt as vakt
+
+    merket = vakt.felt_verdier(_selskap(har_registerdata=False, register=[]))
+    assert ("registerdata_mangler", nettsted.UTEN_REGISTERDATA) in merket
+
+
+def test_selskap_med_registerdata_sier_ingenting_om_fravaer():
+    html = " ".join(_selskap().split())
+    assert "Vi har ingen registerdata" not in html
+
+
+def test_selskapssiden_bruker_SAMME_radbygger_som_lokalitetssiden():
+    """`_tillatelsesrader()` er den ene veien en tillatelsesrad blir til.
+    To veier som skal si det samme om hvem som eier hva, er formen F6 og
+    F7 hadde — og her bærer raden nettopp det."""
+    rader = nettsted._tillatelsesrader(
+        {"N-T-0001": {"eier_navn": "TESTLAKS AS"}}, [])
+    assert rader[0]["eier_felt"] == "eier_navn"
+    assert "N-T-0001" in _selskap()
+
+
+def test_en_tillatelse_uten_eier_kan_ikke_havne_paa_en_selskapsside():
+    """Invarianten uenighetsregelen hviler på: en lokalitet der eieren
+    ikke er oppgitt skal ikke dukke opp under et selskap som ikke eier
+    den.
+
+    Den følger av konstruksjonen — sidens tillatelser er de som har
+    DETTE orgnummeret i `eier_orgnr`, og en tillatelse uten eier har
+    ingen — men en invariant uten test er en hensikt."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        tillatelser_per_eier={"912345678": ["N-T-0001"]},
+        eierskap={"N-T-0001": {"eier_navn": "TESTLAKS AS",
+                               "eier_orgnr": "912345678",
+                               "lokaliteter": "10001"},
+                  # Uten eier: står i eierskap-indeksen for INGEN.
+                  "H-SO-0318": {"lokaliteter": "11517"}},
+        enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
+        akva_dato="2026-09-14",
+        akva={"10001": {"navn": "TESTHOLMEN"}, "11517": {"navn": "TRETTØY"}},
+        overforinger_per_tillatelse={})
+
+    sel = nettsted.bygg_selskap("912345678", felles)
+    numre = [t["nr"] for t in sel["tillatelser"]]
+    assert numre == ["N-T-0001"]
+    assert "H-SO-0318" not in numre
+    assert [l["loknr"] for l in sel["lokaliteter"]] == ["10001"]
+    assert "11517" not in [l["loknr"] for l in sel["lokaliteter"]]
+
+
+def test_selskapssiden_lenker_til_lokalitet_og_produksjonsomrade():
+    html = _selskap()
+    assert '<a href="/lokalitet/10001/">10001</a>' in html
+    assert '/produksjonsomrade/8/' in html
+
+
+def test_selskapssiden_sier_at_den_ikke_viser_konsern():
+    """Rolledata er persondata og hentes ikke. At det er et VALG og ikke
+    en mangel, skal stå på siden."""
+    assert "Ingenting om konsern" in _selskap()
+
+
+def test_en_eier_kilden_kaller_person_faar_ingen_side():
+    """MÅLT 20.09.2026: porten fant tre funn på `/selskap/954744469/` —
+    partrederiet som eier H-FJ-0018. Lesedøra er blind for det, fordi
+    snapshotet bare bærer pub-aquas eget ord (`eier_type`) og ingen
+    oversatt `organisasjonsform`. Se sektornotatets punkt 7.2.
+
+    På en lokalitetsside er følgen én rad. På en selskapsside er følgen
+    en hel side om navngitte mennesker, og et URL-rom er en liste over
+    hvem som finnes selv om siden er tom."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        tillatelser_per_eier={"954744469": ["H-FJ-0018"],
+                              "912345678": ["N-T-0001"]},
+        eierskap={"H-FJ-0018": {"eier_type": "JointlyOwnedShippingCompany"},
+                  "N-T-0001": {"eier_type": "LimitedLiabilityCompany"}})
+
+    assert nettsted.personeier("954744469", felles) is True
+    assert nettsted.personeier("912345678", felles) is False
+
+
+def test_personeier_spor_KILDEN_og_ikke_en_egen_liste():
+    """Oversettelsen mellom pub-aquas ord og Brregs koder bor i
+    `sources/eierskap.FORM_KART`. En kopi her ville vært to lister som
+    skal si det samme — formen F6 og F7 hadde."""
+    import inspect
+
+    from sources.eierskap import er_person
+
+    assert er_person("JointlyOwnedShippingCompany") is True
+    kilde = inspect.getsource(nettsted.personeier)
+    assert "from sources.eierskap import er_person" in kilde
+    assert "FORM_KART" not in kilde.split('"""')[-1]

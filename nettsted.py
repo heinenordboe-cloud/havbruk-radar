@@ -1354,6 +1354,210 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     return [sti, csv_sti]
 
 
+# ------------------------------------------------------ selskapene
+#
+# Én side per organisasjonsnummer som eier minst én tillatelse i nyeste
+# eierskap-snapshot. MÅLT 20.09.2026: 482 eiere, hvorav 360 finnes i
+# enhetsregisteret og 122 ikke gjør det.
+#
+# HVEM SOM IKKE FÅR SIDE, og hvorfor det ikke er en mangel:
+#
+#   1383 selskaper i enhetsregisteret uten tillatelse. De er i utvalget
+#        vårt på næringskode, men eier ingen akvakulturtillatelse.
+#     84 tillatelser med en eier vi ikke kan navngi — 55 privatpersoner
+#        (kilden oppgir ikke nummeret) og 29 med ukjent type. De har
+#        ingen eier å lage en side for, og regel 3 forbyr å lage en.
+#
+# Den andre gruppa er hele grunnen til uenighetsregelen: en lokalitet
+# der eieren ikke er oppgitt skal IKKE kunne dukke opp under et selskap
+# som ikke eier den. Her følger det av konstruksjonen — sidens
+# tillatelser er de som har DETTE organisasjonsnummeret i `eier_orgnr`,
+# og en tillatelse uten eier har ingen — men det er en invariant verdt en
+# test, ikke en tilfeldighet. Se docs/REGEL-UENIGE-KILDER.md.
+
+# Feltene fra enhetsregisteret som vises, i rekkefølge. En liste og ikke
+# «alt vi har»: registeret bærer felter vi henter for analyse og ikke for
+# visning, og en side som dumpet alt ville vokst av seg selv neste gang
+# kilden utvides.
+SELSKAPSFELT = (
+    "navn", "organisasjonsform", "kommune", "postnummer", "poststed",
+    "naeringskode", "registreringsdato", "stiftelsesdato",
+    "antall_ansatte", "aksjekapital", "konkurs", "under_avvikling",
+    "under_tvangsavvikling", "registrert_i_foretaksregisteret",
+    "siste_innsendte_aarsregnskap", "er_i_konsern",
+)
+
+# Teksten når vi ikke har registerdata for eieren i det hele tatt.
+# 122 av 482. Ikke en tom tabell — samme regel som `EIER_UKJENT`.
+UTEN_REGISTERDATA = ("selskapet står ikke i vårt enhetsregister-uttrekk")
+
+SELSKAPSKILDER = ("akvakultur", "eierskap", "eierskap_historikk",
+                  "enhetsregisteret")
+
+
+def personeier(orgnr: str, felles: Felles) -> bool:
+    """Klassifiserer KILDEN denne eieren som en person?
+
+    Lesedøra fjerner entiteter med `organisasjonsform` i en personsektor.
+    Den er blind for eiere der snapshotet bare bærer pub-aquas eget ord:
+    H-FJ-0018 har `eier_type = JointlyOwnedShippingCompany` og ingen
+    oversatt form i snapshotene fra 02.09 og 14.09, fordi `FORM_KART`
+    ikke kjente typen da de ble skrevet. Se sektornotatets punkt 7.2.
+
+    På en lokalitetsside er følgen én rad. På en SELSKAPSSIDE er følgen
+    en hel side om et partrederi — altså om navngitte mennesker — og et
+    URL-rom er en liste over hvem som finnes selv om siden er tom. MÅLT
+    20.09.2026 fanget porten den: tre funn på
+    `/selskap/954744469/index.html`.
+
+    Spørsmålet stilles til KILDEN og ikke til `core/`: oversettelsen
+    mellom pub-aquas ord og Brregs koder bor i
+    `sources/eierskap.FORM_KART`, og kjernen skal ikke lære den. Samme
+    delegering som `Source.fjern_egne_personer()`.
+
+    Dette er IKKE B1 fra 18.09 gjenåpnet. B1 var å la lesedøra fjerne
+    raden for alle lesere; dette er publiseringsleddet som lar være å
+    lage en SIDE. Raden står som før på lokalitetssiden, og forsvinner
+    derfra ved neste eierskap-kjøring.
+    """
+    from sources.eierskap import er_person
+
+    for nr in felles.tillatelser_per_eier.get(orgnr, ()):
+        if er_person((felles.eierskap.get(nr) or {}).get("eier_type")):
+            return True
+    return False
+
+
+def bygg_selskap(orgnr: str, felles: Felles) -> dict:
+    """Alt én selskapsside trenger.
+
+    Tillatelsene bygges av `_tillatelsesrader()`, den samme funksjonen
+    lokalitetssiden bruker. To veier til den samme raden er formen F6 og
+    F7 hadde — og her er det ekstra viktig, for raden bærer hvem som eier
+    hva.
+    """
+    tillatelser = sorted(felles.tillatelser_per_eier.get(orgnr, ()))
+    mine = {nr: felles.eierskap[nr] for nr in tillatelser}
+
+    # Navnet tas fra EIERSKAP og ikke fra enhetsregisteret: det er der
+    # koblingen til tillatelsen står, og for de 122 uten registerdata er
+    # det det eneste navnet vi har.
+    navn = ""
+    for d in mine.values():
+        navn = (d.get("eier_navn") or "").strip() or navn
+        if navn:
+            break
+
+    reg = felles.enhet.get(orgnr) or {}
+    register = [(felt, reg[felt]) for felt in SELSKAPSFELT if reg.get(felt)]
+
+    # Lokalitetene tillatelsene ligger på. En tillatelse kan ligge på
+    # flere, og flere tillatelser kan ligge på samme — derfor et sett,
+    # sortert som tall.
+    lokaliteter: dict[str, dict] = {}
+    for nr in tillatelser:
+        for loknr in _liste(mine[nr].get("lokaliteter")):
+            a = felles.akva.get(loknr)
+            if a is None:
+                continue
+            lokaliteter.setdefault(loknr, {
+                "loknr": loknr,
+                "navn": a.get("navn", ""),
+                "kommune": a.get("kommune", ""),
+                "po_kode": a.get("prodomraade_kode", ""),
+                "po_navn": a.get("prodomraade_navn", ""),
+            })
+
+    # SIDEN NÅR: overføringene TIL dette selskapet, eldst først.
+    # `journal_dato` er «senest da» og ikke «akkurat da» — forbeholdet
+    # står på hver rad i dataene og i tabellens caption.
+    overforinger = sorted(
+        ({"dato": o.get("journal_dato", ""),
+          "tillatelse": o.get("tillatelse_nr", ""),
+          "rekkefolge": o.get("rekkefolge", "")}
+         for nr in tillatelser
+         for o in felles.overforinger_per_tillatelse.get(nr, ())
+         if (o.get("mottaker_orgnr") or "").strip() == orgnr),
+        key=lambda o: (o["dato"], o["tillatelse"]))
+
+    return {
+        "orgnr": orgnr,
+        "navn": navn,
+        "har_registerdata": bool(register),
+        "register": register,
+        "uten_registerdata_tekst": UTEN_REGISTERDATA,
+        "enhet_dato": felles.enhet_dato,
+        "eierskap_dato": felles.eierskap_dato,
+        "akva_dato": felles.akva_dato,
+        "tillatelser": _tillatelsesrader(mine, []),
+        "tillatelser_antall": len(tillatelser),
+        "lokaliteter": [lokaliteter[k] for k in
+                        sorted(lokaliteter, key=lambda e: int(e) if e.isdigit() else 0)],
+        "lokaliteter_antall": len(lokaliteter),
+        "overforinger": overforinger,
+    }
+
+
+def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
+    """schema.org/Dataset for selskapssiden.
+
+    `identifier` er organisasjonsnummeret med `propertyID` som sier hvem
+    som har tildelt det. Ingen `url`, av samme grunn som ellers.
+    """
+    kilder = []
+    for kilde in SELSKAPSKILDER:
+        node = {"@type": "Dataset", "name": kilde,
+                "creditText": (vilkaar.get(kilde) or ("",))[0]}
+        if kilde in UTGIVER:
+            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
+        if kilde in LISENS_URL:
+            node["license"] = LISENS_URL[kilde]
+        kilder.append(node)
+    return _script_trygg({
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": f"{sel['navn'] or sel['orgnr']} — akvakulturtillatelser "
+                f"og lokaliteter",
+        "description": (
+            f"Hvilke akvakulturtillatelser organisasjonsnummer "
+            f"{sel['orgnr']} eier, hvilke {sel['lokaliteter_antall']} "
+            f"lokaliteter de ligger på, og når tillatelsene ble overført "
+            f"til selskapet."),
+        "identifier": {
+            "@type": "PropertyValue",
+            "propertyID": "Organisasjonsnummer (Brønnøysundregistrene)",
+            "value": sel["orgnr"],
+        },
+        "inLanguage": "nb",
+        "dateModified": sel["eierskap_dato"],
+        "isBasedOn": kilder,
+        "creator": {"@type": "Organization", "name": "havbruk-radar"},
+    })
+
+
+def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
+    """Rendrer og skriver én selskapsside."""
+    sel = bygg_selskap(orgnr, felles)
+    setninger = attribusjon(SELSKAPSKILDER, felles.vilkaar)
+    mal = mal or _miljo().get_template("selskap.html.j2")
+    html = mal.render(
+        sel=sel,
+        tittel=f"{sel['navn'] or sel['orgnr']} — havbruk-radar",
+        beskrivelse=(
+            f"Akvakulturtillatelser, lokaliteter og overføringer for "
+            f"organisasjonsnummer {sel['orgnr']}"
+            f"{' (' + sel['navn'] + ')' if sel['navn'] else ''}."),
+        jsonld=jsonld_selskap(sel, felles.vilkaar),
+        attribusjon=setninger,
+        bygget=dt.date.today().isoformat(),
+    )
+    mappe = rot / "selskap" / orgnr
+    mappe.mkdir(parents=True, exist_ok=True)
+    sti = mappe / "index.html"
+    sti.write_text(html, encoding="utf-8")
+    return sti
+
+
 # Kildene en produksjonsområdeside bygger på. `ekspertgruppen` står
 # IKKE her: kilden er UBELAGT, og en side som oppgav den i bunnteksten
 # ville påstått et vilkår ingen har gått god for.
@@ -1442,6 +1646,9 @@ class Byggelogg:
 
     sider: int = 0
     po_sider: int = 0
+    selskapssider: int = 0
+    selskap_uten_registerdata: list[str] = None
+    selskap_person: list[str] = None
     uten_eier: list[str] = None
     uten_tillatelser: list[str] = None
     uten_koordinater: list[str] = None
@@ -1451,7 +1658,8 @@ class Byggelogg:
     feilet: list[tuple[str, str]] = None
 
     def __post_init__(self):
-        for felt in ("uten_eier", "uten_tillatelser", "uten_koordinater",
+        for felt in ("selskap_uten_registerdata", "selskap_person",
+                     "uten_eier", "uten_tillatelser", "uten_koordinater",
                      "uten_lusetall", "uten_prodomraade", "uten_endringer",
                      "feilet"):
             if getattr(self, felt) is None:
@@ -1519,6 +1727,28 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         logg.po_sider += 1
     tider["produksjonsomraader"] = time.perf_counter() - t0
 
+    # SELSKAPENE. Én side per organisasjonsnummer som eier minst én
+    # tillatelse. De 122 uten registerdata får side de også — siden sier
+    # at vi ikke har dataene, framfor å ikke finnes.
+    t0 = time.perf_counter()
+    sel_mal = _miljo().get_template("selskap.html.j2")
+    for orgnr in sorted(felles.tillatelser_per_eier):
+        if personeier(orgnr, felles):
+            # Ingen side, og ingen stillhet: tallet står i byggeloggen og
+            # på indekssiden. Se `personeier()`.
+            logg.selskap_person.append(orgnr)
+            continue
+        try:
+            skriv_selskap(orgnr, rot, felles, sel_mal)
+        except Exception as feil:                    # noqa: BLE001
+            logg.feilet.append((f"selskap/{orgnr}",
+                                f"{type(feil).__name__}: {feil}"))
+            continue
+        logg.selskapssider += 1
+        if orgnr not in felles.enhet:
+            logg.selskap_uten_registerdata.append(orgnr)
+    tider["selskaper"] = time.perf_counter() - t0
+
     return logg, tider
 
 
@@ -1573,7 +1803,8 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
     total = sum(tider.values())
     bytes_ = sum(f.stat().st_size for f in rot.rglob("*") if f.is_file())
     print(f"\n{logg.sider} lokalitetssider + {logg.po_sider} "
-          f"produksjonsområdesider skrevet til {rot}")
+          f"produksjonsområdesider + {logg.selskapssider} selskapssider "
+          f"skrevet til {rot}")
     print(f"  byggetid      {total:8.1f} s")
     for merke, t in tider.items():
         print(f"    {merke:22} {t:7.1f} s  ({t / total * 100:4.1f} %)")
@@ -1582,6 +1813,10 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
 
     print("\n  ikke rent:")
     for merke, liste in (
+            ("selskaper uten registerdata hos oss",
+             logg.selskap_uten_registerdata),
+            ("eiere kilden klassifiserer som person (ingen side)",
+             logg.selskap_person),
             ("uten eier (ingen tillatelse i eierskap)", logg.uten_eier),
             ("uten tillatelser i akvakultur", logg.uten_tillatelser),
             ("uten koordinater", logg.uten_koordinater),

@@ -1,0 +1,181 @@
+{# Selskapssiden. Hvilke tillatelser selskapet eier, hvor de ligger, og
+   siden når.
+
+   Markupkontrakten gjelder: data-felt på hver verdicelle,
+   caption/thead/th scope på hver tabell, <time datetime> på hver dato,
+   stabile ankere. Se
+   docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md.
+
+   Uenighetsregelen gjelder: der vi ikke vet, sier siden det. Her er det
+   122 av 482 selskaper vi ikke har registerdata for — se
+   docs/REGEL-UENIGE-KILDER.md. #}
+{% extends "base.html.j2" %}
+
+{% block innhold %}
+<h1><span data-navn>{{ sel.navn }}</span></h1>
+
+<p>
+  Organisasjonsnummer <strong>{{ sel.orgnr }}</strong>.
+  {{ sel.tillatelser_antall }} akvakulturtillatelser på
+  {{ sel.lokaliteter_antall }} lokaliteter, etter eierskapssnapshotet
+  <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
+</p>
+<p>
+  Siden viser bare tillatelser der <strong>dette</strong>
+  organisasjonsnummeret står som eier i registeret. En tillatelse der
+  kilden ikke oppgir eier, havner ikke her — den står på lokalitetssiden
+  sin, merket som ugjort rede for.
+</p>
+
+{# --------------------------------------------- hva registeret sier #}
+<div class="tabellramme">
+<table id="enhetsregisteret-selskap">
+  <caption>
+    Hva Enhetsregisteret sier om selskapet, snapshot
+    <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.
+    {% if not sel.har_registerdata %}
+    <strong>Vi har ingen registerdata for dette selskapet.</strong>
+    {{ sel.uten_registerdata_tekst }} — uttrekket vårt er avgrenset til
+    et sett næringskoder, og et selskap som eier en tillatelse uten å ha
+    en av dem, faller utenfor. Navnet over er det Fiskeridirektoratet
+    oppgir i eierskapsregisteret. 122 av 482 eiere er i denne
+    situasjonen (målt 20.09.2026).
+    {% endif %}
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Felt</th>
+      <th scope="col">Verdi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for felt, verdi in sel.register %}
+    <tr>
+      <th scope="row">{{ felt }}</th>
+      <td data-felt="{{ felt }}">{{ verdi }}</td>
+    </tr>
+    {% endfor %}
+    {% if not sel.har_registerdata %}
+    <tr>
+      <th scope="row">registerdata</th>
+      <td data-felt="registerdata_mangler">{{ sel.uten_registerdata_tekst }}</td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+</div>
+
+{# ------------------------------------------------- tillatelsene #}
+<div class="tabellramme">
+<table id="eierskap-tillatelser">
+  <caption>
+    Tillatelsene selskapet eier, snapshot
+    <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
+    «Tildelt» er da tillatelsen ble gitt første gang, og til hvem — det
+    er ikke nødvendigvis dette selskapet.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Tillatelse</th>
+      <th scope="col">Eier nå</th>
+      <th scope="col">Organisasjonsnummer</th>
+      <th scope="col">Type</th>
+      <th scope="col">Kapasitet</th>
+      <th scope="col">Tildelt</th>
+      <th scope="col">Tildelt til</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in sel.tillatelser %}
+    <tr>
+      <th scope="row">{{ t.nr }}</th>
+      <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}">{{ t.eier_navn }}</td>
+      <td class="tall" data-felt="eier_orgnr">{{ t.eier_orgnr }}</td>
+      <td data-felt="tillatelse_type">{{ t.type }}</td>
+      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }} {{ t.kapasitet_enhet }}</td>
+      <td data-felt="tildelt_tid">{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
+      <td class="eier" data-felt="tildelt_navn">{{ t.tildelt_navn }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# -------------------------------------------------- lokalitetene #}
+<div class="tabellramme">
+<table id="akvakultur-lokaliteter">
+  <caption>
+    Lokalitetene tillatelsene ligger på, snapshot
+    <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.
+    En tillatelse kan gjelde flere lokaliteter, og flere tillatelser kan
+    ligge på samme — tallet her er derfor ikke det samme som antall
+    tillatelser.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Lokalitet</th>
+      <th scope="col">Navn</th>
+      <th scope="col">Kommune</th>
+      <th scope="col">Produksjonsområde</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in sel.lokaliteter %}
+    <tr>
+      <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
+      <td class="eier" data-felt="navn">{{ l.navn }}</td>
+      <td data-felt="kommune">{{ l.kommune }}</td>
+      <td data-felt="prodomraade_navn">
+        {% if l.po_kode %}<a href="/produksjonsomrade/{{ l.po_kode }}/">{{ l.po_kode }} {{ l.po_navn }}</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# ---------------------------------------------------- siden når #}
+<div class="tabellramme">
+<table id="eierskap_historikk-overforinger">
+  <caption>
+    Når tillatelsene ble overført TIL selskapet, eldst først.
+    {{ sel.overforinger|length }} overføringer.
+    <strong>Datoen er journalføringsdato, ikke bekreftet
+    overdragelsesdato</strong> — den skal leses som «senest da».
+    Tillatelser uten rad her har selskapet enten hatt siden tildelingen,
+    eller overtatt uten at overføringen er journalført i den serien vi
+    har.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Journalført</th>
+      <th scope="col">Tillatelse</th>
+      <th scope="col">Nr. i rekka</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for o in sel.overforinger %}
+    <tr>
+      <td data-felt="journal_dato"><time datetime="{{ o.dato }}">{{ o.dato }}</time></td>
+      <th scope="row">{{ o.tillatelse }}</th>
+      <td class="tall" data-felt="rekkefolge">{{ o.rekkefolge }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
+<p>
+  <strong>Ingenting om konsern.</strong> Selskapet kan være eid av et
+  annet, og flere selskaper på tvers av denne siden kan ha samme
+  bakenforliggende eier. Vi henter ikke roller eller eierandeler fra
+  Enhetsregisteret — det er et bevisst valg, ikke en mangel, fordi
+  rolledata er personopplysninger.
+</p>
+<p>
+  <strong>Ingenting om produksjon eller biomasse.</strong> Tallene for
+  hva som faktisk står i sjøen føres per produksjonsområde og per
+  lokalitet, ikke per selskap.
+</p>
+{% endblock %}
