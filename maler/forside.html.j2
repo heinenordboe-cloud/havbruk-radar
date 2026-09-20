@@ -1,0 +1,128 @@
+{# Forsiden. Skal svare en fremmed på tre ting i løpet av fem sekunder:
+   hva er dette, hvem lagde det, hva kan jeg gjøre her.
+
+   Kartet er statisk SVG, generert ved bygging. Ingen karttjeneste, ingen
+   JavaScript, ingen flis hentet i runtime — det skal virke om ti år uten
+   at noen fornyer en nøkkel.
+
+   Markupkontrakten gjelder: caption/thead/th scope på hver tabell,
+   data-felt på hver verdicelle, <time datetime> på hver dato. #}
+{% extends "base.html.j2" %}
+
+{% block innhold %}
+<h1>havbruk-radar</h1>
+
+<p>
+  <strong>Offentlige registerdata om norsk akvakultur, sammenstilt og
+  datert.</strong> {{ f.lokaliteter }} lokaliteter, {{ f.tillatelser }}
+  tillatelser og {{ f.selskaper }} selskaper, med
+  {{ f.luke_uker }} uker lusetall fra
+  <time datetime="{{ f.lus_fra }}">{{ f.lus_fra }}</time> til
+  <time datetime="{{ f.lus_til }}">{{ f.lus_til }}</time>.
+  Hver verdi bærer datoen den gjelder for, og hver side sier hva den
+  ikke vet.
+</p>
+<p>
+  Dataene finnes fra før hos Fiskeridirektoratet, Brønnøysundregistrene,
+  BarentsWatch og Lovdata. Det som ikke finnes fra før, er
+  <strong>hva de sa forrige uke</strong>: registrene viser nåtilstanden,
+  og den skrives over. Her samles et snapshot i uka, og endringene
+  mellom dem står i klartekst.
+</p>
+
+<h2 id="hva-kan-jeg-gjore">Hva kan du gjøre her</h2>
+<ul>
+  <li><a href="/lokalitet/">Alle {{ f.lokaliteter }} lokalitetene</a> —
+      registerdata, hvem som eier tillatelsene, ukentlige lusetall og en
+      endringslogg per lokalitet.</li>
+  <li><a href="/produksjonsomrade/">De {{ f.produksjonsomraader }}
+      produksjonsområdene</a> — trafikklysfargen i hver fastsatte runde,
+      med hvor sterkt den er belagt i forskriften.</li>
+  <li><a href="/selskap/">De {{ f.selskaper }} selskapene</a> — hvilke
+      tillatelser og lokaliteter hvert av dem har, og siden når.</li>
+  <li><a href="/om/">Om prosjektet</a> — kilder, lisenser, hvor ofte det
+      samles inn, hva dekningen er, hvem som står bak, og hvordan du
+      siterer det.</li>
+</ul>
+
+<h2 id="kart">Hvor de ligger</h2>
+<p>
+  {{ f.punkter_antall }} lokaliteter med koordinater fra
+  Akvakulturregisteret, snapshot
+  <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
+  Kartet er tegnet av dataene ved bygging — ingen karttjeneste, ingen
+  JavaScript, ingen bakgrunnsflis. Det er punktene og ingenting annet:
+  ingen kystlinje, fordi vi ikke har en kystlinje vi har lisens til å
+  tegne.
+</p>
+
+<svg viewBox="0 0 {{ f.kart_bredde }} {{ f.kart_hoyde }}"
+     width="100%" role="img" aria-labelledby="karttittel kartbeskrivelse"
+     style="max-width:100%;height:auto;border:1px solid">
+  <title id="karttittel">Kart over {{ f.punkter_antall }} norske
+    akvakulturlokaliteter</title>
+  <desc id="kartbeskrivelse">Ett punkt per lokalitet, plassert etter
+    breddegrad og lengdegrad fra Akvakulturregisteret. Ekvirektangulær
+    projeksjon med breddekorreksjon. Kartet er en oversikt over
+    utbredelse; navn og tall står i
+    lokalitetslisten.</desc>
+  <g fill="currentColor">
+    {% for p in f.punkter %}
+    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ f.kart_punkt }}"/>
+    {% endfor %}
+  </g>
+</svg>
+
+{# Et punkt som mangler skal ikke bare forsvinne. Uenighetsregelen i et
+   annet format — se docs/REGEL-UENIGE-KILDER.md. #}
+<h3 id="uten-koordinater">Lokaliteter uten koordinater</h3>
+<p>
+  <strong>{{ f.uten_koordinater_antall }} av {{ f.lokaliteter }}</strong>
+  lokaliteter mangler koordinater i Akvakulturregisteret og er derfor
+  ikke tegnet på kartet.
+  {% if f.uten_koordinater %}
+  De står her i stedet, slik at et punkt som mangler ikke bare
+  forsvinner:
+  {% else %}
+  Ingen mangler i dette snapshotet. Tallet står likevel, fordi et tall
+  man bare ser når det er galt er et tall ingen kjenner normalverdien
+  til.
+  {% endif %}
+</p>
+{% if f.uten_koordinater %}
+<div class="tabellramme">
+<table id="akvakultur-uten-koordinater">
+  <caption>
+    Lokaliteter uten breddegrad eller lengdegrad, snapshot
+    <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
+    De har side som alle andre — det er bare kartet de ikke kan være på.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Lokalitet</th>
+      <th scope="col">Navn</th>
+      <th scope="col">Kommune</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in f.uten_koordinater %}
+    <tr>
+      <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
+      <td class="eier" data-felt="navn">{{ l.navn }}</td>
+      <td data-felt="kommune">{{ l.kommune }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<h2 id="hvem">Hvem står bak</h2>
+<p>
+  Heine Valø Nordbøe. Koden er åpen og ligger på
+  <a href="https://github.com/heinenordboe-cloud/havbruk-radar">github.com/heinenordboe-cloud/havbruk-radar</a>.
+  Sammenstillingen er min; tallene er kildenes, gjengitt uendret.
+  <a href="/om/">Om-siden</a> har kildene med lisens, hvor ofte det
+  samles inn, hva dekningen er, og hvordan du siterer dette.
+</p>
+{% endblock %}

@@ -638,7 +638,8 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # er en fase ingen ser vokse.
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
-                          "selskaper"}
+                          "selskaper", "forside"}
+    assert (ut / "index.html").is_file()
     # Fiksturen har én eier med én tillatelse.
     assert logg.selskapssider == 1
     assert (ut / "selskap" / "912345678" / "index.html").is_file()
@@ -1243,3 +1244,110 @@ def test_personeier_spor_KILDEN_og_ikke_en_egen_liste():
     kilde = inspect.getsource(nettsted.personeier)
     assert "from sources.eierskap import er_person" in kilde
     assert "FORM_KART" not in kilde.split('"""')[-1]
+
+
+# ---- forsiden og kartet -----------------------------------------------
+#
+# Statisk SVG, generert ved bygging. MÅLT 20.09.2026: 1782 punkter,
+# 82 kB, 0 lokaliteter uten koordinater.
+
+def _akva(**lok):
+    return {k: v for k, v in lok.items()}
+
+
+def test_kartet_projiserer_med_breddekorreksjon():
+    """Uten `cos(lat)` blir Finnmark dobbelt så bredt som det er.
+    Korreksjonen tas på MIDTBREDDEN: én per punkt ville krummet kysten,
+    altså vært en annen projeksjon enn den siden sier den bruker."""
+    akva = {
+        "1": {"breddegrad": "58.0", "lengdegrad": "5.0"},
+        "2": {"breddegrad": "71.0", "lengdegrad": "5.0"},
+        "3": {"breddegrad": "58.0", "lengdegrad": "31.0"},
+    }
+    punkter, uten, hoyde = nettsted.kartpunkter(akva)
+    assert uten == []
+    px = {p["loknr"]: p for p in punkter}
+    # Samme lengdegrad -> samme x, uansett breddegrad.
+    assert px["1"]["x"] == px["2"]["x"]
+    # Nordligst -> minst y (y vokser nedover i SVG).
+    assert px["2"]["y"] < px["1"]["y"]
+    # Bredden er klemt sammen: 26 lengdegrader gir mindre enn 26 * skala.
+    assert px["3"]["x"] - px["1"]["x"] < nettsted.KART_BREDDE
+    assert hoyde > 0
+
+
+def test_lokalitet_uten_koordinater_utelates_men_forsvinner_ikke():
+    """Et punkt som mangler skal ikke bare forsvinne.
+    Uenighetsregelen i et annet format."""
+    akva = {
+        "10001": {"breddegrad": "60.0", "lengdegrad": "5.0"},
+        "10002": {"breddegrad": "", "lengdegrad": "5.0"},
+        "10003": {"lengdegrad": "5.0"},
+    }
+    punkter, uten, _h = nettsted.kartpunkter(akva)
+    assert [p["loknr"] for p in punkter] == ["10001"]
+    assert uten == ["10002", "10003"]
+
+
+def _forside(**overstyr) -> str:
+    f = {
+        "lokaliteter": 1782, "produksjonsomraader": 13, "selskaper": 481,
+        "tillatelser": 2945, "luke_uker": 764,
+        "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
+        "akva_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
+        "punkter": [{"loknr": "31397", "x": 100.0, "y": 200.0}],
+        "punkter_antall": 1782,
+        "kart_bredde": 900, "kart_hoyde": 1026.6, "kart_punkt": 1.7,
+        "uten_koordinater": [], "uten_koordinater_antall": 0,
+    }
+    f.update(overstyr)
+    return nettsted._miljo().get_template("forside.html.j2").render(
+        f=f, tittel="T", beskrivelse="B",
+        jsonld=nettsted.jsonld_forside(f, nettsted.kildevilkaar()),
+        attribusjon=nettsted.attribusjon(nettsted.FORSIDEKILDER),
+        bygget="2026-09-20")
+
+
+def test_forsiden_svarer_paa_de_tre_tingene():
+    """Hva er dette, hvem lagde det, hva kan jeg gjøre her."""
+    html = " ".join(_forside().split())
+    assert "Offentlige registerdata om norsk akvakultur" in html
+    assert "Heine Valø Nordbøe" in html
+    assert "github.com/heinenordboe-cloud/havbruk-radar" in html
+    for lenke in ("/lokalitet/", "/produksjonsomrade/", "/selskap/", "/om/"):
+        assert f'href="{lenke}"' in html
+
+
+def test_kartet_er_statisk_uten_tjeneste_og_uten_js():
+    """Kartet skal virke om ti år uten at noen fornyer en nøkkel."""
+    html = _forside()
+    assert "<svg" in html and "viewBox" in html
+    # Ingen script utover JSON-LD-en base-malen legger inn.
+    assert html.count("<script") == 1
+    assert 'type="application/ld+json"' in html
+    for forbudt in ("tile", "mapbox", "openstreetmap", "leaflet",
+                    "googleapis", "http://", "fetch("):
+        assert forbudt not in html.lower(), forbudt
+
+
+def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():
+    html = _forside()
+    assert 'role="img"' in html
+    assert "<title id=\"karttittel\">" in html
+    assert "<desc id=\"kartbeskrivelse\">" in html
+
+
+def test_antallet_uten_koordinater_staar_ogsaa_naar_det_er_null():
+    """Et tall man bare ser når det er galt, er et tall ingen kjenner
+    normalverdien til."""
+    flat = " ".join(_forside().split())
+    assert "0 av 1782" in flat
+    assert "Ingen mangler i dette snapshotet" in flat
+
+
+def test_uten_koordinater_faar_tabell_med_lenke_naar_de_finnes():
+    html = _forside(
+        uten_koordinater=[{"loknr": "10002", "navn": "X", "kommune": "Y"}],
+        uten_koordinater_antall=1)
+    assert '<a href="/lokalitet/10002/">10002</a>' in html
+    assert "slik at et punkt som mangler ikke bare forsvinner" in " ".join(html.split())

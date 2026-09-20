@@ -1354,6 +1354,168 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     return [sti, csv_sti]
 
 
+# ---------------------------------------------------------- kartet
+#
+# Statisk SVG, generert ved bygging. Ingen karttjeneste, ingen
+# JavaScript, ingen flis hentet i runtime — kartet skal virke om ti år
+# uten at noen fornyer en nøkkel. Samme begrunnelse som at siden ikke
+# tegnes av JS: se modulens docstring.
+#
+# PROJEKSJONEN er ekvirektangulær med breddekorreksjon: lengdegrader
+# klemmes sammen mot polene, og uten `cos(lat)` blir Finnmark dobbelt så
+# bredt som det er. Det er ikke en kartografisk projeksjon med et navn og
+# en EPSG-kode — det er den enkleste transformasjonen som gir et bilde
+# ingen blir lurt av, og valget står her framfor i et bibliotek fordi et
+# bibliotek er en avhengighet til.
+#
+# MÅLT 20.09.2026: 1782 lokaliteter, lat 58,021-71,017, lon 4,633-31,027.
+
+KART_BREDDE = 900          # px i viewBox. Høyden følger av utstrekningen.
+KART_MARG = 12
+KART_PUNKT = 1.7           # radius. Nok til å ses, lite nok til at 1782
+                           # punkter ikke blir én flekk.
+
+
+def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str], float]:
+    """(punkter, lokaliteter uten koordinater, høyde på viewBox).
+
+    Punktene er avrundet til én desimal. Full flyttallspresisjon i en
+    SVG er 1782 tall med femten siffer som ingen ser forskjell på, og
+    fila blir dobbelt så stor.
+
+    Lokaliteter uten koordinater UTELATES fra kartet og returneres for
+    seg. Et punkt som mangler skal ikke bare forsvinne — se
+    docs/REGEL-UENIGE-KILDER.md, som er den samme regelen i et annet
+    format.
+    """
+    import math
+
+    med, uten = [], []
+    for loknr, a in akva.items():
+        bredde = (a.get("breddegrad") or "").strip()
+        lengde = (a.get("lengdegrad") or "").strip()
+        try:
+            med.append((loknr, float(bredde), float(lengde)))
+        except ValueError:
+            uten.append(loknr)
+
+    if not med:
+        return [], sorted(uten, key=lambda e: int(e) if e.isdigit() else 0), 0.0
+
+    lat_min = min(p[1] for p in med)
+    lat_maks = max(p[1] for p in med)
+    lon_min = min(p[2] for p in med)
+    lon_maks = max(p[2] for p in med)
+    # Breddekorreksjonen tas på MIDTBREDDEN og ikke per punkt: en
+    # korreksjon per punkt ville krummet kysten, som er en annen
+    # projeksjon enn den vi sier at vi bruker.
+    k = math.cos(math.radians((lat_min + lat_maks) / 2))
+
+    bredde_grader = (lon_maks - lon_min) * k or 1.0
+    hoyde_grader = (lat_maks - lat_min) or 1.0
+    skala = (KART_BREDDE - 2 * KART_MARG) / bredde_grader
+    hoyde = hoyde_grader * skala + 2 * KART_MARG
+
+    punkter = [{
+        "loknr": loknr,
+        "x": round(KART_MARG + (lon - lon_min) * k * skala, 1),
+        # y vokser nedover i SVG, breddegrad oppover.
+        "y": round(KART_MARG + (lat_maks - lat) * skala, 1),
+    } for loknr, lat, lon in med]
+    punkter.sort(key=lambda p: (p["y"], p["x"]))
+    return (punkter,
+            sorted(uten, key=lambda e: int(e) if e.isdigit() else 0),
+            round(hoyde, 1))
+
+
+FORSIDEKILDER = ("akvakultur", "eierskap", "lusetall")
+
+
+def bygg_forside(felles: Felles) -> dict:
+    """Tallene og kartet forsiden viser.
+
+    Forsiden skal svare en fremmed på tre ting: hva er dette, hvem lagde
+    det, hva kan jeg gjøre her. Tallene er det første svaret — en
+    påstand om omfang som kan etterprøves ved å klikke.
+    """
+    punkter, uten_koordinater, hoyde = kartpunkter(felles.akva)
+    uten = [{"loknr": loknr, "navn": felles.akva[loknr].get("navn", ""),
+             "kommune": felles.akva[loknr].get("kommune", "")}
+            for loknr in uten_koordinater]
+    uker = len(felles.lusetall_snapshots)
+    return {
+        "lokaliteter": len(felles.akva),
+        "produksjonsomraader": len(felles.po_navn),
+        "selskaper": sum(1 for o in felles.tillatelser_per_eier
+                         if not personeier(o, felles)),
+        "tillatelser": len(felles.eierskap),
+        "luke_uker": uker,
+        "lus_fra": felles.lusetall_snapshots[0] if uker else "",
+        "lus_til": felles.lusetall_snapshots[-1] if uker else "",
+        "akva_dato": felles.akva_dato,
+        "eierskap_dato": felles.eierskap_dato,
+        "punkter": punkter,
+        "punkter_antall": len(punkter),
+        "kart_bredde": KART_BREDDE,
+        "kart_hoyde": hoyde,
+        "kart_punkt": KART_PUNKT,
+        "uten_koordinater": uten,
+        "uten_koordinater_antall": len(uten),
+    }
+
+
+def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
+    """Rendrer og skriver forsiden."""
+    f = bygg_forside(felles)
+    mal = mal or _miljo().get_template("forside.html.j2")
+    html = mal.render(
+        f=f,
+        tittel="havbruk-radar — norske akvakulturlokaliteter, uke for uke",
+        beskrivelse=(
+            f"Offentlige registerdata om {f['lokaliteter']} norske "
+            f"akvakulturlokaliteter, sammenstilt og datert: eierskap, "
+            f"trafikklysfarge, lusetall og hva som har endret seg."),
+        jsonld=jsonld_forside(f, felles.vilkaar),
+        attribusjon=attribusjon(FORSIDEKILDER, felles.vilkaar),
+        bygget=dt.date.today().isoformat(),
+    )
+    sti = rot / "index.html"
+    rot.mkdir(parents=True, exist_ok=True)
+    sti.write_text(html, encoding="utf-8")
+    return sti
+
+
+def jsonld_forside(f: dict, vilkaar: dict) -> Markup:
+    """schema.org/Dataset for hele samlingen."""
+    kilder = []
+    for kilde in FORSIDEKILDER:
+        node = {"@type": "Dataset", "name": kilde,
+                "creditText": (vilkaar.get(kilde) or ("",))[0]}
+        if kilde in UTGIVER:
+            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
+        if kilde in LISENS_URL:
+            node["license"] = LISENS_URL[kilde]
+        kilder.append(node)
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": "havbruk-radar — norske akvakulturlokaliteter uke for uke",
+        "description": (
+            f"Sammenstilte offentlige registerdata om {f['lokaliteter']} "
+            f"norske akvakulturlokaliteter: hvem som eier tillatelsene, "
+            f"trafikklysfargen i produksjonsområdet, ukentlige lusetall og "
+            f"hva som har endret seg i registrene."),
+        "inLanguage": "nb",
+        "dateModified": f["akva_dato"],
+        "isBasedOn": kilder,
+        "creator": {"@type": "Person", "name": "Heine Valø Nordbøe"},
+        "spatialCoverage": {"@type": "Place", "name": "Norge"},
+    }
+    if f["luke_uker"]:
+        data["temporalCoverage"] = f"{f['lus_fra']}/{f['lus_til']}"
+    return _script_trygg(data)
+
+
 # ------------------------------------------------------ selskapene
 #
 # Én side per organisasjonsnummer som eier minst én tillatelse i nyeste
@@ -1748,6 +1910,13 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         if orgnr not in felles.enhet:
             logg.selskap_uten_registerdata.append(orgnr)
     tider["selskaper"] = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    try:
+        skriv_forside(rot, felles)
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("forside", f"{type(feil).__name__}: {feil}"))
+    tider["forside"] = time.perf_counter() - t0
 
     return logg, tider
 
