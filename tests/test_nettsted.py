@@ -1013,13 +1013,21 @@ def _po(**overstyr) -> str:
         "nr": "4", "navn": "Nordhordland til Stadt", "status": "RØD",
         "akva_dato": "2026-09-14",
         "runder": [
+            # `farge_klasse` er presentasjonskroken malen henger
+            # fargeruta på, og den hentes fra `FARGE_KLASSE` framfor å
+            # skrives av: en fikstur med sine egne strenger er en
+            # fikstur som sier grønt om koden har byttet vokabular.
+            # Den manglende fargen har INGEN klasse — det er den
+            # tomme ruta, og den er stiplet, ikke fylt.
             {"aar": "2018", "farge": nettsted.FARGE_MANGLER,
-             "farge_felt": nettsted.FARGE_MANGLER_FELT,
+             "farge_felt": nettsted.FARGE_MANGLER_FELT, "farge_klasse": "",
              "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese"},
             {"aar": "2020", "farge": "rød", "farge_felt": "farge",
+             "farge_klasse": nettsted.FARGE_KLASSE["rod"],
              "lesemaate": "ordrett",
              "lesemaate_tekst": nettsted.LESEMAATE["ordrett"]},
             {"aar": "2022", "farge": "grønn", "farge_felt": "farge",
+             "farge_klasse": nettsted.FARGE_KLASSE["gronn"],
              "lesemaate": "kapittelhjemmel",
              "lesemaate_tekst": nettsted.LESEMAATE["kapittelhjemmel"]},
         ],

@@ -7,10 +7,18 @@
    av noen som slår av JS. Se docs/VISNING.md: «Ingen CDN, ingen npm,
    ingen server.»
 
-   CSS-en under er det minimum som skal til for at en tabell med tjue
-   kolonner er lesbar. Design kommer senere, og det er det ENESTE i denne
-   oppgaven som kan endres uten at lenker dør — se
-   docs/beslutninger/2026-09-16-url-struktur.md. #}
+   DESIGNET LIGGER I `/stil.css`, ikke her. Det er én fil, lenket og
+   ikke innebygd: innebygd ville den kostet ~12 kB per side over 2 279
+   sider, og hver leser ville hentet den på nytt for hver side. Den
+   settes sammen av `maler/tokens.css` (Digdirs verdier, hentet og
+   versjonert) og `maler/stil.css` (vår) av `nettsted.skriv_stil()`.
+
+   MALEN SKAL VÆRE LESBAR UTEN DEN. Ingen tabell, ingen tekst og ingen
+   rekkefølge på denne siden avhenger av at stilarket kom fram — det er
+   samme krav som at tallene skal stå i kildekoden og ikke tegnes av et
+   skript, bare ett lag lenger ned. Stien er absolutt, som hver annen
+   URL her, så siden må SERVERES for å se riktig ut:
+   `python -m http.server --directory <ut-mappa>`. #}
 <!doctype html>
 <html lang="nb">
 <head>
@@ -22,20 +30,8 @@
    som mal — en håndskrevet JSON-mal med {{ }} i er en syntaksfeil som
    venter på et navn med anførselstegn i. #}
 <script type="application/ld+json">{{ jsonld }}</script>
-<style>
-  :root { color-scheme: light dark; }
-  body { font-family: system-ui, sans-serif; line-height: 1.5;
-         max-width: 62rem; margin: 0 auto; padding: 1rem; }
-  table { border-collapse: collapse; width: 100%; margin: 0 0 2rem; }
-  caption { text-align: left; font-weight: 600; padding: 0.5rem 0; }
-  th, td { border: 1px solid; padding: 0.25rem 0.5rem; text-align: left;
-           vertical-align: top; }
-  th[scope="col"] { position: sticky; top: 0; }
-  td.tall { text-align: right; font-variant-numeric: tabular-nums; }
-  .tabellramme { overflow-x: auto; }
-  footer { border-top: 1px solid; margin-top: 3rem; padding-top: 1rem;
-           font-size: 0.9rem; }
-</style>
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="/stil.css">
 </head>
 <body>
 <main>

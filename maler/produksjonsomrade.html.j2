@@ -52,7 +52,7 @@
     {% for r in po.runder %}
     <tr>
       <th scope="row"><time datetime="{{ r.aar }}">{{ r.aar }}</time></th>
-      <td data-felt="{{ r.farge_felt }}">{{ r.farge }}</td>
+      <td{% if r.farge_klasse %} class="{{ r.farge_klasse }}"{% endif %} data-felt="{{ r.farge_felt }}">{{ r.farge }}</td>
       <td data-felt="farge__lesemaate">{{ r.lesemaate }}</td>
       <td data-felt="lesemaate_forklart">{{ r.lesemaate_tekst }}</td>
     </tr>

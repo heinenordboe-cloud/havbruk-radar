@@ -56,9 +56,17 @@
   tegne.
 </p>
 
-<svg viewBox="0 0 {{ f.kart_bredde }} {{ f.kart_hoyde }}"
-     width="100%" role="img" aria-labelledby="karttittel kartbeskrivelse"
-     style="max-width:100%;height:auto;border:1px solid">
+{# Ingen `style=`-attributt og ingen `fill="currentColor"`. Fargen,
+   kanten og punktstørrelsen kommer fra `.kart` i stil.css, sammen med
+   resten av siden — en SVG med fargene skrevet inn i seg er en SVG som
+   driver fra paletten ved første endring av den.
+
+   Uten stilark: sirklene faller til svart fyll og kartet står uten
+   ramme. Det er fortsatt et kart. #}
+<div class="kartramme">
+<svg class="kart" viewBox="0 0 {{ f.kart_bredde }} {{ f.kart_hoyde }}"
+     width="{{ f.kart_bredde }}" height="{{ f.kart_hoyde }}"
+     role="img" aria-labelledby="karttittel kartbeskrivelse">
   <title id="karttittel">Kart over {{ f.punkter_antall }} norske
     akvakulturlokaliteter</title>
   <desc id="kartbeskrivelse">Ett punkt per lokalitet, plassert etter
@@ -66,12 +74,13 @@
     projeksjon med breddekorreksjon. Kartet er en oversikt over
     utbredelse; navn og tall står i
     lokalitetslisten.</desc>
-  <g fill="currentColor">
+  <g>
     {% for p in f.punkter %}
     <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ f.kart_punkt }}"/>
     {% endfor %}
   </g>
 </svg>
+</div>
 
 {# Et punkt som mangler skal ikke bare forsvinne. Uenighetsregelen i et
    annet format — se docs/REGEL-UENIGE-KILDER.md. #}

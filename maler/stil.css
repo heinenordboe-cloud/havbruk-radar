@@ -1,0 +1,572 @@
+/* havbruk-radar — presentasjonen. VÅR, ikke hentet.
+ *
+ * Leses sammen med `tokens.css`, som er Digdirs verdier ordrett og som
+ * ikke redigeres her. Denne fila gir dem NAVN etter hva de gjør på
+ * denne siden, og bruker dem. Grensa er hele poenget: en oppgradering
+ * av tokens rører aldri denne fila, og en designendring rører aldri
+ * den andre.
+ *
+ * `nettsted.skriv_stil()` setter de to sammen til én `/stil.css`. Én
+ * fil, én forespørsel, ingen @import — @import blokkerer rendringen og
+ * koster en rundtur til.
+ *
+ * ## Hva som er bundet, og hva som er fritt
+ *
+ * Markupkontrakten (docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md)
+ * sier at `data-felt`, `<table>/<caption>/<thead>/<th scope>`,
+ * tabell-id-ene og `<time datetime>` ikke kan endres av en designrunde.
+ * CSS-en er fri. Denne fila utnytter det bundne framfor å legge til
+ * klasser: `td[data-felt="farge_mangler"]` finnes alt i kontrakten, og
+ * en regel som henger på den kan ikke drive fra markupen.
+ *
+ * ## To regler for hvordan denne fila får lov til å røre markupen
+ *
+ * 1. INGEN ELEMENTER INNE I EN `data-felt`-CELLE som bærer en verdi.
+ *    Publiseringsvaktens `FELTMERKE` fanger teksten fra `>` fram til
+ *    første `<`. Pakker vi verdien i en `<span>` for å farge den, blir
+ *    fangsten tom, og vakten er blind for akkurat den cellen — uten at
+ *    noe feiler. Derfor gjør hver farget ting her det med `::before`
+ *    eller på cellen selv.
+ *
+ * 2. INGEN KLASSE SOM INNEHOLDER `navn` ELLER `eier` SOM HELT ORD.
+ *    `NAVNEMERKE` leser `class="[^"]*\b(navn|eier)\b[^"]*"` som «her
+ *    står det et navn». En presentasjonsklasse som het `po-navn` ville
+ *    meldt hvert produksjonsområdenavn som et ukjent personnavn.
+ *
+ * ## Ingenting hentes i runtime
+ *
+ * Ingen webfont, ingen CDN, ingen JavaScript, ingen ikoner. Fonten er
+ * leserens egen. Alt som ser ut som et ikon her er en firkant tegnet
+ * med `::before`.
+ */
+
+/* ---------------------------------------------------------------- *
+ * 1. VÅRE NAVN PÅ DIGDIRS VERDIER
+ * ---------------------------------------------------------------- */
+
+:root {
+  --farge-bunn:          var(--ds-color-neutral-background-tinted);
+  --farge-ark:           var(--ds-color-neutral-surface-default);
+  --farge-stripe:        var(--ds-color-neutral-background-tinted);
+  --farge-hode:          var(--ds-color-neutral-surface-tinted);
+  --farge-kant-svak:     var(--ds-color-neutral-border-subtle);
+  --farge-kant:          var(--ds-color-neutral-border-default);
+  --farge-kant-sterk:    var(--ds-color-neutral-border-strong);
+  --farge-tekst:         var(--ds-color-neutral-text-default);
+  --farge-tekst-svak:    var(--ds-color-neutral-text-subtle);
+  --farge-lenke:         var(--ds-color-accent-text-subtle);
+  --farge-lenke-aktiv:   var(--ds-color-accent-base-hover);
+  --farge-lenke-besokt:  var(--ds-link-color-visited);
+  --farge-merke:         var(--ds-color-accent-border-subtle);
+  --farge-fokus:         var(--ds-color-focus-outer);
+  --farge-fokus-indre:   var(--ds-color-focus-inner);
+
+  /* MÅLEBÅNDET FOR BRØDTEKST. 29em, ikke et rundt tall og ikke gjettet.
+     Målt 20.09.2026 på de 4 519 tegnene brødtekst som faktisk står på
+     /om/, mot glyffbreddene i fontene siden faktisk faller tilbake på:
+
+         SF Pro (system-ui på macOS)  0,4086 em/tegn  ->  71 tegn
+         Helvetica                    0,4404 em/tegn  ->  66 tegn
+
+     Et førsteutkast sto på 35em fordi «et tegn er omtrent en halv em».
+     Det er 80–86 tegn, altså utenfor hele det båndet regelen gjelder.
+     Tallet er målt av samme grunn som `maks_nullstrekk = 13` er det. */
+  --maal-tekst: 29em;
+  --maal-side: 76rem;
+
+  /* TRAFIKKLYSET. VÅRE farger, ikke Digdirs — og det er hele poenget.
+     Se avsnitt 5. */
+  --lys-rod:   #9b1b30;
+  --lys-gul:   #f7d117;
+  --lys-gronn: #0e9b60;
+  --farge-kart-punkt: var(--ds-color-neutral-text-default);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Trafikklyset må bytte; resten arver fra tokens.css. Fargene i
+       lys modus er valgt for å bli lest mot hvitt, og de samme
+       verdiene mot #202834 er tre mørke flekker.
+
+       VERDIENE ER VALGT PÅ LYSHET, ikke lysnet på slump. Første utkast
+       var #e8808c / #f7d117 / #49c48d, og `test_kontrast` felte det:
+       rød og grønn lå 1,21:1 fra hverandre i luminans, mot 2,27:1 i
+       lys modus. Tre ruter som er like lyse er tre ruter ingen kan
+       skille i gråtone. Disse ligger 1,76:1 og 1,86:1 fra hverandre,
+       og den mørkeste — rød — har 3,35:1 mot flata den står på. */
+    --lys-rod:   #d1465c;
+    --lys-gul:   #ffdc3d;
+    --lys-gronn: #3cb87f;
+    --farge-kart-punkt: var(--ds-color-neutral-text-subtle);
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * 2. GRUNNEN
+ * ---------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  /* Rotstørrelsen settes IKKE. 16px er leserens innstilling, og en side
+     som overstyrer den overstyrer noen som har skrudd den opp. Skalaen
+     under er relativ til den. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--farge-bunn);
+  color: var(--farge-tekst);
+
+  /* Inter FØRST, uten å hentes. Har leseren fonten installert — og det
+     har mange som jobber mot norske etater — brukes den, og siden ser
+     ut som systemet den låner fra. Har hun den ikke, faller den til
+     systemfonten uten en eneste forespørsel. Se tokens.css. */
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+               "Helvetica Neue", Arial, sans-serif;
+  font-size: var(--ds-font-size-4);
+  line-height: var(--ds-line-height-lg);
+  font-weight: var(--ds-font-weight-regular);
+
+  /* TALL I KOLONNE ER HALVE FORSKJELLEN. Settes på body framfor på
+     `.tall`, fordi tall står i captions, i overskrifter og i løpende
+     tekst også — «1782 lokaliteter» skal ha samme sifferbredde som
+     kolonnen under. */
+  font-variant-numeric: tabular-nums;
+}
+
+main {
+  display: block;
+  max-width: var(--maal-side);
+  margin: 0 auto;
+  padding: var(--ds-size-10) var(--ds-size-8) var(--ds-size-15);
+  background: var(--farge-ark);
+  border-inline: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  border-block-end: var(--ds-border-width-default) solid var(--farge-kant-svak);
+}
+
+/* --- typografi --- */
+
+h1, h2, h3, h4 {
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-sm);
+  text-wrap: balance;
+  max-width: var(--maal-tekst);
+}
+
+h1 {
+  font-size: var(--ds-font-size-8);
+  letter-spacing: var(--ds-letter-spacing-2);
+  margin: 0 0 var(--ds-size-6);
+}
+
+h2 {
+  font-size: var(--ds-font-size-6);
+  letter-spacing: var(--ds-letter-spacing-3);
+  margin: var(--ds-size-12) 0 var(--ds-size-4);
+  padding-block-end: var(--ds-size-2);
+  border-block-end: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  max-width: none;
+}
+
+h3 {
+  font-size: var(--ds-font-size-5);
+  letter-spacing: var(--ds-letter-spacing-4);
+  margin: var(--ds-size-8) 0 var(--ds-size-3);
+}
+
+p, ul, ol {
+  max-width: var(--maal-tekst);
+  margin: 0 0 var(--ds-size-5);
+}
+
+li { margin-block-end: var(--ds-size-2); }
+li:last-child { margin-block-end: 0; }
+
+strong { font-weight: var(--ds-font-weight-semibold); }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               monospace;
+  font-size: 0.9em;
+  background: var(--farge-hode);
+  border-radius: var(--ds-border-radius-sm);
+  padding: 0.1em 0.35em;
+}
+
+/* Datoer er tall i kolonne selv når de står i løpende tekst. */
+time { font-variant-numeric: tabular-nums; }
+
+/* --- lenker --- */
+
+a {
+  color: var(--farge-lenke);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+}
+
+a:visited { color: var(--farge-lenke-besokt); }
+
+a:hover {
+  color: var(--farge-lenke-aktiv);
+  text-decoration-thickness: 2px;
+}
+
+/* Digdirs fokusmarkør: to ringer, så den ses på både lys og mørk flate.
+   `:focus-visible` og ikke `:focus` — en museklikkt lenke skal ikke
+   etterlate en ramme. */
+:focus-visible {
+  outline: var(--ds-border-width-focus) solid var(--farge-fokus);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px var(--farge-fokus-indre);
+  border-radius: var(--ds-border-radius-sm);
+}
+
+/* ---------------------------------------------------------------- *
+ * 3. TABELLER
+ *
+ * Dette er en datatabellside. Alt annet er innramming.
+ * ---------------------------------------------------------------- */
+
+.tabellramme {
+  /* BRED TABELL SCROLLER I SIN EGEN BOKS, ikke dokumentet. Kravet er at
+     SIDEN aldri får horisontal scroll på telefon.
+
+     Og så slås den AV på brede skjermer, som ikke er en detalj: et
+     element med `overflow-x: auto` får `overflow-y` beregnet til `auto`
+     også (den ene aksen kan ikke være `visible` når den andre ikke er).
+     Det gjør ramma til en scrollport, og `position: sticky` på et
+     tabellhode fester seg da til RAMMA — som er nøyaktig like høy som
+     tabellen, så hodet står stille og ser ut til å virke uten å gjøre
+     det. Det var tilfellet i den gamle CSS-en.
+
+     Over 62rem er ramma ikke en scrollport, og hodet fester seg til
+     vinduet der det hører hjemme. Under 62rem scroller tabellen i
+     stedet, og hodet er ikke klebrig — som er riktig bytte: på en
+     telefon er en tabell uansett smalere enn skjermen er høy. */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  margin-block-end: var(--ds-size-12);
+}
+
+@media (min-width: 62rem) {
+  .tabellramme { overflow-x: visible; }
+}
+
+table {
+  /* `separate` og ikke `collapse`: med `collapse` eier tabellen
+     kantene, og en kant som eies av tabellen følger ikke med en
+     klebrig celle når den løftes. Hvert skille er derfor en
+     `border-block-end` på cellen selv. */
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: var(--ds-font-size-3);
+  line-height: var(--ds-line-height-md);
+  margin: 0;
+}
+
+/* CAPTION SOM TITTEL, IKKE FOTNOTE.
+
+   Captionene her er ikke etiketter — de er forbeholdene. «–» betyr at
+   kilden ikke oppgir noe tall; 19 celler kan ikke leses av forskriften;
+   X endringer er holdt utenfor fordi kilden er UBELAGT. Settes de i
+   liten grå skrift under tabellen, leses de aldri, og da står tallene
+   der uten det som gjør dem sanne.
+
+   De står derfor ØVERST, i full tekstfarge, med en kraftig loddrett
+   strek som sier at dette hører til tabellen under. */
+caption {
+  caption-side: top;
+  text-align: left;
+
+  /* Captionen ligger INNE i tabellen og dermed inne i scrollramma. En
+     tabell som er bredere enn skjermen drar den med seg, og da er
+     forbeholdet — som er det viktigste på siden — det første som
+     havner utenfor kanten. MÅLT ved 390px: 29em er 464px, og halve
+     setningen sto utenfor.
+
+     `min()` lar målebåndet gjelde der det er plass, og skjermen
+     gjelde der det ikke er. `vw` og ikke `%`, fordi prosenten her
+     ville vært av TABELLEN, som er nettopp den som er for bred. */
+  max-width: min(var(--maal-tekst), calc(100vw - 2 * var(--ds-size-4)));
+  color: var(--farge-tekst);
+  font-size: var(--ds-font-size-3);
+  line-height: var(--ds-line-height-md);
+  padding: var(--ds-size-3) 0 var(--ds-size-3) var(--ds-size-4);
+  margin-block-end: var(--ds-size-3);
+  border-inline-start: var(--ds-size-1) solid var(--farge-merke);
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--farge-hode);
+  text-align: left;
+  vertical-align: bottom;
+  font-size: var(--ds-font-size-2);
+  font-weight: var(--ds-font-weight-semibold);
+  letter-spacing: var(--ds-letter-spacing-7);
+  line-height: var(--ds-line-height-sm);
+  padding: var(--ds-size-2) var(--ds-size-3);
+  border-block-end: 2px solid var(--farge-kant-sterk);
+}
+
+tbody th, tbody td {
+  /* INGEN LODDRETTE STREKER. Et rutenett med streker i begge retninger
+     gjør hver celle til en boks, og øyet må hoppe over en kant per
+     kolonne. Radskillet er det eneste som bærer en tabell man leser
+     langs. */
+  border-block-end: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  padding: var(--ds-size-2) var(--ds-size-3);
+  text-align: left;
+  vertical-align: top;
+}
+
+tbody th {
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+}
+
+/* Vekselvis tone. På en tabell med tre rader er den nesten usynlig; på
+   /lokalitet/ med 1 782 rader og seks kolonner er den forskjellen på å
+   kunne følge en rad tvers over og ikke. Tonen er 1,06:1 mot arket —
+   den skal kunne ANES, ikke ses. */
+tbody tr:nth-child(even) { background: var(--farge-stripe); }
+
+tbody tr:last-child th, tbody tr:last-child td { border-block-end: 0; }
+
+/* Tallkolonner høyrestilles. Sifrene er alt tabulære fra `body`. */
+.tall { text-align: right; }
+thead th.tall { text-align: right; }
+
+/* `break-word`, IKKE `anywhere`. Forskjellen er ikke kosmetisk.
+
+   `anywhere` lar nettleseren regne med bruddpunkter inne i ord når den
+   finner tabellens MINSTE mulige bredde. Følgen er at en tabell alltid
+   kan krympes til nesten ingenting, og siden `table` er 100 % bred,
+   gjorde den det: MÅLT i nettleser ved 390px presset fargetabellen seg
+   inn på skjermen framfor å scrolle, og cellene leste «forskrift/en»,
+   «bestemmels/en». Scrollramma i avsnitt 3 ble aldri tatt i bruk fordi
+   det aldri var noe å scrolle.
+
+   `break-word` bryter det samme ordet når det FAKTISK ikke får plass,
+   men teller ikke bruddet med i minstebredden. Tabellen blir da så
+   bred som sitt lengste ord per kolonne, og det som ikke får plass
+   scroller — som er hele poenget med ramma. */
+tbody td, tbody th { overflow-wrap: break-word; }
+
+/* ---------------------------------------------------------------- *
+ * 4. DER KILDEN IKKE SIER NOE
+ *
+ * Uenighetsregelen i CSS. Cellene som sier «vi vet ikke» skal se
+ * BEVISST tomme ut — ikke som data, og ikke som en feil.
+ * ---------------------------------------------------------------- */
+
+td[data-felt="farge_mangler"],
+td[data-felt="eier_ukjent"],
+td[data-felt="registerdata_mangler"] {
+  color: var(--farge-tekst-svak);
+  font-size: var(--ds-font-size-2);
+  line-height: var(--ds-line-height-md);
+}
+
+/* «forskriften oppgir ikke farge for dette området i denne runden» er
+   62 tegn i en kolonne som ellers inneholder «gul». Uten tak setter
+   den bredden på hele kolonnen — MÅLT i nettleser: Fargekolonnen ble
+   ~470px og skjøv «Lesemåte» og «Hva lesemåten betyr» helt ut til
+   høyre, med et tomrom i mellom. Taket lar den brekke over to linjer
+   der den står, og lar kolonnen holde bredden til ordet den ellers
+   inneholder.
+
+   GULVET er der av motsatt grunn: uten det klemmer den samme cellen
+   seg ned til bredden av ordet «gul» når tabellen scroller på telefon,
+   og de 62 tegnene brekker over sju korte rader. En celle som skal se
+   BEVISST tom ut, skal ikke se ut som en feil. */
+td[data-felt="farge_mangler"] { max-width: 17em; min-width: 11em; }
+
+/* FELT-VERDI-TABELLER er to kolonner, og to kolonner strukket over
+   hele arket er en tabell med en tom halvdel. Ankrene er markup-
+   kontraktens egne og er stabile — se
+   docs/beslutninger/2026-09-16-url-struktur.md — så en regel som
+   henger på dem kan ikke drive fra malen. */
+#akvakultur-register,
+#enhetsregisteret-selskap { max-width: 46rem; }
+
+/* ---------------------------------------------------------------- *
+ * 5. TRAFIKKLYSET
+ *
+ * Fargen per produksjonsområde er DATA. Den bærer et
+ * forvaltningsvedtak, og den er den eneste røde, gule eller grønne
+ * tingen på hele nettstedet.
+ *
+ * ORDET ER BÆREREN, IKKE FARGEN. Cellen inneholder «rød», «gul» eller
+ * «grønn» som tekst, satt i vanlig tekstfarge. Firkanten under er
+ * tegnet med `::before` og finnes bare i CSS-en: slås stilarket av,
+ * blir ordet stående alene og siden er like sann. Det er kravet fra
+ * WCAG 1.4.1, men det er også kravet fra at noen skal kunne sitere
+ * siden høyt.
+ *
+ * Firkanten er derfor heller ikke en verdi, og den kan ikke røre
+ * cellens innhold — se regel 1 øverst i fila.
+ * ---------------------------------------------------------------- */
+
+td[data-felt="farge"]::before,
+td[data-felt="farge_mangler"]::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.8em;
+  block-size: 0.8em;
+  margin-inline-end: 0.55em;
+  vertical-align: -0.02em;
+
+  /* RINGEN ER NØYTRAL, og det er et valg. Var den en mørkere tone av
+     samme farge, ville den gule firkantens synlighet hengt på den gule
+     — og gul kan ikke nå 3:1 mot hvitt uten å slutte å være gul.
+     #717a84 gir 3,58–4,36:1 mot hver flate en firkant står på. */
+  border: var(--ds-border-width-default) solid var(--farge-kant);
+  border-radius: var(--ds-border-radius-sm);
+}
+
+td[data-felt="farge"].lys-rod::before   { background: var(--lys-rod); }
+td[data-felt="farge"].lys-gul::before   { background: var(--lys-gul); }
+td[data-felt="farge"].lys-gronn::before { background: var(--lys-gronn); }
+
+/* BEVISST TOM, IKKE ØDELAGT. Samme rute, samme plass i rekka, stiplet
+   og uten fyll: plassen finnes, og ingen har fylt den. En celle uten
+   rute i det hele tatt ville sett ut som en rad der noe manglet. */
+td[data-felt="farge_mangler"]::before {
+  background: none;
+  border-style: dashed;
+}
+
+/* ---------------------------------------------------------------- *
+ * 6. KARTET
+ * ---------------------------------------------------------------- */
+
+.kartramme {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  margin-block-end: var(--ds-size-8);
+}
+
+.kart {
+  display: block;
+
+  /* PÅ TELEFON SCROLLER KARTET, som en bred tabell gjør.
+     viewBox-en er 900 x 1027. Skaleres den ned til 328px (en 360px
+     skjerm minus margen), blir et punkt 1,5px i diameter — synlig på
+     en retinaskjerm, tynt på alt annet. 30rem er gulvet der et punkt
+     er 2,1px, og prisen er ~150px sidelengs scroll inne i ramma.
+     Dokumentet selv scroller ikke. */
+  min-width: 30rem;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+  background: var(--farge-ark);
+  border: var(--ds-border-width-default) solid var(--farge-kant-svak);
+}
+
+.kart circle {
+  fill: var(--farge-kart-punkt);
+
+  /* OVERLAPPET ER INFORMASJON, og det er ikke lite: MÅLT 20.09.2026
+     har 1 501 av 1 782 punkter (84,2 %) et naboepunkt nærmere enn to
+     radier, og den tetteste 8x8-ruta i viewBox-en rommer 25 punkter.
+     Med heldekkende fyll er Trøndelag og Nordland én flekk, og kartet
+     sier bare «her er det anlegg».
+
+     Halvgjennomsiktig fyll gjør tettheten lesbar i stedet. Ett punkt
+     legger 0,6 på, to gir 0,84, tre gir 0,94 — rampen bærer 1-3 og
+     metter etter det. Det er den eneste informasjonen et kart uten
+     navn og tall kan bære utover plassering, og prisen er at et
+     enslig punkt i Finnmark er grått og ikke svart. */
+  fill-opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------- *
+ * 7. BUNNTEKSTEN
+ *
+ * Attribusjonen er en lisensplikt, ikke en kolofon. Den skal være
+ * lesbar, og den skal ikke se bort-designet ut.
+ * ---------------------------------------------------------------- */
+
+footer {
+  max-width: var(--maal-side);
+  margin: 0 auto;
+  padding: var(--ds-size-10) var(--ds-size-8) var(--ds-size-15);
+  color: var(--farge-tekst-svak);
+  font-size: var(--ds-font-size-3);
+  line-height: var(--ds-line-height-md);
+}
+
+footer h2 {
+  font-size: var(--ds-font-size-4);
+  color: var(--farge-tekst);
+  border-block-end: 0;
+  margin: 0 0 var(--ds-size-3);
+  padding-block-end: 0;
+}
+
+footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--ds-size-5);
+  max-width: var(--maal-tekst);
+}
+
+footer li {
+  padding-inline-start: var(--ds-size-4);
+  border-inline-start: 2px solid var(--farge-kant-svak);
+  margin-block-end: var(--ds-size-3);
+}
+
+footer p { max-width: var(--maal-tekst); margin: 0; }
+
+/* ---------------------------------------------------------------- *
+ * 8. SMALE SKJERMER
+ * ---------------------------------------------------------------- */
+
+@media (max-width: 48rem) {
+  /* Arket slutter å være et ark. Rammen rundt kostet 2rem i bredde på
+     hver side, og på 360px er det 11 % av skjermen brukt på en kant. */
+  body { background: var(--farge-ark); }
+
+  main, footer {
+    padding-inline: var(--ds-size-4);
+    border-inline: 0;
+  }
+
+  main { padding-block: var(--ds-size-6) var(--ds-size-10); }
+
+  h1 { font-size: var(--ds-font-size-7); }
+  h2 { font-size: var(--ds-font-size-5); }
+
+  /* Tabellen er alt i en scrollende ramme her (se avsnitt 3). Ramma
+     får gå ut i margen, så en bred tabell bruker hele skjermen. */
+  .tabellramme, .kartramme {
+    margin-inline: calc(var(--ds-size-4) * -1);
+    padding-inline: var(--ds-size-4);
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * 9. PAPIR
+ *
+ * En side som skal siteres blir skrevet ut. Uten dette skrives den ut
+ * med grå flater og uten å si hvor lenkene peker.
+ * ---------------------------------------------------------------- */
+
+@media print {
+  body { background: #fff; color: #000; font-size: 10pt; }
+  main, footer { max-width: none; border: 0; padding: 0; }
+  .tabellramme, .kartramme { overflow: visible; }
+  thead th { position: static; }
+  tbody tr:nth-child(even) { background: none; }
+  a { color: #000; }
+  table, figure { break-inside: avoid; }
+  thead { display: table-header-group; }
+}

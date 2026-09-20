@@ -755,6 +755,22 @@ LESEMAATE = {
 FARGE_MANGLER = "forskriften oppgir ikke farge for dette området i denne runden"
 FARGE_MANGLER_FELT = "farge_mangler"
 
+# EN PRESENTASJONSKROK, og bare det. CSS kan ikke velge på celletekst,
+# så «hvilken av de tre» må stå som en klasse for at ruta foran ordet
+# skal kunne få farge. Verdien er kildens normaliserte fargeord, ikke
+# et nytt vokabular — `rod`, `gul`, `gronn`.
+#
+# ORDET ER FORTSATT BÆREREN. Klassen styrer en `::before`-rute som bare
+# finnes i CSS-en; slås stilarket av, står ordet igjen alene og cellen
+# er like sann. Se avsnitt 5 i maler/stil.css.
+#
+# Den heter ikke noe med `navn` eller `eier` i seg, og det er ikke
+# tilfeldig: publiseringsvaktens `NAVNEMERKE` leser
+# `class="[^"]*\b(navn|eier)\b[^"]*"` som «her står et navn», og en
+# klasse som het `po-navn` ville meldt hvert områdenavn som et ukjent
+# personnavn.
+FARGE_KLASSE = {"gronn": "lys-gronn", "gul": "lys-gul", "rod": "lys-rod"}
+
 
 def _po_farger() -> dict[str, dict[str, dict[str, str]]]:
     """{po: {år: {farge, farge__lesemaate}}} for hver fastsatte runde.
@@ -790,6 +806,7 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
                 "aar": aar,
                 "farge": FARGEORD.get(raa, raa),
                 "farge_felt": "farge",
+                "farge_klasse": FARGE_KLASSE.get(raa, ""),
                 "lesemaate": maate,
                 "lesemaate_tekst": LESEMAATE.get(maate, maate or "ukjent"),
             })
@@ -798,6 +815,7 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
                 "aar": aar,
                 "farge": FARGE_MANGLER,
                 "farge_felt": FARGE_MANGLER_FELT,
+                "farge_klasse": "",
                 "lesemaate": "",
                 "lesemaate_tekst": "ingen bestemmelse å lese",
             })
@@ -1354,6 +1372,53 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     return [sti, csv_sti]
 
 
+# -------------------------------------------------------- stilarket
+#
+# ## Én fil, lenket — ikke innebygd i hver side
+#
+# Innebygd i `<style>` ville stilarket kostet ~12 kB per side. Over
+# 2 279 sider er det 27 MB, altså 18 % på et utputt som er 155 MB, og
+# hver leser ville lastet det på nytt for hver side. Lenket er det én
+# fil og én forespørsel, og nettleseren hentet den sist på forsiden.
+#
+# ## Hvorfor to filer på disk, men én på nettet
+#
+# `maler/tokens.css` er HENTET — Digdirs verdier ordrett, med tagg,
+# sha256 og lisens. `maler/stil.css` er SKREVET. Grensa er hele grunnen
+# til at de ligger hver for seg: en oppgradering av tokens skal kunne
+# byttes ut som en blokk, uten at noen må skille våre verdier fra
+# deres. Sammensetningen her er tekstsammenslåing og ikke et byggesteg
+# — ingen preprosessor, ingen minifisering, ingen kildekart.
+#
+# ## Stien er absolutt, som hver annen URL på nettstedet
+#
+# `/stil.css`, ikke `../../stil.css`. Sidene lenker alt absolutt (se
+# 2026-09-16-url-struktur.md), så det er ingen ny begrensning — men det
+# betyr at siden må SERVERES for å se riktig ut. Åpnet rett fra disk
+# med `file://` finner nettleseren verken stilarket eller nabosidene.
+#     python -m http.server --directory <ut-mappa>
+
+STILFILER = ("tokens.css", "stil.css")
+
+
+def stilark() -> str:
+    """Tokens + vår CSS, i den rekkefølgen. Rekkefølgen er ikke fri:
+    `stil.css` leser `--ds-*` som `tokens.css` definerer."""
+    biter = []
+    for navn in STILFILER:
+        sti = MALER / navn
+        biter.append(f"/* ==== {navn} ==== */\n{sti.read_text(encoding='utf-8')}")
+    return "\n".join(biter)
+
+
+def skriv_stil(rot: Path) -> Path:
+    """Skriver `/stil.css`. Returnerer stien."""
+    rot.mkdir(parents=True, exist_ok=True)
+    ut = rot / "stil.css"
+    ut.write_text(stilark(), encoding="utf-8")
+    return ut
+
+
 # ------------------------------------------- sitemap, robots, llms
 #
 # ## Domenet finnes ikke, og det skal ikke finnes på
@@ -1672,6 +1737,7 @@ def bygg_poindeks(felles: Felles) -> dict:
             "siste_runde": siste["aar"] if siste else "",
             "farge": siste["farge"] if siste else "",
             "farge_felt": siste["farge_felt"] if siste else "farge",
+            "farge_klasse": siste["farge_klasse"] if siste else "",
             "lesemaate": siste["lesemaate"] if siste else "",
         })
     return {"rader": rader, "antall": len(rader),
@@ -1784,8 +1850,16 @@ def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
 
 KART_BREDDE = 900          # px i viewBox. Høyden følger av utstrekningen.
 KART_MARG = 12
-KART_PUNKT = 1.7           # radius. Nok til å ses, lite nok til at 1782
-                           # punkter ikke blir én flekk.
+KART_PUNKT = 2.0           # radius. MÅLT 20.09.2026: ved 1.7 er et punkt
+                           # 3,4px i diameter på full bredde og 2,1px når
+                           # kartet er skalert til gulvet på telefon (30rem
+                           # i sin egen scrollramme — se `.kart` i
+                           # stil.css). Fyllet er halvgjennomsiktig, og en
+                           # blek 2-pikselprikk forsvinner. 2.0 kjøper
+                           # tilbake den pikselen. Overlappet stiger fra
+                           # 78,3 % til 84,2 % av punktene, og det er
+                           # prisen: tettheten leses av fyllet, ikke av
+                           # at prikkene er atskilte.
 
 
 def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str], float]:
@@ -2343,7 +2417,8 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     tider["indekser"] = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    for skriv in (lambda: skriv_sitemap(rot, felles),
+    for skriv in (lambda: skriv_stil(rot),
+                  lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),
                   lambda: skriv_llms(rot, felles)):
         try:
@@ -2452,7 +2527,7 @@ def main() -> int:
         if logg.feilet:
             return 1
     else:
-        filer = skriv_lokalitet(args.lokalitet, rot)
+        filer = skriv_lokalitet(args.lokalitet, rot) + [skriv_stil(rot)]
         for f in filer:
             print(f"{f}  ({f.stat().st_size / 1024:.0f} kB)")
         print(f"  URL: /lokalitet/{args.lokalitet}/")
