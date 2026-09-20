@@ -149,10 +149,16 @@ def _side(**overstyr) -> str:
         "register": [("navn", "OTERNESET"), ("kapasitet", "8000.0")],
         "tillatelser": [{
             "nr": "T-D-0009", "eier_navn": "SALMAR OPPDRETT AS",
+            "eier_felt": "eier_navn",
             "eier_orgnr": "928957489", "type": "KOMM-MATF",
             "kapasitet": "1022.0", "kapasitet_enhet": "TN",
             "tildelt_dato": "2004-09-29", "tildelt_navn": "SALMAR NORD AS",
         }],
+        # Standarden er ENIGE kilder: alle tillatelser akvakultur oppgir
+        # er gjort rede for i eierskap. Testene under overstyrer.
+        "tillatelser_oppgitt": 1,
+        "tillatelser_uten_eier": 0,
+        "eier_ukjent": nettsted.EIER_UKJENT,
         "overforinger": [{
             "dato": "2018-03-13", "tillatelse": "T-D-0009",
             "mottaker_navn": "SALMAR FARMING AS",
@@ -862,3 +868,92 @@ def test_siden_sier_hvor_mange_maaleserierader_som_er_holdt_utenfor():
     """Et utvalg som ikke sier at det er et utvalg, lyver ved
     utelatelse."""
     assert "1284" in _side()
+
+
+# ---- når kildene er uenige --------------------------------------------
+#
+# `akvakultur` oppgir hvilke tillatelser som ligger på lokaliteten;
+# `eierskap` oppgir hvem som eier en tillatelse. MÅLT 19.09.2026: de er
+# uenige om 84 tillatelsesnumre på 65 lokaliteter, 62 av dem der INGEN av
+# tillatelsene finnes i eierskap.
+#
+# Uenigheten er vår egen: alle 84 finnes hos Fiskeridirektoratet med 200
+# OK, og for TRETTØY (11517) er alle 14 AKTIVE. Det som mangler er
+# EIEREN — 55 fordi kilden ikke oppgir organisasjonsnummer for
+# privatpersoner, 29 fordi eieren ikke finnes i /entities. Se
+# docs/REGEL-UENIGE-KILDER.md.
+
+
+def test_uten_eier_er_det_akvakultur_oppgir_og_eierskap_ikke_kjenner():
+    oppgitt = ["H-SO-0318", "H-SO-0341", "T-D-0009"]
+    eierskap = {"T-D-0009": {"eier_navn": "SALMAR OPPDRETT AS"}}
+    assert nettsted._uten_eier(oppgitt, eierskap) == ["H-SO-0318", "H-SO-0341"]
+
+
+def test_raden_STÅR_med_eieren_merket_ukjent():
+    """Regelen: en lokalitet der vi ikke vet hvem som eier tillatelsene
+    sier DET. Den utelater ikke raden, og den viser ikke tom celle."""
+    rader = nettsted._tillatelsesrader({}, ["H-SO-0318"])
+    assert len(rader) == 1
+    assert rader[0]["nr"] == "H-SO-0318"
+    assert rader[0]["eier_navn"] == nettsted.EIER_UKJENT
+    assert nettsted.EIER_UKJENT not in ("", None)
+
+
+def test_ukjent_eier_merkes_med_ET_ANNET_FELT_enn_eier_navn():
+    """Verdien er VÅR setning om fravær, ikke et navn fra kilden.
+
+    Merket den som `eier_navn`, ville porten lett etter «ikke oppgitt av
+    kilden» i hvitelista over navn og meldt den som `ukjent_navn` — et
+    funn om vår egen forklaring."""
+    import publiseringsvakt as vakt
+
+    ukjent = nettsted._tillatelsesrader({}, ["H-SO-0318"])[0]
+    assert ukjent["eier_felt"] == nettsted.EIER_UKJENT_FELT
+    assert nettsted.EIER_UKJENT_FELT != "eier_navn"
+    assert nettsted.EIER_UKJENT_FELT not in vakt.NAVNEFELT
+
+
+def test_kjente_og_ukjente_staar_i_SAMME_tabell_sortert():
+    """En egen tabell for de ukjente ville gjort fraværet til noe man kan
+    overse."""
+    kjent = {"T-D-0009": {"eier_navn": "SALMAR OPPDRETT AS",
+                          "eier_orgnr": "928957489"}}
+    rader = nettsted._tillatelsesrader(kjent, ["H-SO-0318", "Z-Z-0001"])
+    assert [r["nr"] for r in rader] == ["H-SO-0318", "T-D-0009", "Z-Z-0001"]
+
+
+def test_sida_SIER_at_eieren_mangler(monkeypatch):
+    """Ende til ende i markupen: tallene, grunnen, og ingen tom tabell."""
+    import publiseringsvakt as vakt
+
+    html = _side(tillatelser=nettsted._tillatelsesrader(
+                     {}, ["H-SO-0318", "H-SO-0329"]),
+                 tillatelser_oppgitt=2, tillatelser_uten_eier=2)
+
+    # Mellomrom normaliseres: captionteksten er FRI (se
+    # docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md), og en test
+    # som låser linjeskiftene feller neste ombrekking uten grunn.
+    flat = " ".join(html.split())
+    assert "For 2 av 2 tillatelser vet vi ikke hvem eieren er" in flat
+    assert "privatpersoner" in flat
+    assert "H-SO-0318" in flat and "H-SO-0329" in flat
+
+    # Merkingen: verdien står som `eier_ukjent`, ikke som et navn.
+    merket = vakt.felt_verdier(html)
+    assert (nettsted.EIER_UKJENT_FELT, nettsted.EIER_UKJENT) in merket
+    assert not any(f == "eier_navn" for f, _v in merket)
+
+    # OG den gamle merkingen må slippe cellen. `class="eier"` er det
+    # `navn_i()` leser, og med den på plass meldte porten vår EGEN
+    # forklaring som `ukjent_navn` — målt på 12 sider 19.09.2026 før
+    # klassen ble gjort betinget. Klassen er fri, merkingen er ikke.
+    assert nettsted.EIER_UKJENT not in vakt.navn_i(html)
+
+
+def test_sida_sier_INGENTING_naar_kildene_er_enige():
+    """1714 av 1779 lokaliteter er enige. De skal ikke bære en forklaring
+    på et avvik som ikke finnes."""
+    html = _side()
+    assert "vet vi ikke hvem eieren er" not in html
+    assert nettsted.EIER_UKJENT not in html

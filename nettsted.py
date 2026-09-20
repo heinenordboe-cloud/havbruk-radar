@@ -652,6 +652,90 @@ def _dekning_fra() -> list[dict]:
     return ut
 
 
+# --------------------------------------------- når kildene er uenige
+#
+# `akvakultur` oppgir hvilke tillatelser som ligger på en lokalitet.
+# `eierskap` oppgir hvem som eier en tillatelse. MÅLT 19.09.2026 er de to
+# uenige om 84 tillatelsesnumre på 65 lokaliteter — 62 der INGEN av
+# tillatelsene finnes i eierskap.
+#
+# Uenigheten er ikke en datafeil, og den er ikke kildens: alle 84 finnes
+# hos Fiskeridirektoratet med 200 OK, og for TRETTØY er alle 14 AKTIVE.
+# Det som mangler er EIEREN — 55 fordi kilden ikke oppgir
+# organisasjonsnummer for eiere som er privatpersoner, 29 fordi eieren
+# ikke finnes i `/entities` og typen dermed er ukjent. Begge stoppes av
+# vårt eget personvernfilter, og det skal de.
+#
+# REGELEN: en lokalitet der vi ikke vet hvem som eier tillatelsene sier
+# DET. Den viser ikke en tom tabell, og den utelater ikke raden. Se
+# docs/REGEL-UENIGE-KILDER.md.
+
+# Verdien i eiercellen når vi ikke kan gjøre rede for eieren. Ikke tom
+# streng: en tom celle lar leseren gjette, og «vi vet ikke» er et svar.
+EIER_UKJENT = "ikke oppgitt av kilden"
+
+# Feltnavnet den cellen merkes med. IKKE `eier_navn` — verdien er VÅR
+# setning om fravær, ikke et navn fra kilden, og porten skal ikke lete
+# etter den i hvitelista over navn. Se docs/REGEL-UENIGE-KILDER.md.
+EIER_UKJENT_FELT = "eier_ukjent"
+
+
+def _liste(verdi: str | None) -> list[str]:
+    """Semikolonlista `akvakultur.tillatelser` bærer, som numre.
+
+    Kilden skriver «H-SO-0318; H-SO-0329», og separatoren er kildens.
+    Ett sted, fordi to varianter av samme split er to steder å glemme
+    `strip()`.
+    """
+    return [x.strip() for x in (verdi or "").split(";") if x.strip()]
+
+
+def _uten_eier(oppgitt: list[str], eierskap: dict) -> list[str]:
+    """Tillatelsene akvakultur oppgir som eierskap ikke kan gjøre rede for.
+
+    Ett sted, kalt fra begge veiene inn i `bygg_lokalitet()`. To steder
+    som skal si det samme om hva vi ikke vet, er formen F6 og F7 hadde.
+    """
+    return [nr for nr in oppgitt if nr not in eierskap]
+
+
+def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
+    """Radene i eierskapstabellen — kjente OG ugjorte rede for.
+
+    Samme radform for begge, med `eier_felt` som skiller dem. En egen
+    tabell for de ukjente ville gjort fraværet til noe man kan overse;
+    en utelatt rad ville gjort det usynlig.
+    """
+    rader = [
+        {
+            "nr": nr,
+            "eier_navn": d.get("eier_navn", ""),
+            "eier_felt": "eier_navn",
+            "eier_orgnr": d.get("eier_orgnr", ""),
+            "type": d.get("tillatelse_type", ""),
+            "kapasitet": d.get("kapasitet", ""),
+            "kapasitet_enhet": d.get("kapasitet_enhet", ""),
+            "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
+            "tildelt_navn": d.get("tildelt_navn", ""),
+        }
+        for nr, d in mine_till.items()
+    ] + [
+        {
+            "nr": nr,
+            "eier_navn": EIER_UKJENT,
+            "eier_felt": EIER_UKJENT_FELT,
+            "eier_orgnr": "",
+            "type": "",
+            "kapasitet": "",
+            "kapasitet_enhet": "",
+            "tildelt_dato": "",
+            "tildelt_navn": "",
+        }
+        for nr in uten_eier
+    ]
+    return sorted(rader, key=lambda r: r["nr"])
+
+
 def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     """Alle dataene én lokalitetsside trenger. Ingen HTML her.
 
@@ -682,6 +766,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         ovf = list(_overforinger().values())
         serie = _lusserie(loknr)
         endringer, maaleserie_rader = _endringer(loknr, sorted(mine_till))
+        oppgitt = _liste(a.get("tillatelser"))
+        uten_eier = _uten_eier(oppgitt, eierskap)
     else:
         eierskap_dato, eierskap = felles.eierskap_dato, felles.eierskap
         mine_till = {nr: eierskap[nr] for nr in
@@ -691,6 +777,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         serie = felles.lusserier.get(loknr, [])
         endringer, maaleserie_rader = _endringer_av_indeks(
             loknr, sorted(mine_till), felles)
+        oppgitt = _liste(a.get("tillatelser"))
+        uten_eier = _uten_eier(oppgitt, eierskap)
 
     overforinger = sorted(
         (o for o in ovf if o.get("tillatelse_nr") in mine_till),
@@ -713,19 +801,16 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # stokker om på seg selv mellom to kjøringer er en tabell ingen
         # kan diffe.
         "register": sorted(a.items()),
-        "tillatelser": [
-            {
-                "nr": nr,
-                "eier_navn": d.get("eier_navn", ""),
-                "eier_orgnr": d.get("eier_orgnr", ""),
-                "type": d.get("tillatelse_type", ""),
-                "kapasitet": d.get("kapasitet", ""),
-                "kapasitet_enhet": d.get("kapasitet_enhet", ""),
-                "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
-                "tildelt_navn": d.get("tildelt_navn", ""),
-            }
-            for nr, d in sorted(mine_till.items())
-        ],
+        # KJENTE og UGJORTE REDE FOR i SAMME tabell, i nummerrekkefølge.
+        # Regelen og målingen står i docs/REGEL-UENIGE-KILDER.md: en
+        # lokalitet der vi ikke vet hvem som eier tillatelsene skal si
+        # det, ikke vise en tom tabell.
+        "tillatelser": _tillatelsesrader(mine_till, uten_eier),
+        "tillatelser_oppgitt": len(oppgitt),
+        "tillatelser_uten_eier": len(uten_eier),
+        # Teksten sendes INN og står ikke i malen: to steder som skal si
+        # det samme om hva vi ikke vet, er formen F6 og F7 hadde.
+        "eier_ukjent": EIER_UKJENT,
         "overforinger": [
             {
                 "dato": o.get("journal_dato", ""),
