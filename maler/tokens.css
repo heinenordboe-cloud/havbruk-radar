@@ -1,0 +1,196 @@
+/* Designtokens fra Digdirs designsystem. HENTET, IKKE SKREVET.
+ *
+ * Dette er et UTDRAG. Kilden er én fil på 51 419 byte med ni
+ * @layer-blokker og et maskineri av [data-size]/[data-color]/
+ * [data-color-scheme]-attributter som forutsetter komponentbiblioteket.
+ * Vi har ikke komponentbiblioteket og skal ikke ha det — se
+ * docs/VISNING.md: ingen CDN, ingen npm, ingen server. Det som er tatt
+ * med er verdiene, flatet ut til literaler.
+ *
+ *   kilde       https://raw.githubusercontent.com/digdir/designsystemet/
+ *               v1.22.0/packages/theme/brand/digdir.css
+ *   tagg        v1.22.0
+ *   byggemerke  build v1.8.0 / design-tokens v1.8.0  (fra fila selv)
+ *   sha256      fa3492ff2f18ed1d79353183e06ebead39e77562de822ca4a2d50bea6621f1be
+ *   hentet      2026-09-20
+ *   lisens      MIT, gjengitt i sin helhet under
+ *
+ * ## Hvorfor dette systemet
+ *
+ * Brønnøysundregistrene, Mattilsynet, Norge.no og Tolletaten bruker
+ * det. Vi viser data fra de samme etatene, og å låne deres visuelle
+ * språk sier hva slags side dette er. Det er ikke en påstand om at de
+ * står bak — bunnteksten sier hvem som ikke gjør det.
+ *
+ * ## Hva som IKKE er tatt med, og hvorfor
+ *
+ * - Komponent-tokens (knapper, kort, felt). Vi har ingen komponenter.
+ * - `[data-size]`-maskineriet. Det lar en app skifte typestørrelse i
+ *   runtime; en statisk side har én størrelse. Verdiene under er
+ *   regnet ut ved md, der faktoren er nøyaktig 1
+ *   (--ds-size-mode-font-size 1.125 / (--ds-size-base 18 / 16) = 1).
+ * - Fargefamiliene `danger`, `warning` og `success`. De er rød, gul og
+ *   grønn — og på DENNE siden er rød, gul og grønn DATA: trafikklys-
+ *   fargen per produksjonsområde, som bærer et forvaltningsvedtak.
+ *   Tas de inn, har hver av de tre fargene to betydninger, og leseren
+ *   må gjette hvilken. De står som tall her, til opplysning, og er
+ *   bevisst ikke variabler:
+ *
+ *       danger   #c01b1b (lys) / #d76e6e (mørk)
+ *       warning  #ea9b1b (lys) / #60400b (mørk)
+ *       success  #068718 (lys) / #138d24 (mørk)
+ *
+ *   Trafikklysfargene våre står i stil.css som `--lys-*`, med målt
+ *   avstand til de tre over.
+ * - `brand1/2/3`, `info`. Ubrukt.
+ * - Inter som webfont. Fonten er en egen pakke med egen lisens, og
+ *   en side som henter en fil fra en CDN er en side som slutter å se
+ *   riktig ut den dagen CDN-en gjør det. Navnet står FØRST i
+ *   font-stacken i stil.css: har leseren Inter installert, brukes den;
+ *   har hun det ikke, faller den til systemfonten. Ingen henting.
+ *
+ * ## Navnene er upstreams, med vilje
+ *
+ * Variablene under heter `--ds-*` ordrett slik de heter hos Digdir, så
+ * hver verdi kan slås opp i kilden over. Våre EGNE navn — `--farge-*`,
+ * `--fs-*`, `--lys-*` — ligger i stil.css og peker hit. Blandet vi de
+ * to, ville en oppgradering av tokens krevd at noen visste hvilke
+ * variabler som var hentet og hvilke som var våre.
+ *
+ * ## Oppdatering
+ *
+ * Hent fila på nytt fra en NY tagg, sammenlign sha256, og skriv om
+ * verdiene under. Ingen npm, ingen byggesteg, og ingen automatikk:
+ * en tredjeparts palett som endrer seg uten at noen ser det, er en
+ * palett som kan bryte kontrasten på 2 279 sider i stillhet.
+ *
+ * ------------------------------------------------------------------
+ * MIT License
+ *
+ * Copyright Digitaliseringsdirektoratet (Digdir)
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation files
+ * (the "Software"), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * ------------------------------------------------------------------ */
+
+:root {
+  /* ---- FARGER, lys modus ------------------------------------------
+     @layer ds.theme.color-scheme.light, :root */
+  --ds-color-neutral-background-default: #ffffff;   /* sidens bunn */
+  --ds-color-neutral-background-tinted:  #f3f4f4;   /* tonet bunn — skrivebordet tabellene ligger på */
+  --ds-color-neutral-surface-default:    #ffffff;   /* flate: tabellkropp, kort */
+  --ds-color-neutral-surface-tinted:     #e7e9ea;   /* flate, tonet: tabellhode */
+  --ds-color-neutral-border-subtle:      #b8bcc1;   /* radskille */
+  --ds-color-neutral-border-default:     #717a84;   /* kant som skal ses (3:1) */
+  --ds-color-neutral-border-strong:      #545e6b;   /* kraftig kant: hodets underkant */
+  --ds-color-neutral-text-subtle:        #545e6b;   /* dempet tekst: caption, bunntekst */
+  --ds-color-neutral-text-default:       #1f2c3d;   /* brødtekst */
+  --ds-color-accent-text-subtle:         #005db1;   /* lenke */
+  --ds-color-accent-base-hover:          #004f96;   /* lenke, aktiv */
+  --ds-color-accent-surface-tinted:      #ddeaf6;   /* lenkeflate ved markering */
+  --ds-color-accent-border-subtle:       #99c0e3;   /* kant i aksentfamilien */
+  --ds-color-focus-inner:                #ffffff;   /* fokusmarkør, indre ring */
+  --ds-color-focus-outer:                #1f2c3d;   /* fokusmarkør, ytre ring */
+  --ds-link-color-visited:               #663299;   /* besøkt lenke */
+
+  /* ---- TYPESKALA ---------------------------------------------------
+     @layer ds.theme.type-scale. Literalene er verdiene ved md, der
+     --_ds-font-size-factor er 1. Steg 9 og 10 er utelatt: vi har ingen
+     overskrift som er 48 eller 60 px. */
+  --ds-font-size-1: 0.75rem;
+  --ds-font-size-2: 0.875rem;
+  --ds-font-size-3: 1rem;
+  --ds-font-size-4: 1.125rem;
+  --ds-font-size-5: 1.3125rem;
+  --ds-font-size-6: 1.5rem;
+  --ds-font-size-7: 1.875rem;
+  --ds-font-size-8: 2.25rem;
+
+  /* ---- TYPOGRAFI ---------------------------------------------------
+     @layer ds.theme.typography.primary. `--ds-font-family: Inter` er
+     gjengitt som navnet alene; stacken bygges i stil.css. */
+  --ds-line-height-sm: 1.3;
+  --ds-line-height-md: 1.5;
+  --ds-line-height-lg: 1.7;
+  --ds-letter-spacing-1: -0.01em;
+  --ds-letter-spacing-2: -0.005em;
+  --ds-letter-spacing-3: -0.0025em;
+  --ds-letter-spacing-4: -0.0015em;
+  --ds-letter-spacing-5: 0em;
+  --ds-letter-spacing-6: 0.0015em;
+  --ds-letter-spacing-7: 0.0025em;
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+
+  /* ---- AVSTAND -----------------------------------------------------
+     @layer ds.theme.size. Enheten er 1rem * 4 / 18 * 1.125 = 0.25rem
+     ved md, altså et 4 px-rutenett ved 16 px rot. Utregnet framfor
+     kjedet: kjeden forutsetter --ds-size-mode-font-size, som kommer fra
+     [data-size]-maskineriet vi ikke tok med. */
+  --ds-size-1:  0.25rem;
+  --ds-size-2:  0.5rem;
+  --ds-size-3:  0.75rem;
+  --ds-size-4:  1rem;
+  --ds-size-5:  1.25rem;
+  --ds-size-6:  1.5rem;
+  --ds-size-8:  2rem;
+  --ds-size-10: 2.5rem;
+  --ds-size-12: 3rem;
+  --ds-size-15: 3.75rem;
+  --ds-size-18: 4.5rem;
+
+  /* ---- SEMANTISK ---------------------------------------------------
+     @layer ds.theme.semantic */
+  --ds-border-radius-sm: 0.125rem;
+  --ds-border-radius-md: 0.25rem;
+  --ds-border-radius-lg: 0.5rem;
+  --ds-border-width-default: 1px;
+  --ds-border-width-focus: 3px;
+  --ds-shadow-xs: 0 0 1px 0 rgba(0,0,0,0.16), 0 1px 2px 0 rgba(0,0,0,0.12);
+  --ds-shadow-sm: 0 0 1px 0 rgba(0,0,0,0.15), 0 1px 2px 0 rgba(0,0,0,0.12), 0 2px 4px 0 rgba(0,0,0,0.1);
+}
+
+/* ---- FARGER, mørk modus --------------------------------------------
+   @layer ds.theme.color-scheme.dark, [data-color-scheme="dark"].
+
+   Upstream bytter palett på et ATTRIBUTT, fordi en app har en bryter.
+   Vi har ingen bryter og ingen JavaScript, så byttet skjer på
+   leserens egen innstilling. Verdiene er upstreams, uendret. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ds-color-neutral-background-default: #13181f;
+    --ds-color-neutral-background-tinted:  #192029;
+    --ds-color-neutral-surface-default:    #202834;
+    --ds-color-neutral-surface-tinted:     #262e3a;
+    --ds-color-neutral-border-subtle:      #49515a;
+    --ds-color-neutral-border-default:     #7c8289;
+    --ds-color-neutral-border-strong:      #a4a8ad;
+    --ds-color-neutral-text-subtle:        #a4a8ad;
+    --ds-color-neutral-text-default:       #ebeced;
+    --ds-color-accent-text-subtle:         #8eaacb;
+    --ds-color-accent-base-hover:          #6fa6d8;
+    --ds-color-accent-surface-tinted:      #172f4b;
+    --ds-color-accent-border-subtle:       #285182;
+    --ds-color-focus-inner:                #13181f;
+    --ds-color-focus-outer:                #ebeced;
+    --ds-link-color-visited:               #b49acd;
+  }
+}
