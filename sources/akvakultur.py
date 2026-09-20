@@ -7,16 +7,40 @@ tid er det Enhetsregisteret aldri kan svare på.
 Endepunkt: https://api.fiskeridir.no/pub-aqua/api/v1/sites
 Swagger:   https://api.fiskeridir.no/pub-aqua/api/swagger-ui/index.html
 
-## Paginering — verifisert mot levende API 17.08.2026
+## Paginering — målt 17.08.2026, MÅLT PÅ NYTT 19.09.2026
 
 `range` er et INKLUSIVT intervall, ikke side/størrelse: `0-99` gir de
-hundre første, `100-199` de neste hundre.
+hundre første, `100-199` de neste hundre. Taket er 100 rader per kall.
 
-Fallgruven: et spenn på mer enn 100 gir ikke feilmelding. Det gir stille
-ÉN rad. `range=0-999` returnerte 1 lokalitet, ikke 1000. Uoppdaget ville
-det betydd én lokalitet i uka i historikken, og det ville du sett først
-den dagen du prøvde å bruke dataene. Derfor er SPENN en konstant her, og
-derfor sjekker fetch() at et fullt kall faktisk gir fulle sider.
+**Rettelse 19.09.2026.** Fram til i dag sto det her at et spenn over 100
+«ikke gir feilmelding — det gir stille ÉN rad», med `range=0-999` som
+måling. Det reproduserer ikke. Målt mot levende API i dag, både `/sites`
+og `/licenses`:
+
+    range=0-98     200   99 rader
+    range=0-99     200  100 rader
+    range=0-100    400  {"errors":["The range specification is out of
+                        bounds. Limit is set to: 100. Range can be
+                        specified e.g: 0-99"]}
+    range=0-199    400  samme
+    range=0-999    400  samme
+
+Kanten er eksakt 100, og over den svarer tjenesten 400 med taket i
+klartekst. `_http.get()` kaller `raise_for_status()`, så en for bred
+`range` kaster før noe kommer tilbake til løkka her.
+
+Hvorfor den gamle påstanden sannsynligvis var en målefeil og ikke en
+endring hos motparten: feilkroppen er en dict med ÉN nøkkel (`errors`),
+og `len()` av den er 1. Et måleskript som skriver `len(json)` uten å se
+på statuskoden leser altså «1 rad» der svaret var en feil. Den samme
+feilen ble gjort på nytt 19.09.2026 før den ble oppdaget. Det kan ikke
+bevises i ettertid at det var dette som skjedde 17.08 — men gjennom
+`_http.get()` kunne symptomet aldri oppstått, for 400 kaster.
+
+Slutt-testen er MÅLT sunn i tillegg: `range=1700-1799` gir 82 rader,
+`1800-1899` gir 0, og `5000-5099` gir 0. En kort side betyr her ekte
+slutt, og det finnes ingen `exceededTransferLimit`-ekvivalent å lese —
+til forskjell fra ArcGIS-lagene, se `sources/_arcgis.py`.
 
 ## Personvern
 
@@ -48,8 +72,10 @@ from sources import _http
 
 STANDARD_BASE = "https://api.fiskeridir.no/pub-aqua/api/v1"
 
-# Maks antall rader API-et gir per kall. Verifisert: 100 virker, 101+ gir
-# stille én rad. Ikke øk uten å teste mot levende API.
+# Maks antall rader API-et gir per kall, og vi ligger PRESIS PÅ TAKET.
+# Målt 19.09.2026: 0-99 gir 100 rader, 0-100 gir 400 med «Limit is set
+# to: 100». Ett tall opp og hver eneste kjøring feiler — høyt, og det er
+# den ufarlige retningen. Ikke øk uten å måle mot levende API.
 SPENN = 100
 
 # Ikke la en skrivefeil i config gi stille datatap.
@@ -217,13 +243,26 @@ class Akvakulturregisteret(Source):
                     f"er endret."
                 )
 
-        # Ett fullt kall som gir én rad er symptomet på for bredt spenn.
-        # Da samler du én lokalitet i uka uten å få feilmelding.
+        # Ett fullt kall som gir én rad.
+        #
+        # Vakten ble skrevet 17.08.2026 mot en påstand om at et for bredt
+        # spenn gir stille én rad. Den påstanden reproduserer ikke — se
+        # modulens docstring: tjenesten svarer 400, og `_http.get()`
+        # kaster før vi kommer hit. Vakten kan altså ikke lenger nås av
+        # den feilen den ble skrevet for.
+        #
+        # Den står likevel, og det er et valg: den koster to
+        # sammenligninger i uka, og den fanger ENHVER vei til «hele
+        # registeret ble én rad» — en base_url som peker på et
+        # enkeltoppslag, en tjeneste som begynner å svare 200 med en
+        # tom-nær kropp, et filter vi ikke vet at vi har. Å fjerne den
+        # ville byttet en billig vakt mot ingenting.
         if len(lokaliteter) < SPENN and len(lokaliteter) <= 1:
             raise ValueError(
                 f"Fikk bare {len(lokaliteter)} lokalitet(er) totalt. "
-                f"Sannsynligvis er SPENN for stort — API-et returnerer "
-                f"stille én rad i stedet for å feile."
+                f"Registeret har 1782 (målt 19.09.2026). Enten peker "
+                f"base_url et annet sted, eller tjenesten svarer 200 på "
+                f"noe som ikke er hele laget."
             )
 
         return lokaliteter

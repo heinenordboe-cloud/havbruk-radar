@@ -198,7 +198,7 @@ import httpx
 
 from core.config import get
 from core.contract import Observation, Source
-from sources import _http
+from sources import _arcgis, _http
 
 STANDARD_BASE = ("https://gis.fiskeridir.no/server/rest/services/"
                  "Yggdrasil/Biomasse/MapServer/0")
@@ -415,6 +415,11 @@ class Biomasselag(Source):
                     raise RuntimeError(f"biomasselag: {d['error']}")
                 trekk = d.get("features") or []
                 rader += [_rens(x.get("attributes") or {}) for x in trekk]
+                # Tjenesten kan avkorte til sitt eget tak med 200 OK og
+                # si det i `exceededTransferLimit`. Da er «kort side =
+                # siste side» usant. Se sources/_arcgis.py.
+                _arcgis.sjekk_avkorting(d, len(trekk), SPENN,
+                                        "biomasselag", i)
                 if len(trekk) < SPENN:
                     break
             else:

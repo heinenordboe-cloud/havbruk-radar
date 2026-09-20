@@ -86,7 +86,7 @@ import httpx
 from core.config import get
 from core.domene import UTTOMMENDE
 from core.contract import Observation, Source
-from sources import _http
+from sources import _arcgis, _http
 
 STANDARD_BASE = ("https://gis.fiskeridir.no/server/rest/services/"
                  "Yggdrasil/R%C3%B8mming/MapServer/0/query")
@@ -258,6 +258,10 @@ class Romming(Source):
                     raise RuntimeError(f"romming: {d['error']}")
                 trekk = d.get("features") or []
                 ut += [_rens(x.get("attributes") or {}) for x in trekk]
+                # Se biomasselag og sources/_arcgis.py: et avkortet svar
+                # er gyldig JSON med 200 OK, og sier det i et felt begge
+                # løkkene ignorerte fram til 19.09.2026.
+                _arcgis.sjekk_avkorting(d, len(trekk), SPENN, "romming", i)
                 if len(trekk) < SPENN:
                     break
             else:

@@ -143,3 +143,101 @@ def test_rad_uten_noekkel_faller_ut():
     obs = list(Romming().parse([_rad(globalid=None, objectid=None)],
                                "2018-12-31"))
     assert obs == []
+
+
+# ---- avkortet ArcGIS-svar: 200 OK som betyr «du spurte for bredt» -----
+#
+# MÅLT 19.09.2026 mot Biomasse-laget (1128 rader, maxRecordCount 2000):
+#
+#     resultRecordCount=1000, offset=0     1000 rader  exceededTransferLimit=True
+#     resultRecordCount=1000, offset=1000   128 rader  (ikke satt)
+#     resultRecordCount=3000, offset=0     1128 rader  (ikke satt)
+#
+# Så lenge SPENN ligger under tjenestens tak er en kort side ekte slutt.
+# Senker tjenesten taket under SPENN, blir hver side kort OG flagget satt
+# — og «kort side = siste side» mister resten i stillhet. Det er den
+# stille motsatsen til pub-aquas 400, se sources/_arcgis.py.
+
+from sources import _arcgis                                    # noqa: E402
+
+
+def test_avkortet_side_med_flagg_kaster():
+    """Motsigelsen: tjenesten ga færre rader enn vi ba om OG sier at det
+    finnes mer. Å stoppe der ville mistet resten."""
+    with pytest.raises(RuntimeError, match="exceededTransferLimit"):
+        _arcgis.sjekk_avkorting({"exceededTransferLimit": True}, 500, 1000,
+                                "romming", 0)
+
+
+def test_full_side_med_flagg_er_normalt():
+    """Vi ba om 1000, fikk 1000, og det finnes mer. Det er hver eneste
+    ikke-siste side — en vakt som felte her ville felt hver kjøring."""
+    _arcgis.sjekk_avkorting({"exceededTransferLimit": True}, 1000, 1000,
+                            "romming", 0)
+
+
+def test_kort_side_uten_flagg_er_ekte_slutt():
+    """Den vanlige siste siden: 578 rader av 1000 for romming i dag."""
+    _arcgis.sjekk_avkorting({}, 578, 1000, "romming", 0)
+    _arcgis.sjekk_avkorting({"exceededTransferLimit": False}, 578, 1000,
+                            "romming", 0)
+
+
+def test_vakten_ligger_ETT_sted_for_begge_kildene():
+    """`biomasselag` og `romming` pagineres likt, og prøven er den samme.
+    To kopier er to steder å glemme den ene — formen F6 og F7 hadde."""
+    import inspect
+
+    from sources import biomasselag, romming
+
+    for modul in (biomasselag, romming):
+        kilde = inspect.getsource(modul)
+        assert "_arcgis.sjekk_avkorting(" in kilde, modul.__name__
+        assert "exceededTransferLimit" not in kilde.split('"""')[-1], (
+            f"{modul.__name__} leser flagget selv — prøven skal ligge i "
+            f"sources/_arcgis.py, ikke i kilden")
+
+
+def test_romming_feller_et_avkortet_svar_ende_til_ende(monkeypatch):
+    """Hele veien gjennom `fetch()`: et gyldig 200-svar som er avkortet.
+
+    Før 19.09.2026 returnerte denne løkka pent med halve laget. Testen
+    planter nøyaktig det svaret tjenesten ville gitt om `maxRecordCount`
+    ble senket til 500, og krever at kilden nå faller på det.
+    """
+    class Svar:
+        def __init__(self, d):
+            self._d = d
+
+        def json(self):
+            return self._d
+
+    rader = [{"attributes": {"objectid": i, "aar": 2026}} for i in range(500)]
+    avkortet = {"features": rader, "exceededTransferLimit": True}
+    monkeypatch.setattr(romming._http, "get",
+                        lambda *a, **kw: Svar(avkortet))
+
+    with pytest.raises(RuntimeError, match="avkortet"):
+        Romming().fetch("2026-09-19")
+
+
+def test_uten_vakten_ville_samme_svar_gaatt_stille(monkeypatch):
+    """Kontrollen av kontrollen: med vakten slått av returnerer den
+    samme løkka 500 rader og sier ingenting. Det var oppførselen fram
+    til 19.09.2026, og det er grunnen til at vakten finnes."""
+    class Svar:
+        def __init__(self, d):
+            self._d = d
+
+        def json(self):
+            return self._d
+
+    rader = [{"attributes": {"objectid": i, "aar": 2026}} for i in range(500)]
+    avkortet = {"features": rader, "exceededTransferLimit": True}
+    monkeypatch.setattr(romming._http, "get",
+                        lambda *a, **kw: Svar(avkortet))
+    monkeypatch.setattr(romming._arcgis, "sjekk_avkorting",
+                        lambda *a, **kw: None)
+
+    ut = Romming().fetch("2026-09-19")
+    assert len(ut) == 500, "uten vakten stopper løkka stille på halve laget"

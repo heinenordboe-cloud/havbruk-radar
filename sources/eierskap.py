@@ -430,6 +430,36 @@ class Eierskap(Source):
         return d if isinstance(d, list) else []
 
     def _alt(self, c: httpx.Client, sti: str) -> list[dict]:
+        """Alle sider av `sti`. Slutt-testen er «kort side = siste side».
+
+        ## Hvorfor det IKKE står en «ett fullt kall ga én rad»-vakt her
+
+        `akvakultur.fetch()` har en. Asymmetrien ser ut som en glipp, og
+        den ble nesten rettet 19.09.2026 — på et premiss som ikke holdt.
+
+        Påstanden var at pub-aqua svarer 200 med ÉN rad når `range` er
+        bredere enn 100, slik at `len(d) < SPENN` leser avkortingen som
+        siste side. MÅLT mot levende API 19.09.2026, på BEGGE
+        endepunktene denne kilden bruker:
+
+            /licenses?range=0-99    200  100 rader
+            /licenses?range=0-100   400  "The range specification is out
+                                         of bounds. Limit is set to: 100"
+
+        Tjenesten feiler altså høyt, `_http.get()` kaller
+        `raise_for_status()`, og kallet kaster før det kommer hit. En
+        vakt mot «1 rad» ville stått her og aldri kunnet fyre — og den
+        ville dokumentert en måling som ikke reproduserer. Se
+        `docs/beslutninger/2026-09-19-vi-ligger-paa-pagineringstaket.md`.
+
+        Det som ER verdt å vite: `SPENN = 100` ligger PRESIS på taket.
+        Ett tall opp, og hver kjøring feiler med 400 — høyt, og den
+        ufarlige retningen.
+
+        ArcGIS-kildene har det motsatte problemet og en egen vakt for
+        det: der er avkortingen 200 OK med `exceededTransferLimit`. Se
+        `sources/_arcgis.py`.
+        """
         ut: list[dict] = []
         for i in range(MAKS_SIDER):
             d = self._side(c, sti, i * SPENN)
