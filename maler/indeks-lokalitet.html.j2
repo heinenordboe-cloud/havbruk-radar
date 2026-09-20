@@ -1,0 +1,52 @@
+{# Lokalitetsindeksen. Flat liste, ingen paginering: dette er siden en
+   crawler og en språkmodell følger for å finne de andre 1782, og en
+   paginert liste er en liste der side 14 aldri blir lest. #}
+{% extends "base.html.j2" %}
+
+{% block innhold %}
+<h1>Alle akvakulturlokaliteter</h1>
+
+<p>
+  {{ d.antall }} lokaliteter i Akvakulturregisteret, snapshot
+  <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
+  Hele lista står på denne siden — den er ikke paginert, og det er et
+  valg: en liste som er delt i sider er en liste der de siste sidene
+  ikke blir lest.
+  {{ d.uten_po }} av dem ligger utenfor produksjonsområdeinndelingen
+  (landbaserte anlegg og ferskvannslokaliteter), og har tom celle i
+  PO-kolonnen fordi registeret ikke oppgir noen.
+</p>
+
+<div class="tabellramme">
+<table id="akvakultur-alle">
+  <caption>
+    Alle lokaliteter, sortert på lokalitetsnummer. Nummeret er
+    Fiskeridirektoratets og er nøkkelen til lokalitetssiden.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Lokalitet</th>
+      <th scope="col">Navn</th>
+      <th scope="col">Kommune</th>
+      <th scope="col">Fylke</th>
+      <th scope="col">Produksjonsområde</th>
+      <th scope="col">Arter</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in d.rader %}
+    <tr>
+      <th scope="row"><a href="/lokalitet/{{ r.loknr }}/">{{ r.loknr }}</a></th>
+      <td class="eier" data-felt="navn">{{ r.navn }}</td>
+      <td data-felt="kommune">{{ r.kommune }}</td>
+      <td data-felt="fylke">{{ r.fylke }}</td>
+      <td data-felt="prodomraade_kode">
+        {% if r.po_kode %}<a href="/produksjonsomrade/{{ r.po_kode }}/">{{ r.po_kode }}</a>{% endif %}
+      </td>
+      <td data-felt="arter">{{ r.arter }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

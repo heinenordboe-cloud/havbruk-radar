@@ -638,7 +638,10 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # er en fase ingen ser vokse.
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
-                          "selskaper", "forside"}
+                          "selskaper", "forside", "indekser"}
+    assert logg.indekssider == 3
+    for sti in ("lokalitet", "produksjonsomrade", "selskap"):
+        assert (ut / sti / "index.html").is_file()
     assert (ut / "index.html").is_file()
     # Fiksturen har én eier med én tillatelse.
     assert logg.selskapssider == 1
@@ -647,7 +650,11 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # ikke bli noen PO-side — og det er en ekte prøve på at lista bygges
     # av dataene og ikke av tretten hardkodede numre.
     assert logg.po_sider == 0
-    assert not (ut / "produksjonsomrade").exists()
+    # INDEKSEN finnes likevel — en tom liste er et svar, og en
+    # manglende indeks ville gitt 404 på en lenke forsiden alltid har.
+    # Det som ikke skal finnes, er en nummerert områdeside.
+    assert (ut / "produksjonsomrade" / "index.html").is_file()
+    assert [m.name for m in (ut / "produksjonsomrade").iterdir()] == ["index.html"]
 
 
 def test_byggelogget_teller_det_som_ikke_gikk_rent(datamappe, tmp_path):
@@ -1351,3 +1358,62 @@ def test_uten_koordinater_faar_tabell_med_lenke_naar_de_finnes():
         uten_koordinater_antall=1)
     assert '<a href="/lokalitet/10002/">10002</a>' in html
     assert "slik at et punkt som mangler ikke bare forsvinner" in " ".join(html.split())
+
+
+# ---- indekssidene -----------------------------------------------------
+#
+# Flate lister, ingen paginering: dette er sidene en crawler og en
+# språkmodell følger for å finne alt annet, og en paginert liste er en
+# liste der side 14 aldri blir lest.
+
+def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
+    """Utelatelsen er aldri stille. Se `personeier()`."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        tillatelser_per_eier={"954744469": ["H-FJ-0018"],
+                              "912345678": ["N-T-0001"]},
+        eierskap={"H-FJ-0018": {"eier_type": "JointlyOwnedShippingCompany",
+                                "eier_navn": "NOE ANS", "lokaliteter": "11593"},
+                  "N-T-0001": {"eier_type": "LimitedLiabilityCompany",
+                               "eier_navn": "TESTLAKS AS",
+                               "lokaliteter": "10001"}},
+        enhet={"912345678": {}}, eierskap_dato="2026-09-14")
+
+    d = nettsted.bygg_selskapsindeks(felles)
+    assert [r["orgnr"] for r in d["rader"]] == ["912345678"]
+    assert d["personeiere"] == 1
+
+    html = nettsted._miljo().get_template("indeks-selskap.html.j2").render(
+        d=d, tittel="T", beskrivelse="B", jsonld="{}",
+        attribusjon=["Kilde: Fiskeridirektoratet"], bygget="2026-09-20")
+    flat = " ".join(html.split())
+    assert "1 eier(e) står ikke i lista og har ingen side" in flat
+    assert "personregister" in flat
+    assert "954744469" not in html
+
+
+def test_indeksene_er_flate_uten_paginering():
+    """En paginert liste er en liste der de siste sidene ikke blir
+    lest."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        akva={str(10000 + i): {"navn": f"L{i}", "kommune": "K",
+                               "fylke": "F", "prodomraade_kode": "",
+                               "arter": "SALMON"} for i in range(50)},
+        akva_dato="2026-09-14")
+    d = nettsted.bygg_lokalitetsindeks(felles)
+    assert d["antall"] == 50
+    assert d["uten_po"] == 50
+
+    html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
+        d=d, tittel="T", beskrivelse="B", jsonld="{}",
+        attribusjon=["Kilde: Fiskeridirektoratet"], bygget="2026-09-20")
+    assert html.count('<a href="/lokalitet/') == 50
+    # Prøven ser etter pagineringsKONTROLLER, ikke etter ordet: sida
+    # forklarer selv at den IKKE er paginert, og en prøve på ordet felte
+    # sin egen begrunnelse.
+    for kontroll in ('rel="next"', 'rel="prev"', "?side=", "?page=",
+                     "&side=", "&page="):
+        assert kontroll not in html.lower(), kontroll

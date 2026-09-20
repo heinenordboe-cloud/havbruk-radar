@@ -1,0 +1,49 @@
+{# Produksjonsområdeindeksen. Tretten rader, nyeste farge. #}
+{% extends "base.html.j2" %}
+
+{% block innhold %}
+<h1>Alle produksjonsområder</h1>
+
+<p>
+  {{ d.antall }} produksjonsområder, fastsatt i forskrift. Fargen under
+  er den NYESTE fastsatte runden; hver områdeside viser alle rundene med
+  hvor sterkt fargen er belagt i forskriftsteksten.
+  {{ d.uten_po }} lokaliteter ligger utenfor inndelingen og hører ikke
+  til noe område — de finnes i
+  <a href="/lokalitet/">lokalitetslisten</a>.
+</p>
+
+<div class="tabellramme">
+<table id="trafikklysvedtak-alle">
+  <caption>
+    Produksjonsområdene med nyeste trafikklysfarge og antall lokaliteter,
+    snapshot
+    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
+    Der forskriften ikke oppgir farge for området i nyeste runde, står
+    det i stedet for en tom celle.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Område</th>
+      <th scope="col">Navn</th>
+      <th scope="col">Lokaliteter</th>
+      <th scope="col">Nyeste runde</th>
+      <th scope="col">Farge</th>
+      <th scope="col">Lesemåte</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in d.rader %}
+    <tr>
+      <th scope="row"><a href="/produksjonsomrade/{{ r.nr }}/">{{ r.nr }}</a></th>
+      <td class="eier" data-felt="prodomraade_navn">{{ r.navn }}</td>
+      <td class="tall" data-felt="lokaliteter_antall">{{ r.lokaliteter }}</td>
+      <td data-felt="runde"><time datetime="{{ r.siste_runde }}">{{ r.siste_runde }}</time></td>
+      <td data-felt="{{ r.farge_felt }}">{{ r.farge }}</td>
+      <td data-felt="farge__lesemaate">{{ r.lesemaate }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

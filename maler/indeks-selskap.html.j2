@@ -1,0 +1,56 @@
+{# Selskapsindeksen. Flat liste, sortert på navn. #}
+{% extends "base.html.j2" %}
+
+{% block innhold %}
+<h1>Alle selskaper med akvakulturtillatelse</h1>
+
+<p>
+  {{ d.antall }} selskaper eier minst én tillatelse i eierskapssnapshotet
+  <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato }}</time>.
+  Lista er ikke paginert.
+</p>
+<p>
+  <strong>{{ d.uten_registerdata }} av dem har vi ingen registerdata
+  for.</strong> Uttrekket vårt fra Enhetsregisteret er avgrenset til et
+  sett næringskoder, og et selskap som eier en tillatelse uten å ha en av
+  dem faller utenfor. De har side likevel, og siden sier hva som mangler.
+</p>
+{% if d.personeiere %}
+<p>
+  <strong>{{ d.personeiere }} eier(e) står ikke i lista og har ingen
+  side.</strong> Kilden klassifiserer dem som person — et partrederi
+  eller en annen personlig sammenslutning — og verken dette nettstedet
+  eller datagrunnlaget bak det skal være et personregister.
+  Tillatelsene deres står på lokalitetssidene sine, uten eiernavn.
+</p>
+{% endif %}
+
+<div class="tabellramme">
+<table id="eierskap-selskaper">
+  <caption>
+    Selskapene, sortert på navn. Organisasjonsnummeret er
+    Brønnøysundregistrenes og er nøkkelen til selskapssiden.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Organisasjonsnummer</th>
+      <th scope="col">Navn</th>
+      <th scope="col">Tillatelser</th>
+      <th scope="col">Lokaliteter</th>
+      <th scope="col">Registerdata</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in d.rader %}
+    <tr>
+      <th scope="row"><a href="/selskap/{{ r.orgnr }}/">{{ r.orgnr }}</a></th>
+      <td class="eier" data-felt="eier_navn">{{ r.navn }}</td>
+      <td class="tall" data-felt="tillatelser_antall">{{ r.tillatelser }}</td>
+      <td class="tall" data-felt="lokaliteter_antall">{{ r.lokaliteter }}</td>
+      <td data-felt="har_registerdata">{{ "ja" if r.har_registerdata else "nei" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

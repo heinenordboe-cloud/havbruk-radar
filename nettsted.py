@@ -1354,6 +1354,141 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     return [sti, csv_sti]
 
 
+# ------------------------------------------------------ indeksene
+#
+# Flate lister, ingen paginering. Dette er sidene en crawler og en
+# språkmodell følger for å finne alt annet, og en paginert liste er en
+# liste der side 14 aldri blir lest. MÅLT: 1782 + 13 + 481 rader.
+#
+# Hver indeks er sin egen mal, ikke én generisk: kolonnene er ulike, og
+# en generisk tabell ville enten vist minste felles nevner eller fått en
+# `if` per sidetype. Malene er korte nok til at tre av dem er billigere
+# enn én med forgreninger.
+
+
+def bygg_lokalitetsindeks(felles: Felles) -> dict:
+    """Alle lokaliteter, sortert på nummer."""
+    rader = [{
+        "loknr": loknr,
+        "navn": a.get("navn", ""),
+        "kommune": a.get("kommune", ""),
+        "fylke": a.get("fylke", ""),
+        "po_kode": a.get("prodomraade_kode", ""),
+        "arter": a.get("arter", ""),
+    } for loknr, a in felles.akva.items()]
+    rader.sort(key=lambda r: int(r["loknr"]) if r["loknr"].isdigit() else 0)
+    return {"rader": rader, "antall": len(rader),
+            "akva_dato": felles.akva_dato,
+            "uten_po": sum(1 for r in rader if not r["po_kode"])}
+
+
+def bygg_poindeks(felles: Felles) -> dict:
+    """De tretten produksjonsområdene, med nyeste farge."""
+    rader = []
+    for po in sorted(felles.po_navn, key=lambda k: int(k) if k.isdigit() else 0):
+        runder = _fargerader(po, felles)
+        siste = runder[-1] if runder else None
+        rader.append({
+            "nr": po,
+            "navn": felles.po_navn[po],
+            "lokaliteter": len(felles.lokaliteter_per_po.get(po, ())),
+            "siste_runde": siste["aar"] if siste else "",
+            "farge": siste["farge"] if siste else "",
+            "farge_felt": siste["farge_felt"] if siste else "farge",
+            "lesemaate": siste["lesemaate"] if siste else "",
+        })
+    return {"rader": rader, "antall": len(rader),
+            "akva_dato": felles.akva_dato,
+            "uten_po": sum(1 for a in felles.akva.values()
+                           if not (a.get("prodomraade_kode") or "").strip())}
+
+
+def bygg_selskapsindeks(felles: Felles) -> dict:
+    """Selskapene med minst én tillatelse, sortert på navn.
+
+    Eiere kilden klassifiserer som person står IKKE her og har ingen
+    side — men antallet gjør, slik at utelatelsen ikke er stille. Se
+    `personeier()`.
+    """
+    rader, personer = [], 0
+    for orgnr in sorted(felles.tillatelser_per_eier):
+        if personeier(orgnr, felles):
+            personer += 1
+            continue
+        tillatelser = felles.tillatelser_per_eier[orgnr]
+        navn = ""
+        for nr in tillatelser:
+            navn = (felles.eierskap[nr].get("eier_navn") or "").strip() or navn
+            if navn:
+                break
+        lok = {l for nr in tillatelser
+               for l in _liste(felles.eierskap[nr].get("lokaliteter"))}
+        rader.append({
+            "orgnr": orgnr,
+            "navn": navn,
+            "tillatelser": len(tillatelser),
+            "lokaliteter": len(lok),
+            "har_registerdata": orgnr in felles.enhet,
+        })
+    rader.sort(key=lambda r: (r["navn"] or "ÅÅÅ", r["orgnr"]))
+    return {"rader": rader, "antall": len(rader),
+            "eierskap_dato": felles.eierskap_dato,
+            "uten_registerdata": sum(1 for r in rader
+                                     if not r["har_registerdata"]),
+            "personeiere": personer}
+
+
+def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
+                  tittel: str, beskrivelse: str, kilder: tuple,
+                  felles: Felles) -> Path:
+    """Én indeksside. Samme form for alle tre."""
+    mal = _miljo().get_template(mal_navn)
+    html = mal.render(
+        d=data, tittel=tittel, beskrivelse=beskrivelse,
+        jsonld=_script_trygg({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": tittel,
+            "description": beskrivelse,
+            "inLanguage": "nb",
+        }),
+        attribusjon=attribusjon(kilder, felles.vilkaar),
+        bygget=dt.date.today().isoformat(),
+    )
+    mappe = rot / sti
+    mappe.mkdir(parents=True, exist_ok=True)
+    ut_sti = mappe / "index.html"
+    ut_sti.write_text(html, encoding="utf-8")
+    return ut_sti
+
+
+def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
+    """De tre indekssidene."""
+    return [
+        _skriv_indeks(
+            rot, "lokalitet", "indeks-lokalitet.html.j2",
+            bygg_lokalitetsindeks(felles),
+            "Alle akvakulturlokaliteter — havbruk-radar",
+            "Flat liste over alle norske akvakulturlokaliteter med "
+            "nummer, navn, kommune og produksjonsområde.",
+            ("akvakultur",), felles),
+        _skriv_indeks(
+            rot, "produksjonsomrade", "indeks-produksjonsomrade.html.j2",
+            bygg_poindeks(felles),
+            "Alle produksjonsområder — havbruk-radar",
+            "De tretten produksjonsområdene med nyeste trafikklysfarge "
+            "og antall lokaliteter.",
+            ("akvakultur", "trafikklysvedtak"), felles),
+        _skriv_indeks(
+            rot, "selskap", "indeks-selskap.html.j2",
+            bygg_selskapsindeks(felles),
+            "Alle selskaper med akvakulturtillatelse — havbruk-radar",
+            "Flat liste over selskaper som eier minst én "
+            "akvakulturtillatelse, med antall tillatelser og lokaliteter.",
+            ("eierskap", "enhetsregisteret"), felles),
+    ]
+
+
 # ---------------------------------------------------------- kartet
 #
 # Statisk SVG, generert ved bygging. Ingen karttjeneste, ingen
@@ -1809,6 +1944,7 @@ class Byggelogg:
     sider: int = 0
     po_sider: int = 0
     selskapssider: int = 0
+    indekssider: int = 0
     selskap_uten_registerdata: list[str] = None
     selskap_person: list[str] = None
     uten_eier: list[str] = None
@@ -1918,6 +2054,13 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         logg.feilet.append(("forside", f"{type(feil).__name__}: {feil}"))
     tider["forside"] = time.perf_counter() - t0
 
+    t0 = time.perf_counter()
+    try:
+        logg.indekssider = len(skriv_indekser(rot, felles))
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("indekser", f"{type(feil).__name__}: {feil}"))
+    tider["indekser"] = time.perf_counter() - t0
+
     return logg, tider
 
 
@@ -1973,7 +2116,7 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
     bytes_ = sum(f.stat().st_size for f in rot.rglob("*") if f.is_file())
     print(f"\n{logg.sider} lokalitetssider + {logg.po_sider} "
           f"produksjonsområdesider + {logg.selskapssider} selskapssider "
-          f"skrevet til {rot}")
+          f"+ {logg.indekssider} indekssider skrevet til {rot}")
     print(f"  byggetid      {total:8.1f} s")
     for merke, t in tider.items():
         print(f"    {merke:22} {t:7.1f} s  ({t / total * 100:4.1f} %)")
