@@ -1354,6 +1354,124 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     return [sti, csv_sti]
 
 
+# ---------------------------------------------------------- om-siden
+#
+# Den ENESTE siden som skrives for et menneske som lurer på om det kan
+# stole på dette. Den skal svare på det med tall og datoer, ikke med
+# forsikringer.
+#
+# Kildetabellen bygges av `Source.attribusjon` og `docs/LISENSKJEDE.md`,
+# og lisensraden er ikke hardkodet her: en fjerde kopi av lisenskjeden
+# ville blitt stående uendret den dagen et vilkår endres.
+
+# Lisensnavn og hjemmel per kilde, ordrett fra docs/LISENSKJEDE.md med
+# datoen vilkåret ble lest. Attribusjonssetningene hentes fra kilden
+# selv — dette er bare det LISENSKJEDEN sier utover setningen.
+LISENSRAD = {
+    "akvakultur": ("NLOD", "fiskeridir.no", "25.08.2026"),
+    "biomasse": ("NLOD", "fiskeridir.no", "25.08.2026"),
+    "biomasselag": ("NLOD", "fiskeridir.no", "25.08.2026"),
+    "romming": ("NLOD", "fiskeridir.no", "25.08.2026"),
+    "eierskap": ("NLOD + NLOD 2.0", "fiskeridir.no + brreg.no",
+                 "25.08. / 14.09.2026"),
+    "eierskap_historikk": ("NLOD + NLOD 2.0", "fiskeridir.no + brreg.no",
+                           "25.08. / 14.09.2026"),
+    "enhetsregisteret": ("NLOD 2.0 (frie nivået)", "brreg.no", "14.09.2026"),
+    "lusetall": ("NLOD", "barentswatch.no/artikler/api-vilkar", "12.09.2026"),
+    "sjotemperatur": ("NLOD", "barentswatch.no/artikler/api-vilkar",
+                      "12.09.2026"),
+    "trafikklysvedtak": ("NLOD 2.0 via Lovdatas punkt 2.3",
+                         "lovdata.no/info/brukeravtale", "12.09.2026"),
+    "reguleringsomraader": ("CC BY 4.0", "doi.org/10.21335/NMDC-1923112433",
+                            "14.09.2026"),
+    "ekspertgruppen": ("UBELAGT", "ingen funnet", "14.09.2026 (søkt)"),
+}
+
+OM_KILDER = ("akvakultur", "eierskap", "eierskap_historikk",
+             "enhetsregisteret", "lusetall", "trafikklysvedtak")
+
+
+def bygg_om(felles: Felles) -> dict:
+    """Tallene om-siden står for. Alle målt i denne kjøringen."""
+    med_eier = sum(1 for loknr in felles.akva
+                   if felles.tillatelser_per_lokalitet.get(loknr))
+    total = len(felles.akva)
+    uten = [loknr for loknr in felles.akva
+            if not felles.tillatelser_per_lokalitet.get(loknr)]
+    oppgitt_likevel = [loknr for loknr in uten
+                       if _liste(felles.akva[loknr].get("tillatelser"))]
+
+    vilkaar = felles.vilkaar
+    kilder = []
+    for navn in sorted(LISENSRAD):
+        lisens, hjemmel, lest = LISENSRAD[navn]
+        setninger = vilkaar.get(navn)
+        kilder.append({
+            "navn": navn,
+            "lisens": lisens,
+            "hjemmel": hjemmel,
+            "lest": lest,
+            "attribusjon": list(setninger) if setninger else [],
+            "ubelagt": setninger is None,
+            "publiseres": navn in OM_KILDER,
+        })
+
+    import os
+    kontakt = (os.environ.get("HAVBRUK_KONTAKT") or "").strip()
+
+    return {
+        "lokaliteter": total,
+        "med_eier": med_eier,
+        "dekning": round(med_eier / total * 100, 2) if total else 0.0,
+        "uten_eier": len(uten),
+        "uten_eier_med_tillatelse": len(oppgitt_likevel),
+        "uten_tillatelse_noe_sted": len(uten) - len(oppgitt_likevel),
+        "kilder": kilder,
+        "ubelagte": [k["navn"] for k in kilder if k["ubelagt"]],
+        "akva_dato": felles.akva_dato,
+        "eierskap_dato": felles.eierskap_dato,
+        "enhet_dato": felles.enhet_dato,
+        "lusetall_uker": len(felles.lusetall_snapshots),
+        "lus_fra": (felles.lusetall_snapshots[0]
+                    if felles.lusetall_snapshots else ""),
+        "lus_til": (felles.lusetall_snapshots[-1]
+                    if felles.lusetall_snapshots else ""),
+        "kontakt": kontakt,
+        "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
+        "forfatter": "Heine Valø Nordbøe",
+        "bygget": dt.date.today().isoformat(),
+    }
+
+
+def skriv_om(rot: Path, felles: Felles) -> Path:
+    """Rendrer og skriver /om/."""
+    om = bygg_om(felles)
+    mal = _miljo().get_template("om.html.j2")
+    html = mal.render(
+        om=om,
+        tittel="Om havbruk-radar — kilder, metode, dekning og sitering",
+        beskrivelse=(
+            "Hva havbruk-radar er, hvilke offentlige kilder det bygger "
+            "på med lisens og attribusjon, hvor ofte det samles inn, hva "
+            "dekningen er, hvem som står bak, og hvordan du siterer det."),
+        jsonld=_script_trygg({
+            "@context": "https://schema.org",
+            "@type": "AboutPage",
+            "name": "Om havbruk-radar",
+            "inLanguage": "nb",
+            "author": {"@type": "Person", "name": om["forfatter"]},
+            "codeRepository": om["repo"],
+        }),
+        attribusjon=attribusjon(OM_KILDER, felles.vilkaar),
+        bygget=om["bygget"],
+    )
+    mappe = rot / "om"
+    mappe.mkdir(parents=True, exist_ok=True)
+    sti = mappe / "index.html"
+    sti.write_text(html, encoding="utf-8")
+    return sti
+
+
 # ------------------------------------------------------ indeksene
 #
 # Flate lister, ingen paginering. Dette er sidene en crawler og en
@@ -2059,6 +2177,10 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         logg.indekssider = len(skriv_indekser(rot, felles))
     except Exception as feil:                        # noqa: BLE001
         logg.feilet.append(("indekser", f"{type(feil).__name__}: {feil}"))
+    try:
+        skriv_om(rot, felles)
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("om", f"{type(feil).__name__}: {feil}"))
     tider["indekser"] = time.perf_counter() - t0
 
     return logg, tider

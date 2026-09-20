@@ -1417,3 +1417,82 @@ def test_indeksene_er_flate_uten_paginering():
     for kontroll in ('rel="next"', 'rel="prev"', "?side=", "?page=",
                      "&side=", "&page="):
         assert kontroll not in html.lower(), kontroll
+
+
+# ---- om-siden ---------------------------------------------------------
+#
+# Den eneste siden som skrives for et menneske som lurer på om det kan
+# stole på dette. Den svarer med tall og datoer, ikke med forsikringer.
+
+def _om(**overstyr) -> str:
+    om = {
+        "lokaliteter": 1782, "med_eier": 1717, "dekning": 96.35,
+        "uten_eier": 65, "uten_eier_med_tillatelse": 62,
+        "uten_tillatelse_noe_sted": 3,
+        "kilder": [
+            {"navn": "akvakultur", "lisens": "NLOD",
+             "hjemmel": "fiskeridir.no", "lest": "25.08.2026",
+             "attribusjon": ["Kilde: Fiskeridirektoratet"],
+             "ubelagt": False, "publiseres": True},
+            {"navn": "ekspertgruppen", "lisens": "UBELAGT",
+             "hjemmel": "ingen funnet", "lest": "14.09.2026 (søkt)",
+             "attribusjon": [], "ubelagt": True, "publiseres": False},
+        ],
+        "ubelagte": ["ekspertgruppen"],
+        "akva_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
+        "enhet_dato": "2026-09-14", "lusetall_uker": 764,
+        "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
+        "kontakt": "", "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
+        "forfatter": "Heine Valø Nordbøe", "bygget": "2026-09-20",
+    }
+    om.update(overstyr)
+    return nettsted._miljo().get_template("om.html.j2").render(
+        om=om, tittel="T", beskrivelse="B", jsonld="{}",
+        attribusjon=nettsted.attribusjon(nettsted.OM_KILDER),
+        bygget=om["bygget"])
+
+
+def test_om_siden_oppgir_dekning_og_hvem_som_er_utelatt():
+    flat = " ".join(_om().split())
+    assert "1717 av 1782 lokaliteter (96.35 %)" in flat
+    assert "sektor 8200" in flat and "2300" in flat
+    assert "personregister" in flat
+    # Skjevheten skal stå, ikke bare tallet.
+    assert "små, personeide anlegg" in flat
+
+
+def test_om_siden_merker_UBELAGT_kilde_som_ikke_vist():
+    html = _om()
+    flat = " ".join(html.split())
+    assert "UBELAGT — ingen setning å gjengi" in flat
+    assert "udokumentert lisens er UBELAGT, ikke antatt greit" in flat
+    # Og den står i tabellen med «nei» i «vises her».
+    assert "ekspertgruppen" in html
+
+
+def test_om_siden_har_ferdig_formatert_sitering():
+    flat = " ".join(_om().split())
+    assert "Heine Valø Nordbøe (2026)" in flat
+    assert "havbruk-radar: sammenstilte registerdata om norsk akvakultur" in flat
+    assert "Bygget 2026-09-20" in flat
+    # Kildenes egen attribusjon er ikke valgfri, og det skal stå.
+    assert "må kildenes egen attribusjon følge med" in flat
+
+
+def test_kontaktadressen_er_ikke_hardkodet():
+    """Samme valg som `_http.brukeragent()`: adressen havner i hver
+    forespørsel til fire etater, og hvilken adresse som tåler det er
+    ikke et kodevalg."""
+    uten = " ".join(_om(kontakt="").split())
+    assert "Kontakt går via GitHub" in uten
+    assert "HAVBRUK_KONTAKT" in uten
+    assert "mailto:" not in uten
+
+    med = _om(kontakt="noen@eksempel.no")
+    assert 'mailto:noen@eksempel.no' in med
+
+
+def test_om_siden_sier_hva_som_bevisst_ikke_hentes():
+    flat = " ".join(_om().split())
+    assert "Ingen roller" in flat
+    assert "konsernstruktur" in flat
