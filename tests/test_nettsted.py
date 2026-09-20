@@ -588,6 +588,20 @@ def datamappe(tmp_path, monkeypatch):
     ]
     snap.write(eierskap, "2026-09-14")
 
+    # Enhetsregisteret: eieren av N-T-0001. `les_felles()` krever et
+    # snapshot her fra 20.09.2026, da selskapssidene kom til — en kilde
+    # som mangler skal kaste, ikke gi en tom dict i stillhet.
+    snap.write([
+        Observation(entity_id="912345678", entity_type="selskap",
+                    entity_name="TESTLAKS AS", field=felt, value=verdi,
+                    source="enhetsregisteret", observed_at="2026-09-14")
+        for felt, verdi in (("navn", "TESTLAKS AS"),
+                            ("organisasjonsform", "AS"),
+                            ("kommune", "BODØ"),
+                            ("naeringskode", "03.211"),
+                            ("konkurs", "False"))
+    ], "2026-09-14")
+
     for dato, lus in (("2026-08-10", "0.12"), ("2026-08-17", "")):
         rader = [obs("10001", "lus_er_rapportert",
                      "True" if lus else "False", "lusetall", dato, "TESTHOLMEN")]
@@ -620,7 +634,15 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     for loknr in ("10001", "10002"):
         assert (ut / "lokalitet" / loknr / "index.html").is_file()
         assert (ut / "lokalitet" / loknr / nettsted.CSV_FILNAVN).is_file()
-    assert set(tider) == {"felleslesing", "malkompilering", "rendring_og_skriving"}
+    # Én fase per sidetype, og hver fase MÅLES. En fase som ikke måles
+    # er en fase ingen ser vokse.
+    assert set(tider) == {"felleslesing", "malkompilering",
+                          "rendring_og_skriving", "produksjonsomraader"}
+    # Fiksturen har ingen lokalitet med produksjonsområde, så det skal
+    # ikke bli noen PO-side — og det er en ekte prøve på at lista bygges
+    # av dataene og ikke av tretten hardkodede numre.
+    assert logg.po_sider == 0
+    assert not (ut / "produksjonsomrade").exists()
 
 
 def test_byggelogget_teller_det_som_ikke_gikk_rent(datamappe, tmp_path):
@@ -859,9 +881,16 @@ def test_maaleserier_telles_ikke_som_registerendringer():
     `changelog.TAUSHETSKILDER` er det: en kilde som ikke står der
     behandles som en registerkilde, altså VISES, og usikkerhet ser ut
     som usikkerhet framfor å forsvinne."""
-    assert nettsted.MAALESERIER == {"lusetall", "sjotemperatur"}
+    assert nettsted.MAALESERIER == {"lusetall", "sjotemperatur", "biomasse"}
     assert "akvakultur" not in nettsted.MAALESERIER
     assert "eierskap" not in nettsted.MAALESERIER
+
+    # `biomasse` kom inn 20.09.2026 med produksjonsområdesidene: månedlige
+    # beholdningstall per område, MÅLT 10 990 changelog-rader mot
+    # trafikklysvedtakets 47. Den endrer ingenting for lokalitetssidene —
+    # biomasse har 14 entity_id-er i changeloggen (1-13 og `uten_po`), og
+    # ingen av dem er et lokalitetsnummer.
+    assert "trafikklysvedtak" not in nettsted.MAALESERIER
 
 
 def test_siden_sier_hvor_mange_maaleserierader_som_er_holdt_utenfor():
@@ -957,3 +986,112 @@ def test_sida_sier_INGENTING_naar_kildene_er_enige():
     html = _side()
     assert "vet vi ikke hvem eieren er" not in html
     assert nettsted.EIER_UKJENT not in html
+
+
+# ---- produksjonsområdesiden -------------------------------------------
+#
+# Trettten områder, fem fastsatte runder, og MÅLT 19 av 65 celler som
+# ikke kan leses av forskriftsteksten. En slik celle SIER det.
+
+def _po(**overstyr) -> str:
+    po = {
+        "nr": "4", "navn": "Nordhordland til Stadt", "status": "RØD",
+        "akva_dato": "2026-09-14",
+        "runder": [
+            {"aar": "2018", "farge": nettsted.FARGE_MANGLER,
+             "farge_felt": nettsted.FARGE_MANGLER_FELT,
+             "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese"},
+            {"aar": "2020", "farge": "rød", "farge_felt": "farge",
+             "lesemaate": "ordrett",
+             "lesemaate_tekst": nettsted.LESEMAATE["ordrett"]},
+            {"aar": "2022", "farge": "grønn", "farge_felt": "farge",
+             "lesemaate": "kapittelhjemmel",
+             "lesemaate_tekst": nettsted.LESEMAATE["kapittelhjemmel"]},
+        ],
+        "lokaliteter": [{"loknr": "31397", "navn": "OTERNESET",
+                         "kommune": "HARSTAD", "kapasitet": "8000.0",
+                         "kapasitet_enhet": "TN", "arter": "SALMON"}],
+        "lokaliteter_antall": 1,
+        "endringer": [{"dato": "2026-12-31", "gjelder": "lokaliteten",
+                       "kilde": "trafikklysvedtak", "felt": "farge",
+                       "fra": "rod", "til": "gul"}],
+        "maaleserie_rader": 941,
+        "ubelagte_rader": 56,
+        "ubelagte_kilder": ["ekspertgruppen"],
+    }
+    po.update(overstyr)
+    return nettsted._miljo().get_template("produksjonsomrade.html.j2").render(
+        po=po, tittel="T", beskrivelse="B",
+        jsonld=nettsted.jsonld_po(po, nettsted.kildevilkaar()),
+        attribusjon=nettsted.attribusjon(nettsted.PO_KILDER),
+        bygget="2026-09-20")
+
+
+def test_celle_uten_farge_SIER_det():
+    """19 av 65 celler kan ikke leses av forskriftsteksten. En tom celle
+    ville latt leseren gjette at området ikke var med i ordningen."""
+    html = _po()
+    assert nettsted.FARGE_MANGLER in html
+    assert "forskriften oppgir ikke farge" in html
+
+
+def test_manglende_farge_merkes_med_ET_ANNET_FELT_enn_farge():
+    """Samme konstruksjon som `eier_ukjent`: verdien er VÅR setning om
+    fravær, ikke en farge fra forskriften. Blandes de to i markupen, kan
+    ingen maskin skille «rød» fra «ikke oppgitt»."""
+    import publiseringsvakt as vakt
+
+    # PAR og ikke dict: `farge` står både i fargetabellen og som feltnavn
+    # i endringstabellen, og en dict ville latt den ene skjule den andre.
+    # Samme egenskap som `kapasitet` har på lokalitetssiden — se
+    # docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md.
+    merket = vakt.felt_verdier(_po())
+    assert nettsted.FARGE_MANGLER_FELT != "farge"
+    assert (nettsted.FARGE_MANGLER_FELT, nettsted.FARGE_MANGLER) in merket
+    assert ("farge", "rød") in merket and ("farge", "grønn") in merket
+
+
+def test_lesemaaten_staar_paa_siden_og_forklares():
+    """To grader av belegg. `ordrett` og `kapittelhjemmel` er ikke like
+    sterke, og en side som viste dem likt ville påstått et belegg den
+    ikke har."""
+    html = _po()
+    assert "ordrett" in html and "kapittelhjemmel" in html
+    assert nettsted.LESEMAATE["kapittelhjemmel"] in html
+
+
+def test_maaleserier_og_ubelagte_telles_paa_po_siden():
+    """Begge utelatelsene er SAGT. Biomasse er 941 rader mot 1
+    registerendring, og ekspertgruppen er UBELAGT — antallet står slik at
+    utelatelsen ikke er stille."""
+    html = " ".join(_po().split())
+    assert "941" in html
+    assert "56 endringer er holdt utenfor fordi kilden er UBELAGT" in html
+    assert "ekspertgruppen" in html
+
+
+def test_po_siden_lenker_til_hver_lokalitet():
+    assert '<a href="/lokalitet/31397/">31397</a>' in _po()
+
+
+def test_po_siden_sier_at_inndelingen_er_dagens():
+    """Området er en regulatorisk inndeling som kan tas om igjen."""
+    flat = " ".join(_po().split())
+    assert "GJELDENDE per" in flat
+    assert "2026-09-14" in flat
+    assert "regulatorisk inndeling" in flat
+
+
+def test_po_siden_bruker_ikke_UBELAGT_kilde_i_bunnteksten():
+    """`ekspertgruppen` er UBELAGT. Sto den i PO_KILDER, ville
+    `attribusjon()` kastet — og gjorde den ikke det, ville siden påstått
+    et vilkår ingen har gått god for."""
+    assert "ekspertgruppen" not in nettsted.PO_KILDER
+    assert set(nettsted.PO_KILDER).isdisjoint(
+        nettsted.ubelagte(nettsted.kildevilkaar()))
+
+
+def test_ubelagte_utledes_av_kilden_ikke_listet():
+    """En liste her ville vært et andre sted sannheten kan bli gammel."""
+    assert nettsted.ubelagte(nettsted.kildevilkaar()) == {"ekspertgruppen"}
+    assert nettsted.ubelagte({"a": None, "b": ("x",)}) == {"a"}

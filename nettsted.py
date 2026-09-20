@@ -207,6 +207,21 @@ def attribusjon(kilder, vilkaar=None) -> list[str]:
 # --------------------------------------------------------- lesing
 
 
+def ubelagte(vilkaar: dict[str, tuple[str, ...] | None]) -> frozenset[str]:
+    """Kildene uten dokumentert attribusjonsvilkår — UBELAGT.
+
+    UTLEDET av `Source.attribusjon`, aldri listet. En liste her ville
+    vært et andre sted sannheten kan bli stående gammel, og
+    `test_bare_ekspertgruppen_er_ubelagt` ville ikke sett at de to ble
+    uenige. I dag er svaret `{"ekspertgruppen"}`.
+
+    Brukes til å holde UBELAGTE kilder ute av publiserte visninger. En
+    UBELAGT kilde kan brukes i analyse; den skal ikke bære en publisert
+    side. Se docs/LISENSKJEDE.md.
+    """
+    return frozenset(k for k, v in vilkaar.items() if v is None)
+
+
 def _pivot(ramme: pl.DataFrame) -> dict[str, dict[str, str]]:
     """{entity_id: {felt: verdi}} for én snapshotramme.
 
@@ -311,6 +326,17 @@ class Felles:
     maaleserierader: dict[str, int]
     dekning_fra: list[dict]
     vilkaar: dict
+    # Produksjonsområdene: navn fra akvakultur, farger fra
+    # trafikklysvedtak, og lokalitetene som ligger i hvert.
+    po_navn: dict[str, str]
+    lokaliteter_per_po: dict[str, list[str]]
+    po_farger: dict[str, dict[str, dict[str, str]]]
+    runder: list[str]
+    # Selskapene: eier_orgnr -> tillatelsesnumre, og registerdata der vi
+    # har det. 482 eiere, 360 med registerdata (målt 20.09.2026).
+    tillatelser_per_eier: dict[str, list[str]]
+    enhet: dict[str, dict[str, str]]
+    enhet_dato: str
 
 
 def les_felles() -> Felles:
@@ -365,6 +391,34 @@ def les_felles() -> Felles:
                 uke["iso_uke"] = f"{ukenr:02d}"
                 serier[eid].append(uke)
 
+    # PRODUKSJONSOMRÅDENE. Navnet står på hver lokalitet i akvakultur og
+    # ikke i en egen kilde; vi leser det derfra framfor å skrive en liste
+    # over tretten navn som kan bli uenig med dataene.
+    po_navn: dict[str, str] = {}
+    lok_per_po: dict[str, list[str]] = defaultdict(list)
+    for loknr, a in akva.items():
+        kode = (a.get("prodomraade_kode") or "").strip()
+        if not kode:
+            continue
+        lok_per_po[kode].append(loknr)
+        navn = (a.get("prodomraade_navn") or "").strip()
+        if navn:
+            po_navn.setdefault(kode, navn)
+    for kode in lok_per_po:
+        lok_per_po[kode].sort(key=lambda e: int(e) if e.isdigit() else 0)
+
+    # SELSKAPENE. Nøkkelen er organisasjonsnummeret, som er det URL-en
+    # bruker — se docs/beslutninger/2026-09-16-url-struktur.md.
+    till_per_eier: dict[str, list[str]] = defaultdict(list)
+    for nr, d in eierskap.items():
+        orgnr = (d.get("eier_orgnr") or "").strip()
+        if orgnr:
+            till_per_eier[orgnr].append(nr)
+    for orgnr in till_per_eier:
+        till_per_eier[orgnr].sort()
+
+    enhet_dato, enhet = _siste("enhetsregisteret")
+
     return Felles(
         akva_dato=akva_dato, akva=akva,
         eierskap_dato=eierskap_dato, eierskap=eierskap,
@@ -376,6 +430,13 @@ def les_felles() -> Felles:
         maaleserierader=dict(maalt),
         dekning_fra=_dekning_fra(),
         vilkaar=kildevilkaar(),
+        po_navn=po_navn,
+        lokaliteter_per_po=dict(lok_per_po),
+        po_farger=_po_farger(),
+        runder=snapshot.datoer("trafikklysvedtak"),
+        tillatelser_per_eier=dict(till_per_eier),
+        enhet=enhet,
+        enhet_dato=enhet_dato,
     )
 
 
@@ -512,7 +573,16 @@ def til_visning(rader: list[dict]) -> list[dict]:
 # `changelog.TAUSHETSKILDER` er det: en kilde som ikke står her behandles
 # som en registerkilde, altså vises, og usikkerhet ser ut som usikkerhet
 # framfor å forsvinne.
-MAALESERIER = frozenset({"lusetall", "sjotemperatur"})
+MAALESERIER = frozenset({"lusetall", "sjotemperatur", "biomasse"})
+#
+# `biomasse` kom inn 20.09.2026, da produksjonsområdesidene ble bygget.
+# Den er månedlige beholdningstall per produksjonsområde — samme klasse
+# som lusetall, og MÅLT 10 990 changelog-rader mot trafikklysvedtakets
+# 47. Tas de med som registerendringer, drukner vedtaket i serien.
+#
+# Den endrer ingenting for lokalitetssidene: biomasse har 14 entity_id-er
+# i changeloggen (1-13 og `uten_po`), og ingen av dem er et
+# lokalitetsnummer. Verifisert før tillegget.
 
 # Kildene hvis changelog-rader kan vises via en TILLATELSE på
 # lokaliteten. Endringen gjelder tillatelsen og ikke lokaliteten, og
@@ -650,6 +720,138 @@ def _dekning_fra() -> list[dict]:
         if datoer:
             ut.append({"kilde": kilde, "fra": min(datoer)})
     return ut
+
+
+# ------------------------------------------- produksjonsområdene
+#
+# Trettten områder, fastsatt i forskrift. Fargen per runde leses av
+# `trafikklysvedtak`, og den er IKKE komplett: MÅLT 20.09.2026 kan 19 av
+# 65 celler ikke leses av forskriftsteksten. En slik celle sier det.
+#
+# To grader av belegg, og skillet er alt et felt i dataene
+# (`farge__lesemaate`):
+#
+#     ordrett           fargeordet står i bestemmelsen. 29 celler.
+#     kapittelhjemmel   fargen er UTLEDET av hvilket kapittel området er
+#                       plassert i. 17 celler.
+#
+# De to er ikke like sterke, og en side som viste dem likt ville påstått
+# et belegg den ikke har.
+
+# Fargeordet slik forskriften skriver det. Parseren normaliserer til
+# ascii; her settes ordet tilbake. Kartet er vårt, ikke kildens — og det
+# er derfor det står her og ikke i kilden.
+FARGEORD = {"gronn": "grønn", "gul": "gul", "rod": "rød"}
+
+# Hva lesemåten BETYR, i klartekst på siden. Nøkkelen er kildens verdi.
+LESEMAATE = {
+    "ordrett": "fargeordet står ordrett i bestemmelsen",
+    "kapittelhjemmel": "utledet av hvilket kapittel området er plassert i",
+}
+
+# Teksten når forskriften ikke oppgir farge for et område i en runde.
+# Ikke tom celle — samme regel som `EIER_UKJENT`, og av samme grunn:
+# fravær er et svar, og en tom celle lar leseren gjette.
+FARGE_MANGLER = "forskriften oppgir ikke farge for dette området i denne runden"
+FARGE_MANGLER_FELT = "farge_mangler"
+
+
+def _po_farger() -> dict[str, dict[str, dict[str, str]]]:
+    """{po: {år: {farge, farge__lesemaate}}} for hver fastsatte runde.
+
+    Leses av alle snapshotene til `trafikklysvedtak`, som er partisjonert
+    på VEDTAKSÅRET — se `Source.partisjonering`. Nyeste fil alene ville
+    gitt 2026 og ikke de fire rundene før den.
+    """
+    ut: dict[str, dict[str, dict[str, str]]] = defaultdict(dict)
+    for dato in snapshot.datoer("trafikklysvedtak"):
+        for _versjon, ramme in snapshot.versjoner("trafikklysvedtak", dato):
+            for eid, felt, verdi in ramme.select(
+                    ["entity_id", "field", "value"]).iter_rows():
+                ut[str(eid)].setdefault(dato[:4], {})[str(felt)] = verdi
+    return {po: dict(runder) for po, runder in ut.items()}
+
+
+def _fargerader(po: str, felles: Felles) -> list[dict]:
+    """Én rad per runde. Aldri en tom celle.
+
+    Rekkefølgen er rundenes, eldst først: en fargehistorikk leses
+    kronologisk, og den som vil se dagens farge finner den nederst eller i
+    registertabellen.
+    """
+    rader = []
+    for dato in felles.runder:
+        aar = dato[:4]
+        d = (felles.po_farger.get(po) or {}).get(aar)
+        if d and (d.get("farge") or "").strip():
+            raa = d["farge"].strip()
+            maate = (d.get("farge__lesemaate") or "").strip()
+            rader.append({
+                "aar": aar,
+                "farge": FARGEORD.get(raa, raa),
+                "farge_felt": "farge",
+                "lesemaate": maate,
+                "lesemaate_tekst": LESEMAATE.get(maate, maate or "ukjent"),
+            })
+        else:
+            rader.append({
+                "aar": aar,
+                "farge": FARGE_MANGLER,
+                "farge_felt": FARGE_MANGLER_FELT,
+                "lesemaate": "",
+                "lesemaate_tekst": "ingen bestemmelse å lese",
+            })
+    return rader
+
+
+def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
+    """Alt én produksjonsområdeside trenger.
+
+    Tar `felles` som krav og ikke som valgfritt: tretten sider leser de
+    samme snapshotene, og en variant som leste selv ville vært en andre
+    vei til samme side — formen F6 og F7 hadde.
+    """
+    lokaliteter = [
+        {
+            "loknr": loknr,
+            "navn": felles.akva[loknr].get("navn", ""),
+            "kommune": felles.akva[loknr].get("kommune", ""),
+            "kapasitet": felles.akva[loknr].get("kapasitet", ""),
+            "kapasitet_enhet": felles.akva[loknr].get("kapasitet_enhet", ""),
+            "arter": felles.akva[loknr].get("arter", ""),
+        }
+        for loknr in felles.lokaliteter_per_po.get(po, ())
+    ]
+
+    # Endringene for OMRÅDET. Måleseriene telles og vises ikke — samme
+    # regel som på lokalitetssiden, og for biomasse er forholdet 10 990
+    # mot 47. `ekspertgruppen` holdes helt utenfor: kilden er UBELAGT, og
+    # antallet oppgis framfor å forsvinne stille.
+    rader = felles.registerendringer.get(po, ())
+    ubelagt = ubelagte(felles.vilkaar)
+    register = [_endringsrad(r, po) for r in rader
+                if r["source"] not in MAALESERIER
+                and r["source"] not in ubelagt]
+    register.sort(key=lambda r: r["dato"], reverse=True)
+
+    return {
+        "nr": po,
+        "navn": felles.po_navn.get(po, ""),
+        "status": (felles.akva[lokaliteter[0]["loknr"]].get("prodomraade_status", "")
+                   if lokaliteter else ""),
+        "akva_dato": felles.akva_dato,
+        "runder": _fargerader(po, felles),
+        "lokaliteter": lokaliteter,
+        "lokaliteter_antall": len(lokaliteter),
+        "endringer": register,
+        # FRA MÅLESERIEINDEKSEN, ikke fra `registerendringer` — den
+        # inneholder per konstruksjon ingen måleserierader, så en telling
+        # der ville alltid gitt 0. Første utkast gjorde nettopp det, og
+        # sida ville påstått «0 biomasserader» der det er 840.
+        "maaleserie_rader": felles.maaleserierader.get(po, 0),
+        "ubelagte_rader": sum(1 for r in rader if r["source"] in ubelagt),
+        "ubelagte_kilder": sorted(ubelagt),
+    }
 
 
 # --------------------------------------------- når kildene er uenige
@@ -1152,6 +1354,79 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     return [sti, csv_sti]
 
 
+# Kildene en produksjonsområdeside bygger på. `ekspertgruppen` står
+# IKKE her: kilden er UBELAGT, og en side som oppgav den i bunnteksten
+# ville påstått et vilkår ingen har gått god for.
+PO_KILDER = ("akvakultur", "trafikklysvedtak")
+
+
+def jsonld_po(po: dict, vilkaar: dict) -> Markup:
+    """schema.org/Dataset for produksjonsområdesiden.
+
+    Ingen `url`, som på lokalitetssiden: domenet finnes ikke ennå, og en
+    absolutt URL med et påfunnet vertsnavn ville vært en påstand om noe
+    som ikke er avgjort. `identifier` bærer PO-nummeret med `propertyID`
+    som sier hvem som har fastsatt det.
+    """
+    kilder = []
+    for kilde in PO_KILDER:
+        node = {"@type": "Dataset", "name": kilde,
+                "creditText": (vilkaar.get(kilde) or ("",))[0]}
+        if kilde in UTGIVER:
+            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
+        if kilde in LISENS_URL:
+            node["license"] = LISENS_URL[kilde]
+        kilder.append(node)
+    data = {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": f"Produksjonsområde {po['nr']} {po['navn']} — "
+                f"trafikklysfarge per runde og lokaliteter",
+        "description": (
+            f"Trafikklysfargen for produksjonsområde {po['nr']} "
+            f"{po['navn']} i hver fastsatt runde, med lesemåte, og de "
+            f"{po['lokaliteter_antall']} akvakulturlokalitetene i området."),
+        "identifier": {
+            "@type": "PropertyValue",
+            "propertyID": "Produksjonsområdenummer fastsatt i forskrift "
+                          "(Nærings- og fiskeridepartementet)",
+            "value": po["nr"],
+        },
+        "inLanguage": "nb",
+        "dateModified": po["akva_dato"],
+        "isBasedOn": kilder,
+        "creator": {"@type": "Organization", "name": "havbruk-radar"},
+    }
+    if po["runder"]:
+        data["temporalCoverage"] = (f"{po['runder'][0]['aar']}/"
+                                    f"{po['runder'][-1]['aar']}")
+    return _script_trygg(data)
+
+
+def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
+                            mal=None) -> Path:
+    """Rendrer og skriver én produksjonsområdeside."""
+    d = bygg_produksjonsomrade(po, felles)
+    setninger = attribusjon(PO_KILDER, felles.vilkaar)   # kaster på UBELAGT
+    mal = mal or _miljo().get_template("produksjonsomrade.html.j2")
+    html = mal.render(
+        po=d,
+        tittel=f"Produksjonsområde {d['nr']} {d['navn']} — havbruk-radar",
+        beskrivelse=(
+            f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "
+            f"{d['navn']}, med lesemåte, og de {d['lokaliteter_antall']} "
+            f"lokalitetene i området."),
+        jsonld=jsonld_po(d, felles.vilkaar),
+        attribusjon=setninger,
+        bygget=dt.date.today().isoformat(),
+    )
+    mappe = rot / "produksjonsomrade" / po
+    mappe.mkdir(parents=True, exist_ok=True)
+    sti = mappe / "index.html"
+    sti.write_text(html, encoding="utf-8")
+    return sti
+
+
 # ------------------------------------------------------------- batchen
 
 
@@ -1166,6 +1441,7 @@ class Byggelogg:
     """
 
     sider: int = 0
+    po_sider: int = 0
     uten_eier: list[str] = None
     uten_tillatelser: list[str] = None
     uten_koordinater: list[str] = None
@@ -1229,6 +1505,20 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         if not felles.registerendringer.get(loknr):
             logg.uten_endringer.append(loknr)
     tider["rendring_og_skriving"] = time.perf_counter() - t0
+
+    # PRODUKSJONSOMRÅDENE. Samme `felles`, egen mal, egen fase i
+    # tidsmålingen — en fase som ikke måles er en fase ingen ser vokse.
+    t0 = time.perf_counter()
+    po_mal = _miljo().get_template("produksjonsomrade.html.j2")
+    for po in sorted(felles.po_navn, key=lambda k: int(k) if k.isdigit() else 0):
+        try:
+            skriv_produksjonsomrade(po, rot, felles, po_mal)
+        except Exception as feil:                    # noqa: BLE001
+            logg.feilet.append((f"po/{po}", f"{type(feil).__name__}: {feil}"))
+            continue
+        logg.po_sider += 1
+    tider["produksjonsomraader"] = time.perf_counter() - t0
+
     return logg, tider
 
 
@@ -1282,7 +1572,8 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
     """
     total = sum(tider.values())
     bytes_ = sum(f.stat().st_size for f in rot.rglob("*") if f.is_file())
-    print(f"\n{logg.sider} sider skrevet til {rot}")
+    print(f"\n{logg.sider} lokalitetssider + {logg.po_sider} "
+          f"produksjonsområdesider skrevet til {rot}")
     print(f"  byggetid      {total:8.1f} s")
     for merke, t in tider.items():
         print(f"    {merke:22} {t:7.1f} s  ({t / total * 100:4.1f} %)")
