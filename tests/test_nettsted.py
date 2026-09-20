@@ -638,7 +638,10 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # er en fase ingen ser vokse.
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
-                          "selskaper", "forside", "indekser"}
+                          "selskaper", "forside", "indekser",
+                          "maskinfiler"}
+    for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html"):
+        assert (ut / fil).is_file(), fil
     assert logg.indekssider == 3
     for sti in ("lokalitet", "produksjonsomrade", "selskap"):
         assert (ut / sti / "index.html").is_file()
@@ -1496,3 +1499,89 @@ def test_om_siden_sier_hva_som_bevisst_ikke_hentes():
     flat = " ".join(_om().split())
     assert "Ingen roller" in flat
     assert "konsernstruktur" in flat
+
+
+# ---- maskinfilene -----------------------------------------------------
+#
+# sitemap.xml, robots.txt, llms.txt. Domenet er ikke avgjort, og ingen av
+# dem finner på ett — se docs/beslutninger/2026-09-16-url-struktur.md.
+
+@pytest.fixture
+def smaafelles():
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        akva={"10001": {"navn": "A", "tillatelser": "N-T-0001",
+                        "breddegrad": "60.0", "lengdegrad": "5.0"}},
+        po_navn={"8": "Helgeland til Bodø"},
+        lokaliteter_per_po={"8": ["10001"]},
+        tillatelser_per_eier={"912345678": ["N-T-0001"],
+                              "954744469": ["H-FJ-0018"]},
+        eierskap={"N-T-0001": {"eier_type": "LimitedLiabilityCompany",
+                               "eier_navn": "TESTLAKS AS",
+                               "lokaliteter": "10001"},
+                  "H-FJ-0018": {"eier_type": "JointlyOwnedShippingCompany",
+                                "lokaliteter": "11593"}},
+        tillatelser_per_lokalitet={"10001": {"N-T-0001"}},
+        enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
+        akva_dato="2026-09-14", lusetall_snapshots=["2012-01-02", "2026-08-17"],
+        vilkaar=nettsted.kildevilkaar())
+
+
+def test_sitemap_uten_domene_er_relativ_OG_sier_det(tmp_path, smaafelles,
+                                                    monkeypatch):
+    """Et påfunnet domene ville vært en påstand om noe som ikke er
+    avgjort. Mangelen skal være synlig i FILA, ikke bare i hodet på den
+    som bygde."""
+    monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
+    tekst = nettsted.skriv_sitemap(tmp_path, smaafelles).read_text("utf-8")
+
+    assert "<loc>/lokalitet/10001/</loc>" in tekst
+    assert "HAVBRUK_BASEURL er ikke satt" in tekst
+    assert "http://" not in tekst.replace(nettsted.SITEMAP_NS, "")
+
+
+def test_sitemap_med_domene_er_absolutt(tmp_path, smaafelles, monkeypatch):
+    monkeypatch.setenv("HAVBRUK_BASEURL", "https://eksempel.no/")
+    tekst = nettsted.skriv_sitemap(tmp_path, smaafelles).read_text("utf-8")
+
+    assert "<loc>https://eksempel.no/lokalitet/10001/</loc>" in tekst
+    assert "HAVBRUK_BASEURL er ikke satt" not in tekst
+
+
+def test_sitemap_utelater_personeier(tmp_path, smaafelles, monkeypatch):
+    """Et URL-rom er en liste over hvem som finnes. Eieren kilden kaller
+    person skal ikke stå i den heller."""
+    monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
+    tekst = nettsted.skriv_sitemap(tmp_path, smaafelles).read_text("utf-8")
+
+    assert "/selskap/912345678/" in tekst
+    assert "954744469" not in tekst
+
+
+def test_llms_peker_paa_indeksene_ikke_paa_hver_side(tmp_path, smaafelles,
+                                                     monkeypatch):
+    """En fil med 1782 lenker ville vært den samme lista som
+    sitemap.xml, bare dårligere."""
+    monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
+    tekst = nettsted.skriv_llms(tmp_path, smaafelles).read_text("utf-8")
+
+    for indeks in ("/lokalitet/", "/produksjonsomrade/", "/selskap/", "/om/"):
+        assert f"]({indeks})" in tekst
+    assert "/lokalitet/10001/" not in tekst
+    assert tekst.startswith("# havbruk-radar")
+    assert "\n> " in tekst          # sammendraget som blockquote
+    assert "Heine Valø Nordbøe" in tekst
+
+
+def test_robots_aapner_alt_og_lar_vaere_aa_finne_paa_et_domene(tmp_path,
+                                                               monkeypatch):
+    monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
+    tekst = nettsted.skriv_robots(tmp_path).read_text("utf-8")
+    assert "Allow: /" in tekst
+    assert "Disallow" not in tekst
+    assert tekst.count("Sitemap:") == 1      # den er kommentert ut
+    assert "# Sitemap:" in tekst
+
+    monkeypatch.setenv("HAVBRUK_BASEURL", "https://eksempel.no")
+    tekst = nettsted.skriv_robots(tmp_path).read_text("utf-8")
+    assert "Sitemap: https://eksempel.no/sitemap.xml" in tekst

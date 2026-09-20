@@ -1354,6 +1354,165 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     return [sti, csv_sti]
 
 
+# ------------------------------------------- sitemap, robots, llms
+#
+# ## Domenet finnes ikke, og det skal ikke finnes på
+#
+# `sitemap.xml` krever ABSOLUTTE URL-er etter spesifikasjonen. Vi har
+# ikke noe vertsnavn — se docs/beslutninger/2026-09-16-url-struktur.md,
+# som lar være å oppgi `url` i JSON-LD-en av nøyaktig samme grunn: et
+# påfunnet domene er en påstand om noe som ikke er avgjort.
+#
+# Løsningen er ikke å finne på ett, og ikke å la fila være:
+# `HAVBRUK_BASEURL` leses ved bygging. Er den satt, blir URL-ene
+# absolutte og fila er spec-gyldig. Er den ikke satt, skrives stiene
+# relative OG fila sier i en kommentar at den må bygges på nytt med
+# variabelen satt før den duger for en søkemotor. Da er mangelen synlig
+# i fila selv, ikke bare i hodet på den som bygde.
+
+SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+
+def _basisurl() -> str:
+    """Vertsnavnet sidene skal ligge på, eller tom streng.
+
+    Leses ved KALL og ikke ved import, så en test kan sette den uten å
+    laste modulen på nytt — samme grunn som `_http.brukeragent()`.
+    """
+    import os
+    return (os.environ.get("HAVBRUK_BASEURL") or "").strip().rstrip("/")
+
+
+def _urler(felles: Felles) -> list[str]:
+    """Hver publiserte side, som sti. Rekkefølgen er lesningens.
+
+    Lusetall-CSV-ene står ikke her: en sitemap er sider, ikke
+    nedlastinger, og hver CSV er lenket fra sin egen lokalitetsside.
+    """
+    stier = ["/", "/om/", "/lokalitet/", "/produksjonsomrade/", "/selskap/"]
+    stier += [f"/lokalitet/{loknr}/" for loknr in
+              sorted(felles.akva, key=lambda e: int(e) if e.isdigit() else 0)]
+    stier += [f"/produksjonsomrade/{po}/" for po in
+              sorted(felles.po_navn, key=lambda k: int(k) if k.isdigit() else 0)]
+    stier += [f"/selskap/{orgnr}/" for orgnr in
+              sorted(felles.tillatelser_per_eier)
+              if not personeier(orgnr, felles)]
+    return stier
+
+
+def skriv_sitemap(rot: Path, felles: Felles) -> Path:
+    """sitemap.xml over alle sidene."""
+    from xml.sax.saxutils import escape
+
+    basis = _basisurl()
+    dato = dt.date.today().isoformat()
+    linjer = ['<?xml version="1.0" encoding="UTF-8"?>']
+    if not basis:
+        linjer.append(
+            "<!-- HAVBRUK_BASEURL er ikke satt, så <loc> er RELATIVE "
+            "stier. Sitemap-spesifikasjonen krever absolutte URL-er: "
+            "bygg på nytt med variabelen satt før fila leveres til en "
+            "søkemotor. Et påfunnet domene ville vært en påstand om noe "
+            "som ikke er avgjort. -->")
+    linjer.append(f'<urlset xmlns="{SITEMAP_NS}">')
+    for sti in _urler(felles):
+        linjer.append("  <url>")
+        linjer.append(f"    <loc>{escape(basis + sti)}</loc>")
+        linjer.append(f"    <lastmod>{dato}</lastmod>")
+        linjer.append("  </url>")
+    linjer.append("</urlset>")
+    ut = rot / "sitemap.xml"
+    ut.write_text("\n".join(linjer) + "\n", encoding="utf-8")
+    return ut
+
+
+def skriv_robots(rot: Path) -> Path:
+    """robots.txt. Alt er åpent; det er poenget med å publisere det."""
+    basis = _basisurl()
+    linjer = [
+        "# havbruk-radar — offentlige registerdata, fritt tilgjengelige.",
+        "# Sidene er statiske og tåler å bli indeksert i sin helhet.",
+        "User-agent: *",
+        "Allow: /",
+        "",
+    ]
+    if basis:
+        linjer.append(f"Sitemap: {basis}/sitemap.xml")
+    else:
+        linjer += [
+            "# Sitemap-linja krever en absolutt URL, og domenet er ikke",
+            "# avgjort. Bygg på nytt med HAVBRUK_BASEURL satt.",
+            "# Sitemap: https://<domene>/sitemap.xml",
+        ]
+    ut = rot / "robots.txt"
+    ut.write_text("\n".join(linjer) + "\n", encoding="utf-8")
+    return ut
+
+
+def skriv_llms(rot: Path, felles: Felles) -> Path:
+    """llms.txt — hva dette er, og hvor de fullstendige listene er.
+
+    Peker på INDEKSENE og /om/, ikke på 1782 enkeltsider. En modell som
+    følger fila skal finne alt på tre hopp, og en fil med 1782 lenker
+    ville vært den samme lista som sitemap.xml, bare dårligere.
+    """
+    om = bygg_om(felles)
+    basis = _basisurl()
+    u = (lambda sti: basis + sti) if basis else (lambda sti: sti)
+    tekst = f"""# havbruk-radar
+
+> Offentlige registerdata om norsk akvakultur, hentet ukentlig og lagret
+> som daterte snapshots. {om['lokaliteter']} lokaliteter, 13
+> produksjonsområder og {len(_urler(felles)) - 5 - om['lokaliteter'] - 13}
+> selskaper. Registrene viser nåtilstanden og skriver over; her står
+> tidsaksen — hva registeret sa forrige uke, og hva som har endret seg.
+
+Data fra Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch og
+Lovdata, gjengitt uendret. Sammenstillingen er {om['forfatter']} sin.
+Hver side oppgir datoen dataene gjelder for, og sier hva den ikke vet:
+der en eier ikke er oppgitt av kilden, eller en forskrift ikke oppgir
+farge, står det i klartekst framfor en tom celle.
+
+Nyeste snapshots: akvakultur {om['akva_dato']}, eierskap
+{om['eierskap_dato']}, enhetsregisteret {om['enhet_dato']}, lusetall
+{om['lus_til']} ({om['lusetall_uker']} uker tilbake til {om['lus_fra']}).
+
+Dekning: {om['med_eier']} av {om['lokaliteter']} lokaliteter
+({om['dekning']} %) har minst én tillatelse knyttet til et navngitt
+selskap. Foretak i SSB-sektor 8200 og 2300 er bevisst utelatt av
+personvernhensyn, og de som forsvinner er små, personeide anlegg.
+
+## Fullstendige lister
+
+- [Alle lokaliteter]({u('/lokalitet/')}): flat, upaginert liste over alle
+  {om['lokaliteter']} lokalitetene, med nummer, navn, kommune og
+  produksjonsområde.
+- [Alle produksjonsområder]({u('/produksjonsomrade/')}): de 13 områdene
+  med nyeste trafikklysfarge.
+- [Alle selskaper]({u('/selskap/')}): selskapene som eier minst én
+  akvakulturtillatelse.
+
+## Om kilder, metode og sitering
+
+- [Om havbruk-radar]({u('/om/')}): kildene med lisens og ordrett
+  attribusjon, hvor ofte det samles inn, hva dekningen er, hva som
+  bevisst ikke hentes, og en ferdig formatert referanse.
+- [Kildekode og beslutningslogg]({om['repo']}): hver beslutning er
+  skrevet ned med hva som ville snudd den, og hver terskel er målt.
+
+## Sitering
+
+{om['forfatter']} ({om['bygget'][:4]}). havbruk-radar: sammenstilte
+registerdata om norsk akvakultur. Bygget {om['bygget']}. {om['repo']}
+
+Kildenes egen attribusjon må følge med og står i bunnteksten på hver
+side. Den erstattes ikke av en referanse til dette nettstedet.
+"""
+    ut = rot / "llms.txt"
+    ut.write_text(tekst, encoding="utf-8")
+    return ut
+
+
 # ---------------------------------------------------------- om-siden
 #
 # Den ENESTE siden som skrives for et menneske som lurer på om det kan
@@ -2182,6 +2341,16 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     except Exception as feil:                        # noqa: BLE001
         logg.feilet.append(("om", f"{type(feil).__name__}: {feil}"))
     tider["indekser"] = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    for skriv in (lambda: skriv_sitemap(rot, felles),
+                  lambda: skriv_robots(rot),
+                  lambda: skriv_llms(rot, felles)):
+        try:
+            skriv()
+        except Exception as feil:                    # noqa: BLE001
+            logg.feilet.append(("maskinfiler", f"{type(feil).__name__}: {feil}"))
+    tider["maskinfiler"] = time.perf_counter() - t0
 
     return logg, tider
 
