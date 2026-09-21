@@ -9,25 +9,62 @@
    data-felt på hver verdicelle, <time datetime> på hver dato. #}
 {% extends "base.html.j2" %}
 
-{% block innhold %}
-<h1>havbruk-radar</h1>
+{# HERO-BÅNDET. Bare forsiden har det — se avsnitt 2c i stil.css.
 
-<p>
-  Offentlige registerdata om norsk akvakultur, sammenstilt og
-  datert. {{ f.lokaliteter }} lokaliteter, {{ f.tillatelser }}
-  tillatelser og {{ f.selskaper }} selskaper, med
-  {{ f.luke_uker }} uker lusetall fra
-  <time datetime="{{ f.lus_fra }}">{{ f.lus_fra }}</time> til
-  <time datetime="{{ f.lus_til }}">{{ f.lus_til }}</time>.
-  Hver verdi bærer datoen den gjelder for, og hver side sier hva den
-  ikke vet.
-</p>
+   TALLENE STÅR SOM TALL. De sto i en setning fram til 21.09.2026, og
+   en setning er feil form for fire størrelser noen vil sammenligne.
+   `<dl>` og ikke `<table>`: fire etikett/verdi-par er en
+   beskrivelsesliste, og en tabell ville krevd en `<caption>` og en
+   `<thead>` vi måtte funnet på.
+
+   Rekkefølgen i markupen er tall-så-etikett fordi det er den
+   rekkefølgen en skjermleser skal lese dem i («1782 — lokaliteter»).
+   At etiketten står ØVERST visuelt er CSS-ens `order`, og det er
+   grensa mellom fritt og bundet: markupen bærer betydningen. #}
+{% block hero %}
+<div class="hero">
+  <h1>havbruk-radar</h1>
+  <p class="ingress">
+    Offentlige registerdata om norsk akvakultur, sammenstilt og datert.
+    Registrene viser nåtilstanden, og den skrives over. Her samles et
+    snapshot i uka, og det som har endret seg står i klartekst.
+  </p>
+  <dl class="nokkeltall">
+    <div>
+      <dd>{{ f.lokaliteter }}</dd>
+      <dt>lokaliteter</dt>
+    </div>
+    <div>
+      <dd>{{ f.selskaper }}</dd>
+      <dt>selskaper</dt>
+    </div>
+    <div>
+      <dd>{{ f.produksjonsomraader }}</dd>
+      <dt>produksjonsområder</dt>
+    </div>
+    <div>
+      <dd>{{ f.luke_uker }}</dd>
+      <dt>uker med lusetall</dt>
+    </div>
+  </dl>
+  <p class="datolinje">
+    Registerdata fra snapshot
+    <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
+    Lusetall fra
+    <time datetime="{{ f.lus_fra }}">{{ f.lus_fra }}</time> til
+    <time datetime="{{ f.lus_til }}">{{ f.lus_til }}</time>.
+    {{ f.tillatelser }} tillatelser i eierskapsregisteret
+    <time datetime="{{ f.eierskap_dato }}">{{ f.eierskap_dato }}</time>.
+  </p>
+</div>
+{% endblock %}
+
+{% block innhold %}
 <p>
   Dataene finnes fra før hos Fiskeridirektoratet, Brønnøysundregistrene,
   BarentsWatch og Lovdata. Det som ikke finnes fra før, er
-  <strong>hva de sa forrige uke</strong>: registrene viser nåtilstanden,
-  og den skrives over. Her samles et snapshot i uka, og endringene
-  mellom dem står i klartekst.
+  <strong>hva de sa forrige uke</strong>. Hver verdi her bærer datoen
+  den gjelder for, og hver side sier hva den ikke vet.
 </p>
 
 <h2 id="hva-kan-jeg-gjore">Hva kan du gjøre her</h2>

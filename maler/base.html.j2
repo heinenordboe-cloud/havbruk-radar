@@ -60,6 +60,16 @@
   </nav>
 </header>
 
+{# HERO-BÅNDET. Tomt for hver sidetype som ikke fyller det, og det er
+   de fleste: en lokalitetsside skal begynne med lokaliteten, ikke med
+   en fargeflate. Blokka ligger UTENFOR `<main>` fordi båndet er en
+   flate på siden og ikke innhold i den — og fordi et bånd inne i
+   `main` måtte brutt ut av arket med negative marger for å nå kanten.
+
+   Bredden er den samme `--maal-side` som topplinja og arket, så de tre
+   står i flukt. #}
+{% block hero %}{% endblock %}
+
 <main>
 {# Brødsmula er hver sidetypes egen: bare den vet hva den ligger under.
    Forsiden lar blokka stå tom — den ER toppen. #}

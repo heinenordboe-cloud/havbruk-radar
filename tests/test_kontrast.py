@@ -185,6 +185,18 @@ PAR = [
 
     # Kartpunktene, med fyllet de faktisk har.
     ("--farge-kart-punkt", "--farge-ark", AA_GRAFIKK, "kartpunkt (60 % fyll)", 0.6),
+
+    # HERO-BÅNDET (avsnitt 2c). Den eneste mettede flaten på nettstedet,
+    # og den eneste der teksten IKKE står på papir. Fire par, fordi
+    # båndet har fire slags tekst: overskrift, ingress, etikett, lenke.
+    # `--hav-tittel` og ikke `--farge-tekst`: på hav er blekk 1,2:1.
+    # Og ikke `--ark`: den er MØRK i mørk modus, mens båndet er mørkt i
+    # begge. Prøven felte nettopp det utkastet.
+    ("--hav-tittel", "--hav", AA_STOR, "h1 og nøkkeltall i båndet", 1.0),
+    ("--hav-tekst", "--hav", AA_TEKST, "ingressen i båndet", 1.0),
+    ("--hav-dempet", "--hav", AA_TEKST, "etikett og datolinje i båndet", 1.0),
+    ("--aksent-lys", "--hav", AA_TEKST, "lenke i båndet", 1.0),
+    ("--aksent-lys", "--hav", AA_GRAFIKK, "streken over nøkkeltallene", 1.0),
 ]
 
 # Trafikklysrutene måles for seg. De har INGEN terskel som tekst, fordi

@@ -142,6 +142,7 @@
   /* ---- havet: den eneste mettede flaten ---- */
   --hav:            #0b2e38;
   --hav-dis:        #12414f;   /* kartet inne i båndet */
+  --hav-tittel:     #fbf7ef;   /* overskrift og tall på havbåndet */
   --hav-tekst:      #dfe7e6;   /* brødtekst på havbåndet */
   --hav-dempet:     #a8bcbd;   /* dempet tekst på havbåndet */
 
@@ -246,6 +247,7 @@
   :root {
     --hav:            #061f27;
     --hav-dis:        #0d323d;
+    --hav-tittel:     #fbf7ef;
     --hav-tekst:      #dfe7e6;
     --hav-dempet:     #9fb3b4;
 
@@ -499,6 +501,11 @@ li:last-child { margin-block-end: 0; }
 
 strong { font-weight: var(--ds-font-weight-semibold); }
 
+/* EN DATO ER ETT ORD. «2012-01-02» brukket over to linjer på bindestreken
+   er to tall som ser ut som et intervall. Gjelder hele nettstedet, ikke
+   bare båndet der det ble oppdaget. */
+time { white-space: nowrap; }
+
 code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
                monospace;
@@ -536,6 +543,130 @@ a:hover {
   box-shadow: 0 0 0 1px var(--farge-fokus-indre);
   border-radius: var(--ds-border-radius-sm);
 }
+
+/* ---------------------------------------------------------------- *
+ * 2c. HERO-BÅNDET
+ *
+ * Havet er den ENESTE mettede flaten på nettstedet, og dette er den.
+ * Den finnes på forsiden og ingen andre steder: en flate som står på
+ * hver side er en bakgrunn, og en bakgrunn betyr ingenting.
+ *
+ * ## Tallene står i båndet, ikke i avsnittet
+ *
+ * Fram til 21.09.2026 sto «1782 lokaliteter, 2945 tillatelser og 481
+ * selskaper» midt i en setning i brødteksten. Det er nettstedets
+ * substans skrevet som løpende tekst: en leser som vil vite omfanget
+ * må lese en setning for å finne fire tall.
+ *
+ * De står nå som en `<dl>` og ikke som en `<table>`. Det er ikke for å
+ * slippe unna markupkontrakten — en tabell KREVER caption, thead og
+ * `th scope`, og det er riktig for en tabell. Men fire etikett/verdi-par
+ * er ikke en tabell; det er en beskrivelsesliste, og en `<thead>` over
+ * dem ville vært semantikk vi fant på for å ha noe å fylle ut.
+ *
+ * ## Aksenten opptrer som STREK her, aldri som flate
+ *
+ * Regelen fra avsnitt 1, håndhevet: strek over nøkkeltallene, og det
+ * er alt. `--aksent-lys` og ikke `--aksent`, fordi flata er mørk.
+ * ---------------------------------------------------------------- */
+
+.hero {
+  max-width: var(--maal-side);
+  margin: 0 auto;
+  padding: var(--ds-size-12) var(--ds-size-8) var(--ds-size-10);
+  background: var(--hav);
+  color: var(--hav-tekst);
+}
+
+.hero h1 {
+  /* `--hav-tittel`, ikke `--farge-tekst` og ikke `--ark`.
+
+     `--farge-tekst` er blekk, og blekk på hav er 1,2:1.
+
+     `--ark` var første utkast, og `test_kontrast` felte det: arket er
+     papirfarget i lys modus, men #182327 i mørk — der er det en MØRK
+     flate. Båndet er derimot mørkt i BEGGE moduser, så skriften i det
+     må være lys i begge. En farge som er riktig fordi den tilfeldigvis
+     er lys i den ene modusen, er nøyaktig den slags kobling som
+     ryker. */
+  color: var(--hav-tittel);
+  max-width: none;
+  margin: 0 0 var(--ds-size-4);
+
+  /* DEN ENE STØRRELSEN UTENFOR SKALAEN. Typeskalaen stopper på steg 8
+     (2,25rem) fordi steg 9 og 10 ble utelatt fra tokens: vi hadde
+     ingen bruk for dem. Båndet er bruken. `clamp` og ikke en fast
+     verdi, fordi 3,5rem på en telefon er seks tegn per linje. */
+  font-size: clamp(var(--ds-font-size-8), 1.4rem + 3.4vw, 3.5rem);
+}
+
+.hero .ingress {
+  max-width: var(--maal-tekst);
+  margin: 0;
+  font-size: var(--ds-font-size-5);
+  line-height: var(--ds-line-height-md);
+  color: var(--hav-tekst);
+}
+
+.hero .datolinje {
+  /* IKKE `--maal-tekst`. Målebåndet er for løpende tekst; dette er tre
+     korte opplysninger etter hverandre, og 29em tvang «2012-01-02» til
+     å brekke midt i datoen. `<time>` brekkes uansett aldri, se
+     avsnitt 2. */
+  margin: var(--ds-size-6) 0 0;
+  font-size: var(--ds-font-size-2);
+  line-height: var(--ds-line-height-md);
+  color: var(--hav-dempet);
+  max-width: 58em;
+}
+
+/* NØKKELTALLENE. `dl` med `dt`/`dd` i par.
+
+   FLEX OG IKKE GRID. Første utkast var `repeat(auto-fit, minmax(11rem,
+   1fr))`, og den fordelte fire tall utover hele båndets 84rem med 20rem
+   luft mellom hvert. Fire tall som står langt fra hverandre er fire
+   tall, ikke en gruppe. Flex lar dem klumpe seg til venstre i sin egen
+   bredde og brekke til neste linje når det trengs. */
+.nokkeltall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-size-6) var(--ds-size-12);
+  margin: var(--ds-size-10) 0 0;
+  padding-block-start: var(--ds-size-6);
+  border-block-start: var(--ds-size-1) solid var(--aksent-lys);
+}
+
+.nokkeltall dt {
+  order: 2;                       /* etiketten UNDER tallet */
+  font-size: var(--ds-font-size-2);
+  color: var(--hav-dempet);
+}
+
+.nokkeltall dd {
+  order: 1;
+  margin: 0 0 var(--ds-size-1);
+  font-family: var(--skrift-tittel);
+  font-weight: var(--ds-font-weight-semibold);
+  font-size: var(--ds-font-size-7);
+  line-height: 1;
+  letter-spacing: var(--ds-letter-spacing-2);
+  color: var(--hav-tittel);
+}
+
+.nokkeltall > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 7rem;
+}
+
+/* Lenkene i båndet. Aksenten på mørk flate, og understreket beholdes —
+   en lenke som bare er en farge er en lenke noen ikke ser. */
+.hero a {
+  color: var(--aksent-lys);
+  text-decoration-thickness: from-font;
+}
+
+.hero a:hover { color: var(--hav-tittel); }
 
 /* ---------------------------------------------------------------- *
  * 3. TABELLER
@@ -944,10 +1075,15 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
      hver side, og på 360px er det 11 % av skjermen brukt på en kant. */
   body { background: var(--farge-ark); }
 
-  .topp, main, footer {
+  .topp, .hero, main, footer {
     padding-inline: var(--ds-size-4);
     border-inline: 0;
   }
+
+  /* Båndet beholder farge og strek, men ikke luften: 3rem over og under
+     er en tredjedel av en telefonskjerm brukt på ingenting. */
+  .hero { padding-block: var(--ds-size-8) var(--ds-size-6); }
+  .nokkeltall { gap: var(--ds-size-5) var(--ds-size-8); }
 
   .topp { gap: var(--ds-size-2) var(--ds-size-4); }
   .topp nav { font-size: var(--ds-font-size-2); }
