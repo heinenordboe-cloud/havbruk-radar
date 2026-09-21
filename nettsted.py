@@ -1951,12 +1951,42 @@ def bygg_om(felles: Felles) -> dict:
     }
 
 
+# ---------------------------------------------------- det VI låner
+#
+# /om/ har siden 19.09 hatt en tabell over KILDENES lisenser. Den
+# dekket ikke det nettstedet selv distribuerer: Digdirs designtokens og
+# Newsreader ligger i utputtet, og begge har vilkår.
+#
+# For fonten er det ikke en høflighet. SIL OFL 1.1 krever at
+# lisensteksten følger fonten, og `skriv_fonter()` legger den på
+# /newsreader-OFL.txt — men en fil ingen vet om, er en fil ingen
+# finner. Raden her er veien dit.
+#
+# Verdiene står som literaler og ikke som en lesning av filene. En
+# parser som gjettet «lisens» ut av en CSS-kommentar ville vært et sted
+# til der noe kan bli feil, og lista er tre rader som endres når noen
+# bytter en avhengighet — altså sjeldnere enn parseren ville råtnet.
+VAART_LAAN = (
+    {"hva": "Newsreader",
+     "rolle": "overskriftene og ordmerket",
+     "lisens": "SIL Open Font License 1.1",
+     "opphav": "Production Type, via google/fonts",
+     "sti": "/newsreader-OFL.txt"},
+    {"hva": "Designtokens fra Digdirs designsystem v1.22.0",
+     "rolle": "typeskala, avstander, linjehøyder",
+     "lisens": "MIT",
+     "opphav": "digdir/designsystemet",
+     "sti": "/stil.css"},
+)
+
+
 def skriv_om(rot: Path, felles: Felles) -> Path:
     """Rendrer og skriver /om/."""
     om = bygg_om(felles)
     mal = _miljo().get_template("om.html.j2")
     html = mal.render(
         om=om,
+        laan=VAART_LAAN,
         tittel="Om havbruk-radar — kilder, metode, dekning og sitering",
         beskrivelse=(
             "Hva havbruk-radar er, hvilke offentlige kilder det bygger "

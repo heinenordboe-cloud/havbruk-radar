@@ -1564,7 +1564,8 @@ def _om(**overstyr) -> str:
     }
     om.update(overstyr)
     return nettsted._miljo().get_template("om.html.j2").render(
-        om=om, tittel="T", beskrivelse="B", jsonld="{}",
+        om=om, laan=nettsted.VAART_LAAN, tittel="T", beskrivelse="B",
+        jsonld="{}",
         attribusjon=nettsted.attribusjon(nettsted.OM_KILDER),
         stilark=_stilark("om"),
         bygget=om["bygget"])
@@ -1901,3 +1902,22 @@ def test_siden_uten_lusetall_far_ingen_graf():
     html = _side(lus_serie=[], lus=[], lus_uker=0, lus_fra="", lus_til="",
                  lusetall_snapshots=764)
     assert "lusegraf" not in html
+
+
+def test_om_siden_lenker_til_fontlisensen():
+    """OFL 1.1 krever at lisensteksten følger fonten. `skriv_fonter()`
+    legger den på /newsreader-OFL.txt, men en fil ingen vet om er en
+    fil ingen finner — og da er plikten oppfylt på papiret bare."""
+    flat = " ".join(_om().split())
+    assert "SIL Open Font License 1.1" in flat
+    assert 'href="/newsreader-OFL.txt"' in flat
+    assert "Newsreader" in flat
+
+
+def test_laanelista_peker_paa_filer_som_faktisk_skrives(tmp_path):
+    """En lenke i lisenstabellen som gir 404 er verre enn ingen lenke:
+    den sier at teksten finnes."""
+    nettsted.skriv_stil(tmp_path)
+    nettsted.skriv_fonter(tmp_path)
+    for l in nettsted.VAART_LAAN:
+        assert (tmp_path / l["sti"].lstrip("/")).exists(), l["sti"]

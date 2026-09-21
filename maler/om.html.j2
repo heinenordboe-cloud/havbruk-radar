@@ -205,6 +205,52 @@
   <em>havbruk-radar: sammenstilte registerdata om norsk akvakultur.</em>
   Bygget {{ om.bygget }}. {{ om.repo }}
 </p>
+{# --------------------------------------------- det NETTSTEDET låner #}
+{# Tabellen over står om KILDENE. Denne står om nettstedet selv: to
+   ting som ligger i utputtet og har egne vilkår.
+
+   For fonten er raden en LISENSPLIKT og ikke en kolofon. OFL 1.1
+   krever at lisensteksten følger fonten; `nettsted.skriv_fonter()`
+   legger den på /newsreader-OFL.txt, og en fil ingen vet om er en fil
+   ingen finner. Lenken her er veien dit. #}
+<h2 id="hva-nettstedet-laaner">Hva nettstedet selv låner</h2>
+<p>
+  Tabellen over gjelder dataene. Selve siden låner to ting, og begge
+  ligger i det som publiseres:
+</p>
+<div class="tabellramme" role="region"
+     aria-labelledby="om-laan-tittel" tabindex="0">
+<table id="om-laan">
+  <caption id="om-laan-tittel">
+    Tredjepartsmateriale i nettstedet, med lisens og hvor teksten står.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Hva</th>
+      <th scope="col">Hva det gjør her</th>
+      <th scope="col">Opphav</th>
+      <th scope="col">Lisens</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in laan %}
+    <tr>
+      <th scope="row">{{ l.hva }}</th>
+      <td data-felt="rolle">{{ l.rolle }}</td>
+      <td data-felt="opphav">{{ l.opphav }}</td>
+      <td data-felt="lisens"><a href="{{ l.sti }}">{{ l.lisens }}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="tabellnote">
+  Ingen av dem hentes fra et nett ved visning. Fonten ligger på
+  nettstedet selv, og tokenene er slått sammen i stilarket — en side
+  som henter en fil fra en CDN slutter å se riktig ut den dagen den
+  tjenesten gjør det.
+</p>
+
 <p>
   Siterer du tallene, må kildenes egen attribusjon følge med
   — den står i bunnteksten på hver side, ordrett slik lisensgiverne

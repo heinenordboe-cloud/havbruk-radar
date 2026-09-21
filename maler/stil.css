@@ -1228,6 +1228,23 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
  *
  * En side som skal siteres blir skrevet ut. Uten dette skrives den ut
  * med grå flater og uten å si hvor lenkene peker.
+ *
+ * ## HVIT FLATE ER STANDARD, OG DET GJØR SKRIFTFARGER FARLIGE
+ *
+ * Nettleseren dropper bakgrunnsfarger ved utskrift med mindre leseren
+ * har skrudd på «skriv ut bakgrunn». En skriftfarge som er lys FORDI
+ * flata under er mørk, blir da nesten usynlig på hvitt papir.
+ *
+ * Det gjelder nøyaktig ett sted, og det er hero-båndet: `--hav-tittel`
+ * og `--hav-tekst` er valgt for å stå på hav. Skrives siden ut uten
+ * flata, er forsidens overskrift og alle fire nøkkeltallene borte.
+ * Reglene under setter dem til svart framfor å stole på at båndet kom
+ * med.
+ *
+ * SVG-FLATENE er motsatt: kart og graf setter `background` på selve
+ * elementet, og der er det ikke fargen som er problemet — det er at
+ * ramma og gradnettet skal stå igjen når flata forsvinner. De er tegnet
+ * i strek og ikke i fyll, og overlever derfor.
  * ---------------------------------------------------------------- */
 
 @media print {
@@ -1236,6 +1253,26 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
   .topp nav { display: none; }
   body { background: #fff; color: #000; font-size: 10pt; }
   main, footer { max-width: none; border: 0; padding: 0; }
+
+  /* Båndet er en flate på skjerm og en tekstblokk på papir. */
+  .hero {
+    max-width: none;
+    padding: 0 0 var(--ds-size-6);
+    background: #fff;
+    color: #000;
+    border-block-end: 2px solid #000;
+  }
+  .hero h1, .hero .ingress, .hero .datolinje,
+  .nokkeltall dt, .nokkeltall dd, .hero a { color: #000; }
+
+  /* `clamp(..., 1.4rem + 3.4vw, 3.5rem)` regner mot papirbredden ved
+     utskrift, og 3,5rem på en A4 er en overskrift som tar en femtedel
+     av arket. Tilbake til skalaens toppsteg. */
+  .hero h1 { font-size: var(--ds-font-size-8); }
+  .nokkeltall { border-block-start-color: #000; }
+
+  .lusegraf, .kart { background: #fff; }
+
   .tabellramme, .kartramme { overflow: visible; }
   thead th { position: static; }
   tbody tr:nth-child(even) { background: none; }
