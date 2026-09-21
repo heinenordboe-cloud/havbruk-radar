@@ -1363,7 +1363,7 @@ def test_kartet_projiserer_med_breddekorreksjon():
         "2": {"breddegrad": "71.0", "lengdegrad": "5.0"},
         "3": {"breddegrad": "58.0", "lengdegrad": "31.0"},
     }
-    punkter, uten, hoyde = nettsted.kartpunkter(akva)
+    punkter, uten, hoyde, _g = nettsted.kartpunkter(akva)
     assert uten == []
     px = {p["loknr"]: p for p in punkter}
     # Samme lengdegrad -> samme x, uansett breddegrad.
@@ -1383,7 +1383,7 @@ def test_lokalitet_uten_koordinater_utelates_men_forsvinner_ikke():
         "10002": {"breddegrad": "", "lengdegrad": "5.0"},
         "10003": {"lengdegrad": "5.0"},
     }
-    punkter, uten, _h = nettsted.kartpunkter(akva)
+    punkter, uten, _h, _g = nettsted.kartpunkter(akva)
     assert [p["loknr"] for p in punkter] == ["10001"]
     assert uten == ["10002", "10003"]
 
@@ -1398,6 +1398,19 @@ def _forside(**overstyr) -> str:
         "punkter_antall": 1782,
         "kart_bredde": 900, "kart_hoyde": 1026.6, "kart_punkt": 1.7,
         "uten_koordinater": [], "uten_koordinater_antall": 0,
+        # Gradnettet, i formen `kartpunkter()` faktisk returnerer.
+        # NØKLENE MÅ FØLGE `bygg_forside`: malen kjører med
+        # StrictUndefined, så en nøkkel som mangler her feller prøvene
+        # framfor å rendre et hull. Det er meningen — da er det denne
+        # fila som må rettes når forsiden får en ny verdi, og ikke
+        # utputtet som blir stille feil.
+        "gitter": {
+            "bredde": [{"y": 200.0, "grad": 65, "etikett": "65°N",
+                        "etikett_x": 894, "etikett_y": 195.0}],
+            "lengde": [{"x": 300.0, "grad": 10, "etikett": "10°Ø",
+                        "etikett_x": 306.0, "etikett_anker": "start"}],
+            "bredde_px": 900, "hoyde_px": 1026.6, "etikett_y_bunn": 1018.6,
+        },
     }
     f.update(overstyr)
     return nettsted._miljo().get_template("forside.html.j2").render(
@@ -1716,3 +1729,72 @@ def test_stilarket_viser_til_en_fil_som_faktisk_sendes_ut():
     vist_til = set(re.findall(r'url\("([^"]+\.woff2)"\)', nettsted.stilark()))
     assert vist_til, "@font-face uten url(...woff2) — er fonten fjernet?"
     assert vist_til <= set(nettsted.FONTFILER)
+
+
+# ---- gradnettet -------------------------------------------------------
+#
+# Kartet har ingen kystlinje (ingen lisens), og gradnettet er derfor den
+# eneste referansen en leser har. Er det feil plassert, er det verre enn
+# ingen referanse: da peker det på noe.
+
+def test_gradnettet_ligger_der_punktene_ligger():
+    """Invarianten som bærer hele nettet: en lokalitet på nøyaktig 65
+    grader nord skal ha samme y som 65-gradslinja, regnet ut av samme
+    projeksjon. Faller de fra hverandre, viser nettet feil sted."""
+    akva = {
+        "1": {"breddegrad": "58.0", "lengdegrad": "5.0"},
+        "2": {"breddegrad": "71.0", "lengdegrad": "31.0"},
+        "3": {"breddegrad": "65.0", "lengdegrad": "10.0"},
+    }
+    punkter, _uten, _hoyde, gitter = nettsted.kartpunkter(akva)
+    px = {p["loknr"]: p for p in punkter}
+    lat65 = next(l for l in gitter["bredde"] if l["grad"] == 65)
+    lon10 = next(l for l in gitter["lengde"] if l["grad"] == 10)
+    assert px["3"]["y"] == pytest.approx(lat65["y"], abs=0.1)
+    assert px["3"]["x"] == pytest.approx(lon10["x"], abs=0.1)
+
+
+def test_gradnettet_gaar_ikke_utenfor_utstrekningen():
+    """En linje utenfor dataene sier at nettet dekker noe kartet ikke
+    gjør. Utstrekningen her er 58,0-71,0 nord: 55 og 75 skal ikke med."""
+    akva = {
+        "1": {"breddegrad": "58.0", "lengdegrad": "5.0"},
+        "2": {"breddegrad": "71.0", "lengdegrad": "31.0"},
+    }
+    _p, _u, _h, gitter = nettsted.kartpunkter(akva)
+    assert [l["grad"] for l in gitter["bredde"]] == [60, 65, 70]
+    assert [l["grad"] for l in gitter["lengde"]] == [5, 10, 15, 20, 25, 30]
+
+
+def test_kart_uten_punkter_gir_tomt_gradnett():
+    """Ingen koordinater, ingen utstrekning, ingen linjer. Et nett uten
+    kart ville vært et koordinatsystem uten noe i seg."""
+    _p, uten, hoyde, gitter = nettsted.kartpunkter(
+        {"1": {"breddegrad": "", "lengdegrad": ""}})
+    assert uten == ["1"] and hoyde == 0.0
+    assert gitter["bredde"] == [] and gitter["lengde"] == []
+
+
+def test_etikettene_klippes_ikke_av_viewboxen():
+    """Den siste lengdegraden ligger få piksler fra kanten. Står
+    etiketten til høyre for linja si, er den utenfor bildet."""
+    akva = {
+        "1": {"breddegrad": "58.0", "lengdegrad": "5.0"},
+        "2": {"breddegrad": "71.0", "lengdegrad": "31.0"},
+    }
+    _p, _u, _h, gitter = nettsted.kartpunkter(akva)
+    sist = gitter["lengde"][-1]
+    assert sist["etikett_anker"] == "end"
+    assert sist["etikett_x"] < sist["x"]
+    assert all(l["etikett_anker"] == "start" for l in gitter["lengde"][:-1])
+    # Breddegradene står til HØYRE, der kartet er tomt. Ved venstre kant
+    # ligger kysten, og «60°N» havnet midt i klyngen i Rogaland.
+    assert all(l["etikett_x"] > nettsted.KART_BREDDE / 2
+               for l in gitter["bredde"])
+
+
+def test_gradnettet_tegnes_under_punktene():
+    """SVG har ingen z-indeks. Rekkefølgen i markupen ER lagdelingen, og
+    et nett tegnet sist ville ligget oppå 1782 punkter."""
+    html = _forside()
+    assert html.index('class="gitter"') < html.index('class="punkter"')

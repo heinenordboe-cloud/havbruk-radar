@@ -207,6 +207,14 @@
 
   --farge-kart-punkt: #17262b;
 
+  /* GRADNETTET har sin egen farge, og det er ikke overflødig.
+     `--farge-kant` er 3,0:1 mot ARKET — akkurat over WCAG 1.4.11 — og
+     kartet ligger ikke på arket, det ligger på papiret. Der er samme
+     verdi 2,69:1. En kant og en gradlinje er to grafikker på to
+     flater, og en av dem måtte bøye seg. #7d7668 er 3,31:1 mot
+     papiret. */
+  --kart-gitter:      #7d7668;
+
   /* MÅLEBÅNDET. 29em var målt mot systemsansen. Brødteksten er
      fortsatt sans, så tallet står — men overskriftene er serif nå, og
      en serif tåler og vil ha litt lengre linje. Se `--maal-tittel`. */
@@ -245,8 +253,18 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --hav:            #061f27;
-    --hav-dis:        #0d323d;
+    /* MØRK MODUS SNUR HVA BÅNDET GJØR. I lys modus er havet den
+       mørkeste flaten på en lys side, og det er dét som gjør det til
+       en flate. #061f27 var samme tanke gjort om igjen — enda mørkere
+       — og resultatet var 1,04:1 mot det mørke papiret: båndet fantes
+       ikke. Det eneste man SÅ var at arket under begynte.
+
+       Verdien her er lysere enn papiret, ikke mørkere, og forholdet
+       (1,34:1) er nøyaktig det samme som papir/ark har i lys modus.
+       Rollen er bevart; utførelsen er speilvendt. Det er forskjellen
+       på å oversette en identitet og å invertere heksverdiene i den. */
+    --hav:            #13343f;
+    --hav-dis:        #1b4453;
     --hav-tittel:     #fbf7ef;
     --hav-tekst:      #dfe7e6;
     --hav-dempet:     #9fb3b4;
@@ -274,6 +292,7 @@
     --lys-gronn: #3cb87f;
 
     --farge-kart-punkt: #a8bcbd;
+    --kart-gitter:      #7c898b;   /* 4,88:1 mot mørkt papir */
   }
 }
 
@@ -1006,8 +1025,31 @@ td[data-felt="farge_mangler"]::before {
   max-width: 100%;
   height: auto;
   margin-inline: auto;
-  background: var(--farge-ark);
+
+  /* PAPIR OG IKKE ARK. Kartet er en FIGUR på arket, ikke en del av
+     teksten, og en figur trenger en egen grunn for å leses som en.
+     Papiret er den grunnen — samme flate som bunnen under arket, så
+     kartet ser ut som et utsnitt av bordet framfor et hull i sida. */
+  background: var(--farge-bunn);
   border: var(--ds-border-width-default) solid var(--farge-kant-svak);
+}
+
+/* GRADNETTET. Linjene skal kunne SES og ikke leses: de er en referanse
+   en leser slår opp i når hun lurer, ikke noe blikket skal feste seg
+   ved. `--farge-kant` er 3:1 mot flata (WCAG 1.4.11 for grafikk), og
+   det er gulvet — ikke et mål. */
+.kart .gitter line {
+  stroke: var(--kart-gitter);
+  stroke-width: 0.5;
+}
+
+.kart .gitter text {
+  /* Sans og ikke serif: dette er en måleskala, og tallene skal ha
+     samme sifferbredde som resten av nettstedet. */
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--farge-tekst-svak);
 }
 
 .kart circle {

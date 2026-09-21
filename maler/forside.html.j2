@@ -88,9 +88,11 @@
   Akvakulturregisteret, snapshot
   <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
   Kartet er tegnet av dataene ved bygging — ingen karttjeneste, ingen
-  JavaScript, ingen bakgrunnsflis. Det er punktene og ingenting annet:
+  JavaScript, ingen bakgrunnsflis. Det er punktene og et gradnett:
   ingen kystlinje, fordi vi ikke har en kystlinje vi har lisens til å
-  tegne.
+  tegne. Gradnettet krever ingen lisens — det er aritmetikk — og er den
+  eneste referansen kartet kan gi. 65°N deler landet omtrent ved
+  Rørvik, 70°N ligger like nord for Tromsø.
 </p>
 
 {# Ingen `style=`-attributt og ingen `fill="currentColor"`. Fargen,
@@ -109,10 +111,24 @@
     akvakulturlokaliteter</title>
   <desc id="kartbeskrivelse">Ett punkt per lokalitet, plassert etter
     breddegrad og lengdegrad fra Akvakulturregisteret. Ekvirektangulær
-    projeksjon med breddekorreksjon. Kartet er en oversikt over
-    utbredelse; navn og tall står i
-    lokalitetslisten.</desc>
-  <g>
+    projeksjon med breddekorreksjon. Gradnett hver femte grad, uten
+    kystlinje. Kartet er en oversikt over utbredelse; navn og tall står
+    i lokalitetslisten.</desc>
+  {# GRADNETTET FØRST i markupen, så punktene tegnes OVER linjene.
+     SVG har ingen z-indeks; rekkefølgen er lagdelingen. #}
+  <g class="gitter" aria-hidden="true">
+    {% for l in f.gitter.bredde %}
+    <line x1="0" y1="{{ l.y }}" x2="{{ f.kart_bredde }}" y2="{{ l.y }}"/>
+    <text x="{{ l.etikett_x }}" y="{{ l.etikett_y }}"
+          text-anchor="end">{{ l.etikett }}</text>
+    {% endfor %}
+    {% for l in f.gitter.lengde %}
+    <line x1="{{ l.x }}" y1="0" x2="{{ l.x }}" y2="{{ f.kart_hoyde }}"/>
+    <text x="{{ l.etikett_x }}" y="{{ f.gitter.etikett_y_bunn }}"
+          text-anchor="{{ l.etikett_anker }}">{{ l.etikett }}</text>
+    {% endfor %}
+  </g>
+  <g class="punkter">
     {% for p in f.punkter %}
     <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ f.kart_punkt }}"/>
     {% endfor %}

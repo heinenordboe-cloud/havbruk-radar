@@ -1977,8 +1977,27 @@ KART_PUNKT = 2.0           # radius. MÅLT 20.09.2026: ved 1.7 er et punkt
                            # at prikkene er atskilte.
 
 
-def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str], float]:
-    """(punkter, lokaliteter uten koordinater, høyde på viewBox).
+# GRADNETTET. Trinnene er ulike fordi gradene er det: på 64 grader nord
+# er en lengdegrad 0,44 av en breddegrad i bredde, og et nett med samme
+# trinn på begge akser ville gitt tre vannrette linjer og tjueseks
+# loddrette. Trinnene under gir 3 og 6 på dagens utstrekning.
+#
+# HVORFOR ET GRADNETT I DET HELE TATT: kartet har ingen kystlinje, og det
+# er et bevisst valg — vi har ingen kystlinje vi har lisens til å tegne
+# (se docs/LISENSKJEDE.md). Følgen fram til 21.09.2026 var at kartet var
+# 1782 prikker uten en eneste referanse: en leser kunne se at det er tett
+# på midten, men ikke om den tettheten ligger i Trøndelag eller i Troms.
+#
+# Et gradnett krever ingen lisens. Det er aritmetikk, ikke en gjengivelse
+# av noens datasett, og det er den ENESTE referansen vi kan tegne uten å
+# låne noe. 65 grader nord deler landet omtrent ved Rørvik; 70 ligger
+# like nord for Tromsø. Det er nok til å plassere en klynge.
+GITTER_LAT = 5             # grader mellom vannrette linjer
+GITTER_LON = 5             # grader mellom loddrette linjer
+
+
+def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str], float, dict]:
+    """(punkter, lokaliteter uten koordinater, høyde på viewBox, gradnett).
 
     Punktene er avrundet til én desimal. Full flyttallspresisjon i en
     SVG er 1782 tall med femten siffer som ingen ser forskjell på, og
@@ -2001,7 +2020,8 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
             uten.append(loknr)
 
     if not med:
-        return [], sorted(uten, key=lambda e: int(e) if e.isdigit() else 0), 0.0
+        return ([], sorted(uten, key=lambda e: int(e) if e.isdigit() else 0),
+                0.0, {"bredde": [], "lengde": []})
 
     lat_min = min(p[1] for p in med)
     lat_maks = max(p[1] for p in med)
@@ -2024,9 +2044,48 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
         "y": round(KART_MARG + (lat_maks - lat) * skala, 1),
     } for loknr, lat, lon in med]
     punkter.sort(key=lambda p: (p["y"], p["x"]))
+
+    # Linjene tegnes bare der det faktisk er kart. En linje på 55 grader
+    # ville stått utenfor utstrekningen og sagt at nettet dekker noe
+    # dataene ikke gjør.
+    def _trinn(fra: float, til: float, steg: int) -> list[int]:
+        forste = int(math.ceil(fra / steg) * steg)
+        return [g for g in range(forste, int(til) + 1, steg)]
+
+    # Etikettposisjonene regnes HER og ikke i malen. `{{ h - 8 }}` i
+    # Jinja ga `1018.5999999999999` i utputtet: flyttallsstøy i en
+    # koordinat ingen ser, i en fil som skal være lesbar.
+    #
+    # Den siste lengdegradsetiketten flyttes til VENSTRE for linja si.
+    # 30°Ø ligger 40px fra kanten, og en etikett til høyre ville blitt
+    # klippet av viewBox-en.
+    #
+    # BREDDEGRADENE STÅR TIL HØYRE, og det er ikke en smakssak.
+    # Førsteutkastet satte dem ved venstre kant, der de er vant til å
+    # stå — og der ligger kysten. «60°N» lå midt oppi klyngen i
+    # Rogaland og Hordaland og var uleselig. Høyre halvdel av kartet er
+    # Finnmarksvidda og åpent hav: tom.
+    lengde = []
+    for i, g in enumerate(_trinn(lon_min, lon_maks, GITTER_LON)):
+        x = round(KART_MARG + (g - lon_min) * k * skala, 1)
+        sist = x > KART_BREDDE - 60
+        lengde.append({"x": x, "grad": g, "etikett": f"{g}°Ø",
+                       "etikett_x": round(x - 6 if sist else x + 6, 1),
+                       "etikett_anker": "end" if sist else "start"})
+    gitter = {
+        "bredde": [{"y": round(KART_MARG + (lat_maks - g) * skala, 1),
+                    "grad": g, "etikett": f"{g}°N",
+                    "etikett_x": KART_BREDDE - 6,
+                    "etikett_y": round(KART_MARG + (lat_maks - g) * skala - 5, 1)}
+                   for g in _trinn(lat_min, lat_maks, GITTER_LAT)],
+        "lengde": lengde,
+        "bredde_px": KART_BREDDE,
+        "hoyde_px": round(hoyde, 1),
+        "etikett_y_bunn": round(hoyde - 8, 1),
+    }
     return (punkter,
             sorted(uten, key=lambda e: int(e) if e.isdigit() else 0),
-            round(hoyde, 1))
+            round(hoyde, 1), gitter)
 
 
 FORSIDEKILDER = ("akvakultur", "eierskap", "lusetall")
@@ -2039,7 +2098,7 @@ def bygg_forside(felles: Felles) -> dict:
     det, hva kan jeg gjøre her. Tallene er det første svaret — en
     påstand om omfang som kan etterprøves ved å klikke.
     """
-    punkter, uten_koordinater, hoyde = kartpunkter(felles.akva)
+    punkter, uten_koordinater, hoyde, gitter = kartpunkter(felles.akva)
     uten = [{"loknr": loknr, "navn": felles.akva[loknr].get("navn", ""),
              "kommune": felles.akva[loknr].get("kommune", "")}
             for loknr in uten_koordinater]
@@ -2060,6 +2119,7 @@ def bygg_forside(felles: Felles) -> dict:
         "kart_bredde": KART_BREDDE,
         "kart_hoyde": hoyde,
         "kart_punkt": KART_PUNKT,
+        "gitter": gitter,
         "uten_koordinater": uten,
         "uten_koordinater_antall": len(uten),
     }

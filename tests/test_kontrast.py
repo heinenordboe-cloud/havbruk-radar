@@ -183,8 +183,12 @@ PAR = [
     ("--farge-kant-sterk", "--farge-hode", AA_GRAFIKK, "streken under hodet", 1.0),
     ("--farge-fokus", "--farge-ark", AA_GRAFIKK, "fokusmarkør", 1.0),
 
-    # Kartpunktene, med fyllet de faktisk har.
-    ("--farge-kart-punkt", "--farge-ark", AA_GRAFIKK, "kartpunkt (60 % fyll)", 0.6),
+    # Kartpunktene, med fyllet de faktisk har. Flata er `--farge-bunn`
+    # fra 21.09.2026: kartet er en figur PÅ arket og har papiret som
+    # grunn, ikke arket selv.
+    ("--farge-kart-punkt", "--farge-bunn", AA_GRAFIKK, "kartpunkt (60 % fyll)", 0.6),
+    ("--kart-gitter", "--farge-bunn", AA_GRAFIKK, "gradnettets linjer", 1.0),
+    ("--farge-tekst-svak", "--farge-bunn", AA_TEKST, "gradnettets etiketter", 1.0),
 
     # HERO-BÅNDET (avsnitt 2c). Den eneste mettede flaten på nettstedet,
     # og den eneste der teksten IKKE står på papir. Fire par, fordi
@@ -197,6 +201,16 @@ PAR = [
     ("--hav-dempet", "--hav", AA_TEKST, "etikett og datolinje i båndet", 1.0),
     ("--aksent-lys", "--hav", AA_TEKST, "lenke i båndet", 1.0),
     ("--aksent-lys", "--hav", AA_GRAFIKK, "streken over nøkkeltallene", 1.0),
+]
+
+# BÅNDET MOT SIDEN RUNDT. Ikke et WCAG-krav — en flate som er utydelig
+# er ikke utilgjengelig — men den bærer hele identiteten, og i mørk
+# modus var den 1,04:1 og dermed ikke en flate i det hele tatt. Tallet
+# står her framfor i en kommentar, fordi et tall ingen måler er et tall
+# som driver.
+BAND_MOT_SIDE = 1.25
+
+PAR += [
 ]
 
 # Trafikklysrutene måles for seg. De har INGEN terskel som tekst, fordi
@@ -270,6 +284,18 @@ def test_aa_paa_hvert_par(mork):
         if k < krav:
             feil.append(f"{hvor}: {p[fg]} på {p[bg]} = {k:.2f}:1, krever {krav}")
     assert not feil, "\n".join(feil)
+
+
+@pytest.mark.parametrize("mork", [False, True], ids=["lys", "mørk"])
+def test_baandet_er_en_flate_i_begge_moduser(mork):
+    """Hero-båndet er den eneste mettede flaten på nettstedet, og en
+    flate ingen ser er ingen flate. I lys modus er havet mørkere enn
+    papiret; i mørk modus må det være LYSERE, ellers forsvinner det i
+    bunnen. Forholdet måles, retningen ikke."""
+    p = palett(mork)
+    k = kontrast(p["--hav"], p["--farge-bunn"])
+    assert k >= BAND_MOT_SIDE, (
+        f"båndet {p['--hav']} mot siden {p['--farge-bunn']} = {k:.2f}:1")
 
 
 @pytest.mark.parametrize("mork", [False, True], ids=["lys", "mørk"])
