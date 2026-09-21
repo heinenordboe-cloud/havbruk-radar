@@ -1149,9 +1149,12 @@ def test_maaleserier_og_ubelagte_telles_paa_po_siden():
     registerendring, og ekspertgruppen er UBELAGT — antallet står slik at
     utelatelsen ikke er stille."""
     html = " ".join(_po().split())
-    assert "941" in html
-    assert "56 endringer er holdt utenfor fordi kilden er UBELAGT" in html
-    assert "ekspertgruppen" in html
+    # TALLET og KILDEN, ikke setningen rundt dem. Prøven het på en
+    # ordrett formulering fram til 20.09.2026 og falt da noten ble
+    # skrevet om — den målte prosaen, ikke at utelatelsen var sagt.
+    assert "941" in html, "måleserieraden er ikke telt"
+    assert "56" in html and "UBELAGT" in html, "utelatelsen er stille"
+    assert "ekspertgruppen" in html, "kilden er ikke navngitt"
 
 
 def test_po_siden_lenker_til_hver_lokalitet():
@@ -1161,9 +1164,10 @@ def test_po_siden_lenker_til_hver_lokalitet():
 def test_po_siden_sier_at_inndelingen_er_dagens():
     """Området er en regulatorisk inndeling som kan tas om igjen."""
     flat = " ".join(_po().split())
-    assert "GJELDENDE per" in flat
+    assert "gjeldende per" in flat.lower()
     assert "2026-09-14" in flat
     assert "regulatorisk inndeling" in flat
+    assert "ikke en naturgitt grense" in flat
 
 
 def test_po_siden_bruker_ikke_UBELAGT_kilde_i_bunnteksten():

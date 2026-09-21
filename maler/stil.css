@@ -268,16 +268,20 @@ table {
   margin: 0;
 }
 
-/* CAPTION SOM TITTEL, IKKE FOTNOTE.
+/* CAPTION ER ÉN LINJE. FORBEHOLDET ER EN NOTE.
 
-   Captionene her er ikke etiketter — de er forbeholdene. «–» betyr at
-   kilden ikke oppgir noe tall; 19 celler kan ikke leses av forskriften;
-   X endringer er holdt utenfor fordi kilden er UBELAGT. Settes de i
-   liten grå skrift under tabellen, leses de aldri, og da står tallene
-   der uten det som gjør dem sanne.
+   Første utgave la begge deler i captionen, og resultatet var fem
+   linjer prosa før man så en tabellrad — «Lokalitetene i området,
+   snapshot 2026-09-14. Kapasitetsenheten står ved tallet: den varierer
+   mellom tonn, stykk, dekar og kvadratmeter, og et tall uten enhet er
+   ubrukelig.» Det er to ulike ting: HVA tabellen er, og HVA MAN MÅ VITE
+   for å lese den riktig. Den første skal stå der øyet lander, den andre
+   der man ser etter når noe skurrer.
 
-   De står derfor ØVERST, i full tekstfarge, med en kraftig loddrett
-   strek som sier at dette hører til tabellen under. */
+   Ingenting av forbeholdet er strøket — det er flyttet til
+   `.tabellnote` under tabellen. Det er ikke småskrift i betydningen
+   «det vi håper ingen leser»: noten har egen strek, egen plass og full
+   bredde på målebåndet. Den er bare ikke i veien for tallene. */
 caption {
   caption-side: top;
   text-align: left;
@@ -299,6 +303,25 @@ caption {
   margin-block-end: var(--ds-size-3);
   border-inline-start: var(--ds-size-1) solid var(--farge-merke);
 }
+
+/* NOTEN. Utenfor `.tabellramme`, og det er ikke tilfeldig: inne i
+   ramma ville den fulgt tabellen sidelengs når tabellen scroller, og en
+   note man må dra i for å lese er en note ingen leser. Samme feil
+   captionen hadde før `min()`-taket. */
+.tabellnote {
+  max-width: var(--maal-tekst);
+  margin: 0 0 var(--ds-size-12);
+  padding-inline-start: var(--ds-size-4);
+  border-inline-start: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  color: var(--farge-tekst-svak);
+  font-size: var(--ds-font-size-2);
+  line-height: var(--ds-line-height-lg);
+}
+
+/* Noten hører til tabellen over seg, og avstanden skal si det.
+   `:has()` framfor en egen klasse på ramma: faller den bort i en gammel
+   nettleser, står noten bare litt lenger ned — den blir ikke feil. */
+.tabellramme:has(+ .tabellnote) { margin-block-end: var(--ds-size-3); }
 
 thead th {
   position: sticky;

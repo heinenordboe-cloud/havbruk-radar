@@ -33,14 +33,6 @@
   <caption>
     Hva Enhetsregisteret sier om selskapet, snapshot
     <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.
-    {% if not sel.har_registerdata %}
-    Vi har ingen registerdata for dette selskapet.
-    {{ sel.uten_registerdata_tekst }} — uttrekket vårt er avgrenset til
-    et sett næringskoder, og et selskap som eier en tillatelse uten å ha
-    en av dem, faller utenfor. Navnet over er det Fiskeridirektoratet
-    oppgir i eierskapsregisteret. 122 av 482 eiere er i denne
-    situasjonen (målt 20.09.2026).
-    {% endif %}
   </caption>
   <thead>
     <tr>
@@ -64,6 +56,16 @@
   </tbody>
 </table>
 </div>
+{% if not sel.har_registerdata %}
+<p class="tabellnote">
+  Vi har ingen registerdata for dette selskapet.
+  {{ sel.uten_registerdata_tekst }} — uttrekket vårt er avgrenset til et
+  sett næringskoder, og et selskap som eier en tillatelse uten å ha en av
+  dem, faller utenfor. Navnet over er det Fiskeridirektoratet oppgir i
+  eierskapsregisteret. 122 av 482 eiere er i denne situasjonen (målt
+  20.09.2026).
+</p>
+{% endif %}
 
 {# ------------------------------------------------- tillatelsene #}
 <div class="tabellramme">
@@ -71,8 +73,6 @@
   <caption>
     Tillatelsene selskapet eier, snapshot
     <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
-    «Tildelt» er da tillatelsen ble gitt første gang, og til hvem — det
-    er ikke nødvendigvis dette selskapet.
   </caption>
   <thead>
     <tr>
@@ -100,6 +100,12 @@
   </tbody>
 </table>
 </div>
+<p class="tabellnote">
+  «Tildelt» er da tillatelsen ble gitt første gang, og til hvem — det er
+  ikke nødvendigvis dette selskapet. Enheten står ved kapasitetstallet
+  fordi den varierer mellom tonn, stykk, dekar, kvadratmeter,
+  kubikkmeter og liter.
+</p>
 
 {# -------------------------------------------------- lokalitetene #}
 <div class="tabellramme">
@@ -107,9 +113,6 @@
   <caption>
     Lokalitetene tillatelsene ligger på, snapshot
     <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.
-    En tillatelse kan gjelde flere lokaliteter, og flere tillatelser kan
-    ligge på samme — tallet her er derfor ikke det samme som antall
-    tillatelser.
   </caption>
   <thead>
     <tr>
@@ -133,18 +136,18 @@
   </tbody>
 </table>
 </div>
+<p class="tabellnote">
+  En tillatelse kan gjelde flere lokaliteter, og flere tillatelser kan
+  ligge på samme — tallet her er derfor ikke det samme som antall
+  tillatelser.
+</p>
 
 {# ---------------------------------------------------- siden når #}
 <div class="tabellramme">
 <table id="eierskap_historikk-overforinger">
   <caption>
-    Når tillatelsene ble overført TIL selskapet, eldst først.
+    Når tillatelsene ble overført til selskapet, eldst først.
     {{ sel.overforinger|length }} overføringer.
-    Datoen er journalføringsdato, ikke bekreftet
-    overdragelsesdato — den skal leses som «senest da».
-    Tillatelser uten rad her har selskapet enten hatt siden tildelingen,
-    eller overtatt uten at overføringen er journalført i den serien vi
-    har.
   </caption>
   <thead>
     <tr>
@@ -164,6 +167,12 @@
   </tbody>
 </table>
 </div>
+<p class="tabellnote">
+  Datoen er journalføringsdato, ikke bekreftet overdragelsesdato — den
+  skal leses som «senest da». Tillatelser uten rad her har selskapet
+  enten hatt siden tildelingen, eller overtatt uten at overføringen er
+  journalført i den serien vi har.
+</p>
 
 <h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
 <p>

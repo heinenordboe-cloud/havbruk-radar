@@ -1,5 +1,17 @@
 {# Produksjonsområdesiden. Fargehistorikken, lokalitetene, endringene.
 
+   REKKEFØLGEN ER FARGEN FØRST. Det er det siden er til for: et
+   forvaltningsvedtak som bestemmer om et område får vokse, stå stille
+   eller kutte. Fram til 20.09.2026 lå to avsnitt prosa foran den, og
+   den som slo opp området måtte lese seg forbi dem for å finne svaret.
+   Forbeholdet om at inndelingen er regulatorisk og ikke naturgitt er
+   ikke strøket — det står under «Hva denne siden ikke sier», sammen med
+   de to andre forbeholdene om området.
+
+   CAPTION ER ÉN LINJE, forbeholdet er en `.tabellnote` UNDER tabellen.
+   Noten ligger utenfor `.tabellramme` med vilje: inne i ramma følger
+   den tabellen sidelengs når tabellen scroller. Se maler/stil.css.
+
    Ankernavnene er <kilde>-<hva>, som på lokalitetssiden — utledet av
    kildenavnet i data/raw/ og av feltvokabularet, ikke av rekkefølgen på
    siden. Se docs/beslutninger/2026-09-16-url-struktur.md.
@@ -13,32 +25,18 @@
 <h1>Produksjonsområde {{ po.nr }} <span data-navn>{{ po.navn }}</span></h1>
 
 <p>
-  {{ po.lokaliteter_antall }} akvakulturlokaliteter.
-  Inndelingen i tretten produksjonsområder er fastsatt i forskrift, og
-  denne siden viser den som er GJELDENDE per
+  {{ po.lokaliteter_antall }} akvakulturlokaliteter. Inndelingen i tretten
+  produksjonsområder er fastsatt i forskrift, og denne siden viser den
+  som er gjeldende per
   <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>, slik
   Akvakulturregisteret oppgir den.
-</p>
-<p>
-  Området er en regulatorisk inndeling, ikke en naturgitt
-  grense. Den kan tas om igjen, og et område som endrer grenser
-  eller nummer er et annet område enn det som lå her før. Denne siden
-  sier hva inndelingen var på datoen over — den påstår ikke at den blir
-  værende.
 </p>
 
 {# ------------------------------------------------ fargen per runde #}
 <div class="tabellramme">
 <table id="trafikklysvedtak-farger">
   <caption>
-    Trafikklysfargen per fastsatt runde, eldst først.
-    {{ po.runder|length }} runder.
-    Fargen har to ulike grader av belegg, og kolonnen
-    «Lesemåte» sier hvilken: <em>ordrett</em> betyr at fargeordet står i
-    bestemmelsen, <em>kapittelhjemmel</em> at fargen er utledet av hvilket
-    kapittel området er plassert i. De to er ikke like sterke.
-    Der forskriften ikke oppgir farge for området i en runde, står det —
-    cellen er ikke tom.
+    Trafikklysfargen per fastsatt runde, eldst først. {{ po.runder|length }} runder.
   </caption>
   <thead>
     <tr>
@@ -60,6 +58,17 @@
   </tbody>
 </table>
 </div>
+<p class="tabellnote">
+  Fargen har tre ulike grader av belegg, og kolonnen «Lesemåte» sier
+  hvilken. <em>Ordrett</em> betyr at fargeordet står i bestemmelsen selv.
+  <em>Kapitteloverskrift</em> betyr at det står i overskriften på
+  kapittelet området er plassert under. <em>Kapittelhjemmel</em> betyr at
+  fargen er utledet av hvilket kapittel området er plassert i, og ikke
+  står skrevet noe sted — det er det eneste leddet der vi tar et steg
+  kilden ikke tar. De tre er ikke like sterke, og forskjellen er hele
+  grunnen til at kolonnen finnes. Der forskriften ikke oppgir farge for
+  området i en runde, står det i klartekst — cellen er ikke tom.
+</p>
 
 {# ------------------------------------------------------ lokalitetene #}
 <div class="tabellramme">
@@ -67,8 +76,6 @@
   <caption>
     Lokalitetene i området, snapshot
     <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
-    Kapasitetsenheten står ved tallet: den varierer mellom tonn, stykk,
-    dekar og kvadratmeter, og et tall uten enhet er ubrukelig.
   </caption>
   <thead>
     <tr>
@@ -92,24 +99,19 @@
   </tbody>
 </table>
 </div>
+<p class="tabellnote">
+  Enheten står ved tallet fordi den varierer: tonn, stykk, dekar,
+  kvadratmeter, kubikkmeter og liter finnes i det samme registeret, og et
+  tall uten enhet er ubrukelig. Arts- og enhetsnavn er oversatt fra
+  kildens koder for lesbarhet; verdiene i dataene er uendret.
+</p>
 
 {# -------------------------------------------- hva har endret seg #}
 <div class="tabellramme">
 <table id="endringer-register">
   <caption>
-    Hva som har endret seg i registrene om området, nyest først.
-    {{ po.endringer|length }} registerendringer.
-    Måleseriene telles ikke som endringer her. Biomasse
-    leverer nye beholdningstall hver måned, og for dette området er det
-    {{ po.maaleserie_rader }} slike rader mot {{ po.endringer|length }}
-    registerendringer. Tas de med, drukner vedtaket i serien.
-    {% if po.ubelagte_rader %}
-    {{ po.ubelagte_rader }} endringer er holdt utenfor fordi
-    kilden er UBELAGT ({{ po.ubelagte_kilder|join(", ") }}):
-    vilkåret for å republisere er lett etter og ikke funnet, så tallene
-    kan brukes i analyse men ikke vises her. Antallet står slik at
-    utelatelsen ikke er stille. Se <code>docs/LISENSKJEDE.md</code>.
-    {% endif %}
+    Registerendringer om området, nyest først.
+    {{ po.endringer|length }} endringer.
   </caption>
   <thead>
     <tr>
@@ -135,8 +137,27 @@
   </tbody>
 </table>
 </div>
+<p class="tabellnote">
+  Måleseriene telles ikke som endringer her. Biomasse leverer nye
+  beholdningstall hver måned, og for dette området er det
+  {{ po.maaleserie_rader }} slike rader mot {{ po.endringer|length }}
+  registerendringer. Tas de med, drukner vedtaket i serien.
+  {% if po.ubelagte_rader %}
+  {{ po.ubelagte_rader }} endringer er dessuten holdt utenfor fordi
+  kilden er UBELAGT ({{ po.ubelagte_kilder|join(", ") }}): vilkåret for å
+  republisere er lett etter og ikke funnet, så tallene kan brukes i
+  analyse men ikke vises her. Antallet står slik at utelatelsen ikke er
+  stille. Se <code>docs/LISENSKJEDE.md</code>.
+  {% endif %}
+</p>
 
 <h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
+<p>
+  Ingenting om at inndelingen blir værende. Området er en regulatorisk
+  inndeling, ikke en naturgitt grense. Den kan tas om igjen, og et område
+  som endrer grenser eller nummer er et annet område enn det som lå her
+  før. Siden sier hva inndelingen var på datoen over.
+</p>
 <p>
   Ingenting om hvorfor fargen ble som den ble.
   Trafikklysordningen bygger på en faglig vurdering av

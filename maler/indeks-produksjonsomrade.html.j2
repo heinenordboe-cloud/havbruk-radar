@@ -16,11 +16,8 @@
 <div class="tabellramme">
 <table id="trafikklysvedtak-alle">
   <caption>
-    Produksjonsområdene med nyeste trafikklysfarge og antall lokaliteter,
-    snapshot
+    Produksjonsområdene med nyeste trafikklysfarge, snapshot
     <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
-    Der forskriften ikke oppgir farge for området i nyeste runde, står
-    det i stedet for en tom celle.
   </caption>
   <thead>
     <tr>
@@ -46,4 +43,9 @@
   </tbody>
 </table>
 </div>
+<p class="tabellnote">
+  Der forskriften ikke oppgir farge for området i nyeste runde, står det
+  i klartekst framfor en tom celle. Hver områdeside viser alle rundene
+  med hvor sterkt fargen er belagt i forskriftsteksten.
+</p>
 {% endblock %}
