@@ -218,6 +218,11 @@ def _side(**overstyr) -> str:
         "dekning_fra": [{"kilde": "akvakultur", "fra": "2026-08-17"}],
     }
     lok.update(overstyr)
+    # GRAFEN REGNES AV `lus_serie`, ikke skrevet inn ved siden av. Et
+    # `overstyr` som bytter serien skal bytte grafen med den — to
+    # felter som beskriver samme uker og kan sies hver for seg, er
+    # formen på F6 og F7.
+    lok.setdefault("lusegraf", nettsted.lusegraf(lok["lus_serie"]))
     lok["register"] = _visning(lok["register"])
     lok["endringer"] = _endringsrader(lok["endringer"])
     for t_ in lok["tillatelser"]:
@@ -1798,3 +1803,101 @@ def test_gradnettet_tegnes_under_punktene():
     et nett tegnet sist ville ligget oppå 1782 punkter."""
     html = _forside()
     assert html.index('class="gitter"') < html.index('class="punkter"')
+
+
+# ---- lusegrafen -------------------------------------------------------
+#
+# Grafen legger ikke til én verdi; den er `lus_serie` tegnet. Prøvene
+# her handler derfor ikke om utseende, men om at tegningen sier det
+# samme som lista — og særlig om det ene den ikke får lov å si.
+
+def _uker(*verdier, brakk=()):
+    """Én uke per verdi. `None` = kilden oppgir ingenting."""
+    return [{"voksne_hunnlus": "" if v is None else str(v),
+             "brakklagt": "True" if i in brakk else "False",
+             "iso_aar": "2020", "iso_uke": f"{i + 1:02d}",
+             "dato": f"2020-01-{i + 1:02d}"}
+            for i, v in enumerate(verdier)]
+
+
+def test_hullet_bryter_linja_og_tegnes_ikke_som_null():
+    """Den ene feilen grafen ikke får gjøre. En kurve som gikk gjennom
+    et hull i null ville påstått at det ble talt null lus, mens hele
+    tabellen under sier at «–» betyr at kilden ikke oppgir noe tall."""
+    g = nettsted.lusegraf(_uker(0.4, 0.5, None, 0.6, 0.7))
+    assert len(g["segmenter"]) == 2, "linja skal brytes ved hullet"
+    # Ingen av punktene ligger på bunnlinja — null er ikke tegnet.
+    y_er = [float(p.split(",")[1])
+            for seg in g["segmenter"] for p in seg.split()]
+    assert all(y != g["bunn"] for y in y_er)
+    assert g["uten_tall"] == 1 and g["uker_med_tall"] == 4
+
+
+def test_en_enslig_uke_mellom_to_hull_forsvinner_ikke():
+    """En `<polyline>` med ett punkt tegner ingenting. Uten sirkelen
+    ville en MÅLT verdi vært borte fra grafen uten at noe sa fra."""
+    g = nettsted.lusegraf(_uker(None, 0.9, None))
+    assert g["segmenter"] == []
+    assert len(g["alene"]) == 1
+
+
+def test_grafen_finnes_ikke_naar_det_ikke_er_noe_aa_tegne():
+    """En akse uten en eneste verdi er en ramme som later som om den
+    har et innhold."""
+    assert nettsted.lusegraf([]) is None
+    assert nettsted.lusegraf(_uker(None, None)) is None
+
+
+def test_baandene_dekker_brakklagte_uker_og_bare_dem():
+    g = nettsted.lusegraf(_uker(0.1, None, None, 0.2, None, brakk=(1, 2)))
+    assert len(g["baand"]) == 1
+    assert g["brakklagt"] == 2
+    # 3 hull, 2 forklart av brakklegging, 1 uforklart. Regnestykket står
+    # i bildeteksten, framfor at båndene ser ut som om de dekker alt.
+    assert (g["uten_tall"], g["hull_forklart"], g["hull_uforklart"]) == (3, 2, 1)
+
+
+def test_kurven_holder_seg_innenfor_plottet():
+    """Taket rundes opp til et pent trinn, aldri ned: en verdi over
+    taket ville blitt tegnet utenfor ramma."""
+    g = nettsted.lusegraf(_uker(0.0, 1.54, 0.3))
+    assert g["tak"] >= 1.54
+    y_er = [float(p.split(",")[1])
+            for seg in g["segmenter"] for p in seg.split()]
+    assert min(y_er) >= g["plott_y"] - 0.05
+    assert max(y_er) <= g["bunn"] + 0.05
+
+
+def test_y_aksen_bruker_pene_trinn():
+    """0,4 leses som fire tideler. 0,37 leses ikke som noe."""
+    # 0,13 -> 0,15 og ikke 0,20: trinnet er 0,05, og linjene blir
+    # 0 / 0,05 / 0,10 / 0,15. Taket er nærmeste trinn OVER verdien, ikke
+    # nærmeste runde tall.
+    for maks, ventet_tak in ((0.13, 0.15), (1.54, 2.0), (0.04, 0.05), (9.0, 10.0)):
+        g = nettsted.lusegraf(_uker(0.0, maks))
+        assert g["tak"] == pytest.approx(ventet_tak), maks
+        assert g["linjer"][0]["etikett"] == "0"
+
+
+def test_grafen_og_tabellen_teller_de_samme_ukene():
+    """To tall om samme uker, sagt hver for seg, er formen F6 og F7
+    hadde. Grafen regnes av `lus_serie` — den samme lista tabellen og
+    CSV-en bygges av — og da KAN de ikke bli uenige."""
+    serie = _uker(0.1, None, 0.3, None, None, brakk=(3,))
+    g = nettsted.lusegraf(serie)
+    assert g["uker"] == len(serie)
+    assert g["uten_tall"] == sum(1 for u in serie if u["voksne_hunnlus"] == "")
+
+
+def test_grafen_rendres_med_baand_under_serien():
+    """SVG har ingen z-indeks. Rekkefølgen i markupen ER lagdelingen."""
+    html = _side(lus_serie=_uker(0.1, 0.2, None, 0.3, 0.4, brakk=(2,)))
+    assert html.index('class="brakk"') < html.index('class="akse"') < html.index('class="serie"')
+    # To segmenter, ett på hver side av hullet.
+    assert html.count("<polyline") == 2
+
+
+def test_siden_uten_lusetall_far_ingen_graf():
+    html = _side(lus_serie=[], lus=[], lus_uker=0, lus_fra="", lus_til="",
+                 lusetall_snapshots=764)
+    assert "lusegraf" not in html

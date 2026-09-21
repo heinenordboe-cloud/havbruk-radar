@@ -190,6 +190,11 @@ PAR = [
     ("--kart-gitter", "--farge-bunn", AA_GRAFIKK, "gradnettets linjer", 1.0),
     ("--farge-tekst-svak", "--farge-bunn", AA_TEKST, "gradnettets etiketter", 1.0),
 
+    # Lusegrafen, på samme papirgrunn som kartet. Linja er DATA og
+    # måles mot 3:1 (WCAG 1.4.11), ikke mot tekstterskelen.
+    ("--graf-linje", "--farge-bunn", AA_GRAFIKK, "lusekurven", 1.0),
+    ("--graf-linje", "--graf-brakk", AA_GRAFIKK, "lusekurven over et brakkbånd", 1.0),
+
     # HERO-BÅNDET (avsnitt 2c). Den eneste mettede flaten på nettstedet,
     # og den eneste der teksten IKKE står på papir. Fire par, fordi
     # båndet har fire slags tekst: overskrift, ingress, etikett, lenke.

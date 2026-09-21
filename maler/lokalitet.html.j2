@@ -147,6 +147,85 @@
   data.
 </p>
 
+{# ------------------------------------------------------- lusegrafen #}
+{# Samme liste som tabellen og CSV-en, tegnet. Ingen ny verdi, ingen
+   utjevning, ingen interpolasjon over hullene.
+
+   RENDRES IKKE når `lusegraf` er None — en akse uten en eneste verdi
+   er en ramme som later som om den har et innhold. Tabellen under sier
+   allerede fra i klartekst.
+
+   Uten stilark: linja faller til svart uten fyll, båndene blir svarte
+   flater og aksene forsvinner. Det er fortsatt en kurve. #}
+{% if lok.lusegraf %}
+{% set g = lok.lusegraf %}
+<figure class="graf">
+<svg class="lusegraf" viewBox="0 0 {{ g.bredde }} {{ g.hoyde }}"
+     width="{{ g.bredde }}" height="{{ g.hoyde }}"
+     role="img" aria-labelledby="lusegraf-tittel lusegraf-beskrivelse">
+  <title id="lusegraf-tittel">Voksne hunnlus per fisk, {{ g.uker }} uker</title>
+  <desc id="lusegraf-beskrivelse">Kurve over {{ g.uker }} uker fra
+    <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time> til
+    <time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>. Høyeste
+    målte verdi er {{ g.maks }} voksne hunnlus per fisk.
+    {{ g.uker_med_tall }} uker har tall; i {{ g.uten_tall }} uker oppgir
+    kilden ingenting, og linja er brutt der. Loddrette bånd er uker
+    lokaliteten er brakklagt. Alle tallene står i tabellen under.</desc>
+
+  {# Brakkleggingsbåndene FØRST: de er bakgrunn, ikke data. #}
+  <g class="brakk" aria-hidden="true">
+    {% for b in g.baand %}
+    <rect x="{{ b.x }}" y="{{ g.plott_y }}"
+          width="{{ b.bredde }}" height="{{ g.plott_hoyde }}"/>
+    {% endfor %}
+  </g>
+
+  <g class="akse" aria-hidden="true">
+    {% for l in g.linjer %}
+    <line x1="{{ g.plott_x }}" y1="{{ l.y }}"
+          x2="{{ g.plott_x + g.plott_bredde }}" y2="{{ l.y }}"/>
+    <text x="{{ g.plott_x - 8 }}" y="{{ l.y + 4 }}"
+          text-anchor="end">{{ l.etikett }}</text>
+    {% endfor %}
+    {% for a in g.aar %}
+    <text x="{{ a.x }}" y="{{ g.hoyde - 8 }}"
+          text-anchor="middle">{{ a.etikett }}</text>
+    {% endfor %}
+  </g>
+
+  <g class="serie">
+    {% for punkter in g.segmenter %}
+    <polyline points="{{ punkter }}"/>
+    {% endfor %}
+    {# Enslige uker mellom to hull. En polyline med ett punkt tegner
+       ingenting, og en målt verdi skal ikke forsvinne. #}
+    {% for p in g.alene %}
+    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="1.6"/>
+    {% endfor %}
+  </g>
+</svg>
+<figcaption>
+  Voksne hunnlus per fisk, {{ g.uker }} uker. Høyeste målte verdi
+  {{ g.maks }}.
+  {% if g.uten_tall %}
+  Linja er brutt i {{ g.uten_tall }} uker der kilden ikke oppgir noe
+  tall — brudd betyr <strong>ikke</strong> null.
+  {% if g.hull_forklart %}
+  {{ g.hull_forklart }} av dem er uker lokaliteten var brakklagt (de
+  skyggelagte båndene).
+  {% endif %}
+  {% if g.hull_uforklart %}
+  {{ g.hull_uforklart }} uker mangler tall uten at noe vi har forklarer
+  det.
+  {% endif %}
+  {% else %}
+  Alle {{ g.uker }} ukene har tall.
+  {% endif %}
+  Tallene står i tabellen under.
+</figcaption>
+</figure>
+{% endif %}
+
 {# ------------------------------------------------------- lusetallene #}
 <div class="tabellramme" role="region"
      aria-labelledby="lusetall-uke-tittel" tabindex="0">

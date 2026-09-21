@@ -215,6 +215,18 @@
      papiret. */
   --kart-gitter:      #7d7668;
 
+  /* GRAFEN. Linja er ÉN serie, og da er identitetsfarge feil verktøy —
+     det er ingen andre å skille den fra. Havet er riktig av en annen
+     grunn: det er nettstedets egen farge, og en kurve tegnet i den
+     sier at dette er vårt tall og ikke et trafikklys.
+
+     Men `--hav` DUGER IKKE i mørk modus: der er havet lysnet for å
+     være en flate (se mørkblokka), og 1,34:1 mot papiret er en linje
+     ingen ser. Grafen har derfor sin egen verdi i begge moduser, som
+     gradnettet har. */
+  --graf-linje:       #0b2e38;
+  --graf-brakk:       #ddd0c1;   /* brakkleggingsbånd, 1,13:1 mot papir */
+
   /* MÅLEBÅNDET. 29em var målt mot systemsansen. Brødteksten er
      fortsatt sans, så tallet står — men overskriftene er serif nå, og
      en serif tåler og vil ha litt lengre linje. Se `--maal-tittel`. */
@@ -293,6 +305,8 @@
 
     --farge-kart-punkt: #a8bcbd;
     --kart-gitter:      #7c898b;   /* 4,88:1 mot mørkt papir */
+    --graf-linje:       #9ec6d4;
+    --graf-brakk:       #1e2a2f;
   }
 }
 
@@ -1067,6 +1081,72 @@ td[data-felt="farge_mangler"]::before {
      navn og tall kan bære utover plassering, og prisen er at et
      enslig punkt i Finnmark er grått og ikke svart. */
   fill-opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------- *
+ * 6b. LUSEGRAFEN
+ *
+ * Én serie, 764 uker, ingen interaksjon. Reglene som gjelder er de
+ * samme som for kartet, og den viktigste er den samme som i tabellen:
+ * et hull er ikke null.
+ *
+ * ## Lagdelingen er rekkefølgen i markupen
+ *
+ * Bånd, så akser, så serien. SVG har ingen z-indeks, og en linje som
+ * ble tegnet før gradnettet ville ligget under det.
+ * ---------------------------------------------------------------- */
+
+.graf {
+  margin: 0 0 var(--ds-size-8);
+}
+
+.lusegraf {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+
+  /* Samme grunn som kartet: en figur på arket trenger en egen grunn
+     for å leses som en figur. */
+  background: var(--farge-bunn);
+  border: var(--ds-border-width-default) solid var(--farge-kant-svak);
+}
+
+.lusegraf .brakk rect { fill: var(--graf-brakk); }
+
+.lusegraf .akse line {
+  stroke: var(--kart-gitter);
+  stroke-width: 0.5;
+}
+
+.lusegraf .akse text {
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--farge-tekst-svak);
+}
+
+.lusegraf .serie polyline {
+  fill: none;
+  stroke: var(--graf-linje);
+
+  /* 1,4 og ikke 2: 764 uker på 840px er 1,1px per uke, og en strek på
+     2px ville gjort hver enkelt ukes utslag bredere enn uka selv.
+     Runde hjørner, fordi en tagget kurve med spisse ledd leses som
+     støy i seg selv. */
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lusegraf .serie circle { fill: var(--graf-linje); }
+
+figcaption {
+  margin-block-start: var(--ds-size-2);
+  max-width: var(--maal-tekst);
+  font-size: var(--ds-font-size-2);
+  line-height: var(--ds-line-height-md);
+  color: var(--farge-tekst-svak);
 }
 
 /* ---------------------------------------------------------------- *

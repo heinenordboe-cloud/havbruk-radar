@@ -82,6 +82,7 @@ import csv
 import datetime as dt
 import io
 import json
+import math
 import sys
 import time
 from collections import defaultdict
@@ -986,6 +987,175 @@ def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
     return sorted(rader, key=lambda r: r["nr"])
 
 
+# --------------------------------------------------------- lusegrafen
+#
+# ## Hvorfor en graf når tallene allerede står der
+#
+# Lokalitetssiden har 764 uker lusetall. Tabellen viser de siste 26 av
+# dem, og hele serien ligger i CSV-en ved siden av. Det er riktig for
+# den som vil ETTERPRØVE et tall, og ubrukelig for den som vil se om
+# lusa har økt siden 2012 — 764 rader er ikke en form et menneske kan
+# lese en kurve ut av.
+#
+# Grafen legger ikke til én verdi. Den er den samme lista, tegnet.
+#
+# ## Hullene er ikke null, og de tegnes ikke som null
+#
+# 207 av 764 uker på OTERNESET har ingen verdi. En kurve som gikk
+# gjennom dem i null ville påstått at det ble talt null lus, og det er
+# den ene feilen denne grafen ikke får gjøre — hele tabellen under står
+# og roper at «–» betyr at kilden ikke oppgir noe tall.
+#
+# Linja BRYTES derfor ved hvert hull. Segmentene er egne `<polyline>`
+# og ikke én path med hopp i: et hopp i en path er en usynlig strek som
+# noen CSS-regel kan komme til å fylle.
+#
+# ## Brakklegging forklarer hullene — men ikke alle
+#
+# MÅLT på OTERNESET: alle 167 brakklagte uker mangler tall, og 40 uker
+# mangler tall UTEN å være brakklagt. Båndene forklarer altså 167 av
+# 207 hull, og de siste 40 er ikke forklart av noe vi har. Tallene
+# regnes per lokalitet og står i bildeteksten, framfor at grafen lar
+# båndene se ut som om de dekker alt.
+#
+# ## Ingen JavaScript, altså ingen tooltip
+#
+# En SVG-graf på nettet får normalt et fadekors og en tooltip. Denne
+# får det ikke, og det er samme valg som resten av nettstedet: tallene
+# skal stå i kildekoden. Det leseren mister — verdien for en bestemt
+# uke — står i tabellen under og i CSV-en, som er en bedre kilde enn en
+# tooltip uansett: den kan siteres.
+
+GRAF_BREDDE = 900
+GRAF_HOYDE = 220
+GRAF_MARG = {"v": 48, "h": 12, "o": 14, "u": 28}   # venstre/høyre/over/under
+
+# Trinnene en y-akse får lov å bruke. Et «pent» tall er ikke en estetisk
+# sak: 0,4 og 0,8 leses som fjerdedeler, 0,37 leses ikke som noe.
+GRAF_TRINN = (0.05, 0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0)
+
+
+def _grafskala(maks: float) -> tuple[float, float]:
+    """(tak, trinn) for y-aksen. 3-5 linjer, alltid med 0 og taket."""
+    if maks <= 0:
+        return 1.0, 0.5
+    for trinn in GRAF_TRINN:
+        if maks / trinn <= 4:
+            return math.ceil(maks / trinn) * trinn, trinn
+    return maks, maks / 4
+
+
+def lusegraf(serie: list[dict]) -> dict | None:
+    """Geometrien til lusegrafen, eller None når det ikke er noe å tegne.
+
+    None og ikke en tom graf: en akse uten en eneste verdi er en ramme
+    som later som om den har et innhold. Malen viser da ingenting, og
+    tabellen sier fra i klartekst — den sier det allerede.
+    """
+    if not serie:
+        return None
+    verdier: list[float | None] = []
+    for u in serie:
+        rå = (u.get("voksne_hunnlus") or "").strip()
+        try:
+            verdier.append(float(rå))
+        except ValueError:
+            verdier.append(None)
+    if not any(v is not None for v in verdier):
+        return None
+
+    maks = max(v for v in verdier if v is not None)
+    tak, trinn = _grafskala(maks)
+    n = len(serie)
+    v, h, o, u_ = (GRAF_MARG["v"], GRAF_MARG["h"],
+                   GRAF_MARG["o"], GRAF_MARG["u"])
+    plott_b = GRAF_BREDDE - v - h
+    plott_h = GRAF_HOYDE - o - u_
+
+    def x(i: int) -> float:
+        return round(v + (plott_b * i / (n - 1) if n > 1 else plott_b / 2), 1)
+
+    def y(verdi: float) -> float:
+        return round(o + plott_h * (1 - verdi / tak), 1)
+
+    # Segmentene. Et nytt segment begynner etter hvert hull.
+    segmenter, naa = [], []
+    for i, verdi in enumerate(verdier):
+        if verdi is None:
+            if len(naa) > 1:
+                segmenter.append(" ".join(naa))
+            naa = []
+        else:
+            naa.append(f"{x(i)},{y(verdi)}")
+    if len(naa) > 1:
+        segmenter.append(" ".join(naa))
+
+    # ENSLIGE punkter. En uke med tall mellom to hull blir et segment på
+    # ett punkt, og en `<polyline>` med ett punkt tegner ingenting. Uten
+    # dette forsvinner en målt verdi fra grafen i stillhet.
+    alene = [{"x": x(i), "y": y(verdier[i])}
+             for i in range(n) if verdier[i] is not None
+             and (i == 0 or verdier[i - 1] is None)
+             and (i == n - 1 or verdier[i + 1] is None)]
+
+    # Brakkleggingsbåndene, slått sammen til sammenhengende strekk.
+    baand, start = [], None
+    for i, rad in enumerate(serie + [{}]):
+        er_brakk = str(rad.get("brakklagt")) == "True"
+        if er_brakk and start is None:
+            start = i
+        elif not er_brakk and start is not None:
+            baand.append({"x": x(start) if start else v,
+                          "bredde": round(max(x(i - 1) - x(start), 1.5), 1)})
+            start = None
+
+    linjer = []
+    steg = trinn
+    verdi = 0.0
+    while verdi <= tak + 1e-9:
+        linjer.append({"y": y(verdi), "verdi": verdi,
+                       "etikett": f"{verdi:.2f}".rstrip("0").rstrip(".")
+                                  .replace(".", ",") or "0"})
+        verdi += steg
+
+    # Årstallene. Ett merke per årsskifte, og bare annethvert når serien
+    # er lang nok til at de ellers ville stått oppå hverandre.
+    aar = []
+    for i, rad in enumerate(serie):
+        if i and rad.get("iso_aar") != serie[i - 1].get("iso_aar"):
+            aar.append({"x": x(i), "etikett": rad.get("iso_aar", "")})
+    if len(aar) > 8:
+        aar = aar[1::2]
+
+    uten_tall = sum(1 for v in verdier if v is None)
+    brakk = sum(1 for rad in serie if str(rad.get("brakklagt")) == "True")
+    brakk_uten_tall = sum(1 for rad, v in zip(serie, verdier)
+                          if v is None and str(rad.get("brakklagt")) == "True")
+    return {
+        "bredde": GRAF_BREDDE, "hoyde": GRAF_HOYDE,
+        "plott_x": v, "plott_y": o,
+        "plott_bredde": plott_b, "plott_hoyde": plott_h,
+        "bunn": round(o + plott_h, 1),
+        "segmenter": segmenter,
+        "alene": alene,
+        "baand": baand,
+        "linjer": linjer,
+        "aar": aar,
+        "tak": tak,
+        # Formateres HER og ikke i malen. `1.54` med punktum er engelsk,
+        # og `visningsord.tall()` er det ene stedet nettstedet bestemmer
+        # hvordan et tall ser ut på norsk. En graf som skrev det selv
+        # ville vært et andre sted.
+        "maks": visningsord.tall(maks),
+        "uker": n,
+        "uker_med_tall": n - uten_tall,
+        "uten_tall": uten_tall,
+        "brakklagt": brakk,
+        "hull_forklart": brakk_uten_tall,
+        "hull_uforklart": uten_tall - brakk_uten_tall,
+    }
+
+
 def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     """Alle dataene én lokalitetsside trenger. Ingen HTML her.
 
@@ -1093,6 +1263,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # slutten av den. At de to kommer fra SAMME liste er det som
         # gjør at de ikke kan bli uenige.
         "lus_serie": serie,
+        "lusegraf": lusegraf(serie),
         "csv_filnavn": CSV_FILNAVN,
         "endringer": endringer,
         "maaleserie_rader": maaleserie_rader,
@@ -2008,8 +2179,6 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
     docs/REGEL-UENIGE-KILDER.md, som er den samme regelen i et annet
     format.
     """
-    import math
-
     med, uten = [], []
     for loknr, a in akva.items():
         bredde = (a.get("breddegrad") or "").strip()
