@@ -253,6 +253,24 @@ a:hover {
 
 @media (min-width: 62rem) {
   .tabellramme { overflow-x: visible; }
+
+  /* FIT-CONTENT PÅ BRED SKJERM, og det er rettingen 20.09.2026.
+     `width: 100%` strakk fargetabellen over hele arket — 1 152px for
+     fire kolonner som trenger 666 — og hele slakken havnet i siste
+     kolonne. Ved siden av sto noten bundet av 29em-målebåndet. Hver
+     regel var riktig for seg, og sammen ga de en tabell som pekte mot
+     høyre kant og en note som stoppet på midten.
+
+     `max-content` + `max-width: 100%` ER `fit-content`: tabellen blir
+     så bred som innholdet trenger, og ikke bredere, men kappes av arket
+     når innholdet er større. Brede tabeller — lusetall med ni kolonner,
+     lokalitetslista med 1 782 rader — fyller arket som før. Smale
+     slutter der de slutter.
+
+     Grensa er den SAMME 62rem som styrer scrollramma og det klebrige
+     hodet. Tre regler på én grense er én ting å huske; tre grenser er
+     tre steder å bomme. */
+  table { width: max-content; max-width: 100%; }
 }
 
 table {
@@ -262,6 +280,10 @@ table {
      `border-block-end` på cellen selv. */
   border-collapse: separate;
   border-spacing: 0;
+
+  /* 100 % PÅ SMAL SKJERM. Tabellen kan ikke bli smalere enn sitt eget
+     minsteinnhold, så en tabell som trenger mer enn skjermen er bred
+     vokser forbi 100 % og scroller i ramma. Det er målt og virker. */
   width: 100%;
   font-size: var(--ds-font-size-3);
   line-height: var(--ds-line-height-md);
@@ -382,6 +404,25 @@ thead th.tall { text-align: right; }
    scroller — som er hele poenget med ramma. */
 tbody td, tbody th { overflow-wrap: break-word; }
 
+/* Definisjonsliste: termen og forklaringen, der en punktliste ville
+   gjort de tre gradene til likeverdige alternativer. De er ordinale. */
+.grader {
+  max-width: var(--maal-tekst);
+  margin: 0 0 var(--ds-size-5);
+}
+
+.grader dt {
+  font-weight: var(--ds-font-weight-semibold);
+  margin-block-start: var(--ds-size-3);
+}
+
+.grader dd {
+  margin: 0;
+  padding-inline-start: var(--ds-size-4);
+  border-inline-start: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  color: var(--farge-tekst-svak);
+}
+
 /* ---------------------------------------------------------------- *
  * 4. DER KILDEN IKKE SIER NOE
  *
@@ -397,19 +438,12 @@ td[data-felt="registerdata_mangler"] {
   line-height: var(--ds-line-height-md);
 }
 
-/* «forskriften oppgir ikke farge for dette området i denne runden» er
-   62 tegn i en kolonne som ellers inneholder «gul». Uten tak setter
-   den bredden på hele kolonnen — MÅLT i nettleser: Fargekolonnen ble
-   ~470px og skjøv «Lesemåte» og «Hva lesemåten betyr» helt ut til
-   høyre, med et tomrom i mellom. Taket lar den brekke over to linjer
-   der den står, og lar kolonnen holde bredden til ordet den ellers
-   inneholder.
-
-   GULVET er der av motsatt grunn: uten det klemmer den samme cellen
-   seg ned til bredden av ordet «gul» når tabellen scroller på telefon,
-   og de 62 tegnene brekker over sju korte rader. En celle som skal se
-   BEVISST tom ut, skal ikke se ut som en feil. */
-td[data-felt="farge_mangler"] { max-width: 17em; min-width: 11em; }
+/* Ingen bredderegler på fargecellene. Fram til 20.09.2026 sto det et
+   `min-width: 11em` og et `max-width: 17em` her, og begge var der for å
+   holde oppe ÉN celle med 62 tegn i seg. Da teksten ble kortet til
+   «ikke oppgitt» — se `FARGE_MANGLER` i nettsted.py — falt behovet bort
+   av seg selv. En CSS-regel som finnes for å kompensere for et
+   innholdsvalg, er et innholdsvalg som burde vært gjort om. */
 
 /* FELT-VERDI-TABELLER er to kolonner, og to kolonner strukket over
    hele arket er en tabell med en tom halvdel. Ankrene er markup-

@@ -1116,7 +1116,12 @@ def test_celle_uten_farge_SIER_det():
     ville latt leseren gjette at området ikke var med i ordningen."""
     html = _po()
     assert nettsted.FARGE_MANGLER in html
-    assert "forskriften oppgir ikke farge" in html
+    # KORT celle, samme form som «rød»/«gul»/«grønn». Setningen som
+    # forklarer hva fraværet betyr står i noten under tabellen — den
+    # gjelder alle radene, og hadde den stått i hver celle ville én
+    # celle satt bredden på hele kolonnen. MÅLT: den gjorde det.
+    assert nettsted.FARGE_MANGLER == "ikke oppgitt"
+    assert len(nettsted.FARGE_MANGLER) < 20, "cellen setter kolonnebredden"
 
 
 def test_manglende_farge_merkes_med_ET_ANNET_FELT_enn_farge():

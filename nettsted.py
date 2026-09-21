@@ -769,7 +769,19 @@ LESEMAATE = {
 # Teksten når forskriften ikke oppgir farge for et område i en runde.
 # Ikke tom celle — samme regel som `EIER_UKJENT`, og av samme grunn:
 # fravær er et svar, og en tom celle lar leseren gjette.
-FARGE_MANGLER = "forskriften oppgir ikke farge for dette området i denne runden"
+#
+# KORT, og i samme form som «rød», «gul», «grønn». Fram til 20.09.2026
+# sto hele setningen «forskriften oppgir ikke farge for dette området i
+# denne runden» i cellen, og den satte bredden på hele kolonnen: 62 tegn
+# der de fem andre cellene har tre til fem. MÅLT i nettleser ble
+# Fargekolonnen 11em bred og 2018-raden dobbelt så høy som de andre,
+# og CSS-en måtte holdes oppe av et `min-width`-gulv og et
+# `max-width`-tak for å se halvveis ut.
+#
+# En lang forklaringstekst bestemmer layouten rundt seg. Setningen står
+# nå i noten under tabellen, der den forklarer alle radene én gang
+# framfor å stå i hver celle den gjelder.
+FARGE_MANGLER = "ikke oppgitt"
 FARGE_MANGLER_FELT = "farge_mangler"
 
 # EN PRESENTASJONSKROK, og bare det. CSS kan ikke velge på celletekst,
