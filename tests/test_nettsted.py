@@ -1682,3 +1682,37 @@ def test_robots_aapner_alt_og_lar_vaere_aa_finne_paa_et_domene(tmp_path,
     monkeypatch.setenv("HAVBRUK_BASEURL", "https://eksempel.no")
     tekst = nettsted.skriv_robots(tmp_path).read_text("utf-8")
     assert "Sitemap: https://eksempel.no/sitemap.xml" in tekst
+
+
+# ---- fonten -----------------------------------------------------------
+#
+# Stilarket viser til `/newsreader.woff2`. Kommer fila ikke ut, er
+# `@font-face` en død lenke og overskriftene faller til Georgia — en
+# feil som ikke gir noen feilmelding og som ingen ser før de ser på
+# siden. Prøvene under er de tre måtene den kan oppstå på.
+
+def test_fonten_og_lisensen_kopieres_ut(tmp_path):
+    skrevet = nettsted.skriv_fonter(tmp_path)
+    navn = {s.name for s in skrevet}
+    assert navn == {"newsreader.woff2", "newsreader-OFL.txt"}
+    assert (tmp_path / "newsreader.woff2").stat().st_size > 10_000
+    # OFL 1.1 krever at lisensteksten følger fonten. Den skal være
+    # lisensen, ikke en lenke til den.
+    lisens = (tmp_path / "newsreader-OFL.txt").read_text("utf-8")
+    assert "SIL OPEN FONT LICENSE Version 1.1" in lisens
+
+
+def test_manglende_font_stopper_byggingen(tmp_path, monkeypatch):
+    """Stille fallback er verre enn et kast. En side som rendrer i
+    reservefonten ser ut som et designvalg."""
+    monkeypatch.setattr(nettsted, "MALER", tmp_path / "tom")
+    with pytest.raises(FileNotFoundError):
+        nettsted.skriv_fonter(tmp_path / "ut")
+
+
+def test_stilarket_viser_til_en_fil_som_faktisk_sendes_ut():
+    """Driftvakten. Byttes fonten i `@font-face` uten at `FONTFILER`
+    følger med, peker CSS-en på noe som ikke finnes i rota."""
+    vist_til = set(re.findall(r'url\("([^"]+\.woff2)"\)', nettsted.stilark()))
+    assert vist_til, "@font-face uten url(...woff2) — er fonten fjernet?"
+    assert vist_til <= set(nettsted.FONTFILER)

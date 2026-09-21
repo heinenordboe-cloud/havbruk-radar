@@ -41,89 +41,278 @@
  */
 
 /* ---------------------------------------------------------------- *
- * 1. VÅRE NAVN PÅ DIGDIRS VERDIER
+ * 1. IDENTITETEN: HAV OG PAPIR
+ *
+ * Fargene er VÅRE. Digdirs palett lå her fram til 20.09.2026 og gjorde
+ * nettstedet grått og blått som en hvilken som helst etatsside; det
+ * som er igjen av `tokens.css` er skjelettet — typeskala, avstander,
+ * linjehøyder — og det er fortsatt hentet og fortsatt kreditert.
+ *
+ * ## To farger, og bare to
+ *
+ * HAVET er den eneste mettede flaten på hele nettstedet: hero-båndet
+ * og streken under topplinja. Alt annet er PAPIR og BLEKK.
+ *
+ * Havet er blågrønt, ikke marineblått. MÅLT: dE2000 15,1 fra
+ * ourworldindata.org sin Oxford-blå #002147. Norsk kystvann er grønt
+ * av planteplankton og partikler; en marineblå flate er Atlanterhavet
+ * sett fra et fly, ikke en fjord.
+ *
+ * ## Hvordan aksenten holdes fra trafikklyset
+ *
+ * Dette er den viktigste regelen i fila, og den har to ledd fordi ett
+ * ikke holder.
+ *
+ * 1. MÅLT AVSTAND. Aksenten er rustoransje, og avstanden til de tre
+ *    trafikklysfargene er dE2000 18,5 (rød), 48,5 (gul) og 58,0
+ *    (grønn). Til sammenligning: OWIDs egen gullaksent #f7c020 ligger
+ *    dE 6,0 fra trafikklysgulen vår. Den ble målt og forkastet — en
+ *    overskriftsfarge som er seks enheter fra «gul kategori» er en
+ *    overskriftsfarge som gjør fargen til pynt.
+ *
+ * 2. FORM. Aksenten opptrer BARE som skrift eller strek. Trafikklyset
+ *    opptrer BARE som fylt firkant. Ingenting på nettstedet er begge
+ *    deler. Det er leddet som overlever at noen bytter en heksverdi:
+ *    et tall kan endres, en regel om form må brytes med vilje.
+ *
+ * ## Lys er standard
+ *
+ * Papiret er hovedmodus, som hos FT. Mørk modus finnes og er målt,
+ * men den er en OVERSETTELSE av identiteten og ikke en likeverdig
+ * tvilling: havbåndet er allerede mørkt, så i mørk modus mister siden
+ * nettopp den kontrasten som bærer den.
+ *
+ * ## Papiret er valgt på VERDI, ikke på tone (21.09.2026)
+ *
+ * Første utkast var #f7f1e4. Det ble forkastet, og begrunnelsen er
+ * verdt å ha fordi den gjelder neste gang noen velger en flate.
+ *
+ * Den varme off-whiten generert design defaulter til, ligger på hue
+ * 86–95 grader i Lab — gul — og på L*95–97. Målt mot seks vanlige
+ * (Tailwind stone, Notion, Solarized, Muji, m.fl.): #f7f1e4 ligger på
+ * hue 92, L*95,3. Midt i klyngen. FTs #fff1e5, som var REFERANSEN, har
+ * hue 70 og er en annen ting: rosa, ikke gul.
+ *
+ * Utkastet forsvarte seg med at alt varmt og lyst ligger der, og at
+ * særpreget måtte bæres av havbåndet, serifen og merket. Det første er
+ * sant så lenge du bare skrur på TONEN. Det slutter å være sant når du
+ * skrur på VERDIEN: cremefamilien er definert like mye av å være
+ * nesten hvit som av å være varm, og L* er aksen ingen defaulter på.
+ *
+ * #e7dbd0 er L*88,1, hue 72. dE 4,9 til nærmeste i klyngen.
+ *
+ * Men avstanden fra en klynge er ikke grunnen — den er en bivirkning.
+ * GRUNNEN ER LAGDELINGEN: med #f7f1e4 lå bunnen 1,11:1 fra arket, og
+ * de hvite tabellarkene var praktisk talt usynlige mot flata de lå på.
+ * Lagdelingen designet forutsetter, fantes ikke på skjermen. Nå er
+ * forholdet 1,34:1, og arkene løftes av bunnen slik de alltid var ment
+ * å gjøre. Det er en målbar jobb, ikke en stemning — og det er den
+ * eneste typen begrunnelse som overlever neste designrunde.
  * ---------------------------------------------------------------- */
 
+@font-face {
+  /* Newsreader, SIL Open Font License 1.1. OFL krever at lisensteksten
+     distribueres MED fonten, og det er et krav om filer og ikke om en
+     kommentar: `nettsted.skriv_fonter()` kopierer både `newsreader.woff2`
+     og `newsreader-OFL.txt` til nettstedets rot, og en publisert side
+     har dem begge på /newsreader.woff2 og /newsreader-OFL.txt.
+     Kildekopien ligger i `maler/` ved siden av denne fila.
+
+     HOSTET SELV, aldri hentet fra Google. Hentet én gang fra
+     google/fonts, opsz pinnet til 28 (visningsstørrelse), wght beholdt
+     som akse 400–700, subsatt til latin + norsk. 451 kB TTF ble 35,5 kB
+     woff2. Kommandoene, sjekksummene og innholdet i navnetabellen står
+     i docs/design/NEWSREADER.md — og der står også MÅLINGEN som viser
+     at opsz er 28, fordi fila selv kaller seg «Newsreader 16pt» og den
+     etiketten er en levning, ikke en opplysning.
+
+     `font-display: swap` og ikke `block`: kommer fonten aldri fram, skal
+     overskriften stå der i reservefonten framfor å være usynlig. Samme
+     regel som at siden skal virke uten stilark. */
+  font-family: Newsreader;
+  src: url("newsreader.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --farge-bunn:          var(--ds-color-neutral-background-tinted);
-  --farge-ark:           var(--ds-color-neutral-surface-default);
-  --farge-stripe:        var(--ds-color-neutral-background-tinted);
-  --farge-hode:          var(--ds-color-neutral-surface-tinted);
-  --farge-kant-svak:     var(--ds-color-neutral-border-subtle);
-  --farge-kant:          var(--ds-color-neutral-border-default);
-  --farge-kant-sterk:    var(--ds-color-neutral-border-strong);
-  --farge-tekst:         var(--ds-color-neutral-text-default);
-  --farge-tekst-svak:    var(--ds-color-neutral-text-subtle);
-  --farge-lenke:         var(--ds-color-accent-text-subtle);
-  --farge-lenke-aktiv:   var(--ds-color-accent-base-hover);
-  --farge-lenke-besokt:  var(--ds-link-color-visited);
-  --farge-merke:         var(--ds-color-accent-border-subtle);
-  --farge-fokus:         var(--ds-color-focus-outer);
-  --farge-fokus-indre:   var(--ds-color-focus-inner);
+  color-scheme: light dark;
 
-  /* MÅLEBÅNDET FOR BRØDTEKST. 29em, ikke et rundt tall og ikke gjettet.
-     Målt 20.09.2026 på de 4 519 tegnene brødtekst som faktisk står på
-     /om/, mot glyffbreddene i fontene siden faktisk faller tilbake på:
+  /* ---- havet: den eneste mettede flaten ---- */
+  --hav:            #0b2e38;
+  --hav-dis:        #12414f;   /* kartet inne i båndet */
+  --hav-tekst:      #dfe7e6;   /* brødtekst på havbåndet */
+  --hav-dempet:     #a8bcbd;   /* dempet tekst på havbåndet */
 
-         SF Pro (system-ui på macOS)  0,4086 em/tegn  ->  71 tegn
-         Helvetica                    0,4404 em/tegn  ->  66 tegn
+  /* ---- papir og blekk ----
+     PAPIRET HAR VERDI, IKKE BARE TONE. Se avsnittet over. Familien er
+     avledet på papirets egen hue (70 grader i Lab), ikke plukket:
 
-     Et førsteutkast sto på 35em fordi «et tegn er omtrent en halv em».
-     Det er 80–86 tegn, altså utenfor hele det båndet regelen gjelder.
-     Tallet er målt av samme grunn som `maks_nullstrekk = 13` er det. */
-  --maal-tekst: 29em;
-  --maal-side: 76rem;
+         ark        L*98,0  C*1,2   arket en tabell ligger på
+         stripe     L*95,5  C*4,5   annenhver rad
+         hode       L*92,5  C*6,0   tabellhodet
+         papir      L*88,1  C*7,2   bunnen alt ligger på
+         kant-svak  L*78,0  C*8,5   radskille og ytterkant
 
-  /* TRAFIKKLYSET. VÅRE farger, ikke Digdirs — og det er hele poenget.
-     Se avsnitt 5. */
+     Forholdene som bærer lagdelingen, målt:
+
+         papir/ark      1,34:1   (var 1,11:1 — arkene var usynlige)
+         hode/ark       1,19:1   (uendret: hodet skal være hodet)
+         kant-svak/papir 1,32:1  (uendret: kanten står like tydelig
+                                  mot bunnen som før, på ny bunn) */
+  --papir:          #e7dbd0;
+  --ark:            #fffdf8;
+  --stripe:         #f9f1ea;
+  --hode:           #f2e8df;
+  --blekk:          #17262b;
+  --blekk-dempet:   #546469;
+  --kant-svak:      #cdbfb2;
+  --kant:           #8c8576;
+  --kant-sterk:     #17262b;   /* FT-streken over en bolk */
+
+  /* ---- aksenten: skrift og strek, aldri flate ----
+     EN MØRKERE BUNN DRAR ALT SOM STÅR PÅ DEN MED SEG. Da papiret gikk
+     fra L*95,3 til L*88,1, falt tre par under AA mot den nye flata, og
+     `test_kontrast` felte dem. Verdiene er senket til den minste
+     endringen som passerer, ikke plukket på nytt:
+
+         aksent        #b84a12 -> #aa3e04   bunntekstlenke 3,84 -> 4,54
+         blekk-dempet  #5b6b70 -> #546469   bunntekst      4,08 -> 4,54
+         kant          #9a9384 -> #8c8576   ring i hodet   2,52 -> 3,03
+
+     De to siste er små (dE 4,9 på kanten). Den første er synlig: rusten
+     blir et hakk mer brent. Avstanden til trafikklyset holder — dE 18,5
+     til rød, 48,5 til gul, 58,0 til grønn — og formregelen under
+     bærer resten.
+
+     Merk at `kant` var UNDER 3:1 på tonet rad (2,83) og i tabellhodet
+     (2,52) også med det gamle papiret. Det ble ikke oppdaget fordi
+     kontrastprøven leste feil halvdel av fila; se `_blokker` i
+     tests/test_kontrast.py. Papiret avdekket feilen, det laget den
+     ikke. */
+  --aksent:         #aa3e04;
+  --aksent-moerk:   #8f390d;
+  --aksent-lys:     #e8823f;   /* samme rolle, på havbåndet */
+  --besokt:         #6b4a8c;
+
+  --fokus:          #17262b;
+  --fokus-indre:    #fffdf8;
+
+  /* ---- trafikklyset: DATA, aldri pynt ---- */
   --lys-rod:   #9b1b30;
   --lys-gul:   #f7d117;
   --lys-gronn: #0e9b60;
-  --farge-kart-punkt: var(--ds-color-neutral-text-default);
+
+  --farge-kart-punkt: #17262b;
+
+  /* MÅLEBÅNDET. 29em var målt mot systemsansen. Brødteksten er
+     fortsatt sans, så tallet står — men overskriftene er serif nå, og
+     en serif tåler og vil ha litt lengre linje. Se `--maal-tittel`. */
+  --maal-tekst: 29em;
+  --maal-tittel: 22em;
+  --maal-side: 84rem;
+}
+
+/* De gamle navnene peker hit. STÅR FØR `@media`, og det er ikke
+   kosmetikk: `tests/test_kontrast.py` leser paletten ut av denne fila
+   og deler den på mediespørringen. Ligger aliasene etter, faller de
+   utenfor lys-halvdelen og prøven måler ingenting. Prøven er rettet
+   (den teller klammer nå), men rekkefølgen her er den som gjør at
+   lesningen er opplagt framfor å være riktig ved et uhell.
+
+   Malene og reglene under bruker begge sett om hverandre etter tre
+   runder, og ett oppslag her er billigere enn en omdøping i 600 linjer
+   CSS som ingen kan se effekten av. */
+:root {
+  --farge-bunn:         var(--papir);
+  --farge-ark:          var(--ark);
+  --farge-stripe:       var(--stripe);
+  --farge-hode:         var(--hode);
+  --farge-kant-svak:    var(--kant-svak);
+  --farge-kant:         var(--kant);
+  --farge-kant-sterk:   var(--kant-sterk);
+  --farge-tekst:        var(--blekk);
+  --farge-tekst-svak:   var(--blekk-dempet);
+  --farge-lenke:        var(--aksent);
+  --farge-lenke-aktiv:  var(--aksent-moerk);
+  --farge-lenke-besokt: var(--besokt);
+  --farge-merke:        var(--hav);
+  --farge-fokus:        var(--fokus);
+  --farge-fokus-indre:  var(--fokus-indre);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Trafikklyset må bytte; resten arver fra tokens.css. Fargene i
-       lys modus er valgt for å bli lest mot hvitt, og de samme
-       verdiene mot #202834 er tre mørke flekker.
+    --hav:            #061f27;
+    --hav-dis:        #0d323d;
+    --hav-tekst:      #dfe7e6;
+    --hav-dempet:     #9fb3b4;
 
-       VERDIENE ER VALGT PÅ LYSHET, ikke lysnet på slump. Første utkast
-       var #e8808c / #f7d117 / #49c48d, og `test_kontrast` felte det:
-       rød og grønn lå 1,21:1 fra hverandre i luminans, mot 2,27:1 i
-       lys modus. Tre ruter som er like lyse er tre ruter ingen kan
-       skille i gråtone. Disse ligger 1,76:1 og 1,86:1 fra hverandre,
-       og den mørkeste — rød — har 3,35:1 mot flata den står på. */
+    --papir:          #121a1d;
+    --ark:            #182327;
+    --stripe:         #141d21;
+    --hode:           #1f2c31;
+    --blekk:          #e9e4d8;
+    --blekk-dempet:   #a3aeaf;
+    --kant-svak:      #334246;
+    --kant:           #7d8a8c;
+    --kant-sterk:     #e9e4d8;
+
+    --aksent:         #f0955a;
+    --aksent-moerk:   #f5ae7d;
+    --aksent-lys:     #f0955a;
+    --besokt:         #c0a5db;
+
+    --fokus:          #e9e4d8;
+    --fokus-indre:    #121a1d;
+
     --lys-rod:   #d1465c;
     --lys-gul:   #ffdc3d;
     --lys-gronn: #3cb87f;
-    --farge-kart-punkt: var(--ds-color-neutral-text-subtle);
+
+    --farge-kart-punkt: #a8bcbd;
   }
 }
 
+
 /* ---------------------------------------------------------------- *
  * 2. GRUNNEN
+ *
+ * ## To skrifter, og hver har én jobb
+ *
+ * Newsreader bærer OVERSKRIFTER og ORDMERKET. Brødteksten er systemets
+ * egen sans, uten en eneste henting. Det er ikke en halvveis løsning:
+ *
+ *   - Målebåndet `--maal-tekst` (29em) er MÅLT mot glyffbreddene i
+ *     SF Pro og Helvetica på de 4 519 tegnene som står på /om/. Settes
+ *     brødteksten i serif, er tallet feil og må måles på nytt.
+ *   - En serif i 16px på skjerm er dårligere lesbar enn en sans i
+ *     16px, og denne siden er lange tabeller og korte avsnitt — ikke
+ *     en lang artikkel der serifen tjener leseren.
+ *   - Subsettet er pinnet til opsz 28, altså VISNINGSstørrelse — målt,
+ *     ikke antatt, se docs/design/NEWSREADER.md. Brødtekst i den ville
+ *     vært feil optisk størrelse.
+ *
+ * Kommer fonten aldri fram, faller overskriftene til Georgia og siden
+ * er hel. Se `font-display: swap` i avsnitt 1.
+ *
+ * ## Rotstørrelsen settes ikke
+ *
+ * 16px er leserens innstilling, og en side som overstyrer den
+ * overstyrer noen som har skrudd den opp. Hele skalaen er relativ.
  * ---------------------------------------------------------------- */
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html {
-  /* Rotstørrelsen settes IKKE. 16px er leserens innstilling, og en side
-     som overstyrer den overstyrer noen som har skrudd den opp. Skalaen
-     under er relativ til den. */
-  -webkit-text-size-adjust: 100%;
-}
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--farge-bunn);
-  color: var(--farge-tekst);
+  background: var(--papir);
+  color: var(--blekk);
 
-  /* Inter FØRST, uten å hentes. Har leseren fonten installert — og det
-     har mange som jobber mot norske etater — brukes den, og siden ser
-     ut som systemet den låner fra. Har hun den ikke, faller den til
-     systemfonten uten en eneste forespørsel. Se tokens.css. */
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto,
                "Helvetica Neue", Arial, sans-serif;
   font-size: var(--ds-font-size-4);
   line-height: var(--ds-line-height-lg);
@@ -136,11 +325,52 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* PAPIRET MÅ SYNES, ellers er valget av det bare et tall i en fil.
+   Arket (`.topp`, `main`, `footer`) er 84rem bredt og sentrert. På en
+   1280px-skjerm fyller det alt, og bunnen — som er valgt nettopp for
+   at arkene skal løftes av den, se avsnitt 1 — vises ikke i en eneste
+   piksel. Gutteret gjør at den alltid gjør det: 32px på en 1280-skjerm,
+   112px på en 1440.
+
+   Grensa er 48rem og ikke lavere, fordi arket SLUTTER å være et ark
+   under den (avsnitt 8): der er kanten fjernet med vilje, og et gutter
+   ville bare vært tapt bredde på en telefon. `48.01rem` og ikke
+   `48rem`: på nøyaktig 48rem ville begge reglene gjeldt, og siden
+   ville hatt gutter rundt et ark uten kant. */
+@media (min-width: 48.01rem) {
+  body { padding-inline: var(--ds-size-8); }
+}
+
+/* SERIFEN, ett sted. Hver flate som skal ha den, viser hit — og
+   `--skrift-tittel` er variabelen de viser til, slik at en utskiftning
+   av fonten er én linje og ikke et søk. */
+:root {
+  --skrift-tittel: Newsreader, ui-serif, Georgia, "Times New Roman", serif;
+}
+
 /* ---------------------------------------------------------------- *
  * 2b. TOPPLINJA OG BRØDSMULA
  *
- * Nøkternt. En etatsside med en fargeflate og et logomerke ville
- * påstått at noen står bak — bunnteksten sier at ingen gjør det.
+ * ## Setningen som sto her, er fjernet (21.09.2026)
+ *
+ * Den lød: «Nøkternt. En etatsside med en fargeflate og et logomerke
+ * ville påstått at noen står bak — bunnteksten sier at ingen gjør
+ * det.» Den var et argument mot både havbåndet og merket, og den ble
+ * stående mens avsnitt 1 argumenterte for begge. To regler i samme fil
+ * som peker hver sin vei, er ikke en nyanse; det er en fil ingen kan
+ * ta en beslutning ut av.
+ *
+ * Den er fjernet, og ikke bare dempet, fordi premisset er feil: en
+ * flate og et merke sier hvem som HAR LAGET nettstedet, ikke hvem som
+ * står bak DATAENE. De to er skilt et annet sted, og der er de sagt
+ * rett ut — bunnteksten navngir hver kilde og sier at verken
+ * Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch eller
+ * Mattilsynet går god for sammenstillingen. Det er en setning, ikke
+ * fraværet av en farge, og en setning kan ingen misforstå.
+ *
+ * Det opprinnelige hensynet er reelt, og det er ivaretatt av regelen
+ * som faktisk treffer det: ingenting her låner et offentlig våpen,
+ * emblem eller navn, og fargene er våre egne og ikke noen etats.
  * ---------------------------------------------------------------- */
 
 .topp {
@@ -156,15 +386,27 @@ body {
   border-inline: var(--ds-border-width-default) solid var(--farge-kant-svak);
 }
 
-.topp .merke {
+/* ORDMERKET. Ren tekst i Newsreader — en PLASSHOLDER, og den er det
+   med vilje. Logo og navn er ikke bestemt (21.09.2026); tre forslag
+   til grafisk form ligger i `docs/design/`. Markupen står ett sted,
+   `maler/merke.html.j2`, slik at et merke kan byttes inn uten at noen
+   må finne igjen `<a class="merke">` i sju maler.
+
+   Reglene under er derfor skrevet om `.merke` og ikke om `.topp
+   .merke`: flytter merket seg, eller får det en SVG ved siden av
+   teksten, følger stilen med. */
+.merke {
+  font-family: var(--skrift-tittel);
   font-weight: var(--ds-font-weight-semibold);
-  font-size: var(--ds-font-size-4);
+  font-size: var(--ds-font-size-5);
+  letter-spacing: var(--ds-letter-spacing-2);
   color: var(--farge-tekst);
   text-decoration: none;
-  margin-inline-end: auto;
 }
 
-.topp .merke:hover { text-decoration: underline; }
+.topp .merke { margin-inline-end: auto; }
+
+.merke:hover { text-decoration: underline; }
 
 .topp nav {
   display: flex;
@@ -214,11 +456,16 @@ main {
 
 /* --- typografi --- */
 
+/* OVERSKRIFTENE ER SERIF. Målebåndet er `--maal-tittel` (22em) og
+   ikke brødtekstens 29em: 29 er målt mot sans i 16px, og en
+   overskrift i 36px serif som får samme antall em blir en linje ingen
+   leser i ett blikk. 22em ved font-size-8 er ~50 tegn. */
 h1, h2, h3, h4 {
-  font-weight: var(--ds-font-weight-medium);
+  font-family: var(--skrift-tittel);
+  font-weight: var(--ds-font-weight-semibold);
   line-height: var(--ds-line-height-sm);
   text-wrap: balance;
-  max-width: var(--maal-tekst);
+  max-width: var(--maal-tittel);
 }
 
 h1 {

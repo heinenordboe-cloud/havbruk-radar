@@ -1,8 +1,9 @@
 {# Grunnmalen. Alt som er FELLES for hver publisert side, og ingenting
    som er design.
 
-   Ingen CSS-rammeverk, ingen webfonter, ingen JavaScript. Tallene skal
-   stå i kildekoden — en side der tallene tegnes av et skript er en side
+   Ingen CSS-rammeverk og ingen JavaScript. Én webfont, Newsreader,
+   hostet av oss selv og aldri hentet fra en CDN — se `@font-face` i
+   maler/stil.css. Tallene skal stå i kildekoden — en side der tallene tegnes av et skript er en side
    som ikke kan siteres, ikke kan arkiveres av Wayback, og ikke kan leses
    av noen som slår av JS. Se docs/VISNING.md: «Ingen CDN, ingen npm,
    ingen server.»
@@ -50,7 +51,7 @@
    side uten stilark SER ut som et designvalg, mens en lenke som ikke
    virker sier fra med én gang. #}
 <header class="topp">
-  <a class="merke" href="/">havbruk-radar</a>
+  {% include "merke.html.j2" %}
   <nav aria-label="Hovedmeny">
     <a href="/lokalitet/">Lokaliteter</a>
     <a href="/produksjonsomrade/">Produksjonsområder</a>

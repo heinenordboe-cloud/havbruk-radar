@@ -81,11 +81,38 @@ def over(forgrunn: str, bakgrunn: str, alfa: float) -> str:
 # ---- fargene, lest ut av CSS-en ---------------------------------------
 
 def _blokker(tekst: str) -> tuple[str, str]:
-    """(lys, mørk) — teksten utenfor og inne i prefers-color-scheme."""
+    """(lys, mørk) — teksten utenfor og inne i prefers-color-scheme.
+
+    SLUTTEN TELLES MED KLAMMER, ikke søkes etter som tekst. Fram til
+    21.09.2026 lette denne etter strengen `\n}\n}` — mediespørringens
+    slutt slik den tilfeldigvis var skrevet. Da `stil.css` fikk et
+    innrykk (`\n  }\n}`), fant `find` ingenting og returnerte -1:
+
+        lys  = tekst[:i] + tekst[-1:]     alt ETTER blokka forsvant
+        mørk = tekst[i:-1]                alt etter blokka ble MØRKT
+
+    Følgen var stille og nøyaktig gal vei. Aliasene `--farge-*` lå
+    etter mediespørringen; i lys modus fantes de ikke, og prøven falt
+    med KeyError framfor å måle. Hadde de ligget før, ville prøven vært
+    grønn og samtidig målt mørke verdier som lyse.
+
+    Det er samme feilform som CLAUDE.md 1b-2 beskriver: en mekanisme
+    som måler noe som LIGNER det den skal måle, og som er riktig helt
+    til formateringen endrer seg."""
     i = tekst.find("@media (prefers-color-scheme: dark)")
     if i < 0:
         return tekst, ""
-    slutt = tekst.find("\n}\n}", i)
+    dybde = 0
+    for j in range(tekst.index("{", i), len(tekst)):
+        if tekst[j] == "{":
+            dybde += 1
+        elif tekst[j] == "}":
+            dybde -= 1
+            if dybde == 0:
+                slutt = j + 1
+                break
+    else:
+        raise AssertionError("mediespørringen lukkes aldri")
     return tekst[:i] + tekst[slutt:], tekst[i:slutt]
 
 
@@ -192,6 +219,25 @@ def test_blandingen_stemmer():
     assert over("#000000", "#ffffff", 0.5) == "#808080"
     assert over("#000000", "#ffffff", 1.0) == "#000000"
     assert over("#123456", "#ffffff", 0.0) == "#ffffff"
+
+
+def test_blokkdelingen_taaler_innrykk():
+    """Driftvakten for `_blokker`. En variabel som står ETTER
+    mediespørringen skal havne i lys-halvdelen uansett hvordan blokka
+    er rykket inn — det var nøyaktig det som sviktet 21.09.2026."""
+    css = ("""\
+:root { --a: #111111; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --a: #eeeeee;
+  }
+}
+:root { --b: var(--a); }
+""")
+    lys, mork = _blokker(css)
+    assert "--b" in lys, "variabel etter mediespørringen falt ut av lys modus"
+    assert "--b" not in mork, "variabel etter mediespørringen ble lest som mørk"
+    assert "#eeeeee" in mork and "#eeeeee" not in lys
 
 
 def test_hvert_navn_i_lista_finnes_i_css():

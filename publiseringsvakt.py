@@ -166,6 +166,36 @@ NI_SIFFER = re.compile(r"(?<![\d.,])\d{9}(?![\d.,])")
 TEKSTTYPER = {".html", ".htm", ".css", ".js", ".json", ".csv", ".tsv",
               ".md", ".txt", ".svg", ".xml"}
 
+# BINÆRFILENE VI SENDER UT MED VILJE, med sha256 pinnet.
+#
+# Fra 21.09.2026 hoster nettstedet én font, og den er ikke tekst. Tre
+# måter å håndtere det på, og bare den tredje duger:
+#
+#   1. Legge `.woff2` i TEKSTTYPER. Løgn: vakten kan ikke lese woff2 som
+#      tekst, og ville rapportert grønt om en granskning som ikke skjedde.
+#   2. Hoppe over ukjente binærfiler. Da er `ugranska` død som prøve, og
+#      en `.parquet` som lekker et personregister går ut i stillhet.
+#   3. Pinne den ENE fila vi faktisk har sett i, på innhold.
+#
+# Nøkkelen er sha256 og ikke filnavnet, og det er hele poenget: et navn
+# kan gjenbrukes av en annen fil. Endres fonten — nytt subsett, ny
+# versjon, en annen font med samme navn — treffer ikke summen lenger, og
+# porten faller til `ugranska` slik den skal. Kvitteringen gjelder
+# innholdet som ble inspisert, ikke plassen det lå på.
+#
+# Det er samme form som kvitteringene i `data/kvitteringer/`: en påstand
+# om en KONKRET verdi, ikke en bryter som slår av et helt slag.
+#
+# Hva som er inspisert i fonten, og hvordan, står i
+# docs/design/NEWSREADER.md. Kort: `name`-tabellen er lest ut i sin
+# helhet, den inneholder opphavsrett og stilnavn, og ingenting fra våre
+# kilder.
+BINAERFILER = {
+    "d8e551fa73a848a2bb3806bc725cb1b705c8ec1e7c203e8b51c5ee338b01fcc7":
+        "newsreader.woff2 — Newsreader, OFL 1.1. name-tabellen inspisert "
+        "21.09.2026, se docs/design/NEWSREADER.md",
+}
+
 # Filtypene der KOLONNEOVERSKRIFTEN er merkingen, og der prøvene derfor
 # stilles per kolonne framfor på teksten. Se `gransk_csv`.
 #
@@ -1164,6 +1194,13 @@ def gransk(mappe: Path) -> list[Funn]:
             # Ikke antatt trygg. En .parquet eller .xlsx ved siden av
             # sida er like publisert som HTML-en, og vakten sier at den
             # ikke har lest den framfor å tie.
+            #
+            # Unntaket er de binærfilene vi HAR sett i, og de kjennes på
+            # innholdet: summen av fila mot `BINAERFILER`. Treffer den,
+            # er dette fila som ble inspisert og ingen annen.
+            sum_ = hashlib.sha256(sti.read_bytes()).hexdigest()
+            if sum_ in BINAERFILER:
+                continue
             funn.append(Funn(rel, "ugranska", sti.suffix or "(uten endelse)"))
             continue
         if sti.suffix.lower() in KOLONNETYPER:

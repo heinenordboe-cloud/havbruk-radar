@@ -28,6 +28,8 @@ import sys
 from pathlib import Path
 
 import polars as pl
+import pathlib
+
 import pytest
 
 import publiseringsvakt as vakt
@@ -424,6 +426,38 @@ def test_ulesbar_fil_rapporteres_ikke_antas_trygg(tmp_path,
     (ut / "data.parquet").write_bytes(b"PAR1binaertsoppel")
     funn = vakt.gransk(ut)
     assert [f.slag for f in funn] == ["ugranska"]
+
+
+def test_pinnet_binaerfil_slipper_gjennom(tmp_path, snapshotmappe):
+    """Fonten er sett i én gang, og kvitteringen gjelder INNHOLDET."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    font = pathlib.Path(vakt.__file__).parent / "maler" / "newsreader.woff2"
+    (ut / "newsreader.woff2").write_bytes(font.read_bytes())
+    assert vakt.gransk(ut) == []
+
+
+def test_endret_binaerfil_faller_tilbake_til_ugranska(tmp_path, snapshotmappe):
+    """Nøkkelen er summen og ikke navnet. Byttes fonten ut — nytt
+    subsett, en annen font med samme filnavn — er den ikke lenger fila
+    som ble inspisert, og vakten sier fra."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "newsreader.woff2").write_bytes(b"wOF2 noe annet enn fonten")
+    funn = vakt.gransk(ut)
+    assert [f.slag for f in funn] == ["ugranska"]
+
+
+def test_hver_pinnet_sum_finnes_som_fil_i_maler(tmp_path):
+    """Driftvakten. En pinning som ikke lenger svarer til noen fil er en
+    kvittering for noe som ikke finnes — og da er den bare støy som
+    skjuler at den ekte fila er ukvittert."""
+    import hashlib
+    maler = pathlib.Path(vakt.__file__).parent / "maler"
+    paa_disk = {hashlib.sha256(f.read_bytes()).hexdigest()
+                for f in maler.iterdir() if f.is_file()}
+    for sum_, hva in vakt.BINAERFILER.items():
+        assert sum_ in paa_disk, f"pinnet sum uten fil i maler/: {hva}"
 
 
 def test_ren_mappe_gir_ingen_funn(tmp_path, snapshotmappe):

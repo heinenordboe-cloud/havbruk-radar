@@ -1484,6 +1484,54 @@ def skriv_stil(rot: Path) -> Path:
     return ut
 
 
+# -------------------------------------------------------- fonten
+#
+# ## Én fil, hostet av oss
+#
+# `maler/stil.css` viser til `url("newsreader.woff2")` RELATIVT til
+# stilarket, og stilarket ligger i rota. Fonten må derfor ligge samme
+# sted. Ingen CDN: en side som henter en fil fra fonts.gstatic.com er
+# en side som ser feil ut den dagen den tjenesten gjør det, og som
+# forteller Google hvem som leser den. Samme argument som pinningen av
+# `requirements.txt`.
+#
+# ## Lisensen er en FIL, ikke en kommentar
+#
+# SIL OFL 1.1 krever at lisensteksten distribueres med fonten. En
+# kommentar i CSS-en er ikke det, og en lenke til Google er det heller
+# ikke. `newsreader-OFL.txt` kopieres derfor ved siden av woff2-fila og
+# er tilgjengelig på /newsreader-OFL.txt for enhver som ser etter.
+#
+# ## Hvorfor kopiering og ikke innbaking i CSS-en
+#
+# En woff2 som base64 i stilarket ville lagt 47 kB på en fil hver leser
+# henter, og gjort at stilarket ikke kan mellomlagres uavhengig av
+# fonten. To filer, to forespørsler, begge cachbare.
+
+FONTFILER = ("newsreader.woff2", "newsreader-OFL.txt")
+
+
+def skriv_fonter(rot: Path) -> list[Path]:
+    """Kopierer fonten og lisensen til nettstedets rot.
+
+    Kaster om en av dem mangler. En side som rendrer uten fonten ser ut
+    som et designvalg (se `font-display: swap`), og en font uten lisens
+    ved siden av er et lisensbrudd som ingen ser — begge er feil som er
+    stille, og derfor skal byggingen stoppe framfor å hoppe over."""
+    rot.mkdir(parents=True, exist_ok=True)
+    skrevet = []
+    for navn in FONTFILER:
+        kilde = MALER / navn
+        if not kilde.exists():
+            raise FileNotFoundError(
+                f"{kilde} mangler. Stilarket viser til /{navn}; "
+                f"uten fila er @font-face en død lenke.")
+        ut = rot / navn
+        ut.write_bytes(kilde.read_bytes())
+        skrevet.append(ut)
+    return skrevet
+
+
 # ------------------------------------------- sitemap, robots, llms
 #
 # ## Domenet finnes ikke, og det skal ikke finnes på
@@ -2491,6 +2539,7 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
 
     t0 = time.perf_counter()
     for skriv in (lambda: skriv_stil(rot),
+                  lambda: skriv_fonter(rot),
                   lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),
                   lambda: skriv_llms(rot, felles)):
@@ -2611,7 +2660,8 @@ def main() -> int:
         if logg.feilet:
             return 1
     else:
-        filer = skriv_lokalitet(args.lokalitet, rot) + [skriv_stil(rot)]
+        filer = (skriv_lokalitet(args.lokalitet, rot)
+                 + [skriv_stil(rot)] + skriv_fonter(rot))
         for f in filer:
             print(f"{f}  ({f.stat().st_size / 1024:.0f} kB)")
         print(f"  URL: /lokalitet/{args.lokalitet}/")
