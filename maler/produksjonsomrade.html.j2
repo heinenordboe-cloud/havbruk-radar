@@ -85,7 +85,7 @@
       <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
       <td class="eier" data-felt="navn">{{ l.navn }}</td>
       <td data-felt="kommune">{{ l.kommune }}</td>
-      <td class="tall" data-felt="kapasitet">{{ l.kapasitet }} {{ l.kapasitet_enhet }}</td>
+      <td class="tall" data-felt="kapasitet">{{ l.kapasitet }}</td>
       <td data-felt="arter">{{ l.arter }}</td>
     </tr>
     {% endfor %}
@@ -127,7 +127,7 @@
       <td data-felt="observed_at"><time datetime="{{ e.dato }}">{{ e.dato }}</time></td>
       <td data-felt="gjelder">{{ e.gjelder }}</td>
       <td data-felt="source">{{ e.kilde }}</td>
-      <th scope="row">{{ e.felt }}</th>
+      <th scope="row">{{ e.etikett }}</th>
       <td data-felt="{{ e.felt }}">{{ e.fra }}</td>
       <td data-felt="{{ e.felt }}">{{ e.til }}</td>
     </tr>

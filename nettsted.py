@@ -96,6 +96,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 import publiseringsvakt                                    # noqa: E402
+import visningsord                                         # noqa: E402
 from core import changelog, diff, snapshot                 # noqa: E402
 from core.contract import attribusjon_per_kilde            # noqa: E402
 from core.paths import DATA_DIR                            # noqa: E402
@@ -671,8 +672,15 @@ def _endringsrad(r: dict, loknr: str) -> dict:
                     else f"tillatelse {r['entity_id']}"),
         "kilde": str(r["source"]),
         "felt": str(r["field"]),
-        "fra": r["old_value"] if r["old_value"] is not None else "",
-        "til": r["new_value"] if r["new_value"] is not None else "",
+        # `felt` er kildens navn og blir i `data-felt`. `etikett` er det
+        # som står i Felt-kolonnen, og `fra`/`til` er oversatt: cellene
+        # bærer changeloggens `old_value`/`new_value`, og de er like rå
+        # som alt annet fra kilden.
+        "etikett": visningsord.felt(str(r["field"])),
+        "fra": visningsord.verdi(str(r["field"]),
+                                 r["old_value"] if r["old_value"] is not None else ""),
+        "til": visningsord.verdi(str(r["field"]),
+                                 r["new_value"] if r["new_value"] is not None else ""),
     }
 
 
@@ -740,12 +748,21 @@ def _dekning_fra() -> list[dict]:
 
 # Fargeordet slik forskriften skriver det. Parseren normaliserer til
 # ascii; her settes ordet tilbake. Kartet er vårt, ikke kildens — og det
-# er derfor det står her og ikke i kilden.
-FARGEORD = {"gronn": "grønn", "gul": "gul", "rod": "rød"}
+# er derfor det ikke står i kilden.
+#
+# Fra 20.09.2026 ligger det i `visningsord.FARGE` sammen med resten av
+# kildens koder. Grunnen er at det ikke var det eneste stedet «rod» nådde
+# en leser: changeloggens `old_value`/`new_value` bar det uoversatt i
+# endringstabellen, og MÅLT sto «rod» i 5 celler og «gronn» i 20 på de
+# publiserte sidene mens fargetabellen ved siden av sa «rød». To steder
+# som skal si det samme er formen F6 og F7 hadde.
+FARGEORD = visningsord.FARGE
 
 # Hva lesemåten BETYR, i klartekst på siden. Nøkkelen er kildens verdi.
 LESEMAATE = {
     "ordrett": "fargeordet står ordrett i bestemmelsen",
+    "kapitteloverskrift": "fargeordet står i kapitteloverskriften området "
+                          "er plassert under",
     "kapittelhjemmel": "utledet av hvilket kapittel området er plassert i",
 }
 
@@ -804,7 +821,7 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
             maate = (d.get("farge__lesemaate") or "").strip()
             rader.append({
                 "aar": aar,
-                "farge": FARGEORD.get(raa, raa),
+                "farge": visningsord.verdi("farge", raa),
                 "farge_felt": "farge",
                 "farge_klasse": FARGE_KLASSE.get(raa, ""),
                 "lesemaate": maate,
@@ -834,9 +851,11 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
             "loknr": loknr,
             "navn": felles.akva[loknr].get("navn", ""),
             "kommune": felles.akva[loknr].get("kommune", ""),
-            "kapasitet": felles.akva[loknr].get("kapasitet", ""),
-            "kapasitet_enhet": felles.akva[loknr].get("kapasitet_enhet", ""),
-            "arter": felles.akva[loknr].get("arter", ""),
+            "kapasitet": visningsord.maalt(
+                felles.akva[loknr].get("kapasitet", ""),
+                felles.akva[loknr].get("kapasitet_enhet", "")),
+            "arter": visningsord.verdi("arter",
+                                       felles.akva[loknr].get("arter", "")),
         }
         for loknr in felles.lokaliteter_per_po.get(po, ())
     ]
@@ -933,8 +952,8 @@ def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
             "eier_felt": "eier_navn",
             "eier_orgnr": d.get("eier_orgnr", ""),
             "type": d.get("tillatelse_type", ""),
-            "kapasitet": d.get("kapasitet", ""),
-            "kapasitet_enhet": d.get("kapasitet_enhet", ""),
+            "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
+                                           d.get("kapasitet_enhet", "")),
             "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
             "tildelt_navn": d.get("tildelt_navn", ""),
         }
@@ -947,7 +966,6 @@ def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
             "eier_orgnr": "",
             "type": "",
             "kapasitet": "",
-            "kapasitet_enhet": "",
             "tildelt_dato": "",
             "tildelt_navn": "",
         }
@@ -1020,7 +1038,12 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # rekkefølge er en tilfeldighet i et JSON-svar, og en tabell som
         # stokker om på seg selv mellom to kjøringer er en tabell ingen
         # kan diffe.
-        "register": sorted(a.items()),
+        # TRE ledd per rad, ikke to: kildens feltnavn, etiketten et
+        # menneske leser, og verdien oversatt. Feltnavnet MÅ bli med —
+        # det er `data-felt`, altså markupkontrakten, og det er det
+        # publiseringsvakten leser. Etiketten er bare for øyet.
+        "register": [(f, visningsord.felt(f), visningsord.verdi(f, v))
+                     for f, v in sorted(a.items())],
         # KJENTE og UGJORTE REDE FOR i SAMME tabell, i nummerrekkefølge.
         # Regelen og målingen står i docs/REGEL-UENIGE-KILDER.md: en
         # lokalitet der vi ikke vet hvem som eier tillatelsene skal si
@@ -1747,7 +1770,7 @@ def bygg_lokalitetsindeks(felles: Felles) -> dict:
         "kommune": a.get("kommune", ""),
         "fylke": a.get("fylke", ""),
         "po_kode": a.get("prodomraade_kode", ""),
-        "arter": a.get("arter", ""),
+        "arter": visningsord.verdi("arter", a.get("arter", "")),
     } for loknr, a in felles.akva.items()]
     rader.sort(key=lambda r: int(r["loknr"]) if r["loknr"].isdigit() else 0)
     return {"rader": rader, "antall": len(rader),
@@ -2130,7 +2153,10 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             break
 
     reg = felles.enhet.get(orgnr) or {}
-    register = [(felt, reg[felt]) for felt in SELSKAPSFELT if reg.get(felt)]
+    # Samme tre ledd som lokalitetssidens registertabell: kildens
+    # feltnavn til `data-felt`, etiketten til øyet, verdien oversatt.
+    register = [(f, visningsord.felt(f), visningsord.verdi(f, reg[f]))
+                for f in SELSKAPSFELT if reg.get(f)]
 
     # Lokalitetene tillatelsene ligger på. En tillatelse kan ligge på
     # flere, og flere tillatelser kan ligge på samme — derfor et sett,
@@ -2540,6 +2566,17 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
         print(f"    {merke:38} {len(liste):>5}")
     for loknr, feil in logg.feilet[:20]:
         print(f"      {loknr}: {feil}")
+
+    # KODER SOM FALT UT AV OVERSETTELSESTABELLEN. Skrives ALLTID, også
+    # når den er tom — et tall man bare ser når det er galt, er et tall
+    # ingen kjenner normalverdien til. En kode som ikke står i
+    # `visningsord` vises ordrett, og det er riktig; det som ikke er
+    # riktig er at «SALMON» står på siden igjen om et halvår uten at
+    # noen la merke til det.
+    ukjente = visningsord.ukjente_rapport()
+    print(f"\n  koder uten norsk oversettelse            {len(ukjente):>5}")
+    for linje in ukjente[:20]:
+        print(f"      {linje}")
 
 
 def main() -> int:

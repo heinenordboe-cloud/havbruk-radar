@@ -49,10 +49,10 @@
     </tr>
   </thead>
   <tbody>
-    {% for felt, verdi in sel.register %}
+    {% for felt, etikett, vist in sel.register %}
     <tr>
-      <th scope="row">{{ felt }}</th>
-      <td data-felt="{{ felt }}">{{ verdi }}</td>
+      <th scope="row">{{ etikett }}</th>
+      <td data-felt="{{ felt }}">{{ vist }}</td>
     </tr>
     {% endfor %}
     {% if not sel.har_registerdata %}
@@ -92,7 +92,7 @@
       <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}">{{ t.eier_navn }}</td>
       <td class="tall" data-felt="eier_orgnr">{{ t.eier_orgnr }}</td>
       <td data-felt="tillatelse_type">{{ t.type }}</td>
-      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }} {{ t.kapasitet_enhet }}</td>
+      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }}</td>
       <td data-felt="tildelt_tid">{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
       <td class="eier" data-felt="tildelt_navn">{{ t.tildelt_navn }}</td>
     </tr>

@@ -37,10 +37,10 @@
      Feltnavnet er kildens eget, og vakten spør `NAVNEFELT` om hva det
      betyr — se publiseringsvakt.felt_verdier(). #}
   <tbody>
-    {% for felt, verdi in lok.register %}
+    {% for felt, etikett, vist in lok.register %}
     <tr>
-      <th scope="row">{{ felt }}</th>
-      <td data-felt="{{ felt }}">{{ verdi }}</td>
+      <th scope="row">{{ etikett }}</th>
+      <td data-felt="{{ felt }}">{{ vist }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -85,7 +85,7 @@
       <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}">{{ t.eier_navn }}</td>
       <td class="tall" data-felt="eier_orgnr">{{ t.eier_orgnr }}</td>
       <td data-felt="tillatelse_type">{{ t.type }}</td>
-      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }} {{ t.kapasitet_enhet }}</td>
+      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }}</td>
       <td data-felt="tildelt_tid">{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
       <td class="eier" data-felt="tildelt_navn">{{ t.tildelt_navn }}</td>
     </tr>
@@ -241,7 +241,7 @@
       <td data-felt="observed_at"><time datetime="{{ e.dato }}">{{ e.dato }}</time></td>
       <td data-felt="gjelder">{{ e.gjelder }}</td>
       <td data-felt="source">{{ e.kilde }}</td>
-      <th scope="row">{{ e.felt }}</th>
+      <th scope="row">{{ e.etikett }}</th>
       <td data-felt="{{ e.felt }}">{{ e.fra }}</td>
       <td data-felt="{{ e.felt }}">{{ e.til }}</td>
     </tr>

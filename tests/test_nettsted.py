@@ -24,6 +24,28 @@ from pathlib import Path
 import pytest
 
 import nettsted
+import visningsord
+
+
+def _visning(rader):
+    """Fiksturens (felt, verdi)-par til malens (felt, etikett, vist).
+
+    Prøvene skriver den RÅ forma — `("kapasitet", "8000.0")` — fordi det
+    er den kilden leverer og den som er lesbar i en prøve. Omregningen
+    gjøres her med `visningsord` selv, ikke med håndskrevne strenger: en
+    fikstur som stavet «8 680» for hånd ville sagt grønt om
+    tusenskillet byttet tegn.
+    """
+    return [(f, visningsord.felt(f), visningsord.verdi(f, v)) for f, v in rader]
+
+
+def _endringsrader(rader):
+    """Samme for endringstabellen: `etikett` er feltets, `fra`/`til`
+    oversettes, og `felt` blir stående som kildens navn."""
+    return [dict(r, etikett=visningsord.felt(r["felt"]),
+                 fra=visningsord.verdi(r["felt"], r.get("fra", "")),
+                 til=visningsord.verdi(r["felt"], r.get("til", "")))
+            for r in rader]
 
 
 def _stilark(undermappe: str) -> str:
@@ -196,6 +218,12 @@ def _side(**overstyr) -> str:
         "dekning_fra": [{"kilde": "akvakultur", "fra": "2026-08-17"}],
     }
     lok.update(overstyr)
+    lok["register"] = _visning(lok["register"])
+    lok["endringer"] = _endringsrader(lok["endringer"])
+    for t_ in lok["tillatelser"]:
+        if "kapasitet_enhet" in t_:
+            t_["kapasitet"] = visningsord.maalt(t_.pop("kapasitet"),
+                                                t_.pop("kapasitet_enhet"))
     return nettsted._miljo().get_template("lokalitet.html.j2").render(
         lok=lok, tittel="T", beskrivelse="B",
         jsonld=nettsted.jsonld(lok),
@@ -428,8 +456,18 @@ def test_registertabellen_merker_verdicellene_med_feltnavnet():
     # og tillatelsens — og begge er riktige, for begge kildene kaller
     # feltet det. En dict her ville skjult den ene bak den andre.
     merket = vakt.felt_verdier(side)
+
+    # NAVNET er UENDRET. Det er ikke en detalj: vakten sammenligner
+    # navneverdien mot hvitelista bygget av snapshotene, og en oversatt
+    # verdi ville ikke funnet seg selv der. `visningsord` rører ingen
+    # NAVNEFELT — håndhevet av `test_navnefelt_oversettes_aldri`.
     assert ("navn", "OTERNESET") in merket
-    assert ("kapasitet", "8000.0") in merket
+
+    # KAPASITETEN er formatert, og vakten ser det som STÅR PÅ SIDA. Fram
+    # til 20.09.2026 sto «8000.0» der. At prøven leser «8 000» nå er
+    # riktig vei: merkingen skal peke på verdien leseren ser, ikke på en
+    # verdi som bare finnes i parquet-fila.
+    assert ("kapasitet", visningsord.verdi("kapasitet", "8000.0")) in merket
 
 
 def test_et_navn_i_endringstabellen_felles_av_porten(tmp_path):
@@ -1059,6 +1097,12 @@ def _po(**overstyr) -> str:
         "ubelagte_kilder": ["ekspertgruppen"],
     }
     po.update(overstyr)
+    po["endringer"] = _endringsrader(po["endringer"])
+    for l_ in po["lokaliteter"]:
+        if "kapasitet_enhet" in l_:
+            l_["kapasitet"] = visningsord.maalt(l_.pop("kapasitet"),
+                                                l_.pop("kapasitet_enhet"))
+        l_["arter"] = visningsord.verdi("arter", l_.get("arter", ""))
     return nettsted._miljo().get_template("produksjonsomrade.html.j2").render(
         po=po, tittel="T", beskrivelse="B",
         jsonld=nettsted.jsonld_po(po, nettsted.kildevilkaar()),
@@ -1166,9 +1210,15 @@ def _selskap(**overstyr) -> str:
                           "rekkefolge": "1"}],
     }
     sel.update(overstyr)
+    jsonld_raa = dict(sel)          # JSON-LD leser KILDENS verdier
+    sel["register"] = _visning(sel["register"])
+    for t_ in sel["tillatelser"]:
+        if "kapasitet_enhet" in t_:
+            t_["kapasitet"] = visningsord.maalt(t_.pop("kapasitet"),
+                                                t_.pop("kapasitet_enhet"))
     return nettsted._miljo().get_template("selskap.html.j2").render(
         sel=sel, tittel="T", beskrivelse="B",
-        jsonld=nettsted.jsonld_selskap(sel, nettsted.kildevilkaar()),
+        jsonld=nettsted.jsonld_selskap(jsonld_raa, nettsted.kildevilkaar()),
         attribusjon=nettsted.attribusjon(nettsted.SELSKAPSKILDER),
         stilark=_stilark("selskap/928957489"),
         bygget="2026-09-20")
