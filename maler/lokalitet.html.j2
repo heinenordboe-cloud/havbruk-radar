@@ -31,9 +31,10 @@
 </p>
 
 {# ---------------------------------------------------- hva er dette #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="akvakultur-register-tittel" tabindex="0">
 <table id="akvakultur-register">
-  <caption>
+  <caption id="akvakultur-register-tittel">
     Hva Akvakulturregisteret sier, snapshot
     <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.
   </caption>
@@ -60,9 +61,10 @@
 </div>
 
 {# ------------------------------------------------- hvem eier den nå #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
 <table id="eierskap-tillatelser">
-  <caption>
+  <caption id="eierskap-tillatelser-tittel">
     Hvem som eier tillatelsene nå. {{ lok.tillatelser|length }}
     tillatelser, snapshot
     <time datetime="{{ lok.eierskap_dato }}">{{ lok.eierskap_dato }}</time>.
@@ -109,9 +111,10 @@
 </p>
 
 {# ------------------------------------------------------- siden når #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
 <table id="eierskap_historikk-overforinger">
-  <caption>
+  <caption id="eierskap_historikk-overforinger-tittel">
     Journalførte overføringer av tillatelsene, eldst først.
     {{ lok.overforinger|length }} overføringer.
   </caption>
@@ -145,7 +148,8 @@
 </p>
 
 {# ------------------------------------------------------- lusetallene #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="lusetall-uke-tittel" tabindex="0">
 <table id="lusetall-uke">
   {# To captions, fordi det er to ulike påstander.
 
@@ -160,7 +164,7 @@
      manglende NØKKEL, ikke en tom VERDI, og Jinja rendrer tom streng
      uten å mukke. Det er den stille varianten, og den ble funnet ved å
      lese utputtet — ikke ved at bygget ble rødt. #}
-  <caption>
+  <caption id="lusetall-uke-tittel">
     {% if lok.lus_uker %}
     Voksne hunnlus per fisk, siste {{ lok.lus|length }} uker.
     {% else %}
@@ -224,9 +228,10 @@
 </p>
 
 {# ------------------------------------------------- hva har endret seg #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="endringer-register-tittel" tabindex="0">
 <table id="endringer-register">
-  <caption>
+  <caption id="endringer-register-tittel">
     Registerendringer om lokaliteten, nyest først.
     {{ lok.endringer|length }} endringer.
   </caption>

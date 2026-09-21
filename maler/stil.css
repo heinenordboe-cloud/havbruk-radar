@@ -296,6 +296,21 @@ a:hover {
  * Dette er en datatabellside. Alt annet er innramming.
  * ---------------------------------------------------------------- */
 
+/* TASTATURTILGANG. `overflow-x: auto` gir et område som kan scrolles
+   med mus og finger, men Chrome og Safari gir det ikke fokus av seg
+   selv — bare Firefox gjør det. Uten `tabindex="0"` i markupen når en
+   tastaturbruker aldri de avkuttede kolonnene på en telefon.
+
+   `role="region"` og `aria-labelledby` følger med fordi et fokuspunkt
+   uten navn er et fokuspunkt en skjermleser melder som «gruppe».
+   Navnet peker på tabellens CAPTION og ikke på tabellen: navnet regnes
+   av det refererte elementets tekstinnhold, og for en `<table>` ville
+   det vært hele tabellen lest opp.
+
+   Prisen er ett tabulatorstopp per tabell — fem på lokalitetssiden —
+   og over 62rem, der ramma ikke scroller, er stoppet uten nytte. Å
+   fjerne det der krever JavaScript som måler om noe faktisk kan
+   scrolles, og det er en dyrere pris. */
 .tabellramme {
   /* BRED TABELL SCROLLER I SIN EGEN BOKS, ikke dokumentet. Kravet er at
      SIDEN aldri får horisontal scroll på telefon.
@@ -315,28 +330,15 @@ a:hover {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   margin-block-end: var(--ds-size-12);
+
+  /* Fokusringen tegnes UTENFOR boksen (`outline-offset: 1px`), og en
+     ramme som scroller klipper alt som stikker utenfor. Plassen her er
+     til ringen, ikke til luft. */
+  outline-offset: -1px;
 }
 
 @media (min-width: 62rem) {
   .tabellramme { overflow-x: visible; }
-
-  /* FIT-CONTENT PÅ BRED SKJERM, og det er rettingen 20.09.2026.
-     `width: 100%` strakk fargetabellen over hele arket — 1 152px for
-     fire kolonner som trenger 666 — og hele slakken havnet i siste
-     kolonne. Ved siden av sto noten bundet av 29em-målebåndet. Hver
-     regel var riktig for seg, og sammen ga de en tabell som pekte mot
-     høyre kant og en note som stoppet på midten.
-
-     `max-content` + `max-width: 100%` ER `fit-content`: tabellen blir
-     så bred som innholdet trenger, og ikke bredere, men kappes av arket
-     når innholdet er større. Brede tabeller — lusetall med ni kolonner,
-     lokalitetslista med 1 782 rader — fyller arket som før. Smale
-     slutter der de slutter.
-
-     Grensa er den SAMME 62rem som styrer scrollramma og det klebrige
-     hodet. Tre regler på én grense er én ting å huske; tre grenser er
-     tre steder å bomme. */
-  table { width: max-content; max-width: 100%; }
 }
 
 table {
@@ -354,6 +356,37 @@ table {
   font-size: var(--ds-font-size-3);
   line-height: var(--ds-line-height-md);
   margin: 0;
+}
+
+@media (min-width: 62rem) {
+  /* FIT-CONTENT PÅ BRED SKJERM, og det er rettingen 20.09.2026.
+     `width: 100%` strakk fargetabellen over hele arket — 1 152px for
+     fire kolonner som trenger 666 — og hele slakken havnet i siste
+     kolonne. Ved siden av sto noten bundet av 29em-målebåndet. Hver
+     regel var riktig for seg, og sammen ga de en tabell som pekte mot
+     høyre kant og en note som stoppet på midten.
+
+     `fit-content` ALENE, ikke `max-content` + `max-width: 100%`. De to
+     er samme ting for et vanlig blokkelement, og IKKE for en tabell:
+     MÅLT i nettleser ga `max-content; max-width: 100%` 1 150px på
+     fargetabellen, mens `fit-content` ga 580. En tabells brukte bredde
+     regnes gjennom tabellalgoritmen, og et `max-width` på tabellboksen
+     slår ut `max-content`-nøkkelordet framfor bare å kappe det.
+
+     Førsteutkastet var den første varianten, og den gjorde ingenting.
+     Den så riktig ut i CSS-en og var feil på skjermen — grunnen til at
+     dette ble målt og ikke lest.
+
+     `fit-content` er `min(max-content, max(min-content, stretch))`:
+     tabellen blir så bred som innholdet trenger, og aldri bredere enn
+     arket. Brede tabeller — lusetall med ni kolonner, lokalitetslista
+     med 1 782 rader — fyller arket som før. Smale slutter der de
+     slutter.
+
+     Grensa er den SAMME 62rem som styrer scrollramma og det klebrige
+     hodet. Tre regler på én grense er én ting å huske; tre grenser er
+     tre steder å bomme. */
+  table { width: fit-content; }
 }
 
 /* CAPTION ER ÉN LINJE. FORBEHOLDET ER EN NOTE.
@@ -511,11 +544,15 @@ td[data-felt="registerdata_mangler"] {
    av seg selv. En CSS-regel som finnes for å kompensere for et
    innholdsvalg, er et innholdsvalg som burde vært gjort om. */
 
-/* FELT-VERDI-TABELLER er to kolonner, og to kolonner strukket over
-   hele arket er en tabell med en tom halvdel. Ankrene er markup-
-   kontraktens egne og er stabile — se
-   docs/beslutninger/2026-09-16-url-struktur.md — så en regel som
-   henger på dem kan ikke drive fra malen. */
+/* FELT-VERDI-TABELLENE har ett tak til, og det overlevde `fit-content`.
+   Grunnen er én rad: `tillatelser` er en semikolonliste — «T-D-0009;
+   T-D-0010; …» — og `max-content` legger hele lista på én linje. MÅLT:
+   1 081px uten taket, 736 med. Taket tvinger den ene raden til å brekke
+   og lar de 28 andre bestemme bredden.
+
+   Ankrene er markupkontraktens egne og er stabile — se
+   docs/beslutninger/2026-09-16-url-struktur.md — så en regel som henger
+   på dem kan ikke drive fra malen. */
 #akvakultur-register,
 #enhetsregisteret-selskap { max-width: 46rem; }
 
@@ -571,6 +608,8 @@ td[data-felt="farge_mangler"]::before {
  * ---------------------------------------------------------------- */
 
 .kartramme {
+  /* Samme tastaturtilgang som en tabellramme, og av samme grunn: på
+     telefon er kartet bredere enn skjermen. */
   overflow-x: auto;
   overscroll-behavior-x: contain;
   margin-block-end: var(--ds-size-8);

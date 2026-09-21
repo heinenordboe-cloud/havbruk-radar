@@ -38,9 +38,10 @@
 </p>
 
 {# --------------------------------------------- hva registeret sier #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="enhetsregisteret-selskap-tittel" tabindex="0">
 <table id="enhetsregisteret-selskap">
-  <caption>
+  <caption id="enhetsregisteret-selskap-tittel">
     Hva Enhetsregisteret sier om selskapet, snapshot
     <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.
   </caption>
@@ -78,9 +79,10 @@
 {% endif %}
 
 {# ------------------------------------------------- tillatelsene #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
 <table id="eierskap-tillatelser">
-  <caption>
+  <caption id="eierskap-tillatelser-tittel">
     Tillatelsene selskapet eier, snapshot
     <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
   </caption>
@@ -118,9 +120,10 @@
 </p>
 
 {# -------------------------------------------------- lokalitetene #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
 <table id="akvakultur-lokaliteter">
-  <caption>
+  <caption id="akvakultur-lokaliteter-tittel">
     Lokalitetene tillatelsene ligger på, snapshot
     <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.
   </caption>
@@ -153,9 +156,10 @@
 </p>
 
 {# ---------------------------------------------------- siden når #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
 <table id="eierskap_historikk-overforinger">
-  <caption>
+  <caption id="eierskap_historikk-overforinger-tittel">
     Når tillatelsene ble overført til selskapet, eldst først.
     {{ sel.overforinger|length }} overføringer.
   </caption>

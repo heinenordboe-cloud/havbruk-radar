@@ -49,9 +49,10 @@
   denne siden er:
 </p>
 
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="om-ferskhet-tittel" tabindex="0">
 <table id="om-ferskhet">
-  <caption>Nyeste snapshot per kilde denne siden bygger på.</caption>
+  <caption id="om-ferskhet-tittel">Nyeste snapshot per kilde denne siden bygger på.</caption>
   <thead>
     <tr>
       <th scope="col">Kilde</th>
@@ -129,9 +130,10 @@
   {% endif %}
 </p>
 
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="om-lisenser-tittel" tabindex="0">
 <table id="om-lisenser">
-  <caption>Kildene med lisens, hjemmel og ordrett attribusjon.</caption>
+  <caption id="om-lisenser-tittel">Kildene med lisens, hjemmel og ordrett attribusjon.</caption>
   <thead>
     <tr>
       <th scope="col">Kilde</th>

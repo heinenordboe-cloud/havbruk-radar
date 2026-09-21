@@ -63,7 +63,8 @@
 
    Uten stilark: sirklene faller til svart fyll og kartet står uten
    ramme. Det er fortsatt et kart. #}
-<div class="kartramme">
+<div class="kartramme" role="region"
+     aria-labelledby="karttittel" tabindex="0">
 <svg class="kart" viewBox="0 0 {{ f.kart_bredde }} {{ f.kart_hoyde }}"
      width="{{ f.kart_bredde }}" height="{{ f.kart_hoyde }}"
      role="img" aria-labelledby="karttittel kartbeskrivelse">
@@ -99,9 +100,10 @@
   {% endif %}
 </p>
 {% if f.uten_koordinater %}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="akvakultur-uten-koordinater-tittel" tabindex="0">
 <table id="akvakultur-uten-koordinater">
-  <caption>
+  <caption id="akvakultur-uten-koordinater-tittel">
     Lokaliteter uten breddegrad eller lengdegrad, snapshot
     <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
   </caption>

@@ -43,9 +43,10 @@
 </p>
 
 {# ------------------------------------------------ fargen per runde #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="trafikklysvedtak-farger-tittel" tabindex="0">
 <table id="trafikklysvedtak-farger">
-  <caption>
+  <caption id="trafikklysvedtak-farger-tittel">
     Trafikklysfargen per fastsatt runde, eldst først. {{ po.runder|length }} runder.
   </caption>
   <thead>
@@ -76,9 +77,10 @@
 </p>
 
 {# ------------------------------------------------------ lokalitetene #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
 <table id="akvakultur-lokaliteter">
-  <caption>
+  <caption id="akvakultur-lokaliteter-tittel">
     Lokalitetene i området, snapshot
     <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
   </caption>
@@ -112,9 +114,10 @@
 </p>
 
 {# -------------------------------------------- hva har endret seg #}
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="endringer-register-tittel" tabindex="0">
 <table id="endringer-register">
-  <caption>
+  <caption id="endringer-register-tittel">
     Registerendringer om området, nyest først.
     {{ po.endringer|length }} endringer.
   </caption>

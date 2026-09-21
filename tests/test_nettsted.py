@@ -299,7 +299,11 @@ def test_ingen_tabell_har_et_posisjonsanker():
 def test_semantisk_tabell():
     html = _side()
     for tabell in re.findall(r"<table id=.*?</table>", html, re.S):
-        assert "<caption>" in tabell
+        # `<caption` og ikke `<caption>`: fra 20.09.2026 bærer hver
+        # caption en `id`, som scrollramma peker på med
+        # `aria-labelledby`. Prøven skal si at tabellen HAR en caption,
+        # ikke hvilke attributter den har.
+        assert "<caption" in tabell
         assert "<thead>" in tabell and "<tbody>" in tabell
         assert 'scope="col"' in tabell
 

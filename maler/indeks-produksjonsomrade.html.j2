@@ -22,9 +22,10 @@
   <a href="/lokalitet/">lokalitetslisten</a>.
 </p>
 
-<div class="tabellramme">
+<div class="tabellramme" role="region"
+     aria-labelledby="trafikklysvedtak-alle-tittel" tabindex="0">
 <table id="trafikklysvedtak-alle">
-  <caption>
+  <caption id="trafikklysvedtak-alle-tittel">
     Produksjonsområdene med nyeste trafikklysfarge, snapshot
     <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
   </caption>
