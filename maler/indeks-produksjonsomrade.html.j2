@@ -1,6 +1,15 @@
 {# Produksjonsområdeindeksen. Tretten rader, nyeste farge. #}
 {% extends "base.html.j2" %}
 
+{% block brodsmule %}
+<nav class="sti" aria-label="Du er her">
+  <ol>
+    <li><a href="/">Forside</a></li>
+    <li aria-current="page">Produksjonsområder</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block innhold %}
 <h1>Alle produksjonsområder</h1>
 

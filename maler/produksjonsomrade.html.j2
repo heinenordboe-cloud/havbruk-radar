@@ -21,6 +21,16 @@
    hver dato. Se docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md. #}
 {% extends "base.html.j2" %}
 
+{% block brodsmule %}
+<nav class="sti" aria-label="Du er her">
+  <ol>
+    <li><a href="/">Forside</a></li>
+    <li><a href="/produksjonsomrade/">Produksjonsområder</a></li>
+    <li aria-current="page">Område {{ po.nr }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block innhold %}
 <h1>Produksjonsområde {{ po.nr }} <span data-navn>{{ po.navn }}</span></h1>
 

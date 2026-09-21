@@ -1501,7 +1501,11 @@ def test_indeksene_er_flate_uten_paginering():
         d=d, tittel="T", beskrivelse="B", jsonld="{}",
         attribusjon=["Kilde: Fiskeridirektoratet"],
         stilark=_stilark("lokalitet"), bygget="2026-09-20")
-    assert html.count('<a href="/lokalitet/') == 50
+    # RADLENKENE, ikke alle lenker til /lokalitet/. Fra 20.09.2026 har
+    # hver side en topplinje som også lenker dit, og en telling av
+    # prefikset ga 51. Mønsteret spør om det prøven faktisk vil vite:
+    # én lenke per lokalitetsnummer.
+    assert len(re.findall(r'<a href="/lokalitet/\d+/"', html)) == 50
     # Prøven ser etter pagineringsKONTROLLER, ikke etter ordet: sida
     # forklarer selv at den IKKE er paginert, og en prøve på ordet felte
     # sin egen begrunnelse.

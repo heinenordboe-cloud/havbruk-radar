@@ -7,6 +7,19 @@
    noen av dem. #}
 {% extends "base.html.j2" %}
 
+{% block brodsmule %}
+<nav class="sti" aria-label="Du er her">
+  <ol>
+    <li><a href="/">Forside</a></li>
+    <li><a href="/lokalitet/">Lokaliteter</a></li>
+{% if lok.po_kode %}
+    <li><a href="/produksjonsomrade/{{ lok.po_kode }}/">Produksjonsområde {{ lok.po_kode }}</a></li>
+{% endif %}
+    <li aria-current="page">Lokalitet {{ lok.loknr }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block innhold %}
 <h1>Lokalitet {{ lok.loknr }} <span data-navn>{{ lok.navn }}</span></h1>
 

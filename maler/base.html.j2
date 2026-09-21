@@ -39,7 +39,30 @@
 <link rel="stylesheet" href="{{ stilark }}">
 </head>
 <body>
+{# TOPPLINJA. Fram til 20.09.2026 hadde ingen av de 2 279 sidene en vei
+   hjem: en leser som landet på /lokalitet/31397/ fra et søk kunne ikke
+   komme noe annet sted uten å redigere adressefeltet.
+
+   LENKENE ER ABSOLUTTE, som hver annen sidelenke her — se
+   2026-09-16-url-struktur.md. Det er samme valg som før, og det betyr
+   fortsatt at navigasjon ikke virker når fila åpnes rett fra disk med
+   file://. Stilarket er unntaket, og det er unntaket med vilje: en
+   side uten stilark SER ut som et designvalg, mens en lenke som ikke
+   virker sier fra med én gang. #}
+<header class="topp">
+  <a class="merke" href="/">havbruk-radar</a>
+  <nav aria-label="Hovedmeny">
+    <a href="/lokalitet/">Lokaliteter</a>
+    <a href="/produksjonsomrade/">Produksjonsområder</a>
+    <a href="/selskap/">Selskaper</a>
+    <a href="/om/">Om</a>
+  </nav>
+</header>
+
 <main>
+{# Brødsmula er hver sidetypes egen: bare den vet hva den ligger under.
+   Forsiden lar blokka stå tom — den ER toppen. #}
+{% block brodsmule %}{% endblock %}
 {% block innhold %}{% endblock %}
 </main>
 

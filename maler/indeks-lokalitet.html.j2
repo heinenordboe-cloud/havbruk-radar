@@ -3,6 +3,15 @@
    paginert liste er en liste der side 14 aldri blir lest. #}
 {% extends "base.html.j2" %}
 
+{% block brodsmule %}
+<nav class="sti" aria-label="Du er her">
+  <ol>
+    <li><a href="/">Forside</a></li>
+    <li aria-current="page">Lokaliteter</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block innhold %}
 <h1>Alle akvakulturlokaliteter</h1>
 

@@ -136,11 +136,77 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------------------------------------------------------------- *
+ * 2b. TOPPLINJA OG BRØDSMULA
+ *
+ * Nøkternt. En etatsside med en fargeflate og et logomerke ville
+ * påstått at noen står bak — bunnteksten sier at ingen gjør det.
+ * ---------------------------------------------------------------- */
+
+.topp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ds-size-3) var(--ds-size-6);
+  max-width: var(--maal-side);
+  margin: 0 auto;
+  padding: var(--ds-size-4) var(--ds-size-8);
+  background: var(--farge-ark);
+  border-block-end: 2px solid var(--farge-kant-sterk);
+  border-inline: var(--ds-border-width-default) solid var(--farge-kant-svak);
+}
+
+.topp .merke {
+  font-weight: var(--ds-font-weight-semibold);
+  font-size: var(--ds-font-size-4);
+  color: var(--farge-tekst);
+  text-decoration: none;
+  margin-inline-end: auto;
+}
+
+.topp .merke:hover { text-decoration: underline; }
+
+.topp nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-size-2) var(--ds-size-5);
+  font-size: var(--ds-font-size-3);
+}
+
+/* BRØDSMULA. `<ol>` og ikke `<ul>`: rekkefølgen ER informasjonen.
+   Skilletegnet er et `::before` og ikke et tegn i markupen — en
+   skjermleser skal lese «Forside, Lokaliteter, Lokalitet 31397», ikke
+   «Forside skråstrek Lokaliteter skråstrek». */
+.sti {
+  margin: 0 0 var(--ds-size-5);
+  font-size: var(--ds-font-size-2);
+  color: var(--farge-tekst-svak);
+}
+
+.sti ol {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+.sti li { margin: 0; }
+
+.sti li + li::before {
+  content: "/";
+  margin-inline: 0.5em;
+  color: var(--farge-kant);
+}
+
+.sti [aria-current="page"] { color: var(--farge-tekst); }
+
 main {
   display: block;
   max-width: var(--maal-side);
   margin: 0 auto;
-  padding: var(--ds-size-10) var(--ds-size-8) var(--ds-size-15);
+  padding: var(--ds-size-8) var(--ds-size-8) var(--ds-size-15);
   background: var(--farge-ark);
   border-inline: var(--ds-border-width-default) solid var(--farge-kant-svak);
   border-block-end: var(--ds-border-width-default) solid var(--farge-kant-svak);
@@ -592,10 +658,13 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
      hver side, og på 360px er det 11 % av skjermen brukt på en kant. */
   body { background: var(--farge-ark); }
 
-  main, footer {
+  .topp, main, footer {
     padding-inline: var(--ds-size-4);
     border-inline: 0;
   }
+
+  .topp { gap: var(--ds-size-2) var(--ds-size-4); }
+  .topp nav { font-size: var(--ds-font-size-2); }
 
   main { padding-block: var(--ds-size-6) var(--ds-size-10); }
 
@@ -618,6 +687,9 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
  * ---------------------------------------------------------------- */
 
 @media print {
+  /* Navigasjon på papir er ni ord som ikke kan klikkes. Brødsmula blir
+     stående: den sier hvor i nettstedet arket kom fra. */
+  .topp nav { display: none; }
   body { background: #fff; color: #000; font-size: 10pt; }
   main, footer { max-width: none; border: 0; padding: 0; }
   .tabellramme, .kartramme { overflow: visible; }
