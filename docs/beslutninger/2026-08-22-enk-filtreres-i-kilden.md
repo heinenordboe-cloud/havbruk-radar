@@ -181,6 +181,50 @@ Ikke rørt. Kartlagt:
 Arkivet er verre enn snapshotene: der ligger hele API-svaret, inkludert
 gateadressen som feltvalget holder utenfor snapshotene.
 
+### Tillegg 21.09.2026: DA/ANS/PRE i september-snapshotene
+
+Samme sak, ny årgang. Mandagens innsamling (21.09) kjørte kode fra før
+16.09, fordi 47 commits aldri var pushet. Grensa ved SSB-sektor 2300 var
+altså ikke aktiv, og snapshotene fra 14.09 og 21.09 bærer personformer på
+disk slik august-filene bærer ENK.
+
+**Lesedøra er målt, ikke antatt.** `snapshot.filtrert_bort()` på de
+faktiske filene:
+
+| kilde | dato | rader på disk → lest | entiteter → | døra tok |
+|---|---|---|---|---|
+| `enhetsregisteret` | 2026-09-14 | 51 524 → 50 041 | 1807 → 1743 | 31 ANS, 32 DA, 1 PRE |
+| `enhetsregisteret` | 2026-09-21 | 51 610 → 50 126 | 1810 → 1746 | 31 ANS, 32 DA, 1 PRE |
+| `eierskap` | 2026-09-14 | 52 283 → 52 148 | 2953 → 2945 | 2 ANS, 6 DA |
+| `eierskap` | 2026-09-21 | 52 249 → 52 114 | 2951 → 2943 | 2 ANS, 6 DA |
+| `akvakultur` | begge | 48 310 → 48 310 | 1782 → 1782 | — |
+
+64 entiteter per uke ut av enhetsregisteret, 8 ut av eierskap. Filene er
+ikke rørt; det er lesingen som filtrerer, som besluttet 22.08.
+
+**Én slipper gjennom, og grunnen er verdt å kjenne.** Døra matcher på
+`organisasjonsform`. Tillatelsen `H-FJ-0018` — et partrederi — har ingen
+slik rad i noe av snapshotene, fordi parseren som skrev dem ikke kjente
+`JointlyOwnedShippingCompany`; typen ble lagt i `FORM_KART` 16.09, fem
+dager etter at 14.09-fila var skrevet og fem dager før 21.09-kjøringen
+som ikke hadde koden.
+
+Døra er ikke i stykker. Den svarer ærlig på spørsmålet den stiller:
+entiteten bærer ingen personform. Feltet som VET er `eier_type`, og det
+er kildens vokabular — derfor stilles spørsmålet i publiseringsleddet
+(`nettsted._eierrad()`, som kaller `sources.eierskap.er_person()`) og
+ikke i `core/`. Samme delegering som `personeier()`.
+
+Målt ved å kjøre dagens parser mot mandagens arkiv: 2951 tillatelser i
+snapshotet, 2942 med dagens kode. Differansen er 9 — 6 DA, 2 ANS, 1 PRE
+— og de rammer lokalitetene 10052, 10317, 11593, 11624, 11800, 13128,
+13881, 22415 og 27055. Åtte av de ni fanges av lesedøra i dag; den
+niende er partrederiet.
+
+**Dette er 1b-2 i klartekst:** `organisasjonsform` og `eier_type` PLEIER
+å følge hverandre, og gjorde det helt til en kjøring med gammel kode
+skilte dem.
+
 Kodrepoet er den ubehagelige raden. Snapshotene lå der før `91ccee6`
 skilte kode og data, og blobene er fortsatt nåbare i historikken — i
 perioden 16.–18.08 var det repoet offentlig.

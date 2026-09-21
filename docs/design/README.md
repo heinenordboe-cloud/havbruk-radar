@@ -6,16 +6,23 @@ scratchpad slettes, og arbeidet ville vært borte uten at noen merket
 det. Det er samme regel som CLAUDE.md punkt 5 — historikken lar seg
 ikke rekonstruere — anvendt på noe mindre viktig enn et snapshot.
 
-## Status 21.09.2026
+## Status 21.09.2026, ettermiddag
 
-**Logo og navn er ikke bestemt.** Nettstedet bruker ordmerket som ren
-tekst i Newsreader, uten grafisk form. Markupen står ett sted,
-`maler/merke.html.j2`, og stilen henger på klassen `.merke` i
-`maler/stil.css`. Et valgt merke byttes inn ved å redigere den ene
-malen; ingenting annet skal trenge å røres.
+**Navnet er Kystloggen, og merket er ordet.** Ingen av de tre
+forslagene under ble valgt. Ordmerket er «Kystloggen» i Newsreader
+600, med én diskré aksentbruk: en tynn rustlinje under ordet —
+`.merke--strek`. En logg er linjert.
 
-Det betyr også at ingenting i denne mappa er en påstand om hva
-nettstedet heter eller ser ut som. Filene er skisser.
+Den andre varianten som ble tegnet, `.merke--punktum`, setter i stedet
+et punktum i aksentfarge etter ordet. Begge ligger i `maler/stil.css`
+avsnitt 2b; å bytte er å bytte klassen i `maler/merke.html.j2`, og
+ingenting annet. Det var hele grunnen til at den fila ble laget, og
+byttet fra «havbruk-radar» til «Kystloggen» bekreftet at det holder:
+én linje i én fil.
+
+Filene under er derfor skisser som IKKE ble brukt. De ligger her fordi
+en forkastet skisse er en beslutning man skal kunne gå tilbake til, og
+fordi de ellers ville forsvunnet med scratchpaden.
 
 ## `logoforslag.html`
 

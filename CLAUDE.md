@@ -366,3 +366,33 @@ En endring som ser riktig ut i koden er ikke verifisert før du har
 kjørt den og sett resultatet i fila (parquet, arkiv, changelog — det
 som faktisk endret seg). Kjør testene og les resultatet, ikke bare
 diffen.
+
+## 7. En oppgave er ikke ferdig før den er pushet
+
+Hver oppgave avsluttes med `git push`, og
+
+    git log origin/main..main
+
+skal være tom når du sier deg ferdig. Ikke «commitet og klar til
+push» — pushet.
+
+Regelen er skrevet 21.09.2026, og den har en pris i data:
+
+**F15:** 47 commits lå ucommitet-men-upushet i to uker. Den ukentlige
+innsamlingen kjører fra det som er PUSHET, og kjørte derfor kode fra
+før 16.09. Grensa ved SSB-sektor 2300 (regel 3) var ikke aktiv, og
+mandagens snapshot av `enhetsregisteret` og `eierskap` ble skrevet med
+personformer i seg. Snapshots er append-only: de filene er nå
+historikk, og feilen kan ikke rettes — bare filtreres ved lesing.
+
+Målt 21.09.2026: 64 entiteter per uke i `enhetsregisteret` og 8 i
+`eierskap`. Lesedøra fjerner dem, med ett unntak den ikke KAN se —
+tillatelsen som bare bærer personformen i `eier_type` og ikke i
+`organisasjonsform`, fordi parseren som skrev raden ikke kjente typen.
+Hele målingen står i
+`docs/beslutninger/2026-08-22-enk-filtreres-i-kilden.md`.
+
+Det er samme familie som 1b: en tilstand som handler om OSS (koden er
+skrevet) forvekslet med en som handler om VERDEN (koden kjører). En
+commit på din maskin er ikke en endring i systemet. Push er det som
+gjør den til én.

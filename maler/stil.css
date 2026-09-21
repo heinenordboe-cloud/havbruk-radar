@@ -1,4 +1,4 @@
-/* havbruk-radar — presentasjonen. VÅR, ikke hentet.
+/* Kystloggen — presentasjonen. VÅR, ikke hentet.
  *
  * Leses sammen med `tokens.css`, som er Digdirs verdier ordrett og som
  * ikke redigeres her. Denne fila gir dem NAVN etter hva de gjør på
@@ -421,15 +421,34 @@ body {
   border-inline: var(--ds-border-width-default) solid var(--farge-kant-svak);
 }
 
-/* ORDMERKET. Ren tekst i Newsreader — en PLASSHOLDER, og den er det
-   med vilje. Logo og navn er ikke bestemt (21.09.2026); tre forslag
-   til grafisk form ligger i `docs/design/`. Markupen står ett sted,
-   `maler/merke.html.j2`, slik at et merke kan byttes inn uten at noen
-   må finne igjen `<a class="merke">` i sju maler.
+/* ORDMERKET. «Kystloggen» i Newsreader 600, ren tekst. Markupen står
+   ett sted, `maler/merke.html.j2`, slik at merket kan byttes uten at
+   noen må finne igjen `<a class="merke">` i sju maler.
 
-   Reglene under er derfor skrevet om `.merke` og ikke om `.topp
-   .merke`: flytter merket seg, eller får det en SVG ved siden av
-   teksten, følger stilen med. */
+   Reglene er skrevet om `.merke` og ikke om `.topp .merke`: flytter
+   merket seg, eller får det en form ved siden av teksten, følger
+   stilen med.
+
+   ## Den ene aksentbruken, i to varianter
+
+   Aksenten opptrer bare som skrift eller strek, aldri som flate. To
+   varianter ble tegnet, og begge står her fordi bytte mellom dem skal
+   koste én klasse i `merke.html.j2`:
+
+     .merke--strek     en tynn rustlinje under ordet. En logg er
+                       LINJERT — linja er det som gjør den til en logg
+                       framfor et ark. Streken er 2px og ligger 0,14em
+                       under grunnlinja, altså der en linjal ville
+                       ligget og ikke der en understreking ligger.
+
+     .merke--punktum   punktumet etter ordet i aksentfarge.
+                       «Kystloggen.» — én ført oppføring, avsluttet.
+                       Tegnet står i CSS og ikke i markupen: det er
+                       ornament, og en skjermleser skal lese navnet,
+                       ikke navnet med et punktum.
+
+   Begge er små med vilje. Et ordmerke som roper med farge, konkurrerer
+   med trafikklyset — og trafikklyset er data. */
 .merke {
   font-family: var(--skrift-tittel);
   font-weight: var(--ds-font-weight-semibold);
@@ -437,7 +456,31 @@ body {
   letter-spacing: var(--ds-letter-spacing-2);
   color: var(--farge-tekst);
   text-decoration: none;
+
+  /* Begge variantene henger på dette: streken er et `::after` som må
+     kunne plasseres, og punktumet skal ikke flytte teksten. */
+  position: relative;
+  display: inline-block;
 }
+
+.merke--strek::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -0.14em;
+  block-size: 2px;
+  background: var(--aksent);
+}
+
+.merke--punktum::after {
+  content: ".";
+  color: var(--aksent);
+}
+
+/* Understrekingen ved peker ville ligget oppå loggstreken. Den flyttes
+   ned, slik at de to er to streker og ikke én tykk. */
+.merke--strek:hover { text-decoration-line: underline; }
+.merke--strek:hover::after { inset-block-end: -0.32em; }
 
 .topp .merke { margin-inline-end: auto; }
 
@@ -700,6 +743,11 @@ a:hover {
 }
 
 .hero a:hover { color: var(--hav-tittel); }
+
+/* Merket på havbåndet, om det noen gang havner der: aksenten er den
+   lyse varianten på mørk flate, som alt annet i båndet. */
+.hero .merke--strek::after,
+.hero .merke--punktum::after { background: var(--aksent-lys); color: var(--aksent-lys); }
 
 /* ---------------------------------------------------------------- *
  * 3. TABELLER

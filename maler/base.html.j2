@@ -37,6 +37,21 @@
    venter på et navn med anførselstegn i. #}
 <script type="application/ld+json">{{ jsonld }}</script>
 <meta name="color-scheme" content="light dark">
+{# IKONENE ER ABSOLUTTE, i motsetning til stilarket rett under.
+
+   Stilarket er det ENE unntaket fra absolutte URL-er her, og grunnen
+   er at fraværet er usynlig: en side uten stilark ser ut som et
+   designvalg. Et favicon som ikke kommer fram er en tom rute i
+   fanelista — en mangel ingen forveksler med en avgjørelse. Det følger
+   derfor samme regel som navigasjonen og brødsmula, og virker når
+   siden SERVERES. Se 2026-09-16-url-struktur.md.
+
+   Tre formater fordi plattformene ber om tre. SVG-en skalerer til alt;
+   32px-PNG-en er reserven; 180px er iOS' hjemskjerm. Alle tre er den
+   samme «K»-en — se `IKONFILER` i nettsted.py. #}
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="{{ stilark }}">
 </head>
 <body>
@@ -97,7 +112,7 @@
     {% endfor %}
   </ul>
   <p>
-    Siden er bygget {{ bygget }} av snapshots i havbruk-radar.
+    Siden er bygget {{ bygget }} av snapshots i Kystloggen.
     Hver verdi bærer datoen den gjelder for. Tallene er gjengitt
     uendret fra kildene; sammenstillingen er vår, og verken
     Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch eller

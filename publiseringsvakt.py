@@ -194,6 +194,15 @@ BINAERFILER = {
     "d8e551fa73a848a2bb3806bc725cb1b705c8ec1e7c203e8b51c5ee338b01fcc7":
         "newsreader.woff2 — Newsreader, OFL 1.1. name-tabellen inspisert "
         "21.09.2026, se docs/design/NEWSREADER.md",
+    # Ikonene. Rastret av `maler/favicon.svg`, som vakten leser som
+    # tekst (`.svg` står i TEKSTTYPER) og granskes som alt annet. PNG-ene
+    # kan derfor ikke inneholde noe SVG-en ikke inneholder — men de er
+    # binære, og en binærfil vakten ikke har sett i, skal ikke gå ut.
+    "36477d774220c1f8880dbb73a9eb1be5f70d69eff50d0e070bc34ad702a5293e":
+        "favicon-32.png — «K» i Newsreader 600 på havblått, rastret av "
+        "maler/favicon.svg 21.09.2026",
+    "20b6fc8bf832023ffd1d09df2220fb66eaa6189f34e3ede5e5f6154e66be3365":
+        "apple-touch-icon.png — samme ikon, 180x180",
 }
 
 # Filtypene der KOLONNEOVERSKRIFTEN er merkingen, og der prøvene derfor

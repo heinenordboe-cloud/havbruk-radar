@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img"
+     aria-label="Kystloggen">
+  <title>Kystloggen</title>
+  <rect width="64" height="64" fill="#0b2e38"/>
+  <path transform="translate(11.178 49.409) scale(0.025658 -0.025658)" fill="#e7dbd0" d="M1408 97 1552 40V0H926V40L1069 91L599 653H404V757H621L1142 1267L984 1316V1357H1436V1316L1284 1266L707 718L789 833ZM495 1263V94L643 40V0H71V40L223 94V1263L71 1316V1357H647V1316Z"/>
+</svg>

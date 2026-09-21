@@ -926,6 +926,19 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
 # streng: en tom celle lar leseren gjette, og «vi vet ikke» er et svar.
 EIER_UKJENT = "ikke oppgitt av kilden"
 
+# Eieren ER kjent, og vises likevel ikke. To ulike påstander, to ulike
+# tekster — `EIER_UKJENT` betyr at kilden tier, denne betyr at vi
+# tier.
+#
+# ## Hvorfor raden ikke bare utelates
+#
+# Tillatelsen finnes, og lokaliteten har den. En utelatt rad ville gjort
+# at tabellen viste 9 av 10 tillatelser uten å si det, og det er samme
+# feil som `EIER_UKJENT` ble laget for å unngå. Raden står; navnet gjør
+# det ikke.
+EIER_PERSONFORM = "eieren er en personform — navnet vises ikke"
+EIER_PERSONFORM_FELT = "eier_personform"
+
 # Feltnavnet den cellen merkes med. IKKE `eier_navn` — verdien er VÅR
 # setning om fravær, ikke et navn fra kilden, og porten skal ikke lete
 # etter den i hvitelista over navn. Se docs/REGEL-UENIGE-KILDER.md.
@@ -951,6 +964,60 @@ def _uten_eier(oppgitt: list[str], eierskap: dict) -> list[str]:
     return [nr for nr in oppgitt if nr not in eierskap]
 
 
+def _eierrad(nr: str, d: dict) -> dict:
+    """Én rad i eierskapstabellen, med eller uten eiernavn.
+
+    ## Spørsmålet stilles til KILDEN, i kildens vokabular
+
+    `sources.eierskap.er_person()` er den samme funksjonen `personeier()`
+    bruker for å la være å lage en selskapsside, og den samme `fetch()`
+    bruker for å la være å hente raden i det hele tatt. Ett spørsmål,
+    ett sted, tre ledd som stiller det.
+
+    ## Hvorfor leddet trengs når kilden allerede filtrerer
+
+    Fordi et snapshot er skrevet én gang og leses i årevis. MÅLT
+    21.09.2026: mandagens eierskap-snapshot ble skrevet av kode fra før
+    16.09, da `FORM_KART` ikke kjente `JointlyOwnedShippingCompany`.
+    Tillatelsen H-FJ-0018 fikk derfor ingen `organisasjonsform`-rad, og
+    lesedøra — som matcher på nettopp det feltet — har ingenting å bite
+    i. Den tok de 8 andre (6 DA, 2 ANS) som hadde en oversatt kode.
+
+    Døra er ikke i stykker. Den svarer på «bærer denne entiteten en
+    personform», og for denne raden er svaret ærlig nei: formen står
+    ikke der. `eier_type` gjør det, og det er kildens felt — derfor
+    stilles spørsmålet her og ikke i `core/`.
+
+    Det er samme skille som 1b-2: to felter som PLEIER å følge
+    hverandre, helt til en kjøring med gammel kode skiller dem.
+    """
+    from sources.eierskap import er_person
+
+    if er_person(d.get("eier_type")):
+        return {
+            "nr": nr,
+            "eier_navn": EIER_PERSONFORM,
+            "eier_felt": EIER_PERSONFORM_FELT,
+            "eier_orgnr": "",
+            "type": d.get("tillatelse_type", ""),
+            "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
+                                           d.get("kapasitet_enhet", "")),
+            "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
+            "tildelt_navn": "",
+        }
+    return {
+        "nr": nr,
+        "eier_navn": d.get("eier_navn", ""),
+        "eier_felt": "eier_navn",
+        "eier_orgnr": d.get("eier_orgnr", ""),
+        "type": d.get("tillatelse_type", ""),
+        "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
+                                       d.get("kapasitet_enhet", "")),
+        "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
+        "tildelt_navn": d.get("tildelt_navn", ""),
+    }
+
+
 def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
     """Radene i eierskapstabellen — kjente OG ugjorte rede for.
 
@@ -959,18 +1026,7 @@ def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
     en utelatt rad ville gjort det usynlig.
     """
     rader = [
-        {
-            "nr": nr,
-            "eier_navn": d.get("eier_navn", ""),
-            "eier_felt": "eier_navn",
-            "eier_orgnr": d.get("eier_orgnr", ""),
-            "type": d.get("tillatelse_type", ""),
-            "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
-                                           d.get("kapasitet_enhet", "")),
-            "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
-            "tildelt_navn": d.get("tildelt_navn", ""),
-        }
-        for nr, d in mine_till.items()
+        _eierrad(nr, d) for nr, d in mine_till.items()
     ] + [
         {
             "nr": nr,
@@ -1346,7 +1402,7 @@ def csv_kommentar(lok: dict, setninger: list[str], bygget: str) -> list[str]:
             "",
         ]
     linjer += [
-        f"Bygget {bygget} av havbruk-radar fra snapshots. Tallene er "
+        f"Bygget {bygget} av Kystloggen fra snapshots. Tallene er "
         f"gjengitt uendret fra kilden.",
         "Kommentarlinjer starter med #. Les f.eks. med "
         "polars.read_csv(..., comment_prefix=\"#\").",
@@ -1426,7 +1482,7 @@ def jsonld(lok: dict) -> str:
         "inLanguage": "nb",
         "dateModified": lok["akva_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Organization", "name": "havbruk-radar"},
+        "creator": {"@type": "Organization", "name": "Kystloggen"},
     }
     if lok["lus_fra"]:
         data["temporalCoverage"] = f"{lok['lus_fra']}/{lok['lus_til']}"
@@ -1574,7 +1630,7 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
 
     html = mal.render(
         lok=lok,
-        tittel=f"Lokalitet {lok['loknr']} {lok['navn']} — havbruk-radar",
+        tittel=f"Lokalitet {lok['loknr']} {lok['navn']} — Kystloggen",
         beskrivelse=(
             f"Registerdata, eierskap og ukentlige lusetall for "
             f"akvakulturlokalitet {lok['loknr']} {lok['navn']} i "
@@ -1681,45 +1737,89 @@ def skriv_stil(rot: Path) -> Path:
 
 FONTFILER = ("newsreader.woff2", "newsreader-OFL.txt")
 
+# IKONENE. Samme «K» i alle tre, samme kvadrat, tre formater fordi
+# plattformene ber om tre:
+#
+#   favicon.svg          moderne nettlesere, skalerer til alt
+#   favicon-32.png       reserven, og den som faktisk brukes i en
+#                        fanetittel på eldre Safari og i bokmerkelister
+#   apple-touch-icon.png iOS, 180x180, når noen legger siden på
+#                        hjemskjermen
+#
+# «K»-en er IKKE tekst i SVG-en. Et favicon rendres uten nettstedets
+# `@font-face`, så `font-family: Newsreader` ville falt til en
+# systemserif og gitt en annen K enn ordmerket. Glyffen er hentet ut av
+# Newsreader ved wght=600 og opsz=28 — samme instans som merket — og
+# ligger som en `<path>`. Se docs/design/NEWSREADER.md.
+#
+# PNG-ene er rastret av SVG-en, ikke tegnet på nytt. De kan derfor ikke
+# si noe annet enn den.
+IKONFILER = ("favicon.svg", "favicon-32.png", "apple-touch-icon.png")
 
-def skriv_fonter(rot: Path) -> list[Path]:
-    """Kopierer fonten og lisensen til nettstedets rot.
 
-    Kaster om en av dem mangler. En side som rendrer uten fonten ser ut
-    som et designvalg (se `font-display: swap`), og en font uten lisens
-    ved siden av er et lisensbrudd som ingen ser — begge er feil som er
-    stille, og derfor skal byggingen stoppe framfor å hoppe over."""
+def _kopier_fra_maler(rot: Path, navn: tuple[str, ...], hvorfor: str) -> list[Path]:
+    """Kopierer navngitte filer fra `maler/` til nettstedets rot.
+
+    Kaster om en av dem mangler framfor å hoppe over den. Begge
+    filtypene her feiler STILLE hvis de uteblir: en side uten fonten
+    ser ut som et designvalg (`font-display: swap`), og en manglende
+    favicon er bare en tom rute. Byggingen skal si fra i stedet."""
     rot.mkdir(parents=True, exist_ok=True)
     skrevet = []
-    for navn in FONTFILER:
-        kilde = MALER / navn
+    for fil in navn:
+        kilde = MALER / fil
         if not kilde.exists():
-            raise FileNotFoundError(
-                f"{kilde} mangler. Stilarket viser til /{navn}; "
-                f"uten fila er @font-face en død lenke.")
-        ut = rot / navn
+            raise FileNotFoundError(f"{kilde} mangler. {hvorfor}")
+        ut = rot / fil
         ut.write_bytes(kilde.read_bytes())
         skrevet.append(ut)
     return skrevet
 
 
+def skriv_fonter(rot: Path) -> list[Path]:
+    """Fonten og lisensen til nettstedets rot."""
+    return _kopier_fra_maler(
+        rot, FONTFILER,
+        "Stilarket viser til fila; uten den er @font-face en død lenke.")
+
+
+def skriv_ikoner(rot: Path) -> list[Path]:
+    """Favicon-ene til nettstedets rot."""
+    return _kopier_fra_maler(
+        rot, IKONFILER,
+        "base.html.j2 viser til fila i <head>.")
+
+
 # ------------------------------------------- sitemap, robots, llms
 #
-# ## Domenet finnes ikke, og det skal ikke finnes på
+# ## Domenet er avgjort (21.09.2026): kystloggen.no
 #
-# `sitemap.xml` krever ABSOLUTTE URL-er etter spesifikasjonen. Vi har
-# ikke noe vertsnavn — se docs/beslutninger/2026-09-16-url-struktur.md,
-# som lar være å oppgi `url` i JSON-LD-en av nøyaktig samme grunn: et
-# påfunnet domene er en påstand om noe som ikke er avgjort.
+# Fram til i dag sto det ingen standard her, og begrunnelsen var god:
+# `sitemap.xml` krever ABSOLUTTE URL-er, vi hadde ikke noe vertsnavn, og
+# et påfunnet domene er en påstand om noe som ikke er avgjort. Se
+# docs/beslutninger/2026-09-16-url-struktur.md, som lar være å oppgi
+# `url` i JSON-LD-en av nøyaktig samme grunn.
 #
-# Løsningen er ikke å finne på ett, og ikke å la fila være:
-# `HAVBRUK_BASEURL` leses ved bygging. Er den satt, blir URL-ene
-# absolutte og fila er spec-gyldig. Er den ikke satt, skrives stiene
-# relative OG fila sier i en kommentar at den må bygges på nytt med
-# variabelen satt før den duger for en søkemotor. Da er mangelen synlig
-# i fila selv, ikke bare i hodet på den som bygde.
+# Premisset er borte. Navnet og domenet er bestemt, og da er det ikke
+# lenger varsomhet å utelate det — det er en sitemap som ikke duger for
+# en søkemotor, hver eneste kjøring, til noen husker en miljøvariabel.
+#
+# `HAVBRUK_BASEURL` overstyrer fortsatt, og det er ikke en rest: en
+# kopi som serveres et annet sted (en forhåndsvisning, et speil) skal
+# ikke fortelle en crawler at den er originalen. Variabelen heter
+# fortsatt `HAVBRUK_*` som `HAVBRUK_DATA_DIR`, fordi navnerommet
+# tilhører REPOET og ikke nettstedet — og fordi en omdøping ville
+# stoppet hver cron-jobb som allerede setter den.
+#
+# Settes den til tom streng EKSPLISITT, faller fila tilbake til
+# relative stier med forklaringen i seg. Det er ikke det samme som at
+# den er usatt, og skillet er med vilje: «jeg vet ikke hvor dette skal
+# ligge» er en tilstand som fortsatt finnes.
 
 SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+# Domenet nettstedet publiseres på. Én streng, ett sted.
+BASEURL = "https://kystloggen.no"
 
 
 def _basisurl() -> str:
@@ -1729,7 +1829,10 @@ def _basisurl() -> str:
     laste modulen på nytt — samme grunn som `_http.brukeragent()`.
     """
     import os
-    return (os.environ.get("HAVBRUK_BASEURL") or "").strip().rstrip("/")
+    satt = os.environ.get("HAVBRUK_BASEURL")
+    if satt is None:
+        return BASEURL
+    return satt.strip().rstrip("/")
 
 
 def _urler(felles: Felles) -> list[str]:
@@ -1758,11 +1861,11 @@ def skriv_sitemap(rot: Path, felles: Felles) -> Path:
     linjer = ['<?xml version="1.0" encoding="UTF-8"?>']
     if not basis:
         linjer.append(
-            "<!-- HAVBRUK_BASEURL er ikke satt, så <loc> er RELATIVE "
-            "stier. Sitemap-spesifikasjonen krever absolutte URL-er: "
-            "bygg på nytt med variabelen satt før fila leveres til en "
-            "søkemotor. Et påfunnet domene ville vært en påstand om noe "
-            "som ikke er avgjort. -->")
+            "<!-- HAVBRUK_BASEURL er satt til tom streng, så <loc> er "
+            "RELATIVE stier. Sitemap-spesifikasjonen krever absolutte "
+            "URL-er: bygg på nytt med variabelen usatt (da brukes "
+            "nettstedets eget domene) eller satt til vertsnavnet denne "
+            "kopien faktisk ligger på. -->")
     linjer.append(f'<urlset xmlns="{SITEMAP_NS}">')
     for sti in _urler(felles):
         linjer.append("  <url>")
@@ -1779,7 +1882,7 @@ def skriv_robots(rot: Path) -> Path:
     """robots.txt. Alt er åpent; det er poenget med å publisere det."""
     basis = _basisurl()
     linjer = [
-        "# havbruk-radar — offentlige registerdata, fritt tilgjengelige.",
+        "# Kystloggen — offentlige registerdata, fritt tilgjengelige.",
         "# Sidene er statiske og tåler å bli indeksert i sin helhet.",
         "User-agent: *",
         "Allow: /",
@@ -1789,8 +1892,9 @@ def skriv_robots(rot: Path) -> Path:
         linjer.append(f"Sitemap: {basis}/sitemap.xml")
     else:
         linjer += [
-            "# Sitemap-linja krever en absolutt URL, og domenet er ikke",
-            "# avgjort. Bygg på nytt med HAVBRUK_BASEURL satt.",
+            "# Sitemap-linja krever en absolutt URL. HAVBRUK_BASEURL er",
+            "# satt til tom streng for denne byggingen — bygg på nytt",
+            "# uten den for å få nettstedets eget domene.",
             "# Sitemap: https://<domene>/sitemap.xml",
         ]
     ut = rot / "robots.txt"
@@ -1808,7 +1912,7 @@ def skriv_llms(rot: Path, felles: Felles) -> Path:
     om = bygg_om(felles)
     basis = _basisurl()
     u = (lambda sti: basis + sti) if basis else (lambda sti: sti)
-    tekst = f"""# havbruk-radar
+    tekst = f"""# Kystloggen
 
 > Offentlige registerdata om norsk akvakultur, hentet ukentlig og lagret
 > som daterte snapshots. {om['lokaliteter']} lokaliteter, 13
@@ -1843,7 +1947,7 @@ personvernhensyn, og de som forsvinner er små, personeide anlegg.
 
 ## Om kilder, metode og sitering
 
-- [Om havbruk-radar]({u('/om/')}): kildene med lisens og ordrett
+- [Om Kystloggen]({u('/om/')}): kildene med lisens og ordrett
   attribusjon, hvor ofte det samles inn, hva dekningen er, hva som
   bevisst ikke hentes, og en ferdig formatert referanse.
 - [Kildekode og beslutningslogg]({om['repo']}): hver beslutning er
@@ -1851,7 +1955,7 @@ personvernhensyn, og de som forsvinner er små, personeide anlegg.
 
 ## Sitering
 
-{om['forfatter']} ({om['bygget'][:4]}). havbruk-radar: sammenstilte
+{om['forfatter']} ({om['bygget'][:4]}). Kystloggen: sammenstilte
 registerdata om norsk akvakultur. Bygget {om['bygget']}. {om['repo']}
 
 Kildenes egen attribusjon må følge med og står i bunnteksten på hver
@@ -1987,15 +2091,15 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
     html = mal.render(
         om=om,
         laan=VAART_LAAN,
-        tittel="Om havbruk-radar — kilder, metode, dekning og sitering",
+        tittel="Om Kystloggen — kilder, metode, dekning og sitering",
         beskrivelse=(
-            "Hva havbruk-radar er, hvilke offentlige kilder det bygger "
+            "Hva Kystloggen er, hvilke offentlige kilder det bygger "
             "på med lisens og attribusjon, hvor ofte det samles inn, hva "
             "dekningen er, hvem som står bak, og hvordan du siterer det."),
         jsonld=_script_trygg({
             "@context": "https://schema.org",
             "@type": "AboutPage",
-            "name": "Om havbruk-radar",
+            "name": "Om Kystloggen",
             "inLanguage": "nb",
             "author": {"@type": "Person", "name": om["forfatter"]},
             "codeRepository": om["repo"],
@@ -2127,21 +2231,21 @@ def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
         _skriv_indeks(
             rot, "lokalitet", "indeks-lokalitet.html.j2",
             bygg_lokalitetsindeks(felles),
-            "Alle akvakulturlokaliteter — havbruk-radar",
+            "Alle akvakulturlokaliteter — Kystloggen",
             "Flat liste over alle norske akvakulturlokaliteter med "
             "nummer, navn, kommune og produksjonsområde.",
             ("akvakultur",), felles),
         _skriv_indeks(
             rot, "produksjonsomrade", "indeks-produksjonsomrade.html.j2",
             bygg_poindeks(felles),
-            "Alle produksjonsområder — havbruk-radar",
+            "Alle produksjonsområder — Kystloggen",
             "De tretten produksjonsområdene med nyeste trafikklysfarge "
             "og antall lokaliteter.",
             ("akvakultur", "trafikklysvedtak"), felles),
         _skriv_indeks(
             rot, "selskap", "indeks-selskap.html.j2",
             bygg_selskapsindeks(felles),
-            "Alle selskaper med akvakulturtillatelse — havbruk-radar",
+            "Alle selskaper med akvakulturtillatelse — Kystloggen",
             "Flat liste over selskaper som eier minst én "
             "akvakulturtillatelse, med antall tillatelser og lokaliteter.",
             ("eierskap", "enhetsregisteret"), felles),
@@ -2330,7 +2434,7 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
     mal = mal or _miljo().get_template("forside.html.j2")
     html = mal.render(
         f=f,
-        tittel="havbruk-radar — norske akvakulturlokaliteter, uke for uke",
+        tittel="Kystloggen — norske akvakulturlokaliteter, uke for uke",
         beskrivelse=(
             f"Offentlige registerdata om {f['lokaliteter']} norske "
             f"akvakulturlokaliteter, sammenstilt og datert: eierskap, "
@@ -2360,7 +2464,7 @@ def jsonld_forside(f: dict, vilkaar: dict) -> Markup:
     data = {
         "@context": "https://schema.org",
         "@type": "Dataset",
-        "name": "havbruk-radar — norske akvakulturlokaliteter uke for uke",
+        "name": "Kystloggen — norske akvakulturlokaliteter uke for uke",
         "description": (
             f"Sammenstilte offentlige registerdata om {f['lokaliteter']} "
             f"norske akvakulturlokaliteter: hvem som eier tillatelsene, "
@@ -2557,7 +2661,7 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
         "inLanguage": "nb",
         "dateModified": sel["eierskap_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Organization", "name": "havbruk-radar"},
+        "creator": {"@type": "Organization", "name": "Kystloggen"},
     })
 
 
@@ -2568,7 +2672,7 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
     mal = mal or _miljo().get_template("selskap.html.j2")
     html = mal.render(
         sel=sel,
-        tittel=f"{sel['navn'] or sel['orgnr']} — havbruk-radar",
+        tittel=f"{sel['navn'] or sel['orgnr']} — Kystloggen",
         beskrivelse=(
             f"Akvakulturtillatelser, lokaliteter og overføringer for "
             f"organisasjonsnummer {sel['orgnr']}"
@@ -2626,7 +2730,7 @@ def jsonld_po(po: dict, vilkaar: dict) -> Markup:
         "inLanguage": "nb",
         "dateModified": po["akva_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Organization", "name": "havbruk-radar"},
+        "creator": {"@type": "Organization", "name": "Kystloggen"},
     }
     if po["runder"]:
         data["temporalCoverage"] = (f"{po['runder'][0]['aar']}/"
@@ -2642,7 +2746,7 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
     mal = mal or _miljo().get_template("produksjonsomrade.html.j2")
     html = mal.render(
         po=d,
-        tittel=f"Produksjonsområde {d['nr']} {d['navn']} — havbruk-radar",
+        tittel=f"Produksjonsområde {d['nr']} {d['navn']} — Kystloggen",
         beskrivelse=(
             f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "
             f"{d['navn']}, med lesemåte, og de {d['lokaliteter_antall']} "
@@ -2799,6 +2903,7 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     t0 = time.perf_counter()
     for skriv in (lambda: skriv_stil(rot),
                   lambda: skriv_fonter(rot),
+                  lambda: skriv_ikoner(rot),
                   lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),
                   lambda: skriv_llms(rot, felles)):
@@ -2920,7 +3025,8 @@ def main() -> int:
             return 1
     else:
         filer = (skriv_lokalitet(args.lokalitet, rot)
-                 + [skriv_stil(rot)] + skriv_fonter(rot))
+                 + [skriv_stil(rot)] + skriv_fonter(rot)
+                 + skriv_ikoner(rot))
         for f in filer:
             print(f"{f}  ({f.stat().st_size / 1024:.0f} kB)")
         print(f"  URL: /lokalitet/{args.lokalitet}/")

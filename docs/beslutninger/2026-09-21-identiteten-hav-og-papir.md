@@ -20,7 +20,10 @@ er begrunnet i målinger framfor i smak.
    trafikklyset er alltid fylt firkant.
 4. **Newsreader** bærer overskrifter og ordmerke. Brødteksten er
    systemets sans.
-5. **Ordmerket er en plassholder.** Logo og navn er ikke bestemt.
+5. **Ordmerket er navnet.** ~~Plassholder; logo og navn ikke
+   bestemt.~~ Avklart senere samme dag: nettstedet heter **Kystloggen**
+   og ligger på **kystloggen.no**. Merket er ordet i Newsreader 600 med
+   en rustlinje under — ingen grafisk form. Se `docs/design/README.md`.
 
 Digdirs `tokens.css` blir stående, men bare skjelettet: typeskala,
 avstander, linjehøyder, radier. Fargefamiliene er tatt ut.
@@ -135,5 +138,12 @@ eller navn.
   opptrer i samme form. Formregelen er det leddet som bærer, og den er
   brutt i det øyeblikket.
 - **Ordmerket:** at en logo velges. Da byttes `maler/merke.html.j2`,
-  og ingenting annet skal trenge å røres. Er det ikke sant, er det en
-  feil i denne beslutningen.
+  og ingenting annet skal trenge å røres.
+
+  **Prøvd 21.09.2026:** navnet ble byttet fra «havbruk-radar» til
+  «Kystloggen», og merket fikk en aksentstrek. Kostnaden i merkets egen
+  sak var én linje i én fil. Påstanden holder.
+
+  (Navnet står andre steder også — titler, JSON-LD, llms.txt, /om/ —
+  men det er navnet som tekst, ikke merket som komponent. De to er
+  ulike ting, og beslutningen gjaldt det andre.)

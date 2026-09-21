@@ -1592,7 +1592,7 @@ def test_om_siden_merker_UBELAGT_kilde_som_ikke_vist():
 def test_om_siden_har_ferdig_formatert_sitering():
     flat = " ".join(_om().split())
     assert "Heine Valø Nordbøe (2026)" in flat
-    assert "havbruk-radar: sammenstilte registerdata om norsk akvakultur" in flat
+    assert "Kystloggen: sammenstilte registerdata om norsk akvakultur" in flat
     assert "Bygget 2026-09-20" in flat
     # Kildenes egen attribusjon er ikke valgfri, og det skal stå.
     assert "må kildenes egen attribusjon følge med" in flat
@@ -1643,17 +1643,29 @@ def smaafelles():
         vilkaar=nettsted.kildevilkaar())
 
 
-def test_sitemap_uten_domene_er_relativ_OG_sier_det(tmp_path, smaafelles,
-                                                    monkeypatch):
-    """Et påfunnet domene ville vært en påstand om noe som ikke er
-    avgjort. Mangelen skal være synlig i FILA, ikke bare i hodet på den
-    som bygde."""
+def test_sitemap_bruker_nettstedets_eget_domene(tmp_path, smaafelles,
+                                                monkeypatch):
+    """Domenet er avgjort 21.09.2026. En usatt variabel betyr nå
+    «bygg for kystloggen.no», ikke «vi vet ikke hvor dette skal
+    ligge»."""
     monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
     tekst = nettsted.skriv_sitemap(tmp_path, smaafelles).read_text("utf-8")
 
+    assert "<loc>https://kystloggen.no/lokalitet/10001/</loc>" in tekst
+    assert "RELATIVE" not in tekst
+
+
+def test_tom_baseurl_er_noe_annet_enn_usatt(tmp_path, smaafelles,
+                                            monkeypatch):
+    """Skillet er med vilje. «Jeg vet ikke hvor denne kopien skal
+    ligge» er en tilstand som fortsatt finnes — en forhåndsvisning
+    skal ikke fortelle en crawler at den er originalen."""
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
+    tekst = nettsted.skriv_sitemap(tmp_path, smaafelles).read_text("utf-8")
+
     assert "<loc>/lokalitet/10001/</loc>" in tekst
-    assert "HAVBRUK_BASEURL er ikke satt" in tekst
-    assert "http://" not in tekst.replace(nettsted.SITEMAP_NS, "")
+    assert "RELATIVE" in tekst
+    assert "kystloggen.no" not in tekst
 
 
 def test_sitemap_med_domene_er_absolutt(tmp_path, smaafelles, monkeypatch):
@@ -1667,7 +1679,7 @@ def test_sitemap_med_domene_er_absolutt(tmp_path, smaafelles, monkeypatch):
 def test_sitemap_utelater_personeier(tmp_path, smaafelles, monkeypatch):
     """Et URL-rom er en liste over hvem som finnes. Eieren kilden kaller
     person skal ikke stå i den heller."""
-    monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
     tekst = nettsted.skriv_sitemap(tmp_path, smaafelles).read_text("utf-8")
 
     assert "/selskap/912345678/" in tekst
@@ -1678,23 +1690,27 @@ def test_llms_peker_paa_indeksene_ikke_paa_hver_side(tmp_path, smaafelles,
                                                      monkeypatch):
     """En fil med 1782 lenker ville vært den samme lista som
     sitemap.xml, bare dårligere."""
-    monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
     tekst = nettsted.skriv_llms(tmp_path, smaafelles).read_text("utf-8")
 
     for indeks in ("/lokalitet/", "/produksjonsomrade/", "/selskap/", "/om/"):
         assert f"]({indeks})" in tekst
     assert "/lokalitet/10001/" not in tekst
-    assert tekst.startswith("# havbruk-radar")
+    assert tekst.startswith("# Kystloggen")
     assert "\n> " in tekst          # sammendraget som blockquote
     assert "Heine Valø Nordbøe" in tekst
 
 
-def test_robots_aapner_alt_og_lar_vaere_aa_finne_paa_et_domene(tmp_path,
-                                                               monkeypatch):
+def test_robots_aapner_alt_og_peker_paa_sitemapet(tmp_path, monkeypatch):
     monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
     tekst = nettsted.skriv_robots(tmp_path).read_text("utf-8")
     assert "Allow: /" in tekst
     assert "Disallow" not in tekst
+    assert "Sitemap: https://kystloggen.no/sitemap.xml" in tekst
+
+    # Tom streng: kopien vet ikke hvor den ligger, og sier det.
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
+    tekst = nettsted.skriv_robots(tmp_path).read_text("utf-8")
     assert tekst.count("Sitemap:") == 1      # den er kommentert ut
     assert "# Sitemap:" in tekst
 
@@ -1921,3 +1937,70 @@ def test_laanelista_peker_paa_filer_som_faktisk_skrives(tmp_path):
     nettsted.skriv_fonter(tmp_path)
     for l in nettsted.VAART_LAAN:
         assert (tmp_path / l["sti"].lstrip("/")).exists(), l["sti"]
+
+
+# ---- eiere kilden kaller personer -------------------------------------
+#
+# Tre ledd stiller SAMME spørsmål til kilden: `fetch()` lar være å
+# hente raden, `personeier()` lar være å lage en selskapsside, og
+# `_eierrad()` lar være å skrive navnet. Leddene finnes fordi et
+# snapshot skrives én gang og leses i årevis — et gammelt snapshot kan
+# bære en rad dagens kode aldri ville hentet.
+
+def _till(**over):
+    d = {"eier_navn": "SALMAR OPPDRETT AS", "eier_orgnr": "928957489",
+         "eier_type": "LimitedLiabilityCompany", "tillatelse_type": "KOMM-MATF",
+         "kapasitet": "1022.0", "kapasitet_enhet": "TN",
+         "tildelt_tid": "2004-09-29T00:00:00Z", "tildelt_navn": "SALMAR NORD AS"}
+    d.update(over)
+    return d
+
+
+def test_eier_som_er_personform_faar_ikke_navnet_sitt_skrevet():
+    """MÅLT 21.09.2026: H-FJ-0018 er et partrederi (PRE). Mandagens
+    snapshot ble skrevet av kode fra før 16.09 og har ingen
+    `organisasjonsform`-rad for den, så lesedøra har ingenting å bite
+    i. `eier_type` har den, og det er kildens felt."""
+    rad = nettsted._eierrad("H-FJ-0018", _till(
+        eier_type="JointlyOwnedShippingCompany",
+        eier_navn="PARTREDERIET NOEN NAVNGITTE MENNESKER ANS",
+        tildelt_navn="PARTREDERIET NOEN NAVNGITTE MENNESKER ANS",
+        eier_orgnr="954744469"))
+    assert rad["eier_navn"] == nettsted.EIER_PERSONFORM
+    assert rad["eier_felt"] == nettsted.EIER_PERSONFORM_FELT
+    assert rad["eier_orgnr"] == ""
+    assert rad["tildelt_navn"] == ""
+    # Tillatelsen forsvinner IKKE. En utelatt rad ville vist 9 av 10
+    # tillatelser uten å si det.
+    assert rad["nr"] == "H-FJ-0018"
+    assert rad["type"] == "KOMM-MATF"
+
+
+def test_vanlig_eier_er_uberoert():
+    rad = nettsted._eierrad("T-D-0009", _till())
+    assert rad["eier_navn"] == "SALMAR OPPDRETT AS"
+    assert rad["eier_felt"] == "eier_navn"
+    assert rad["tildelt_navn"] == "SALMAR NORD AS"
+
+
+def test_alle_personformene_treffer_samme_ledd():
+    """Lista er kildens, ikke vår. Kopieres den hit, er det to lister
+    som skal si det samme — formen F6 og F7 hadde."""
+    from sources.eierskap import FORM_KART
+    from core import persondata
+    for type_, kode in FORM_KART.items():
+        rad = nettsted._eierrad("X", _till(eier_type=type_))
+        skjult = rad["eier_navn"] == nettsted.EIER_PERSONFORM
+        assert skjult == persondata.er_personform(kode), (type_, kode)
+
+
+def test_navnet_staar_ikke_paa_sida(tmp_path):
+    """Porten leser utputtet. Denne leser malen — samme spørsmål, ett
+    ledd tidligere, slik at et brudd har et navn før det har et funn."""
+    html = _side(tillatelser=[nettsted._eierrad("H-FJ-0018", _till(
+        eier_type="JointlyOwnedShippingCompany",
+        eier_navn="PARTREDERIET HEMMELIG ANS",
+        tildelt_navn="PARTREDERIET HEMMELIG ANS"))])
+    assert "PARTREDERIET HEMMELIG" not in html
+    assert nettsted.EIER_PERSONFORM in html
+    assert "H-FJ-0018" in html

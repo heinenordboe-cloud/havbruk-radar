@@ -1,16 +1,27 @@
 {# ORDMERKET — ETT STED.
 
-   Plassholder, og den er det med vilje. Logo og navn er ikke bestemt
-   (21.09.2026): merket er navnet satt i Newsreader, uten grafisk form.
-   Tre forslag til form ligger i `docs/design/` med begrunnelsen for
-   hver.
+   «Kystloggen» i Newsreader 600. Navnet ble bestemt 21.09.2026; fram
+   til da sto «havbruk-radar» her som plassholder. Tre forslag til
+   grafisk form ligger i `docs/design/` og er IKKE valgt — merket er
+   navnet, og ingenting annet.
 
-   HELE POENGET MED FILA er at byttet skal koste én fil. Skal merket få
+   ## Den ene aksentbruken
+
+   Aksenten opptrer bare som skrift eller strek (avsnitt 1 i
+   stil.css), og her er den en STREK: en tynn rustlinje under ordet.
+   Formen er lånt fra det navnet allerede sier — en logg er linjert,
+   og linja er det som gjør den til en logg framfor et ark.
+
+   Den andre varianten som ble tegnet, `.merke--punktum`, setter i
+   stedet et punktum i aksentfarge etter ordet: «Kystloggen.» — én
+   ført oppføring, avsluttet. Begge ligger i stil.css avsnitt 2b.
+   Bytte mellom dem er å bytte klassen på linja under, og ingenting
+   annet — det er hele grunnen til at denne fila finnes.
+
+   HELE POENGET MED FILA er at et bytte koster én fil. Skal merket få
    en SVG foran teksten, et annet navn eller en annen oppbygning,
-   skjer det her — ikke i `base.html.j2` og ikke i sju sidemaler. Stilen
-   henger på klassen `.merke` i stil.css, som er skrevet uten `.topp`
-   foran nettopp for at merket skal kunne stå et annet sted også.
+   skjer det her — ikke i `base.html.j2` og ikke i sju sidemaler.
 
    LENKA ER ABSOLUTT, som hver annen sidelenke her — se
    2026-09-16-url-struktur.md. #}
-<a class="merke" href="/">havbruk-radar</a>
+<a class="merke merke--strek" href="/">Kystloggen</a>
