@@ -82,24 +82,24 @@
 
 <h2 id="dekning">Hva dekningen er</h2>
 <p>
-  <strong>{{ om.med_eier }} av {{ om.lokaliteter }} lokaliteter
+  {{ om.med_eier }} av {{ om.lokaliteter }} lokaliteter
   ({{ om.dekning }} %) har minst én tillatelse vi kan knytte til et
-  navngitt selskap.</strong> De øvrige {{ om.uten_eier }} har det ikke,
+  navngitt selskap. De øvrige {{ om.uten_eier }} har det ikke,
   og de fordeler seg slik:
 </p>
 <ul>
-  <li><strong>{{ om.uten_eier_med_tillatelse }}</strong> har tillatelser
+  <li>{{ om.uten_eier_med_tillatelse }} har tillatelser
       i Akvakulturregisteret som vi ikke kan navngi eieren av.
       Fiskeridirektoratet oppgir ikke organisasjonsnummer for eiere som
       er privatpersoner, og en eier vi ikke kan klassifisere slipper
       ikke gjennom personvernfilteret vårt. Tillatelsene står på
       lokalitetssidene med «ikke oppgitt av kilden» — ikke som tom
       celle.</li>
-  <li><strong>{{ om.uten_tillatelse_noe_sted }}</strong> har ingen aktiv
+  <li>{{ om.uten_tillatelse_noe_sted }} har ingen aktiv
       tillatelse i registeret i det hele tatt.</li>
 </ul>
 <p>
-  <strong>Hvem som er permanent utelatt, og hvorfor.</strong> Foretak som
+  Hvem som er permanent utelatt, og hvorfor. Foretak som
   SSB plasserer i sektor 8200 (husholdninger) eller 2300 (personlige
   foretak) hentes ikke inn — enkeltpersonforetak, ansvarlige selskaper,
   delt ansvar og partrederier. For et slikt foretak er navn, kommune,
@@ -114,8 +114,8 @@
 
 <h2 id="kilder">Kildene, med lisens og attribusjon</h2>
 <p>
-  Regelen er at <strong>udokumentert lisens er UBELAGT, ikke antatt
-  greit</strong>. En UBELAGT kilde kan brukes i analyse, men bærer ingen
+  Regelen er at udokumentert lisens er UBELAGT, ikke antatt
+  greit. En UBELAGT kilde kan brukes i analyse, men bærer ingen
   publisert visning her.
   {% if om.ubelagte %}
   I dag gjelder det {{ om.ubelagte|join(", ") }} — vilkåret er lett etter
@@ -177,7 +177,7 @@
   {% if om.kontakt %}
   Kontakt: <a href="mailto:{{ om.kontakt }}">{{ om.kontakt }}</a>.
   {% else %}
-  <strong>Kontakt går via GitHub</strong> — opprett en sak i repoet over.
+  Kontakt går via GitHub — opprett en sak i repoet over.
   En direkte e-postadresse er bevisst ikke lagt inn i koden: den ville
   havnet i hver eneste forespørsel til Fiskeridirektoratet, Lovdata,
   BarentsWatch og Brønnøysundregistrene, og hvilken adresse som tåler det
@@ -198,7 +198,7 @@
   Bygget {{ om.bygget }}. {{ om.repo }}
 </p>
 <p>
-  <strong>Siterer du tallene, må kildenes egen attribusjon følge med</strong>
+  Siterer du tallene, må kildenes egen attribusjon følge med
   — den står i bunnteksten på hver side, ordrett slik lisensgiverne
   krever den. Den er ikke valgfri, og den erstattes ikke av en referanse
   til dette nettstedet.

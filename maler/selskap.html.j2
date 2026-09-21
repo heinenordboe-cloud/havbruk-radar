@@ -15,7 +15,7 @@
 <h1><span data-navn>{{ sel.navn }}</span></h1>
 
 <p>
-  Organisasjonsnummer <strong>{{ sel.orgnr }}</strong>.
+  Organisasjonsnummer {{ sel.orgnr }}.
   {{ sel.tillatelser_antall }} akvakulturtillatelser på
   {{ sel.lokaliteter_antall }} lokaliteter, etter eierskapssnapshotet
   <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
@@ -34,7 +34,7 @@
     Hva Enhetsregisteret sier om selskapet, snapshot
     <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.
     {% if not sel.har_registerdata %}
-    <strong>Vi har ingen registerdata for dette selskapet.</strong>
+    Vi har ingen registerdata for dette selskapet.
     {{ sel.uten_registerdata_tekst }} — uttrekket vårt er avgrenset til
     et sett næringskoder, og et selskap som eier en tillatelse uten å ha
     en av dem, faller utenfor. Navnet over er det Fiskeridirektoratet
@@ -140,8 +140,8 @@
   <caption>
     Når tillatelsene ble overført TIL selskapet, eldst først.
     {{ sel.overforinger|length }} overføringer.
-    <strong>Datoen er journalføringsdato, ikke bekreftet
-    overdragelsesdato</strong> — den skal leses som «senest da».
+    Datoen er journalføringsdato, ikke bekreftet
+    overdragelsesdato — den skal leses som «senest da».
     Tillatelser uten rad her har selskapet enten hatt siden tildelingen,
     eller overtatt uten at overføringen er journalført i den serien vi
     har.
@@ -167,14 +167,14 @@
 
 <h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
 <p>
-  <strong>Ingenting om konsern.</strong> Selskapet kan være eid av et
+  Ingenting om konsern. Selskapet kan være eid av et
   annet, og flere selskaper på tvers av denne siden kan ha samme
   bakenforliggende eier. Vi henter ikke roller eller eierandeler fra
   Enhetsregisteret — det er et bevisst valg, ikke en mangel, fordi
   rolledata er personopplysninger.
 </p>
 <p>
-  <strong>Ingenting om produksjon eller biomasse.</strong> Tallene for
+  Ingenting om produksjon eller biomasse. Tallene for
   hva som faktisk står i sjøen føres per produksjonsområde og per
   lokalitet, ikke per selskap.
 </p>

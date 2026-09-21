@@ -10,15 +10,15 @@
   Lista er ikke paginert.
 </p>
 <p>
-  <strong>{{ d.uten_registerdata }} av dem har vi ingen registerdata
-  for.</strong> Uttrekket vårt fra Enhetsregisteret er avgrenset til et
+  {{ d.uten_registerdata }} av dem har vi ingen registerdata
+  for. Uttrekket vårt fra Enhetsregisteret er avgrenset til et
   sett næringskoder, og et selskap som eier en tillatelse uten å ha en av
   dem faller utenfor. De har side likevel, og siden sier hva som mangler.
 </p>
 {% if d.personeiere %}
 <p>
-  <strong>{{ d.personeiere }} eier(e) står ikke i lista og har ingen
-  side.</strong> Kilden klassifiserer dem som person — et partrederi
+  {{ d.personeiere }} eier(e) står ikke i lista og har ingen
+  side. Kilden klassifiserer dem som person — et partrederi
   eller en annen personlig sammenslutning — og verken dette nettstedet
   eller datagrunnlaget bak det skal være et personregister.
   Tillatelsene deres står på lokalitetssidene sine, uten eiernavn.

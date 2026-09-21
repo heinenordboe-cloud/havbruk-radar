@@ -13,8 +13,8 @@
 <h1>havbruk-radar</h1>
 
 <p>
-  <strong>Offentlige registerdata om norsk akvakultur, sammenstilt og
-  datert.</strong> {{ f.lokaliteter }} lokaliteter, {{ f.tillatelser }}
+  Offentlige registerdata om norsk akvakultur, sammenstilt og
+  datert. {{ f.lokaliteter }} lokaliteter, {{ f.tillatelser }}
   tillatelser og {{ f.selskaper }} selskaper, med
   {{ f.luke_uker }} uker lusetall fra
   <time datetime="{{ f.lus_fra }}">{{ f.lus_fra }}</time> til
@@ -86,7 +86,7 @@
    annet format — se docs/REGEL-UENIGE-KILDER.md. #}
 <h3 id="uten-koordinater">Lokaliteter uten koordinater</h3>
 <p>
-  <strong>{{ f.uten_koordinater_antall }} av {{ f.lokaliteter }}</strong>
+  {{ f.uten_koordinater_antall }} av {{ f.lokaliteter }}
   lokaliteter mangler koordinater i Akvakulturregisteret og er derfor
   ikke tegnet på kartet.
   {% if f.uten_koordinater %}
