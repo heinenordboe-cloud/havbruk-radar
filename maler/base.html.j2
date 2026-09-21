@@ -16,9 +16,14 @@
    MALEN SKAL VÆRE LESBAR UTEN DEN. Ingen tabell, ingen tekst og ingen
    rekkefølge på denne siden avhenger av at stilarket kom fram — det er
    samme krav som at tallene skal stå i kildekoden og ikke tegnes av et
-   skript, bare ett lag lenger ned. Stien er absolutt, som hver annen
-   URL her, så siden må SERVERES for å se riktig ut:
-   `python -m http.server --directory <ut-mappa>`. #}
+   skript, bare ett lag lenger ned.
+
+   STIEN ER RELATIV, til forskjell fra hver annen URL her. Sidenes egne
+   adresser er absolutte og skal være det — se
+   2026-09-16-url-struktur.md. Men `/stil.css` peker på filsystemets
+   rot når fila åpnes rett fra disk, og resultatet er en side som ser
+   ut som et designvalg framfor en fil som ikke kom fram.
+   `nettsted.stilsti()` regner stien av sidas egen plassering. #}
 <!doctype html>
 <html lang="nb">
 <head>
@@ -31,7 +36,7 @@
    venter på et navn med anførselstegn i. #}
 <script type="application/ld+json">{{ jsonld }}</script>
 <meta name="color-scheme" content="light dark">
-<link rel="stylesheet" href="/stil.css">
+<link rel="stylesheet" href="{{ stilark }}">
 </head>
 <body>
 <main>

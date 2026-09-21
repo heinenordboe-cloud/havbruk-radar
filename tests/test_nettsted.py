@@ -19,10 +19,24 @@ antatt greit; uten en test er den setningen en hensikt.
 
 import json
 import re
+from pathlib import Path
 
 import pytest
 
 import nettsted
+
+
+def _stilark(undermappe: str) -> str:
+    """Stilarkstien en side på `undermappe` ville fått.
+
+    Regnes av `nettsted.stilsti()` framfor å skrives av: en fikstur med
+    sin egen `"../../stil.css"` er en fikstur som sier grønt om koden
+    har byttet hvordan stien bygges. Samme grunn som at
+    `_po()` henter fargeklassen fra `FARGE_KLASSE`.
+    """
+    rot = Path("/ut")
+    sti = rot / undermappe / "index.html" if undermappe else rot / "index.html"
+    return nettsted.stilsti(sti, rot)
 
 
 # ---- vilkårene --------------------------------------------------------
@@ -186,6 +200,7 @@ def _side(**overstyr) -> str:
         lok=lok, tittel="T", beskrivelse="B",
         jsonld=nettsted.jsonld(lok),
         attribusjon=nettsted.attribusjon(nettsted.SIDENS_KILDER),
+        stilark=_stilark("lokalitet/31397"),
         bygget="2026-09-16",
     )
 
@@ -201,7 +216,8 @@ def test_malen_krever_alle_feltene_bygg_lokalitet_lager():
     with pytest.raises(UndefinedError):
         nettsted._miljo().get_template("lokalitet.html.j2").render(
             lok={"loknr": "1"}, tittel="T", beskrivelse="B", jsonld="{}",
-            attribusjon=[], bygget="2026-09-16")
+            attribusjon=[], stilark=_stilark("lokalitet/31397"),
+            bygget="2026-09-16")
 
     # Og på radnivå, som er der det ville gjort minst støy: en uke uten
     # `voksne_hunnlus` skal felle malen og ikke gi en tom celle. Det er
@@ -1047,6 +1063,7 @@ def _po(**overstyr) -> str:
         po=po, tittel="T", beskrivelse="B",
         jsonld=nettsted.jsonld_po(po, nettsted.kildevilkaar()),
         attribusjon=nettsted.attribusjon(nettsted.PO_KILDER),
+        stilark=_stilark("produksjonsomrade/4"),
         bygget="2026-09-20")
 
 
@@ -1153,6 +1170,7 @@ def _selskap(**overstyr) -> str:
         sel=sel, tittel="T", beskrivelse="B",
         jsonld=nettsted.jsonld_selskap(sel, nettsted.kildevilkaar()),
         attribusjon=nettsted.attribusjon(nettsted.SELSKAPSKILDER),
+        stilark=_stilark("selskap/928957489"),
         bygget="2026-09-20")
 
 
@@ -1323,6 +1341,7 @@ def _forside(**overstyr) -> str:
         f=f, tittel="T", beskrivelse="B",
         jsonld=nettsted.jsonld_forside(f, nettsted.kildevilkaar()),
         attribusjon=nettsted.attribusjon(nettsted.FORSIDEKILDER),
+        stilark=_stilark(""),
         bygget="2026-09-20")
 
 
@@ -1397,7 +1416,8 @@ def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
 
     html = nettsted._miljo().get_template("indeks-selskap.html.j2").render(
         d=d, tittel="T", beskrivelse="B", jsonld="{}",
-        attribusjon=["Kilde: Fiskeridirektoratet"], bygget="2026-09-20")
+        attribusjon=["Kilde: Fiskeridirektoratet"],
+        stilark=_stilark("lokalitet"), bygget="2026-09-20")
     flat = " ".join(html.split())
     assert "1 eier(e) står ikke i lista og har ingen side" in flat
     assert "personregister" in flat
@@ -1420,7 +1440,8 @@ def test_indeksene_er_flate_uten_paginering():
 
     html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
         d=d, tittel="T", beskrivelse="B", jsonld="{}",
-        attribusjon=["Kilde: Fiskeridirektoratet"], bygget="2026-09-20")
+        attribusjon=["Kilde: Fiskeridirektoratet"],
+        stilark=_stilark("lokalitet"), bygget="2026-09-20")
     assert html.count('<a href="/lokalitet/') == 50
     # Prøven ser etter pagineringsKONTROLLER, ikke etter ordet: sida
     # forklarer selv at den IKKE er paginert, og en prøve på ordet felte
@@ -1460,6 +1481,7 @@ def _om(**overstyr) -> str:
     return nettsted._miljo().get_template("om.html.j2").render(
         om=om, tittel="T", beskrivelse="B", jsonld="{}",
         attribusjon=nettsted.attribusjon(nettsted.OM_KILDER),
+        stilark=_stilark("om"),
         bygget=om["bygget"])
 
 

@@ -1318,6 +1318,35 @@ def _miljo() -> Environment:
     )
 
 
+# Stien fra en side til stilarket. RELATIV, ikke absolutt.
+#
+# `/stil.css` er riktig når siden SERVERES fra et domenerot, og bare da.
+# Åpnes fila rett fra disk, løser nettleseren `/stil.css` til
+# `file:///stil.css` — filsystemets rot — og siden rendrer uten stilark.
+# MÅLT 20.09.2026: nettopp det skjedde, og symptomet var vanskelig å
+# lese som «stilarket mangler»: nettleseren faller tilbake på sin egen
+# tabellstil, og en granskende leser ser en side som ser ut som et
+# designvalg framfor en fil som ikke kom fram.
+#
+# Relativ sti virker begge veier, og i tillegg om nettstedet en dag
+# skulle ligge i en undermappe. URL-beslutningen 2026-09-16 gjelder
+# SIDENES adresser — de er fortsatt absolutte. Stilarket er ingen
+# adresse noen lenker til.
+STILARK = "stil.css"
+
+
+def stilsti(sti: Path, rot: Path) -> str:
+    """Relativ sti fra `sti` sin mappe til stilarket i `rot`.
+
+    Regnes av den faktiske filstien framfor av et tall per sidetype:
+    et tall ville vært en andre påstand om hvor sida ligger, ved siden
+    av den ekte — og de to kan svare ulikt. Samme grunn som at
+    kjøredatoen slås opp ett sted.
+    """
+    dybde = len(sti.relative_to(rot).parts) - 1
+    return "../" * dybde + STILARK
+
+
 def skriv_lokalitet(loknr: str, rot: Path = UT,
                     felles: Felles | None = None,
                     mal=None) -> list[Path]:
@@ -1332,6 +1361,7 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     kompilerer malen på nytt.
     """
     lok = bygg_lokalitet(loknr, felles)
+    sti = rot / "lokalitet" / loknr / "index.html"
     vilkaar = felles.vilkaar if felles else None
     setninger = attribusjon(SIDENS_KILDER, vilkaar)  # kaster på UBELAGT
     mal = mal or _miljo().get_template("lokalitet.html.j2")
@@ -1345,13 +1375,13 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
             f"{lok['kommune']}, med endringslogg."),
         jsonld=jsonld(lok),
         attribusjon=setninger,
+        stilark=stilsti(sti, rot),
         bygget=dt.date.today().isoformat(),
     )
 
     # Mappe + index.html, som er hva en avsluttende skråstrek BETYR.
-    mappe = rot / "lokalitet" / loknr
+    mappe = sti.parent
     mappe.mkdir(parents=True, exist_ok=True)
-    sti = mappe / "index.html"
     sti.write_text(html, encoding="utf-8")
 
     # CSV-en bærer BARE lusetall, og derfor bare lusetallkildens
@@ -1687,6 +1717,7 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
             "codeRepository": om["repo"],
         }),
         attribusjon=attribusjon(OM_KILDER, felles.vilkaar),
+        stilark=stilsti(rot / "om" / "index.html", rot),
         bygget=om["bygget"],
     )
     mappe = rot / "om"
@@ -1796,6 +1827,7 @@ def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
             "inLanguage": "nb",
         }),
         attribusjon=attribusjon(kilder, felles.vilkaar),
+        stilark=stilsti(rot / sti / "index.html", rot),
         bygget=dt.date.today().isoformat(),
     )
     mappe = rot / sti
@@ -1963,6 +1995,7 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
             f"trafikklysfarge, lusetall og hva som har endret seg."),
         jsonld=jsonld_forside(f, felles.vilkaar),
         attribusjon=attribusjon(FORSIDEKILDER, felles.vilkaar),
+        stilark=stilsti(rot / "index.html", rot),
         bygget=dt.date.today().isoformat(),
     )
     sti = rot / "index.html"
@@ -2197,6 +2230,7 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
             f"{' (' + sel['navn'] + ')' if sel['navn'] else ''}."),
         jsonld=jsonld_selskap(sel, felles.vilkaar),
         attribusjon=setninger,
+        stilark=stilsti(rot / "selskap" / orgnr / "index.html", rot),
         bygget=dt.date.today().isoformat(),
     )
     mappe = rot / "selskap" / orgnr
@@ -2270,6 +2304,7 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
             f"lokalitetene i området."),
         jsonld=jsonld_po(d, felles.vilkaar),
         attribusjon=setninger,
+        stilark=stilsti(rot / "produksjonsomrade" / po / "index.html", rot),
         bygget=dt.date.today().isoformat(),
     )
     mappe = rot / "produksjonsomrade" / po
