@@ -2618,6 +2618,85 @@ figcaption {
 #endringer-uker td.mangler { color: var(--ink-dempet); }
 
 /* ---------------------------------------------------------------- *
+ * 6e. OM-SIDEN
+ *
+ * Den ene siden som er en TEKST og ikke en tabell. Målebåndet gjelder
+ * derfor strengt: `--maal-tekst` er 27em, MÅLT mot glyffbreddene i IBM
+ * Plex Sans på de 4 519 tegnene som står her. Overleveringen sier
+ * «maks ~760px», og 27em i 15px er 405px … som er for smalt for en
+ * side med tabeller i seg. `--maal-om` er den egne verdien:
+ * 760px, som er overleveringens, og den gjelder BARE denne siden.
+ *
+ * At de to tallene er ulike er ikke en motsigelse. `--maal-tekst` er
+ * for en note ved siden av en tabell; dette er hovedteksten på en side
+ * uten noe ved siden av.
+ * ---------------------------------------------------------------- */
+
+:root { --maal-om: 760px; }
+
+.om-losen {
+  margin: var(--rom-12) 0 0;
+  font-family: var(--skrift-tittel);
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--fs-22);
+  color: var(--hav-tegn);
+  max-width: none;
+}
+
+.om-to {
+  display: grid;
+  gap: var(--rom-32) clamp(32px, 5vw, 72px);
+  padding-block: var(--rom-seksjon) var(--rom-seksjon-stor);
+}
+
+@media (min-width: 62rem) {
+  .om-to { grid-template-columns: 15rem minmax(0, 1fr); }
+
+  /* KLEBRIG INNHOLDSLISTE. `top` regnes av seksjonsluften, ikke av et
+     tall: lista skal stoppe der teksten begynner. */
+  .om-innhold {
+    position: sticky;
+    top: var(--rom-32);
+    align-self: start;
+  }
+}
+
+.om-innhold ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  font-size: var(--fs-14);
+}
+
+.om-innhold li { margin-block-end: var(--rom-8); }
+.om-innhold a { color: var(--ink); text-decoration: none; }
+.om-innhold a:visited { color: var(--ink); }
+.om-innhold a:hover { color: var(--rust); text-decoration: underline; }
+
+.om-tekst { min-inline-size: 0; max-inline-size: var(--maal-om); }
+
+/* HOVEDTEKSTEN har sitt eget målebånd. En `.tabellnote` inni beholder
+   sitt: en note ved siden av en tabell leses på en annen måte enn et
+   avsnitt i en artikkel. */
+.om-tekst p, .om-tekst ul, .om-tekst ol, .om-tekst dl {
+  max-width: var(--maal-om);
+}
+
+.om-tekst .tabellnote { max-width: var(--maal-tekst); }
+
+.om-tekst h2 {
+  font-size: var(--fs-30);
+  margin-block-start: var(--rom-seksjon);
+  padding-block-end: var(--rom-8);
+  border-block-end: 1px solid var(--papir3);
+  max-width: var(--maal-om);
+}
+
+.om-tekst h2:first-child { margin-block-start: 0; }
+
+/* ---------------------------------------------------------------- *
  * 7. BUNNTEKSTEN
  *
  * Attribusjonen er en lisensplikt, ikke en kolofon. Den skal være

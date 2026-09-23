@@ -2,22 +2,55 @@
    om det kan stole på dette — og da svarer den med tall og datoer, ikke
    med forsikringer.
 
+   ANKERNE ER LÅST. `#innsamling`, `#dekning`, `#kilder`, `#sitering` og
+   de andre er lenket fra bunnteksten på alle 2 335 sidene og fra
+   forsidens arkivlinje. De er URL-er: en omdøping til `#metode` fordi
+   overskriften ble omformulert, ville brutt hver eneste av dem. Se
+   2026-09-16-url-struktur.md.
+
+   LAYOUTEN er overleveringens: innholdsliste til venstre, brødtekst i
+   én spalte på omtrent 760 px. Målebåndet er `--maal-tekst`, som er
+   MÅLT mot glyffbreddene i den fonten teksten faktisk settes i — se
+   docs/design/IBM-PLEX.md.
+
    Markupkontrakten gjelder her som overalt. #}
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
 <div class="ark sidehode">
-<nav class="sti" aria-label="Du er her">
-  <ol>
-    <li><a href="/">Forside</a></li>
-    <li aria-current="page">Om</li>
-  </ol>
-</nav>
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li aria-current="page">Om</li>
+    </ol>
+  </nav>
+  <h1>Om Kystloggen</h1>
+  <p class="om-losen">Registrene viser nå. Vi tar vare på før.</p>
 </div>
 {% endblock %}
 
 {% block innhold %}
-<h1>Om Kystloggen</h1>
+<div class="ark om-to">
+  {# INNHOLDSLISTA. `<nav>` med en ekte liste, ikke en rad lenker: det
+     ER en innholdsfortegnelse, og en skjermleser skal kunne hoppe
+     gjennom den som en. Den er klebrig på brede skjermer og en vanlig
+     liste på smale. #}
+  <nav class="om-innhold" aria-label="Innhold på siden">
+    <p class="etikett">På denne siden</p>
+    <ol>
+      <li><a href="#hva">Hva dette er</a></li>
+      <li><a href="#innsamling">Innsamling og metode</a></li>
+      <li><a href="#dekning">Dekning og begrensninger</a></li>
+      <li><a href="#kilder">Kildene, med lisens</a></li>
+      <li><a href="#hva-vi-ikke-gjor">Hva som bevisst ikke hentes</a></li>
+      <li><a href="#hvem">Hvem som står bak</a></li>
+      <li><a href="#sitering">Slik siterer du</a></li>
+      <li><a href="#gjenbruk">Gjenbruk</a></li>
+      <li><a href="#hva-nettstedet-laaner">Hva nettstedet selv låner</a></li>
+    </ol>
+  </nav>
+
+  <article class="om-tekst">
 
 <h2 id="hva">Hva dette er</h2>
 <p>
@@ -320,4 +353,6 @@
   Lusetallserien for en lokalitet ligger som CSV med kommentarhode på
   hver lokalitetsside, og den er ment å siteres direkte.
 </p>
+  </article>
+</div>
 {% endblock %}
