@@ -3074,7 +3074,8 @@ def test_publiser_gaar_til_forhandsvisning_uten_flagg():
     """Produksjon er et VALG, ikke en standard."""
     kode = (Path(__file__).resolve().parents[1]
             / "publiser.py").read_text(encoding="utf-8")
-    assert 'if not args.produksjon:\n        wrangler += ["--branch"' in kode
+    assert ("gren = PRODUKSJONSGREN if args.produksjon else FORHANDSGREN"
+            in kode)
 
 
 def test_publiser_ber_aldri_om_en_nokkel():
