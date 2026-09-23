@@ -1,0 +1,109 @@
+{# Alle endringsuker. Flat liste, ingen paginering — som de tre andre
+   indekssidene: dette er siden en crawler og en språkmodell følger for
+   å finne ukene, og en paginert liste er en liste der side 14 aldri
+   blir lest.
+
+   TALLET ER LITE, OG DET SKJULES IKKE. Fem uker er fem uker. Se avvik
+   9 i oppdraget: et arkiv som later som det er eldre enn det er, er
+   verdiløst den dagen noen sjekker. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li aria-current="page">Endringer</li>
+    </ol>
+  </nav>
+  <h1>Endringer, uke for uke</h1>
+  <p class="lok-undertittel">
+    {{ uker|length }} uker med observerte endringer ·
+    {{ totalt }} hendelser til sammen
+  </p>
+  <p class="knapperad">
+    <a class="knapp knapp--tynn" href="/endringer/feed.xml">Følg alle
+      endringer (feed)</a>
+  </p>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<section class="ark seksjon">
+  <p class="historikk-forklaring">
+    Hver uke vi har hentet registrene og sammenlignet med forrige
+    øyeblikksbilde. <strong>Datoen er når VI så endringen</strong> —
+    registeret oppgir ikke når det gjorde den.
+    {% if utenfor %}
+    {{ utenfor }} endringer står utenfor dette regnskapet fordi kilden
+    daterer dem til perioden de HANDLER OM og ikke til dagen vi hentet
+    dem: forskriftsrunder dateres til vedtaksåret, journalførte
+    overføringer til journalåret, og biomassetall til månedsslutt. De
+    står på entitetenes egne sider.
+    {% endif %}
+  </p>
+
+  <div class="tabellramme" role="region"
+       aria-labelledby="endringer-uker-tittel" tabindex="0">
+  <table id="endringer-uker">
+    <caption id="endringer-uker-tittel">
+      Alle {{ uker|length }} ukene, nyeste først. Tallene per type
+      lenker rett til uka filtrert på den typen.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Uke</th>
+        <th scope="col">Datoer</th>
+        <th scope="col" class="tall">Endringer</th>
+        {% for k in typer %}
+        <th scope="col" class="tall" title="{{ k.hva }}">{{ k.navn }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in uker %}
+      <tr>
+        <th scope="row">
+          <a href="/endringer/{{ u.slug }}/">{{ u.vist }}</a>
+        </th>
+        <td data-felt="observed_at">
+          {% for d in u.datoer %}<time datetime="{{ d }}">{{ d }}</time>{% if not loop.last %}, {% endif %}{% endfor %}
+        </td>
+        <td class="tall" data-felt="antall">
+          <a href="/endringer/{{ u.slug }}/" data-felt="antall">{{ u.antall }}</a>
+        </td>
+        {% for k in u.typer %}
+        <td class="tall{% if not k.antall %} mangler{% endif %}"
+            data-felt="{{ k.id }}">
+          {%- if k.antall %}<a href="/endringer/{{ u.slug }}/{{ k.id }}/" data-felt="{{ k.id }}">{{ k.antall }}</a>
+          {%- else %}0{% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    En type med 0 vises likevel, og tallet er ikke en lenke: en side
+    som viser null rader er en side ingen skal bruke et klikk på. Et
+    tall man bare ser når det er noe der, er et tall ingen kjenner
+    normalverdien til.
+  </p>
+
+  <h2>Hva slagene betyr</h2>
+  <dl class="grader">
+    {% for k in typer %}
+    <dt>{{ k.navn }}</dt>
+    <dd>{{ k.hva }}</dd>
+    {% endfor %}
+  </dl>
+  <p>
+    Slagene er utledet av hvilken kilde og hvilket felt raden kom fra,
+    etter en tabell som står i koden og ikke gjetter. Et felt som ikke
+    står i den, faller til «Annet» og telles i byggerapporten — en kode
+    som ikke er klassifisert skal ikke stå på siden igjen om et halvår
+    uten at noen har lagt merke til det.
+  </p>
+</section>
+{% endblock %}

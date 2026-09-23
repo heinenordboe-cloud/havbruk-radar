@@ -45,12 +45,23 @@ def _visning(rader):
 
 
 def _endringsrader(rader):
-    """Samme for endringstabellen: `etikett` er feltets, `fra`/`til`
-    oversettes, og `felt` blir stående som kildens navn."""
-    return [dict(r, etikett=visningsord.felt(r["felt"]),
-                 fra=visningsord.verdi(r["felt"], r.get("fra", "")),
-                 til=visningsord.verdi(r["felt"], r.get("til", "")))
-            for r in rader]
+    """Fiksturens rå endringsrader til den forma malene får.
+
+    `etikett` er feltets, `fra`/`til` oversettes, og `felt` blir
+    stående som kildens navn.
+
+    `datoslag`/`datoord` sier HVA DATOEN ER — dagen vi hentet, eller
+    uka raden handler om. Den utledes av kildens `partisjonering`, og
+    fiksturen kaller `nettsted._endringsrad()` for å få den: en fikstur
+    som satte ordet selv kunne sagt «Observert» om en `verden`-kilde
+    uten at noe felte det."""
+    return [nettsted._endringsrad(
+        {"observed_at": r["dato"], "entity_id": r.get("entity_id", "31397"),
+         "source": r["kilde"], "field": r["felt"],
+         "old_value": r.get("fra", ""), "new_value": r.get("til", "")},
+        r.get("loknr", "31397"))
+        | {"gjelder": r.get("gjelder", "lokaliteten")}
+        for r in rader]
 
 
 def _stilark(undermappe: str) -> str:
@@ -811,7 +822,7 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
                           "selskaper", "forside", "indekser",
-                          "maskinfiler"}
+                          "endringssider", "feeder", "maskinfiler"}
     for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html"):
         assert (ut / fil).is_file(), fil
     assert logg.indekssider == 3
@@ -1581,9 +1592,12 @@ def _forside(**overstyr) -> str:
         "etikett": "Trafikklysfarge", "fra": "rød", "til": "gul",
         "fra_klasse": "lys-rod", "til_klasse": "lys-gul", "er_farge": True,
         "gjelder": "Oterneset", "gjelder_url": "/lokalitet/31397/",
+        "gjelder_felt": "entity_name", "identitet": "31397",
         "gjelder_slag": "lokalitet", "lokalitet": "Oterneset",
         "lokalitet_url": "/lokalitet/31397/", "kommune": "HARSTAD",
         "po": "4", "po_navn": "Nordhordland til Stadt",
+        "fra_felt": "prodomraade_status", "til_felt": "prodomraade_status",
+        "anonym": False,
     }
     uke = {
         "slug": "2026-39", "aar": "2026", "ukenr": "39",
@@ -2462,9 +2476,9 @@ def test_en_tankestrek_er_ikke_et_navn():
     assert nettsted.feltmerke("  ", "eier_navn") == nettsted.VERDI_MANGLER_FELT
 
     poster = nettsted._observert_historikk(
-        [{"dato": "2026-09-14", "etikett": "Innehaver", "felt": "eier_navn",
-          "fra": "", "til": "SALMAR AS", "gjelder": "lokaliteten",
-          "kilde": "eierskap"}],
+        _endringsrader([{"dato": "2026-09-14", "felt": "eier_navn",
+                         "fra": "", "til": "SALMAR AS",
+                         "kilde": "eierskap"}]),
         [{"kilde": "eierskap", "fra": "2026-09-02"}], None)
     assert poster[0]["fra_felt"] == nettsted.VERDI_MANGLER_FELT
     assert poster[0]["til_felt"] == "eier_navn"

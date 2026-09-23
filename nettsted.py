@@ -88,6 +88,7 @@ import sys
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import polars as pl
@@ -525,14 +526,25 @@ def les_felles() -> Felles:
     beveg = diff.bevegelse(alle)
     maaleserie = sorted(MAALESERIER)
 
+    # SKILLET GÅR PÅ (kilde, felt) — se `er_maaleserie()`. Ramma
+    # filtreres grovt på kildenavn først, fordi et Python-kall per rad
+    # over 987 769 rader er dyrt; de to unntaksfeltene hentes inn igjen.
     register: dict[str, list[dict]] = defaultdict(list)
-    for r in (beveg.filter(~pl.col("source").is_in(maaleserie))
+    hendelser_i_maaleserie = beveg.filter(
+        pl.col("source").is_in(maaleserie)
+        & pl.col("field").is_in(sorted(f for _k, f in MAALESERIE_HENDELSER)))
+    for r in (pl.concat([beveg.filter(~pl.col("source").is_in(maaleserie)),
+                         hendelser_i_maaleserie])
               .sort("observed_at", descending=True).iter_rows(named=True)):
-        register[str(r["entity_id"])].append(r)
+        if not er_maaleserie(str(r["source"]), str(r["field"])):
+            register[str(r["entity_id"])].append(r)
 
     maalt: dict[str, int] = defaultdict(int)
-    for eid in beveg.filter(pl.col("source").is_in(maaleserie))["entity_id"]:
-        maalt[str(eid)] += 1
+    for kilde_, felt_, eid in beveg.filter(
+            pl.col("source").is_in(maaleserie)).select(
+            ["source", "field", "entity_id"]).iter_rows():
+        if er_maaleserie(str(kilde_), str(felt_)):
+            maalt[str(eid)] += 1
 
     serier: dict[str, list[dict]] = defaultdict(list)
     lusedatoer = snapshot.datoer("lusetall")
@@ -877,6 +889,37 @@ def til_visning(rader: list[dict]) -> list[dict]:
 # som en registerkilde, altså vises, og usikkerhet ser ut som usikkerhet
 # framfor å forsvinne.
 MAALESERIER = frozenset({"lusetall", "sjotemperatur", "biomasse"})
+
+# TO FELTER I EN MÅLESERIE SOM LIKEVEL ER HENDELSER.
+#
+# `lusetall` leverer et nytt tall hver uke, og hvert tall er neste
+# måling — derfor står kilden i `MAALESERIER`. Men to av feltene er
+# ikke målinger: `har_ila` og `har_pd` er FLAGG som slås av og på, og et
+# flagg som slås på er noe som har skjedd med anlegget.
+#
+# MÅLT 22.09.2026 over hele changeloggen: 3 323 `endret`-rader for de to
+# feltene, fordelt på 723 uker og 2 074 lokaliteter. Til sammenligning
+# har OTERNESET alene 1 284 måleserierader. Flaggene drukner altså ikke
+# hendelsen — de ER hendelsen, og de er sjeldne.
+#
+# Unntaket er et PAR (kilde, felt) og ikke et kildenavn: resten av
+# lusetall skal fortsatt holdes utenfor. En liste over kilder kunne
+# ikke uttrykt det.
+MAALESERIE_HENDELSER = frozenset({
+    ("lusetall", "har_ila"),
+    ("lusetall", "har_pd"),
+})
+
+
+def er_maaleserie(source: str, field: str) -> bool:
+    """Er denne raden neste måling, eller er den en hendelse?
+
+    ETT STED, kalt fra alle tre veiene inn i endringslistene — batchen,
+    enkeltsiden og felleslesingen. Tre steder som skulle svart det samme
+    om hva som er en hendelse, er formen F6 og F7 hadde.
+    """
+    return (source in MAALESERIER
+            and (source, field) not in MAALESERIE_HENDELSER)
 #
 # `biomasse` kom inn 20.09.2026, da produksjonsområdesidene ble bygget.
 # Den er månedlige beholdningstall per produksjonsområde — samme klasse
@@ -952,14 +995,36 @@ def _endringer(loknr: str, tillatelser: list[str]
            & pl.col("entity_id").is_in(tillatelser))
     )
 
-    maaleserie = mine.filter(pl.col("source").is_in(sorted(MAALESERIER))).height
-
-    register = mine.filter(~pl.col("source").is_in(sorted(MAALESERIER)))
-    rader = [_endringsrad(r, loknr) for r in
-             register.sort("observed_at", descending=True).iter_rows(named=True)]
+    # SKILLET GÅR PÅ (kilde, felt), ikke på kildenavnet alene — se
+    # `er_maaleserie()`. `har_ila` og `har_pd` er flagg og ikke
+    # målinger, og de hører hjemme i tidslinja.
+    rader_alle = list(mine.iter_rows(named=True))
+    maaleserie = sum(1 for r in rader_alle
+                     if er_maaleserie(str(r["source"]), str(r["field"])))
+    register_rader = [r for r in rader_alle
+                      if not er_maaleserie(str(r["source"]), str(r["field"]))]
+    register_rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
+    rader = [_endringsrad(r, loknr) for r in register_rader]
     # SAMME KART SOM BATCHEN BYGGER, av den samme ramma. Se
     # `sist_endret_av()` for hvorfor det ikke kan være to.
     return rader, maaleserie, sist_endret_av(beveg)
+
+
+@lru_cache(maxsize=1)
+def _partisjonering() -> dict[str, str]:
+    """{kildenavn: «henting» eller «verden»}, kildenes egen erklæring.
+
+    Bufret: den leses per changelog-rad, og `registry.discover()`
+    importerer hver kilde. Samme utledning som `ukentlige_kilder()`
+    gjør — og av samme grunn ligger den ikke som en liste her.
+    """
+    from core import registry
+    from core.contract import erklaert_partisjonering
+
+    ut: dict[str, str] = {}
+    for kilde in registry.discover():
+        ut.update(erklaert_partisjonering(kilde))
+    return ut
 
 
 def _endringsrad(r: dict, loknr: str) -> dict:
@@ -971,11 +1036,27 @@ def _endringsrad(r: dict, loknr: str) -> dict:
     viktigste som kan skje med en lokalitet, men raden gjelder
     tillatelsen.
     """
+    # HVA DATOEN ER, lest av KILDENS egen erklæring og ikke av en liste
+    # her. `Source.partisjonering` sier det:
+    #
+    #   henting   `observed_at` er dagen VI hentet. «Observert»
+    #   verden    `observed_at` er perioden raden HANDLER OM. «Gjelder»
+    #
+    # Skillet ble synlig da sykdomsflaggene kom inn i tidslinja
+    # 22.09.2026: `lusetall` er `verden`-partisjonert, så en
+    # ILA-endring datert 2019-11-18 gjelder UKE 47 AV 2019 — den sier
+    # ikke at vi så noe den dagen. Vi backfilte den i 2026. En tidslinje
+    # som kalte begge «observert» ville vært nøyaktig forvekslingen
+    # CLAUDE.md 1b handler om.
+    kilde = str(r["source"])
+    verden = _partisjonering().get(kilde) == "verden"
     return {
         "dato": str(r["observed_at"]),
+        "datoslag": "verden" if verden else "henting",
+        "datoord": "Gjelder" if verden else "Observert",
         "gjelder": ("lokaliteten" if str(r["entity_id"]) == loknr
                     else f"tillatelse {r['entity_id']}"),
-        "kilde": str(r["source"]),
+        "kilde": kilde,
         "felt": str(r["field"]),
         # `felt` er kildens navn og blir i `data-felt`. `etikett` er det
         # som står i Felt-kolonnen, og `fra`/`til` er oversatt: cellene
@@ -1133,6 +1214,26 @@ ENDRINGSTYPE_REGLER = {
     # hører hjemme på områdesiden. Se avviket i oppdraget, punkt 1.
     ("biomasselag", "*"): "biomasse",
 
+    # SYKDOMSFLAGGENE. `har_ila` og `har_pd` er de to feltene i
+    # `lusetall` som ikke er målinger — se `MAALESERIE_HENDELSER`.
+    #
+    # ORDLYDEN ER NØYTRAL, OG DET ER MÅLT. BarentsWatchs OpenAPI-
+    # dokumentasjon (hentet 22.09.2026) sier om feltet bare: «Does the
+    # site have ISA disease this week». Den skiller ikke MISTANKE fra
+    # PÅVIST.
+    #
+    # At skillet FINNES hos kilden, er derimot dokumentert: `IlaPd`
+    # bærer `ruling` med verdiene «Mistanke or Påvist», og `IlaPdCase`
+    # har både `suspectedDate` og `confirmedDate` — og `disproved`.
+    # Den ene boolske verdien vi får per uke kan altså dekke begge, og
+    # hvilken av dem den dekker står ikke skrevet.
+    #
+    # Derfor sier siden «ILA-flagg satt i BarentsWatch» og ikke
+    # «ILA påvist». Ordet «påvist» brukes ikke før det er målt. Se
+    # docs/APNE-SPORSMAL.md.
+    ("lusetall", "har_ila"): "sykdom",
+    ("lusetall", "har_pd"): "sykdom",
+
     # Resten av akvakultur: navn, kommune, arter, kapasitet, koordinater.
     ("akvakultur", "*"): "lokalitet",
 
@@ -1158,6 +1259,9 @@ ENDRINGSTYPER = (
      "hva": "navn, kommune, arter, kapasitet eller posisjon"},
     {"id": "biomasse", "navn": "Fisk til stede",
      "hva": "om det står fisk på lokaliteten"},
+    {"id": "sykdom", "navn": "Sykdom (ILA/PD)",
+     "hva": "ILA- eller PD-flagget satt eller fjernet i BarentsWatch. "
+            "Kilden sier ikke om flagget betyr mistanke eller påvist"},
     {"id": "selskap", "navn": "Selskapsopplysning",
      "hva": "ansatte, regnskap, konkurs eller adresse i Enhetsregisteret"},
     {"id": "annet", "navn": "Annet",
@@ -1268,9 +1372,91 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
 
     gjelder_navn = gjelder_url = kommune = po = po_navn = ""
     lok_navn = lok_url = ""
+
+    # EN OPPFØRING SOM ER BORTE, NAVNGIS IKKE. Verken med navn eller
+    # med organisasjonsnummer.
+    #
+    # ## Hvorfor, og hva porten målte
+    #
+    # `hviteliste()` bygges av NYESTE øyeblikksbilde for hver kilde som
+    # er `henting`-partisjonert (19.09.2026). En entitet som er BORTE er
+    # per definisjon ikke i det øyeblikksbildet, så verken navnet eller
+    # nummeret er gjort rede for. MÅLT 22.09.2026 stoppet porten
+    # publiseringen med 341 funn på endringssidene, CSV-ene og feedene:
+    # `ukjent_navn` og `ukjent_orgnr` på nettopp disse radene.
+    #
+    # Det er IKKE en feil i porten. Det er 18.09-beslutningen i en ny
+    # form: changeloggen bærer verdier fra ELDRE øyeblikksbilder enn
+    # hvitelista bygges av, og vakten kan ikke gå god for dem. Se
+    # docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md.
+    #
+    # ## Hvorfor hvitelista ikke bare utvides
+    #
+    # Fordi det ville gjenåpnet F15. En personform som ble skrevet inn
+    # i et øyeblikksbilde FØR filteret fantes, er fjernet av lesedøra i
+    # dag — men den står fortsatt i den gamle fila. En hviteliste som
+    # leste «de siste N øyeblikksbildene» ville tatt den inn igjen, og
+    # da ville vakten gått god for et navngitt menneske.
+    #
+    # ## Hva som står igjen
+    #
+    # Hendelsen. Kilden, datoen og antall felt. Det er nok til at en
+    # leser ser at noe forsvant, og til at tellingen stemmer — og det
+    # er mer enn å utelate raden, som ville gjort forsvinningen
+    # usynlig. Identiteten står i changeloggen for den som har den.
+    if endring == "borte":
+        navn_av_kilde = {
+            "akvakultur": "En lokalitet",
+            "biomasselag": "En lokalitet",
+            "eierskap": "En tillatelse",
+            "enhetsregisteret": "Et selskap",
+        }
+        return {
+            "dato": str(rad["observed_at"]),
+            "uke": _ukeslug(str(rad["observed_at"])),
+            "type": "borte",
+            "type_navn": "Ute av registeret",
+            "kilde": kilde,
+            # `entity_id` BEHOLDES IKKE. Den er et
+            # organisasjonsnummer for `enhetsregisteret`, og et
+            # ni-sifret tall vi ikke kan gjøre rede for er nøyaktig det
+            # `NI_SIFFER` finnes for. Feed-iden bygges av dato, kilde og
+            # feltantall, som er stabilt uten å bære identiteten.
+            "entity_id": "",
+            "felt": "change_type",
+            "etikett": "Borte fra registeret",
+            "fra": f"{antall_felt} felt",
+            "til": IKKE_I_REGISTERET,
+            "fra_felt": VERDI_MANGLER_FELT,
+            "til_felt": VERDI_MANGLER_FELT,
+            "fra_klasse": "", "til_klasse": "", "er_farge": False,
+            "gjelder": f"{navn_av_kilde.get(kilde, 'En oppføring')} "
+                       f"ute av {kilde}",
+            "gjelder_felt": "gjelder",
+            "identitet": "",
+            "gjelder_url": "",
+            "gjelder_slag": "borte",
+            "lokalitet": "", "lokalitet_url": "",
+            "kommune": "", "po": "", "po_navn": "",
+            "anonym": True,
+        }
+
+    # HVA CELLEN MERKES MED, og hvorfor det ikke alltid er `entity_name`.
+    #
+    # `entity_name` står i `publiseringsvakt.NAVNEFELT`: en verdi merket
+    # slik SKAL være et navn fra kilden, og porten slår den opp i
+    # hvitelista. «Tillatelse N-R-0056» er ikke et navn fra kilden — det
+    # er VÅR etikett på en entitet som ikke har noe navn. MÅLT stoppet
+    # porten publiseringen på nettopp den strengen.
+    #
+    # Samme regel som `EIER_UKJENT_FELT` og `feltmerke()`: vår egen tekst
+    # merkes aldri med kildens feltnavn.
+    gjelder_felt = "gjelder"
     if kilde in ("akvakultur", "biomasselag"):
         a = felles.akva.get(eid) or {}
-        gjelder_navn = visningsord.tittelform(a.get("navn", "")) or f"Lokalitet {eid}"
+        gjelder_navn = visningsord.tittelform(a.get("navn", ""))
+        gjelder_felt = "entity_name" if gjelder_navn else "gjelder"
+        gjelder_navn = gjelder_navn or f"Lokalitet {eid}"
         gjelder_url = f"/lokalitet/{eid}/"
         gjelder_slag = "lokalitet"
         kommune = a.get("kommune", "")
@@ -1296,13 +1482,26 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
             lok_navn = f"{len(lokaliteter)} lokaliteter"
     elif kilde == "enhetsregisteret":
         reg = felles.enhet.get(eid) or {}
-        gjelder_navn = reg.get("navn", "") or f"Organisasjonsnummer {eid}"
         gjelder_slag = "selskap"
-        if eid in felles.tillatelser_per_eier:
-            gjelder_url = f"/selskap/{eid}/"
-        kommune = reg.get("kommune", "")
+        if reg.get("navn"):
+            gjelder_navn = reg["navn"]
+            gjelder_felt = "entity_name"
+            kommune = reg.get("kommune", "")
+            if eid in felles.tillatelser_per_eier:
+                gjelder_url = f"/selskap/{eid}/"
+        else:
+            # IKKE «Organisasjonsnummer 912345678». Selskapet står ikke
+            # i nyeste øyeblikksbilde av enhetsregisteret, og da er
+            # verken navnet eller nummeret gjort rede for av hvitelista
+            # — nøyaktig samme grunn som at en `borte`-rad ikke navngis.
+            # Et ni-sifret tall vi ikke kan gå god for er det
+            # `NI_SIFFER` finnes for, og det gjelder også når tallet er
+            # et organisasjonsnummer: ni siffer skiller ikke et AS fra
+            # et ENK (docs/VURDERING-NI-SIFFER-PROVEN.md).
+            gjelder_navn = "Et selskap som ikke står i nyeste uttrekk"
+            gjelder_slag = "borte"
     else:
-        gjelder_navn = eid
+        gjelder_navn = f"En oppføring i {kilde}"
         gjelder_slag = kilde
 
     raa_fra = rad["old_value"] if rad["old_value"] is not None else ""
@@ -1331,6 +1530,20 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
                           else "Borte fra registeret")),
         "fra": fra,
         "til": til,
+        # MERKINGEN PER VERDI, ikke per celle.
+        #
+        # «Endring»-cellen bærer en SAMMENSATT streng: «Eier:
+        # HELGELAND SMOLT AS → KLUBBAN AS». Merkes hele cellen
+        # `eier_navn`, leser porten den strengen som ETT navn — og det
+        # står ikke i hvitelista, selv om begge selskapene gjør.
+        # MÅLT: det var de to siste funnene før porten ble ren.
+        #
+        # Cellen merkes derfor med `endringstekst`, som ikke er et
+        # feltnavn porten leter etter, og hver VERDI får sin egen
+        # merking i et element inni. Det er det samme skillet
+        # `_oppgitt_historikk()` gjør med navnet.
+        "fra_felt": feltmerke(fra, felt if endring == "endret" else ""),
+        "til_felt": feltmerke(til, felt if endring == "endret" else ""),
         # FARGEKLASSEN ER EN PRESENTASJONSKROK, som i fargetabellen: CSS
         # kan ikke velge på celletekst, så «hvilken av de tre» må stå
         # som en klasse for at ruta foran ordet skal kunne få farge.
@@ -1339,6 +1552,25 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         "til_klasse": FARGE_KLASSE.get(_fargekode(til_raa), ""),
         "er_farge": slag == "trafikklys",
         "gjelder": gjelder_navn,
+        "gjelder_felt": gjelder_felt,
+        # IDENTITETEN SOM PUBLISERES, som er noe annet enn `entity_id`.
+        #
+        # `entity_id` brukes internt — til å filtrere hendelser til et
+        # område, til å slå opp en lokalitet. `identitet` er det som går
+        # ut i CSV, JSON og feed-id-er, og den er TOM når vi ikke kan
+        # navngi entiteten.
+        #
+        # Grunnen er at `entity_id` for `enhetsregisteret` ER et
+        # organisasjonsnummer. Ni siffer skiller ikke et AS fra et ENK
+        # (docs/VURDERING-NI-SIFFER-PROVEN.md), og et nummer som ikke
+        # står i hvitelista er nøyaktig det `NI_SIFFER` finnes for.
+        # MÅLT: porten meldte 22 slike i CSV-ene og JSON-filene etter at
+        # navnene alt var fjernet — nummeret sto igjen i sin egen
+        # kolonne.
+        #
+        # Enten er identiteten gjort rede for i sin helhet, eller så
+        # publiseres den ikke.
+        "identitet": eid if gjelder_felt == "entity_name" else "",
         "gjelder_url": gjelder_url,
         "gjelder_slag": gjelder_slag,
         "lokalitet": lok_navn,
@@ -1346,6 +1578,7 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         "kommune": kommune,
         "po": po,
         "po_navn": po_navn,
+        "anonym": False,
     }
 
 
@@ -1839,7 +2072,7 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
     rader = felles.registerendringer.get(po, ())
     ubelagt = ubelagte(felles.vilkaar)
     om_omraadet = [_endringsrad(r, po) for r in rader
-                   if r["source"] not in MAALESERIER
+                   if not er_maaleserie(str(r["source"]), str(r["field"]))
                    and r["source"] not in ubelagt]
     om_omraadet.sort(key=lambda r: r["dato"], reverse=True)
 
@@ -2294,6 +2527,8 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
     poster = [{
         "dato": e["dato"],
         "uke": visningsord.isouke(e["dato"]),
+        "datoslag": e["datoslag"],
+        "datoord": e["datoord"],
         "etikett": e["etikett"],
         "felt": e["felt"],
         "fra": e["fra"],
@@ -2313,6 +2548,10 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
             "dato": fra,
             "uke": visningsord.isouke(fra),
             "etikett": "Første øyeblikksbilde",
+            # DEN FØRSTE POSTEN ER EN OBSERVASJON: dette er dagen vi
+            # begynte å hente, ikke en periode noe handler om.
+            "datoslag": "henting",
+            "datoord": "Observert",
             "felt": "observed_at",
             "fra": "",
             "til": "",
@@ -3281,6 +3520,412 @@ def skriv_bilder(rot: Path) -> list[Path]:
         ut = rot / navn
         ut.write_bytes(kilde.read_bytes())
         skrevet.append(ut)
+    return skrevet
+
+
+# ------------------------------------------------- ENDRINGSSIDENE
+#
+# `/endringer/`                      alle uker
+# `/endringer/<år>-<uke>/`           én uke, alle typer
+# `/endringer/<år>-<uke>/<type>/`    én uke, én type
+#
+# ## FILTERET ER STIER, IKKE EN SPØRRESTRENG
+#
+# Overleveringen tegner `<form method="get">` med avkrysningsbokser og
+# `?type=`. En spørrestreng gjør identiteten til et argument, og en
+# statisk side har ingenting som leser den — se
+# 2026-09-16-url-struktur.md punkt 3, og avvik 5 i oppdraget.
+#
+# Hver type er derfor en EKTE SIDE, bygget ved bygging. Uten
+# JavaScript er avkrysningsboksene vanlige lenker dit. Med JavaScript
+# filtreres tabellen på stedet, og flere typer kan velges samtidig —
+# det er forbedringen, og den er nettopp det en spørrestreng ikke kan
+# gi uten en server.
+#
+# Prisen er 9 sider per uke. MÅLT: 5 uker gir 50 sider, og en uke
+# koster ~0,1 s å rendre.
+
+ENDRINGER_STI = "endringer"
+
+
+def _ukens_csv(uke: dict) -> str:
+    """Ukas hendelser som CSV, med attribusjonen i et kommentarhode.
+
+    Samme form som lusetall-CSV-en: kolonneoverskriften er merkingen
+    publiseringsvakten leser (`gransk_csv`), og kommentarhodet bærer
+    vilkårene. Verdiene er de VISTE — de samme som står i tabellen —
+    fordi dette er en nedlasting av siden, ikke av kilden. Rådataene
+    ligger i changeloggen.
+    """
+    buffer = io.StringIO()
+    for linje in (
+            f"# Kystloggen — endringer observert i {uke['vist']}",
+            f"# {uke['spenn']}",
+            f"# {uke['antall']} hendelser, "
+            f"observasjonsdatoer {', '.join(uke['datoer'])}",
+            "#",
+            "# «observert» er datoen VI så endringen i øyeblikksbildet,",
+            "# ikke datoen registeret gjorde den. Registeret oppgir ikke",
+            "# det siste.",
+            "#",
+            "# Kilder og vilkår:"):
+        buffer.write(linje + "\n")
+    for setning in attribusjon(ENDRINGSKILDER):
+        buffer.write(f"#   {setning}\n")
+    buffer.write("#\n")
+
+    skriver = csv.writer(buffer, lineterminator="\n")
+    skriver.writerow(["observert", "uke", "type", "kilde", "entity_id",
+                      "entity_name", "felt", "fra", "til", "kommune",
+                      "prodomraade_kode", "prodomraade_navn"])
+    for h in uke["hendelser"]:
+        # `entity_id` OG `entity_name` ER TOMME for en hendelse vi ikke
+        # kan navngi. Kolonneoverskriften ER merkingen i en CSV
+        # (`gransk_csv`), så en etikett som «Tillatelse N-R-0056» i
+        # `entity_name`-kolonnen ville blitt lest som et navn — og det
+        # er nøyaktig hva porten meldte. Se `_hendelse()`.
+        skriver.writerow([h["dato"], uke["slug"], h["type"], h["kilde"],
+                          h["identitet"],
+                          h["gjelder"] if h["gjelder_felt"] == "entity_name"
+                          else "", h["felt"],
+                          h["fra"], h["til"], h["kommune"], h["po"],
+                          h["po_navn"]])
+    return buffer.getvalue()
+
+
+def _ukens_json(uke: dict) -> str:
+    """Ukas hendelser som JSON. Samme rader som CSV-en og tabellen."""
+    return json.dumps({
+        "uke": uke["slug"],
+        "vist": uke["vist"],
+        "spenn": uke["spenn"],
+        "observasjonsdatoer": uke["datoer"],
+        "antall": uke["antall"],
+        "typer": {k["id"]: k["antall"] for k in uke["typer"]},
+        "merknad": ("«observert» er datoen vi så endringen i "
+                    "øyeblikksbildet, ikke datoen registeret gjorde den"),
+        "kilder": list(attribusjon(ENDRINGSKILDER)),
+        "hendelser": [
+            {"observert": h["dato"], "type": h["type"], "kilde": h["kilde"],
+             "entity_id": h["identitet"],
+             # TOM når «gjelder» er VÅR etikett og ikke kildens navn.
+             # Se `_ukens_csv()` og `identitet` i `_hendelse()`.
+             "entity_name": (h["gjelder"]
+                             if h["gjelder_felt"] == "entity_name" else ""),
+             "gjelder": h["gjelder"],
+             "felt": h["felt"], "fra": h["fra"], "til": h["til"],
+             "kommune": h["kommune"], "prodomraade_kode": h["po"],
+             "prodomraade_navn": h["po_navn"]}
+            for h in uke["hendelser"]],
+    }, ensure_ascii=False, indent=1)
+
+
+ENDRINGSKILDER = ("akvakultur", "biomasselag", "eierskap",
+                  "enhetsregisteret")
+
+
+def skriv_endringssider(rot: Path, felles: Felles,
+                        uker: list[dict]) -> list[Path]:
+    """Indeksen, ukesidene, typesidene og datafilene."""
+    miljo = _miljo()
+    uke_mal = miljo.get_template("endringer-uke.html.j2")
+    indeks_mal = miljo.get_template("endringer-indeks.html.j2")
+    skrevet: list[Path] = []
+
+    def skriv_html(sti: Path, html: str) -> None:
+        sti.parent.mkdir(parents=True, exist_ok=True)
+        sti.write_text(html, encoding="utf-8")
+        skrevet.append(sti)
+
+    for i, uke in enumerate(uker):
+        # NYERE og ELDRE, ikke «neste» og «forrige». Lista er sortert
+        # nyest først, så `i - 1` er nyere. To navn som betyr det
+        # motsatte av hva indeksen gjør, er en feil som ser riktig ut.
+        nyere = uker[i - 1] if i else None
+        eldre = uker[i + 1] if i + 1 < len(uker) else None
+        mappe = rot / ENDRINGER_STI / uke["slug"]
+
+        for slag in [None] + [k["id"] for k in ENDRINGSTYPER]:
+            hendelser = ([h for h in uke["hendelser"] if h["type"] == slag]
+                         if slag else uke["hendelser"])
+            valgt = next((k for k in ENDRINGSTYPER if k["id"] == slag), None)
+            sti = (mappe / slag / "index.html") if slag else (mappe / "index.html")
+            url = (f"/{ENDRINGER_STI}/{uke['slug']}/{slag}/" if slag
+                   else f"/{ENDRINGER_STI}/{uke['slug']}/")
+            tittel = (f"{valgt['navn']} i {uke['vist']}" if valgt
+                      else f"Endringer i {uke['vist']}")
+            skriv_html(sti, uke_mal.render(
+                u=uke, rader=hendelser, valgt=valgt, url=url,
+                nyere=nyere, eldre=eldre, uker_totalt=len(uker),
+                siter={"url": _basisurl() + url,
+                       "uke": uke["vist"], "aar": uke["aar"],
+                       "spenn": uke["spenn"],
+                       "sjekksum": felles.sjekksum},
+                **_grunnkontekst(
+                    felles, rot, sti, kilder=ENDRINGSKILDER,
+                    tittel=f"{tittel} — Kystloggen",
+                    beskrivelse=(
+                        f"{len(hendelser)} endringer observert i "
+                        f"{uke['vist']} ({uke['spenn']}) i norske "
+                        f"akvakulturregistre."),
+                    jsonld=_jsonld_uke(uke, hendelser, felles.vilkaar, url),
+                    proveniens_tekst=proveniens(
+                        uke["siste_dato"], felles.akva_hentet,
+                        f"Sammenligning av øyeblikksbildene for "
+                        f"{uke['vist']} og uka før."),
+                    meny_aktiv="endringer",
+                    main_klasse="fullbredde",
+                    feed="/endringer/feed.xml",
+                    feed_tittel="Kystloggen: alle endringer")))
+
+        # DATAFILENE ligger i UKAS egen mappe, ved siden av siden —
+        # samme regel som lusetall-CSV-en (url-struktur punkt 8).
+        for navn, tekst in (("endringer.csv", _ukens_csv(uke)),
+                            ("endringer.json", _ukens_json(uke))):
+            fil = mappe / navn
+            fil.parent.mkdir(parents=True, exist_ok=True)
+            fil.write_text(tekst, encoding="utf-8")
+            skrevet.append(fil)
+
+    sti = rot / ENDRINGER_STI / "index.html"
+    skriv_html(sti, indeks_mal.render(
+        uker=uker,
+        totalt=sum(u["antall"] for u in uker),
+        typer=ENDRINGSTYPER,
+        utenfor=(uker[0]["utenfor_uka"] if uker else 0),
+        **_grunnkontekst(
+            felles, rot, sti, kilder=ENDRINGSKILDER,
+            tittel="Alle endringsuker — Kystloggen",
+            beskrivelse=("Hver uke vi har observert endringer i de norske "
+                         "akvakulturregistrene, med antall per uke."),
+            jsonld=_script_trygg({
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                "name": "Alle endringsuker",
+                "inLanguage": "nb",
+            }),
+            proveniens_tekst=proveniens(felles.akva_dato,
+                                        felles.akva_hentet),
+            meny_aktiv="endringer",
+            main_klasse="fullbredde",
+            feed="/endringer/feed.xml",
+            feed_tittel="Kystloggen: alle endringer")))
+    return skrevet
+
+
+def _jsonld_uke(uke: dict, rader: list[dict], vilkaar: dict,
+                url: str) -> Markup:
+    """schema.org/Dataset for én endringsuke."""
+    kilder = []
+    for kilde in ENDRINGSKILDER:
+        node = {"@type": "Dataset", "name": kilde,
+                "creditText": (vilkaar.get(kilde) or ("",))[0]}
+        if kilde in UTGIVER:
+            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
+        if kilde in LISENS_URL:
+            node["license"] = LISENS_URL[kilde]
+        kilder.append(node)
+    return _script_trygg({
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": f"Endringer i norske akvakulturregistre, {uke['vist']}",
+        "description": (
+            f"{len(rader)} registerendringer observert i {uke['vist']} "
+            f"({uke['spenn']}), sammenlignet med forrige øyeblikksbilde."),
+        "inLanguage": "nb",
+        "temporalCoverage": f"{uke['forste_dato']}/{uke['siste_dato']}",
+        "dateModified": uke["siste_dato"],
+        "isBasedOn": kilder,
+        "creator": {"@type": "Organization", "name": "Kystloggen"},
+        "distribution": [
+            {"@type": "DataDownload", "encodingFormat": "text/csv",
+             "contentUrl": "endringer.csv"},
+            {"@type": "DataDownload", "encodingFormat": "application/json",
+             "contentUrl": "endringer.json"},
+        ],
+    })
+
+
+# ------------------------------------------------------------ FEEDENE
+#
+# Atom, og ikke RSS. Atom har en definert `id` per post og krever
+# `updated` — to ting en changelog-rad faktisk har, og som RSS bare har
+# som konvensjoner.
+#
+# ## EN FEED PER ENTITET, i entitetens EGEN mappe
+#
+#     /endringer/feed.xml                 alt
+#     /lokalitet/<nr>/feed.xml            én lokalitet
+#     /produksjonsomrade/<nr>/feed.xml    ett område
+#     /selskap/<orgnr>/feed.xml           ett selskap
+#
+# Samme begrunnelse som for CSV-en (2026-09-16-url-struktur.md punkt 8):
+# fila arver identiteten fra stien den ligger i, og mappa er
+# selvstendig. Kopierer noen `/lokalitet/31397/`, følger siden, tallene
+# og feeden med.
+#
+# ## TIDSPUNKTET I `updated` ER EN DATO, og klokkeslettet er ikke data
+#
+# Atom krever RFC 3339 — altså et klokkeslett. Changeloggen har en
+# DATO: `observed_at` er dagen vi kjørte innsamlingen, og timen står
+# ikke i raden. Vi skriver `T00:00:00Z`, og feedens `subtitle` sier at
+# klokkeslettet er utfylling og ikke en opplysning.
+#
+# Alternativet var å slå opp `fetched_at` for hvert (kilde, dato)-par,
+# som ville krevd å lese alle snapshots av alle kilder. Det er et ekte
+# tidspunkt, og det er en reell forbedring — den står i
+# docs/APNE-SPORSMAL.md.
+
+ATOM_NS = "http://www.w3.org/2005/Atom"
+
+# Hvor mange poster en feed bærer. En feed uten tak vokser til den
+# ikke lastes; 50 er omtrent et halvår for en aktiv lokalitet og hele
+# historikken for en rolig.
+FEEDPOSTER = 50
+
+
+def _xml(tekst: object) -> str:
+    """Tekst som kan stå i et XML-element."""
+    from xml.sax.saxutils import escape
+    return escape("" if tekst is None else str(tekst))
+
+
+def atomfeed(*, tittel: str, sti: str, undertittel: str,
+             poster: list[dict], oppdatert: str) -> str:
+    """En Atom-feed som tekst.
+
+    `poster` er dicts med `id`, `tittel`, `dato`, `url` og `innhold`.
+    `id` må være STABIL: den er postens identitet for enhver leser, og
+    en id som endrer seg mellom to bygg gjør hver gamle post ulest på
+    nytt.
+    """
+    basis = _basisurl()
+    feed_url = basis + sti
+    linjer = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        f'<feed xmlns="{ATOM_NS}" xml:lang="nb">',
+        f"  <title>{_xml(tittel)}</title>",
+        f"  <subtitle>{_xml(undertittel)}</subtitle>",
+        f"  <id>{_xml(feed_url)}</id>",
+        f'  <link rel="self" type="application/atom+xml" '
+        f'href="{_xml(feed_url)}"/>',
+        f'  <link rel="alternate" type="text/html" '
+        f'href="{_xml(basis + sti.rsplit("/", 1)[0] + "/")}"/>',
+        f"  <updated>{_xml(oppdatert)}</updated>",
+        "  <author><name>Kystloggen</name></author>",
+        f"  <generator uri=\"{_xml(REPO)}\">Kystloggen</generator>",
+    ]
+    for post in poster:
+        linjer += [
+            "  <entry>",
+            f"    <title>{_xml(post['tittel'])}</title>",
+            f"    <id>{_xml(post['id'])}</id>",
+            f'    <link rel="alternate" type="text/html" '
+            f'href="{_xml(basis + post["url"])}"/>',
+            f"    <updated>{_xml(post['dato'])}T00:00:00Z</updated>",
+            f'    <content type="text">{_xml(post["innhold"])}</content>',
+            "  </entry>",
+        ]
+    linjer.append("</feed>")
+    return "\n".join(linjer) + "\n"
+
+
+def _feedpost(h: dict, sti: str) -> dict:
+    """Én hendelse som en Atom-post.
+
+    IDEN ER SAMMENSATT AV DET SOM GJØR HENDELSEN UNIK: sti, dato, kilde
+    og felt. Ingen tilfeldighet, ingen teller, ingen hash — en id som
+    ikke kan regnes ut på nytt av de samme dataene er en id som endrer
+    seg neste gang noe bygges om.
+    """
+    # `identitet` og ikke `entity_id`: en feed-id er en publisert
+    # streng, og den skal ikke bære et nummer vi ikke kan gå god for.
+    # Se `identitet` i `_hendelse()`.
+    nøkkel = (f"{h['dato']}/{h['kilde']}/{h['identitet'] or 'uten-identitet'}"
+              f"/{h['felt']}")
+    verdi = (f"{h['etikett']}: {h['fra']} → {h['til']}"
+             if h["fra"] or h["til"] else h["etikett"])
+    sted = " · ".join(x for x in (h["kommune"],
+                                  f"produksjonsområde {h['po']}" if h["po"]
+                                  else "") if x)
+    return {
+        "id": f"{_basisurl()}{sti}#{nøkkel}",
+        "tittel": f"{h['gjelder']}: {verdi}",
+        "dato": h["dato"],
+        "url": h["gjelder_url"] or sti.rsplit("/", 1)[0] + "/",
+        "innhold": (f"{verdi}. Observert {visningsord.dato(h['dato'])} "
+                    f"i {h['kilde']}."
+                    + (f" {sted}." if sted else "")),
+    }
+
+
+def skriv_feeder(rot: Path, felles: Felles, uker: list[dict]) -> list[Path]:
+    """Feedene: nettstedets, hver lokalitets, hvert områdes, hvert selskaps.
+
+    Bygges av de SAMME ukene endringssidene bygges av. To veier til det
+    samme regnskapet er formen F6 og F7 hadde — og for en feed er
+    prisen at en leser får en post som ikke finnes på siden.
+    """
+    alle = [h for u in uker for h in u["hendelser"]]
+    alle.sort(key=lambda h: h["dato"], reverse=True)
+    skrevet: list[Path] = []
+    i_dag = dt.date.today().isoformat()
+
+    def skriv(sti: str, tittel: str, undertittel: str,
+              hendelser: list[dict]) -> None:
+        ut = rot / sti.lstrip("/")
+        ut.parent.mkdir(parents=True, exist_ok=True)
+        poster = [_feedpost(h, sti) for h in hendelser[:FEEDPOSTER]]
+        oppdatert = ((poster[0]["dato"] if poster else i_dag) + "T00:00:00Z")
+        ut.write_text(atomfeed(tittel=tittel, sti=sti,
+                               undertittel=undertittel, poster=poster,
+                               oppdatert=oppdatert), encoding="utf-8")
+        skrevet.append(ut)
+
+    note = ("Klokkeslettet i hver post er utfylling: changeloggen har en "
+            "dato, ikke et tidspunkt. Datoen er når VI så endringen — "
+            "registeret oppgir ikke når det gjorde den.")
+
+    skriv("/endringer/feed.xml", "Kystloggen: alle endringer",
+          f"Registerendringer observert i ukentlige øyeblikksbilder. {note}",
+          alle)
+
+    per_lokalitet: dict[str, list[dict]] = defaultdict(list)
+    per_po: dict[str, list[dict]] = defaultdict(list)
+    per_selskap: dict[str, list[dict]] = defaultdict(list)
+    for h in alle:
+        if h["gjelder_slag"] == "lokalitet":
+            per_lokalitet[h["entity_id"]].append(h)
+        elif h["gjelder_slag"] == "selskap":
+            per_selskap[h["entity_id"]].append(h)
+        if h["po"]:
+            per_po[h["po"]].append(h)
+
+    # EN FEED FOR HVER ENTITET SOM HAR EN SIDE, også de uten en eneste
+    # endring. En feed som mangler er en 404 der leseren tror det er en
+    # feil hos dem; en tom feed sier «ingenting har skjedd», som er et
+    # svar. Samme regel som at CSV-en skrives med null rader.
+    for loknr in felles.akva:
+        navn = visningsord.tittelform(felles.akva[loknr].get("navn", ""))
+        skriv(f"/lokalitet/{loknr}/feed.xml",
+              f"Kystloggen: {navn or loknr}",
+              f"Registerendringer for akvakulturlokalitet {loknr}. {note}",
+              per_lokalitet.get(loknr, []))
+
+    for po in felles.po_navn:
+        skriv(f"/produksjonsomrade/{po}/feed.xml",
+              f"Kystloggen: produksjonsområde {po} {felles.po_navn[po]}",
+              f"Endringer i lokalitetene i produksjonsområde {po}. {note}",
+              per_po.get(po, []))
+
+    for orgnr in felles.tillatelser_per_eier:
+        if personeier(orgnr, felles):
+            continue
+        navn = (felles.enhet.get(orgnr) or {}).get("navn", "") or orgnr
+        skriv(f"/selskap/{orgnr}/feed.xml", f"Kystloggen: {navn}",
+              f"Register- og eierskapsendringer for organisasjonsnummer "
+              f"{orgnr}. {note}",
+              per_selskap.get(orgnr, []))
     return skrevet
 
 
@@ -4664,6 +5309,9 @@ class Byggelogg:
     po_sider: int = 0
     selskapssider: int = 0
     indekssider: int = 0
+    endringssider: int = 0
+    endringsuker: int = 0
+    feeder: int = 0
     selskap_uten_registerdata: list[str] = None
     selskap_person: list[str] = None
     uten_eier: list[str] = None
@@ -4784,6 +5432,29 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         logg.feilet.append(("om", f"{type(feil).__name__}: {feil}"))
     tider["indekser"] = time.perf_counter() - t0
 
+    # ENDRINGSSIDENE OG FEEDENE bygges av de SAMME ukene. Ett kall til
+    # `les_endringsuker()`, og begge leser resultatet: to veier til det
+    # samme regnskapet er formen F6 og F7 hadde, og for en feed er
+    # prisen at en leser får en post som ikke finnes på siden.
+    t0 = time.perf_counter()
+    try:
+        uker = les_endringsuker(felles)
+        logg.endringssider = len(
+            [s for s in skriv_endringssider(rot, felles, uker)
+             if s.name == "index.html"])
+        logg.endringsuker = len(uker)
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("endringer", f"{type(feil).__name__}: {feil}"))
+        uker = []
+    tider["endringssider"] = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    try:
+        logg.feeder = len(skriv_feeder(rot, felles, uker))
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("feeder", f"{type(feil).__name__}: {feil}"))
+    tider["feeder"] = time.perf_counter() - t0
+
     t0 = time.perf_counter()
     for skriv in (lambda: skriv_stil(rot),
                   lambda: skriv_fonter(rot),
@@ -4854,7 +5525,9 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
     bytes_ = sum(f.stat().st_size for f in rot.rglob("*") if f.is_file())
     print(f"\n{logg.sider} lokalitetssider + {logg.po_sider} "
           f"produksjonsområdesider + {logg.selskapssider} selskapssider "
-          f"+ {logg.indekssider} indekssider skrevet til {rot}")
+          f"+ {logg.indekssider} indekssider + {logg.endringssider} "
+          f"endringssider ({logg.endringsuker} uker) skrevet til {rot}")
+    print(f"  {logg.feeder} Atom-feeder")
     print(f"  byggetid      {total:8.1f} s")
     for merke, t in tider.items():
         print(f"    {merke:22} {t:7.1f} s  ({t / total * 100:4.1f} %)")

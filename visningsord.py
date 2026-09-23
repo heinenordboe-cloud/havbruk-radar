@@ -159,6 +159,25 @@ LESEMAATE = {
 
 JANEI = {"True": "ja", "False": "nei", "true": "ja", "false": "nei"}
 
+# SYKDOMSFLAGGENE I LUSETALL, og hvorfor ordlyden er så forsiktig.
+#
+# BarentsWatchs OpenAPI-dokumentasjon (hentet 22.09.2026) sier om
+# feltet bare: «Does the site have ISA disease this week». Den skiller
+# ikke MISTANKE fra PÅVIST.
+#
+# At skillet FINNES hos kilden, er derimot dokumentert i det samme
+# skjemaet: `IlaPd.ruling` har verdiene «Mistanke or Påvist», og
+# `IlaPdCase` bærer både `suspectedDate` og `confirmedDate` — og
+# `disproved`. Den ENE boolske verdien vi får per uke kan altså dekke
+# begge tilstandene, og hvilken av dem den dekker står ikke skrevet.
+#
+# «satt» og «ikke satt» sier hva vi VET: at et flagg står. Ordet
+# «påvist» ville vært en påstand om en veterinærmedisinsk konklusjon vi
+# ikke har lest noe sted, og om et anlegg med navn og adresse. Det
+# brukes ikke før det er målt. Se docs/APNE-SPORSMAL.md.
+FLAGG = {"True": "satt", "False": "ikke satt",
+         "true": "satt", "false": "ikke satt"}
+
 # Hvilket felt som slår opp i hvilken tabell. Et felt som ikke står her,
 # vises ordrett — og det er standarden, ikke et uhell.
 KODET: dict[str, dict[str, str]] = {
@@ -169,6 +188,8 @@ KODET: dict[str, dict[str, str]] = {
     "plasseringstype": PLASSERING,
     "klareringstype": KLARERING,
     "versjon_status": VERSJONSSTATUS,
+    "har_ila": FLAGG,
+    "har_pd": FLAGG,
     "versjon_aarsak": VERSJONSAARSAK,
     "farge__lesemaate": LESEMAATE,
     "prodomraade_status": {k.upper(): v for k, v in FARGE.items()}
@@ -241,6 +262,9 @@ FELTNAVN = {
     "tillatelser_trukket": "Trukne tillatelser",
     "vanntype": "Vanntype",
     "versjon_aarsak": "Versjonsårsak",
+    # NØYTRAL ORDLYD, se `FLAGG`. Ikke «ILA påvist».
+    "har_ila": "ILA-flagg i BarentsWatch",
+    "har_pd": "PD-flagg i BarentsWatch",
     "versjon_gyldig_fra": "Versjon gyldig fra",
     "versjon_status": "Versjonsstatus",
     # eierskap

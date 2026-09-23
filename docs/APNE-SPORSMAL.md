@@ -149,3 +149,129 @@ biomassetabell med sin egen serie, slik lokalitetssiden har for
 lusetall. Kilden reviderer bakover (12,3 % av radene, målt 25.08), så en
 slik tabell må vise hvilken henting tallene kommer fra — ellers sier den
 noe annet neste måned uten at noen rørte den.
+
+---
+
+## Fra designimplementeringen 22.09.2026
+
+### 1. Hva BETYR ILA- og PD-flagget i BarentsWatch?
+
+**Status: udokumentert hos kilden. Ordlyden på siden er nøytral.**
+
+`lusetall.har_ila` og `har_pd` kommer fra `hasIla`/`hasPd` i
+BarentsWatchs fiskehelse-API. Den offisielle OpenAPI-beskrivelsen
+(hentet 22.09.2026 fra
+`https://www.barentswatch.no/bwapi/openapi/fishhealth/openapi.json`,
+sha256 `240c7d4596be8bcd…829e5a11`) sier om feltet bare:
+
+> `hasIla` — «Does the site have ISA disease this week»
+> `hasPd` — «Does the site have PD disease this week»
+
+Den skiller **ikke** mistanke fra påvist.
+
+At skillet FINNES hos kilden, er derimot dokumentert i det samme
+skjemaet:
+
+    IlaPd.ruling            «Mistanke or Påvist»
+    IlaPdCase               suspectedDate, confirmedDate,
+                            disproved, disprovedDate
+    LocalityIlaPdLink       suspected (bool), confirmed (bool)
+
+Den ENE boolske verdien vi får per uke kan altså dekke begge
+tilstandene, og hvilken av dem den dekker står ikke skrevet noe sted vi
+har lest.
+
+**Følgen:** siden sier «ILA-flagg i BarentsWatch: satt», aldri «ILA
+påvist». Ordet «påvist» brukes ikke før det er målt. En feilaktig
+«påvist» ville vært en påstand om en veterinærmedisinsk konklusjon, om
+et anlegg med navn og adresse.
+
+**Hvordan spørsmålet kan avgjøres:** `ilaPdCase`-endepunktet gir
+`suspectedDate`/`confirmedDate` per sak. En måling som henter sakene
+for et utvalg lokaliteter og sammenligner mot ukeflagget, vil vise om
+flagget står i mistankevinduet, i påvistvinduet, eller i begge. Det er
+et kildespørsmål med et målbart svar — det er bare ikke målt.
+
+MÅLT i vår egen changelog 22.09.2026: 3 323 `endret`-rader for de to
+feltene, over 723 uker og 2 074 lokaliteter. Nyeste endring er
+2024-12-09.
+
+### 2. Sykdomsflaggene er datert til UKA, ikke til dagen vi så dem
+
+`lusetall` er `verden`-partisjonert: `observed_at` er mandagen i ISO-uka
+tellingen gjelder for. En ILA-endring datert 2019-11-18 gjelder uke 47
+av 2019 — vi backfilte den i 2026.
+
+Følgen er at sykdomsflaggene **ikke kan telle i ukesregnskapet** på
+`/endringer/<år>-<uke>/`, som er en side om hva VI så en bestemt uke.
+De står i lokalitetens tidslinje, merket «gjelder uka, ikke dagen vi så
+det», og de telles i «utenfor ukesregnskapet».
+
+Typen «Sykdom (ILA/PD)» vises derfor med 0 i alle
+innsamlingsukene. Det er riktig, men det er også en etikett som aldri
+kan bli noe annet så lenge lusetall er `verden`-partisjonert.
+
+**Hva som ville løst det:** en kolonne i changeloggen for da raden ble
+SKREVET (vår `fetched_at` for det snapshotet), ved siden av
+`observed_at`. Da kunne en hendelse stå på begge akser med hver sin
+dato. Det er en endring i `core/changelog.py` og dermed en egen
+beslutning.
+
+### 3. Atom-feedenes `updated` har et klokkeslett vi ikke har
+
+Atom krever RFC 3339, altså et tidspunkt. Changeloggen har en DATO. Vi
+skriver `T00:00:00Z`, og feedens `subtitle` sier at klokkeslettet er
+utfylling.
+
+**Hva som ville løst det:** `fetched_at` for (kilde, observed_at), som
+ER et ekte tidspunkt. Det krever å lese alle snapshots av alle kilder
+ved bygging, eller å bære feltet i changeloggen — se punkt 2, samme
+endring.
+
+### 4. Tiltaksgrensen for lakselus er ikke samlet inn
+
+Overleveringen tegner en stiplet tiltaksgrense på 0,5 i lusegrafen, og
+farger søyler over den i rust. Ingen av delene er bygget.
+
+Grensa står i lakselusforskriften, varierer med sesong (0,2 i
+vårperioden, 0,5 ellers) og kan settes per lokalitet ved vedtak. Ingen
+av delene finnes i `lusetall`. En strek tegnet av oss ville vært en
+påstand om regelverket, ikke en gjengivelse av en kilde.
+
+**Hva som ville løst det:** forskriften som kilde, på samme måte som
+`trafikklysvedtak` — med uttrekk, lesemåte og belegg per verdi.
+
+### 5. En `borte`-oppføring kan ikke navngis
+
+`hviteliste()` bygges av NYESTE øyeblikksbilde for hver
+`henting`-partisjonerte kilde. En entitet som er BORTE er per
+definisjon ikke der, så verken navnet eller organisasjonsnummeret er
+gjort rede for. Endringssidene viser derfor `borte`-hendelser uten
+identitet: kilde, dato og antall felt.
+
+Hvitelista kan ikke bare utvides til «de siste N øyeblikksbildene»:
+det ville gjenåpnet F15, der personformer skrevet inn før filteret
+fantes ville blitt vasket inn igjen.
+
+**Hva som ville løst det:** en egen, filtrert hviteliste over
+entiteter som HAR vært i utvalget, bygget gjennom den samme lesedøra
+og med personformene fjernet. Det er en utvidelse av
+`publiseringsvakt.hviteliste()` og dermed en egen beslutning med sin
+egen måling.
+
+### 6. Kystlinja er 1:10 millioner
+
+Omtrent 1 km oppløsning. På forsidens oversiktskart er det mer enn nok.
+På et posisjonskart som dekker 36 km er en fjordarm gjengitt med noen
+få punkter, og små holmer finnes ikke. 1 av 1 782 lokaliteter har ikke
+land i utsnittet i det hele tatt.
+
+Alternativene er Kartverkets N-serier (NLOD, men store nedlastinger bak
+Geonorges API) og OpenStreetMap-avledet kystlinje (ODbL —
+del-på-samme-vilkår, en tyngre lisens å ta inn i et arkiv som skal stå
+i ti år).
+
+### 7. Pagineringstaket og PERSONFORMER står fortsatt (fra 24.08.2026)
+
+Se `docs/beslutninger/2026-08-24-utvalgsutvidelse-er-ikke-endring.md`.
+Designrunden har ikke rørt noen av dem.

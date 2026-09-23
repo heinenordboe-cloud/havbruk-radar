@@ -197,9 +197,11 @@
   </div>
   <p class="historikk-forklaring">
     Hver endring i registerfeltene siden første øyeblikksbilde.
-    <strong>Datoen er når VI så den</strong> — registeret oppgir ikke
-    når det gjorde endringen, så den kan ha skjedd når som helst i uka
-    før. Loggen dekker
+    <strong>Datoen er som hovedregel når VI så endringen</strong> —
+    registeret oppgir ikke når det gjorde den, så den kan ha skjedd når
+    som helst i uka før. Unntaket er sykdomsflaggene fra BarentsWatch:
+    de er datert til <em>uka de gjelder for</em>, og hver slik post sier
+    det. Loggen dekker
     {% for d in lok.dekning_fra %}{{ d.kilde }} fra
     <time datetime="{{ d.fra }}">{{ d.fra|dato }}</time>{% if not loop.last %},
     {% endif %}{% endfor %}; en endring som skjedde før det, har vi
@@ -215,6 +217,16 @@
       <p class="tidsakse-topp">
         <time datetime="{{ post.dato }}">{{ post.dato|dato }}</time>
         <span class="tidsakse-felt">{{ post.etikett }}</span>
+        {# HVA DATOEN ER. For de fleste kildene er den dagen VI hentet;
+           for `lusetall` er den UKA raden handler om, fordi kilden er
+           `verden`-partisjonert. En tidslinje som kalte begge
+           «observert» ville vært forvekslingen CLAUDE.md 1b handler om.
+           Ordet kommer fra kildens egen erklæring — se
+           `_endringsrad()`. #}
+        {% if post.datoslag == "verden" %}
+        <span class="tidsakse-bi tidsakse-bi--verden">gjelder uka, ikke
+          dagen vi så det</span>
+        {% endif %}
         {% if post.gjelder != "lokaliteten" %}
         <span class="tidsakse-bi">{{ post.gjelder }}</span>
         {% endif %}
@@ -256,6 +268,18 @@
     {{ lok.endringer|length }} registerendringer. Tas de med, drukner
     det som faktisk er en hendelse i noe som bare er neste måling.
     Lusetallene står som en serie under.
+  </p>
+  <p class="tabellnote">
+    <strong>ILA- og PD-flaggene er unntaket.</strong> De ligger i
+    lusetallkilden, men de er ikke målinger — de er flagg som slås av og
+    på, og et flagg som slås på er noe som har skjedd med anlegget. De
+    står derfor i tidslinja.
+    <strong>«Satt» betyr at flagget står, ikke at sykdommen er
+    påvist.</strong> BarentsWatchs dokumentasjon sier om feltet bare
+    «Does the site have ISA disease this week», og skiller ikke mistanke
+    fra påvist — selv om skillet finnes i kildens egne saksdata
+    («Mistanke or Påvist»). Vi bruker ikke ordet «påvist» før vi har
+    målt at det stemmer. Se <code>docs/APNE-SPORSMAL.md</code>.
   </p>
 </section>
 

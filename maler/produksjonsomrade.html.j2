@@ -393,12 +393,15 @@
       {% for h in po.i_omraadet %}
       <tr>
         <td data-felt="observed_at"><time datetime="{{ h.dato }}">{{ h.dato }}</time></td>
-        <td data-felt="{{ feltmerke(h.gjelder, 'entity_name') }}">
-          {%- if h.gjelder_url %}<a href="{{ h.gjelder_url }}" data-felt="entity_name">{{ h.gjelder }}</a>
+        <td data-felt="{{ h.gjelder_felt }}">
+          {%- if h.gjelder_url %}<a href="{{ h.gjelder_url }}" data-felt="{{ h.gjelder_felt }}">{{ h.gjelder }}</a>
           {%- else %}{{ h.gjelder or VERDI_MANGLER }}{% endif %}
         </td>
         <td data-felt="endringstype">{{ h.type_navn }}</td>
-        <td class="endring {{ h.til_klasse }}" data-felt="{{ h.felt }}">{{ h.etikett }}: {{ h.fra }} → {{ h.til }}</td>
+        <td class="endring {{ h.til_klasse }}" data-felt="endringstekst">{{ h.etikett }}:
+          <span data-felt="{{ h.fra_felt }}">{{ h.fra }}</span>
+          <span class="pil" aria-label="ble til">→</span>
+          <span data-felt="{{ h.til_felt }}">{{ h.til }}</span></td>
       </tr>
       {% endfor %}
       {% if not po.i_omraadet %}

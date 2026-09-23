@@ -175,8 +175,8 @@
       {% for r in f.rader %}
       <tr>
         <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
-        <td class="gjelder" data-felt="{{ feltmerke(r.gjelder, 'entity_name') }}">
-          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="entity_name">{{ r.gjelder }}</a>
+        <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
+          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
           {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
         </td>
         <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
@@ -187,7 +187,10 @@
         {# ORDET ER BÆREREN. Firkanten foran en trafikklysverdi er en
            `::before` som bare finnes i CSS-en; slås stilarket av, står
            ordet igjen alene og cellen er like sann. #}
-        <td class="endring {{ r.til_klasse }}" data-felt="{{ r.felt }}">{{ r.etikett }}: {{ r.fra }} → {{ r.til }}</td>
+        <td class="endring {{ r.til_klasse }}" data-felt="endringstekst">{{ r.etikett }}:
+          <span data-felt="{{ r.fra_felt }}">{{ r.fra }}</span>
+          <span class="pil" aria-label="ble til">→</span>
+          <span data-felt="{{ r.til_felt }}">{{ r.til }}</span></td>
       </tr>
       {% endfor %}
       {% if not f.rader %}

@@ -55,6 +55,13 @@
  *    noe feiler. Derfor gjør hver farget ting her det med `::before`
  *    eller på cellen selv.
  *
+ *    DET ENE UNNTAKET, og det er markupens og ikke CSS-ens: en celle
+ *    som bærer en SAMMENSATT streng («Eier: X → Y») er ikke én verdi.
+ *    Den merkes `endringstekst` — et navn porten ikke leter etter — og
+ *    hver VERDI får sin egen merking i et element inni. Da ser porten
+ *    de to navnene hver for seg, som er det den skal. Regelen over
+ *    gjelder fortsatt for celler som bærer ÉN verdi.
+ *
  * 2. INGEN KLASSE SOM INNEHOLDER `navn` ELLER `eier` SOM HELT ORD.
  *    `NAVNEMERKE` leser `class="[^"]*\b(navn|eier)\b[^"]*"` som «her
  *    står det et navn». En presentasjonsklasse som het `po-navn` ville
@@ -922,6 +929,18 @@ code {
 /* En verdi vi ikke har. Skal se BEVISST tom ut — ikke som data, og
    ikke som en feil. */
 .mangler { color: var(--ink-dempet); }
+
+/* ET UTKAST SKAL SE UT SOM ET UTKAST. Merket står på seksjoner der
+   teksten ikke er vedtatt — i dag «Gjenbruk» på /om/. En setning om
+   hva andre har lov til, som ingen har gått god for, skal ikke se
+   ferdig ut. */
+.utkast-merke {
+  padding: var(--rom-10) var(--rom-14);
+  background: var(--papir2);
+  box-shadow: inset 3px 0 0 0 var(--rust);
+  font-size: var(--fs-14);
+  color: var(--ink-dempet);
+}
 
 /* ---- lenker ---- */
 
@@ -2088,6 +2107,11 @@ td[data-felt="farge_mangler"]::before {
 .tidsakse-felt { color: var(--rust); }
 .tidsakse-bi { font-style: italic; }
 
+/* EN POST MED EN VERDENSDATO merkes, fordi resten av aksen er
+   observasjonsdatoer. Rust som SKRIFT, ikke som flate — regelen fra
+   avsnitt 1. */
+.tidsakse-bi--verden { color: var(--rust); font-style: normal; }
+
 .tidsakse-verdi {
   display: flex;
   flex-wrap: wrap;
@@ -2504,6 +2528,94 @@ figcaption {
 .retning-inn th { box-shadow: inset 3px 0 0 0 var(--lys-gronn); }
 .retning-ut th { box-shadow: inset 3px 0 0 0 var(--ink-dempet); }
 .retning-inn th, .retning-ut th { padding-inline-start: var(--rom-14); }
+
+/* ---------------------------------------------------------------- *
+ * 6d. ENDRINGSSIDENE
+ *
+ * Sidens eneste sidetype som er om TIDA framfor om en entitet, og
+ * nettstedets egentlige produkt: registrene viser nå, og bevegelsen
+ * finnes ikke noe annet sted.
+ * ---------------------------------------------------------------- */
+
+.ukenav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-10) var(--rom-24);
+  align-items: baseline;
+  margin-block-end: var(--rom-20);
+  font-size: var(--fs-14);
+}
+
+.ukenav a { color: var(--hav-tegn); text-decoration: none; }
+.ukenav a:visited { color: var(--hav-tegn); }
+.ukenav a:hover { color: var(--rust-lys); text-decoration: underline; }
+.ukenav .mangler { color: var(--hav3); }
+
+.uke-sammendrag--bred p { max-width: 54ch; }
+
+/* ---- filteret ----
+ *
+ * Skjemaet er `hidden` i markupen og slås på av skriptet.
+ * LENKELISTA under er det som virker uten, og hver lenke går til en
+ * EKTE side. En avkrysningsboks som ikke gjør noe er verre enn ingen
+ * boks — samme regel som kopierknappen.
+ */
+
+.typefilter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rom-8) var(--rom-16);
+  margin-block: var(--rom-24) var(--rom-16);
+  padding: var(--rom-12) var(--rom-16);
+  background: var(--papir2);
+}
+
+.typefilter-etikett {
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--ink-dempet);
+}
+
+.typefilter-boks {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4em;
+  font-size: var(--fs-13);
+  cursor: pointer;
+}
+
+.typefilter-boks input { accent-color: var(--rust); }
+
+/* DEN VALGTE TYPEN er merket med aksenten som STREK, ikke som flate —
+   regelen fra avsnitt 1 gjelder her som overalt. */
+.typemerke--valgt {
+  color: var(--rust);
+  box-shadow: inset 0 0 0 1px var(--rust), inset 0 -3px 0 0 var(--rust);
+}
+
+.typemerke--valgt:visited { color: var(--rust); }
+
+/* ---- nedlastingslinja ---- */
+
+.nedlasting {
+  margin-block-start: var(--rom-20);
+  max-width: none;
+  font-size: var(--fs-14);
+}
+
+.nedlasting-note {
+  display: block;
+  margin-block-start: var(--rom-4);
+  font-size: var(--fs-13);
+  color: var(--ink-dempet);
+}
+
+/* ---- ukeoversikten ----
+   En bred tabell med én kolonne per type. Den scroller i sin egen
+   ramme på smal skjerm, som alle andre brede tabeller. */
+
+#endringer-uker td.mangler { color: var(--ink-dempet); }
 
 /* ---------------------------------------------------------------- *
  * 7. BUNNTEKSTEN

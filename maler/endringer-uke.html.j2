@@ -1,0 +1,211 @@
+{# Endringssiden for én uke — og for én type i den uka.
+
+   SAMME MAL FOR BEGGE. `valgt` er typen når dette er en typeside og
+   `none` når det er hele uka. To maler ville vært to steder å rette
+   den samme setningen.
+
+   FILTERET ER STIER, IKKE EN SPØRRESTRENG. Hver type er en EKTE side,
+   bygget ved bygging, og avkrysningsboksene er lenker dit uten
+   JavaScript. Med JavaScript filtreres tabellen på stedet og flere
+   typer kan velges samtidig — det er forbedringen, og den er nettopp
+   det en spørrestreng ikke kan gi uten en server. Se avvik 5 i
+   oppdraget og 2026-09-16-url-struktur.md punkt 3.
+
+   PERMANENT SIDE PER UKE. Adressen `/endringer/2026-39/` betyr uke 39
+   av 2026 for alltid; innholdet er en sammenligning av to
+   øyeblikksbilder som begge er append-only. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li><a href="/endringer/">Endringer</a></li>
+      {% if valgt %}
+      <li><a href="/endringer/{{ u.slug }}/">{{ u.vist }}</a></li>
+      <li aria-current="page">{{ valgt.navn }}</li>
+      {% else %}
+      <li aria-current="page">{{ u.vist }}</li>
+      {% endif %}
+    </ol>
+  </nav>
+
+  {# UKENAVIGASJONEN. «Eldre» og «nyere», ikke «forrige» og «neste»:
+     lista er sortert nyest først, og to ord som betyr det motsatte av
+     hva rekkefølgen gjør er en feil som ser riktig ut. #}
+  <nav class="ukenav" aria-label="Uker">
+    {% if eldre %}
+    <a href="/endringer/{{ eldre.slug }}/">← {{ eldre.vist }}</a>
+    {% else %}
+    <span class="mangler">← ingen eldre uke</span>
+    {% endif %}
+    <a href="/endringer/">Alle {{ uker_totalt }} ukene</a>
+    {% if nyere %}
+    <a href="/endringer/{{ nyere.slug }}/">{{ nyere.vist }} →</a>
+    {% else %}
+    <span class="mangler">nyeste uke</span>
+    {% endif %}
+  </nav>
+
+  <h1>
+    {% if valgt %}{{ valgt.navn }} i {{ u.vist }}
+    {% else %}Endringer i {{ u.vist }}{% endif %}
+  </h1>
+  <p class="lok-undertittel">
+    Observert i øyeblikksbildene {{ u.spenn }}, sammenlignet med uka
+    før. Permalenke:
+    <span class="tall-mono">kystloggen.no/endringer/{{ u.slug }}/{% if valgt %}{{ valgt.id }}/{% endif %}</span>
+  </p>
+</div>
+{% endblock %}
+
+{% block innhold %}
+
+<section class="ark seksjon">
+  <div class="uke-sammendrag uke-sammendrag--bred">
+    {% if valgt %}
+    <p>{{ rader|length }} av {{ u.antall }} endringer i {{ u.vist }} er
+      {{ valgt.navn|lower }} — {{ valgt.hva }}.</p>
+    {% else %}
+    <p>{{ u.antall }} endringer observert i {{ u.vist }}, fordelt på
+      {{ u.typer|selectattr("antall")|list|length }} slag.</p>
+    {% endif %}
+  </div>
+
+  {# FILTERET. Uten JavaScript er hver boks en LENKE til typesiden, som
+     er bygget. `data-filter-for` slår på JS-varianten, som filtrerer
+     tabellen på stedet og lar flere typer velges samtidig.
+
+     Skjemaet er `hidden` til JS har lastet, og LENKELISTA under er det
+     som vises uten. En avkrysningsboks som ikke gjør noe er verre enn
+     ingen. #}
+  <form class="typefilter" data-filter-for="endringer-uke"
+        action="/endringer/{{ u.slug }}/" method="get" hidden
+        aria-label="Filtrer på endringstype">
+    <span class="typefilter-etikett">Endringstype</span>
+    {% for k in u.typer %}
+    <label class="typefilter-boks{% if not k.antall %} typemerke--tom{% endif %}">
+      <input type="checkbox" name="type" value="{{ k.id }}"
+             {% if valgt and valgt.id == k.id %}checked{% endif %}>
+      {{ k.navn }} <span class="typemerke-tall">{{ k.antall }}</span>
+    </label>
+    {% endfor %}
+  </form>
+
+  {# LENKELISTA er filteret UTEN JavaScript: hver lenke går til en ekte,
+     bygget side. Med JavaScript skjules den av skriptet og skjemaet
+     over tar over — to filtre på skjermen samtidig er ett for mye.
+     `data-uten-js` er markøren skriptet ser etter. #}
+  <ul class="typemerker" data-uten-js
+      aria-label="Endringstyper i {{ u.vist }}">
+    <li>
+      <a class="typemerke{% if not valgt %} typemerke--valgt{% endif %}"
+         href="/endringer/{{ u.slug }}/">
+        Alle <span class="typemerke-tall">{{ u.antall }}</span>
+      </a>
+    </li>
+    {% for k in u.typer %}
+    <li>
+      <a class="typemerke{% if not k.antall %} typemerke--tom{% endif %}{% if valgt and valgt.id == k.id %} typemerke--valgt{% endif %}"
+         href="/endringer/{{ u.slug }}/{{ k.id }}/" title="{{ k.hva }}">
+        {{ k.navn }} <span class="typemerke-tall">{{ k.antall }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="tabellramme" role="region"
+       aria-labelledby="endringer-uke-tittel" tabindex="0">
+  <table id="endringer-uke">
+    <caption id="endringer-uke-tittel">
+      <span data-teller>Viser {{ rader|length }} av {{ u.antall }}</span>
+      endringer i {{ u.vist }}.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Observert</th>
+        <th scope="col">Gjelder</th>
+        <th scope="col">Kommune</th>
+        <th scope="col">Produksjonsområde</th>
+        <th scope="col">Type</th>
+        <th scope="col">Endring</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rader %}
+      <tr data-type="{{ r.type }}">
+        <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
+        <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
+          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
+          {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
+        </td>
+        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(r.po, 'prodomraade_kode') }}">
+          {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
+          {%- else %}{{ VERDI_MANGLER }}{% endif %}
+        </td>
+        <td data-felt="endringstype">{{ r.type_navn }}</td>
+        <td class="endring {{ r.til_klasse }}" data-felt="endringstekst">{{ r.etikett }}:
+          <span data-felt="{{ r.fra_felt }}">{{ r.fra }}</span>
+          <span class="pil" aria-label="ble til">→</span>
+          <span data-felt="{{ r.til_felt }}">{{ r.til }}</span></td>
+      </tr>
+      {% endfor %}
+      {# TOMRADEN er `hidden` når det er rader, og slås på av filteret
+         når et valg tømmer tabellen. Uten den ville en tom tabell sett
+         ut som en feil. #}
+      <tr data-tom{% if rader %} hidden{% endif %}>
+        <td colspan="6" data-felt="tomtekst">
+          {% if valgt %}Ingen {{ valgt.navn|lower }} i {{ u.vist }}.
+          {% else %}Ingen endringer i {{ u.vist }}. Alle felt står som
+          de sto forrige gang vi spurte.{% endif %}
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="tabellnote">
+    <strong>«Observert»</strong> er datoen vi så endringen i
+    øyeblikksbildet, ikke datoen registeret gjorde den. Registeret
+    oppgir ikke det siste, så endringen kan ha skjedd når som helst i
+    uka før.
+    {% if u.utenfor_uka %}
+    {{ u.utenfor_uka }} endringer står utenfor ukesregnskapet fordi
+    kilden daterer dem til perioden de HANDLER OM og ikke til dagen vi
+    hentet dem — forskriftsrunder, journalførte overføringer og
+    månedlige beholdningstall. De står på entitetenes egne sider.
+    {% endif %}
+  </p>
+
+  <p class="nedlasting">
+    Last ned uka:
+    <a href="/endringer/{{ u.slug }}/endringer.csv">CSV</a> ·
+    <a href="/endringer/{{ u.slug }}/endringer.json">JSON</a> ·
+    <a href="/endringer/feed.xml">Atom-feed</a>
+    <span class="nedlasting-note">Begge filene har alle
+      {{ u.antall }} hendelsene i uka, ikke bare de som vises her.</span>
+  </p>
+</section>
+
+<section class="ark" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne uka</h2>
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    <p class="siterbar" id="siterbar">Kystloggen ({{ siter.aar }}).
+      <i>Endringer i norske akvakulturregistre, {{ siter.uke }}.</i>
+      Øyeblikksbilder {{ siter.spenn }},
+      sjekksum {{ siter.sjekksum[:8] }}…{{ siter.sjekksum[-4:] }}.
+      {{ siter.url }}</p>
+    <p class="siterboks-note">
+      Adressen er permanent: {{ siter.uke }} betyr den uka for alltid.
+      Innholdet er en sammenligning av to øyeblikksbilder som begge er
+      append-only, så siden kan bygges opp igjen fra kilden.
+    </p>
+  </div>
+</section>
+{% endblock %}

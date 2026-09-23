@@ -135,6 +135,13 @@
 
     rot.hidden = false;
 
+    /* LENKELISTA SKJULES når skjemaet tar over. Begge er filteret —
+       den ene virker uten skript, den andre med — og to filtre på
+       skjermen samtidig er ett for mye. Rekkefølgen er viktig: lista
+       skjules FØRST når skjemaet er slått på, aldri før. */
+    var utenJs = document.querySelectorAll("[data-uten-js]");
+    Array.prototype.forEach.call(utenJs, function (el) { el.hidden = true; });
+
     function filtrer() {
       var valgt = [];
       Array.prototype.forEach.call(bokser, function (b) {
