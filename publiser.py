@@ -49,7 +49,30 @@ UT = DATA_DIR / "nettsted"
 LOGG = DATAREPO / "docs" / "publiseringslogg.tsv"
 
 PROSJEKT = "kystloggen"
+
+# GRENENE HOS CLOUDFLARE PAGES, og de er ikke det samme som grenene i
+# git — de er etiketter på en utrulling. Pages behandler ÉN av dem som
+# produksjon; alt annet blir en forhåndsvisning med sin egen adresse.
+#
+# ## Hvorfor produksjonsgrenen står her og ikke utelates
+#
+# Fram til 23.09.2026 sendte `--produksjon` ingen `--branch` i det hele
+# tatt, og lot wrangler utlede den av git. Det virker — helt til noen
+# publiserer fra en annen gren enn `main`, og da går utrullingen til en
+# forhåndsvisning UTEN at noe sier fra. En publisering som stille blir
+# noe annet enn det den ba om, er verre enn en som feiler.
+#
+# Navnet «main» er valgt fordi det er grenen koden utgis fra, og fordi
+# `kodeproveniens.krev_sporbar()` allerede krever at HEAD finnes på
+# `origin/main`. To steder som sier «main» om samme gren er greit; to
+# steder som KAN si ulike ting er det ikke — derfor står den her, som
+# én konstant.
+PRODUKSJONSGREN = "main"
 FORHANDSGREN = "forhandsvisning"
+
+# En forhåndsvisning som lander i produksjon er den ene feilen dette
+# skriptet ikke kan oppdage i ettertid.
+assert FORHANDSGREN != PRODUKSJONSGREN
 
 
 class Stopp(SystemExit):
@@ -251,11 +274,11 @@ def main() -> int:
     spor(f'\n  Skriv «ja» for å laste opp til {miljo}: ')
 
     # 5. Ut.
-    print(f"\n[5/6] wrangler → {miljo}")
+    # GRENEN OPPGIS ALLTID, også for produksjon. Se `PRODUKSJONSGREN`.
+    gren = PRODUKSJONSGREN if args.produksjon else FORHANDSGREN
+    print(f"\n[5/6] wrangler → {miljo} (gren {gren})")
     wrangler = ["npx", "wrangler", "pages", "deploy", str(UT),
-                "--project-name", PROSJEKT]
-    if not args.produksjon:
-        wrangler += ["--branch", FORHANDSGREN]
+                "--project-name", PROSJEKT, "--branch", gren]
     kjor(*wrangler, vis=True)
 
     # 6. Logg.

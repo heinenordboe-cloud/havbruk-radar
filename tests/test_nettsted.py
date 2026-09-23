@@ -3085,3 +3085,21 @@ def test_publiser_ber_aldri_om_en_nokkel():
     for ord_ in ("CLOUDFLARE_API_TOKEN", "getpass", "api_token",
                  "--api-key", "CF_API"):
         assert ord_ not in kode, ord_
+
+
+def test_forhandsvisning_er_aldri_produksjonsgrenen():
+    """Den ene feilen `publiser.py` ikke kan oppdage i ettertid."""
+    import publiser
+
+    assert publiser.FORHANDSGREN != publiser.PRODUKSJONSGREN
+    assert publiser.PRODUKSJONSGREN == "main"
+
+
+def test_grenen_oppgis_alltid_ogsaa_for_produksjon():
+    """Fram til 23.09.2026 lot `--produksjon` wrangler utlede grenen av
+    git. Det virker helt til noen publiserer fra en annen gren, og da
+    går utrullingen til en forhåndsvisning UTEN at noe sier fra."""
+    kode = (Path(__file__).resolve().parents[1]
+            / "publiser.py").read_text(encoding="utf-8")
+    assert '"--project-name", PROSJEKT, "--branch", gren]' in kode
+    assert "if not args.produksjon:\n        wrangler +=" not in kode
