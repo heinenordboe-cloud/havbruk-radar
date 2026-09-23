@@ -41,15 +41,26 @@ og et statusfelt i et karttjenestelag er en tredjeparts gjengivelse av
 det uten noen av delene — det kan ikke si hvilken RUNDE det gjelder, og
 ikke om fargeordet står i forskriften eller er utledet.
 
-## kystlinje-norge.geojson — Natural Earth 1:10 m, klippet
+## land-norge.geojson — Natural Earth 1:10 m landflater, klippet
 
 | | |
 |---|---|
-| Kilde | `natural-earth-vector`, `geojson/ne_10m_coastline.geojson` |
+| Kilde | `natural-earth-vector`, `geojson/ne_10m_land.geojson` |
 | Lisens | Public domain — `maler/geo/naturalearth-LICENSE.md`, kopiert ut til `/naturalearth-LICENSE.md` |
 | Hentet | 2026-09-22 |
-| sha256, kilde | `6f75ae0e0de157b14946e2255eb1f5486d9a13819032e26d4610852d296788f6` (10 110 735 byte, 4 133 features) |
-| sha256, vår | `5397501231215ddb0465bd714ea933dfecdc9d3cfbd892eea8d1a33ad2ef6924` (364 719 byte, 220 linjer, 20 724 punkter) |
+| sha256, kilde | `1ac90796408bc6ad6911d69448485d3c4dbf2190370080368a09976e1c9f7416` (10 157 965 byte, 11 features) |
+| sha256, vår | `00e34a67340ed2272e857c30f96b36c5509622b453216a4c5d294695837368a8` (492 338 byte, 697 flater, 27 819 punkter) |
+
+### FLATER OG IKKE LINJER, og hvorfor det ble byttet
+
+Første utkast brukte `ne_10m_coastline`, som er LINJER
+(sha256 `6f75ae0e…6788f6`, klippet til 364 719 byte / 220 linjer /
+20 724 punkter). Det ga et posisjonskart der kysten var noen streker
+uten innside: en leser kunne ikke se hvilken side som var land.
+
+`ne_10m_land` er flater. Kystlinja er da flatens egen kant, tegnet som
+strek oppå fyllet — én kilde, to roller, og de kan ikke bli uenige.
+Prisen er 128 kB mer i repoet og 7 099 punkter til.
 
 Natural Earth ber uttrykkelig om at kreditering ikke er nødvendig, og
 oppgir en formulering for dem som vil likevel: **«Made with Natural
@@ -69,17 +80,32 @@ i ti år). Public domain og én fil vant.
 forsidens oversiktskart er det mer enn nok. På et posisjonskart som
 dekker 36 km er en fjordarm gjengitt med noen få punkter, og små holmer
 finnes ikke. Kartet sier hvor lokaliteten ligger i forhold til kysten;
-det sier ikke hvordan bunnen eller sundet ser ut.
+det sier ikke hvordan bunnen eller sundet ser ut. Det står i
+bildeteksten på hver side.
 
 ### Klippingen
 
-Kilda er hele verden. Vi beholder punktene innenfor ruta
-**3–33 °Ø, 57–72 °N**, med ett punkt utenfor i hver ende av hver
-bevarte bit slik at streken går ut av kanten framfor å stoppe før den.
+Kilda er hele verden — elleve landmasser, der Eurasia er én ring med
+hundretusenvis av punkter. Vi klipper hver ring mot ruta
+**3–33 °Ø, 57–72 °N** med **Sutherland-Hodgman**: algoritmen klipper
+mot én akseparallell kant om gangen og SETTER INN skjæringspunktene, så
+resultatet er en ny, LUKKET ring som følger rammen der landet går ut av
+bildet.
+
+En linjedeler duger ikke her. Kastes en bit av en ring, er den ikke en
+ring lenger, og `Z` lukker den da mot et vilkårlig punkt — et trekantet
+«land» tvers over fjorden.
+
 Koordinatene er rundet til fire desimaler (≈ 11 m).
 
-    20 724 punkter beholdt, 390 233 forkastet.
-    10,1 MB ble 365 kB.
+    27 819 punkter beholdt, 349 358 forkastet i den raske utsilingen.
+    10,2 MB ble 492 kB.
+
+Den SAMME algoritmen står i `kart._flatekant()` og brukes på nytt ved
+bygging, mot posisjonskartets mye mindre utsnitt. MÅLT: uten den
+skriver hver av de 1 782 lokalitetssidene ut alle 27 819 punkter; med
+den er snittet 1 995 byte, og 1 lokalitet har ikke land i utsnittet i
+det hele tatt.
 
 Ruta tar med svenskekysten, finskekysten, Bottenvika og
 Danmark — det er ikke en feil. En kystlinje som stoppet ved

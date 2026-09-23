@@ -1,394 +1,726 @@
-{# Lokalitetssiden. Fem tabeller, fem ankere, ingen design.
+{# Lokalitetssiden. Den viktigste sidetypen: 1 782 av 2 279 sider.
 
-   Ankernavnene er <kilde>-<hva> og kommer fra
+   REKKEFØLGEN ER OVERLEVERINGENS:
+     mørk header (brødsmule, navn, fakta, kart)
+     endringer vi har sett
+     lakselus  |  fisk til stede
+     tillatelser  |  registerfeltene
+     historikken registeret selv oppgir
+     siter denne siden
+
+   ANKERNAVNENE er `<kilde>-<hva>` og kommer fra
    docs/beslutninger/2026-09-16-url-struktur.md. De er utledet av
    kildenavnet i data/raw/ og av feltvokabularet — ikke av rekkefølgen
-   på siden og ikke av overskriftsteksten. En ny tabell endrer ikke
-   noen av dem. #}
+   på siden og ikke av overskriftsteksten. En ny seksjon endrer ingen
+   av dem, og `#lusetall-uke` peker på det samme som før denne
+   designrunden.
+
+   MARKUPKONTRAKTEN GJELDER: caption/thead/th scope på hver tabell,
+   data-felt på hver verdicelle, <time datetime> på hver dato.
+   Se docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md.
+
+   DOBBELTMERKING PÅ LENKEDE VERDIER: `<td data-felt="x"><a
+   data-felt="x">…</a></td>`. Kontrakten krever merkingen på cellen;
+   publiseringsvaktens `FELTMERKE` fanger teksten fram til første `<`,
+   som er `<a`. Cellen får merkingen for kontrakten, lenka for porten. #}
 {% extends "base.html.j2" %}
 
+{# ---------------------------------------------------------------- 1
+   HEADEREN. Mørk flate: brødsmule, navn, fakta og posisjonskart. #}
 {% block toppinnhold %}
-<div class="ark sidehode">
-<nav class="sti" aria-label="Du er her">
-  <ol>
-    <li><a href="/">Forside</a></li>
-    <li><a href="/lokalitet/">Lokaliteter</a></li>
+<div class="ark sidehode sidehode--lokalitet">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li><a href="/lokalitet/">Lokaliteter</a></li>
 {% if lok.po_kode %}
-    <li><a href="/produksjonsomrade/{{ lok.po_kode }}/">Produksjonsområde {{ lok.po_kode }}</a></li>
+      <li><a href="/produksjonsomrade/{{ lok.po_kode }}/">{{ lok.po_navn }}</a></li>
 {% endif %}
-    <li aria-current="page">Lokalitet {{ lok.loknr }}</li>
-  </ol>
-</nav>
+      <li aria-current="page">Lokalitet {{ lok.loknr }}</li>
+    </ol>
+  </nav>
+
+  <div class="sidehode-to">
+    <div>
+      {# NAVNET I TITTELFORM. Registerets versaler er en egenskap ved
+         inntastingsfeltet, ikke en opplysning om navnet. Originalen
+         står uendret i registerfelt-tabellen lenger nede, og DEN er
+         den siterbare. Se `visningsord.tittelform`. #}
+      <h1 class="lok-tittel"><span data-navn>{{ lok.tittelnavn }}</span></h1>
+      <p class="lok-undertittel">
+        Lokalitet {{ lok.loknr }}
+        {% if lok.klareringstype %} · {{ lok.klareringstype }} klarering{% endif %}
+        {% if lok.plassering %} · {{ lok.plassering }}{% endif %}
+        {% if lok.arter %} · {{ lok.arter }}{% endif %}
+      </p>
+
+      <dl class="fakta">
+        <div>
+          <dt>Kommune</dt>
+          <dd>{{ lok.kommune or "—" }}{% if lok.fylke %}, {{ lok.fylke }}{% endif %}</dd>
+        </div>
+        <div>
+          <dt>Produksjonsområde</dt>
+          <dd>
+            {% if lok.po_kode %}
+            <a href="/produksjonsomrade/{{ lok.po_kode }}/">{{ lok.po_kode }} {{ lok.po_navn }}</a>
+            <span class="fakta-bi rute-foran {{ lok.status_klasse }}">{{ lok.status }}</span>
+            {% else %}
+            <span class="mangler">utenfor inndelingen</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Innehaver</dt>
+          <dd>
+            {% if lok.selskap.personform %}
+            {# NAVNET VISES IKKE. Kilden klassifiserer innehaveren som
+               en personform, og et foretak som ER et menneske skal
+               ikke navngis her. Raden forsvinner ikke — samme tekst
+               som tabellen under bruker. Regel 3. #}
+            <span class="mangler">{{ lok.selskap.navn }}</span>
+            {% elif lok.selskap.navn %}
+              {% if lok.selskap.url %}
+              <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn }}</a>
+              {% else %}
+              <span class="eier">{{ lok.selskap.navn }}</span>
+              {% endif %}
+              {% if lok.selskap.siden %}
+              <span class="fakta-bi">senest siden
+                <time datetime="{{ lok.selskap.siden }}">{{ lok.selskap.siden|dato }}</time></span>
+              {% endif %}
+              {% if lok.selskap.flere %}
+              <span class="fakta-bi">og {{ lok.selskap.flere }}
+                innehaver til</span>
+              {% endif %}
+            {% else %}
+            <span class="mangler">{{ lok.eier_ukjent }}</span>
+            {% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt>Kapasitet</dt>
+          {# REGISTERETS EGEN KAPASITET, ikke summen av tillatelsenes
+             MTB. De to er ulike størrelser — se `bygg_lokalitet`. #}
+          <dd>{{ lok.kapasitet or "—" }}
+            <span class="fakta-bi">{{ lok.tillatelser_oppgitt }}
+              tillatelser</span></dd>
+        </div>
+      </dl>
+
+      <p class="knapperad">
+        <a class="knapp knapp--tynn" href="feed.xml">Følg denne
+          lokaliteten (feed)</a>
+        <a class="knapp knapp--tynn" href="#siter">Siter</a>
+        <a class="knapp knapp--tynn" href="{{ lok.csv_filnavn }}">Lusetall
+          som CSV</a>
+      </p>
+    </div>
+
+    {# POSISJONSKARTET. Statisk SVG, tegnet ved bygging av Natural
+       Earths kystlinje. Ingen flis, ingen karttjeneste, ingen
+       JavaScript — se kart.py.
+
+       RENDRES IKKE uten koordinater: en ramme uten et punkt i er en
+       ramme som later som om den har et innhold. #}
+    {% if lok.posisjonskart %}
+    {% set pk = lok.posisjonskart %}
+    <figure class="posisjon">
+      <svg class="posisjonskart" viewBox="0 0 {{ pk.bredde }} {{ pk.hoyde }}"
+           width="{{ pk.bredde }}" height="{{ pk.hoyde }}"
+           role="img" aria-labelledby="poskart-tittel poskart-tekst">
+        <title id="poskart-tittel">Kart over hvor lokaliteten
+          ligger</title>
+        <desc id="poskart-tekst">Utsnitt på omtrent {{ pk.km|round|int }}
+          kilometer, med lokaliteten i midten. Landflatene er Natural
+          Earth 1:10 millioner. Posisjonen er
+          {{ pk.koordinat }}, oppgitt av Akvakulturregisteret.</desc>
+        <g class="kart-gitter" aria-hidden="true">
+          {% for l in pk.gitter.bredde %}
+          <line x1="0" y1="{{ l.y }}" x2="{{ pk.bredde }}" y2="{{ l.y }}"/>
+          {% endfor %}
+          {% for l in pk.gitter.lengde %}
+          <line x1="{{ l.x }}" y1="0" x2="{{ l.x }}" y2="{{ pk.hoyde }}"/>
+          {% endfor %}
+        </g>
+        <g class="kart-land" aria-hidden="true">
+          {% for d in pk.land %}
+          <path d="{{ d }}"/>
+          {% endfor %}
+        </g>
+        <g class="kart-markor" aria-hidden="true">
+          <circle cx="{{ pk.x }}" cy="{{ pk.y }}" r="11" class="markor-ring"/>
+          <circle cx="{{ pk.x }}" cy="{{ pk.y }}" r="4" class="markor-prikk"/>
+        </g>
+      </svg>
+      <figcaption>
+        <span class="tall-mono">{{ pk.koordinat }}</span> · posisjon fra
+        Akvakulturregisteret · utsnittet er
+        {{ pk.km|round|int }} km bredt
+        {% if not pk.land %}
+        · <strong>ingen kystlinje i utsnittet</strong> — lokaliteten
+        ligger mer enn en halv rutebredde fra nærmeste land i
+        1:10-millioner-kartet
+        {% endif %}
+      </figcaption>
+    </figure>
+    {% else %}
+    <p class="mangler posisjon-mangler">
+      Akvakulturregisteret oppgir ikke koordinater for denne
+      lokaliteten, og den kan derfor ikke tegnes på et kart. Den står
+      likevel oppført på
+      <a href="/lokalitet/#akvakultur-uten-koordinater">lokalitetslista</a>.
+    </p>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}
 
 {% block innhold %}
-<h1>Lokalitet {{ lok.loknr }} <span data-navn>{{ lok.navn }}</span></h1>
 
-<p>
-  {{ lok.kommune }} kommune, {{ lok.fylke }}.
-  {% if lok.po_kode %}Produksjonsområde {{ lok.po_kode }} — {{ lok.po_navn }}.{% endif %}
-  Registerdata fra snapshotet
-  <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.
-</p>
+{# ---------------------------------------------------------------- 2
+   ENDRINGER VI HAR SETT. Den ene av de TO historikkene, og den som er
+   vår egen. Se `_observert_historikk` for hvorfor de ikke flettes. #}
+{# ID-EN ER `endringer-register` OG IKKE `observert`, selv om seksjonen
+   ikke lenger er en tabell. Ankeret er en URL fra
+   2026-09-16-url-struktur.md punkt 5, og noen kan ha lenket til
+   `/lokalitet/31397/#endringer-register`. En designrunde flytter ikke
+   en adresse; det ville gjort hver eksisterende lenke til en død
+   fragmentreferanse. #}
+<section class="ark seksjon" id="endringer-register"
+         aria-labelledby="observert-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Observert av Kystloggen</p>
+      <h2 id="observert-tittel">Endringer vi har sett</h2>
+    </div>
+  </div>
+  <p class="historikk-forklaring">
+    Hver endring i registerfeltene siden første øyeblikksbilde.
+    <strong>Datoen er når VI så den</strong> — registeret oppgir ikke
+    når det gjorde endringen, så den kan ha skjedd når som helst i uka
+    før. Loggen dekker
+    {% for d in lok.dekning_fra %}{{ d.kilde }} fra
+    <time datetime="{{ d.fra }}">{{ d.fra|dato }}</time>{% if not loop.last %},
+    {% endif %}{% endfor %}; en endring som skjedde før det, har vi
+    ikke sett skje.
+  </p>
 
-{# ---------------------------------------------------- hva er dette #}
-<div class="tabellramme" role="region"
-     aria-labelledby="akvakultur-register-tittel" tabindex="0">
-<table id="akvakultur-register">
-  <caption id="akvakultur-register-tittel">
-    Hva Akvakulturregisteret sier, snapshot
-    <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Felt</th>
-      <th scope="col">Verdi</th>
-    </tr>
-  </thead>
-  {# `data-felt` er merkingen publiseringsvakten leser, og den må stå
-     her framfor å være en klasse: samme <td> bærer `navn` i én rad og
-     `kapasitet` i neste, så merkingen er en egenskap ved RADEN.
-     Feltnavnet er kildens eget, og vakten spør `NAVNEFELT` om hva det
-     betyr — se publiseringsvakt.felt_verdier(). #}
-  <tbody>
-    {% for felt, etikett, vist in lok.register %}
-    <tr>
-      <th scope="row">{{ etikett }}</th>
-      <td data-felt="{{ felt }}">{{ vist }}</td>
-    </tr>
+  {% if lok.observert|length > 1 %}
+  <ol class="tidsakse tidsakse--observert">
+    {% for post in lok.observert %}
+    <li{% if post.forste %} class="tidsakse-forste"{% endif %}
+        title="{{ post.uke }}">
+      <span class="tidsakse-punkt" aria-hidden="true"></span>
+      <p class="tidsakse-topp">
+        <time datetime="{{ post.dato }}">{{ post.dato|dato }}</time>
+        <span class="tidsakse-felt">{{ post.etikett }}</span>
+        {% if post.gjelder != "lokaliteten" %}
+        <span class="tidsakse-bi">{{ post.gjelder }}</span>
+        {% endif %}
+      </p>
+      {% if post.forste %}
+      <p class="tidsakse-verdi">
+        Første gang vi hentet registeret. Alt før dette står ikke i
+        loggen vår.
+      </p>
+      {% else %}
+      <p class="tidsakse-verdi">
+        {# MERKINGEN FØLGER VERDIEN, ikke kolonnen: en tom verdi
+           merkes `verdi_mangler` og ikke med kildens feltnavn. En
+           tankestrek i en celle merket `eier_navn` er ikke et ukjent
+           selskap — den er fraværet av et, og porten stoppet fire
+           sider på nettopp det. Se `feltmerke()`. #}
+        <span class="verdi-fra" data-felt="{{ post.fra_felt }}">{{ post.fra or VERDI_MANGLER }}</span>
+        <span class="pil" aria-label="ble til">→</span>
+        <span class="verdi-til" data-felt="{{ post.til_felt }}">{{ post.til or VERDI_MANGLER }}</span>
+      </p>
+      {% endif %}
+    </li>
     {% endfor %}
-  </tbody>
-</table>
-</div>
-
-{# ------------------------------------------------- hvem eier den nå #}
-<div class="tabellramme" role="region"
-     aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
-<table id="eierskap-tillatelser">
-  <caption id="eierskap-tillatelser-tittel">
-    Hvem som eier tillatelsene nå. {{ lok.tillatelser|length }}
-    tillatelser, snapshot
-    <time datetime="{{ lok.eierskap_dato }}">{{ lok.eierskap_dato }}</time>.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Tillatelse</th>
-      <th scope="col">Eier nå</th>
-      <th scope="col">Organisasjonsnummer</th>
-      <th scope="col">Type</th>
-      <th scope="col">Kapasitet</th>
-      <th scope="col">Tildelt</th>
-      <th scope="col">Tildelt til</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for t in lok.tillatelser %}
-    <tr>
-      <th scope="row">{{ t.nr }}</th>
-      <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}">{{ t.eier_navn }}</td>
-      <td class="tall" data-felt="eier_orgnr">{{ t.eier_orgnr }}</td>
-      <td data-felt="tillatelse_type">{{ t.type }}</td>
-      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }}</td>
-      <td data-felt="tildelt_tid">{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
-      <td class="eier" data-felt="tildelt_navn">{{ t.tildelt_navn }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  «Tildelt» er da tillatelsen ble gitt første gang, og til hvem — ikke
-  nødvendigvis til den som eier den nå.
-  {% if lok.tillatelser_uten_eier %}
-  For {{ lok.tillatelser_uten_eier }} av {{ lok.tillatelser_oppgitt }}
-  tillatelser vet vi ikke hvem eieren er. Tillatelsen finnes og er aktiv
-  i Akvakulturregisteret — det er eieren som mangler hos oss.
-  Fiskeridirektoratet oppgir ikke organisasjonsnummer for eiere som er
-  privatpersoner, og en eier vi ikke kan klassifisere slipper ikke
-  gjennom personvernfilteret vårt. Radene står i tabellen med
-  «{{ lok.eier_ukjent }}» framfor å bli utelatt. Målingen og regelen står
-  i <code>docs/REGEL-UENIGE-KILDER.md</code>.
-  {% endif %}
-</p>
-
-{# ------------------------------------------------------- siden når #}
-<div class="tabellramme" role="region"
-     aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
-<table id="eierskap_historikk-overforinger">
-  <caption id="eierskap_historikk-overforinger-tittel">
-    Journalførte overføringer av tillatelsene, eldst først.
-    {{ lok.overforinger|length }} overføringer.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Journalført</th>
-      <th scope="col">Tillatelse</th>
-      <th scope="col">Til</th>
-      <th scope="col">Organisasjonsnummer</th>
-      <th scope="col">Nr. i rekka</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for o in lok.overforinger %}
-    <tr>
-      <td data-felt="journal_dato"><time datetime="{{ o.dato }}">{{ o.dato }}</time></td>
-      <th scope="row">{{ o.tillatelse }}</th>
-      <td class="eier" data-felt="mottaker_navn">{{ o.mottaker_navn }}</td>
-      <td class="tall" data-felt="mottaker_orgnr">{{ o.mottaker_orgnr }}</td>
-      <td class="tall" data-felt="rekkefolge">{{ o.rekkefolge }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  Datoen er journalføringsdato, ikke bekreftet overdragelsesdato — den
-  skal leses som «senest da». Serien skiller ikke konserninterne
-  flyttinger fra ekte oppkjøp; det lar seg ikke gjøre med offentlige
-  data.
-</p>
-
-{# ------------------------------------------------------- lusegrafen #}
-{# Samme liste som tabellen og CSV-en, tegnet. Ingen ny verdi, ingen
-   utjevning, ingen interpolasjon over hullene.
-
-   RENDRES IKKE når `lusegraf` er None — en akse uten en eneste verdi
-   er en ramme som later som om den har et innhold. Tabellen under sier
-   allerede fra i klartekst.
-
-   Uten stilark: linja faller til svart uten fyll, båndene blir svarte
-   flater og aksene forsvinner. Det er fortsatt en kurve. #}
-{% if lok.lusegraf %}
-{% set g = lok.lusegraf %}
-<figure class="graf">
-<svg class="lusegraf" viewBox="0 0 {{ g.bredde }} {{ g.hoyde }}"
-     width="{{ g.bredde }}" height="{{ g.hoyde }}"
-     role="img" aria-labelledby="lusegraf-tittel lusegraf-beskrivelse">
-  <title id="lusegraf-tittel">Voksne hunnlus per fisk, {{ g.uker }} uker</title>
-  <desc id="lusegraf-beskrivelse">Kurve over {{ g.uker }} uker fra
-    <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time> til
-    <time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>. Høyeste
-    målte verdi er {{ g.maks }} voksne hunnlus per fisk.
-    {{ g.uker_med_tall }} uker har tall; i {{ g.uten_tall }} uker oppgir
-    kilden ingenting, og linja er brutt der. Loddrette bånd er uker
-    lokaliteten er brakklagt. Alle tallene står i tabellen under.</desc>
-
-  {# Brakkleggingsbåndene FØRST: de er bakgrunn, ikke data. #}
-  <g class="brakk" aria-hidden="true">
-    {% for b in g.baand %}
-    <rect x="{{ b.x }}" y="{{ g.plott_y }}"
-          width="{{ b.bredde }}" height="{{ g.plott_hoyde }}"/>
-    {% endfor %}
-  </g>
-
-  <g class="akse" aria-hidden="true">
-    {% for l in g.linjer %}
-    <line x1="{{ g.plott_x }}" y1="{{ l.y }}"
-          x2="{{ g.plott_x + g.plott_bredde }}" y2="{{ l.y }}"/>
-    <text x="{{ g.plott_x - 8 }}" y="{{ l.y + 4 }}"
-          text-anchor="end">{{ l.etikett }}</text>
-    {% endfor %}
-    {% for a in g.aar %}
-    <text x="{{ a.x }}" y="{{ g.hoyde - 8 }}"
-          text-anchor="middle">{{ a.etikett }}</text>
-    {% endfor %}
-  </g>
-
-  <g class="serie">
-    {% for punkter in g.segmenter %}
-    <polyline points="{{ punkter }}"/>
-    {% endfor %}
-    {# Enslige uker mellom to hull. En polyline med ett punkt tegner
-       ingenting, og en målt verdi skal ikke forsvinne. #}
-    {% for p in g.alene %}
-    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="1.6"/>
-    {% endfor %}
-  </g>
-</svg>
-<figcaption>
-  Voksne hunnlus per fisk, {{ g.uker }} uker. Høyeste målte verdi
-  {{ g.maks }}.
-  {% if g.uten_tall %}
-  Linja er brutt i {{ g.uten_tall }} uker der kilden ikke oppgir noe
-  tall — brudd betyr <strong>ikke</strong> null.
-  {% if g.hull_forklart %}
-  {{ g.hull_forklart }} av dem er uker lokaliteten var brakklagt (de
-  skyggelagte båndene).
-  {% endif %}
-  {% if g.hull_uforklart %}
-  {{ g.hull_uforklart }} uker mangler tall uten at noe vi har forklarer
-  det.
-  {% endif %}
+  </ol>
   {% else %}
-  Alle {{ g.uker }} ukene har tall.
+  <p class="tomt">
+    Ingen endringer siden første øyeblikksbilde
+    {% if lok.dekning_fra %}
+    <time datetime="{{ lok.dekning_fra[0].fra }}">{{ lok.dekning_fra[0].fra|dato }}</time>{% endif %}.
+    Feltene står som de sto da vi begynte å se.
+  </p>
   {% endif %}
-  Tallene står i tabellen under.
-</figcaption>
-</figure>
-{% endif %}
 
-{# ------------------------------------------------------- lusetallene #}
-<div class="tabellramme" role="region"
-     aria-labelledby="lusetall-uke-tittel" tabindex="0">
-<table id="lusetall-uke">
-  {# To captions, fordi det er to ulike påstander.
+  <p class="tabellnote">
+    Måleseriene telles ikke som endringer her. Lusetall og sjøtemperatur
+    leverer et nytt tall hver uke, og hvert nye tall er en rad i
+    changeloggen vår — for denne lokaliteten
+    {{ lok.maaleserie_rader }} slike rader mot
+    {{ lok.endringer|length }} registerendringer. Tas de med, drukner
+    det som faktisk er en hendelse i noe som bare er neste måling.
+    Lusetallene står som en serie under.
+  </p>
+</section>
 
-     MÅLT 17.09.2026 over alle 1782 sider: 4 lokaliteter finnes ikke i
-     noe lusetallsnapshot. Den første utgaven rendret dem med samme
-     caption som de andre, og resultatet var «siste 0 uker», «serien
-     dekker <time datetime="">–<time datetime="">» og «0 av 0 uker, og i
-     alle sammen står Rapportert: nei».
+{# ---------------------------------------------------------------- 3
+   LAKSELUS OG FISK TIL STEDE, side om side. #}
+<div class="ark seksjon to-spalter">
+  <section class="blokk" aria-labelledby="lus-tittel">
+    <h2 id="lus-tittel">Lakselus, voksne hunnlus per fisk</h2>
+    {% if lok.lusegraf %}
+    {% set g = lok.lusegraf %}
+    <p class="blokk-ingress">
+      Uke for uke fra <time datetime="{{ g.fra }}">{{ g.fra[:4] }}</time>.
+      Kilde: BarentsWatch, som henter fra Mattilsynet.
+    </p>
 
-     `datetime=""` er ugyldig HTML, og setningen er en påstand om uker
-     som ikke finnes. Ingenting kastet: `StrictUndefined` fanger en
-     manglende NØKKEL, ikke en tom VERDI, og Jinja rendrer tom streng
-     uten å mukke. Det er den stille varianten, og den ble funnet ved å
-     lese utputtet — ikke ved at bygget ble rødt. #}
-  <caption id="lusetall-uke-tittel">
-    {% if lok.lus_uker %}
-    Voksne hunnlus per fisk, siste {{ lok.lus|length }} uker.
+    {# SØYLER OG IKKE EN KURVE: en kurve trekker en strek mellom to
+       målinger og påstår dermed noe om uka imellom. Se `lusegraf()`.
+
+       Uten stilark faller søylene til svart fyll og aksene forsvinner.
+       Det er fortsatt et søylediagram. #}
+    <figure class="graf">
+    <svg class="lusegraf" viewBox="0 0 {{ g.bredde }} {{ g.hoyde }}"
+         width="{{ g.bredde }}" height="{{ g.hoyde }}"
+         role="img" aria-labelledby="lusegraf-tittel lusegraf-tekst">
+      <title id="lusegraf-tittel">Voksne hunnlus per fisk,
+        {{ g.uker }} uker</title>
+      <desc id="lusegraf-tekst">Én søyle per uke fra
+        <time datetime="{{ g.fra }}">{{ g.fra }}</time> til
+        <time datetime="{{ g.til }}">{{ g.til }}</time>. Høyeste målte
+        verdi er {{ g.maks }}. {{ g.uker_med_tall }} uker har tall, og i
+        {{ g.uten_tall }} uker oppgir kilden ingenting — de har ingen
+        søyle. {{ g.nuller }} uker er målt til null og har en hårstrek
+        på nullinja. Den lave stripa under aksen er uker lokaliteten var
+        brakklagt. Alle tallene står i tabellen under.</desc>
+
+      <g class="akse" aria-hidden="true">
+        {% for l in g.linjer %}
+        <line x1="{{ g.plott_x }}" y1="{{ l.y }}"
+              x2="{{ g.plott_x + g.plott_bredde }}" y2="{{ l.y }}"/>
+        <text x="{{ g.plott_x - 8 }}" y="{{ l.y + 4 }}"
+              text-anchor="end">{{ l.etikett }}</text>
+        {% endfor %}
+        {% for a in g.aar %}
+        <text x="{{ a.x }}" y="{{ g.hoyde - 8 }}"
+              text-anchor="middle">{{ a.etikett }}</text>
+        {% endfor %}
+      </g>
+
+      <g class="soyler">
+        {% for s in g.soyler %}
+        <rect x="{{ s.x }}" y="{{ s.y }}" width="{{ g.soylebredde }}"
+              height="{{ s.h }}"><title>{{ s.uke }}: {{ s.verdi }}</title></rect>
+        {% endfor %}
+      </g>
+
+      {# BRAKKLEGGING ER EN LAV STRIPE UNDER NULLINJA, ikke et bånd
+         over hele plottet. Et bånd i plottet leses som en verdi på
+         y-aksen, og brakklegging er ikke en luseverdi. #}
+      <g class="brakk" aria-hidden="true">
+        {% for b in g.baand %}
+        <rect x="{{ b.x }}" y="{{ g.brakk_y }}" width="{{ b.bredde }}"
+              height="{{ g.brakk_hoyde }}"/>
+        {% endfor %}
+      </g>
+    </svg>
+    <figcaption>
+      <span class="tegn"><span class="tegn-rute tegn-soyle"></span>voksne
+        hunnlus per fisk</span>
+      <span class="tegn"><span class="tegn-rute tegn-brakk"></span>brakklagt</span>
+      <span class="tegn">tomrom = ingen rapport, ikke null</span>
+      <span class="tegn">hårstrek på nullinja = målt til null</span>
+    </figcaption>
+    </figure>
+
+    <p class="tabellnote">
+      Høyeste målte verdi {{ g.maks }}.
+      {{ g.uker_med_tall }} av {{ g.uker }} uker har tall, og
+      {{ g.nuller }} av dem er null.
+      {% if g.uten_tall %}
+      {{ g.uten_tall }} uker har ingen søyle fordi kilden ikke oppgir
+      noe tall — <strong>tomrom betyr ikke null</strong>.
+      {% if g.hull_forklart %}
+      {{ g.hull_forklart }} av dem er uker lokaliteten var brakklagt.
+      {% endif %}
+      {% if g.hull_uforklart %}
+      {{ g.hull_uforklart }} uker mangler tall uten at noe vi har
+      forklarer det.
+      {% endif %}
+      {% endif %}
+      <strong>Ingen tiltaksgrense er tegnet.</strong> Grensa står i
+      lakselusforskriften, varierer med sesong og med vedtak per
+      lokalitet, og er ikke samlet inn — en strek tegnet av oss ville
+      vært en påstand om regelverket.
+    </p>
+
     {% else %}
-    Ingen lusetall for denne lokaliteten.
+    <p class="tomt">
+      Ingen lusetall rapportert. Lokaliteten finnes ikke i noen av de
+      {{ lok.lusetall_snapshots }} ukesnapshotene vi har fra
+      BarentsWatch — ikke i én uke med tomt tall, men ikke i registeret
+      i det hele tatt. Det er ventet for anlegg som ikke har laksefisk:
+      lusetellingen gjelder laks og ørret i sjø.
+      <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> finnes
+      likevel, med hode og null rader — «vi har sett etter og ikke
+      funnet noe» er et svar, og 404 er det ikke.
+    </p>
     {% endif %}
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Uke</th>
-      <th scope="col">Dato</th>
-      <th scope="col">Voksne hunnlus</th>
-      <th scope="col">Rapportert</th>
-      <th scope="col">Laksefisk</th>
-      <th scope="col">Brakklagt</th>
-      <th scope="col">Medikamentell</th>
-      <th scope="col">Mekanisk</th>
-      <th scope="col">Rensefisk</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for u in lok.lus %}
-    <tr>
-      <th scope="row">{{ u.uke }}</th>
-      <td data-felt="dato"><time datetime="{{ u.dato }}">{{ u.dato }}</time></td>
-      <td class="tall" data-felt="voksne_hunnlus">{{ u.voksne_hunnlus }}</td>
-      <td data-felt="lus_er_rapportert">{{ u.lus_er_rapportert }}</td>
-      <td data-felt="har_laksefisk">{{ u.har_laksefisk }}</td>
-      <td data-felt="brakklagt">{{ u.brakklagt }}</td>
-      <td data-felt="har_medikamentell_behandling">{{ u.har_medikamentell_behandling }}</td>
-      <td data-felt="har_mekanisk_fjerning">{{ u.har_mekanisk_fjerning }}</td>
-      <td data-felt="har_rensefisk">{{ u.har_rensefisk }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+
+    {# TALLENE I TABELL, i en `<details>`. Grafen er formen for «har det
+       økt siden 2012»; tabellen er formen for «hva var tallet i uke
+       30». Begge kommer fra den SAMME lista, og det er det som gjør at
+       de ikke kan bli uenige.
+
+       TABELLEN STÅR UTENFOR `{% raw %}{% if lok.lusegraf %}{% endraw %}`, og det er en retting:
+       første utkast la den inni, og følgen var at en lokalitet uten
+       tegnbar graf mistet TALLENE også. Grafen er en tegning av
+       tabellen — ikke omvendt, og ikke en forutsetning for den. #}
+    <details class="tallboks">
+      <summary>
+        {%- if lok.lus %}Tallene i tabell — siste {{ lok.lus|length }} uker
+        {%- else %}Tabellen, med hode og null rader{% endif %}</summary>
+      <div class="tabellramme" role="region"
+           aria-labelledby="lusetall-uke-tittel" tabindex="0">
+      <table id="lusetall-uke">
+        <caption id="lusetall-uke-tittel">
+          {% if lok.lus_uker %}
+          Voksne hunnlus per fisk, de siste {{ lok.lus|length }} av
+          {{ lok.lus_uker }} ukene vi har.
+          {% else %}
+          Ingen lusetall for denne lokaliteten.
+          {% endif %}
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Uke</th>
+            <th scope="col">Dato</th>
+            <th scope="col" class="tall">Voksne hunnlus</th>
+            <th scope="col">Rapportert</th>
+            <th scope="col">Laksefisk</th>
+            <th scope="col">Brakklagt</th>
+            <th scope="col">Medikamentell</th>
+            <th scope="col">Mekanisk</th>
+            <th scope="col">Rensefisk</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in lok.lus %}
+          <tr>
+            <th scope="row">{{ u.uke }}</th>
+            <td data-felt="dato"><time datetime="{{ u.dato }}">{{ u.dato }}</time></td>
+            <td class="tall" data-felt="voksne_hunnlus">{{ u.voksne_hunnlus }}</td>
+            <td data-felt="lus_er_rapportert">{{ u.lus_er_rapportert }}</td>
+            <td data-felt="har_laksefisk">{{ u.har_laksefisk }}</td>
+            <td data-felt="brakklagt">{{ u.brakklagt }}</td>
+            <td data-felt="har_medikamentell_behandling">{{ u.har_medikamentell_behandling }}</td>
+            <td data-felt="har_mekanisk_fjerning">{{ u.har_mekanisk_fjerning }}</td>
+            <td data-felt="har_rensefisk">{{ u.har_rensefisk }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <p class="tabellnote">
+        {% if lok.lus_uker %}
+        Serien dekker
+        <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
+        {{ lok.lus_uker }} uker. Datoen er mandag i ISO-uka, og tallet
+        hentes fire uker på etterskudd fordi ferskere uker er
+        ufullstendige. <strong>«{{ "–" }}» betyr at kilden ikke oppgir
+        noe tall</strong> — ikke at tallet var null.
+        {% endif %}
+        Hele serien: <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a>,
+        med kildens egne verdier og attribusjonen i et kommentarhode.
+      </p>
+    </details>
+  </section>
+
+  {# FISK TIL STEDE. Erstatter overleveringens biomassegraf, fordi
+     mengdetallene per lokalitet ikke er offentlige — se
+     `_biolagstripe()`. Mengden per produksjonsområde står på
+     områdesiden. #}
+  <section class="blokk" aria-labelledby="fisk-tittel">
+    <h2 id="fisk-tittel">Fisk til stede</h2>
+    {% if lok.biolag %}
+    {% set b = lok.biolag %}
+    <p class="blokk-ingress">
+      Om det står fisk på lokaliteten, uke for uke vi har observert.
+      Kilde: Fiskeridirektoratets biomasselag.
+    </p>
+    <figure class="graf">
+      <ol class="ukestripe" aria-label="Fisk til stede per observert uke">
+        {% for r in b.ruter %}
+        <li class="ukerute{% if r.ja %} ukerute--fisk{% endif %}"
+            title="{{ r.tittel }}">
+          <span class="ukerute-uke">{{ r.uke }}</span>
+          <span class="ukerute-svar">{{ r.har_fisk or "—" }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      <figcaption>
+        {{ b.med_fisk }} av {{ b.observerte_uker }} observerte uker med
+        fisk til stede.
+        <strong>Bare uker vi faktisk har hentet</strong> — stripa har
+        ingen ruter for uker vi ikke spurte i, fordi en tom rute ville
+        sett ut som «ingen fisk».
+      </figcaption>
+    </figure>
+    <div class="tabellramme" role="region"
+         aria-labelledby="biomasselag-uke-tittel" tabindex="0">
+    <table id="biomasselag-uke">
+      <caption id="biomasselag-uke-tittel">
+        Biomasselaget, uke for uke. «Siste månedsrapport» er måneden
+        påstanden gjelder for — ikke uka vi hentet den.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Observert</th>
+          <th scope="col">Fisk</th>
+          <th scope="col">Arter</th>
+          <th scope="col">Siste månedsrapport</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in b.ruter %}
+        <tr>
+          <th scope="row"><time datetime="{{ r.dato }}">{{ r.dato }}</time></th>
+          <td data-felt="{{ feltmerke(r.har_fisk, 'har_fisk') }}">{{ r.har_fisk or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(r.arter, 'arter_tilstede') }}">{{ r.arter or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(r.siste_rapport, 'siste_rapport') }}">
+            {%- if r.siste_rapport %}<time datetime="{{ r.siste_rapport }}" data-felt="siste_rapport">{{ r.siste_rapport }}</time>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+          <td data-felt="{{ feltmerke(r.status, 'lokalitet_status') }}">{{ r.status or VERDI_MANGLER }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      <strong>Laget oppgir ingen mengde</strong> — verken antall fisk
+      eller kilo biomasse. Biomassedatabasen etter
+      akvakulturdriftsforskriften § 44 er børssensitiv og ikke
+      offentlig, så dette er ja/nei og art, aldri hvor mye. De
+      offentlige mengdetallene finnes per produksjonsområde og står
+      {% if lok.po_kode %}
+      <a href="/produksjonsomrade/{{ lok.po_kode }}/#biomasse-maaned">på
+        områdesiden</a>.
+      {% else %}
+      på områdesidene.
+      {% endif %}
+      «Arter» er artene oppdretter meldte som til stede ved siste
+      månedsrapport, og er ikke det samme som artene lokaliteten har
+      tillatelse for.
+    </p>
+    {% else %}
+    <p class="tomt">
+      Lokaliteten står ikke i biomasselaget i noen av de
+      {{ lok.lusetall_snapshots and "" }}øyeblikksbildene vi har av det.
+      Laget dekker lokaliteter med innsendt månedsrapport; en lokalitet
+      uten fisk, eller uten rapportplikt, står ikke der.
+    </p>
+    {% endif %}
+  </section>
 </div>
-<p class="tabellnote">
-  {% if lok.lus_uker %}
-  Serien vi har for lokaliteten dekker
-  <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
-  {{ lok.lus_uker }} uker; tabellen viser slutten av den. Datoen er
-  mandag i ISO-uka, og tallet hentes fire uker på etterskudd fordi
-  ferskere uker er ufullstendige.
-  <strong>«–» betyr at kilden ikke oppgir noe tall</strong> — ikke at
-  tallet var null. For denne lokaliteten er det {{ lok.lus_uten_tall }}
-  av {{ lok.lus_uker }} uker, og i alle sammen står «Rapportert: nei».
-  Et anlegg som er brakklagt teller ikke lus.
-  Hele serien som CSV:
-  <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> —
-  {{ lok.lus_uker }} uker, med kildens egne verdier og attribusjonen i
-  et kommentarhode.
+
+{# ---------------------------------------------------------------- 4
+   TILLATELSER OG REGISTERFELT. #}
+<div class="ark seksjon to-spalter">
+  <section class="blokk" aria-labelledby="till-tittel">
+    <h2 id="till-tittel">Tillatelser</h2>
+    <div class="tabellramme" role="region"
+         aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
+    <table id="eierskap-tillatelser">
+      <caption id="eierskap-tillatelser-tittel">
+        Hvem som eier tillatelsene nå. {{ lok.tillatelser|length }}
+        tillatelser, øyeblikksbilde
+        <time datetime="{{ lok.eierskap_dato }}">{{ lok.eierskap_dato }}</time>.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Tillatelse</th>
+          <th scope="col">Innehaver nå</th>
+          <th scope="col">Formål</th>
+          <th scope="col" class="tall">Kapasitet</th>
+          <th scope="col">Tildelt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in lok.tillatelser %}
+        <tr>
+          <th scope="row">{{ t.nr }}</th>
+          <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}">{{ t.eier_navn }}</td>
+          <td data-felt="{{ feltmerke(t.type, 'tillatelse_type') }}">{{ t.type or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(t.kapasitet, 'kapasitet') }}">{{ t.kapasitet or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(t.tildelt_dato, 'tildelt_tid') }}">
+            {%- if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}" data-felt="tildelt_tid">{{ t.tildelt_dato }}</time>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      «Tildelt» er da tillatelsen ble gitt første gang — ikke
+      nødvendigvis til den som eier den nå. Hvem den ble gitt TIL står i
+      historikken under.
+      {% if lok.tillatelser_uten_eier %}
+      For {{ lok.tillatelser_uten_eier }} av
+      {{ lok.tillatelser_oppgitt }} tillatelser vet vi ikke hvem eieren
+      er. Tillatelsen finnes og er aktiv i Akvakulturregisteret — det er
+      eieren som mangler hos oss. Fiskeridirektoratet oppgir ikke
+      organisasjonsnummer for eiere som er privatpersoner, og en eier vi
+      ikke kan klassifisere slipper ikke gjennom personvernfilteret
+      vårt. Radene står med «{{ lok.eier_ukjent }}» framfor å bli
+      utelatt. Se <code>docs/REGEL-UENIGE-KILDER.md</code>.
+      {% endif %}
+    </p>
+  </section>
+
+  <section class="blokk" aria-labelledby="felt-tittel">
+    <h2 id="felt-tittel">Registerfeltene</h2>
+    <p class="blokk-ingress">
+      Slik Akvakulturregisteret viser lokaliteten i siste
+      øyeblikksbilde, med kildens egne verdier.
+    </p>
+    <div class="tabellramme" role="region"
+         aria-labelledby="akvakultur-register-tittel" tabindex="0">
+    <table id="akvakultur-register">
+      <caption id="akvakultur-register-tittel">
+        Hva Akvakulturregisteret sier, øyeblikksbilde
+        <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Felt</th>
+          <th scope="col">Verdi</th>
+          {# KOLONNEN HETER «SIST OBSERVERT», ikke «Sist endret».
+             Verdien er `observed_at` fra changeloggen, altså da VI så
+             feltet endre seg. Registeret oppgir ikke når det gjorde
+             det, og en kolonne som påsto det ville vært nøyaktig
+             forvekslingen CLAUDE.md 1b handler om. #}
+          <th scope="col">Sist observert</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for felt, etikett, vist, endret in lok.register %}
+        <tr>
+          <th scope="row">{{ etikett }}</th>
+          <td data-felt="{{ felt }}">{{ vist }}</td>
+          <td data-felt="{{ feltmerke(endret, 'observed_at') }}">
+            {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      Navnet står her i registerets egen skrivemåte. Overskriften øverst
+      på siden er det samme navnet satt i tittelform — det er en
+      presentasjon, og denne raden er den siterbare.
+      «—» i siste kolonne betyr at feltet ikke har endret seg i loggen
+      vår, ikke at det aldri har endret seg.
+    </p>
+  </section>
+</div>
+
+{# ---------------------------------------------------------------- 5
+   HISTORIKKEN REGISTERET SELV OPPGIR. Den ANDRE av de to, og den har
+   en annen visuell form med vilje: datoene her er kildens påstander om
+   hendelser, ikke våre observasjoner. #}
+<section class="ark seksjon" id="oppgitt" aria-labelledby="oppgitt-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Oppgitt av registeret</p>
+      <h2 id="oppgitt-tittel">Historikk kildene selv fører</h2>
+    </div>
+  </div>
+  <p class="historikk-forklaring">
+    Dette er <strong>ikke</strong> det samme som lista over. Der er
+    datoen når VI så noe; her er datoen kildens egen påstand om når noe
+    skjedde. De to er holdt fra hverandre med vilje: en flettet
+    tidslinje ville latt en journalført overdragelse og en observasjon
+    av et endret felt se ut som samme slags hendelse.
+  </p>
+
+  {% if lok.oppgitt %}
+  <div class="tabellramme" role="region"
+       aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
+  <table id="eierskap_historikk-overforinger">
+    <caption id="eierskap_historikk-overforinger-tittel">
+      Datoer kildene oppgir selv, eldst først. {{ lok.oppgitt|length }}
+      poster.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Dato</th>
+        <th scope="col">Hva</th>
+        <th scope="col">Hvem</th>
+        <th scope="col">Kilde</th>
+        <th scope="col">Hvor presis datoen er</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in lok.oppgitt %}
+      <tr>
+        <th scope="row"><time datetime="{{ o.dato }}">{{ o.dato }}</time></th>
+        <td data-felt="{{ o.felt }}">{{ o.slag }}: {{ o.hva }}</td>
+        {% if o.navn %}
+        <td class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</td>
+        {% else %}
+        <td>—</td>
+        {% endif %}
+        <td data-felt="source">{{ o.kilde }}</td>
+        <td data-felt="presisjon">{{ o.presisjon }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    <strong>«Journalført senest denne datoen»</strong> er ikke det samme
+    som overdragelsesdato. Journaldatoen er da saken ble ført, og
+    overdragelsen kan ha skjedd før. Serien skiller heller ikke
+    konserninterne flyttinger fra ekte oppkjøp; det lar seg ikke gjøre
+    med offentlige data.
+  </p>
   {% else %}
-  Lokaliteten finnes ikke i noe av de {{ lok.lusetall_snapshots }}
-  ukesnapshotene vi har fra BarentsWatch — ikke i én uke med tomt tall,
-  men ikke i registeret i det hele tatt. Det er ventet for anlegg som
-  ikke har laksefisk: lusetellingen gjelder laks og ørret i sjø.
-  <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> finnes
-  likevel, med hode og null rader — «vi har sett etter og ikke funnet
-  noe» er et svar, og 404 er det ikke.
+  <p class="tomt">
+    Ingen av kildene oppgir egne datoer for denne lokaliteten — verken
+    første klarering, tildeling eller journalført overføring.
+  </p>
   {% endif %}
-</p>
+</section>
 
-{# ------------------------------------------------- hva har endret seg #}
-<div class="tabellramme" role="region"
-     aria-labelledby="endringer-register-tittel" tabindex="0">
-<table id="endringer-register">
-  <caption id="endringer-register-tittel">
-    Registerendringer om lokaliteten, nyest først.
-    {{ lok.endringer|length }} endringer.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Dato</th>
-      <th scope="col">Gjelder</th>
-      <th scope="col">Kilde</th>
-      <th scope="col">Felt</th>
-      <th scope="col">Fra</th>
-      <th scope="col">Til</th>
-    </tr>
-  </thead>
-  {# Fra- og til-cellene bærer changeloggens `old_value`/`new_value`, og
-     det er verdier fra ELDRE snapshots enn det hvitelista er bygget av.
-     De var umerkede fram til 18.09.2026, og `ukjent_navn` var da blind
-     for dem: MÅLT sto 24 navneverdier i disse cellene uten at prøven
-     kunne se én. `data-felt` er merkingen, utledet av radens felt av
-     samme grunn som i registertabellen over.
-
-     Se docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md #}
-  <tbody>
-    {% for e in lok.endringer %}
-    <tr>
-      <td data-felt="observed_at"><time datetime="{{ e.dato }}">{{ e.dato }}</time></td>
-      <td data-felt="gjelder">{{ e.gjelder }}</td>
-      <td data-felt="source">{{ e.kilde }}</td>
-      <th scope="row">{{ e.etikett }}</th>
-      <td data-felt="{{ e.felt }}">{{ e.fra }}</td>
-      <td data-felt="{{ e.felt }}">{{ e.til }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  Loggen dekker
-  {% for d in lok.dekning_fra %}{{ d.kilde }} fra
-  <time datetime="{{ d.fra }}">{{ d.fra }}</time>{% if not loop.last %},
-  {% endif %}{% endfor %} — en endring som skjedde før det, har vi ikke
-  sett skje. Bare registerendringer står her: noen har fattet et vedtak
-  eller rettet en oppføring. Ukentlige måleserier står i sine egne
-  tabeller; hvorfor står rett under.
-</p>
-
-<h2 id="hva-teller-som-endring">Hva som telles som en endring her</h2>
-<p>
-  Tabellen over viser endringer i <strong>registeropplysninger</strong>:
-  hvilke tillatelser som ligger på lokaliteten, hvem som eier dem, hvilke
-  artsbegrensninger som gjelder. Det er opplysninger noen har fattet en
-  beslutning om, og datoen er datoen vi så beslutningen — ikke
-  nødvendigvis datoen den ble tatt.
-</p>
-<p>
-  Måleseriene telles ikke som endringer. Lusetall og
-  sjøtemperatur leverer et nytt tall hver uke, og hvert nye tall er en
-  rad i changeloggen vår. For denne lokaliteten er det
-  {{ lok.maaleserie_rader }} slike rader mot
-  {{ lok.endringer|length }} registerendringer. Tas de med, drukner det
-  som faktisk er en hendelse i noe som bare er neste måling. Lusetallene
-  står som en serie i sin egen tabell, som er formen de hører hjemme i.
-</p>
-<p>
-  En verdi som svinger fram og tilbake vises som flere rader.
-  {{ lok.navn }} har <code>artsbegrensninger_antall</code> som har gått
-  3&nbsp;→&nbsp;0&nbsp;→&nbsp;3&nbsp;→&nbsp;0 i løpet av tre uker. Vi slår
-  dem ikke sammen til «ingen endring». Å gjøre det ville vært en tolkning
-  av at svingningen er støy, og det vet vi ikke — det kan like gjerne
-  være en oppføring som rettes fram og tilbake.
-</p>
-<p>
-  To ting filtreres bort, og begge fordi de ikke er hendelser i
-  sjøen. En <em>utvalgsutvidelse</em> er rader som dukker opp
-  fordi vi begynte å hente noe vi ikke hentet før. En <em>revisjon</em>
-  er at kilden har ombestemt seg om et tidspunkt den allerede hadde
-  uttalt seg om. I begge tilfeller står verden stille og det er vi eller
-  kilden som har flyttet oss.
-</p>
+{# ---------------------------------------------------------------- 6
+   SITER DENNE SIDEN. #}
+<section class="ark" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      {# KNAPPEN SKJULES TIL JS HAR LASTET. Uten skript er teksten
+         markerbar og kan kopieres med tastaturet; en knapp som ikke
+         gjør noe er verre enn ingen knapp. Se `/kopier.js`. #}
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    {# URL-EN ER DEN FASTE ID-URL-EN. Uka, datoen og sjekksummen står i
+       TEKSTEN, ikke som en `?uke=`-parameter: en parameter gjør
+       identiteten til et argument på en side som ikke har noe som
+       leser den. Se 2026-09-16-url-struktur.md punkt 3. #}
+    <p class="siterbar" id="siterbar">Kystloggen ({{ lok.siter.aar }}).
+      <i>{{ lok.tittelnavn }}, lokalitet {{ lok.loknr }}.</i>
+      Øyeblikksbilde {{ lok.siter.uke }}, {{ lok.siter.dato }},
+      sjekksum {{ lok.siter.sjekksum[:8] }}…{{ lok.siter.sjekksum[-4:] }}.
+      {{ lok.siter.url }}</p>
+    <p class="siterboks-note">
+      Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss
+      den dagen. Den identifiserer øyeblikksbildet, og gjør at en
+      sitering kan etterprøves mot arkivet selv om siden er bygget om
+      siden.
+    </p>
+  </div>
+</section>
 {% endblock %}

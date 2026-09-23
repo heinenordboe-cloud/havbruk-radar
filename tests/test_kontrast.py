@@ -186,6 +186,10 @@ PAR = [
     ("--graf-linje", "--papir", AA_GRAFIKK, "lusekurven", 1.0),
     ("--graf-linje", "--graf-brakk", AA_GRAFIKK, "kurven over et brakkbånd", 1.0),
     ("--hav5", "--papir", AA_GRAFIKK, "søyler i lus- og biomassegrafen", 1.0),
+    # Ukestripa på lokalitetssiden fyller ruta med søylefargen og setter
+    # tekst oppå. `--hav5` er MØRK i lys modus og LYS i mørk, så teksten
+    # må snu med den — samme felle som knappeteksten gikk i.
+    ("--soyle-tekst", "--hav5", AA_TEKST, "tekst i en fylt ukerute", 1.0),
 
     # ---- MØRK FLATE ----
     # Heroen, headeren på undersidene, kystseksjonen og bunnteksten.

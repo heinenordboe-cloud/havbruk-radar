@@ -23,20 +23,25 @@ from pathlib import Path
 
 import pytest
 
+import kart
 import nettsted
 import visningsord
 
 
 def _visning(rader):
-    """Fiksturens (felt, verdi)-par til malens (felt, etikett, vist).
+    """Fiksturens (felt, verdi)-par til malens fire ledd.
 
     Prøvene skriver den RÅ forma — `("kapasitet", "8000.0")` — fordi det
     er den kilden leverer og den som er lesbar i en prøve. Omregningen
     gjøres her med `visningsord` selv, ikke med håndskrevne strenger: en
     fikstur som stavet «8 680» for hånd ville sagt grønt om
     tusenskillet byttet tegn.
+
+    Fjerde ledd er «sist observert» — `observed_at` fra changeloggen.
+    Tom her, som den er for et felt som ikke har endret seg i loggen.
     """
-    return [(f, visningsord.felt(f), visningsord.verdi(f, v)) for f, v in rader]
+    return [(f, visningsord.felt(f), visningsord.verdi(f, v), "")
+            for f, v in rader]
 
 
 def _endringsrader(rader):
@@ -210,6 +215,8 @@ def _side(**overstyr) -> str:
         "breddegrad": "68.9288", "lengdegrad": "16.701367",
         "akva_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
         "register": [("navn", "OTERNESET"), ("kapasitet", "8000.0")],
+        # `_visning()` under gjør de to leddene til fire: feltnavn,
+        # etikett, oversatt verdi og «sist observert».
         "tillatelser": [{
             "nr": "T-D-0009", "eier_navn": "SALMAR OPPDRETT AS",
             "eier_felt": "eier_navn",
@@ -235,6 +242,7 @@ def _side(**overstyr) -> str:
         "lus": nettsted.til_visning([_uke_raa()]),
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207,
+        "lusetall_snapshots": 765,
         "csv_filnavn": nettsted.CSV_FILNAVN,
         "endringer": [{
             "dato": "2026-08-31", "gjelder": "lokaliteten",
@@ -243,8 +251,38 @@ def _side(**overstyr) -> str:
         }],
         "maaleserie_rader": 1284,
         "dekning_fra": [{"kilde": "akvakultur", "fra": "2026-08-17"}],
+
+        # ---- overskriften ----
+        "tittelnavn": "Oterneset",
+        "akva_hentet": "2026-09-14T04:00:00+00:00",
+        "status": "gul", "status_klasse": "lys-gul",
+        "arter": "laks", "klareringstype": "permanent",
+        "vanntype": "saltvann", "plassering": "i sjø",
+        "kapasitet": "8 000 tonn", "kapasitet_midlertidig": "8 000 tonn",
+        "selskap": {"navn": "SALMAR OPPDRETT AS", "orgnr": "928957489",
+                    "url": "/selskap/928957489/", "siden": "2022-12-30",
+                    "antall": 1, "flere": 0, "personform": False},
+        "lusegraf": None,
+        "posisjonskart": kart.posisjonskart("68.9288", "16.701367"),
+        "biolag": nettsted._biolagstripe(
+            [{"dato": "2026-09-15", "har_fisk": "Ja",
+              "arter_tilstede": "Laks", "antall_arter": "1",
+              "siste_rapport": "2026-08-31", "lokalitet_status": "AKTIV"}],
+            ["2026-09-15"]),
+        "siter": {"url": "https://kystloggen.no/lokalitet/31397/",
+                  "uke": "uke 38, 2026", "dato": "14. september 2026",
+                  "aar": "2026", "sjekksum": "efe1c0884c4e39d20b7d775a363d"},
     }
     lok.update(overstyr)
+    # DE TO HISTORIKKENE regnes av de samme listene siden viser, ikke
+    # skrives ved siden av dem. Et `overstyr` som bytter endringene skal
+    # bytte tidsaksen med dem — to felter som beskriver det samme og kan
+    # sies hver for seg, er formen F6 og F7 hadde.
+    lok.setdefault("observert", nettsted._observert_historikk(
+        _endringsrader(lok["endringer"]), lok["dekning_fra"], None))
+    lok.setdefault("oppgitt", nettsted._oppgitt_historikk(
+        {"forste_klarering": "2010-11-10T23:00:00Z"},
+        lok["tillatelser"], lok["overforinger"]))
     # GRAFEN REGNES AV `lus_serie`, ikke skrevet inn ved siden av. Et
     # `overstyr` som bytter serien skal bytte grafen med den — to
     # felter som beskriver samme uker og kan sies hver for seg, er
@@ -293,19 +331,40 @@ ANKERE = {
     "eierskap_historikk-overforinger",
     "lusetall-uke",
     "endringer-register",
+    # Fra 22.09.2026: biomasselaget, altså om det står fisk på
+    # lokaliteten. `<kilde>-<hva>`, som de andre.
+    "biomasselag-uke",
 }
 
 
-def test_hver_tabell_har_sitt_stabile_anker():
+def test_hvert_anker_finnes_fortsatt_paa_sida():
     """Ankerne er kontrakten mot enhver som siterer siden. De er utledet
     av kildenavnet og feltvokabularet — ikke av rekkefølgen på siden og
     ikke av overskriftsteksten. Se
     docs/beslutninger/2026-09-16-url-struktur.md.
 
+    PRØVEN SPØR OM `id`, IKKE OM `<table id>`. Fra 22.09.2026 er
+    `#endringer-register` en `<section>` med en loddrett tidsakse og
+    ikke en tabell — endringene er de samme, formen er ny. Ankeret er
+    en URL, og en designrunde flytter ikke en adresse: hadde prøven
+    fortsatt krevd en `<table>`, ville den tvunget fram enten en tabell
+    ingen ville ha, eller et nytt ankernavn som brøt hver eksisterende
+    lenke.
+
     Endres ett av navnene under, er det en brutt lenke for alle som har
-    lenket til den tabellen. Denne testen er stedet man møter det."""
-    funnet = set(re.findall(r'<table id="([^"]+)"', _side()))
-    assert funnet == ANKERE
+    lenket dit. Denne testen er stedet man møter det."""
+    html = _side()
+    ider = set(re.findall(r'<(?:table|section)\b[^>]*?\bid="([^"]+)"', html))
+    mangler = ANKERE - ider
+    assert not mangler, f"ankere som ikke finnes lenger: {sorted(mangler)}"
+
+
+def test_hver_tabell_har_en_id():
+    """Markupkontraktens punkt 3, håndhevet på det RENDREDE utputtet.
+    `test_markupkontrakt` leser malene; denne ser hva som faktisk kom
+    ut."""
+    for m in re.finditer(r"<table\b([^>]*)>", _side()):
+        assert 'id="' in m.group(1), m.group(0)
 
 
 def test_ankerne_er_ascii_og_smaa_bokstaver():
@@ -347,21 +406,46 @@ def test_datoer_er_time_elementer():
     assert '<time datetime="2018-03-13">2018-03-13</time>' in html
 
 
-def test_ingen_javascript():
-    """Tallene skal finnes i kildekoden, ikke tegnes. En side som tegnes
-    av et skript kan ikke siteres, ikke arkiveres av Wayback, og ikke
-    leses av noen som har slått det av."""
+def test_javascript_er_en_forbedring_og_ikke_en_avhengighet():
+    """Regelen er ikke «ingen JavaScript» — den er at TALLENE SKAL STÅ I
+    KILDEKODEN. En side som tegnes av et skript kan ikke siteres, ikke
+    arkiveres av Wayback, og ikke leses av noen som har slått det av.
+
+    Fra 22.09.2026 har nettstedet ett skript, og det legger ikke til én
+    verdi: kopierknappen, søket i et område og filteret på
+    endringssiden. Alle tre har en variant som virker uten. Prøven
+    håndhever formen skriptet må ha — én egen fil, hostet av oss, med
+    `defer`, og ingen innebygd kode noe sted."""
     html = _side()
     skript = re.findall(r"<script[^>]*>", html)
-    assert skript == ['<script type="application/ld+json">'], skript
-    assert "onclick" not in html and "onload" not in html
+    assert skript == ['<script type="application/ld+json">',
+                      '<script src="/kystloggen.js" defer>'], skript
+
+    # INGEN INNEBYGD KODE. En `<script>` med kropp (utenom JSON-LD-en)
+    # ville vært kode ingen kan pinne en sha256 på, og den ville kjørt
+    # før `defer`-fila.
+    innebygd = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>",
+                          html, re.S)
+    assert len(innebygd) == 1, "bare JSON-LD-en skal være innebygd"
+
+    # INGEN HENDELSESATTRIBUTTER. `onclick` i markupen er kode som ikke
+    # kan slås av og ikke kan granskes som en fil.
+    for attributt in ("onclick", "onload", "onchange", "oninput",
+                      "onsubmit", "onerror"):
+        assert attributt not in html.lower(), attributt
+
+    # INGEN TREDJEPART. Skriptet er vårt, på vår adresse.
+    assert 'src="/kystloggen.js"' in html
+    assert "//" not in html.split('src="')[1].split('"')[0]
 
 
 def test_tallene_staar_i_kildekoden():
     html = _side()
-    assert "0.0045454544" in html          # lusetallet
+    assert "0.0045454544" in html          # lusetallet, kildens egen verdi
     assert "928957489" in html             # eierens orgnr
-    assert ">11</td>" in html and ">10</td>" in html   # endringen fra/til
+    # Endringen fra/til. Står i den loddrette tidsaksen fra 22.09.2026,
+    # ikke i en tabellcelle — men de står, og det er kravet.
+    assert ">11</span>" in html and ">10</span>" in html
 
 
 def test_attribusjonen_staar_i_den_genererte_html_en():
@@ -579,8 +663,8 @@ def test_utelatt_kilde_naar_ikke_endringstabellen():
     felles = SimpleNamespace(
         registerendringer={"N-T-0001": [rad("eierskap"),
                                         rad("eierskap_historikk")]},
-        maaleserierader={})
-    rader, _ = nettsted._endringer_av_indeks("10001", ["N-T-0001"], felles)
+        maaleserierader={}, sist_endret={})
+    rader, _, _ = nettsted._endringer_av_indeks("10001", ["N-T-0001"], felles)
     assert [r["kilde"] for r in rader] == ["eierskap"]
 
 
@@ -829,6 +913,7 @@ def _csv(**overstyr) -> str:
         "loknr": "31397", "navn": "OTERNESET", "kommune": "HARSTAD",
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207,
+        "lusetall_snapshots": 765,
         "lus_serie": [_uke_raa()],
     }
     lok.update(overstyr)
@@ -1479,7 +1564,7 @@ def _forside(**overstyr) -> str:
                                "farge_klasse": "lys-gul", "farge": "gul",
                                "antall": 137, "baner": ["M10 10L20 20Z"]}],
                  "mangler_geometri": [],
-                 "kyst": ["M0 0L5 5"],
+                 "land": ["M0 0L5 5L5 0Z"],
                  "gitter": {"bredde": [{"y": 200.0, "grad": 65,
                                         "etikett": "65°N",
                                         "etikett_x": 754, "etikett_y": 195.0}],
@@ -1548,9 +1633,12 @@ def test_kartet_er_statisk_uten_tjeneste_og_uten_js():
     """Kartet skal virke om ti år uten at noen fornyer en nøkkel."""
     html = _forside()
     assert "<svg" in html and "viewBox" in html
-    # Ingen script utover JSON-LD-en base-malen legger inn.
-    assert html.count("<script") == 1
+    # JSON-LD-en og det ene skriptet — se
+    # `test_javascript_er_en_forbedring_og_ikke_en_avhengighet`.
+    # KARTET tegnes ikke av noen av dem: hver koordinat står i `d`.
+    assert html.count("<script") == 2
     assert 'type="application/ld+json"' in html
+    assert 'src="/kystloggen.js" defer' in html
     for forbudt in ("tile", "mapbox", "openstreetmap", "leaflet",
                     "googleapis", "unpkg", "http://", "fetch("):
         assert forbudt not in html.lower(), forbudt
@@ -1993,7 +2081,7 @@ def test_lagdelingen_i_kartet_er_rekkefolgen_i_markupen():
     html = _forside()
     assert (html.index('class="kart-gitter"')
             < html.index('class="kart-omraader"')
-            < html.index('class="kart-kyst"'))
+            < html.index('class="kart-land"'))
 
 
 # ---- lusegrafen -------------------------------------------------------
@@ -2011,25 +2099,42 @@ def _uker(*verdier, brakk=()):
             for i, v in enumerate(verdier)]
 
 
-def test_hullet_bryter_linja_og_tegnes_ikke_som_null():
-    """Den ene feilen grafen ikke får gjøre. En kurve som gikk gjennom
-    et hull i null ville påstått at det ble talt null lus, mens hele
-    tabellen under sier at «–» betyr at kilden ikke oppgir noe tall."""
+def test_hullet_faar_ingen_soyle():
+    """Den ene feilen grafen ikke får gjøre. Et hull er ikke null, og
+    hele tabellen under sier at «–» betyr at kilden ikke oppgir noe
+    tall.
+
+    MED SØYLER FALLER PROBLEMET BORT AV SEG SELV. Fram til 22.09.2026
+    var dette en kurve, og den måtte BRYTES ved hvert hull for å slippe
+    å påstå noe om uka imellom. En uke uten tall har ingen søyle, og et
+    tomrom ligner ikke på en null."""
     g = nettsted.lusegraf(_uker(0.4, 0.5, None, 0.6, 0.7))
-    assert len(g["segmenter"]) == 2, "linja skal brytes ved hullet"
-    # Ingen av punktene ligger på bunnlinja — null er ikke tegnet.
-    y_er = [float(p.split(",")[1])
-            for seg in g["segmenter"] for p in seg.split()]
-    assert all(y != g["bunn"] for y in y_er)
+    assert len(g["soyler"]) == 4, "bare uker med tall får søyle"
     assert g["uten_tall"] == 1 and g["uker_med_tall"] == 4
 
 
 def test_en_enslig_uke_mellom_to_hull_forsvinner_ikke():
-    """En `<polyline>` med ett punkt tegner ingenting. Uten sirkelen
-    ville en MÅLT verdi vært borte fra grafen uten at noe sa fra."""
+    """En kurve trengte en egen sirkel for en uke mellom to hull, fordi
+    en `<polyline>` med ett punkt tegner ingenting. En søyle trenger
+    ingen slik reserve — den står der."""
     g = nettsted.lusegraf(_uker(None, 0.9, None))
-    assert g["segmenter"] == []
-    assert len(g["alene"]) == 1
+    assert len(g["soyler"]) == 1
+    assert g["soyler"][0]["verdi"] == "0,9"
+
+
+def test_en_maalt_null_er_en_soyle_og_ikke_ingenting():
+    """`y(0)` er nullinja, og en `<rect>` med høyde 0 tegner ikke en
+    piksel. Uten et gulv ville «telt til null lus» og «ingen telling»
+    sett nøyaktig like ut — som er den samme feilen som over, bare
+    andre veien.
+
+    MÅLT på OTERNESET: 124 av 558 uker med tall har verdien 0."""
+    g = nettsted.lusegraf(_uker(0.0, 0.5, None))
+    assert len(g["soyler"]) == 2
+    null = g["soyler"][0]
+    assert null["h"] > 0, "en målt null må tegne noe"
+    assert null["h"] < 2, "og den må ikke ligne på en verdi"
+    assert g["nuller"] == 1
 
 
 def test_grafen_finnes_ikke_naar_det_ikke_er_noe_aa_tegne():
@@ -2037,6 +2142,23 @@ def test_grafen_finnes_ikke_naar_det_ikke_er_noe_aa_tegne():
     har et innhold."""
     assert nettsted.lusegraf([]) is None
     assert nettsted.lusegraf(_uker(None, None)) is None
+
+
+def test_ingen_tiltaksgrense_er_tegnet():
+    """Grensa står i lakselusforskriften, varierer med sesong og med
+    vedtak per lokalitet, og er IKKE samlet inn. En strek på 0,5 tegnet
+    av oss ville vært en påstand om regelverket, ikke en gjengivelse av
+    en kilde — og en søyle farget rust fordi den er over en strek vi
+    fant på, ville vært en vurdering forkledd som data.
+
+    Se avvik 2 i oppdraget og docs/APNE-SPORSMAL.md."""
+    g = nettsted.lusegraf(_uker(0.1, 0.9))
+    assert "tiltaksgrense" not in g
+    # Og ingen søyle bærer en egen farge.
+    assert all(set(s) == {"x", "y", "h", "uke", "verdi"} for s in g["soyler"])
+    html = _side(lusegraf=g)
+    assert "tiltaksgrense" not in html.lower() or \
+        "Ingen tiltaksgrense er tegnet" in html
 
 
 def test_baandene_dekker_brakklagte_uker_og_bare_dem():
@@ -2053,10 +2175,9 @@ def test_kurven_holder_seg_innenfor_plottet():
     taket ville blitt tegnet utenfor ramma."""
     g = nettsted.lusegraf(_uker(0.0, 1.54, 0.3))
     assert g["tak"] >= 1.54
-    y_er = [float(p.split(",")[1])
-            for seg in g["segmenter"] for p in seg.split()]
-    assert min(y_er) >= g["plott_y"] - 0.05
-    assert max(y_er) <= g["bunn"] + 0.05
+    for s in g["soyler"]:
+        assert s["y"] >= g["plott_y"] - 0.05, s
+        assert s["y"] + s["h"] <= g["bunn"] + 0.05, s
 
 
 def test_y_aksen_bruker_pene_trinn():
@@ -2080,18 +2201,38 @@ def test_grafen_og_tabellen_teller_de_samme_ukene():
     assert g["uten_tall"] == sum(1 for u in serie if u["voksne_hunnlus"] == "")
 
 
-def test_grafen_rendres_med_baand_under_serien():
-    """SVG har ingen z-indeks. Rekkefølgen i markupen ER lagdelingen."""
-    html = _side(lus_serie=_uker(0.1, 0.2, None, 0.3, 0.4, brakk=(2,)))
-    assert html.index('class="brakk"') < html.index('class="akse"') < html.index('class="serie"')
-    # To segmenter, ett på hver side av hullet.
-    assert html.count("<polyline") == 2
+def test_grafen_rendres_med_aksen_under_soylene():
+    """SVG har ingen z-indeks. Rekkefølgen i markupen ER lagdelingen:
+    aksen under søylene, og brakkleggingsstripa sist fordi den ligger
+    UNDER nullinja og ikke kan dekke noe.
+
+    Brakkleggingsstripa er lav og under aksen fra 22.09.2026. Et bånd
+    over hele plottet, som det var før, leses som en verdi på y-aksen —
+    og brakklegging er ikke en luseverdi."""
+    serie = _uker(0.1, 0.2, None, 0.3, 0.4, brakk=(2,))
+    html = _side(lus_serie=serie, lusegraf=nettsted.lusegraf(serie))
+    assert html.index('class="akse"') < html.index('class="soyler"')
+    assert html.index('class="soyler"') < html.index('class="brakk"')
+    # Fire uker med tall gir fire søyler; hullet gir ingen.
+    assert html.count("<rect") == 4 + 1      # fire søyler + ett brakkbånd
+
+
+def test_siden_uten_lusetall_beholder_TABELLEN():
+    """Grafen er en TEGNING av tabellen, ikke en forutsetning for den.
+    Første utkast la tabellen inne i `{% if lok.lusegraf %}`, og en
+    lokalitet uten tegnbar graf mistet tallene også."""
+    html = _side(lus_serie=[], lusegraf=None)
+    assert 'id="lusetall-uke"' in html
+    assert "0.0045454544" in html
 
 
 def test_siden_uten_lusetall_far_ingen_graf():
     html = _side(lus_serie=[], lus=[], lus_uker=0, lus_fra="", lus_til="",
-                 lusetall_snapshots=764)
-    assert "lusegraf" not in html
+                 lusegraf=None, lusetall_snapshots=764)
+    assert "<svg class=\"lusegraf\"" not in html
+    assert "Ingen lusetall rapportert" in html
+    # Men tabellen står, med hode og null rader.
+    assert 'id="lusetall-uke"' in html
 
 
 def test_om_siden_lenker_til_fontlisensen():
@@ -2215,3 +2356,78 @@ def test_malene_bruker_bare_blokker_grunnmalen_har():
                 feil.append(f"{sti.name}: {{% block {navn} %}} finnes ikke "
                             f"i base.html.j2 — innholdet rendres aldri")
     assert not feil, "\n".join(feil)
+
+
+# ---- de to lekkasjene porten fant 22.09.2026 ---------------------------
+#
+# Begge ble innført av designrunden, og begge ble stoppet av
+# publiseringsvakten før noe gikk ut. Prøvene under er der for at de
+# ikke skal kunne komme tilbake stille.
+
+def test_en_personform_navngis_ikke_i_overskriften():
+    """MÅLT: porten stoppet publiseringen på lokalitet 11593, der
+    «PARTREDERIET BRØDRENE SIGLEN ANS» sto i det nye
+    «Innehaver»-feltet i overskriften mens tabellraden under sa
+    «eieren er en personform».
+
+    `_eierrad()` stilte spørsmålet; den nye veien til det samme navnet
+    gjorde ikke. To steder som skal si det samme om hvem vi ikke
+    navngir, er formen F6 og F7 hadde — og her er prisen et navngitt
+    menneske på en offentlig side. Regel 3."""
+    # `UnlimitedLiabilityCompany` er pub-aquas ord for ANS, og
+    # `FORM_KART` oversetter det. Verdien er kildens egen, ikke en vi
+    # fant på: det var nøyaktig denne som sto på lokalitet 11593.
+    person = {"N-T-0001": {"eier_navn": "PARTREDERIET BRØDRENE X ANS",
+                           "eier_orgnr": "912345678",
+                           "eier_type": "UnlimitedLiabilityCompany"}}
+    sel = nettsted._lokalitetens_selskap(person, [], person)
+    assert sel["personform"] is True
+    assert sel["navn"] == nettsted.EIER_PERSONFORM
+    assert "PARTREDERIET" not in sel["navn"]
+    assert sel["url"] == "" and sel["orgnr"] == ""
+    # Og antallet forsvinner ikke: raden står, navnet gjør ikke.
+    assert sel["antall"] == 1
+
+    html = _side(selskap=sel)
+    assert "PARTREDERIET" not in html
+    assert nettsted.EIER_PERSONFORM in html
+
+
+def test_en_tankestrek_er_ikke_et_navn():
+    """MÅLT: porten stoppet fire lokalitetssider med
+    `ukjent_navn — «W» 1 tegn`. Verdien var tankestreken, i en celle
+    merket `data-felt="eier_navn"` fordi changelog-raden gjaldt det
+    feltet og den gamle verdien var tom.
+
+    En tankestrek er ikke et ukjent selskap; den er fraværet av et.
+    Samme regel som `EIER_UKJENT_FELT` har hatt siden 19.09."""
+    assert nettsted.feltmerke("SALMAR AS", "eier_navn") == "eier_navn"
+    assert nettsted.feltmerke("", "eier_navn") == nettsted.VERDI_MANGLER_FELT
+    assert nettsted.feltmerke(None, "eier_navn") == nettsted.VERDI_MANGLER_FELT
+    assert nettsted.feltmerke("  ", "eier_navn") == nettsted.VERDI_MANGLER_FELT
+
+    poster = nettsted._observert_historikk(
+        [{"dato": "2026-09-14", "etikett": "Innehaver", "felt": "eier_navn",
+          "fra": "", "til": "SALMAR AS", "gjelder": "lokaliteten",
+          "kilde": "eierskap"}],
+        [{"kilde": "eierskap", "fra": "2026-09-02"}], None)
+    assert poster[0]["fra_felt"] == nettsted.VERDI_MANGLER_FELT
+    assert poster[0]["til_felt"] == "eier_navn"
+
+
+def test_porten_ser_ikke_tankestreken_som_et_ukjent_navn():
+    """Oppførselen, ikke bare funksjonen: den rendrede siden skal ikke
+    gi `ukjent_navn` på en tom verdi."""
+    import publiseringsvakt as vakt
+
+    html = _side(endringer=[{
+        "dato": "2026-09-14", "gjelder": "lokaliteten", "kilde": "eierskap",
+        "felt": "eier_navn", "fra": "", "til": "SALMAR OPPDRETT AS",
+    }])
+    navn_ok = {vakt.navnenoekkel(n) for n in
+               ("OTERNESET", "SALMAR OPPDRETT AS", "SALMAR NORD AS",
+                "SALMAR FARMING AS")}
+    orgnr_ok = {"928957489", "966840528"}
+    funn = [f for f in vakt.gransk_tekst(html, orgnr_ok, navn_ok)
+            if f.slag == "ukjent_navn"]
+    assert funn == [], funn

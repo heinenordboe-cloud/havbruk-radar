@@ -77,6 +77,11 @@
 <link rel="alternate" type="application/atom+xml" href="{{ feed }}"
       title="{{ feed_tittel }}">
 {% endif %}
+{# DET LILLE SOM ER JAVASCRIPT. `defer`: skriptet skal aldri blokkere
+   rendringen, fordi ingenting på siden venter på det. Alt det gjør er
+   en FORBEDRING av noe som virker uten — kopierknappen, søket i et
+   område og filteret på endringssiden. Se maler/kystloggen.js. #}
+<script src="/kystloggen.js" defer></script>
 </head>
 <body>
 {# HOPPELENKA. Menyen er seks lenker på hver side, og en som leser med

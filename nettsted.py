@@ -470,6 +470,9 @@ class Felles:
     # NÅR VI HENTET, ikke hva raden gjelder for. Bunntekstens
     # proveniens­linje oppgir begge — se `_hentet()` og CLAUDE.md 1b-7.
     akva_hentet: str
+    # Sjekksummen av nyeste akvakultur-snapshot. Står i arkivlinja på
+    # forsiden og i siteringsboksen på hver lokalitetsside.
+    sjekksum: str
     # Adressen folk melder feil til. Tom når `HAVBRUK_KONTAKT` ikke er
     # satt, og da SIER bunnteksten det framfor å finne på en.
     kontakt: str
@@ -482,6 +485,13 @@ class Felles:
     # produksjonsområde. En annen kilde enn `po_farger`, og den svarer
     # på et annet spørsmål — se `_po_naa()`.
     po_naa: dict[str, dict[str, str]]
+    # {loknr: [uke]} — om det står fisk på lokaliteten, per uke VI har
+    # observert. Se `_biomasselag()`.
+    biomasselag: dict[str, list[dict]]
+    biomasselag_uker: list[str]
+    # {(entity_id, felt): siste observed_at} — når vi sist SÅ feltet
+    # endre seg. Brukes i «Sist endret»-kolonnen i registertabellene.
+    sist_endret: dict[tuple[str, str], str]
 
 
 def les_felles() -> Felles:
@@ -563,6 +573,7 @@ def les_felles() -> Felles:
         till_per_eier[orgnr].sort()
 
     enhet_dato, enhet = _siste("enhetsregisteret")
+    biolag, biolag_uker = _biomasselag()
 
     return Felles(
         akva_dato=akva_dato, akva=akva,
@@ -583,10 +594,40 @@ def les_felles() -> Felles:
         enhet=enhet,
         enhet_dato=enhet_dato,
         akva_hentet=_hentet("akvakultur"),
+        sjekksum=_sjekksum("akvakultur"),
         kontakt=_kontakt(),
         bevegelse=beveg,
         po_naa=_po_naa(akva),
+        biomasselag=biolag,
+        biomasselag_uker=biolag_uker,
+        sist_endret=sist_endret_av(beveg),
     )
+
+
+def sist_endret_av(beveg: pl.DataFrame) -> dict[tuple[str, str], str]:
+    """{(entitet, felt): siste `observed_at`} — da vi sist SÅ feltet
+    endre seg.
+
+    ETT STED, kalt fra begge veiene inn i `bygg_lokalitet()`. Fram til
+    22.09.2026 bygde batchen den og enkeltsiden ikke, og følgen var at
+    «Sist observert»-kolonnen var utfylt i en batch og tom i en
+    enkeltkjøring — to veier til samme side som svarer ulikt, altså
+    formen F6 og F7 hadde. `test_batch_gir_samme_side_som_enkelt`
+    fanget det.
+
+    `borte`-rader teller ikke: de sier at hele oppføringen forsvant,
+    ikke at feltet fikk en ny verdi. En kolonne som sa «sist observert
+    21.09» fordi entiteten var borte den uka, ville vært en påstand om
+    en verdi som ikke finnes.
+    """
+    ut: dict[tuple[str, str], str] = {}
+    for eid, felt, dato in (beveg.filter(pl.col("change_type") == "endret")
+                            .select(["entity_id", "field", "observed_at"])
+                            .iter_rows()):
+        nøkkel = (str(eid), str(felt))
+        if str(dato) > ut.get(nøkkel, ""):
+            ut[nøkkel] = str(dato)
+    return ut
 
 
 def _po_naa(akva: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
@@ -643,6 +684,56 @@ def _po_naa(akva: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
                                    for f, n in teller.most_common()),
             }
     return ut
+
+
+# Feltene biomasselaget faktisk bærer om fisken. `dato_forbehold` og
+# `arts_forbehold` er IKKE med her: de er kildens egne
+# forbeholdssetninger, ikke verdier per uke, og de står én gang på siden
+# framfor på hver rad.
+BIOLAGFELT = ("har_fisk", "arter_tilstede", "antall_arter",
+              "siste_rapport", "lokalitet_status")
+
+
+def _biomasselag() -> tuple[dict[str, list[dict]], list[str]]:
+    """({loknr: [uke, ...]}, alle observasjonsdatoene).
+
+    ## Hva denne serien ER, og hva den ikke er
+
+    Biomasselaget sier OM det står fisk på en lokalitet — ja eller nei,
+    og hvilken art. Det sier ikke hvor mye. Mengdetallene ligger i
+    biomassedatabasen etter akvakulturdriftsforskriften § 44, som er
+    børssensitiv og ikke offentlig (bekreftet av HI 09.09.2026). De
+    offentlige mengdetallene finnes bare per PRODUKSJONSOMRÅDE, og de
+    hører derfor hjemme på områdesiden og ikke her.
+
+    ## `observed_at` ER HENTETIDSPUNKTET VÅRT
+
+    Kilden sier det selv, i feltet `dato_forbehold`: laget bærer siste
+    innsendte månedsrapport per lokalitet, og `siste_rapport` sier
+    hvilken måned nettopp den påstanden gjelder for. De to kan ligge år
+    fra hverandre — MÅLT 10.09.2026 spente `siste_rapport` fra
+    2005-04-30 til 2026-08-31 over 112 distinkte verdier.
+
+    Derfor bærer HVER RUTE i stripa sin egen `siste_rapport`, og ikke
+    bare et ja eller nei. En stripe som viste «fisk» uke for uke uten
+    det, ville påstått at vi vet noe om akkurat den uka. Det er samme
+    skille som CLAUDE.md 1b-7 gjør mellom `observed_at` og
+    `fetched_at`, og her er det kilden som insisterer på det.
+    """
+    serier: dict[str, list[dict]] = defaultdict(list)
+    datoer = snapshot.datoer("biomasselag")
+    for dato in datoer:
+        for _nr, ramme in snapshot.versjoner("biomasselag", dato):
+            per_lok: dict[str, dict[str, str]] = defaultdict(dict)
+            for eid, felt, verdi in ramme.select(
+                    ["entity_id", "field", "value"]).iter_rows():
+                if str(felt) in BIOLAGFELT:
+                    per_lok[str(eid)][str(felt)] = verdi
+            for eid, raa in per_lok.items():
+                uke = {f: (raa.get(f) or "") for f in BIOLAGFELT}
+                uke["dato"] = dato
+                serier[eid].append(uke)
+    return dict(serier), datoer
 
 
 def _isouke(dato: str) -> tuple[int, int]:
@@ -827,8 +918,9 @@ ENDRINGER_VIA_TILLATELSE = frozenset({"eierskap"})
 ENDRINGER_UTELATT = frozenset({"eierskap_historikk"})
 
 
-def _endringer(loknr: str, tillatelser: list[str]) -> tuple[list[dict], int]:
-    """(registerendringer nyest først, antall måleserierader).
+def _endringer(loknr: str, tillatelser: list[str]
+               ) -> tuple[list[dict], int, dict[tuple[str, str], str]]:
+    """(registerendringer nyest først, måleserierader, sist-observert).
 
     Tar med endringer som gjelder lokaliteten SELV og endringer som
     gjelder en TILLATELSE på den. Det andre er en indirekte kobling, og
@@ -858,7 +950,9 @@ def _endringer(loknr: str, tillatelser: list[str]) -> tuple[list[dict], int]:
     register = mine.filter(~pl.col("source").is_in(sorted(MAALESERIER)))
     rader = [_endringsrad(r, loknr) for r in
              register.sort("observed_at", descending=True).iter_rows(named=True)]
-    return rader, maaleserie
+    # SAMME KART SOM BATCHEN BYGGER, av den samme ramma. Se
+    # `sist_endret_av()` for hvorfor det ikke kan være to.
+    return rader, maaleserie, sist_endret_av(beveg)
 
 
 def _endringsrad(r: dict, loknr: str) -> dict:
@@ -892,7 +986,8 @@ def _endringsrad(r: dict, loknr: str) -> dict:
 
 
 def _endringer_av_indeks(loknr: str, tillatelser: list[str],
-                         felles: Felles) -> tuple[list[dict], int]:
+                         felles: Felles
+                         ) -> tuple[list[dict], int, dict[tuple[str, str], str]]:
     """Samme svar som `_endringer()`, men av en ferdig indeks.
 
     To funksjoner som skal si det samme er formen F6 og F7 hadde, og
@@ -908,7 +1003,8 @@ def _endringer_av_indeks(loknr: str, tillatelser: list[str],
                   if r["source"] in ENDRINGER_VIA_TILLATELSE]
     rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
     return ([_endringsrad(r, loknr) for r in rader],
-            felles.maaleserierader.get(loknr, 0))
+            felles.maaleserierader.get(loknr, 0),
+            felles.sist_endret)
 
 
 def _dekning_fra() -> list[dict]:
@@ -1090,6 +1186,34 @@ def endringstype(source: str, field: str, change_type: str) -> str:
 # Verdien i en «fra»- eller «til»-celle når oppføringen ikke fantes.
 # Ikke tom, ikke «0» — overleveringens egen tekst.
 IKKE_I_REGISTERET = "ikke i registeret"
+
+# Tegnet som står der kilden ikke har en verdi, og FELTNAVNET en slik
+# celle merkes med.
+#
+# ## Hvorfor merkingen må være en annen
+#
+# Tanken er den samme som `EIER_UKJENT_FELT` har hatt siden 19.09:
+# verdien er VÅR tekst om fravær, ikke en verdi fra kilden, og porten
+# skal ikke lete etter den i hvitelista.
+#
+# MÅLT 22.09.2026: porten stoppet publiseringen på fire
+# lokalitetssider med `ukjent_navn — «W» 1 tegn`. Verdien var
+# tankestreken, i en celle merket `data-felt="eier_navn"` fordi
+# changelog-raden gjaldt det feltet og den gamle verdien var tom. En
+# tankestrek er ikke et ukjent selskap; det er fraværet av et.
+VERDI_MANGLER = "—"
+VERDI_MANGLER_FELT = "verdi_mangler"
+
+
+def feltmerke(verdi: object, felt: str) -> str:
+    """Feltnavnet en celle merkes med — eller `verdi_mangler`.
+
+    Kalles fra malene som en Jinja-global. Regelen i markupkontrakten er
+    «har en `<td>` en `{{ }}`, har den `data-felt`»; denne sier HVILKEN
+    merking, og svaret er at en tom verdi ikke er en verdi fra det
+    feltet.
+    """
+    return felt if str(verdi or "").strip() else VERDI_MANGLER_FELT
 
 
 def _omvendt(dato: str) -> tuple:
@@ -1672,6 +1796,13 @@ GRAF_BREDDE = 900
 GRAF_HOYDE = 220
 GRAF_MARG = {"v": 48, "h": 12, "o": 14, "u": 28}   # venstre/høyre/over/under
 
+# Brakkleggingsstripa er LAV og ligger i bunnen, ikke som et bånd over
+# hele høyden. Overleveringen tegner den slik, og det er riktigere enn
+# båndet som sto her til 22.09.2026: et bånd over hele plottet leses som
+# en verdi på y-aksen, og brakklegging er ikke en luseverdi. Stripa
+# ligger UNDER nullinja og kan ikke forveksles med en søyle.
+GRAF_BRAKK_HOYDE = 5
+
 # Trinnene en y-akse får lov å bruke. Et «pent» tall er ikke en estetisk
 # sak: 0,4 og 0,8 leses som fjerdedeler, 0,37 leses ikke som noe.
 GRAF_TRINN = (0.05, 0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0)
@@ -1692,7 +1823,36 @@ def lusegraf(serie: list[dict]) -> dict | None:
 
     None og ikke en tom graf: en akse uten en eneste verdi er en ramme
     som later som om den har et innhold. Malen viser da ingenting, og
-    tabellen sier fra i klartekst — den sier det allerede.
+    tabellen sier fra i klartekst.
+
+    ## SØYLER, ikke en kurve (22.09.2026)
+
+    Fram til i dag var dette en brutt linje. Overleveringen tegner
+    søyler, og det er ikke en smakssak her: en kurve TREKKER EN STREK
+    MELLOM TO MÅLINGER, og påstår dermed noe om uka imellom. Lusetall er
+    én telling per uke, ikke en kontinuerlig størrelse, og hver uke er
+    en egen påstand.
+
+    Den gamle koden måtte bryte linja ved hvert hull nettopp for å
+    unngå å påstå noe om uker uten tall. Med søyler faller problemet
+    bort av seg selv: en uke uten tall har ingen søyle, og et tomrom
+    ligner ikke på en null.
+
+    ## INGEN TILTAKSGRENSE, og ingen rustfargede søyler
+
+    Overleveringen tegner en stiplet tiltaksgrense på 0,5 og farger
+    søylene over den i rust. Begge deler er utelatt, og det er en
+    beslutning og ikke en forglemmelse: **grensa er ikke samlet inn.**
+
+    Den står i lakselusforskriften, den varierer med sesong (0,2 i
+    vårperioden, 0,5 ellers) og med vedtak per lokalitet, og ingen av
+    delene finnes i `lusetall`. En strek på 0,5 tegnet av oss ville
+    vært en påstand om regelverket, ikke en gjengivelse av en kilde —
+    og en søyle farget rust fordi den er over en strek vi fant på, ville
+    vært en vurdering forkledd som data.
+
+    Alle søyler står derfor i `--hav5`, som er nettstedets egen farge.
+    Se docs/APNE-SPORSMAL.md.
     """
     if not serie:
         return None
@@ -1712,82 +1872,92 @@ def lusegraf(serie: list[dict]) -> dict | None:
     v, h, o, u_ = (GRAF_MARG["v"], GRAF_MARG["h"],
                    GRAF_MARG["o"], GRAF_MARG["u"])
     plott_b = GRAF_BREDDE - v - h
-    plott_h = GRAF_HOYDE - o - u_
+    plott_h = GRAF_HOYDE - o - u_ - GRAF_BRAKK_HOYDE
+    bunn = o + plott_h
+
+    # SØYLEBREDDEN ER PLASSEN PER UKE, uten mellomrom. 764 uker på 840
+    # piksler er 1,1 px per uke, og et mellomrom der ville betydd at
+    # halvparten av søylene forsvant. Tettheten ER formen: en serie på
+    # femten år skal leses som en tidsakse, ikke som femten år med
+    # tellbare pinner.
+    steg = plott_b / n
+    bredde = round(max(steg, 0.8), 2)
 
     def x(i: int) -> float:
-        return round(v + (plott_b * i / (n - 1) if n > 1 else plott_b / 2), 1)
+        return round(v + steg * i, 1)
 
     def y(verdi: float) -> float:
         return round(o + plott_h * (1 - verdi / tak), 1)
 
-    # Segmentene. Et nytt segment begynner etter hvert hull.
-    segmenter, naa = [], []
-    for i, verdi in enumerate(verdier):
-        if verdi is None:
-            if len(naa) > 1:
-                segmenter.append(" ".join(naa))
-            naa = []
-        else:
-            naa.append(f"{x(i)},{y(verdi)}")
-    if len(naa) > 1:
-        segmenter.append(" ".join(naa))
+    # EN MÅLT NULL ER EN SØYLE, ikke ingenting.
+    #
+    # `y(0)` er nullinja, og en `<rect>` med høyde 0 tegner ikke en
+    # piksel. Følgen ville vært at «telt til null lus» og «ingen telling
+    # denne uka» så nøyaktig like ut — som er den ENE feilen denne
+    # grafen ikke får gjøre, og som hele tabellen under står og roper om.
+    #
+    # MÅLT på OTERNESET: 124 av 558 uker med tall har verdien 0. Uten
+    # gulvet ville nesten hver fjerde måling vært usynlig.
+    #
+    # Gulvet er 1,2 px — en hårstrek som ligger på nullinja og ikke kan
+    # forveksles med en verdi. At den betyr NULL og ikke «litt», står i
+    # bildeteksten.
+    gulv = 1.2
+    soyler = [{"x": x(i), "y": round(min(y(verdi), bunn - gulv), 1),
+               "h": round(max(bunn - y(verdi), gulv), 1),
+               "uke": f"{serie[i]['iso_aar']} uke {serie[i]['iso_uke']}",
+               "verdi": visningsord.tall(verdi)}
+              for i, verdi in enumerate(verdier) if verdi is not None]
 
-    # ENSLIGE punkter. En uke med tall mellom to hull blir et segment på
-    # ett punkt, og en `<polyline>` med ett punkt tegner ingenting. Uten
-    # dette forsvinner en målt verdi fra grafen i stillhet.
-    alene = [{"x": x(i), "y": y(verdier[i])}
-             for i in range(n) if verdier[i] is not None
-             and (i == 0 or verdier[i - 1] is None)
-             and (i == n - 1 or verdier[i + 1] is None)]
-
-    # Brakkleggingsbåndene, slått sammen til sammenhengende strekk.
+    # Brakkleggingsstrekkene, slått sammen til sammenhengende bånd.
     baand, start = [], None
     for i, rad in enumerate(serie + [{}]):
         er_brakk = str(rad.get("brakklagt")) == "True"
         if er_brakk and start is None:
             start = i
         elif not er_brakk and start is not None:
-            baand.append({"x": x(start) if start else v,
-                          "bredde": round(max(x(i - 1) - x(start), 1.5), 1)})
+            baand.append({"x": x(start),
+                          "bredde": round(max(x(i) - x(start), 1.0), 1)})
             start = None
 
     linjer = []
-    steg = trinn
     verdi = 0.0
     while verdi <= tak + 1e-9:
         linjer.append({"y": y(verdi), "verdi": verdi,
                        "etikett": f"{verdi:.2f}".rstrip("0").rstrip(".")
                                   .replace(".", ",") or "0"})
-        verdi += steg
+        verdi += trinn
 
-    # Årstallene. Ett merke per årsskifte, og bare annethvert når serien
-    # er lang nok til at de ellers ville stått oppå hverandre.
-    aar = []
-    for i, rad in enumerate(serie):
-        if i and rad.get("iso_aar") != serie[i - 1].get("iso_aar"):
-            aar.append({"x": x(i), "etikett": rad.get("iso_aar", "")})
-    if len(aar) > 8:
-        aar = aar[1::2]
+    # Årstallene. Ett merke per årsskifte, og bare hvert n-te når serien
+    # er lang nok til at de ellers ville stått oppå hverandre. Tallet er
+    # regnet av PLASSEN og ikke valgt: en etikett trenger ~34 px.
+    aar = [{"x": x(i), "etikett": rad.get("iso_aar", "")}
+           for i, rad in enumerate(serie)
+           if i and rad.get("iso_aar") != serie[i - 1].get("iso_aar")]
+    if aar:
+        hver = max(1, math.ceil(len(aar) * 34 / plott_b))
+        aar = aar[::hver]
 
-    uten_tall = sum(1 for v in verdier if v is None)
+    uten_tall = sum(1 for v_ in verdier if v_ is None)
     brakk = sum(1 for rad in serie if str(rad.get("brakklagt")) == "True")
-    brakk_uten_tall = sum(1 for rad, v in zip(serie, verdier)
-                          if v is None and str(rad.get("brakklagt")) == "True")
+    brakk_uten_tall = sum(1 for rad, v_ in zip(serie, verdier)
+                          if v_ is None and str(rad.get("brakklagt")) == "True")
     return {
         "bredde": GRAF_BREDDE, "hoyde": GRAF_HOYDE,
         "plott_x": v, "plott_y": o,
         "plott_bredde": plott_b, "plott_hoyde": plott_h,
-        "bunn": round(o + plott_h, 1),
-        "segmenter": segmenter,
-        "alene": alene,
+        "bunn": round(bunn, 1),
+        "brakk_y": round(bunn + 2, 1),
+        "brakk_hoyde": GRAF_BRAKK_HOYDE - 2,
+        "soyler": soyler,
+        "soylebredde": bredde,
         "baand": baand,
         "linjer": linjer,
         "aar": aar,
         "tak": tak,
         # Formateres HER og ikke i malen. `1.54` med punktum er engelsk,
         # og `visningsord.tall()` er det ene stedet nettstedet bestemmer
-        # hvordan et tall ser ut på norsk. En graf som skrev det selv
-        # ville vært et andre sted.
+        # hvordan et tall ser ut på norsk.
         "maks": visningsord.tall(maks),
         "uker": n,
         "uker_med_tall": n - uten_tall,
@@ -1795,6 +1965,281 @@ def lusegraf(serie: list[dict]) -> dict | None:
         "brakklagt": brakk,
         "hull_forklart": brakk_uten_tall,
         "hull_uforklart": uten_tall - brakk_uten_tall,
+        "nuller": sum(1 for v_ in verdier if v_ == 0),
+        "fra": serie[0].get("dato", ""),
+        "til": serie[-1].get("dato", ""),
+    }
+
+
+# ------------------------------------------------- DE TO HISTORIKKENE
+#
+# En lokalitetsside har to slags fortid, og de er IKKE det samme:
+#
+#   OBSERVERT AV KYSTLOGGEN   changeloggen. «Vi så at feltet endret seg
+#                             denne mandagen.» Datoen er VÅR, og den
+#                             sier bare når vi SÅ det — registeret
+#                             oppgir ikke når det gjorde det.
+#   OPPGITT AV REGISTERET     historikk kilden selv fører:
+#                             journalførte overføringer, tildelings-
+#                             datoer, første klarering. Datoen er
+#                             KILDENS, og den gjelder en hendelse i
+#                             verden.
+#
+# De skal aldri flettes i én tidslinje uten merking. En flettet liste
+# ville latt «17. juni 2024: overført til X» (kildens påstand om noe som
+# skjedde) stå ved siden av «14. september 2026: eier_navn endret»
+# (vår påstand om når vi så det), og en leser ville lest begge som
+# hendelser med dato. Den første er det; den andre er en observasjon.
+#
+# Derfor to lister, to overskrifter, to forklaringer og to visuelle
+# former. Se avvik 4 i oppdraget og docs/design/.
+
+
+def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
+                         felles: Felles | None) -> list[dict]:
+    """Changeloggen som en loddrett tidslinje, nyest først.
+
+    SISTE POST ER «FØRSTE ØYEBLIKKSBILDE», og den er ikke pynt: uten den
+    kan en leser ikke se forskjell på «ingenting har skjedd» og «vi
+    begynte å se etter i forrige uke». Datoen er den eldste
+    innsamlingsdatoen for kildene siden bygger på — ikke i dag, og ikke
+    en kildes egen historikk.
+    """
+    poster = [{
+        "dato": e["dato"],
+        "uke": visningsord.isouke(e["dato"]),
+        "etikett": e["etikett"],
+        "felt": e["felt"],
+        "fra": e["fra"],
+        "til": e["til"],
+        # EN TOM VERDI MERKES IKKE MED KILDENS FELTNAVN. Se
+        # `feltmerke()` og målingen der.
+        "fra_felt": feltmerke(e["fra"], e["felt"]),
+        "til_felt": feltmerke(e["til"], e["felt"]),
+        "gjelder": e["gjelder"],
+        "kilde": e["kilde"],
+        "forste": False,
+    } for e in endringer]
+
+    fra = min((d["fra"] for d in dekning_fra), default="")
+    if fra:
+        poster.append({
+            "dato": fra,
+            "uke": visningsord.isouke(fra),
+            "etikett": "Første øyeblikksbilde",
+            "felt": "observed_at",
+            "fra": "",
+            "til": "",
+            "fra_felt": VERDI_MANGLER_FELT,
+            "til_felt": VERDI_MANGLER_FELT,
+            "gjelder": "lokaliteten",
+            "kilde": "",
+            "forste": True,
+        })
+    return poster
+
+
+def _oppgitt_historikk(a: dict, tillatelser: list[dict],
+                       overforinger: list[dict]) -> list[dict]:
+    """Historikken KILDEN selv fører, eldst først.
+
+    Tre slag, og alle tre er datoer registeret oppgir som en dato for
+    noe som skjedde — ikke som en dato for da vi så noe:
+
+      første klarering     `akvakultur.forste_klarering`
+      tildeling            `eierskap.tildelt_tid`, med hvem den gikk til
+      overføring           `eierskap_historikk.journal_dato`
+
+    JOURNALDATOEN ER «SENEST DA», ikke «akkurat da». Forbeholdet står på
+    hver rad i dataene og gjentas i forklaringen på siden framfor å
+    pusses bort.
+    """
+    # NAVNET STÅR FOR SEG, og det er ikke en formatering.
+    #
+    # Første utkast satte «T-G-0008 tildelt til STRAUMEN HAVBRUK AS» i
+    # ett felt. Publiseringsvaktens `FELTMERKE` fanger hele celleteksten
+    # som ÉN verdi, og «T-G-0008 tildelt til STRAUMEN HAVBRUK AS» står
+    # ikke i hvitelista — selskapet gjør. Vakten ville meldt hver eneste
+    # tildelingspost som `ukjent_navn`, og en vakt som feiler feil blir
+    # slått av (samme begrunnelse som `_celleverdi()`).
+    #
+    # `navn` og `navn_felt` er derfor egne nøkler, og malen merker dem
+    # med kildens eget feltnavn. Da ser porten verdien den skal se.
+    poster = []
+    klarert = (a.get("forste_klarering") or "")[:10]
+    if klarert:
+        poster.append({
+            "dato": klarert, "slag": "Første klarering",
+            "hva": "Lokaliteten klarert av Fiskeridirektoratet",
+            "navn": "", "navn_felt": "",
+            "kilde": "akvakultur", "felt": "forste_klarering",
+            "presisjon": "dato oppgitt av registeret",
+        })
+    for till in tillatelser:
+        if till["tildelt_dato"]:
+            poster.append({
+                "dato": till["tildelt_dato"],
+                "slag": "Tillatelse tildelt",
+                "hva": f"{till['nr']} tildelt",
+                "navn": till["tildelt_navn"],
+                "navn_felt": "tildelt_navn",
+                "kilde": "eierskap", "felt": "tildelt_tid",
+                "presisjon": "dato oppgitt av registeret",
+            })
+    for o in overforinger:
+        if o["dato"]:
+            poster.append({
+                "dato": o["dato"],
+                "slag": "Overføring journalført",
+                "hva": f"{o['tillatelse']} overført",
+                "navn": o["mottaker_navn"],
+                "navn_felt": "mottaker_navn",
+                "kilde": "eierskap_historikk", "felt": "journal_dato",
+                "presisjon": "journalført senest denne datoen",
+            })
+    poster.sort(key=lambda r: (r["dato"], r["slag"]))
+    return poster
+
+
+def har_selskapsside(orgnr: str, eierskap: dict[str, dict[str, str]]) -> bool:
+    """Får dette organisasjonsnummeret en `/selskap/<orgnr>/`-side?
+
+    Leses av EIERSKAPSRAMMA og ikke av en `Felles`, slik at begge veiene
+    inn i `bygg_lokalitet()` svarer det samme. Fram til 22.09.2026 tok
+    `_lokalitetens_selskap()` en `Felles`, og enkeltkjøringen — som
+    ikke har en — lenket derfor ikke til selskapet i det hele tatt.
+
+    To vilkår, og begge er de samme som `skriv_alle()` bruker:
+    selskapet må eie minst én tillatelse, og kilden må ikke
+    klassifisere det som en person. Det andre er ikke en formalitet:
+    et URL-rom er en liste over hvem som finnes, selv om hver side
+    skulle være tom. Se `personeier()` og regel 3.
+    """
+    from sources.eierskap import er_person
+
+    mine = [d for d in eierskap.values()
+            if (d.get("eier_orgnr") or "").strip() == orgnr]
+    return bool(mine) and not any(er_person(d.get("eier_type")) for d in mine)
+
+
+def _lokalitetens_selskap(mine_till: dict, overforinger: list[dict],
+                          eierskap: dict[str, dict[str, str]]) -> dict:
+    """Hvem som eier tillatelsene på lokaliteten nå, og siden når.
+
+    ## Hvorfor «selskapet» kan være flere, og hvorfor det sies
+
+    En lokalitet kan ha tillatelser fra ulike innehavere. Designet har
+    ett felt for «Selskap»; dataene har ett til flere. Feltet bærer
+    derfor ANTALLET når det er mer enn ett, og lenker til det som eier
+    flest — med de andre nevnt. Å vise bare det første ville vært et
+    valg tatt av dict-rekkefølgen.
+
+    ## «Siden» er den SENESTE overføringen til det selskapet
+
+    Og det er en journaldato, altså «senest da». Finnes ingen
+    overføring, er svaret tomt og ikke en gjetning — vi vet da at
+    selskapet eier tillatelsen, ikke når det begynte.
+    """
+    # PERSONFORMEN SPØRRES OM HER OGSÅ, og det er ikke dobbeltarbeid.
+    #
+    # `_eierrad()` gjør det for tabellraden. Denne funksjonen er en NY
+    # vei til det samme navnet — overskriftens «Innehaver»-felt, som kom
+    # 22.09.2026 — og en ny vei uten spørsmålet er en ny lekkasje.
+    #
+    # MÅLT: porten stoppet publiseringen på lokalitet 11593, der
+    # «PARTREDERIET BRØDRENE SIGLEN ANS» sto i overskriften mens
+    # tabellraden under sa «eieren er en personform». To steder som skal
+    # si det samme om hvem vi ikke navngir, er formen F6 og F7 hadde —
+    # og her er prisen et navngitt menneske på en offentlig side.
+    from sources.eierskap import er_person
+
+    per_eier: dict[str, int] = defaultdict(int)
+    navn_av: dict[str, str] = {}
+    person: set[str] = set()
+    for d in mine_till.values():
+        orgnr = (d.get("eier_orgnr") or "").strip()
+        if not orgnr:
+            continue
+        per_eier[orgnr] += 1
+        if er_person(d.get("eier_type")):
+            person.add(orgnr)
+        else:
+            navn_av[orgnr] = (d.get("eier_navn") or "").strip()
+    if not per_eier:
+        return {"navn": "", "orgnr": "", "url": "", "siden": "",
+                "antall": 0, "flere": 0, "personform": False}
+
+    orgnr = max(per_eier, key=lambda o: (per_eier[o], o))
+    if orgnr in person:
+        # NAVNET VISES IKKE, og raden forsvinner ikke. Samme tekst som
+        # tabellen under bruker, fra det samme ene stedet.
+        return {"navn": EIER_PERSONFORM, "orgnr": "", "url": "",
+                "siden": "", "antall": len(per_eier),
+                "flere": len(per_eier) - 1, "personform": True}
+
+    siden = max((o["dato"] for o in overforinger
+                 if (o.get("mottaker_orgnr") or "").strip() == orgnr), default="")
+    har_side = har_selskapsside(orgnr, eierskap)
+    return {
+        "navn": navn_av.get(orgnr, ""),
+        "orgnr": orgnr,
+        "url": f"/selskap/{orgnr}/" if har_side else "",
+        "siden": siden,
+        "antall": len(per_eier),
+        "flere": len(per_eier) - 1,
+        "personform": False,
+    }
+
+
+def _biolagstripe(serie: list[dict], alle_uker: list[str]) -> dict | None:
+    """Ukestripa: står det fisk på lokaliteten, uke for uke vi observerte.
+
+    ## Dette erstatter biomassegrafen, og det er et avvik med en grunn
+
+    Overleveringen tegner månedlige biomassesøyler på lokalitetssiden.
+    Fiskeridirektoratets biomassetall er per PRODUKSJONSOMRÅDE, ikke per
+    lokalitet — se docs/KILDE-BIOMASSE.md — og mengdetallene per
+    lokalitet ligger i biomassedatabasen etter
+    akvakulturdriftsforskriften § 44, som er børssensitiv og ikke
+    offentlig. Grafen kan derfor ikke tegnes, og den er flyttet dit
+    tallene faktisk finnes: områdesiden.
+
+    Det vi HAR per lokalitet er ja/nei. Stripa viser det, og bare for de
+    ukene vi faktisk har observert — to i dag. Et rutenett med 52 ruter
+    der to er fylt ville påstått at vi vet noe om de femti andre.
+
+    ## Hver rute bærer `siste_rapport`
+
+    Kilden sier uttrykkelig at `observed_at` er hentetidspunktet vårt og
+    at `siste_rapport` er måneden påstanden gjelder for. De kan ligge år
+    fra hverandre. En rute uten den datoen ville sagt «fisk i uke 37»,
+    og det er ikke det kilden påstår.
+    """
+    if not serie:
+        return None
+    ruter = []
+    for uke in serie:
+        har = (uke.get("har_fisk") or "").strip()
+        ruter.append({
+            "dato": uke["dato"],
+            "uke": visningsord.uke(uke["dato"]),
+            "har_fisk": har,
+            "ja": har.lower() in ("ja", "true"),
+            "arter": uke.get("arter_tilstede", ""),
+            "siste_rapport": uke.get("siste_rapport", ""),
+            "status": uke.get("lokalitet_status", ""),
+            "tittel": (f"{visningsord.uke(uke['dato'])}: "
+                       f"{'fisk til stede' if har.lower() in ('ja', 'true') else 'ingen fisk'}"
+                       + (f", siste månedsrapport {uke.get('siste_rapport', '')}"
+                          if uke.get("siste_rapport") else "")),
+        })
+    return {
+        "ruter": ruter,
+        "observerte_uker": len(ruter),
+        "alle_uker": len(alle_uker),
+        "med_fisk": sum(1 for r in ruter if r["ja"]),
+        "siste_rapport": ruter[-1]["siste_rapport"],
+        "arter": ruter[-1]["arter"],
     }
 
 
@@ -1827,7 +2272,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         }
         ovf = list(_overforinger().values())
         serie = _lusserie(loknr)
-        endringer, maaleserie_rader = _endringer(loknr, sorted(mine_till))
+        endringer, maaleserie_rader, sist_endret = _endringer(
+            loknr, sorted(mine_till))
         oppgitt = _liste(a.get("tillatelser"))
         uten_eier = _uten_eier(oppgitt, eierskap)
     else:
@@ -1837,7 +2283,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         ovf = [o for nr in mine_till
                for o in felles.overforinger_per_tillatelse.get(nr, ())]
         serie = felles.lusserier.get(loknr, [])
-        endringer, maaleserie_rader = _endringer_av_indeks(
+        endringer, maaleserie_rader, sist_endret = _endringer_av_indeks(
             loknr, sorted(mine_till), felles)
         oppgitt = _liste(a.get("tillatelser"))
         uten_eier = _uten_eier(oppgitt, eierskap)
@@ -1846,6 +2292,18 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         (o for o in ovf if o.get("tillatelse_nr") in mine_till),
         key=lambda o: (o.get("journal_dato", ""), o.get("tillatelse_nr", "")),
     )
+    overforingsrader = [
+        {
+            "dato": o.get("journal_dato", ""),
+            "tillatelse": o.get("tillatelse_nr", ""),
+            "mottaker_navn": o.get("mottaker_navn", ""),
+            "mottaker_orgnr": o.get("mottaker_orgnr", ""),
+            "rekkefolge": o.get("rekkefolge", ""),
+        }
+        for o in overforinger
+    ]
+    tillatelsesrader = _tillatelsesrader(mine_till, uten_eier)
+    dekning = felles.dekning_fra if felles else _dekning_fra()
 
     return {
         "loknr": loknr,
@@ -1876,28 +2334,29 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # menneske leser, og verdien oversatt. Feltnavnet MÅ bli med —
         # det er `data-felt`, altså markupkontrakten, og det er det
         # publiseringsvakten leser. Etiketten er bare for øyet.
-        "register": [(f, visningsord.felt(f), visningsord.verdi(f, v))
+        # FIRE LEDD per rad, ikke tre: kildens feltnavn (til
+        # `data-felt`), etiketten et menneske leser, verdien oversatt,
+        # og NÅR VI SIST SÅ FELTET ENDRE SEG.
+        #
+        # Den fjerde er `observed_at` fra changeloggen og ikke en dato
+        # registeret oppgir. Kolonnen heter derfor «Sist observert» og
+        # ikke «Sist endret» i malen — registeret sier ikke når det
+        # gjorde endringen, og en kolonne som påsto det ville vært
+        # nøyaktig den forvekslingen CLAUDE.md 1b handler om.
+        "register": [(f, visningsord.felt(f), visningsord.verdi(f, v),
+                      sist_endret.get((loknr, f), ""))
                      for f, v in sorted(a.items())],
         # KJENTE og UGJORTE REDE FOR i SAMME tabell, i nummerrekkefølge.
         # Regelen og målingen står i docs/REGEL-UENIGE-KILDER.md: en
         # lokalitet der vi ikke vet hvem som eier tillatelsene skal si
         # det, ikke vise en tom tabell.
-        "tillatelser": _tillatelsesrader(mine_till, uten_eier),
+        "tillatelser": tillatelsesrader,
         "tillatelser_oppgitt": len(oppgitt),
         "tillatelser_uten_eier": len(uten_eier),
         # Teksten sendes INN og står ikke i malen: to steder som skal si
         # det samme om hva vi ikke vet, er formen F6 og F7 hadde.
         "eier_ukjent": EIER_UKJENT,
-        "overforinger": [
-            {
-                "dato": o.get("journal_dato", ""),
-                "tillatelse": o.get("tillatelse_nr", ""),
-                "mottaker_navn": o.get("mottaker_navn", ""),
-                "mottaker_orgnr": o.get("mottaker_orgnr", ""),
-                "rekkefolge": o.get("rekkefolge", ""),
-            }
-            for o in overforinger
-        ],
+        "overforinger": overforingsrader,
         "lus": til_visning(list(reversed(serie[-LUSEUKER:]))),
         "lus_fra": serie[0]["dato"] if serie else "",
         "lus_til": serie[-1]["dato"] if serie else "",
@@ -1919,7 +2378,60 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "csv_filnavn": CSV_FILNAVN,
         "endringer": endringer,
         "maaleserie_rader": maaleserie_rader,
-        "dekning_fra": (felles.dekning_fra if felles else _dekning_fra()),
+        "dekning_fra": dekning,
+
+        # ---- overskriften ----
+        "status": visningsord.verdi("prodomraade_status",
+                                    a.get("prodomraade_status", "")),
+        "status_klasse": FARGE_KLASSE.get(
+            _fargekode((a.get("prodomraade_status") or "").strip().lower()), ""),
+        "arter": visningsord.verdi("arter", a.get("arter", "")),
+        "klareringstype": visningsord.verdi("klareringstype",
+                                            a.get("klareringstype", "")),
+        "vanntype": visningsord.verdi("vanntype", a.get("vanntype", "")),
+        "plassering": visningsord.verdi("plasseringstype",
+                                        a.get("plasseringstype", "")),
+        # KAPASITETEN ER REGISTERETS EGEN, ikke summen av tillatelsenes
+        # MTB. Overleveringen ber om det siste; avvik 3 i oppdraget
+        # setter det første. Grunnen er at de to er ULIKE STØRRELSER:
+        # lokalitetens klarerte kapasitet er et vedtak om hva stedet
+        # tåler, mens summen av tillatelser er hvor mye biomasse
+        # innehaverne til sammen har lov til å ha — og en tillatelse kan
+        # brukes på flere lokaliteter. En sum ville vært vårt regnestykke
+        # presentert som registerets tall.
+        "kapasitet": visningsord.maalt(a.get("kapasitet", ""),
+                                       a.get("kapasitet_enhet", "")),
+        "kapasitet_midlertidig": visningsord.maalt(
+            a.get("kapasitet_midlertidig", ""), a.get("kapasitet_enhet", "")),
+        "selskap": _lokalitetens_selskap(mine_till, overforingsrader, eierskap),
+
+        # ---- kartet ----
+        "posisjonskart": kart.posisjonskart(a.get("breddegrad"),
+                                            a.get("lengdegrad")),
+
+        # ---- de to historikkene ----
+        "observert": _observert_historikk(endringer, dekning, felles),
+        "oppgitt": _oppgitt_historikk(a, tillatelsesrader, overforingsrader),
+
+        # ---- fisk til stede ----
+        "biolag": _biolagstripe(
+            (felles.biomasselag.get(loknr, []) if felles
+             else _biomasselag()[0].get(loknr, [])),
+            (felles.biomasselag_uker if felles else _biomasselag()[1])),
+
+        # ---- siteringen ----
+        # URL-EN ER DEN FASTE ID-URL-EN, uten spørrestreng. Uka, datoen
+        # og sjekksummen står i TEKSTEN. En `?uke=`-parameter ville
+        # gjort identiteten til et argument på en side som ikke har noe
+        # som leser den — se 2026-09-16-url-struktur.md punkt 3, og
+        # avvik 5 i oppdraget.
+        "siter": {
+            "url": f"https://kystloggen.no/lokalitet/{loknr}/",
+            "uke": visningsord.uke(akva_dato),
+            "dato": visningsord.dato(akva_dato),
+            "aar": akva_dato[:4],
+            "sjekksum": (felles.sjekksum if felles else _sjekksum("akvakultur")),
+        },
     }
 
 
@@ -2188,6 +2700,11 @@ def _miljo() -> Environment:
     miljo.filters["ukespenn"] = visningsord.ukespenn
     miljo.filters["tidspunkt"] = visningsord.tidspunkt
     miljo.filters["tall"] = visningsord.tall
+    # `feltmerke` er en GLOBAL og ikke et filter: den tar to argumenter
+    # der rekkefølgen betyr noe, og `{{ "kommune"|feltmerke(r.kommune) }}`
+    # leser baklengs. Se `feltmerke()`.
+    miljo.globals["feltmerke"] = feltmerke
+    miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER
     return miljo
 
 
@@ -2258,6 +2775,7 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
                 "Lusetallene er hentet fra BarentsWatch og gjelder uka "
                 "de er datert til."),
             meny_aktiv="lokalitet",
+            main_klasse="fullbredde",
             feed=f"/lokalitet/{loknr}/feed.xml",
             feed_tittel=f"Kystloggen: endringer for lokalitet {loknr}"),
     )
@@ -2401,6 +2919,10 @@ IKONFILER = ("favicon.svg", "favicon-32.png", "apple-touch-icon.png")
 # Ligger i `bilde/` og ikke i rota, fordi rota er for filer som må
 # ligge der (`/stil.css`, fontene, faviconene, `robots.txt`). Se
 # `docs/design/HEROFOTO.md` for proveniens, lisens og sha256.
+# SKRIPTET. Én fil, lastet med `defer`, og den legger ikke til én
+# verdi på noen side — se `maler/kystloggen.js`.
+SKRIPTFILER = ("kystloggen.js",)
+
 BILDEMAPPE = "bilde"
 BILDEFILER = ("hero-800.jpg", "hero-1600.jpg", "hero-2400.jpg")
 
@@ -2443,6 +2965,14 @@ def skriv_ikoner(rot: Path) -> list[Path]:
     return _kopier_fra_maler(
         rot, IKONFILER,
         "base.html.j2 viser til fila i <head>.")
+
+
+def skriv_skript(rot: Path) -> list[Path]:
+    """Det ene skriptet til nettstedets rot."""
+    return _kopier_fra_maler(
+        rot, SKRIPTFILER,
+        "base.html.j2 viser til fila; uten den mister siden tre "
+        "forbedringer, men ingenting av innholdet.")
 
 
 def skriv_bilder(rot: Path) -> list[Path]:
@@ -3329,7 +3859,7 @@ def bygg_forside(felles: Felles) -> dict:
         "snapshots": len(akva_datoer),
         "forste_snapshot": akva_datoer[0] if akva_datoer else "",
         "siste_snapshot": akva_datoer[-1] if akva_datoer else "",
-        "sjekksum": _sjekksum("akvakultur"),
+        "sjekksum": felles.sjekksum,
 
         # ---- kysten ----
         "omraader": omraader,
@@ -3505,9 +4035,12 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             break
 
     reg = felles.enhet.get(orgnr) or {}
-    # Samme tre ledd som lokalitetssidens registertabell: kildens
-    # feltnavn til `data-felt`, etiketten til øyet, verdien oversatt.
-    register = [(f, visningsord.felt(f), visningsord.verdi(f, reg[f]))
+    # Samme FIRE ledd som lokalitetssidens registertabell: kildens
+    # feltnavn til `data-felt`, etiketten til øyet, verdien oversatt, og
+    # da vi sist SÅ feltet endre seg. To registertabeller som viste
+    # ulike kolonner ville vært to former for det samme.
+    register = [(f, visningsord.felt(f), visningsord.verdi(f, reg[f]),
+                 felles.sist_endret.get((orgnr, f), ""))
                 for f in SELSKAPSFELT if reg.get(f)]
 
     # Lokalitetene tillatelsene ligger på. En tillatelse kan ligge på
@@ -3845,6 +4378,7 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_fonter(rot),
                   lambda: skriv_ikoner(rot),
                   lambda: skriv_bilder(rot),
+                  lambda: skriv_skript(rot),
                   lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),
                   lambda: skriv_llms(rot, felles)):

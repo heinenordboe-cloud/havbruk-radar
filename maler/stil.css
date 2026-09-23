@@ -208,6 +208,12 @@
   --knapp-flate-pa: var(--hav7);
   --knapp-tekst:    var(--hav-tittel);
 
+  /* TEKST PÅ EN SØYLEFARGET FLATE. `--hav5` er en MØRK flate i lys
+     modus og en LYS flate i mørk (se mørkblokka), så en fast hvit
+     tekst der ville vært 1,5:1 i den ene av dem. Samme felle som
+     knappeteksten, og samme løsning: variabelen snur, flata gjør ikke. */
+  --soyle-tekst:    #ffffff;
+
   /* ---- trafikklyset: DATA, aldri pynt ---- */
   --lys-rod:   #841e19;   /* AVVIK 2 */
   --lys-gul:   #c8992f;
@@ -297,6 +303,8 @@
     --rust-moerk:     #f5ae7d;
     --rust-lys:       #f0955a;
     --besokt:         #c0a5db;
+
+    --soyle-tekst:    #10191c;
 
     --lys-rod:   #e06070;
     --lys-gul:   #ffdc3d;
@@ -1362,11 +1370,17 @@ a:hover {
 .kart-omraader a:hover .omraade { fill-opacity: 1; }
 .kart-omraader a:focus-visible .omraade { stroke: var(--rust-lys); stroke-width: 2; }
 
-.kart-kyst path {
-  fill: none;
+/* LANDFLATENE. Fyll OG kant fra den samme ringen: kystlinja er
+   flatens egen kant, og de kan derfor ikke bli uenige.
+
+   PÅ MØRK FLATE er landet mørkere enn havet rundt — omvendt av et
+   vanlig sjøkart, og det er med vilje: fargene på kartet er DATA
+   (trafikklyset), og landet skal trekke seg tilbake bak dem. */
+.kart-land path {
+  fill: rgba(231, 219, 208, 0.07);
   stroke: var(--hav-tegn);
-  stroke-width: 0.55;
-  stroke-opacity: 0.8;
+  stroke-width: 0.5;
+  stroke-opacity: 0.55;
 }
 
 .kart-gitter line {
@@ -1810,104 +1824,304 @@ td[data-felt="farge_mangler"]::before {
 }
 
 /* ---------------------------------------------------------------- *
- * 6. KARTET
+ * 6. LOKALITETSSIDEN
+ *
+ * 1 782 av 2 279 sider. Alt her er bygget for at den skal svare på
+ * «hva er dette stedet, hva har skjedd med det, og hvor sikkert er
+ * det» — i den rekkefølgen.
  * ---------------------------------------------------------------- */
 
-.kartramme {
-  /* Samme tastaturtilgang som en tabellramme, og av samme grunn: på
-     telefon er kartet bredere enn skjermen. */
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  margin-block-end: var(--rom-32);
+.sidehode--lokalitet { padding-block-end: var(--rom-seksjon-stor); }
+
+.sidehode-to {
+  display: grid;
+  gap: var(--rom-32) clamp(32px, 4vw, 64px);
+  align-items: start;
 }
 
-.kart {
+@media (min-width: 68.75rem) {
+  /* 1100px: fakta | kart. Overleveringens brytpunkt. */
+  .sidehode-to { grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr); }
+}
+
+.lok-tittel {
+  font-size: var(--fs-h1-lok);
+  line-height: 0.92;
+  font-weight: 300;
+  letter-spacing: var(--knip-3);
+  color: var(--hav-tittel);
+  margin: 0 0 var(--rom-14);
+  max-width: 16em;
+}
+
+.lok-undertittel {
+  margin: 0 0 var(--rom-28);
+  font-size: var(--fs-15);
+  color: var(--hav-sekundaer);
+  max-width: none;
+}
+
+/* FAKTALISTA. `dl` og ikke `table`: fire etikett/verdi-par er en
+   beskrivelsesliste, og en `<thead>` over dem ville vært semantikk vi
+   fant på for å ha noe å fylle ut. */
+.fakta {
+  display: grid;
+  /* 10,5rem og ikke 13: ved 13 fikk bare tre av fire par plass i
+     venstre spalte på 1440, og det fjerde falt ned på en linje for seg
+     med en tom halvside ved siden av. MÅLT i nettleser. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  gap: var(--rom-20) var(--rom-24);
+  margin: 0 0 var(--rom-28);
+}
+
+.fakta > div { min-inline-size: 0; }
+
+.fakta dt {
+  font-size: var(--fs-13);
+  color: var(--hav3);
+  margin-block-end: var(--rom-4);
+}
+
+.fakta dd {
+  margin: 0;
+  font-size: var(--fs-17);
+  line-height: var(--lh-tett);
+  color: var(--hav-tegn);
+}
+
+.fakta a { color: var(--hav-tittel); text-decoration-color: var(--rust-lys); }
+.fakta a:visited { color: var(--hav-tittel); }
+.fakta a:hover { color: var(--rust-lys); }
+
+.fakta-bi {
   display: block;
+  margin-block-start: var(--rom-4);
+  font-size: var(--fs-13);
+  color: var(--hav3);
+}
 
-  /* PÅ TELEFON SCROLLER KARTET, som en bred tabell gjør.
-     viewBox-en er 900 x 1027. Skaleres den ned til 328px (en 360px
-     skjerm minus margen), blir et punkt 1,5px i diameter — synlig på
-     en retinaskjerm, tynt på alt annet. 30rem er gulvet der et punkt
-     er 2,1px, og prisen er ~150px sidelengs scroll inne i ramma.
-     Dokumentet selv scroller ikke. */
-  min-width: 30rem;
-  max-width: 100%;
-  height: auto;
+/* FARGERUTA I FAKTALISTA. Samme form som i tabellene — en leser som har
+   lært at en fylt firkant betyr trafikklys, skal ikke måtte lære det på
+   nytt her. Ordet står ved siden av, som overalt. */
+.rute-foran::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.72em;
+  block-size: 0.72em;
+  margin-inline-end: 0.45em;
+  vertical-align: -0.02em;
+  box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.45);
+}
+
+.rute-foran.lys-rod::before   { background: var(--lys-rod); }
+.rute-foran.lys-gul::before   { background: var(--lys-gul); }
+.rute-foran.lys-gronn::before { background: var(--lys-gronn); }
+
+.knapperad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-10);
+  margin: 0;
+  max-width: none;
+}
+
+/* ---- posisjonskartet ---- */
+
+.posisjon { margin: 0; }
+
+.posisjonskart {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  /* Taket er der for at kartet ikke skal dra headeren dobbelt så høy
+     som fakta ved siden av. Kvadratisk viewBox, så bredden følger. */
+  max-block-size: 28rem;
   margin-inline: auto;
-
-  /* PAPIR OG IKKE ARK. Kartet er en FIGUR på arket, ikke en del av
-     teksten, og en figur trenger en egen grunn for å leses som en.
-     Papiret er den grunnen — samme flate som bunnen under arket, så
-     kartet ser ut som et utsnitt av bordet framfor et hull i sida. */
-  background: var(--farge-bunn);
-  border: 1px solid var(--farge-kant-svak);
+  background: var(--hav-dis);
+  box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.18);
 }
 
-/* GRADNETTET. Linjene skal kunne SES og ikke leses: de er en referanse
-   en leser slår opp i når hun lurer, ikke noe blikket skal feste seg
-   ved. `--farge-kant` er 3:1 mot flata (WCAG 1.4.11 for grafikk), og
-   det er gulvet — ikke et mål. */
-.kart .gitter line {
-  stroke: var(--kart-gitter);
-  stroke-width: 0.5;
+/* PÅ POSISJONSKARTET er landet det man ser etter, og havet er
+   bakgrunnen. Kontrasten snus derfor her: fyllet er tydeligere enn på
+   oversiktskartet, der trafikklysfargene skal ha forrangen. */
+.posisjonskart .kart-land path {
+  fill: rgba(231, 219, 208, 0.13);
+  stroke-opacity: 0.8;
 }
 
-.kart .gitter text {
-  /* Sans og ikke serif: dette er en måleskala, og tallene skal ha
-     samme sifferbredde som resten av nettstedet. */
-  font-family: inherit;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  fill: var(--farge-tekst-svak);
+.posisjon figcaption {
+  margin-block-start: var(--rom-10);
+  font-size: var(--fs-13);
+  color: var(--hav3);
+  max-width: none;
 }
 
-.kart circle {
-  fill: var(--farge-kart-punkt);
+.posisjon-mangler { align-self: center; }
 
-  /* OVERLAPPET ER INFORMASJON, og det er ikke lite: MÅLT 20.09.2026
-     har 1 501 av 1 782 punkter (84,2 %) et naboepunkt nærmere enn to
-     radier, og den tetteste 8x8-ruta i viewBox-en rommer 25 punkter.
-     Med heldekkende fyll er Trøndelag og Nordland én flekk, og kartet
-     sier bare «her er det anlegg».
-
-     Halvgjennomsiktig fyll gjør tettheten lesbar i stedet. Ett punkt
-     legger 0,6 på, to gir 0,84, tre gir 0,94 — rampen bærer 1-3 og
-     metter etter det. Det er den eneste informasjonen et kart uten
-     navn og tall kan bære utover plassering, og prisen er at et
-     enslig punkt i Finnmark er grått og ikke svart. */
-  fill-opacity: 0.6;
+/* MARKØREN er en ring OG en prikk. Ringen alene er en sirkel på et
+   kart; prikken alene forsvinner i en fjordarm. Sammen leses de som
+   «her, nøyaktig». */
+.kart-markor .markor-ring {
+  fill: none;
+  stroke: var(--rust-lys);
+  stroke-width: 1.5;
 }
 
-/* ---------------------------------------------------------------- *
- * 6b. LUSEGRAFEN
+.kart-markor .markor-prikk { fill: var(--rust-lys); }
+
+/* ---- de to spaltene ---- */
+
+.to-spalter {
+  display: grid;
+  gap: var(--rom-seksjon) clamp(32px, 4vw, 64px);
+  align-items: start;
+}
+
+@media (min-width: 68.75rem) {
+  .to-spalter { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+/* EN BLOKK SOM ER MYE BREDERE ENN NABOEN skal få være det. Lusegrafen
+   trenger plass; ukestripa gjør ikke. */
+.to-spalter > .blokk:first-child:last-child { grid-column: 1 / -1; }
+
+.blokk { min-inline-size: 0; }
+
+.blokk-ingress {
+  margin: calc(var(--rom-12) * -1) 0 var(--rom-20);
+  font-size: var(--fs-14);
+  color: var(--ink-dempet);
+}
+
+/* ---- de to tidsaksene ----
  *
- * Én serie, 764 uker, ingen interaksjon. Reglene som gjelder er de
- * samme som for kartet, og den viktigste er den samme som i tabellen:
- * et hull er ikke null.
+ * OBSERVERT og OPPGITT har ULIK VISUELL FORM med vilje. Den første er
+ * en loddrett akse med punkter — den leses nedover som en logg, og
+ * nyeste post er i rust. Den andre er en TABELL, fordi kildens egne
+ * datoer har en presisjonskolonne som må stå ved siden av hver rad.
  *
- * ## Lagdelingen er rekkefølgen i markupen
- *
- * Bånd, så akser, så serien. SVG har ingen z-indeks, og en linje som
- * ble tegnet før gradnettet ville ligget under det.
- * ---------------------------------------------------------------- */
+ * Forskjellen er ikke pynt. En flettet liste ville latt «17. juni 2024:
+ * overført til X» (kildens påstand om noe som skjedde) stå ved siden av
+ * «14. september 2026: eier_navn endret» (vår påstand om når vi så
+ * det), og en leser ville lest begge som hendelser med dato.
+ */
 
-.graf {
-  margin: 0 0 var(--rom-32);
+.historikk-forklaring {
+  max-width: 62ch;
+  font-size: var(--fs-14);
+  color: var(--ink-dempet);
+  margin-block-end: var(--rom-28);
 }
+
+.tidsakse {
+  list-style: none;
+  margin: 0 0 var(--rom-24);
+  padding: 0 0 0 var(--rom-24);
+  max-width: 62ch;
+  position: relative;
+}
+
+/* Selve aksen: én strek gjennom hele lista. */
+.tidsakse::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.55em 0.55em;
+  inset-inline-start: 3px;
+  inline-size: 1px;
+  background: var(--papir3);
+}
+
+.tidsakse li {
+  position: relative;
+  margin: 0 0 var(--rom-18);
+  padding-block-end: var(--rom-18);
+  border-block-end: 1px solid rgba(11, 36, 48, 0.1);
+}
+
+.tidsakse li:last-child { border-block-end: 0; padding-block-end: 0; }
+
+.tidsakse-punkt {
+  position: absolute;
+  inset-inline-start: calc(var(--rom-24) * -1);
+  inset-block-start: 0.45em;
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: var(--ink-dempet);
+}
+
+/* NYESTE POST I RUST. Overleveringens krav, og det er ikke bare
+   markering: en logg leses nedover, og øyet skal vite hvor toppen er. */
+.tidsakse li:first-child .tidsakse-punkt { background: var(--rust); }
+
+/* FØRSTE ØYEBLIKKSBILDE er en annen slags post: den sier hvor loggen
+   BEGYNNER, ikke at noe skjedde. Åpen ring framfor fylt prikk. */
+.tidsakse-forste .tidsakse-punkt {
+  background: var(--papir);
+  box-shadow: inset 0 0 0 1.5px var(--ink-dempet);
+}
+
+.tidsakse-topp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.6em;
+  margin: 0 0 var(--rom-4);
+  max-width: none;
+  font-size: var(--fs-13);
+  color: var(--ink-dempet);
+}
+
+.tidsakse-topp time { color: var(--ink); font-weight: 500; }
+.tidsakse-felt { color: var(--rust); }
+.tidsakse-bi { font-style: italic; }
+
+.tidsakse-verdi {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5em;
+  margin: 0;
+  max-width: none;
+  font-size: var(--fs-15);
+}
+
+.verdi-fra { color: var(--ink-dempet); }
+.verdi-til { font-weight: 500; }
+.pil { color: var(--ink-dempet); }
+
+.tidsakse-forste .tidsakse-verdi {
+  font-size: var(--fs-14);
+  color: var(--ink-dempet);
+}
+
+.tomt {
+  max-width: 62ch;
+  padding: var(--rom-18) var(--rom-20);
+  background: var(--papir2);
+  color: var(--ink-dempet);
+  font-size: var(--fs-14);
+}
+
+/* ---- lusegrafen ---- */
+
+.graf { margin: 0 0 var(--rom-24); }
 
 .lusegraf {
   display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
+  inline-size: 100%;
+  block-size: auto;
 
-  /* Samme grunn som kartet: en figur på arket trenger en egen grunn
-     for å leses som en figur. */
-  background: var(--farge-bunn);
-  border: 1px solid var(--farge-kant-svak);
+  /* En figur på papiret trenger en egen grunn for å leses som en
+     figur. Innfelt flate, ikke hvit: nettstedet har ingen hvit flate. */
+  background: var(--papir2);
 }
 
-.lusegraf .brakk rect { fill: var(--graf-brakk); }
+/* SØYLENE ER ÉN FARGE. Ingen tiltaksgrense, ingen rust over en strek —
+   grensa er ikke samlet inn, og en søyle farget etter en strek vi fant
+   på ville vært en vurdering forkledd som data. Se `lusegraf()`. */
+.lusegraf .soyler rect { fill: var(--hav5); }
+.lusegraf .brakk rect { fill: var(--ink-dempet); opacity: 0.45; }
 
 .lusegraf .akse line {
   stroke: var(--kart-gitter);
@@ -1915,34 +2129,147 @@ td[data-felt="farge_mangler"]::before {
 }
 
 .lusegraf .akse text {
-  font-family: inherit;
+  font-family: var(--skrift-tekst);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  fill: var(--farge-tekst-svak);
+  fill: var(--ink-dempet);
 }
-
-.lusegraf .serie polyline {
-  fill: none;
-  stroke: var(--graf-linje);
-
-  /* 1,4 og ikke 2: 764 uker på 840px er 1,1px per uke, og en strek på
-     2px ville gjort hver enkelt ukes utslag bredere enn uka selv.
-     Runde hjørner, fordi en tagget kurve med spisse ledd leses som
-     støy i seg selv. */
-  stroke-width: 1.4;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.lusegraf .serie circle { fill: var(--graf-linje); }
 
 figcaption {
-  margin-block-start: var(--rom-8);
+  margin-block-start: var(--rom-10);
   max-width: var(--maal-tekst);
   font-size: var(--fs-13);
   line-height: var(--lh-normal);
-  color: var(--farge-tekst-svak);
+  color: var(--ink-dempet);
 }
+
+/* TEGNFORKLARINGEN under grafen. Ordet står ved hver form. */
+.graf figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-6) var(--rom-18);
+  max-width: none;
+}
+
+.tegn { display: flex; align-items: center; gap: 0.45em; }
+
+.tegn-rute { inline-size: 12px; block-size: 12px; flex: none; }
+.tegn-soyle { background: var(--hav5); }
+.tegn-brakk { background: var(--ink-dempet); opacity: 0.45; block-size: 4px; }
+
+/* ---- fisk til stede: ukestripa ---- */
+
+.ukestripe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-6);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+/* EN RUTE PER OBSERVERT UKE, og ingen for uker vi ikke spurte i. En tom
+   rute ville sett ut som «ingen fisk», og det er noe annet enn «vi vet
+   ikke». Med to observerte uker er stripa to ruter, og det skal den
+   være — se avvik 9 i oppdraget: at tallet er lite, skjules ikke. */
+.ukerute {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: var(--rom-8) var(--rom-12);
+  min-inline-size: 8rem;
+  background: var(--papir2);
+  box-shadow: inset 0 0 0 1px var(--papir3);
+}
+
+.ukerute--fisk {
+  background: var(--hav5);
+  box-shadow: none;
+}
+
+.ukerute-uke { font-size: var(--fs-12); color: var(--ink-dempet); }
+
+.ukerute-svar {
+  font-size: var(--fs-17);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.ukerute--fisk .ukerute-uke,
+.ukerute--fisk .ukerute-svar { color: var(--soyle-tekst); }
+
+/* ---- tallene i tabell ---- */
+
+.tallboks {
+  margin-block-start: var(--rom-20);
+  border-block-start: 1px solid var(--papir3);
+  padding-block-start: var(--rom-12);
+}
+
+.tallboks summary {
+  cursor: pointer;
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--rust);
+  padding-block: var(--rom-4);
+}
+
+.tallboks summary:hover { color: var(--rust-moerk); }
+.tallboks[open] summary { margin-block-end: var(--rom-16); }
+
+.tall-mono {
+  font-family: var(--skrift-tall);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- siteringsboksen ---- */
+
+.siterboks {
+  background: var(--papir2);
+  padding: var(--rom-24) var(--rom-28) var(--rom-28);
+  margin-block-end: var(--rom-seksjon);
+  box-shadow: inset 3px 0 0 0 var(--rust);
+}
+
+.siterboks-hode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rom-12);
+  margin-block-end: var(--rom-16);
+}
+
+.siterboks h2 {
+  margin: 0;
+  font-size: var(--fs-26);
+  font-weight: 400;
+  max-width: none;
+}
+
+/* SITERINGSTEKSTEN. Markerbar, og den ER teksten — knappen kopierer
+   den, den lager den ikke. Uten JavaScript er knappen skjult og
+   teksten kan merkes med musa eller tastaturet. */
+.siterbar {
+  margin: 0 0 var(--rom-12);
+  max-width: 78ch;
+  font-size: var(--fs-15);
+  line-height: var(--lh-luft);
+  overflow-wrap: break-word;
+}
+
+.siterbar i { font-family: var(--skrift-tittel); font-size: 1.05em; }
+
+.siterboks-note {
+  margin: 0;
+  max-width: 68ch;
+  font-size: var(--fs-13);
+  color: var(--ink-dempet);
+}
+
+.kopierknapp { font-size: var(--fs-13); padding: var(--rom-8) var(--rom-16); }
 
 /* ---------------------------------------------------------------- *
  * 7. BUNNTEKSTEN

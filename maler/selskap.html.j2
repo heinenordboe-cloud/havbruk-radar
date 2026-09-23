@@ -51,13 +51,21 @@
     <tr>
       <th scope="col">Felt</th>
       <th scope="col">Verdi</th>
+      {# «Sist observert», ikke «Sist endret»: verdien er `observed_at`
+         fra changeloggen, altså da VI så feltet endre seg. Registeret
+         oppgir ikke når det gjorde det. #}
+      <th scope="col">Sist observert</th>
     </tr>
   </thead>
   <tbody>
-    {% for felt, etikett, vist in sel.register %}
+    {% for felt, etikett, vist, endret in sel.register %}
     <tr>
       <th scope="row">{{ etikett }}</th>
       <td data-felt="{{ felt }}">{{ vist }}</td>
+      <td data-felt="observed_at">
+        {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
+        {%- else %}—{% endif %}
+      </td>
     </tr>
     {% endfor %}
     {% if not sel.har_registerdata %}

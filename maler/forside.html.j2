@@ -175,14 +175,14 @@
       {% for r in f.rader %}
       <tr>
         <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
-        <td class="gjelder" data-felt="entity_name">
+        <td class="gjelder" data-felt="{{ feltmerke(r.gjelder, 'entity_name') }}">
           {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="entity_name">{{ r.gjelder }}</a>
-          {%- else %}{{ r.gjelder }}{% endif %}
+          {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
         </td>
-        <td data-felt="kommune">{{ r.kommune or "—" }}</td>
-        <td data-felt="prodomraade_kode">
+        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(r.po, 'prodomraade_kode') }}">
           {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
-          {%- else %}—{% endif %}
+          {%- else %}{{ VERDI_MANGLER }}{% endif %}
         </td>
         {# ORDET ER BÆREREN. Firkanten foran en trafikklysverdi er en
            `::before` som bare finnes i CSS-en; slås stilarket av, står
@@ -277,7 +277,7 @@
           {{ f.produksjonsomraader }} produksjonsområdene</title>
         <desc id="kystbeskrivelse">Fiskeridirektoratets offisielle
           polygoner, fylt med trafikklysfargen Akvakulturregisteret
-          oppgir nå. Kystlinja er Natural Earth 1:10 millioner.
+          oppgir nå. Landflatene er Natural Earth 1:10 millioner.
           Ekvirektangulær projeksjon med breddekorreksjon, gradnett hver
           femte grad. Alle navn, farger og tall står i tabellen ved
           siden av.</desc>
@@ -301,8 +301,8 @@
           </a>
           {% endfor %}
         </g>
-        <g class="kart-kyst" aria-hidden="true">
-          {% for d in f.kart.kyst %}
+        <g class="kart-land" aria-hidden="true">
+          {% for d in f.kart.land %}
           <path d="{{ d }}"/>
           {% endfor %}
         </g>

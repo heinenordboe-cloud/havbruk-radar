@@ -43,12 +43,23 @@ To filer i `maler/geo/`, begge med proveniens og sha256 i
 
     produksjonsomrader.geojson   Fiskeridirektoratets OFFISIELLE
                                  polygoner, NLOD
-    kystlinje-norge.geojson      Natural Earth 1:10 m, public domain,
-                                 klippet til ruta 3–33 °Ø, 57–72 °N
+    land-norge.geojson           Natural Earth 1:10 m landflater, public
+                                 domain, klippet til ruta 3–33 °Ø,
+                                 57–72 °N
 
 Overleveringen ba uttrykkelig om de offisielle polygonene framfor de
 forenklede båndene som var tegnet etter breddegrad, og om en kystlinje
 finere enn 1:110 m. Begge deler er innfridd.
+
+## LANDFLATER OG IKKE BARE EN KYSTLINJE
+
+Første utkast brukte Natural Earths `ne_10m_coastline`, som er LINJER.
+Det ga et posisjonskart der kysten var noen streker uten innside: en
+leser kunne ikke se hvilken side som var land. Fila er byttet til
+`ne_10m_land`, som er FLATER, og de er klippet mot ruta med
+Sutherland-Hodgman (se `_klipp_ring`). Kystlinja er da flatens egen
+kant, tegnet som strek oppå fyllet — én kilde, to roller, og de kan
+ikke bli uenige.
 
 ## FARGEN PÅ ET OMRÅDE KOMMER IKKE FRA KARTFILA
 
@@ -77,7 +88,7 @@ GEO = ROT / "maler" / "geo"
 # Filene, ett sted. Står også i `nettsted.GEOFILER`, som kopierer
 # lisensene ut — men ikke selve geometrien: den er tegnet INN i SVG-en
 # og trenger ikke å ligge på nettstedet som en fil til.
-KYSTLINJE = "kystlinje-norge.geojson"
+LAND = "land-norge.geojson"
 OMRAADER = "produksjonsomrader.geojson"
 
 
@@ -214,47 +225,75 @@ def _linjer(geometri: dict) -> list[list[tuple[float, float]]]:
     raise ValueError(f"ukjent geometritype: {t}")
 
 
-def _klipp(linje, proj: Projeksjon, monn: float):
-    """Linja delt i bitene som er synlige i utsnittet.
+def _flatekant(ring, proj: Projeksjon, monn: float):
+    """Ringen klippet mot utsnittet med Sutherland-Hodgman.
 
-    ## Hvorfor dette trengs, MÅLT
+    ## Hvorfor en polygon ikke kan klippes som en linje
 
-    Kystlinja er hele Norge. På forsidens kart er alt synlig, og
-    klippingen gjør ingenting. På et posisjonskart som dekker 36 km er
-    den 303 kB `d`-data der 2 kB er innenfor rammen — resten er
-    koordinater i titusener som nettleseren tegner utenfor `viewBox`-en
-    og ingen ser. Over 1 782 lokalitetssider er det 540 MB.
+    En LINJE kan deles i biter: det som er utenfor kastes, og hver bit
+    tegnes for seg. En RING kan ikke. Kastes en bit av den, er den ikke
+    en ring lenger, og `Z` lukker den da mot et vilkårlig punkt — et
+    trekantet «land» tvers over fjorden.
 
-    Ett punkt utenfor beholdes i hver ende av en synlig bit, slik at
-    streken går UT AV kanten framfor å stoppe like innenfor. `monn` er
-    slingringsmonnet i grader; uten det ville en linje som krysser
-    hjørnet blitt delt i to der den skulle vært hel.
+    Sutherland-Hodgman klipper ringen mot én akseparallell kant om
+    gangen og SETTER INN skjæringspunktene, så resultatet er en ny,
+    lukket ring som følger rammen der landet går ut av bildet. Fire
+    kanter, i rekkefølge.
+
+    ## Hvorfor det trengs, MÅLT
+
+    Landflatene er hele Norge og naboene: 27 819 punkter. På et
+    posisjonskart som dekker 36 km er nesten alle utenfor rammen, og
+    uten klippingen skriver hver av de 1 782 lokalitetssidene dem alle
+    ut. Med klippingen er snittet noen hundre byte.
     """
-    biter, naa = [], []
-    n = len(linje)
-    for i, punkt in enumerate(linje):
-        x, y = punkt[0], punkt[1]
-        inne = (proj.lon_min - monn <= x <= proj.lon_maks + monn
-                and proj.lat_min - monn <= y <= proj.lat_maks + monn)
-        nabo = False
-        if not inne:
-            for j in (i - 1, i + 1):
-                if 0 <= j < n:
-                    nx, ny_ = linje[j][0], linje[j][1]
-                    if (proj.lon_min - monn <= nx <= proj.lon_maks + monn
-                            and proj.lat_min - monn <= ny_
-                            <= proj.lat_maks + monn):
-                        nabo = True
-                        break
-        if inne or nabo:
-            naa.append(punkt)
-        else:
-            if len(naa) > 1:
-                biter.append(naa)
-            naa = []
-    if len(naa) > 1:
-        biter.append(naa)
-    return biter
+    kanter = (("v", proj.lon_min - monn), ("h", proj.lon_maks + monn),
+              ("n", proj.lat_min - monn), ("o", proj.lat_maks + monn))
+    for kant, grense in kanter:
+        if len(ring) < 3:
+            return []
+        ring = _klipp_kant(ring, kant, grense)
+    return ring
+
+
+def _innenfor(punkt, kant: str, grense: float) -> bool:
+    x, y = punkt[0], punkt[1]
+    if kant == "v":
+        return x >= grense
+    if kant == "h":
+        return x <= grense
+    if kant == "n":
+        return y >= grense
+    return y <= grense
+
+
+def _skjaering(a, b, kant: str, grense: float):
+    ax, ay, bx, by = a[0], a[1], b[0], b[1]
+    if kant in ("v", "h"):
+        if bx == ax:
+            return [grense, ay]
+        t = (grense - ax) / (bx - ax)
+        return [grense, ay + t * (by - ay)]
+    if by == ay:
+        return [ax, grense]
+    t = (grense - ay) / (by - ay)
+    return [ax + t * (bx - ax), grense]
+
+
+def _klipp_kant(ring, kant: str, grense: float):
+    ut = []
+    n = len(ring)
+    for i in range(n):
+        a, b = ring[i], ring[(i + 1) % n]
+        a_inne, b_inne = (_innenfor(a, kant, grense),
+                          _innenfor(b, kant, grense))
+        if a_inne:
+            ut.append(a)
+            if not b_inne:
+                ut.append(_skjaering(a, b, kant, grense))
+        elif b_inne:
+            ut.append(_skjaering(a, b, kant, grense))
+    return ut
 
 
 def _tegn(linjer, proj: Projeksjon, toleranse: float,
@@ -265,17 +304,24 @@ def _tegn(linjer, proj: Projeksjon, toleranse: float,
     grader forenkler Finnmark hardere enn Rogaland, mens en toleranse i
     piksler forenkler like mye overalt på det ferdige bildet.
 
-    `klipp=False` for polygoner: en ring som klippes slutter å være en
-    ring, og `Z` ville da lukket den mot et vilkårlig punkt.
+    ALT SOM TEGNES HER ER RINGER — landflater og produksjonsområder —
+    og de klippes med Sutherland-Hodgman, ikke med en linjedeler. Se
+    `_flatekant()`.
+
+    `klipp=False` når utsnittet uansett dekker hele geometrien: på
+    oversiktskartet er rammen områdenes egen utstrekning, og en
+    klipping der er arbeid uten virkning.
     """
     monn = (proj.lon_maks - proj.lon_min) * 0.05
     ut = []
-    for linje in linjer:
-        for bit in (_klipp(linje, proj, monn) if klipp else [linje]):
-            px = [(proj.x(p[0]), proj.y(p[1])) for p in bit]
-            d = _bane(forenkle(px, toleranse), lukket)
-            if d:
-                ut.append(d)
+    for ring in linjer:
+        bit = ring if not klipp else _flatekant(ring, proj, monn)
+        if len(bit) < 3:
+            continue
+        px = [(proj.x(p[0]), proj.y(p[1])) for p in bit]
+        d = _bane(forenkle(px, toleranse), lukket)
+        if d:
+            ut.append(d)
     return ut
 
 
@@ -367,8 +413,10 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
                            klipp=False),
         })
 
-    kyst = _tegn(_linjer(_les(KYSTLINJE)["features"][0]["geometry"]),
-                 proj, KYSTKART_TOLERANSE)
+    # Landflatene dekker hele rammen her — rammen ER områdenes
+    # utstrekning — så klippingen er arbeid uten virkning.
+    land = _tegn(_linjer(_les(LAND)["features"][0]["geometry"]),
+                 proj, KYSTKART_TOLERANSE, lukket=True, klipp=False)
 
     return {
         "bredde": proj.bredde,
@@ -376,7 +424,7 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
         "omraader": flater,
         "mangler_geometri": [r["nr"] for r in omraader
                              if str(r["nr"]) not in per_nr],
-        "kyst": kyst,
+        "land": land,
         "gitter": gradnett(proj),
     }
 
@@ -425,13 +473,13 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
                       lon + halv_lon, lat + halv_lat,
                       bredde=bredde, marg=0)
 
-    kyst = _tegn(_linjer(_les(KYSTLINJE)["features"][0]["geometry"]),
-                 proj, POSISJON_TOLERANSE)
+    land = _tegn(_linjer(_les(LAND)["features"][0]["geometry"]),
+                 proj, POSISJON_TOLERANSE, lukket=True)
 
     return {
         "bredde": proj.bredde,
         "hoyde": proj.hoyde,
-        "kyst": kyst,
+        "land": land,
         # Gradnettet er FINERE her, og etikettene er av: et utsnitt på
         # 36 km rommer en tredjedels breddegrad, og «69°N» tvers over
         # bildet ville vært den eneste linja og dessuten i veien.
