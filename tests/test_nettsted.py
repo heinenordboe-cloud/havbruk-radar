@@ -1362,12 +1362,32 @@ def _selskap(**overstyr) -> str:
                           "tildelt_tid": "2004-09-29T00:00:00Z",
                           "tildelt_navn": "TESTLAKS AS"}}, []),
         "tillatelser_antall": 1,
-        "lokaliteter": [{"loknr": "10001", "navn": "TESTHOLMEN",
+        "lokaliteter": [{"loknr": "10001", "navn": "Testholmen",
+                         "original": "TESTHOLMEN",
                          "kommune": "BODØ", "po_kode": "8",
-                         "po_navn": "Helgeland til Bodø"}],
+                         "po_navn": "Helgeland til Bodø",
+                         "status": "gul",
+                         "status_klasse": nettsted.FARGE_KLASSE["gul"],
+                         "kapasitet": "780 tonn", "siden": "2018-03-13",
+                         "tillatelser": ["N-T-0001"]}],
         "lokaliteter_antall": 1,
         "overforinger": [{"dato": "2018-03-13", "tillatelse": "N-T-0001",
                           "rekkefolge": "1"}],
+        "enhetsregisteret_url":
+            "https://virksomhet.brreg.no/nb/oppslag/enheter/912345678",
+        "samlet_kapasitet": "780 tonn", "kapasitetsenheter": 1,
+        "i_arkivet_siden": "2018-03-13",
+        # «Gikk ut» er UTLEDET — registeret journalfører bare ankomster.
+        # Se `bygg_selskap()`.
+        "eierskapslinje": [
+            {"dato": "2018-03-13", "tillatelse": "N-T-0001", "navn": "",
+             "navn_felt": "", "retning": "inn", "slag": "Kom til",
+             "hva": "N-T-0001 overført hit",
+             "presisjon": "journalført senest denne datoen"}],
+        "kom_til": 1, "gikk_ut": 0,
+        "siter": {"url": "https://kystloggen.no/selskap/912345678/",
+                  "uke": "uke 38, 2026", "dato": "14. september 2026",
+                  "aar": "2026", "sjekksum": "efe1c0884c4e39d20b7d775a363d"},
     }
     sel.update(overstyr)
     jsonld_raa = dict(sel)          # JSON-LD leser KILDENS verdier
@@ -1376,21 +1396,23 @@ def _selskap(**overstyr) -> str:
         if "kapasitet_enhet" in t_:
             t_["kapasitet"] = visningsord.maalt(t_.pop("kapasitet"),
                                                 t_.pop("kapasitet_enhet"))
+        t_.setdefault("siden", "2018-03-13")
     return nettsted._miljo().get_template("selskap.html.j2").render(
         sel=sel,
-        **_grunn("selskap/928957489",
+        **_grunn("selskap/928957489", main_klasse="fullbredde",
                  jsonld=nettsted.jsonld_selskap(jsonld_raa,
                                                 nettsted.kildevilkaar()),
                  attribusjon=nettsted.attribusjon(nettsted.SELSKAPSKILDER)))
 
 
 def test_selskap_uten_registerdata_SIER_det():
-    """122 av 482. En tom registertabell ville latt leseren tro at
-    selskapet ikke finnes, når det er UTVALGET vårt som ikke når det."""
+    """121 av 481 (målt 22.09.2026). En tom registertabell ville latt
+    leseren tro at selskapet ikke finnes, når det er UTVALGET vårt som
+    ikke når det."""
     html = " ".join(_selskap(har_registerdata=False, register=[]).split())
     assert "Vi har ingen registerdata for dette selskapet" in html
     assert nettsted.UTEN_REGISTERDATA in html
-    assert "122 av 482" in html
+    assert "121 av 481" in html
 
 
 def test_manglende_registerdata_merkes_som_eget_felt():

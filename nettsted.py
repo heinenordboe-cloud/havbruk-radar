@@ -4332,19 +4332,47 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
     # Lokalitetene tillatelsene ligger på. En tillatelse kan ligge på
     # flere, og flere tillatelser kan ligge på samme — derfor et sett,
     # sortert som tall.
+    # INNEHAVER SIDEN, per tillatelse: den SENESTE journalførte
+    # overføringen til dette organisasjonsnummeret. Ikke den første —
+    # en tillatelse kan ha vært innom og tilbake, og det er den siste
+    # ankomsten som gjelder nå.
+    siden_per_till: dict[str, str] = {}
+    for nr in tillatelser:
+        datoer = [o.get("journal_dato", "")
+                  for o in felles.overforinger_per_tillatelse.get(nr, ())
+                  if (o.get("mottaker_orgnr") or "").strip() == orgnr]
+        if datoer:
+            siden_per_till[nr] = max(datoer)
+
     lokaliteter: dict[str, dict] = {}
     for nr in tillatelser:
         for loknr in _liste(mine[nr].get("lokaliteter")):
             a = felles.akva.get(loknr)
             if a is None:
                 continue
-            lokaliteter.setdefault(loknr, {
+            post = lokaliteter.setdefault(loknr, {
                 "loknr": loknr,
-                "navn": a.get("navn", ""),
+                "navn": visningsord.tittelform(a.get("navn", "")),
+                "original": a.get("navn", ""),
                 "kommune": a.get("kommune", ""),
                 "po_kode": a.get("prodomraade_kode", ""),
                 "po_navn": a.get("prodomraade_navn", ""),
+                "status": visningsord.verdi("prodomraade_status",
+                                            a.get("prodomraade_status", "")),
+                "status_klasse": FARGE_KLASSE.get(_fargekode(
+                    (a.get("prodomraade_status") or "").strip().lower()), ""),
+                "kapasitet": visningsord.maalt(a.get("kapasitet", ""),
+                                               a.get("kapasitet_enhet", "")),
+                "siden": "",
+                "tillatelser": [],
             })
+            post["tillatelser"].append(nr)
+            # ELDSTE ankomst blant tillatelsene på lokaliteten: det er
+            # da selskapet FIKK fotfeste der. Den seneste ville sagt når
+            # den nyeste tillatelsen kom, som er noe annet.
+            d = siden_per_till.get(nr, "")
+            if d and (not post["siden"] or d < post["siden"]):
+                post["siden"] = d
 
     # SIDEN NÅR: overføringene TIL dette selskapet, eldst først.
     # `journal_dato` er «senest da» og ikke «akkurat da» — forbeholdet
@@ -4358,22 +4386,117 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
          if (o.get("mottaker_orgnr") or "").strip() == orgnr),
         key=lambda o: (o["dato"], o["tillatelse"]))
 
+    # ---- EIERSKAP OVER TID ----
+    #
+    # «Kom til» og «Gikk ut», slik overleveringen ber om. Vi har det
+    # FØRSTE av de to og ikke det andre, og forskjellen er verdt å si:
+    #
+    #   KOM TIL    `eierskap_historikk` journalfører hver overføring TIL
+    #              et organisasjonsnummer. Den datoen er kildens.
+    #   GIKK UT    finnes ikke som en hendelse. En tillatelse som er
+    #              overført VEKK er bare ikke lenger i selskapets
+    #              portefølje, og journalraden står på MOTTAKEREN.
+    #
+    # Vi kan utlede den: en tillatelse selskapet har mottatt, som nå
+    # eies av noen andre, er gått ut — og datoen er neste overføring i
+    # rekka. Det er en SLUTNING, og den merkes som det.
+    ut_av: list[dict] = []
+    for nr, overf in felles.overforinger_per_tillatelse.items():
+        rekka = sorted(overf, key=lambda o: (o.get("journal_dato", ""),
+                                             o.get("rekkefolge", "")))
+        for i, o in enumerate(rekka[:-1]):
+            if (o.get("mottaker_orgnr") or "").strip() != orgnr:
+                continue
+            neste = rekka[i + 1]
+            ut_av.append({
+                "dato": neste.get("journal_dato", ""),
+                "tillatelse": nr,
+                "navn": neste.get("mottaker_navn", ""),
+                "navn_felt": "mottaker_navn",
+                "retning": "ut",
+                "slag": "Gikk ut",
+                "hva": f"{nr} overført videre",
+                "presisjon": "utledet: neste journalførte overføring",
+            })
+
+    eierskapslinje = sorted(
+        [{"dato": o["dato"], "tillatelse": o["tillatelse"],
+          "navn": "", "navn_felt": "", "retning": "inn", "slag": "Kom til",
+          "hva": f"{o['tillatelse']} overført hit",
+          "presisjon": "journalført senest denne datoen"}
+         for o in overforinger] + ut_av,
+        key=lambda o: (o["dato"], o["tillatelse"]), reverse=True)
+
+    lokalitetsrader = [lokaliteter[k] for k in
+                       sorted(lokaliteter, key=lambda e: int(e) if e.isdigit() else 0)]
+    samlet = _samlet_kapasitet(mine)
+
     return {
         "orgnr": orgnr,
         "navn": navn,
+        # ORGANISASJONSNUMMERET GRUPPERES ALDRI, heller ikke i en
+        # overskrift. `publiseringsvakt.NI_SIFFER` er «ni siffer på
+        # rad», og «912 345 678» ville vært usynlig for den. Se
+        # visningsord, regel 3.
+        "enhetsregisteret_url":
+            f"https://virksomhet.brreg.no/nb/oppslag/enheter/{orgnr}",
         "har_registerdata": bool(register),
         "register": register,
         "uten_registerdata_tekst": UTEN_REGISTERDATA,
         "enhet_dato": felles.enhet_dato,
         "eierskap_dato": felles.eierskap_dato,
         "akva_dato": felles.akva_dato,
-        "tillatelser": _tillatelsesrader(mine, []),
+        "tillatelser": [dict(r, siden=siden_per_till.get(r["nr"], ""))
+                        for r in _tillatelsesrader(mine, [])],
         "tillatelser_antall": len(tillatelser),
-        "lokaliteter": [lokaliteter[k] for k in
-                        sorted(lokaliteter, key=lambda e: int(e) if e.isdigit() else 0)],
+        "lokaliteter": lokalitetsrader,
         "lokaliteter_antall": len(lokaliteter),
         "overforinger": overforinger,
+
+        # ---- nøkkeltallene i overskriften ----
+        "samlet_kapasitet": samlet["vist"],
+        "kapasitetsenheter": samlet["enheter"],
+        "i_arkivet_siden": min((o["dato"] for o in overforinger), default=""),
+        "eierskapslinje": eierskapslinje,
+        "kom_til": sum(1 for o in eierskapslinje if o["retning"] == "inn"),
+        "gikk_ut": sum(1 for o in eierskapslinje if o["retning"] == "ut"),
+
+        "siter": {
+            "url": f"https://kystloggen.no/selskap/{orgnr}/",
+            "uke": visningsord.uke(felles.eierskap_dato),
+            "dato": visningsord.dato(felles.eierskap_dato),
+            "aar": felles.eierskap_dato[:4],
+            "sjekksum": _sjekksum("eierskap"),
+        },
     }
+
+
+def _samlet_kapasitet(mine_till: dict) -> dict:
+    """Summen av tillatelsenes kapasitet — og enhetene den er i.
+
+    ## EN SUM MED FLERE ENHETER ER IKKE ÉN SUM
+
+    `kapasitet_enhet` varierer mellom tonn, stykk, dekar,
+    kvadratmeter, kubikkmeter og liter i det samme registeret. Å legge
+    dem sammen ville gitt et tall uten mening, og å vise det uten
+    enheten ville skjult at det er tullete.
+
+    Summen regnes derfor PER ENHET, og alle enhetene vises. Har
+    selskapet bare tonn, ser det ut som det designet ber om; har det
+    to, sier siden det.
+    """
+    per_enhet: dict[str, float] = defaultdict(float)
+    for d in mine_till.values():
+        raa = (d.get("kapasitet") or "").strip()
+        enhet = (d.get("kapasitet_enhet") or "").strip()
+        try:
+            per_enhet[enhet] += float(raa)
+        except ValueError:
+            continue
+    biter = [visningsord.maalt(verdi, enhet)
+             for enhet, verdi in sorted(per_enhet.items(),
+                                        key=lambda kv: -kv[1])]
+    return {"vist": " + ".join(biter), "enheter": len(per_enhet)}
 
 
 def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
@@ -4433,6 +4556,7 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
                 "Registerdataene om selskapet er fra "
                 "Enhetsregisteret."),
             meny_aktiv="selskap",
+            main_klasse="fullbredde",
             feed=f"/selskap/{orgnr}/feed.xml",
             feed_tittel=f"Kystloggen: endringer for {sel['navn'] or orgnr}"),
     )

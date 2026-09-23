@@ -2440,6 +2440,72 @@ figcaption {
 .biomassegraf .soyler rect { fill: var(--hav5); }
 
 /* ---------------------------------------------------------------- *
+ * 6c. SELSKAPSSIDEN
+ *
+ * 481 sider. Nøkkeltallene i overskriften er sidens svar på «hvor stort
+ * er dette», og de står som TALL og ikke i en setning: fire størrelser
+ * noen vil sammenligne, er feil form for prosa.
+ *
+ * `dl` og ikke `table`. Fire etikett/verdi-par er en beskrivelsesliste;
+ * en tabell ville krevd en `<caption>` og en `<thead>` vi måtte funnet
+ * på. Rekkefølgen i markupen er tall-så-etikett fordi det er den
+ * rekkefølgen en skjermleser skal lese dem i («128 — lokaliteter nå»).
+ * At etiketten står UNDER tallet visuelt er `order`, og det er grensa
+ * mellom fritt og bundet: markupen bærer betydningen.
+ * ---------------------------------------------------------------- */
+
+.nokkeltall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-24) var(--rom-44);
+  margin: var(--rom-32) 0 var(--rom-28);
+  padding-block-start: var(--rom-16);
+  border-block-start: 2px solid var(--rust-lys);
+}
+
+.nokkeltall > div {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 7rem;
+}
+
+.nokkeltall dt {
+  order: 2;                       /* etiketten UNDER tallet */
+  font-size: var(--fs-13);
+  line-height: var(--lh-tett);
+  color: var(--hav3);
+  max-inline-size: 16ch;
+}
+
+.nokkeltall dd {
+  order: 1;
+  margin: 0 0 var(--rom-6);
+  font-family: var(--skrift-tittel);
+  font-weight: 300;
+  font-size: var(--fs-nokkeltall);
+  line-height: 1;
+  letter-spacing: var(--knip-2);
+  color: var(--hav-tittel);
+}
+
+/* EN DATO ELLER EN SUM MED ENHET er ikke et tall på 52 px. «30. desember
+   2022» i den størrelsen brekker over tre linjer og slutter å være et
+   nøkkeltall. Verdien står mindre, men fortsatt i serifen: det er
+   fortsatt svaret. */
+.nokkeltall .nokkeltall-liten {
+  font-size: var(--fs-22);
+  line-height: 1.15;
+  letter-spacing: var(--knip-1);
+}
+
+/* EIERSKAPSLINJA. «Kom til» og «Gikk ut» skal kunne skilles uten å lese
+   ordet — men ordet står, som overalt ellers: en strek i kanten er en
+   FORSTERKNING av teksten, aldri erstatningen for den. */
+.retning-inn th { box-shadow: inset 3px 0 0 0 var(--lys-gronn); }
+.retning-ut th { box-shadow: inset 3px 0 0 0 var(--ink-dempet); }
+.retning-inn th, .retning-ut th { padding-inline-start: var(--rom-14); }
+
+/* ---------------------------------------------------------------- *
  * 7. BUNNTEKSTEN
  *
  * Attribusjonen er en lisensplikt, ikke en kolofon. Den skal være

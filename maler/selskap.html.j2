@@ -1,214 +1,370 @@
-{# Selskapssiden. Hvilke tillatelser selskapet eier, hvor de ligger, og
-   siden når.
+{# Selskapssiden. 481 sider — én per organisasjonsnummer som eier minst
+   én akvakulturtillatelse.
 
-   Markupkontrakten gjelder: data-felt på hver verdicelle,
-   caption/thead/th scope på hver tabell, <time datetime> på hver dato,
-   stabile ankere. Se
-   docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md.
+   HVEM SOM IKKE FÅR SIDE, og hvorfor det ikke er en mangel:
+   selskaper uten tillatelse (de er i utvalget vårt på næringskode, men
+   eier ingenting), og eiere kilden klassifiserer som en personform —
+   et URL-rom er en liste over hvem som finnes, selv om hver side
+   skulle være tom. Se `personeier()` og regel 3.
 
-   Uenighetsregelen gjelder: der vi ikke vet, sier siden det. Her er det
-   122 av 482 selskaper vi ikke har registerdata for — se
-   docs/REGEL-UENIGE-KILDER.md. #}
+   Uenighetsregelen gjelder: der vi ikke vet, sier siden det. 121 av
+   481 selskaper har vi ingen registerdata for. Se
+   docs/REGEL-UENIGE-KILDER.md.
+
+   Markupkontrakten gjelder. Ankernavnene er `<kilde>-<hva>`. #}
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
 <div class="ark sidehode">
-<nav class="sti" aria-label="Du er her">
-  <ol>
-    <li><a href="/">Forside</a></li>
-    <li><a href="/selskap/">Selskaper</a></li>
-    <li class="eier" aria-current="page">{{ sel.navn }}</li>
-  </ol>
-</nav>
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li><a href="/selskap/">Selskaper</a></li>
+      <li aria-current="page">Org.nr. {{ sel.orgnr }}</li>
+    </ol>
+  </nav>
+
+  <h1><span data-navn>{{ sel.navn or sel.orgnr }}</span></h1>
+  <p class="lok-undertittel">
+    {# ORGANISASJONSNUMMERET GRUPPERES ALDRI. `NI_SIFFER` i
+       publiseringsvakten er «ni siffer på rad», og «912 345 678» ville
+       vært usynlig for den. Se visningsord, regel 3. #}
+    Organisasjonsnummer {{ sel.orgnr }}
+  </p>
+
+  {# NØKKELTALLENE. `dl` og ikke `table`: fire etikett/verdi-par er en
+     beskrivelsesliste. Rekkefølgen i markupen er tall-så-etikett fordi
+     det er den rekkefølgen en skjermleser skal lese dem i; at
+     etiketten står ØVERST visuelt er CSS-ens `order`. #}
+  <dl class="nokkeltall">
+    <div>
+      <dd>{{ sel.lokaliteter_antall }}</dd>
+      <dt>lokaliteter nå</dt>
+    </div>
+    <div>
+      <dd>{{ sel.tillatelser_antall }}</dd>
+      <dt>tillatelser nå</dt>
+    </div>
+    <div>
+      {# SUMMEN ER PER ENHET. `kapasitet_enhet` varierer mellom tonn,
+         stykk, dekar, kvadratmeter, kubikkmeter og liter i det samme
+         registeret; å legge dem sammen ville gitt et tall uten mening.
+         Se `_samlet_kapasitet()`. #}
+      <dd class="nokkeltall-liten">{{ sel.samlet_kapasitet or "—" }}</dd>
+      <dt>samlet kapasitet{% if sel.kapasitetsenheter > 1 %},
+        i {{ sel.kapasitetsenheter }} ulike enheter{% endif %}</dt>
+    </div>
+    <div>
+      <dd class="nokkeltall-liten">
+        {%- if sel.i_arkivet_siden %}<time datetime="{{ sel.i_arkivet_siden }}">{{ sel.i_arkivet_siden|dato }}</time>
+        {%- else %}—{% endif %}</dd>
+      <dt>eldste journalførte overføring hit</dt>
+    </div>
+  </dl>
+
+  <p class="knapperad">
+    <a class="knapp knapp--tynn" href="feed.xml">Følg selskapet (feed)</a>
+    <a class="knapp knapp--tynn" href="#siter">Siter</a>
+    <a class="knapp knapp--tynn" href="{{ sel.enhetsregisteret_url }}">Enhetsregisteret ↗</a>
+  </p>
 </div>
 {% endblock %}
 
 {% block innhold %}
-<h1><span data-navn>{{ sel.navn }}</span></h1>
 
-<p>
-  Organisasjonsnummer {{ sel.orgnr }}.
-  {{ sel.tillatelser_antall }} akvakulturtillatelser på
-  {{ sel.lokaliteter_antall }} lokaliteter, etter eierskapssnapshotet
-  <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
-</p>
-<p>
-  Siden viser bare tillatelser der <strong>dette</strong>
-  organisasjonsnummeret står som eier i registeret. En tillatelse der
-  kilden ikke oppgir eier, havner ikke her — den står på lokalitetssiden
-  sin, merket som ugjort rede for.
-</p>
+<section class="ark seksjon">
+  <p class="historikk-forklaring">
+    Siden viser bare tillatelser der <strong>dette</strong>
+    organisasjonsnummeret står som eier i registeret, etter
+    eierskapsøyeblikksbildet
+    <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato|dato }}</time>.
+    En tillatelse der kilden ikke oppgir eier havner ikke her — den står
+    på lokalitetssiden sin, merket som ugjort rede for.
+  </p>
+</section>
 
-{# --------------------------------------------- hva registeret sier #}
-<div class="tabellramme" role="region"
-     aria-labelledby="enhetsregisteret-selskap-tittel" tabindex="0">
-<table id="enhetsregisteret-selskap">
-  <caption id="enhetsregisteret-selskap-tittel">
-    Hva Enhetsregisteret sier om selskapet, snapshot
-    <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Felt</th>
-      <th scope="col">Verdi</th>
-      {# «Sist observert», ikke «Sist endret»: verdien er `observed_at`
-         fra changeloggen, altså da VI så feltet endre seg. Registeret
-         oppgir ikke når det gjorde det. #}
-      <th scope="col">Sist observert</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for felt, etikett, vist, endret in sel.register %}
-    <tr>
-      <th scope="row">{{ etikett }}</th>
-      <td data-felt="{{ felt }}">{{ vist }}</td>
-      <td data-felt="observed_at">
-        {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
-        {%- else %}—{% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-    {% if not sel.har_registerdata %}
-    <tr>
-      <th scope="row">registerdata</th>
-      <td data-felt="registerdata_mangler">{{ sel.uten_registerdata_tekst }}</td>
-    </tr>
-    {% endif %}
-  </tbody>
-</table>
+{# ---------------------------------------------------------------- 1
+   LOKALITETENE OG TILLATELSENE, side om side. #}
+<div class="ark seksjon to-spalter">
+  <section class="blokk" aria-labelledby="lok-tittel">
+    <h2 id="lok-tittel">Lokaliteter</h2>
+    <div class="tabellramme" role="region"
+         aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
+    <table id="akvakultur-lokaliteter">
+      <caption id="akvakultur-lokaliteter-tittel">
+        De {{ sel.lokaliteter_antall }} lokalitetene selskapets
+        tillatelser ligger på, øyeblikksbilde
+        <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Nr.</th>
+          <th scope="col">Lokalitet</th>
+          <th scope="col">Kommune</th>
+          <th scope="col">Område</th>
+          <th scope="col">Innehaver siden</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in sel.lokaliteter %}
+        <tr>
+          <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
+          <td data-felt="navn">
+            <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn }}</a>
+          </td>
+          <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(l.po_kode, 'prodomraade_kode') }}">
+            {%- if l.po_kode %}<a href="/produksjonsomrade/{{ l.po_kode }}/">{{ l.po_kode }} {{ l.po_navn }}</a>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+          <td data-felt="{{ feltmerke(l.siden, 'journal_dato') }}">
+            {%- if l.siden %}<time datetime="{{ l.siden }}">{{ l.siden }}</time>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not sel.lokaliteter %}
+        <tr><td colspan="5" data-felt="tomtekst">Ingen av selskapets
+          tillatelser er knyttet til en lokalitet i
+          Akvakulturregisteret.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      «Innehaver siden» er den ELDSTE journalførte overføringen til dette
+      selskapet blant tillatelsene på lokaliteten — altså da selskapet
+      fikk fotfeste der. En tom celle betyr at ingen overføring er
+      journalført; tillatelsen kan ha vært selskapets siden den ble
+      tildelt.
+    </p>
+  </section>
+
+  <section class="blokk" aria-labelledby="till-tittel">
+    <h2 id="till-tittel">Tillatelser</h2>
+    <div class="tabellramme" role="region"
+         aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
+    <table id="eierskap-tillatelser">
+      <caption id="eierskap-tillatelser-tittel">
+        De {{ sel.tillatelser_antall }} tillatelsene selskapet eier,
+        øyeblikksbilde
+        <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Tillatelse</th>
+          <th scope="col">Formål</th>
+          <th scope="col" class="tall">Kapasitet</th>
+          <th scope="col">Tildelt</th>
+          <th scope="col">Innehaver siden</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in sel.tillatelser %}
+        <tr>
+          <th scope="row">{{ t.nr }}</th>
+          <td data-felt="{{ feltmerke(t.type, 'tillatelse_type') }}">{{ t.type or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(t.kapasitet, 'kapasitet') }}">{{ t.kapasitet or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(t.tildelt_dato, 'tildelt_tid') }}">
+            {%- if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}" data-felt="tildelt_tid">{{ t.tildelt_dato }}</time>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+          <td data-felt="{{ feltmerke(t.siden, 'journal_dato') }}">
+            {%- if t.siden %}<time datetime="{{ t.siden }}">{{ t.siden }}</time>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      «Tildelt» er da tillatelsen ble gitt første gang, og til hvem —
+      ikke nødvendigvis til dette selskapet. Hvem den ble gitt til står
+      på lokalitetssidene.
+    </p>
+  </section>
 </div>
-{% if not sel.har_registerdata %}
-<p class="tabellnote">
-  Vi har ingen registerdata for dette selskapet.
-  {{ sel.uten_registerdata_tekst }} — uttrekket vårt er avgrenset til et
-  sett næringskoder, og et selskap som eier en tillatelse uten å ha en av
-  dem, faller utenfor. Navnet over er det Fiskeridirektoratet oppgir i
-  eierskapsregisteret. 122 av 482 eiere er i denne situasjonen (målt
-  20.09.2026).
-</p>
-{% endif %}
 
-{# ------------------------------------------------- tillatelsene #}
-<div class="tabellramme" role="region"
-     aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
-<table id="eierskap-tillatelser">
-  <caption id="eierskap-tillatelser-tittel">
-    Tillatelsene selskapet eier, snapshot
-    <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Tillatelse</th>
-      <th scope="col">Eier nå</th>
-      <th scope="col">Organisasjonsnummer</th>
-      <th scope="col">Type</th>
-      <th scope="col">Kapasitet</th>
-      <th scope="col">Tildelt</th>
-      <th scope="col">Tildelt til</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for t in sel.tillatelser %}
-    <tr>
-      <th scope="row">{{ t.nr }}</th>
-      <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}">{{ t.eier_navn }}</td>
-      <td class="tall" data-felt="eier_orgnr">{{ t.eier_orgnr }}</td>
-      <td data-felt="tillatelse_type">{{ t.type }}</td>
-      <td class="tall" data-felt="kapasitet">{{ t.kapasitet }}</td>
-      <td data-felt="tildelt_tid">{% if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}">{{ t.tildelt_dato }}</time>{% endif %}</td>
-      <td class="eier" data-felt="tildelt_navn">{{ t.tildelt_navn }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  «Tildelt» er da tillatelsen ble gitt første gang, og til hvem — det er
-  ikke nødvendigvis dette selskapet. Enheten står ved kapasitetstallet
-  fordi den varierer mellom tonn, stykk, dekar, kvadratmeter,
-  kubikkmeter og liter.
-</p>
+{# ---------------------------------------------------------------- 2
+   EIERSKAP OVER TID. Samme loddrette form som «Endringer vi har sett»
+   på lokalitetssiden, men med KILDENS datoer: dette er journalførte
+   overføringer, ikke våre observasjoner. Presisjonen står på hver post. #}
+<section class="ark seksjon" id="eierskap_historikk-overforinger"
+         aria-labelledby="eier-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Oppgitt av registeret</p>
+      <h2 id="eier-tittel">Eierskap over tid</h2>
+    </div>
+  </div>
+  <p class="historikk-forklaring">
+    Tillatelser som har kommet til eller gått ut, slik
+    eierskapshistorikken journalfører det. <strong>Datoen er
+    kildens</strong>, ikke vår — dette er ikke det samme som
+    endringsloggen på en lokalitetsside, der datoen er når vi så noe.
+  </p>
+  <p class="historikk-forklaring">
+    <strong>«Gikk ut» er utledet.</strong> Registeret journalfører hver
+    overføring TIL et organisasjonsnummer, men ikke noen VEKK fra det —
+    en tillatelse som er overført videre står som en ankomst hos
+    mottakeren. Vi leser derfor neste overføring i rekka som
+    avgangen. Datoen er den nye mottakerens ankomst, og den kan ligge
+    etter at selskapet faktisk ga slipp.
+  </p>
 
-{# -------------------------------------------------- lokalitetene #}
-<div class="tabellramme" role="region"
-     aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
-<table id="akvakultur-lokaliteter">
-  <caption id="akvakultur-lokaliteter-tittel">
-    Lokalitetene tillatelsene ligger på, snapshot
-    <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Lokalitet</th>
-      <th scope="col">Navn</th>
-      <th scope="col">Kommune</th>
-      <th scope="col">Produksjonsområde</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for l in sel.lokaliteter %}
-    <tr>
-      <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
-      <td class="eier" data-felt="navn">{{ l.navn }}</td>
-      <td data-felt="kommune">{{ l.kommune }}</td>
-      <td data-felt="prodomraade_navn">
-        {% if l.po_kode %}<a href="/produksjonsomrade/{{ l.po_kode }}/">{{ l.po_kode }} {{ l.po_navn }}</a>{% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  En tillatelse kan gjelde flere lokaliteter, og flere tillatelser kan
-  ligge på samme — tallet her er derfor ikke det samme som antall
-  tillatelser.
-</p>
+  {% if sel.eierskapslinje %}
+  <div class="tabellramme" role="region"
+       aria-labelledby="eierskapslinje-tittel" tabindex="0">
+  <table id="eierskapslinje">
+    <caption id="eierskapslinje-tittel">
+      {{ sel.kom_til }} tillatelser kommet til og {{ sel.gikk_ut }} gått
+      ut, nyeste først.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Dato</th>
+        <th scope="col">Hva</th>
+        <th scope="col">Til hvem</th>
+        <th scope="col">Hvor presis datoen er</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in sel.eierskapslinje %}
+      <tr class="retning-{{ o.retning }}">
+        <th scope="row">
+          {%- if o.dato %}<time datetime="{{ o.dato }}">{{ o.dato }}</time>
+          {%- else %}{{ VERDI_MANGLER }}{% endif %}</th>
+        <td data-felt="journal_dato">{{ o.slag }}: {{ o.hva }}</td>
+        {% if o.navn %}
+        <td class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</td>
+        {% else %}
+        <td>—</td>
+        {% endif %}
+        <td data-felt="presisjon">{{ o.presisjon }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    <strong>«Journalført senest denne datoen»</strong> er ikke det samme
+    som overdragelsesdato. Journaldatoen er da saken ble ført, og
+    overdragelsen kan ha skjedd før. Serien skiller heller ikke
+    konserninterne flyttinger fra ekte oppkjøp; det lar seg ikke gjøre
+    med offentlige data.
+  </p>
+  {% else %}
+  <p class="tomt">
+    Ingen journalførte overføringer til dette selskapet.
+    Eierskapshistorikken dekker overføringer Fiskeridirektoratet har
+    journalført; en tillatelse selskapet har hatt siden tildelingen står
+    ikke der.
+  </p>
+  {% endif %}
+</section>
 
-{# ---------------------------------------------------- siden når #}
-<div class="tabellramme" role="region"
-     aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
-<table id="eierskap_historikk-overforinger">
-  <caption id="eierskap_historikk-overforinger-tittel">
-    Når tillatelsene ble overført til selskapet, eldst først.
-    {{ sel.overforinger|length }} overføringer.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Journalført</th>
-      <th scope="col">Tillatelse</th>
-      <th scope="col">Nr. i rekka</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for o in sel.overforinger %}
-    <tr>
-      <td data-felt="journal_dato"><time datetime="{{ o.dato }}">{{ o.dato }}</time></td>
-      <th scope="row">{{ o.tillatelse }}</th>
-      <td class="tall" data-felt="rekkefolge">{{ o.rekkefolge }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  Datoen er journalføringsdato, ikke bekreftet overdragelsesdato — den
-  skal leses som «senest da». Tillatelser uten rad her har selskapet
-  enten hatt siden tildelingen, eller overtatt uten at overføringen er
-  journalført i den serien vi har.
-</p>
+{# ---------------------------------------------------------------- 3
+   HVA ENHETSREGISTERET SIER. #}
+<section class="ark seksjon" aria-labelledby="reg-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Brønnøysundregistrene</p>
+      <h2 id="reg-tittel">Hva Enhetsregisteret sier</h2>
+    </div>
+  </div>
+  <div class="tabellramme" role="region"
+       aria-labelledby="enhetsregisteret-selskap-tittel" tabindex="0">
+  <table id="enhetsregisteret-selskap">
+    <caption id="enhetsregisteret-selskap-tittel">
+      Registerfeltene om selskapet, øyeblikksbilde
+      <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Felt</th>
+        <th scope="col">Verdi</th>
+        {# «Sist observert», ikke «Sist endret»: verdien er `observed_at`
+           fra changeloggen, altså da VI så feltet endre seg. Registeret
+           oppgir ikke når det gjorde det. #}
+        <th scope="col">Sist observert</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for felt, etikett, vist, endret in sel.register %}
+      <tr>
+        <th scope="row">{{ etikett }}</th>
+        <td data-felt="{{ felt }}">{{ vist }}</td>
+        <td data-felt="{{ feltmerke(endret, 'observed_at') }}">
+          {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
+          {%- else %}{{ VERDI_MANGLER }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      {% if not sel.har_registerdata %}
+      <tr>
+        <th scope="row">registerdata</th>
+        <td data-felt="registerdata_mangler">{{ sel.uten_registerdata_tekst }}</td>
+        <td>—</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+  {% if not sel.har_registerdata %}
+  <p class="tabellnote">
+    Vi har ingen registerdata for dette selskapet.
+    {{ sel.uten_registerdata_tekst }} — uttrekket vårt er avgrenset til
+    et sett næringskoder, og et selskap som eier en tillatelse uten å ha
+    en av dem, faller utenfor. Navnet over er det Fiskeridirektoratet
+    oppgir i eierskapsregisteret. 121 av 481 eiere er i denne
+    situasjonen (målt 22.09.2026).
+  </p>
+  {% endif %}
+</section>
 
-<h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
-<p>
-  Ingenting om konsern. Selskapet kan være eid av et
-  annet, og flere selskaper på tvers av denne siden kan ha samme
-  bakenforliggende eier. Vi henter ikke roller eller eierandeler fra
-  Enhetsregisteret — det er et bevisst valg, ikke en mangel, fordi
-  rolledata er personopplysninger.
-</p>
-<p>
-  Ingenting om produksjon eller biomasse. Tallene for
-  hva som faktisk står i sjøen føres per produksjonsområde og per
-  lokalitet, ikke per selskap.
-</p>
+<section class="ark seksjon" aria-labelledby="hva-siden-ikke-sier">
+  <h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
+  <p>
+    <strong>Ingenting om konsern.</strong> At to selskaper har samme
+    mor, er ikke noe eierskapsregisteret oppgir, og å utlede det av
+    navnelikhet ville vært et gjett. Konsernstrukturen står i
+    Enhetsregisterets rolledata, og roller er persondata som dette
+    prosjektet bevisst ikke henter — se regel 3 i <code>CLAUDE.md</code>.
+    Feltet «Er i konsern» i tabellen over er registerets eget ja/nei, og
+    sier ikke hvilket.
+  </p>
+  <p>
+    <strong>Ingenting om hvem som står bak.</strong> Daglig leder,
+    styre og aksjonærer er roller, og de hentes ikke. Et selskap er her
+    et organisasjonsnummer med tillatelser, ikke en gruppe mennesker.
+  </p>
+  <p>
+    <strong>Ingenting om hva selskapet faktisk produserer.</strong>
+    Kapasiteten er den tillatelsene gir rom for, ikke det som står i
+    sjøen. Hvor mye fisk som faktisk er der, finnes offentlig bare per
+    produksjonsområde — se områdesidene.
+  </p>
+</section>
+
+<section class="ark" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    <p class="siterbar" id="siterbar">Kystloggen ({{ sel.siter.aar }}).
+      <i>{{ sel.navn or sel.orgnr }}, organisasjonsnummer
+      {{ sel.orgnr }}.</i>
+      Øyeblikksbilde {{ sel.siter.uke }}, {{ sel.siter.dato }},
+      sjekksum {{ sel.siter.sjekksum[:8] }}…{{ sel.siter.sjekksum[-4:] }}.
+      {{ sel.siter.url }}</p>
+    <p class="siterboks-note">
+      Sjekksummen gjelder eierskapsregisteret, som er kilden til hvilke
+      tillatelser selskapet eier. Registerfeltene fra Enhetsregisteret
+      har sitt eget øyeblikksbilde, datert i tabellen over.
+    </p>
+  </div>
+</section>
 {% endblock %}
