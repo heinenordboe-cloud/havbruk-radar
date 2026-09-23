@@ -1345,9 +1345,21 @@ a:hover {
 
 .kyst-to {
   display: grid;
+  /* `minmax(0, 1fr)` OG IKKE BARE ÉN KOLONNE. En `auto`-kolonne får
+     bredden av innholdets min-content, og et `<svg>` med egne
+     width/height-attributter bidrar med SIN EGEN bredde selv om det
+     står `inline-size: 100%` på det. MÅLT 23.09.2026 ved 390 px:
+     sporet ble 453 px, forsiden fikk vannrett rulling, og den var den
+     ENESTE siden på nettstedet som hadde det. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--rom-32) clamp(32px, 4vw, 64px);
   margin-block-start: var(--rom-32);
 }
+
+/* Samme sak en etasje ned: et rutenettfelt har `min-width: auto`, og
+   et kart eller en tabell inni kan da presse feltet bredere enn
+   sporet. */
+.kyst-to > * { min-inline-size: 0; }
 
 @media (min-width: 68.75rem) {
   /* 1100px: kart | tabell. Overleveringens brytpunkt. */
