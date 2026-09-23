@@ -497,81 +497,118 @@ body {
 
 
 /* ---------------------------------------------------------------- *
- * 2b. TOPPLINJA OG BRØDSMULA
+ * 3. HOPPELENKA, TOPPEN OG BUNNTEKSTEN
  *
- * ## Setningen som sto her, er fjernet (21.09.2026)
+ * Det tre sidene har felles, og som derfor står i `base.html.j2` og
+ * `meny.html.j2`. Alt her er MØRK FLATE: toppen er et bånd i `--hav9`,
+ * bunnteksten er den samme flata i den andre enden, og heroen på
+ * forsiden er et fotografi med den samme flata under seg.
  *
- * Den lød: «Nøkternt. En etatsside med en fargeflate og et logomerke
- * ville påstått at noen står bak — bunnteksten sier at ingen gjør
- * det.» Den var et argument mot både havbåndet og merket, og den ble
- * stående mens avsnitt 1 argumenterte for begge. To regler i samme fil
- * som peker hver sin vei, er ikke en nyanse; det er en fil ingen kan
- * ta en beslutning ut av.
- *
- * Den er fjernet, og ikke bare dempet, fordi premisset er feil: en
- * flate og et merke sier hvem som HAR LAGET nettstedet, ikke hvem som
- * står bak DATAENE. De to er skilt et annet sted, og der er de sagt
- * rett ut — bunnteksten navngir hver kilde og sier at verken
- * Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch eller
- * Mattilsynet går god for sammenstillingen. Det er en setning, ikke
- * fraværet av en farge, og en setning kan ingen misforstå.
- *
- * Det opprinnelige hensynet er reelt, og det er ivaretatt av regelen
- * som faktisk treffer det: ingenting her låner et offentlig våpen,
- * emblem eller navn, og fargene er våre egne og ikke noen etats.
+ * Det er ikke en gradient og ikke en stemning. Mørk flate betyr
+ * NAVIGASJON OG PROVENIENS på dette nettstedet — hvor du er, og hvor
+ * tallene kommer fra. Alt som er DATA står på papir.
  * ---------------------------------------------------------------- */
 
-.topp {
+/* HOPPELENKA. Menyen er seks lenker, og en som leser med tastatur skal
+   slippe dem på hver av 2 279 sider. Synlig bare i fokus, og da som en
+   ekte knapp — ikke som en 1x1-piksel som «teknisk sett» er der. */
+.hopp {
+  position: absolute;
+  inset-inline-start: -10000px;
+  top: 0;
+  z-index: 10;
+  background: var(--knapp-flate);
+  color: var(--knapp-tekst);
+  padding: var(--rom-12) var(--rom-20);
+  text-decoration: none;
+}
+
+.hopp:focus {
+  inset-inline-start: 0;
+}
+
+/* `main` tar imot fokus fra hoppelenka (`tabindex="-1"`), og skal ikke
+   tegne en ring for det: leseren BA om å komme hit. */
+main:focus { outline: none; }
+
+/* ---- det mørke båndet ---- */
+
+.sidetopp {
+  background: var(--hav9);
+  color: var(--hav-tegn);
+}
+
+/* MENYEN. Ordmerket til venstre, lenkene til høyre, og de brytes til
+   ny linje under 640px framfor å scrolle. */
+.hovedmeny {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--rom-12) var(--rom-24);
-  max-width: var(--maal-side);
-  margin: 0 auto;
-  padding: var(--rom-16) var(--rom-32);
-  background: var(--farge-ark);
-  border-block-end: 2px solid var(--farge-kant-sterk);
-  border-inline: 1px solid var(--farge-kant-svak);
+  gap: var(--rom-10) var(--rom-24);
+  padding-block: var(--rom-24) var(--rom-20);
 }
 
-/* ORDMERKET. «Kystloggen» i Newsreader 600, ren tekst. Markupen står
-   ett sted, `maler/merke.html.j2`, slik at merket kan byttes uten at
-   noen må finne igjen `<a class="merke">` i sju maler.
+.hovedmeny > .merke { margin-inline-end: auto; }
 
-   Reglene er skrevet om `.merke` og ikke om `.topp .merke`: flytter
-   merket seg, eller får det en form ved siden av teksten, følger
-   stilen med.
+.hovedmeny ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-6) var(--rom-24);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  font-size: var(--fs-14);
+}
+
+.hovedmeny li { margin: 0; }
+
+.hovedmeny a {
+  color: var(--hav-sekundaer);
+  text-decoration: none;
+}
+
+.hovedmeny a:visited { color: var(--hav-sekundaer); }
+.hovedmeny a:hover { color: var(--hav-tittel); }
+
+/* HVOR DU ER, markert på ATTRIBUTTET og ikke på en klasse. `aria-current`
+   BETYR noe — en skjermleser sier det — mens en klasse bare ville sett
+   slik ut. Streken er rust, som alt annet som markerer. */
+.hovedmeny [aria-current="page"] {
+  color: var(--hav-tittel);
+  box-shadow: inset 0 -2px 0 0 var(--rust-lys);
+}
+
+/* ---- ordmerket ----
+   «Kystloggen» i Newsreader. Markupen står ett sted,
+   `maler/merke.html.j2`, slik at merket kan byttes uten at noen må
+   finne igjen `<a class="merke">` i ni maler.
 
    ## Den ene aksentbruken, i to varianter
 
    Aksenten opptrer bare som skrift eller strek, aldri som flate. To
-   varianter ble tegnet, og begge står her fordi bytte mellom dem skal
+   varianter er tegnet, og begge står her fordi bytte mellom dem skal
    koste én klasse i `merke.html.j2`:
 
      .merke--strek     en tynn rustlinje under ordet. En logg er
                        LINJERT — linja er det som gjør den til en logg
-                       framfor et ark. Streken er 2px og ligger 0,14em
-                       under grunnlinja, altså der en linjal ville
-                       ligget og ikke der en understreking ligger.
-
+                       framfor et ark.
      .merke--punktum   punktumet etter ordet i aksentfarge.
                        «Kystloggen.» — én ført oppføring, avsluttet.
                        Tegnet står i CSS og ikke i markupen: det er
                        ornament, og en skjermleser skal lese navnet,
                        ikke navnet med et punktum.
 
-   Begge er små med vilje. Et ordmerke som roper med farge, konkurrerer
-   med trafikklyset — og trafikklyset er data. */
+   MERKET STÅR PÅ MØRK FLATE OVERALT nå, fordi menyen gjør det. Fargene
+   under er derfor båndets, ikke papirets. */
 .merke {
   font-family: var(--skrift-tittel);
-  font-weight: 600;
+  font-weight: 400;
   font-size: var(--fs-19);
+  line-height: 1;
   letter-spacing: var(--knip-1);
-  color: var(--farge-tekst);
+  color: var(--hav-tittel);
   text-decoration: none;
-
-  /* Begge variantene henger på dette: streken er et `::after` som må
-     kunne plasseres, og punktumet skal ikke flytte teksten. */
   position: relative;
   display: inline-block;
 }
@@ -580,30 +617,25 @@ body {
   content: "";
   position: absolute;
   inset-inline: 0;
-  inset-block-end: -0.14em;
+  inset-block-end: -0.2em;
   block-size: 2px;
-  background: var(--aksent);
+  background: var(--rust-lys);
 }
 
 .merke--punktum::after {
   content: ".";
-  color: var(--aksent);
+  color: var(--rust-lys);
 }
 
 /* Understrekingen ved peker ville ligget oppå loggstreken. Den flyttes
    ned, slik at de to er to streker og ikke én tykk. */
-.merke--strek:hover { text-decoration-line: underline; }
-.merke--strek:hover::after { inset-block-end: -0.32em; }
+.merke:hover { text-decoration-line: underline; }
+.merke--strek:hover::after { inset-block-end: -0.38em; }
 
-.topp .merke { margin-inline-end: auto; }
+/* ---- sidehodet: brødsmule, tittel og fakta, inne i båndet ---- */
 
-.merke:hover { text-decoration: underline; }
-
-.topp nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rom-8) var(--rom-20);
-  font-size: var(--fs-15);
+.sidehode {
+  padding-block: var(--rom-20) var(--rom-seksjon);
 }
 
 /* BRØDSMULA. `<ol>` og ikke `<ul>`: rekkefølgen ER informasjonen.
@@ -611,9 +643,9 @@ body {
    skjermleser skal lese «Forside, Lokaliteter, Lokalitet 31397», ikke
    «Forside skråstrek Lokaliteter skråstrek». */
 .sti {
-  margin: 0 0 var(--rom-20);
+  margin: 0 0 var(--rom-18);
   font-size: var(--fs-13);
-  color: var(--farge-tekst-svak);
+  color: var(--hav3);
 }
 
 .sti ol {
@@ -630,55 +662,223 @@ body {
 .sti li + li::before {
   content: "/";
   margin-inline: 0.5em;
-  color: var(--farge-kant);
+  color: var(--hav3);
+  opacity: 0.6;
 }
 
-.sti [aria-current="page"] { color: var(--farge-tekst); }
+.sti a { color: var(--hav3); text-decoration: none; }
+.sti a:visited { color: var(--hav3); }
+.sti a:hover { color: var(--hav-tittel); text-decoration: underline; }
+.sti [aria-current="page"] { color: var(--hav-tegn); }
+
+/* ---- bunnteksten ----
+ *
+ * Attribusjonen er en LISENSPLIKT, ikke en kolofon. Den skal være
+ * lesbar, og den skal ikke se bort-designet ut. Fire spalter som
+ * brytes til én på telefon.
+ */
+
+.bunn {
+  background: var(--hav9);
+  color: var(--hav-tegn);
+  margin-block-start: var(--rom-72);
+  font-size: var(--fs-14);
+  line-height: var(--lh-normal);
+}
+
+.bunn-spalter {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--rom-32) var(--rom-44);
+  padding-block: var(--rom-seksjon-stor) var(--rom-40);
+}
+
+/* Den første spalta er bredere: den bærer setningen om hvem som står
+   bak, og den setningen er etterskriften til hver eneste side. */
+.bunn-merke { grid-column: span 1; }
+
+.bunn-ordmerke {
+  font-family: var(--skrift-tittel);
+  font-size: var(--fs-22);
+  font-weight: 400;
+  letter-spacing: var(--knip-1);
+  color: var(--hav-tittel);
+  margin: 0 0 var(--rom-10);
+  position: relative;
+  display: inline-block;
+  padding-block-end: var(--rom-6);
+  border-block-end: 2px solid var(--rust-lys);
+}
+
+.bunn h2 {
+  font-family: var(--skrift-tekst);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--rust-lys);
+  margin: 0 0 var(--rom-12);
+  padding: 0;
+  border: 0;
+  max-width: none;
+}
+
+.bunn p {
+  margin: 0 0 var(--rom-10);
+  max-width: 34em;
+  color: var(--hav-sekundaer);
+}
+
+.bunn ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+.bunn li { margin-block-end: var(--rom-10); }
+
+/* KILDESETNINGENE er ordrett fra lisensgiverne og kan ikke kortes.
+   Streken foran hver av dem er der for at en liste med fire setninger
+   ikke skal lese som ett avsnitt. */
+.bunn-kilder li {
+  padding-inline-start: var(--rom-12);
+  border-inline-start: 2px solid rgba(231, 219, 208, 0.22);
+  color: var(--hav-sekundaer);
+}
+
+.bunn a { color: var(--hav-tegn); text-decoration: none; }
+.bunn a:visited { color: var(--hav-tegn); }
+.bunn a:hover { color: var(--rust-lys); text-decoration: underline; }
+
+.bunn .mangler {
+  color: var(--hav3);
+  font-style: italic;
+}
+
+/* PROVENIENSLINJA. Egen strek over, fordi den ikke er en spalte til —
+   den er en fotnote til HELE siden: hvilket øyeblikksbilde tallene er
+   fra, og når vi hentet det. */
+.bunn-proveniens {
+  padding-block: var(--rom-20) var(--rom-seksjon);
+  border-block-start: 1px solid rgba(231, 219, 208, 0.16);
+  font-size: var(--fs-13);
+  color: var(--hav3);
+}
+
+.bunn-proveniens p { max-width: 68em; color: var(--hav3); }
+
+/* ---------------------------------------------------------------- *
+ * 4. TYPOGRAFI, LENKER OG SEKSJONER
+ *
+ * ## Overskriftene er Newsreader i 300
+ *
+ * Hver displayoverskrift i overleveringen står i vekt 300, og
+ * størrelsene er `clamp()` og ikke trinn: de skal krympe med skjermen.
+ * Begrunnelsen for at fonten i det hele tatt HAR 300 står i
+ * docs/design/NEWSREADER.md.
+ *
+ * ## Seksjonsetiketten er den eneste rusten på papir
+ *
+ * «Denne uka i registrene», «Kysten», «Følg med» — 15 px sans i 500,
+ * i rustfarge, VANLIG SETNING og aldri versaler. Versaler i en etikett
+ * er et rop, og aksenten roper alt den skal ved å være den eneste
+ * fargen på siden.
+ * ---------------------------------------------------------------- */
 
 main {
   display: block;
   max-width: var(--maal-side);
   margin: 0 auto;
-  padding: var(--rom-32) var(--rom-32) var(--rom-56);
-  background: var(--farge-ark);
-  border-inline: 1px solid var(--farge-kant-svak);
-  border-block-end: 1px solid var(--farge-kant-svak);
+  padding: var(--rom-seksjon) var(--marg-side) var(--rom-72);
 }
 
-/* --- typografi --- */
+/* EN SIDETYPE SOM HAR EGNE FULLBREDDE-SEKSJONER setter bredden selv med
+   en indre `.ark`, og skal ikke ha den fra `main` også — to lag
+   sidemarg er dobbelt innrykk. Markøren er en klasse på `main` og ikke
+   `:has()`: `:has()` finnes ikke i eldre nettlesere, og en layout som
+   faller sammen der er en layout som feiler stille. */
+main.fullbredde {
+  max-width: none;
+  padding-inline: 0;
+  padding-block: 0 0;
+}
 
-/* OVERSKRIFTENE ER SERIF. Målebåndet er `--maal-tittel` (22em) og
-   ikke brødtekstens 29em: 29 er målt mot sans i 16px, og en
-   overskrift i 36px serif som får samme antall em blir en linje ingen
-   leser i ett blikk. 22em ved font-size-8 er ~50 tegn. */
+/* ---- overskrifter ---- */
+
 h1, h2, h3, h4 {
   font-family: var(--skrift-tittel);
-  font-weight: 600;
-  line-height: var(--lh-tett);
+  font-weight: 300;
+  line-height: 1.05;
   text-wrap: balance;
-  max-width: var(--maal-tittel);
 }
 
 h1 {
-  font-size: var(--fs-30);
-  letter-spacing: var(--knip-1);
-  margin: 0 0 var(--rom-24);
+  font-size: var(--fs-h1);
+  line-height: 0.95;
+  letter-spacing: var(--knip-3);
+  margin: 0 0 var(--rom-20);
+  max-width: var(--maal-tittel);
 }
 
 h2 {
-  font-size: var(--fs-26);
-  letter-spacing: var(--knip-1);
-  margin: var(--rom-44) 0 var(--rom-16);
-  padding-block-end: var(--rom-8);
-  border-block-end: 1px solid var(--farge-kant-svak);
-  max-width: none;
+  font-size: var(--fs-h2);
+  line-height: 1.08;
+  letter-spacing: var(--knip-2);
+  margin: var(--rom-seksjon) 0 var(--rom-16);
+  max-width: var(--maal-tittel);
 }
 
-h3 {
-  font-size: var(--fs-19);
+/* H2 I EN BLOKK er en annen rolle enn H2 som seksjonsoverskrift: den
+   navngir en tabell eller en figur, ikke en del av siden. 26–30 px i
+   400, som overleveringen sier. */
+.blokk h2, h3 {
+  font-size: var(--fs-26);
+  line-height: 1.1;
+  font-weight: 400;
   letter-spacing: var(--knip-1);
   margin: var(--rom-32) 0 var(--rom-12);
+  max-width: var(--maal-tittel);
 }
+
+h4 {
+  font-family: var(--skrift-tekst);
+  font-size: var(--fs-15);
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: var(--rom-24) 0 var(--rom-8);
+}
+
+/* SEKSJONSETIKETTEN. Sans, 15 px, 500, rust, vanlig setning. */
+.etikett {
+  font-family: var(--skrift-tekst);
+  font-size: var(--fs-15);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--rust);
+  margin: 0 0 var(--rom-8);
+  text-transform: none;
+}
+
+/* På mørk flate er aksenten den lyse varianten. */
+.sidetopp .etikett, .bunn .etikett, .mork .etikett { color: var(--rust-lys); }
+
+/* SEKSJONSHODET: etiketten og overskriften over en strek. Overleveringen
+   tegner den på forsiden, på områdesiden og på /om/. */
+.seksjonshode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--rom-8) var(--rom-24);
+  padding-block-end: var(--rom-12);
+  border-block-end: 1px solid rgba(11, 36, 48, 0.3);
+}
+
+.seksjonshode h2 { margin: 0; }
+.mork .seksjonshode { border-block-end-color: rgba(231, 219, 208, 0.28); }
+
+/* ---- brødtekst ---- */
 
 p, ul, ol {
   max-width: var(--maal-tekst);
@@ -690,48 +890,85 @@ li:last-child { margin-block-end: 0; }
 
 strong { font-weight: 600; }
 
-/* EN DATO ER ETT ORD. «2012-01-02» brukket over to linjer på bindestreken
-   er to tall som ser ut som et intervall. Gjelder hele nettstedet, ikke
-   bare båndet der det ble oppdaget. */
+/* EN DATO ER ETT ORD. «2012-01-02» brukket over to linjer på
+   bindestreken er to tall som ser ut som et intervall. Gjelder hele
+   nettstedet, ikke bare båndet der det ble oppdaget. */
 time { white-space: nowrap; }
 
+/* MONOEN ER BARE FOR TALLVERDIER I TABELLKOLONNER — overleveringens
+   harde krav 4. `<code>` er unntaket, og det er ikke det samme: en
+   filsti eller et feltnavn ER kode, og skal se ut som det. */
 code {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-               monospace;
-  font-size: 0.9em;
-  background: var(--farge-hode);
-  border-radius: 0;
+  font-family: var(--skrift-tall);
+  font-size: 0.92em;
+  background: var(--papir2);
   padding: 0.1em 0.35em;
 }
 
-/* Datoer er tall i kolonne selv når de står i løpende tekst. */
-time { font-variant-numeric: tabular-nums; }
+/* En verdi vi ikke har. Skal se BEVISST tom ut — ikke som data, og
+   ikke som en feil. */
+.mangler { color: var(--ink-dempet); }
 
-/* --- lenker --- */
+/* ---- lenker ---- */
 
 a {
-  color: var(--farge-lenke);
+  color: var(--rust);
   text-decoration-line: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.16em;
 }
 
-a:visited { color: var(--farge-lenke-besokt); }
+a:visited { color: var(--besokt); }
 
 a:hover {
-  color: var(--farge-lenke-aktiv);
+  color: var(--rust-moerk);
   text-decoration-thickness: 2px;
 }
 
-/* Digdirs fokusmarkør: to ringer, så den ses på både lys og mørk flate.
-   `:focus-visible` og ikke `:focus` — en museklikkt lenke skal ikke
-   etterlate en ramme. */
+/* FOKUS. Overleveringens egen: `outline: 2px solid #aa3e04;
+   outline-offset: 2px`. `:focus-visible` og ikke `:focus` — en
+   museklikket lenke skal ikke etterlate en ramme. */
 :focus-visible {
-  outline: 2px solid var(--farge-fokus);
-  outline-offset: 1px;
-  box-shadow: 0 0 0 1px var(--farge-fokus-indre);
-  border-radius: 0;
+  outline: 2px solid var(--fokus);
+  outline-offset: 2px;
 }
+
+/* På mørk flate er rusten for mørk til å være en ring. */
+.sidetopp :focus-visible, .bunn :focus-visible, .mork :focus-visible {
+  outline-color: var(--rust-lys);
+}
+
+/* ---- knapper og knappelenker ---- */
+
+.knapp {
+  display: inline-block;
+  background: var(--knapp-flate);
+  color: var(--knapp-tekst);
+  border: 0;
+  padding: var(--rom-12) var(--rom-24);
+  font: 500 var(--fs-15) / 1 var(--skrift-tekst);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.knapp:visited { color: var(--knapp-tekst); }
+.knapp:hover { background: var(--knapp-flate-pa); color: var(--knapp-tekst); }
+
+/* SEKUNDÆRKNAPPEN er en ramme, ikke en flate: to fylte knapper ved
+   siden av hverandre sier at begge er hovedhandlingen. */
+.knapp--tynn {
+  background: none;
+  color: var(--hav-tegn);
+  box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.35);
+}
+
+.knapp--tynn:visited { color: var(--hav-tegn); }
+
+.knapp--tynn:hover {
+  background: var(--hav7);
+  color: var(--hav-tittel);
+}
+
 
 /* ---------------------------------------------------------------- *
  * 2c. HERO-BÅNDET

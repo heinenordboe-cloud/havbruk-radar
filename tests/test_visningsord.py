@@ -226,3 +226,58 @@ def test_tom_verdi_er_ikke_en_ukjent_kode():
     assert visningsord.verdi("arter", "") == ""
     assert visningsord.verdi("arter", None) == ""
     assert not visningsord.UKJENTE
+
+
+# ---- datoene ----------------------------------------------------------
+#
+# Overleveringens harde krav 5: tre skrivemåter av det samme
+# tidspunktet, hver med sin plass. Prøvene under er de tre formene og
+# de fire kantene (månedsskifte, årsskifte, ISO-år, fravær).
+
+def test_dato_i_loepende_tekst():
+    assert visningsord.dato("2026-09-16") == "16. september 2026"
+    assert visningsord.dato("2026-01-01") == "1. januar 2026"
+    assert visningsord.dato("2026-12-31") == "31. desember 2026"
+    # Tidsstempel med klokkeslett: datodelen er nok.
+    assert visningsord.dato("2026-09-16T04:09:31+00:00") == "16. september 2026"
+
+
+def test_dato_uten_verdi_blir_tom_og_ikke_1_januar():
+    """Fravær er ikke en dato. En tom celle som ble «1. januar 1970» er
+    en påstand kilden aldri gjorde."""
+    assert visningsord.dato("") == ""
+    assert visningsord.dato(None) == ""
+    assert visningsord.dato("ikke en dato") == "ikke en dato"
+
+
+def test_uke_bruker_iso_aaret():
+    """2019-12-30 er mandag i uke 1 av 2020. Kalenderåret ville gitt
+    «uke 1, 2019» ved siden av «uke 52, 2019» — to uker som ligger ett
+    år fra hverandre. Samme felle som `nettsted._isouke`."""
+    assert visningsord.uke("2019-12-30") == "uke 1, 2020"
+    assert visningsord.isouke("2019-12-30") == "2020-W01"
+    assert visningsord.uke("2026-09-16") == "uke 38, 2026"
+
+
+def test_ukespenn_skriver_maaneden_en_gang_naar_den_kan():
+    assert visningsord.ukespenn("2026-09-16") == "14.–20. september 2026"
+
+
+def test_ukespenn_skriver_begge_maanedene_over_et_skifte():
+    assert visningsord.ukespenn("2026-09-29") == "28. september–4. oktober 2026"
+
+
+def test_ukespenn_skriver_begge_aarene_over_et_skifte():
+    assert (visningsord.ukespenn("2025-12-29")
+            == "29. desember 2025–4. januar 2026")
+
+
+def test_tidspunkt_sier_hvilken_sone_det_er_i():
+    """`fetched_at` er skrevet i UTC. Regnes det om til norsk tid her,
+    er det en ANDRE påstand om når vi hentet, ved siden av den ekte — og
+    de to kan svare ulikt rundt midnatt. CLAUDE.md 1b."""
+    assert (visningsord.tidspunkt("2026-09-16T04:09:31+00:00")
+            == "16. september 2026 kl. 04.09 UTC")
+    # Uten klokkeslett faller den til datoen framfor å finne på 00.00.
+    assert visningsord.tidspunkt("2026-09-16") == "16. september 2026"
+    assert visningsord.tidspunkt("") == ""

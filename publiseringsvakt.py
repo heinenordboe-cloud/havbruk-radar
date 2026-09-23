@@ -237,6 +237,57 @@ ORGNRFELT = ("eier_orgnr", "tildelt_orgnr", "mottaker_orgnr",
              "openLegalEntityNr", "legalEntityNrId")
 
 
+def navnenoekkel(navn: str) -> str:
+    """Navnet i det ALFABETET hvitelista sammenlignes i.
+
+    ## Hvorfor dette finnes, og hvorfor det ikke er en oppmykning
+
+    Hvitelista er navnene slik de står i snapshotene, og de står i
+    VERSALER: Akvakulturregisteret skriver «OTERNESET». Fra 22.09.2026
+    står lokalitetsnavnet i tittelform i H1 — «Oterneset» — fordi
+    versaler i en 88-piksels overskrift er en egenskap ved registerets
+    inntastingsfelt og ikke en opplysning om navnet. Originalen står
+    fortsatt i registerfelt-tabellen på samme side.
+
+    Sammenlignet ordrett ville hver eneste av de 1 782 lokalitets-
+    sidene meldt sitt eget lokalitetsnavn som `ukjent_navn`. En vakt
+    som feiler 1 782 ganger på noe som er gjort rede for, blir slått av
+    — det er nøyaktig begrunnelsen `_celleverdi()` har for å avkode
+    HTML-entiteter: «MÅLT 18.09.2026 meldte `ukjent_navn` 54 funn på
+    ett eneste navn (…) Alle 54 var falske, og en vakt som feiler feil
+    blir slått av.»
+
+    Store og små bokstaver er den samme slags forskjell som `&amp;` mot
+    `&`: to skrivemåter av den samme strengen. Prøven spør «er dette
+    navnet gjort rede for i dataene», og det spørsmålet har samme svar
+    uansett hvilken kasse det står i.
+
+    HULLET DETTE IKKE ÅPNER: et navn som ikke finnes i dataene, finnes
+    ikke i noen kasse heller. `casefold()` kan bare få to strenger til å
+    møtes; det kan ikke føre en ny streng inn i hvitelista. Se
+    `test_kassen_gjor_ikke_et_ukjent_navn_kjent`.
+    """
+    return html.unescape(navn).strip().casefold()
+
+
+def _noekler(navn_ok: Iterable[str]) -> set[str]:
+    """Hvitelista oversatt til nøkkelalfabetet, én gang per fil.
+
+    NORMALISERINGEN SKJER HER OG IKKE I `hviteliste()`, og det er et
+    valg med en målt pris: 10 476 navn omskrevet 2 279 ganger koster
+    2,1 sekunder av en granskning som tar ~30.
+
+    Prisen er verdt det fordi grensa da ligger i FUNKSJONEN og ikke i
+    kallet. `gransk_tekst()` og `gransk_csv()` kan kalles med hvilken
+    som helst mengde navn — en prøve, et skript, en framtidig kaller —
+    og svaret er det samme. Lå normaliseringen i `hviteliste()`, ville
+    en kaller som bygget sitt eget sett fått en vakt som stille
+    sammenlignet to alfabeter, og det er nøyaktig feilen `navnenoekkel`
+    finnes for.
+    """
+    return {navnenoekkel(n) for n in navn_ok}
+
+
 def _er_ni_siffer(s: str) -> bool:
     """Nøyaktig ni siffer og ingenting annet.
 
@@ -652,6 +703,7 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     """
     funn = _ukjente_orgnr(tekst, orgnr_ok, fil)
     kvittert = kvittert or {}
+    navn_ok = _noekler(navn_ok)
 
     tvetydige = {k.strip().upper() for k in tvetydige}
     treff_form: list[str] = []
@@ -710,7 +762,7 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     ukjente_navn: dict[str, int] = {}
     for felt, verdi in felt_verdier(tekst):
         if felt in NAVNEFELT:
-            if verdi not in navn_ok:
+            if navnenoekkel(verdi) not in navn_ok:
                 ukjente_navn[verdi] = ukjente_navn.get(verdi, 0) + 1
         elif felt == persondata.FORM_FELT:
             if persondata.er_personform(verdi):
@@ -742,7 +794,7 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     # støy, ikke informasjon.
     meldt: set[str] = set()
     for navn in navn_i(tekst):
-        if navn not in navn_ok:
+        if navnenoekkel(navn) not in navn_ok:
             funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn)))
             meldt.add(navn)
 
@@ -821,6 +873,7 @@ def gransk_csv(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     å leve med enn en prøve som gjetter på hva som er et navn og fyrer
     på hvert stedsnavn i datasettet.
     """
+    navn_ok = _noekler(navn_ok)
     overskrifter, rader = _csv_rader(tekst, avgrenser)
     kommentarer = "\n".join(l for l in tekst.splitlines()
                              if l.lstrip().startswith(CSV_KOMMENTAR))
@@ -860,7 +913,8 @@ def gransk_csv(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
                 elif kolonne == persondata.SEKTOR_FELT:
                     if persondata.er_personsektor(verdi):
                         former.append(verdi)
-                elif kolonne in NAVNEFELT and verdi not in navn_ok:
+                elif (kolonne in NAVNEFELT
+                      and navnenoekkel(verdi) not in navn_ok):
                     ukjente_navn[verdi] = ukjente_navn.get(verdi, 0) + 1
 
     if former:

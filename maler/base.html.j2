@@ -1,12 +1,16 @@
-{# Grunnmalen. Alt som er FELLES for hver publisert side, og ingenting
-   som er design.
+{# Grunnmalen. Alt som er FELLES for hver publisert side.
 
    Ingen CSS-rammeverk. Tre webfonter — Newsreader, IBM Plex Sans og
    IBM Plex Mono — alle hostet av oss selv og aldri hentet fra en CDN.
-   Se `@font-face` i maler/stil.css. Tallene skal stå i kildekoden — en side der tallene tegnes av et skript er en side
-   som ikke kan siteres, ikke kan arkiveres av Wayback, og ikke kan leses
-   av noen som slår av JS. Se docs/VISNING.md: «Ingen CDN, ingen npm,
-   ingen server.»
+   Se `@font-face` i maler/stil.css.
+
+   TALLENE SKAL STÅ I KILDEKODEN. En side der tallene tegnes av et
+   skript er en side som ikke kan siteres, ikke kan arkiveres av
+   Wayback, og ikke kan leses av noen som slår av JS. Se docs/VISNING.md:
+   «Ingen CDN, ingen npm, ingen server.» JavaScript finnes fra
+   22.09.2026 på tre steder — filteret på endringssiden, søket i et
+   område, og kopier-knappen — og alle tre er FORBEDRINGER av noe som
+   virker uten. Ingen av dem tegner en verdi.
 
    DESIGNET LIGGER I `/stil.css`, ikke her. Det er én fil, lenket og
    ikke innebygd: innebygd ville den kostet ~30 kB per side over 2 279
@@ -17,12 +21,26 @@
    samme krav som at tallene skal stå i kildekoden og ikke tegnes av et
    skript, bare ett lag lenger ned.
 
-   STIEN ER RELATIV, til forskjell fra hver annen URL her. Sidenes egne
-   adresser er absolutte og skal være det — se
+   STIEN TIL STILARKET ER RELATIV, til forskjell fra hver annen URL her.
+   Sidenes egne adresser er absolutte og skal være det — se
    2026-09-16-url-struktur.md. Men `/stil.css` peker på filsystemets
    rot når fila åpnes rett fra disk, og resultatet er en side som ser
    ut som et designvalg framfor en fil som ikke kom fram.
-   `nettsted.stilsti()` regner stien av sidas egen plassering. #}
+   `nettsted.stilsti()` regner stien av sidas egen plassering.
+
+   ## TRE BLOKKER, OG HVA DE ER TIL
+
+     topp         hele den mørke toppen. Standarden er båndet med meny
+                  og det sidetypen legger i `toppinnhold`. Forsiden
+                  OVERSTYRER den i sin helhet, fordi heroen der er et
+                  fotografi som menyen ligger oppå.
+     toppinnhold  det sidetypen legger inne i båndet: brødsmule, H1,
+                  faktaliste, knapper.
+     innhold      alt under båndet.
+
+   Hvorfor headeren ikke er én blokk per del: en underside har
+   brødsmule OG H1 OG fakta inne i den samme mørke flata, og tre blokker
+   ville betydd tre steder en sidetype kunne glemme flata. #}
 <!doctype html>
 <html lang="nb">
 <head>
@@ -51,46 +69,35 @@
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="{{ stilark }}">
+{# FEEDEN SOM HØRER TIL SIDEN. `alternate` er det en feedleser ser
+   etter når noen limer inn sideadressen, og uten den må leseren gjette
+   filnavnet. Hver sidetype sender inn sin egen; forsiden sender
+   nettstedets. #}
+{% if feed %}
+<link rel="alternate" type="application/atom+xml" href="{{ feed }}"
+      title="{{ feed_tittel }}">
+{% endif %}
 </head>
 <body>
-{# TOPPLINJA. Fram til 20.09.2026 hadde ingen av de 2 279 sidene en vei
-   hjem: en leser som landet på /lokalitet/31397/ fra et søk kunne ikke
-   komme noe annet sted uten å redigere adressefeltet.
+{# HOPPELENKA. Menyen er seks lenker på hver side, og en som leser med
+   tastatur eller skjermleser skal slippe dem. Den er synlig bare i
+   fokus — se `.hopp` i stilarket. #}
+<a class="hopp" href="#innhold">Hopp til innholdet</a>
 
-   LENKENE ER ABSOLUTTE, som hver annen sidelenke her — se
-   2026-09-16-url-struktur.md. Det er samme valg som før, og det betyr
-   fortsatt at navigasjon ikke virker når fila åpnes rett fra disk med
-   file://. Stilarket er unntaket, og det er unntaket med vilje: en
-   side uten stilark SER ut som et designvalg, mens en lenke som ikke
-   virker sier fra med én gang. #}
-<header class="topp">
-  {% include "merke.html.j2" %}
-  <nav aria-label="Hovedmeny">
-    <a href="/lokalitet/">Lokaliteter</a>
-    <a href="/produksjonsomrade/">Produksjonsområder</a>
-    <a href="/selskap/">Selskaper</a>
-    <a href="/om/">Om</a>
-  </nav>
+{% block topp %}
+<header class="sidetopp">
+  <div class="ark">
+    {% include "meny.html.j2" %}
+  </div>
+  {% block toppinnhold %}{% endblock %}
 </header>
+{% endblock %}
 
-{# HERO-BÅNDET. Tomt for hver sidetype som ikke fyller det, og det er
-   de fleste: en lokalitetsside skal begynne med lokaliteten, ikke med
-   en fargeflate. Blokka ligger UTENFOR `<main>` fordi båndet er en
-   flate på siden og ikke innhold i den — og fordi et bånd inne i
-   `main` måtte brutt ut av arket med negative marger for å nå kanten.
-
-   Bredden er den samme `--maal-side` som topplinja og arket, så de tre
-   står i flukt. #}
-{% block hero %}{% endblock %}
-
-<main>
-{# Brødsmula er hver sidetypes egen: bare den vet hva den ligger under.
-   Forsiden lar blokka stå tom — den ER toppen. #}
-{% block brodsmule %}{% endblock %}
+<main id="innhold" tabindex="-1">
 {% block innhold %}{% endblock %}
 </main>
 
-{# ATTRIBUSJONEN. Synlig for sluttbruker, på samme side som tallene.
+{# BUNNTEKSTEN. Attribusjonen er en LISENSPLIKT, ikke en kolofon.
 
    BarentsWatch krever synlighet for sluttbruker; NLOD 2.0 godtar en
    «Om»-side. Den strengeste plikten gjelder hele siden — se
@@ -98,24 +105,78 @@
    NLOD-setningene på /om/ og lusesetningene her ville vært to
    plasseringer å holde styr på der én holder.
 
-   Setningene er ORDRETT fra lisensgiverne og bygges av `KILDEVILKAAR`
+   Setningene er ORDRETT fra lisensgiverne og bygges av `kildevilkaar()`
    i nettsted.py ut fra hvilke kilder siden faktisk bruker. En side som
-   bruker en kilde uten dokumentert vilkår rendres ikke i det hele
-   tatt. #}
-<footer>
-  <h2 id="kilder">Kilder og vilkår</h2>
-  <ul>
-    {% for setning in attribusjon %}
-    <li>{{ setning }}</li>
-    {% endfor %}
-  </ul>
-  <p>
-    Siden er bygget {{ bygget }} av snapshots i Kystloggen.
-    Hver verdi bærer datoen den gjelder for. Tallene er gjengitt
-    uendret fra kildene; sammenstillingen er vår, og verken
-    Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch eller
-    Mattilsynet går god for den.
-  </p>
+   bruker en kilde uten dokumentert vilkår rendres ikke i det hele tatt.
+
+   DESIGNET GIR DEN FIRE SPALTER, og to av dem er nye: veier videre, og
+   en adresse å melde feil til. Den første spalta sier hva dette er og
+   hvem som står bak — det er ETTERSKRIFTEN til hver eneste side, og
+   den setningen er det som skiller nettstedet fra en etatsside. #}
+<footer class="bunn">
+  <div class="ark bunn-spalter">
+    <div class="bunn-merke">
+      <p class="bunn-ordmerke">Kystloggen</p>
+      <p>
+        Et uavhengig, åpent arkiv over offentlige data om norsk havbruk.
+        Laget og drevet av Heine Valø Nordbøe.
+      </p>
+    </div>
+
+    <div>
+      <h2 id="kilder">Kilder og vilkår</h2>
+      <ul class="bunn-kilder">
+        {% for setning in attribusjon %}
+        <li>{{ setning }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div>
+      <h2>Arkivet</h2>
+      <ul class="bunn-lenker">
+        <li><a href="/om/#metode">Metode og innsamling</a></li>
+        <li><a href="/om/#siter">Slik siterer du</a></li>
+        <li><a href="/om/#dekning">Dekning og begrensninger</a></li>
+        <li><a href="/endringer/">Alle endringsuker</a></li>
+        <li><a href="{{ repo }}">Kildekoden</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h2>Kontakt</h2>
+      <p>Heine Valø Nordbøe</p>
+      {% if kontakt %}
+      <p><a href="mailto:{{ kontakt }}">{{ kontakt }}</a></p>
+      {% else %}
+      {# TOM STRENG ER IKKE EN ADRESSE. `HAVBRUK_KONTAKT` er ikke satt i
+         denne kjøringen, og en påfunnet adresse ville vært verre enn
+         ingen — den ville sett ut som en vei inn som ikke finnes. Se
+         `bygg_om()`. #}
+      <p class="mangler">Ingen kontaktadresse er satt i denne
+         byggingen.</p>
+      {% endif %}
+      <p>
+        Feil i dataene? Skriv, så rettes det og noteres i loggen med
+        dato. Snapshotene selv skrives aldri om — de er append-only.
+      </p>
+    </div>
+  </div>
+
+  {# PROVENIENSLINJA. Hvilket øyeblikksbilde siden er bygget av, og når
+     vi hentet det. To ulike tidspunkter, og skillet er CLAUDE.md 1b-7:
+     `observed_at` handler om VERDEN, `fetched_at` om OSS. Begge står,
+     fordi en side som bare oppgir det ene lar leseren tro at de er det
+     samme. #}
+  <div class="ark bunn-proveniens">
+    <p>{{ proveniens }}</p>
+    <p>
+      Tallene er gjengitt uendret fra kildene; sammenstillingen er vår,
+      og verken Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch
+      eller Mattilsynet går god for den.
+      Siden er bygget <time datetime="{{ bygget }}">{{ bygget_vist }}</time>.
+    </p>
+  </div>
 </footer>
 </body>
 </html>

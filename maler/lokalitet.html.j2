@@ -7,7 +7,8 @@
    noen av dem. #}
 {% extends "base.html.j2" %}
 
-{% block brodsmule %}
+{% block toppinnhold %}
+<div class="ark sidehode">
 <nav class="sti" aria-label="Du er her">
   <ol>
     <li><a href="/">Forside</a></li>
@@ -18,6 +19,7 @@
     <li aria-current="page">Lokalitet {{ lok.loknr }}</li>
   </ol>
 </nav>
+</div>
 {% endblock %}
 
 {% block innhold %}

@@ -1,0 +1,32 @@
+{# HOVEDMENYEN — ETT STED.
+
+   Ligger i sin egen fil av samme grunn som ordmerket: menyen står på
+   hver eneste av de 2 279 sidene, og et nytt punkt skal koste én fil.
+
+   DEN STÅR ALLTID PÅ MØRK FLATE. På forsiden ligger den oppå
+   herofotografiet; på undersidene ligger den i det mørke båndet
+   headeren er. Det er derfor `.hovedmeny` ikke setter noen
+   bakgrunnsfarge selv — flata er alltid noen andres, og en meny med
+   egen farge ville lagt en stripe oppå fotografiet.
+
+   LENKENE ER ABSOLUTTE, som hver annen sidelenke her — se
+   2026-09-16-url-struktur.md. Det betyr at navigasjon ikke virker når
+   fila åpnes rett fra disk med file://; stilarket er det ene unntaket,
+   og det er unntaket med vilje.
+
+   `aria-current="page"` settes av `meny_aktiv`, som hver sidetype
+   sender inn. Den er ikke pynt: uten den kan en skjermleser ikke si
+   hvor i menyen leseren står, og markeringen i CSS-en henger på
+   nettopp det attributtet framfor på en klasse — attributtet BETYR
+   noe, klassen ville bare sett slik ut. #}
+<nav class="hovedmeny" aria-label="Hovedmeny">
+  {% include "merke.html.j2" %}
+  <ul>
+    <li><a href="/lokalitet/"{% if meny_aktiv == "lokalitet" %} aria-current="page"{% endif %}>Lokaliteter</a></li>
+    <li><a href="/produksjonsomrade/"{% if meny_aktiv == "produksjonsomrade" %} aria-current="page"{% endif %}>Produksjonsområder</a></li>
+    <li><a href="/selskap/"{% if meny_aktiv == "selskap" %} aria-current="page"{% endif %}>Selskaper</a></li>
+    <li><a href="/endringer/"{% if meny_aktiv == "endringer" %} aria-current="page"{% endif %}>Endringer</a></li>
+    <li><a href="/om/"{% if meny_aktiv == "om" %} aria-current="page"{% endif %}>Om</a></li>
+    <li><a href="/#folg"{% if meny_aktiv == "folg" %} aria-current="page"{% endif %}>Følg med</a></li>
+  </ul>
+</nav>

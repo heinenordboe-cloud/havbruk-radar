@@ -55,6 +55,8 @@ Regel 4 i CLAUDE.md: skill mellom bekreftet og antatt.
 from __future__ import annotations
 
 import collections
+import datetime as _dt
+import re as _re
 
 # Hver gang en kode faller ut av tabellen: {(felt, kode): antall}.
 # Bokføring for byggerapporten, ikke tilstand som påvirker utputtet —
@@ -364,3 +366,205 @@ def ukjente_rapport() -> list[str]:
     """Én linje per kode som falt ut av tabellen, mest brukte først."""
     return [f"{felt_}: «{kode}» x{antall}"
             for (felt_, kode), antall in UKJENTE.most_common()]
+
+
+# --------------------------------------------------------------- DATOER
+#
+# Overleveringens harde krav 5, ordrett:
+#
+#     Datoer: i løpende tekst «16. september 2026». I tabeller brukes
+#     ISO («2026-09-16»). Uker skrives «uke 38, 2026». ISO-uke
+#     (`2026-W38`) står bare i filer, URL-er og `title`/hover.
+#
+# Det er tre skrivemåter av det samme tidspunktet, og de ligger her av
+# samme grunn som «tonn»: to steder som staver september hver for seg er
+# formen F6 og F7 hadde. ISO-formen står IKKE her — den er kildens verdi
+# og skrives uendret, som alt annet i dataene.
+#
+# MÅNEDSNAVNENE ER EN LISTE, ikke `locale`. `locale.setlocale(LC_TIME,
+# "nb_NO")` avhenger av hvilke lokaliteter som er installert på maskinen
+# som bygger, og en byggejobb som gir «September» på én maskin og
+# «september» på en annen er en side som endrer seg uten at noen rørte
+# den. Tolv strenger er billigere enn den avhengigheten.
+MAANEDER = ("januar", "februar", "mars", "april", "mai", "juni", "juli",
+            "august", "september", "oktober", "november", "desember")
+
+
+def _dagen(iso: object) -> tuple[str, _dt.date | None]:
+    """(teksten uendret, datoen den er — eller None).
+
+    KUTTER IKKE PÅ TEGN 10. Et førsteutkast gjorde `str(iso)[:10]`, og
+    «ikke en dato» kom da ut som «ikke en da» — en verdi som ikke er en
+    dato ble til en annen verdi som heller ikke er en dato, og som
+    dessuten er feil. Regel 2 i denne modulen sier at det som ikke
+    kjennes igjen skal komme UENDRET igjennom.
+
+    Tidsstempel deles på «T» fordi det er ISO-8601s eget skille, ikke
+    fordi datoen tilfeldigvis er ti tegn lang.
+    """
+    tekst = "" if iso is None else str(iso).strip()
+    try:
+        return tekst, _dt.date.fromisoformat(tekst.partition("T")[0])
+    except ValueError:
+        return tekst, None
+
+
+def dato(iso: object) -> str:
+    """«2026-09-16» -> «16. september 2026». For LØPENDE TEKST.
+
+    Det som ikke er en ISO-dato kommer uendret ut. En tom streng blir
+    tom: fravær er ikke 1. januar.
+    """
+    tekst, d = _dagen(iso)
+    if d is None:
+        return tekst
+    return f"{d.day}. {MAANEDER[d.month - 1]} {d.year}"
+
+
+def uke(iso: object) -> str:
+    """«2026-09-16» -> «uke 38, 2026». ISO-uke og ISO-år.
+
+    ISO-ÅRET, ikke kalenderåret: 2019-12-30 er mandag i uke 1 av 2020,
+    og «uke 1, 2019» ved siden av «uke 52, 2019» er to uker som ligger
+    ett år fra hverandre. Samme regel som `nettsted._isouke`.
+    """
+    tekst, d = _dagen(iso)
+    if d is None:
+        return tekst
+    aar, ukenr, _ = d.isocalendar()
+    return f"uke {ukenr}, {aar}"
+
+
+def isouke(iso: object) -> str:
+    """«2026-09-16» -> «2026-W38». Bare i filer, URL-er og `title`."""
+    tekst, d = _dagen(iso)
+    if d is None:
+        return tekst
+    aar, ukenr, _ = d.isocalendar()
+    return f"{aar}-W{ukenr:02d}"
+
+
+def ukespenn(iso: object) -> str:
+    """Datoen -> «14.–20. september 2026», uka den ligger i.
+
+    Spennet er mandag til søndag i ISO-uka, og måneds- og årsnavnet
+    skrives bare én gang når begge endene ligger i samme måned. Går uka
+    over et månedsskifte, står måneden på begge: «29. september–5.
+    oktober 2026». Over et årsskifte står året også.
+    """
+    tekst, d = _dagen(iso)
+    if d is None:
+        return tekst
+    mandag = d - _dt.timedelta(days=d.weekday())
+    sondag = mandag + _dt.timedelta(days=6)
+    if mandag.year != sondag.year:
+        return (f"{mandag.day}. {MAANEDER[mandag.month - 1]} {mandag.year}"
+                f"–{sondag.day}. {MAANEDER[sondag.month - 1]} {sondag.year}")
+    if mandag.month != sondag.month:
+        return (f"{mandag.day}. {MAANEDER[mandag.month - 1]}"
+                f"–{sondag.day}. {MAANEDER[sondag.month - 1]} {sondag.year}")
+    return (f"{mandag.day}.–{sondag.day}. "
+            f"{MAANEDER[sondag.month - 1]} {sondag.year}")
+
+
+def tidspunkt(stempel: object) -> str:
+    """«2026-09-16T04:09:31+00:00» -> «16. september 2026 kl. 04.09».
+
+    PUNKTUM OG IKKE KOLON mellom time og minutt: det er norsk
+    rettskriving, og et kolon i en klokkeslettangivelse midt i en
+    setning leses som et innrykk.
+
+    SONEN FØLGER MED I STRENGEN og regnes ikke om. Tidsstempelet er vårt
+    eget `fetched_at`, og det er skrevet i UTC — se core/contract.py. Å
+    regne det om til norsk tid her ville vært en andre påstand om når vi
+    hentet, ved siden av den ekte, og de to kan svare ulikt rundt
+    midnatt. Se CLAUDE.md 1b.
+    """
+    tekst = "" if stempel is None else str(stempel).strip()
+    if not tekst:
+        return ""
+    dagen, _, klokka = tekst.partition("T")
+    vist = dato(dagen)
+    if not vist or len(klokka) < 5 or not klokka[:5].replace(":", "").isdigit():
+        return vist
+    return f"{vist} kl. {klokka[:2]}.{klokka[3:5]} UTC"
+
+
+# ----------------------------------------------------------- TITTELFORM
+#
+# Akvakulturregisteret skriver lokalitetsnavn i VERSALER: «OTERNESET»,
+# «TUHOLMANE Ø», «LISTA FLY- OG NÆRINGSPARK». MÅLT 22.09.2026: 1 744 av
+# 1 782 navn er heilt i versaler.
+#
+# Versaler i en 88-piksels overskrift er ikke en opplysning om navnet —
+# det er en egenskap ved registerets inntastingsfelt. Overleveringen ber
+# derfor om tittelform i H1, og om at ORIGINALEN står i
+# registerfelt-tabellen. Begge deler, og det er poenget: den ene er
+# lesbar, den andre er etterprøvbar.
+#
+# ## Regelen er SMAL, og det er med vilje
+#
+# 1. Er navnet ikke heilt i versaler, RØRES DET IKKE. Registeret har da
+#    alt tatt et valg om store og små bokstaver, og vi skal ikke gjette
+#    at det er feil. (38 navn.)
+# 2. Et ord med siffer i står uendret. «17B» er ikke «17b».
+# 3. Romertall, himmelretningsforkortelser og en MÅLT liste over
+#    initialord står i versaler.
+# 4. Småord står med liten forbokstav når de ikke er først.
+# 5. Alt annet får stor forbokstav og små resten.
+#
+# ## Grensa, sagt rett ut
+#
+# Et initialord som ikke står i lista blir «Vgs» framfor «VGS». Lista er
+# MÅLT mot dagens 1 782 navn og dekker dem — men den er en liste, og en
+# ny lokalitet med et nytt initialord er ikke dekket.
+#
+# Alternativet var å GJETTE på at korte ord i versaler er initialord, og
+# det ville tatt «VAL», «MO», «TAU», «AGA», «ØYE» og «FLØ» med seg. Alle
+# seks er ekte stedsnavn i registeret, og «VAL» framfor «Val» er en
+# feil ingen kan se er en feil. En liste som er for kort gir en synlig
+# skrivefeil; et gjett som er for bredt gir en usynlig.
+#
+# Originalen står uansett i registerfelt-tabellen, og den er den
+# siterbare.
+
+# De 16 himmelretningene, norske forkortelser. Står i versaler.
+HIMMELRETNING = frozenset({
+    "N", "NNØ", "NØ", "ØNØ", "Ø", "ØSØ", "SØ", "SSØ",
+    "S", "SSV", "SV", "VSV", "V", "VNV", "NV", "NNV",
+    # ONO er den engelsk-pregede skrivemåten for ØNØ, og den står i
+    # registeret. Den er MÅLT, ikke antatt.
+    "ONO", "NO",
+})
+
+# Initialord MÅLT i dagens navn. Se grensa over.
+INITIALORD = frozenset({"VGS", "NFH", "HIB", "IMS", "NCMM"})
+
+# Småord med liten forbokstav når de ikke står først.
+SMAAORD = frozenset({"og", "i", "på", "til", "ved", "for", "av", "med",
+                     "under", "over", "mot", "fra"})
+
+_ROMERTALL = _re.compile(r"[IVXLC]+")
+_ORDDELER = _re.compile(r"([^\W\d_]+)", _re.UNICODE)
+
+
+def tittelform(navn: object) -> str:
+    """«OTERNESET» -> «Oterneset». Rører ikke et navn som ikke er versaler."""
+    tekst = "" if navn is None else str(navn).strip()
+    if not tekst or tekst != tekst.upper() or not any(c.isalpha() for c in tekst):
+        return tekst
+
+    biter = _ORDDELER.split(tekst)
+    ut, er_forste = [], True
+    for i, bit in enumerate(biter):
+        if i % 2 == 0:          # skilletegn og siffer
+            ut.append(bit)
+            continue
+        if bit in HIMMELRETNING or bit in INITIALORD or _ROMERTALL.fullmatch(bit):
+            ut.append(bit)
+        elif not er_forste and bit.lower() in SMAAORD:
+            ut.append(bit.lower())
+        else:
+            ut.append(bit[:1] + bit[1:].lower())
+        er_forste = False
+    return "".join(ut)

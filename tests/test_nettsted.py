@@ -61,6 +61,32 @@ def _stilark(undermappe: str) -> str:
     return nettsted.stilsti(sti, rot)
 
 
+def _grunn(undermappe: str = "", **over) -> dict:
+    """Nøklene `base.html.j2` krever, for en prøve som rendrer direkte.
+
+    Speiler `nettsted._grunnkontekst()`. Den KAN ikke brukes her: den
+    tar en `Felles`, og suiten har ingen data å bygge en av. Men de to
+    skal kreve det samme, og `test_grunnkonteksten_dekker_grunnmalen`
+    holder dem sammen — to steder som skal si det samme om hvilke
+    nøkler malen trenger, er formen F6 og F7 hadde.
+    """
+    grunn = {
+        "tittel": "T", "beskrivelse": "B", "jsonld": "{}",
+        "attribusjon": ["Kilde: Fiskeridirektoratet"],
+        "stilark": _stilark(undermappe),
+        "bygget": "2026-09-20",
+        "bygget_vist": "20. september 2026",
+        "proveniens": "Bygget fra øyeblikksbildet for uke 38, 2026.",
+        "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
+        "kontakt": "",
+        "meny_aktiv": "",
+        "feed": "",
+        "feed_tittel": "",
+    }
+    grunn.update(over)
+    return grunn
+
+
 # ---- vilkårene --------------------------------------------------------
 
 def test_attribusjonen_bygges_av_kildene_siden_bruker():
@@ -230,11 +256,10 @@ def _side(**overstyr) -> str:
             t_["kapasitet"] = visningsord.maalt(t_.pop("kapasitet"),
                                                 t_.pop("kapasitet_enhet"))
     return nettsted._miljo().get_template("lokalitet.html.j2").render(
-        lok=lok, tittel="T", beskrivelse="B",
-        jsonld=nettsted.jsonld(lok),
-        attribusjon=nettsted.attribusjon(nettsted.SIDENS_KILDER),
-        stilark=_stilark("lokalitet/31397"),
-        bygget="2026-09-16",
+        lok=lok,
+        **_grunn("lokalitet/31397", bygget="2026-09-16",
+                 jsonld=nettsted.jsonld(lok),
+                 attribusjon=nettsted.attribusjon(nettsted.SIDENS_KILDER)),
     )
 
 
@@ -248,9 +273,8 @@ def test_malen_krever_alle_feltene_bygg_lokalitet_lager():
     # en side full av tomme celler.
     with pytest.raises(UndefinedError):
         nettsted._miljo().get_template("lokalitet.html.j2").render(
-            lok={"loknr": "1"}, tittel="T", beskrivelse="B", jsonld="{}",
-            attribusjon=[], stilark=_stilark("lokalitet/31397"),
-            bygget="2026-09-16")
+            lok={"loknr": "1"},
+            **_grunn("lokalitet/31397", bygget="2026-09-16", attribusjon=[]))
 
     # Og på radnivå, som er der det ville gjort minst støy: en uke uten
     # `voksne_hunnlus` skal felle malen og ikke gi en tom celle. Det er
@@ -1113,11 +1137,10 @@ def _po(**overstyr) -> str:
                                                 l_.pop("kapasitet_enhet"))
         l_["arter"] = visningsord.verdi("arter", l_.get("arter", ""))
     return nettsted._miljo().get_template("produksjonsomrade.html.j2").render(
-        po=po, tittel="T", beskrivelse="B",
-        jsonld=nettsted.jsonld_po(po, nettsted.kildevilkaar()),
-        attribusjon=nettsted.attribusjon(nettsted.PO_KILDER),
-        stilark=_stilark("produksjonsomrade/4"),
-        bygget="2026-09-20")
+        po=po,
+        **_grunn("produksjonsomrade/4",
+                 jsonld=nettsted.jsonld_po(po, nettsted.kildevilkaar()),
+                 attribusjon=nettsted.attribusjon(nettsted.PO_KILDER)))
 
 
 def test_celle_uten_farge_SIER_det():
@@ -1235,11 +1258,11 @@ def _selskap(**overstyr) -> str:
             t_["kapasitet"] = visningsord.maalt(t_.pop("kapasitet"),
                                                 t_.pop("kapasitet_enhet"))
     return nettsted._miljo().get_template("selskap.html.j2").render(
-        sel=sel, tittel="T", beskrivelse="B",
-        jsonld=nettsted.jsonld_selskap(jsonld_raa, nettsted.kildevilkaar()),
-        attribusjon=nettsted.attribusjon(nettsted.SELSKAPSKILDER),
-        stilark=_stilark("selskap/928957489"),
-        bygget="2026-09-20")
+        sel=sel,
+        **_grunn("selskap/928957489",
+                 jsonld=nettsted.jsonld_selskap(jsonld_raa,
+                                                nettsted.kildevilkaar()),
+                 attribusjon=nettsted.attribusjon(nettsted.SELSKAPSKILDER)))
 
 
 def test_selskap_uten_registerdata_SIER_det():
@@ -1419,11 +1442,9 @@ def _forside(**overstyr) -> str:
     }
     f.update(overstyr)
     return nettsted._miljo().get_template("forside.html.j2").render(
-        f=f, tittel="T", beskrivelse="B",
-        jsonld=nettsted.jsonld_forside(f, nettsted.kildevilkaar()),
-        attribusjon=nettsted.attribusjon(nettsted.FORSIDEKILDER),
-        stilark=_stilark(""),
-        bygget="2026-09-20")
+        f=f,
+        **_grunn(jsonld=nettsted.jsonld_forside(f, nettsted.kildevilkaar()),
+                 attribusjon=nettsted.attribusjon(nettsted.FORSIDEKILDER)))
 
 
 def test_forsiden_svarer_paa_de_tre_tingene():
@@ -1496,9 +1517,7 @@ def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
     assert d["personeiere"] == 1
 
     html = nettsted._miljo().get_template("indeks-selskap.html.j2").render(
-        d=d, tittel="T", beskrivelse="B", jsonld="{}",
-        attribusjon=["Kilde: Fiskeridirektoratet"],
-        stilark=_stilark("lokalitet"), bygget="2026-09-20")
+        d=d, **_grunn("lokalitet"))
     flat = " ".join(html.split())
     assert "1 eier(e) står ikke i lista og har ingen side" in flat
     assert "personregister" in flat
@@ -1520,9 +1539,7 @@ def test_indeksene_er_flate_uten_paginering():
     assert d["uten_po"] == 50
 
     html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
-        d=d, tittel="T", beskrivelse="B", jsonld="{}",
-        attribusjon=["Kilde: Fiskeridirektoratet"],
-        stilark=_stilark("lokalitet"), bygget="2026-09-20")
+        d=d, **_grunn("lokalitet"))
     # RADLENKENE, ikke alle lenker til /lokalitet/. Fra 20.09.2026 har
     # hver side en topplinje som også lenker dit, og en telling av
     # prefikset ga 51. Mønsteret spør om det prøven faktisk vil vite:
@@ -1564,11 +1581,9 @@ def _om(**overstyr) -> str:
     }
     om.update(overstyr)
     return nettsted._miljo().get_template("om.html.j2").render(
-        om=om, laan=nettsted.VAART_LAAN, tittel="T", beskrivelse="B",
-        jsonld="{}",
-        attribusjon=nettsted.attribusjon(nettsted.OM_KILDER),
-        stilark=_stilark("om"),
-        bygget=om["bygget"])
+        om=om, laan=nettsted.VAART_LAAN,
+        **_grunn("om", bygget=om["bygget"],
+                 attribusjon=nettsted.attribusjon(nettsted.OM_KILDER)))
 
 
 def test_om_siden_oppgir_dekning_og_hvem_som_er_utelatt():
@@ -2012,3 +2027,34 @@ def test_navnet_staar_ikke_paa_sida(tmp_path):
     assert "PARTREDERIET HEMMELIG" not in html
     assert nettsted.EIER_PERSONFORM in html
     assert "H-FJ-0018" in html
+
+
+# ---- blokkene i grunnmalen ---------------------------------------------
+#
+# Jinja IGNORERER en `{% block %}` som grunnmalen ikke har. Det er ikke
+# en feil i Jinja — en mal kan arve fra flere — men følgen her er stille
+# og stor: da `hero` ble til `toppinnhold` 22.09.2026, rendret forsiden
+# fortsatt, bare uten heroen. Ingenting kastet, og bygget var grønt.
+
+def test_malene_bruker_bare_blokker_grunnmalen_har():
+    """Driftvakten. En blokk som ikke finnes i grunnmalen rendres ikke,
+    og den som skrev den får ingen beskjed — hele seksjonen forsvinner
+    bare. MÅLT: det skjedde med forsidens hero."""
+    kommentar = re.compile(r"\{#.*?#\}", re.S)
+    blokk = re.compile(r"\{%-?\s*block\s+([a-z_]+)")
+
+    grunn = kommentar.sub("", (nettsted.MALER / "base.html.j2")
+                          .read_text(encoding="utf-8"))
+    tillatt = set(blokk.findall(grunn))
+    assert tillatt, "grunnmalen har ingen blokker — er arven byttet ut?"
+
+    feil = []
+    for sti in sorted(nettsted.MALER.glob("*.html.j2")):
+        tekst = kommentar.sub("", sti.read_text(encoding="utf-8"))
+        if "{% extends" not in tekst:
+            continue
+        for navn in blokk.findall(tekst):
+            if navn not in tillatt:
+                feil.append(f"{sti.name}: {{% block {navn} %}} finnes ikke "
+                            f"i base.html.j2 — innholdet rendres aldri")
+    assert not feil, "\n".join(feil)

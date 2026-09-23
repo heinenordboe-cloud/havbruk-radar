@@ -83,6 +83,7 @@ import datetime as dt
 import io
 import json
 import math
+import os
 import sys
 import time
 from collections import defaultdict
@@ -206,6 +207,84 @@ def attribusjon(kilder, vilkaar=None) -> list[str]:
     return ut
 
 
+# ------------------------------------------------- DET HVER SIDE DELER
+#
+# Bunnteksten, menyen og proveniens­linja står på alle 2 279 sidene.
+# Fram til 22.09.2026 sendte hver `skriv_*` inn sine egne fem
+# nøkkelord, og `StrictUndefined` gjorde en glemt nøkkel til en
+# byggefeil — men bare for den ene sidetypen. Med ni sidetyper er det
+# ni steder å glemme den samme.
+#
+# `_grunnkontekst()` er det ene stedet. Den som legger til en ny
+# sidetype får bunnteksten ved å kalle den, og en ny nøkkel i
+# bunnteksten legges til her og virker overalt.
+
+# Repoet, ett sted. Står i bunnteksten på hver side og på /om/.
+REPO = "https://github.com/heinenordboe-cloud/havbruk-radar"
+
+
+def _kontakt() -> str:
+    """Adressen folk melder feil til, fra `HAVBRUK_KONTAKT`.
+
+    Tom streng når den ikke er satt, og bunnteksten SIER at den ikke er
+    satt framfor å skrive en påfunnet adresse. Samme skille som
+    `utvalg`: tom er fraværet av en verdi, ikke en verdi.
+
+    Leses av miljøet og ikke av en fil i repoet, fordi en e-postadresse
+    i et offentlig repo er en adresse høsteroboter finner.
+    """
+    return (os.environ.get("HAVBRUK_KONTAKT") or "").strip()
+
+
+def proveniens(observed_at: str, fetched_at: str, tillegg: str = "") -> str:
+    """Setningen nederst på siden: hvilket øyeblikksbilde, og når hentet.
+
+    TO TIDSPUNKTER, og skillet er CLAUDE.md 1b-7. `observed_at` er
+    uka raden GJELDER FOR — verden. `fetched_at` er da VI spurte — oss.
+    De faller nesten sammen når vi henter ferskt, og «nesten» er
+    nøyaktig det som gjør at et repo klarer seg uten å skille dem helt
+    til en kropp graves ut av et arkiv.
+
+    Mangler hentetidspunktet, utelates leddet. Å skrive
+    `observed_at` der ville vært å påstå at vi hentet på gyldighets-
+    datoen, og det er den samme feilen `published_at`-regelen stengte.
+    """
+    uka = visningsord.uke(observed_at)
+    linje = f"Bygget fra øyeblikksbildet for {uka}"
+    hentet = visningsord.tidspunkt(fetched_at)
+    if hentet:
+        linje += f", hentet {hentet}"
+    linje += "."
+    if tillegg:
+        linje += f" {tillegg}"
+    return linje
+
+
+def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
+                   tittel: str, beskrivelse: str, jsonld,
+                   kilder, proveniens_tekst: str,
+                   meny_aktiv: str = "", feed: str = "",
+                   feed_tittel: str = "") -> dict:
+    """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
+    i_dag = dt.date.today().isoformat()
+    return {
+        "tittel": tittel,
+        "beskrivelse": beskrivelse,
+        "jsonld": jsonld,
+        "attribusjon": attribusjon(kilder,
+                                   felles.vilkaar if felles else None),
+        "stilark": stilsti(sti, rot),
+        "bygget": i_dag,
+        "bygget_vist": visningsord.dato(i_dag),
+        "proveniens": proveniens_tekst,
+        "repo": REPO,
+        "kontakt": felles.kontakt if felles else _kontakt(),
+        "meny_aktiv": meny_aktiv,
+        "feed": feed,
+        "feed_tittel": feed_tittel,
+    }
+
+
 # --------------------------------------------------------- lesing
 
 
@@ -245,6 +324,26 @@ def _siste(kilde: str) -> tuple[str, dict[str, dict[str, str]]]:
         raise SystemExit(f"{kilde}: ingen snapshots i {DATA_DIR}")
     versjonene = snapshot.versjoner(kilde, dato)
     return dato, _pivot(versjonene[-1][1])
+
+
+def _hentet(kilde: str) -> str:
+    """`fetched_at` i nyeste snapshot av kilden, eller tom streng.
+
+    DETTE ER ET TIDSPUNKT OM OSS, ikke om verden. `observed_at` er
+    datoen raden gjelder for, og den står i filnavnet; dette er da VI
+    spurte. Proveniens­linja i bunnteksten oppgir begge, fordi en side
+    som bare oppgir det ene lar leseren tro at de er det samme. Se
+    CLAUDE.md 1b-7.
+
+    Tom streng og ikke en gjetning når feltet mangler: et gammelt
+    snapshot kan være skrevet før feltet fantes, og
+    `visningsord.tidspunkt("")` gir tom streng videre.
+    """
+    dato = snapshot.siste_dato(kilde)
+    if dato is None:
+        return ""
+    versjonene = snapshot.versjoner(kilde, dato)
+    return snapshot.fetched_at_i(versjonene[-1][1]) or ""
 
 
 def _overforinger() -> dict[str, dict[str, str]]:
@@ -339,6 +438,12 @@ class Felles:
     tillatelser_per_eier: dict[str, list[str]]
     enhet: dict[str, dict[str, str]]
     enhet_dato: str
+    # NÅR VI HENTET, ikke hva raden gjelder for. Bunntekstens
+    # proveniens­linje oppgir begge — se `_hentet()` og CLAUDE.md 1b-7.
+    akva_hentet: str
+    # Adressen folk melder feil til. Tom når `HAVBRUK_KONTAKT` ikke er
+    # satt, og da SIER bunnteksten det framfor å finne på en.
+    kontakt: str
 
 
 def les_felles() -> Felles:
@@ -439,6 +544,8 @@ def les_felles() -> Felles:
         tillatelser_per_eier=dict(till_per_eier),
         enhet=enhet,
         enhet_dato=enhet_dato,
+        akva_hentet=_hentet("akvakultur"),
+        kontakt=_kontakt(),
     )
 
 
@@ -1264,6 +1371,13 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     return {
         "loknr": loknr,
         "navn": a.get("navn", ""),
+        # REGISTERETS VERSALER GJORT OM TIL TITTELFORM, for H1.
+        # «OTERNESET» er ikke en opplysning om navnet — det er en
+        # egenskap ved registerets inntastingsfelt. Originalen står
+        # uendret i `navn` og i registerfelt-tabellen på samme side, og
+        # det er den som er siterbar. Regelen og dens grense står i
+        # `visningsord.tittelform`.
+        "tittelnavn": visningsord.tittelform(a.get("navn", "")),
         "kommune": a.get("kommune", ""),
         "fylke": a.get("fylke", ""),
         "po_kode": a.get("prodomraade_kode", ""),
@@ -1271,6 +1385,9 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "breddegrad": a.get("breddegrad", ""),
         "lengdegrad": a.get("lengdegrad", ""),
         "akva_dato": akva_dato,
+        # NÅR VI HENTET, ikke hva raden gjelder for. Proveniens­linja i
+        # bunnteksten oppgir begge — CLAUDE.md 1b-7.
+        "akva_hentet": (felles.akva_hentet if felles else _hentet("akvakultur")),
         "eierskap_dato": eierskap_dato,
         # Sortert alfabetisk og ikke i kildens rekkefølge: kildens
         # rekkefølge er en tilfeldighet i et JSON-svar, og en tabell som
@@ -1625,20 +1742,30 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     lok = bygg_lokalitet(loknr, felles)
     sti = rot / "lokalitet" / loknr / "index.html"
     vilkaar = felles.vilkaar if felles else None
-    setninger = attribusjon(SIDENS_KILDER, vilkaar)  # kaster på UBELAGT
+    # KASTER PÅ UBELAGT før noe skrives. `_grunnkontekst()` bygger
+    # setningene på nytt til bunnteksten; kallet her er porten, og den
+    # skal stå FØR malen kompileres slik at en UBELAGT kilde stopper
+    # siden framfor å rendres og kastes etterpå.
+    attribusjon(SIDENS_KILDER, vilkaar)
     mal = mal or _miljo().get_template("lokalitet.html.j2")
 
     html = mal.render(
         lok=lok,
-        tittel=f"Lokalitet {lok['loknr']} {lok['navn']} — Kystloggen",
-        beskrivelse=(
-            f"Registerdata, eierskap og ukentlige lusetall for "
-            f"akvakulturlokalitet {lok['loknr']} {lok['navn']} i "
-            f"{lok['kommune']}, med endringslogg."),
-        jsonld=jsonld(lok),
-        attribusjon=setninger,
-        stilark=stilsti(sti, rot),
-        bygget=dt.date.today().isoformat(),
+        **_grunnkontekst(
+            felles, rot, sti, kilder=SIDENS_KILDER,
+            tittel=f"{lok['tittelnavn']}, lokalitet {lok['loknr']} — Kystloggen",
+            beskrivelse=(
+                f"Registerdata, eierskap og ukentlige lusetall for "
+                f"akvakulturlokalitet {lok['loknr']} {lok['navn']} i "
+                f"{lok['kommune']}, med endringslogg."),
+            jsonld=jsonld(lok),
+            proveniens_tekst=proveniens(
+                lok["akva_dato"], lok["akva_hentet"],
+                "Lusetallene er hentet fra BarentsWatch og gjelder uka "
+                "de er datert til."),
+            meny_aktiv="lokalitet",
+            feed=f"/lokalitet/{loknr}/feed.xml",
+            feed_tittel=f"Kystloggen: endringer for lokalitet {loknr}"),
     )
 
     # Mappe + index.html, som er hva en avsluttende skråstrek BETYR.
@@ -2043,8 +2170,7 @@ def bygg_om(felles: Felles) -> dict:
             "publiseres": navn in OM_KILDER,
         })
 
-    import os
-    kontakt = (os.environ.get("HAVBRUK_KONTAKT") or "").strip()
+    kontakt = _kontakt()
 
     return {
         "lokaliteter": total,
@@ -2117,22 +2243,24 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
     html = mal.render(
         om=om,
         laan=VAART_LAAN,
-        tittel="Om Kystloggen — kilder, metode, dekning og sitering",
-        beskrivelse=(
-            "Hva Kystloggen er, hvilke offentlige kilder det bygger "
-            "på med lisens og attribusjon, hvor ofte det samles inn, hva "
-            "dekningen er, hvem som står bak, og hvordan du siterer det."),
-        jsonld=_script_trygg({
-            "@context": "https://schema.org",
-            "@type": "AboutPage",
-            "name": "Om Kystloggen",
-            "inLanguage": "nb",
-            "author": {"@type": "Person", "name": om["forfatter"]},
-            "codeRepository": om["repo"],
-        }),
-        attribusjon=attribusjon(OM_KILDER, felles.vilkaar),
-        stilark=stilsti(rot / "om" / "index.html", rot),
-        bygget=om["bygget"],
+        **_grunnkontekst(
+            felles, rot, rot / "om" / "index.html", kilder=OM_KILDER,
+            tittel="Om Kystloggen — kilder, metode, dekning og sitering",
+            beskrivelse=(
+                "Hva Kystloggen er, hvilke offentlige kilder det bygger "
+                "på med lisens og attribusjon, hvor ofte det samles inn, "
+                "hva dekningen er, hvem som står bak, og hvordan du "
+                "siterer det."),
+            jsonld=_script_trygg({
+                "@context": "https://schema.org",
+                "@type": "AboutPage",
+                "name": "Om Kystloggen",
+                "inLanguage": "nb",
+                "author": {"@type": "Person", "name": om["forfatter"]},
+                "codeRepository": om["repo"],
+            }),
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+            meny_aktiv="om"),
     )
     mappe = rot / "om"
     mappe.mkdir(parents=True, exist_ok=True)
@@ -2232,17 +2360,19 @@ def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
     """Én indeksside. Samme form for alle tre."""
     mal = _miljo().get_template(mal_navn)
     html = mal.render(
-        d=data, tittel=tittel, beskrivelse=beskrivelse,
-        jsonld=_script_trygg({
-            "@context": "https://schema.org",
-            "@type": "CollectionPage",
-            "name": tittel,
-            "description": beskrivelse,
-            "inLanguage": "nb",
-        }),
-        attribusjon=attribusjon(kilder, felles.vilkaar),
-        stilark=stilsti(rot / sti / "index.html", rot),
-        bygget=dt.date.today().isoformat(),
+        d=data,
+        **_grunnkontekst(
+            felles, rot, rot / sti / "index.html", kilder=kilder,
+            tittel=tittel, beskrivelse=beskrivelse,
+            jsonld=_script_trygg({
+                "@context": "https://schema.org",
+                "@type": "CollectionPage",
+                "name": tittel,
+                "description": beskrivelse,
+                "inLanguage": "nb",
+            }),
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+            meny_aktiv=sti),
     )
     mappe = rot / sti
     mappe.mkdir(parents=True, exist_ok=True)
@@ -2460,15 +2590,17 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
     mal = mal or _miljo().get_template("forside.html.j2")
     html = mal.render(
         f=f,
-        tittel="Kystloggen — norske akvakulturlokaliteter, uke for uke",
-        beskrivelse=(
-            f"Offentlige registerdata om {f['lokaliteter']} norske "
-            f"akvakulturlokaliteter, sammenstilt og datert: eierskap, "
-            f"trafikklysfarge, lusetall og hva som har endret seg."),
-        jsonld=jsonld_forside(f, felles.vilkaar),
-        attribusjon=attribusjon(FORSIDEKILDER, felles.vilkaar),
-        stilark=stilsti(rot / "index.html", rot),
-        bygget=dt.date.today().isoformat(),
+        **_grunnkontekst(
+            felles, rot, rot / "index.html", kilder=FORSIDEKILDER,
+            tittel="Kystloggen — norske akvakulturlokaliteter, uke for uke",
+            beskrivelse=(
+                f"Offentlige registerdata om {f['lokaliteter']} norske "
+                f"akvakulturlokaliteter, sammenstilt og datert: eierskap, "
+                f"trafikklysfarge, lusetall og hva som har endret seg."),
+            jsonld=jsonld_forside(f, felles.vilkaar),
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+            feed="/endringer/feed.xml",
+            feed_tittel="Kystloggen: alle endringer"),
     )
     sti = rot / "index.html"
     rot.mkdir(parents=True, exist_ok=True)
@@ -2694,19 +2826,25 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
 def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
     """Rendrer og skriver én selskapsside."""
     sel = bygg_selskap(orgnr, felles)
-    setninger = attribusjon(SELSKAPSKILDER, felles.vilkaar)
     mal = mal or _miljo().get_template("selskap.html.j2")
     html = mal.render(
         sel=sel,
-        tittel=f"{sel['navn'] or sel['orgnr']} — Kystloggen",
-        beskrivelse=(
-            f"Akvakulturtillatelser, lokaliteter og overføringer for "
-            f"organisasjonsnummer {sel['orgnr']}"
-            f"{' (' + sel['navn'] + ')' if sel['navn'] else ''}."),
-        jsonld=jsonld_selskap(sel, felles.vilkaar),
-        attribusjon=setninger,
-        stilark=stilsti(rot / "selskap" / orgnr / "index.html", rot),
-        bygget=dt.date.today().isoformat(),
+        **_grunnkontekst(
+            felles, rot, rot / "selskap" / orgnr / "index.html",
+            kilder=SELSKAPSKILDER,
+            tittel=f"{sel['navn'] or sel['orgnr']} — Kystloggen",
+            beskrivelse=(
+                f"Akvakulturtillatelser, lokaliteter og overføringer for "
+                f"organisasjonsnummer {sel['orgnr']}"
+                f"{' (' + sel['navn'] + ')' if sel['navn'] else ''}."),
+            jsonld=jsonld_selskap(sel, felles.vilkaar),
+            proveniens_tekst=proveniens(
+                felles.eierskap_dato, _hentet("eierskap"),
+                "Registerdataene om selskapet er fra "
+                "Enhetsregisteret."),
+            meny_aktiv="selskap",
+            feed=f"/selskap/{orgnr}/feed.xml",
+            feed_tittel=f"Kystloggen: endringer for {sel['navn'] or orgnr}"),
     )
     mappe = rot / "selskap" / orgnr
     mappe.mkdir(parents=True, exist_ok=True)
@@ -2768,19 +2906,24 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
                             mal=None) -> Path:
     """Rendrer og skriver én produksjonsområdeside."""
     d = bygg_produksjonsomrade(po, felles)
-    setninger = attribusjon(PO_KILDER, felles.vilkaar)   # kaster på UBELAGT
     mal = mal or _miljo().get_template("produksjonsomrade.html.j2")
     html = mal.render(
         po=d,
-        tittel=f"Produksjonsområde {d['nr']} {d['navn']} — Kystloggen",
-        beskrivelse=(
-            f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "
-            f"{d['navn']}, med lesemåte, og de {d['lokaliteter_antall']} "
-            f"lokalitetene i området."),
-        jsonld=jsonld_po(d, felles.vilkaar),
-        attribusjon=setninger,
-        stilark=stilsti(rot / "produksjonsomrade" / po / "index.html", rot),
-        bygget=dt.date.today().isoformat(),
+        **_grunnkontekst(
+            felles, rot, rot / "produksjonsomrade" / po / "index.html",
+            kilder=PO_KILDER,       # kaster på UBELAGT
+            tittel=f"Produksjonsområde {d['nr']} {d['navn']} — Kystloggen",
+            beskrivelse=(
+                f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "
+                f"{d['navn']}, med lesemåte, og de {d['lokaliteter_antall']} "
+                f"lokalitetene i området."),
+            jsonld=jsonld_po(d, felles.vilkaar),
+            proveniens_tekst=proveniens(
+                felles.akva_dato, felles.akva_hentet,
+                "Forskriftsrundene er lest fra Lovdata."),
+            meny_aktiv="produksjonsomrade",
+            feed=f"/produksjonsomrade/{po}/feed.xml",
+            feed_tittel=f"Kystloggen: endringer i produksjonsområde {po}"),
     )
     mappe = rot / "produksjonsomrade" / po
     mappe.mkdir(parents=True, exist_ok=True)

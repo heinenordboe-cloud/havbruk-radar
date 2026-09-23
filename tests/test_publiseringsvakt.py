@@ -1232,3 +1232,42 @@ def test_umerket_personformkode_meldes_fortsatt_som_slag(lister):
     personform = [f for f in funn if f.slag == "personform"]
     assert personform and personform[0].utdrag == "['ENK']"
     assert personform[0].noekkel == ""
+
+
+# ---- kassen ------------------------------------------------------------
+#
+# Fra 22.09.2026 står lokalitetsnavnet i tittelform i H1 mens snapshotet
+# har det i versaler. Prøvene under er de to sidene av den endringen: at
+# den ene skrivemåten møter den andre, og at det IKKE gjør et ukjent
+# navn kjent.
+
+def test_tittelform_i_h1_meldes_ikke_naar_versalen_staar_i_dataene():
+    """Uten dette ville hver av de 1 782 lokalitetssidene meldt sitt
+    eget navn. En vakt som feiler 1 782 ganger på noe som er gjort rede
+    for, blir slått av — samme begrunnelse som `_celleverdi()`."""
+    navn_ok = {vakt.navnenoekkel("OTERNESET")}
+    html = '<h1>Lokalitet 31397 <span data-navn>Oterneset</span></h1>'
+    assert vakt.gransk_tekst(html, set(), navn_ok) == []
+
+
+def test_kassen_gjor_ikke_et_ukjent_navn_kjent():
+    """Hullet dette ikke åpner. `casefold()` kan få to skrivemåter av
+    den SAMME strengen til å møtes; det kan ikke føre en ny streng inn i
+    hvitelista."""
+    navn_ok = {vakt.navnenoekkel("OTERNESET")}
+    for skrivemaate in ("Kari Nordmann", "KARI NORDMANN", "kari nordmann"):
+        html = f'<td data-felt="eier_navn">{skrivemaate}</td>'
+        funn = vakt.gransk_tekst(html, set(), navn_ok)
+        assert [f.slag for f in funn] == ["ukjent_navn"], skrivemaate
+
+
+def test_kassen_gjelder_i_csv_ogsaa():
+    """To lesemåter av samme spørsmål som kan svare ulikt, er formen F6
+    og F7 hadde. CSV-en bruker kolonneoverskriften som merking, men
+    stiller det samme spørsmålet."""
+    navn_ok = {vakt.navnenoekkel("OTERNESET")}
+    csv_ = "navn,kommune\nOterneset,Gulen\n"
+    assert vakt.gransk_csv(csv_, set(), navn_ok) == []
+    csv_ukjent = "navn,kommune\nEt Annet Sted,Gulen\n"
+    funn = vakt.gransk_csv(csv_ukjent, set(), navn_ok)
+    assert [f.slag for f in funn] == ["ukjent_navn"]
