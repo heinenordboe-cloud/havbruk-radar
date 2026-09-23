@@ -1275,3 +1275,100 @@ def test_kassen_gjelder_i_csv_ogsaa():
     csv_ukjent = "navn,kommune\nEt Annet Sted,Gulen\n"
     funn = vakt.gransk_csv(csv_ukjent, set(), navn_ok)
     assert [f.slag for f in funn] == ["ukjent_navn"]
+
+
+# ---- søkeindeksen ------------------------------------------------------
+#
+# Pagefind legger 2 560 filer i utputtet, og de bærer teksten fra
+# sidene. Prøvene under holder de tre avgjørelsene om dem sanne. Hele
+# begrunnelsen står i docs/design/PAGEFIND.md.
+
+def test_pakket_sideutdrag_granskes_som_tekst(tmp_path):
+    """Et `.pf_fragment` er gzip rundt `pagefind_dcd` + JSON, og det
+    bærer sidens tekst. Kan ikke pinnes på sha256 (summen endres hver
+    uke), kan ikke stå i TEKSTTYPER (det ER ikke tekst) — så det pakkes
+    ut og granskes.
+
+    GRENSA, sagt rett ut: et utdrag er REN TEKST. `data-felt` og
+    `class="eier"` er strippet bort, så `ukjent_navn` — som bare ser
+    det generatoren MERKER — er blind her. De to andre prøvene er det
+    ikke: `ukjent_orgnr` leser rå tekst, og personformprøven leser hele
+    ord.
+
+    Det er ikke et hull, men det er en grense: HTML-en er artefaktet
+    som granskes med merking, og utdraget er avledet av den. Se
+    docs/design/PAGEFIND.md."""
+    import gzip
+
+    kropp = (b"pagefind_dcd"
+             + '{"url":"/selskap/1/","content":"MELAKS ANS 912345678"}'
+             .encode("utf-8"))
+    fil = tmp_path / "nb_abc.pf_fragment"
+    fil.write_bytes(gzip.compress(kropp))
+
+    tekst = vakt._tekst(fil)
+    assert tekst is not None, "utdraget skal kunne leses"
+    assert "MELAKS ANS" in tekst
+
+    funn = vakt.gransk_tekst(tekst, set(), set(), fil="nb_abc.pf_fragment")
+    assert sorted(f.slag for f in funn) == ["personform", "ukjent_orgnr"]
+
+
+def test_en_odelagt_pakke_er_ugransket_og_ikke_trygg(tmp_path):
+    """En fil som ikke lar seg pakke ut skal stå som `ugranska`, ikke
+    hoppes stille over. Det er hele forskjellen på «vi har lest den» og
+    «vi kunne ikke lese den»."""
+    fil = tmp_path / "nb_def.pf_fragment"
+    fil.write_bytes(b"dette er ikke gzip")
+    assert vakt._tekst(fil) is None
+
+    funn = vakt.gransk(tmp_path)
+    assert [f.slag for f in funn if f.fil.endswith(".pf_fragment")] \
+        == ["ugranska"]
+
+
+def test_ordtabellene_er_avledet_og_ikke_ugransket(tmp_path):
+    """`.pf_index` og `.pf_meta` er CBOR, ikke tekst. Gransket som tekst
+    ga de 2 418 FALSKE funn 22.09.2026: rammen limer sammen nabotokener,
+    og «20260126» + en lengdebyte blir ni siffer på rad.
+
+    De står som AVLEDET av tekstutdragene, som er gransket. Prøven
+    under holder at de ikke meldes som `ugranska` — og
+    `test_hvert_indeksert_sideutdrag_granskes` holder at derivasjonen
+    er sann."""
+    (tmp_path / "nb_1.pf_index").write_bytes(b"\x1f\x8b vilkarlig cbor")
+    (tmp_path / "nb_2.pf_meta").write_bytes(b"\x1f\x8b vilkarlig cbor")
+    assert vakt.gransk(tmp_path) == []
+    assert vakt.AVLEDEDE_TYPER == {".pf_index", ".pf_meta"}
+
+
+def test_hvert_indeksert_sideutdrag_granskes(tmp_path):
+    """DERIVASJONEN, håndhevet.
+
+    Ordtabellene står som gjort rede for fordi de er bygget av den
+    SAMME teksten som utdragene, og utdragene granskes. Argumentet
+    hviler på at det finnes ett utdrag per indeksert side. Holder ikke
+    det, er tabellen bygget av noe vakten ikke har sett — og da er
+    unntaket i `AVLEDEDE_TYPER` en blindsone og ikke en avledning.
+
+    Prøven leser `pagefind-entry.json`, som Pagefind skriver, og
+    sammenligner mot filene på disk."""
+    import gzip
+    import json
+
+    pf = tmp_path / "pagefind"
+    (pf / "fragment").mkdir(parents=True)
+    (pf / "index").mkdir()
+    for navn in ("nb_a", "nb_b"):
+        (pf / "fragment" / f"{navn}.pf_fragment").write_bytes(
+            gzip.compress(b'pagefind_dcd{"url":"/x/","content":"ord"}'))
+    (pf / "index" / "nb_i.pf_index").write_bytes(b"cbor")
+    (pf / "pagefind-entry.json").write_text(
+        json.dumps({"languages": {"nb": {"page_count": 2}}}), encoding="utf-8")
+
+    assert vakt.utdrag_dekker_indeksen(pf) == (2, 2)
+
+    # Og motsatt: en side uten utdrag skal SES.
+    (pf / "pagefind-entry.json").write_text(
+        json.dumps({"languages": {"nb": {"page_count": 3}}}), encoding="utf-8")
+    assert vakt.utdrag_dekker_indeksen(pf) == (3, 2)

@@ -28,7 +28,7 @@
 {# ---------------------------------------------------------------- 1
    HEADEREN. Mørk flate: brødsmule, navn, fakta og posisjonskart. #}
 {% block toppinnhold %}
-<div class="ark sidehode sidehode--lokalitet">
+<div data-pagefind-body class="ark sidehode sidehode--lokalitet">
   <nav class="sti" aria-label="Du er her">
     <ol>
       <li><a href="/">Kystloggen</a></li>
@@ -572,7 +572,8 @@
         {% for t in lok.tillatelser %}
         <tr>
           <th scope="row">{{ t.nr }}</th>
-          <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}">{{ t.eier_navn }}</td>
+          <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}"
+              {%- if personformnavn(t.eier_navn) %} data-pagefind-ignore{% endif %}>{{ t.eier_navn }}</td>
           <td data-felt="{{ feltmerke(t.type, 'tillatelse_type') }}">{{ t.type or VERDI_MANGLER }}</td>
           <td class="tall" data-felt="{{ feltmerke(t.kapasitet, 'kapasitet') }}">{{ t.kapasitet or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(t.tildelt_dato, 'tildelt_tid') }}">
@@ -692,7 +693,14 @@
         <th scope="row"><time datetime="{{ o.dato }}">{{ o.dato }}</time></th>
         <td data-felt="{{ o.felt }}">{{ o.slag }}: {{ o.hva }}</td>
         {% if o.navn %}
-        <td class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</td>
+        {# `data-pagefind-ignore` NÅR NAVNET ENDER PÅ EN PERSONFORM.
+           Navnet står på siden — det er et selskapsnavn fra et
+           offentlig register — men det gjøres ikke SØKBART. En
+           søkeindeks er en maskinlesbar liste over hvert ord på
+           nettstedet, og et navn som kan slås opp der er en oppføring i
+           et register. Se `personformnavn()` og regel 3. #}
+        <td class="eier" data-felt="{{ o.navn_felt }}"
+            {%- if personformnavn(o.navn) %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
         {% else %}
         <td>—</td>
         {% endif %}

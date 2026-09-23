@@ -232,6 +232,42 @@ BINAERFILER = {
         "bilde/hero-2400.jpg — samme motiv, 2400 px bred",
 }
 
+# BINÆRFILER ET VERKTØY LEGGER IGJEN, ikke filer vi sender fra `maler/`.
+#
+# Skillet er ikke kosmetisk: `test_hver_pinnet_sum_finnes_som_fil_i_maler`
+# er en driftvakt som feller en pinning uten fil — en kvittering for noe
+# som ikke finnes er støy som skjuler at den ekte fila er ukvittert. Den
+# prøven kan ikke se disse, fordi de først oppstår når bygget kjører.
+#
+# Proveniensen er derfor VERKTØYET, og den står her.
+BINAERFILER_VERKTOY = {
+    # SØKEMOTORENS WEBASSEMBLY. To filer, begge lagt der av
+    # pagefind-binæren og ingen av dem bygget av oss.
+    #
+    # INNHOLDET ER SØKEMOTOREN, IKKE DATAENE VÅRE. Det er
+    # `.pf_fragment`- og `.pf_index`-filene som bærer sidenes tekst;
+    # disse to er koden som leser dem. Utpakket (gzip, `pagefind`-hale)
+    # er de 116 631 og 112 482 byte Rust-kompilert wasm.
+    #
+    # Proveniensen er binæren de kom fra:
+    #
+    #   pagefind-v1.4.0-aarch64-apple-darwin.tar.gz
+    #   sha256 647fa1da25fefeb24348ed09cccfcbcdd1dcab75c83e146c9f50336a78efb290
+    #   github.com/CloudCannon/pagefind, MIT, hentet 22.09.2026
+    #
+    # En annen versjon av Pagefind gir andre summer, og porten faller
+    # til `ugranska` slik den skal. Se docs/design/PAGEFIND.md.
+    "2feab03d140476c959ca2b69830b84c8292403085d8280a381b140632e8a7274":
+        "pagefind/wasm.nb.pagefind — søkemotoren, norsk stemming. "
+        "Pagefind 1.4.0, se docs/design/PAGEFIND.md",
+    "c9f966c91edb839e017a11c745e63b0c828b55cd02abcd16a8a4fd5ff7c28172":
+        "pagefind/wasm.unknown.pagefind — samme motor, uten stemming",
+}
+
+# Oppslaget porten gjør. To tabeller, ett spørsmål: «har vi sett i
+# denne fila?»
+BINAERFILER_ALLE = {**BINAERFILER, **BINAERFILER_VERKTOY}
+
 # Filtypene der KOLONNEOVERSKRIFTEN er merkingen, og der prøvene derfor
 # stilles per kolonne framfor på teksten. Se `gransk_csv`.
 #
@@ -244,6 +280,42 @@ BINAERFILER = {
 # Formen på feilen er kjent: vakten sa at den dekket `.tsv`, og gjorde det
 # ikke. En vakt som lover mer enn den holder, er verre enn ingen vakt.
 KOLONNETYPER = {".csv": ",", ".tsv": "\t"}
+
+# FILTYPENE SOM ER PAKKET TEKST. Pagefinds tekstutdrag: gzip rundt
+# `pagefind_dcd` + JSON. De pakkes ut og granskes som alt annet — se
+# `_pakket_tekst()` for hvorfor de verken kan pinnes på sha256 eller
+# legges i `TEKSTTYPER`.
+PAKKEDE_TYPER = {".pf_fragment"}
+
+# FILTYPENE SOM ER AVLEDET AV NOE VAKTEN HAR LEST, og som derfor står
+# som gjort rede for uten å bli gransket hver for seg.
+#
+# `.pf_index` og `.pf_meta` er Pagefinds ordtabeller: CBOR, ikke tekst.
+# Tre veier ble prøvd, og bare den tredje duger:
+#
+#   1. La dem stå som `ugranska`. Da faller porten hver uke på 2 558
+#      filer, og en port som alltid faller blir slått av.
+#   2. Pakke dem ut og granske dem som tekst. MÅLT 22.09.2026:
+#      **2 418 funn, alle falske.** CBOR-rammen limer sammen
+#      nabotokener, og «20260126» + en lengdebyte «2» blir «202601262»
+#      — ni siffer på rad som `NI_SIFFER` leser som et
+#      organisasjonsnummer. Ingen av dem er et tall; alle 2 418 er
+#      rammestøy. En vakt som feiler feil blir slått av.
+#   3. Erklære dem AVLEDET av tekstutdragene, som ER gransket.
+#
+# DERIVASJONSARGUMENTET, sagt rett ut: Pagefind trekker ut teksten fra
+# en side én gang og skriver den til BÅDE `.pf_fragment` og
+# ordtabellene. Er utdragene rene, er tabellene bygget av rene ord.
+#
+# Argumentet hviler på at det finnes et utdrag per indeksert side.
+# Holder ikke det, er ordtabellen bygget av noe vakten ikke har sett.
+# `test_hvert_indeksert_sideutdrag_granskes` er prøven som håndhever
+# det, og den er grunnen til at dette ikke bare er en påstand.
+#
+# Samme form som ikonene: PNG-ene er rastret av `favicon.svg`, som
+# vakten leser som tekst, og kan derfor ikke inneholde noe SVG-en ikke
+# inneholder.
+AVLEDEDE_TYPER = {".pf_index", ".pf_meta"}
 
 # Felter der en verdi er et NAVN. Brukes til å bygge hvitelista.
 NAVNEFELT = ("navn", "entity_name", "eier_navn", "tildelt_navn",
@@ -610,12 +682,50 @@ def hviteliste() -> tuple[set[str], set[str]]:
 # --------------------------------------------------- prøvene
 
 def _tekst(sti: Path) -> str | None:
+    if sti.suffix.lower() in PAKKEDE_TYPER:
+        return _pakket_tekst(sti)
     if sti.suffix.lower() not in TEKSTTYPER:
         return None
     try:
         return sti.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
+
+
+def _pakket_tekst(sti: Path) -> str | None:
+    """Innholdet i en gzip-pakket søkeindeksfil, som tekst.
+
+    ## Hvorfor dette finnes, og hvorfor det ikke er en oppmykning
+
+    Pagefind skriver 2 558 filer under `/pagefind/`, og fragmentene
+    inneholder TEKSTEN FRA SIDENE — navn, kommuner, orgnumre, alt.
+    De er like publiserte som HTML-en, og de er laget for å lastes ned
+    av nettleseren.
+
+    De er gzip-pakket med en 12-byte hale-header (`pagefind_dcd`) foran
+    en CBOR-kropp. Vakten kan ikke lese dem som tekst uten å pakke dem
+    ut, og en fil den ikke kan lese skal rapporteres som `ugranska` —
+    ikke antas trygg. MÅLT 22.09.2026 gjorde den nettopp det: 2 558
+    funn, og publiseringen ble stoppet.
+
+    Å pinne dem på sha256 som fontene, går ikke: summen endres hver uke
+    fordi innholdet er sidene. Å legge dem i `TEKSTTYPER` ville vært en
+    løgn: de ER ikke tekst.
+
+    Den tredje veien er å PAKKE DEM UT og granske innholdet. Da leser
+    vakten det som faktisk går ut, med de samme tre prøvene som for
+    HTML. CBOR-rammen blir med som støy i strengen; det gjør prøvene
+    litt bråkete, ikke blinde, og det er riktig vei å ta feil.
+
+    Returnerer None om fila ikke lar seg pakke ut — da står den som
+    `ugranska`, som den skal.
+    """
+    import gzip
+    try:
+        raa = gzip.decompress(sti.read_bytes())
+    except (OSError, gzip.BadGzipFile, EOFError):
+        return None
+    return raa.decode("utf-8", errors="replace")
 
 
 def _personformmonster(koder: Iterable[str]) -> re.Pattern | None:
@@ -1265,6 +1375,35 @@ def grunnlagsfunn() -> list[Funn]:
     return funn
 
 
+def utdrag_dekker_indeksen(katalog: Path) -> tuple[int, int]:
+    """(sider Pagefind sier den indekserte, tekstutdrag på disk).
+
+    DERIVASJONSARGUMENTET, gjort målbart. `.pf_index` og `.pf_meta`
+    står som AVLEDET av tekstutdragene fordi Pagefind trekker ut
+    teksten fra en side ÉN gang og skriver den til begge. Argumentet
+    hviler på at det finnes ett utdrag per indeksert side.
+
+    Er de to tallene ulike, er ordtabellen bygget av noe vakten ikke
+    har sett, og unntaket i `AVLEDEDE_TYPER` er en blindsone framfor en
+    avledning. `gransk()` melder det da som et funn.
+
+    (0, 0) for en katalog uten `pagefind-entry.json` — altså der
+    søkeindeksen ikke er bygget i det hele tatt. Det er ikke en feil;
+    byggerapporten sier fra om det for seg.
+    """
+    entry = katalog / "pagefind-entry.json"
+    if not entry.exists():
+        return 0, 0
+    try:
+        data = json.loads(entry.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return -1, 0
+    sider = sum(int((s or {}).get("page_count") or 0)
+                for s in (data.get("languages") or {}).values())
+    utdrag = len(list(katalog.rglob("*.pf_fragment")))
+    return sider, utdrag
+
+
 def gransk(mappe: Path) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
 
@@ -1274,6 +1413,17 @@ def gransk(mappe: Path) -> list[Funn]:
     rødt. Porten skiller dem ikke, og exit-koden dekker begge.
     """
     funn: list[Funn] = list(grunnlagsfunn())
+
+    # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
+    # `utdrag_dekker_indeksen()`.
+    sider, utdrag = utdrag_dekker_indeksen(mappe / "pagefind")
+    if sider != utdrag:
+        funn.append(Funn(
+            "pagefind/pagefind-entry.json", "ugranska",
+            f"søkeindeksen oppgir {sider} sider, men det finnes "
+            f"{utdrag} tekstutdrag — ordtabellene kan da være bygget av "
+            f"noe som ikke er gransket"))
+
     orgnr_ok, navn_ok = hviteliste()
     tvetydige = tvetydige_koder(_snapshotrammer())
     kvittert = kvitteringer()
@@ -1289,7 +1439,13 @@ def gransk(mappe: Path) -> list[Funn]:
             # innholdet: summen av fila mot `BINAERFILER`. Treffer den,
             # er dette fila som ble inspisert og ingen annen.
             sum_ = hashlib.sha256(sti.read_bytes()).hexdigest()
-            if sum_ in BINAERFILER:
+            if sum_ in BINAERFILER_ALLE:
+                continue
+            # AVLEDET AV NOE SOM ER GRANSKET. Se `AVLEDEDE_TYPER` for
+            # hele argumentet og for hvorfor de to andre veiene ikke
+            # duger. Prøven som holder argumentet sant er
+            # `test_hvert_indeksert_sideutdrag_granskes`.
+            if sti.suffix.lower() in AVLEDEDE_TYPER:
                 continue
             funn.append(Funn(rel, "ugranska", sti.suffix or "(uten endelse)"))
             continue

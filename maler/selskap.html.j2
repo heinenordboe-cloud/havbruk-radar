@@ -15,7 +15,7 @@
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
-<div class="ark sidehode">
+<div data-pagefind-body class="ark sidehode">
   <nav class="sti" aria-label="Du er her">
     <ol>
       <li><a href="/">Kystloggen</a></li>
@@ -237,7 +237,10 @@
           {%- else %}{{ VERDI_MANGLER }}{% endif %}</th>
         <td data-felt="journal_dato">{{ o.slag }}: {{ o.hva }}</td>
         {% if o.navn %}
-        <td class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</td>
+        {# Se lokalitetssiden: et navn med personform-endelse vises,
+           men gjøres ikke søkbart. #}
+        <td class="eier" data-felt="{{ o.navn_felt }}"
+            {%- if personformnavn(o.navn) %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
         {% else %}
         <td>—</td>
         {% endif %}

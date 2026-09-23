@@ -266,7 +266,8 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
                    tittel: str, beskrivelse: str, jsonld,
                    kilder, proveniens_tekst: str,
                    meny_aktiv: str = "", feed: str = "",
-                   feed_tittel: str = "", main_klasse: str = "") -> dict:
+                   feed_tittel: str = "", main_klasse: str = "",
+                   side_skript: str = "") -> dict:
     """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
     i_dag = dt.date.today().isoformat()
     return {
@@ -284,6 +285,8 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
         "meny_aktiv": meny_aktiv,
         "feed": feed,
         "feed_tittel": feed_tittel,
+        # Sidetypens eget skript, der den har ett. Bare `/sok/` i dag.
+        "side_skript": side_skript,
         # `fullbredde` når sidetypen har seksjoner som går helt ut i
         # kanten og selv setter innholdsbredden med en indre `.ark`.
         # To lag sidemarg er dobbelt innrykk, og MÅLT ble forsidens
@@ -1314,6 +1317,39 @@ IKKE_I_REGISTERET = "ikke i registeret"
 # tankestrek er ikke et ukjent selskap; det er fraværet av et.
 VERDI_MANGLER = "—"
 VERDI_MANGLER_FELT = "verdi_mangler"
+
+
+def personformnavn(navn: object) -> bool:
+    """Ender navnet på en organisasjonsform SSB regner som personlig?
+
+    «MELAKS ANS», «BRØDRENE X DA». Spørsmålet stilles til
+    `core/persondata.PERSONFORMER` gjennom publiseringsvaktens egen
+    suffiksleser — ikke til en liste her. To lister over hvilke
+    endelser som betyr et personlig foretak, ville vært to steder å
+    glemme den ene.
+
+    ## Hva den brukes til, og hva den IKKE brukes til
+
+    Den styrer om verdien blir SØKBAR, ikke om den vises. Navnet står
+    på siden: det er et selskapsnavn fra et offentlig register, og de
+    få tilfellene som er igjen er kvittert ut hver for seg (se
+    `publiseringsvakt.kvitteringer`).
+
+    Men en søkeindeks er noe annet enn en side. Den er en
+    maskinlesbar liste over hvert ord på nettstedet, og et navn som
+    kan slås opp DER er en oppføring i et register — ikke en opplysning
+    på et ark. Det er samme gradering regel 3 gjør når den sier at et
+    URL-rom er en liste over hvem som finnes, selv om hver side skulle
+    være tom.
+
+    MÅLT 22.09.2026: 14 av 2 338 indekserte sider bar et slikt navn.
+    """
+    from publiseringsvakt import FORM_SUFFIKS
+    from core import persondata
+
+    tekst = str(navn or "").strip()
+    treff = FORM_SUFFIKS.search(tekst)
+    return bool(treff) and persondata.er_personform(treff.group(1))
 
 
 def feltmerke(verdi: object, felt: str) -> str:
@@ -3229,6 +3265,7 @@ def _miljo() -> Environment:
     # der rekkefølgen betyr noe, og `{{ "kommune"|feltmerke(r.kommune) }}`
     # leser baklengs. Se `feltmerke()`.
     miljo.globals["feltmerke"] = feltmerke
+    miljo.globals["personformnavn"] = personformnavn
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER
     return miljo
 
@@ -3446,7 +3483,9 @@ IKONFILER = ("favicon.svg", "favicon-32.png", "apple-touch-icon.png")
 # `docs/design/HEROFOTO.md` for proveniens, lisens og sha256.
 # SKRIPTET. Én fil, lastet med `defer`, og den legger ikke til én
 # verdi på noen side — se `maler/kystloggen.js`.
-SKRIPTFILER = ("kystloggen.js",)
+# `kystloggen.js` lastes av hver side; `sok.js` bare av `/sok/`. Se
+# modulkommentaren i sok.js for hvorfor de er to filer og ikke én.
+SKRIPTFILER = ("kystloggen.js", "sok.js")
 
 BILDEMAPPE = "bilde"
 BILDEFILER = ("hero-800.jpg", "hero-1600.jpg", "hero-2400.jpg")
@@ -3927,6 +3966,160 @@ def skriv_feeder(rot: Path, felles: Felles, uker: list[dict]) -> list[Path]:
               f"{orgnr}. {note}",
               per_selskap.get(orgnr, []))
     return skrevet
+
+
+# ---------------------------------------------------------- SØKET
+#
+# Pagefind, selvhostet. Indeksen bygges av en binær ved bygging og
+# legges i `/pagefind/`; modulen lastes av `/sok.js` i nettleseren ved
+# FØRSTE TASTETRYKK, ikke ved sidelast.
+#
+# ## Hvorfor søket er JavaScript når ingenting annet er det
+#
+# Regelen er at TALLENE skal stå i kildekoden. Et søkeresultat er ikke
+# et tall fra et register — det er en vei til siden der tallet står, og
+# den siden er statisk HTML som kan siteres og arkiveres.
+#
+# Et søk over 2 337 sider som skal svare uten en server, MÅ kjøre i
+# nettleseren. Alternativet er ingen søk. `/sok/` har derfor en
+# veiviser til de tre flate indeksene, og den står der uansett.
+#
+# ## BINÆREN ER IKKE I REPOET
+#
+# 15,6 MB, og plattformspesifikk. Den er et VERKTØY, som `fonttools` og
+# `pyftsubset` — ikke en avhengighet siden har i runtime. Den finnes på
+# `PATH` eller i `HAVBRUK_PAGEFIND`.
+#
+# MANGLER DEN, SIER BYGGET DET. Siden `/sok/` skrives uansett og virker
+# uten indeksen (veiviseren står der), men byggerapporten skal ikke
+# tie: et søk som stille slutter å virke er nøyaktig formen på feilene
+# i CLAUDE.md 1b.
+
+PAGEFIND_KATALOG = "pagefind"
+
+# FILENE PAGEFIND LEGGER IGJEN SOM VI IKKE BRUKER. Vi skriver vår egen
+# søke-UI i `maler/sok.js` og laster bare `pagefind.js`; de ferdige
+# grensesnittene er 120 kB kode ingen kjører.
+#
+# De slettes framfor å bli liggende, av samme grunn som at en font
+# ingen viser til ikke sendes ut: en fil på nettstedet er en fil noen
+# kan laste ned, og hver av dem må porten gå god for.
+PAGEFIND_UBRUKT = (
+    "pagefind-ui.js", "pagefind-ui.css",
+    "pagefind-modular-ui.js", "pagefind-modular-ui.css",
+    "pagefind-highlight.js",
+)
+
+
+def _pagefind_binaer() -> str:
+    """Stien til pagefind-binæren, eller tom streng."""
+    import shutil
+    satt = (os.environ.get("HAVBRUK_PAGEFIND") or "").strip()
+    if satt:
+        return satt if Path(satt).exists() else ""
+    return shutil.which("pagefind") or ""
+
+
+def skriv_sokeindeks(rot: Path) -> dict:
+    """Bygger Pagefind-indeksen over det ferdige nettstedet.
+
+    KJØRES SIST, etter at hver side er skrevet: den leser HTML-en fra
+    disk. Returnerer en rapport — byggeloggen skriver den, også når
+    indeksen IKKE ble bygget.
+    """
+    import subprocess
+
+    binaer = _pagefind_binaer()
+    if not binaer:
+        return {"bygget": False, "filer": 0, "byte": 0,
+                "melding": ("pagefind-binæren ble ikke funnet (verken i "
+                            "HAVBRUK_PAGEFIND eller på PATH). Søkesiden "
+                            "er skrevet og veiviseren virker, men "
+                            "søkefeltet svarer ikke.")}
+    # KATALOGEN TØMMES FØRST. Pagefind skriver filnavn med en hash i,
+    # så en kjøring over et endret nettsted legger NYE filer ved siden
+    # av de gamle framfor å erstatte dem. MÅLT: to kjøringer ga 5 117
+    # filer og 32,3 MB der én gir 2 568 og 21 MB — og halvparten var en
+    # indeks over sider som ikke fantes lenger.
+    #
+    # Dette er det ENE stedet nettstedsbyggeren sletter noe den selv har
+    # skrevet, og det er trygt av samme grunn som at hele mappa kan
+    # slettes: den er en ren funksjon av snapshotene. Append-only
+    # gjelder `data/raw/`, ikke utputtet — se
+    # 2026-08-17-append-only-i-skrivelaget.md.
+    import shutil as _shutil
+    _shutil.rmtree(rot / PAGEFIND_KATALOG, ignore_errors=True)
+
+    try:
+        kjort = subprocess.run(
+            [binaer, "--site", str(rot), "--output-subdir", PAGEFIND_KATALOG],
+            capture_output=True, text=True, timeout=600, check=False)
+    except OSError as feil:
+        return {"bygget": False, "filer": 0, "byte": 0,
+                "melding": f"pagefind kunne ikke kjøres: {feil}"}
+    if kjort.returncode != 0:
+        return {"bygget": False, "filer": 0, "byte": 0,
+                "melding": (f"pagefind avsluttet med {kjort.returncode}: "
+                            f"{(kjort.stderr or kjort.stdout).strip()[:300]}")}
+
+    katalog = rot / PAGEFIND_KATALOG
+    for navn in PAGEFIND_UBRUKT:
+        (katalog / navn).unlink(missing_ok=True)
+
+    filer = [f for f in katalog.rglob("*") if f.is_file()]
+    sider = ""
+    for linje in (kjort.stdout or "").splitlines():
+        if "Indexed" in linje and "pages" in linje:
+            sider = linje.strip()
+    return {"bygget": True, "filer": len(filer),
+            "byte": sum(f.stat().st_size for f in filer),
+            "melding": sider or "indeksen er bygget"}
+
+
+def bygg_sok(felles: Felles, uker: list[dict]) -> dict:
+    """Tallene søkesiden oppgir. Målt, ikke skrevet."""
+    selskaper = sum(1 for o in felles.tillatelser_per_eier
+                    if not personeier(o, felles))
+    lokaliteter = len(felles.akva)
+    omraader = len(felles.po_navn)
+    endringsuker = len(uker)
+    # DE ANDRE SIDENE, telt og ikke gjettet: forsiden, /om/, /sok/, de
+    # tre indeksene, endringsindeksen og typesidene.
+    andre = 1 + 1 + 1 + 3 + 1 + endringsuker * len(ENDRINGSTYPER)
+    return {
+        "lokaliteter": lokaliteter,
+        "produksjonsomraader": omraader,
+        "selskaper": selskaper,
+        "endringsuker": endringsuker,
+        "andre": andre,
+        "sider": lokaliteter + omraader + selskaper + endringsuker + andre,
+    }
+
+
+def skriv_sok(rot: Path, felles: Felles, uker: list[dict]) -> Path:
+    """Søkesiden. Skrives ALLTID, også uten en søkeindeks."""
+    d = bygg_sok(felles, uker)
+    sti = rot / "sok" / "index.html"
+    mal = _miljo().get_template("sok.html.j2")
+    html = mal.render(
+        d=d,
+        **_grunnkontekst(
+            felles, rot, sti, kilder=FORSIDEKILDER,
+            tittel="Søk — Kystloggen",
+            beskrivelse=(f"Søk i {d['sider']} sider om norsk akvakultur: "
+                         f"lokaliteter, produksjonsområder, selskaper og "
+                         f"endringsuker."),
+            jsonld=_script_trygg({
+                "@context": "https://schema.org",
+                "@type": "SearchResultsPage",
+                "name": "Søk i Kystloggen",
+                "inLanguage": "nb",
+            }),
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+            meny_aktiv="sok", side_skript="/sok.js"))
+    sti.parent.mkdir(parents=True, exist_ok=True)
+    sti.write_text(html, encoding="utf-8")
+    return sti
 
 
 # ------------------------------------------- sitemap, robots, llms
@@ -5312,6 +5505,7 @@ class Byggelogg:
     endringssider: int = 0
     endringsuker: int = 0
     feeder: int = 0
+    sok: dict = None
     selskap_uten_registerdata: list[str] = None
     selskap_person: list[str] = None
     uten_eier: list[str] = None
@@ -5323,6 +5517,9 @@ class Byggelogg:
     feilet: list[tuple[str, str]] = None
 
     def __post_init__(self):
+        if self.sok is None:
+            self.sok = {"bygget": False, "filer": 0, "byte": 0,
+                        "melding": "ikke kjørt"}
         for felt in ("selskap_uten_registerdata", "selskap_person",
                      "uten_eier", "uten_tillatelser", "uten_koordinater",
                      "uten_lusetall", "uten_prodomraade", "uten_endringer",
@@ -5450,6 +5647,11 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
 
     t0 = time.perf_counter()
     try:
+        skriv_sok(rot, felles, uker)
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("sok", f"{type(feil).__name__}: {feil}"))
+
+    try:
         logg.feeder = len(skriv_feeder(rot, felles, uker))
     except Exception as feil:                        # noqa: BLE001
         logg.feilet.append(("feeder", f"{type(feil).__name__}: {feil}"))
@@ -5469,6 +5671,12 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         except Exception as feil:                    # noqa: BLE001
             logg.feilet.append(("maskinfiler", f"{type(feil).__name__}: {feil}"))
     tider["maskinfiler"] = time.perf_counter() - t0
+
+    # SØKEINDEKSEN SIST. Den leser den ferdige HTML-en fra disk, så hver
+    # side må være skrevet — også `/sok/` selv.
+    t0 = time.perf_counter()
+    logg.sok = skriv_sokeindeks(rot)
+    tider["sokeindeks"] = time.perf_counter() - t0
 
     return logg, tider
 
@@ -5528,6 +5736,11 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
           f"+ {logg.indekssider} indekssider + {logg.endringssider} "
           f"endringssider ({logg.endringsuker} uker) skrevet til {rot}")
     print(f"  {logg.feeder} Atom-feeder")
+    # SØKEINDEKSEN RAPPORTERES ALLTID, også når den ikke ble bygget: et
+    # søk som stille slutter å virke er formen på feilene i CLAUDE.md 1b.
+    print(f"  søkeindeks    {'bygget' if logg.sok['bygget'] else 'IKKE BYGGET'}"
+          f"  {logg.sok['filer']} filer, {logg.sok['byte'] / 1e6:.1f} MB")
+    print(f"                {logg.sok['melding']}")
     print(f"  byggetid      {total:8.1f} s")
     for merke, t in tider.items():
         print(f"    {merke:22} {t:7.1f} s  ({t / total * 100:4.1f} %)")

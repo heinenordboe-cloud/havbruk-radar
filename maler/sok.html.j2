@@ -1,0 +1,87 @@
+{# Søkesiden.
+
+   ## UTEN JAVASCRIPT ER DENNE SIDEN EN VEIVISER, IKKE EN FEILMELDING
+
+   Søket er Pagefind, og Pagefind er JavaScript og WebAssembly. Det kan
+   ikke være noe annet: et søk over 2 337 sider som skal svare uten en
+   server, må kjøre i nettleseren.
+
+   Men siden er ikke tom uten. Nettstedet har tre FLATE indekser —
+   alle lokalitetene, alle områdene, alle selskapene, hver på én side
+   uten paginering — og de er laget nettopp for at «finn dette» skal
+   være mulig med nettleserens egen søkefunksjon. Uten skript peker
+   siden dit, og søkeordet følger med i teksten så det kan limes inn.
+
+   Se avvik 5 i oppdraget: «Uten JS peker søkeskjemaet til /lokalitet/
+   (flat indeks).»
+
+   ## INGEN TREFF TEGNES INN I DENNE MALEN
+
+   Trefflista bygges av `/sok.js` i nettleseren. Det bryter ikke regelen
+   om at tallene skal stå i kildekoden: et søkeresultat er ikke en
+   verdi fra et register — det er en vei til siden der verdien står, og
+   den siden er statisk. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li aria-current="page">Søk</li>
+    </ol>
+  </nav>
+  <h1>Søk</h1>
+  <p class="lok-undertittel">
+    {{ d.sider }} sider: {{ d.lokaliteter }} lokaliteter,
+    {{ d.produksjonsomraader }} produksjonsområder, {{ d.selskaper }}
+    selskaper, {{ d.endringsuker }} endringsuker og
+    {{ d.andre }} andre.
+  </p>
+
+  <form class="sok sok--side" action="/sok/" method="get" role="search">
+    <label for="q">Søk etter lokalitet, selskap, kommune eller område</label>
+    <input id="q" name="q" type="search" autocomplete="off"
+           placeholder="Søk etter lokalitet, selskap, kommune eller område">
+    <button class="knapp" type="submit">Søk</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<section class="ark seksjon">
+  {# TREFFLISTA. Tom i markupen, fylt av `/sok.js`. `aria-live` gjør at
+     en skjermleser får vite at den endret seg — uten det er et søk som
+     svarer uten å si fra. #}
+  <div id="sokeresultat" class="sokeresultat" aria-live="polite"
+       aria-atomic="false"></div>
+
+  {# VEIVISEREN. Står ALLTID, ikke bare uten JavaScript: en flat liste
+     over alt er en annen og noen ganger bedre måte å lete på enn et
+     søkefelt, og den er den eneste som virker uten skript. #}
+  <div class="sok-uten">
+    <h2>Uten søk: hele lista</h2>
+    <p>
+      Søkefeltet over krever JavaScript. Er det slått av, eller vil du
+      heller bla, står alt på tre flate sider uten paginering — bruk
+      nettleserens egen søkefunksjon i dem:
+    </p>
+    <ul>
+      <li><a href="/lokalitet/">Alle {{ d.lokaliteter }} lokalitetene</a>
+        — nummer, navn, kommune, fylke, produksjonsområde og arter</li>
+      <li><a href="/produksjonsomrade/">Alle
+        {{ d.produksjonsomraader }} produksjonsområdene</a> — med
+        fargen som gjelder nå</li>
+      <li><a href="/selskap/">Alle {{ d.selskaper }} selskapene</a> —
+        med antall tillatelser og lokaliteter</li>
+      <li><a href="/endringer/">Alle {{ d.endringsuker }}
+        endringsukene</a> — med antall per type</li>
+    </ul>
+    <p class="tabellnote">
+      Sidene er ikke paginert, og det er et valg: en liste som er delt i
+      sider er en liste der de siste sidene ikke blir lest — og en
+      nettleser kan ikke søke i en side den ikke har lastet.
+    </p>
+  </div>
+</section>
+{% endblock %}

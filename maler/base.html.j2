@@ -82,6 +82,13 @@
    en FORBEDRING av noe som virker uten — kopierknappen, søket i et
    område og filteret på endringssiden. Se maler/kystloggen.js. #}
 <script src="/kystloggen.js" defer></script>
+{# SIDETYPENS EGET SKRIPT, der den har ett. I dag er `/sok/` den eneste:
+   den laster Pagefinds modul og ~1 MB wasm, og det skal ikke skje på
+   de 2 337 andre sidene der ingen søker. `type="module"` fordi
+   `sok.js` bruker dynamisk `import()`. #}
+{% if side_skript %}
+<script src="{{ side_skript }}" type="module"></script>
+{% endif %}
 </head>
 <body>
 {# HOPPELENKA. Menyen er seks lenker på hver side, og en som leser med
@@ -98,7 +105,19 @@
 </header>
 {% endblock %}
 
-<main id="innhold" class="{{ main_klasse }}" tabindex="-1">
+{# `data-pagefind-body` AVGRENSER SØKEINDEKSEN til `main`.
+
+   Uten den indekserer Pagefind hele `<body>`, og da bærer HVERT av de
+   2 337 tekstutdragene menyens seks lenker og bunntekstens fire
+   spalter. Et søk på «Lovdata» ville truffet alle sidene, og utdraget
+   i trefflista ville vært bunnteksten.
+
+   HEADEREN ER MED LIKEVEL der den bærer innhold: lokalitetsnavnet og
+   faktalista ligger i `toppinnhold`, altså utenfor `main`. De er
+   merket `data-pagefind-body` hver for seg — se `sidehode` i
+   malene. Pagefind slår sammen alle merkede områder på en side. #}
+<main id="innhold" class="{{ main_klasse }}" data-pagefind-body
+      tabindex="-1">
 {% block innhold %}{% endblock %}
 </main>
 

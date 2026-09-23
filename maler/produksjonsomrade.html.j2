@@ -23,7 +23,7 @@
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
-<div class="ark sidehode">
+<div data-pagefind-body class="ark sidehode">
   <nav class="sti" aria-label="Du er her">
     <ol>
       <li><a href="/">Kystloggen</a></li>
@@ -287,7 +287,8 @@
           <a href="{{ l.selskap.url }}" data-felt="eier_navn">{{ l.selskap.navn }}</a>
         </td>
         {% elif l.selskap.navn %}
-        <td class="eier" data-felt="eier_navn">{{ l.selskap.navn }}</td>
+        <td class="eier" data-felt="eier_navn"
+            {%- if personformnavn(l.selskap.navn) %} data-pagefind-ignore{% endif %}>{{ l.selskap.navn }}</td>
         {% else %}
         <td class="mangler" data-felt="eier_ukjent">ikke oppgitt av kilden</td>
         {% endif %}

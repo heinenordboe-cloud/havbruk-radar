@@ -99,6 +99,7 @@ def _grunn(undermappe: str = "", **over) -> dict:
         "feed": "",
         "feed_tittel": "",
         "main_klasse": "",
+        "side_skript": "",
     }
     grunn.update(over)
     return grunn
@@ -822,7 +823,8 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
                           "selskaper", "forside", "indekser",
-                          "endringssider", "feeder", "maskinfiler"}
+                          "endringssider", "feeder", "maskinfiler",
+                          "sokeindeks"}
     for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html"):
         assert (ut / fil).is_file(), fil
     assert logg.indekssider == 3

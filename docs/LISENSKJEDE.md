@@ -55,6 +55,17 @@ som faktisk står på /om/.
 | Herofotografiet | forsidens hero | Unsplash-lisensen | **ingenting** — navngiving er frivillig | — | `docs/design/HEROFOTO.md` |
 | Kystlinje, Natural Earth 1:10 m | kartene | public domain | **ingenting** | `/naturalearth-LICENSE.md` | `docs/design/KARTGEOMETRI.md` |
 | Produksjonsområdepolygoner | kartene | NLOD (Fiskeridirektoratet) | «Kilde: Fiskeridirektoratet» | dekkes av kildeattribusjonen | `docs/design/KARTGEOMETRI.md` |
+| Pagefind 1.4.0 | søket på `/sok/` | MIT | **ingenting** | — | `docs/design/PAGEFIND.md` |
+
+### Merknad I — Pagefind er et VERKTØY, ikke en avhengighet i runtime
+
+Binæren (15,6 MB) ligger ikke i repoet og sendes ikke ut. Den kjøres
+ved bygging og legger igjen `pagefind.js`, to WebAssembly-filer og
+indeksen. MIT krever at lisenstekst og opphavsrettsmerknad følger med
+«substantial portions of the Software»; `pagefind.js` og wasm-filene
+bærer sine egne merknader slik CloudCannon la dem. Proveniensen —
+utgivelse, sha256 av tarballen og sha256 av hver wasm-fil — står i
+`docs/design/PAGEFIND.md` og i `publiseringsvakt.BINAERFILER_VERKTOY`.
 
 ### Merknad G — de to som ikke krever noe
 
