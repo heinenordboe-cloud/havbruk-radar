@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/styles.css">
+<script src="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --hav9:#06161d; --hav8:#0b2430; --hav7:#123241; --hav5:#2f5f74; --hav3:#7ba0b1;
+  --papir:#e7dbd0; --papir2:#efe6dd; --papir3:#d8c9bb;
+  --rust:#aa3e04; --ink:#0b2430;
+  --dg:#2f6b4f; --dy:#c8992f; --dr:#93211c; --dtom:#8a9aa1;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --color-bg:#e7dbd0; --color-surface:#efe6dd; --color-text:#0b2430;
+  --color-accent:#123241; --color-divider:rgba(11,36,48,.22);
+  --font-heading:var(--serif); --font-heading-weight:400; --font-body:var(--sans);
+}
+body{margin:0;background:var(--papir);color:var(--ink);font-family:var(--sans);font-size:16px;-webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-decoration:none}
+a:hover{color:var(--rust)}
+::selection{background:rgba(170,62,4,.22)}
+.table td,.table th{font-variant-numeric:tabular-nums}
+.table th{text-transform:none;letter-spacing:0;font:500 13px/1.3 var(--sans);color:rgba(11,36,48,.6)}
+</style>
+</helmet>
+
+<div style="background:var(--papir)">
+  <header style="background:var(--hav9);color:var(--papir);padding:clamp(28px,4vw,44px) clamp(20px,4vw,56px) clamp(40px,5vw,64px)">
+    <div style="max-width:1400px;margin:0 auto">
+      <div style="display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;border-bottom:1px solid rgba(231,219,208,.18)">
+        <a href="Kystloggen – Forsiden.dc.html" style="font:400 19px/1 var(--serif);color:var(--papir);border-bottom:2px solid var(--rust);padding-bottom:3px">Kystloggen</a>
+        <span style="flex:1"></span>
+        <span style="font:400 12.5px/1 var(--sans);color:var(--hav3)">Designsystem v1.1, uke 39 2026</span>
+      </div>
+      <p style="margin:clamp(26px,4vw,44px) 0 12px;font:400 12.5px/1 var(--sans);color:var(--rust)">Overførbart designsystem</p>
+      <div style="width:max-content;max-width:100%">
+        <h1 style="margin:0;font:300 clamp(44px,7vw,104px)/.9 var(--serif);letter-spacing:-.03em;color:var(--papir)">Havblått, papir, rust</h1>
+        <div style="height:11px;margin-top:14px;width:100%;border-bottom:2px solid var(--rust);background:repeating-linear-gradient(90deg,var(--rust) 0 1px,transparent 1px 24px);background-position:bottom;background-size:100% 9px;background-repeat:repeat-x"></div>
+      </div>
+      <p style="margin:clamp(24px,3vw,36px) 0 0;max-width:62ch;font:400 clamp(16px,1.5vw,19px)/1.6 var(--sans);color:rgba(231,219,208,.86);text-wrap:pretty">Alt som er brukt på forsiden og lokalitetssiden, samlet: farger, typografi, spacing og komponentene. Tre regler styrer resten — havblått er grunnen, papir er flaten man leser på, og rust er den eneste aksenten. Trafikklysfargene er data og har ingen annen jobb.</p>
+    </div>
+  </header>
+
+  <!-- 01 FARGER -->
+  <section style="max-width:1400px;margin:0 auto;padding:clamp(52px,6vw,90px) clamp(20px,4vw,56px) 0">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(24px,3vw,38px);flex-wrap:wrap">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">01</span>
+      <h2 style="margin:0;font:400 clamp(26px,3.2vw,40px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:240px">Farger</h2>
+      <p style="margin:0;max-width:44ch;font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72)">Ti verdier i alt. Havblått i fem trinn, papir i tre, rust i én — og fire datafarger som aldri brukes til noe annet.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:rgba(11,36,48,.16);border:1px solid rgba(11,36,48,.16)">
+      <sc-for list="{{ farger }}" as="f" hint-placeholder-count="9">
+        <div style="background:var(--papir)">
+          <div style="height:112px;background:{{ f.hex }};border-bottom:1px solid rgba(11,36,48,.14)"></div>
+          <div style="padding:14px 16px 18px">
+            <div style="font:500 12.5px/1 var(--sans);color:var(--rust)">{{ f.token }}</div>
+            <div style="margin-top:7px;font:400 18px/1.15 var(--serif)">{{ f.navn }}</div>
+            <div style="margin-top:5px;font:400 13px/1 var(--sans);color:rgba(11,36,48,.5)">{{ f.hex }}</div>
+            <div style="margin-top:9px;font:400 12.5px/1.45 var(--sans);color:rgba(11,36,48,.65)">{{ f.bruk }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:clamp(20px,3vw,40px);margin-top:clamp(28px,3vw,44px)">
+      <div style="position:relative;border:1px solid rgba(11,36,48,.3);padding:clamp(20px,2.5vw,30px)">
+        <i style="position:absolute;top:-1px;left:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+        <i style="position:absolute;top:-1px;right:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+        <i style="position:absolute;bottom:-1px;left:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+        <i style="position:absolute;bottom:-1px;right:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+        <p style="margin:0 0 16px;font:500 12px/1 var(--sans);color:var(--rust)">Datafarger — trafikklys</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ datafarger }}" as="d" hint-placeholder-count="4">
+            <div style="display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:13px">
+              <span style="width:14px;height:14px;background:{{ d.hex }};border:1px solid {{ d.kant }}"></span>
+              <span style="font:400 15px/1.3 var(--sans)">{{ d.navn }}</span>
+              <span style="font:400 13px/1 var(--sans);color:rgba(11,36,48,.5)">{{ d.hex2 }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <p style="margin:18px 0 0;font:400 13.5px/1.6 var(--sans);color:rgba(11,36,48,.7);text-wrap:pretty">Alltid kvadratiske flater på 9–14 px, alltid med tekstlabel ved siden av. Aldri på knapper, aldri som bakgrunn i en boks, aldri som statusvarsel. Fargen betyr kapasitetsvurdering, ingenting annet.</p>
+      </div>
+
+      <div style="position:relative;border:1px solid rgba(11,36,48,.3);padding:clamp(20px,2.5vw,30px)">
+        <i style="position:absolute;top:-1px;left:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+        <i style="position:absolute;top:-1px;right:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+        <i style="position:absolute;bottom:-1px;left:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+        <i style="position:absolute;bottom:-1px;right:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+        <p style="margin:0 0 16px;font:500 12px/1 var(--sans);color:var(--rust)">Kontrast og flater</p>
+        <div style="display:grid;gap:1px;background:rgba(11,36,48,.2)">
+          <div style="background:var(--papir);padding:13px 15px;font:400 14px/1.4 var(--sans)">Papir <span style="color:rgba(11,36,48,.55);font-family:var(--sans);font-size:12px">· ink på papir 13,1:1</span></div>
+          <div style="background:var(--hav9);color:var(--papir);padding:13px 15px;font:400 14px/1.4 var(--sans)">Havblå 900 <span style="color:var(--hav3);font-family:var(--sans);font-size:12px">· papir på hav 12,6:1</span></div>
+          <div style="background:var(--rust);color:#f6efe8;padding:13px 15px;font:400 14px/1.4 var(--sans)">Rust <span style="color:rgba(246,239,232,.75);font-family:var(--sans);font-size:12px">· papir på rust 6,3:1</span></div>
+        </div>
+        <p style="margin:18px 0 0;font:400 13.5px/1.6 var(--sans);color:rgba(11,36,48,.7);text-wrap:pretty">To flater i hele systemet: papir for lesing, havblå 900 for kart, hero og fot. Rust brukes på linjer, tall-etiketter, piler og lenkestrek — aldri som stor flate, aldri som fyll bak brødtekst.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 TYPOGRAFI -->
+  <section style="max-width:1400px;margin:0 auto;padding:clamp(52px,6vw,90px) clamp(20px,4vw,56px) 0">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(24px,3vw,38px);flex-wrap:wrap">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">02</span>
+      <h2 style="margin:0;font:400 clamp(26px,3.2vw,40px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:240px">Typografi</h2>
+      <p style="margin:0;max-width:44ch;font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72)">Newsreader til overskrifter, navn og store tall. IBM Plex Sans til alt annet — brødtekst, etiketter, datoer, forklaringer. IBM Plex Mono har én jobb: tallkolonner i tabeller.</p>
+    </div>
+
+    <div style="border-top:1px solid rgba(11,36,48,.18)">
+      <sc-for list="{{ typer }}" as="t" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr);gap:clamp(16px,3vw,40px);align-items:baseline;padding:20px 0;border-bottom:1px solid rgba(11,36,48,.12)">
+          <div>
+            <div style="font:500 12.5px/1.5 var(--sans);color:var(--rust)">{{ t.navn }}</div>
+            <div style="font:400 12.5px/1.6 var(--sans);color:rgba(11,36,48,.5)">{{ t.spec }}</div>
+          </div>
+          <div style="font:{{ t.font }};color:var(--ink);letter-spacing:{{ t.ls }};min-width:0;overflow:hidden;text-overflow:ellipsis">{{ t.prøve }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(20px,3vw,40px);margin-top:clamp(26px,3vw,40px)">
+      <div>
+        <p style="margin:0 0 12px;font:500 12px/1 var(--sans);color:var(--rust)">Tabulære tall — obligatorisk</p>
+        <div style="border:1px solid rgba(11,36,48,.22);padding:16px 18px;background:var(--papir2)">
+          <div style="font:400 26px/1.35 var(--serif);font-variant-numeric:tabular-nums">1 782<br>481<br>2 943</div>
+          <p style="margin:12px 0 0;font:400 14px/1.5 var(--sans);color:rgba(11,36,48,.6)">font-variant-numeric: tabular-nums<br>på alle tall som kan sammenlignes</p>
+        </div>
+      </div>
+      <div>
+        <p style="margin:0 0 12px;font:500 12px/1 var(--sans);color:var(--rust)">Tallformat</p>
+        <div style="border:1px solid rgba(11,36,48,.22);padding:16px 18px;background:var(--papir2);font:400 13.5px/1.9 var(--sans)">
+          <div>Tusenskille: hardt mellomrom — <b style="font-weight:500">1 782</b></div>
+          <div>Desimaltegn: komma — <b style="font-weight:500">0,50 hunnlus</b></div>
+          <div>Datoer i tekst: <b style="font-weight:500">16. september 2026</b></div>
+          <div>Datoer i tabeller: ISO — <b style="font-weight:500">2026-09-16</b></div>
+          <div>Uker: <b style="font-weight:500">uke 38, 2026</b> · ISO-uke kun i filer og hover</div>
+          <div>Koordinater: grader og desimalminutt</div>
+        </div>
+      </div>
+      <div>
+        <p style="margin:0 0 12px;font:500 12px/1 var(--sans);color:var(--rust)">Språk og tone</p>
+        <div style="border:1px solid rgba(11,36,48,.22);padding:16px 18px;background:var(--papir2);font:400 13.5px/1.7 var(--sans);color:rgba(11,36,48,.8)">
+          Korte setninger, ingen markedsføring, ingen utropstegn. Vi skriver hva kilden sier og når den sa det. Tomt felt heter «ikke oppgitt», aldri «ukjent» eller «mangler».
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 SPACING -->
+  <section style="max-width:1400px;margin:0 auto;padding:clamp(52px,6vw,90px) clamp(20px,4vw,56px) 0">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(24px,3vw,38px);flex-wrap:wrap">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">03</span>
+      <h2 style="margin:0;font:400 clamp(26px,3.2vw,40px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:240px">Spacing og raster</h2>
+      <p style="margin:0;max-width:44ch;font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72)">Fire piksler som grunnenhet. Seksjoner skilles av hårlinjer, ikke av skygger — det finnes ingen skygger i systemet utenfor heroens søkefelt.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:rgba(11,36,48,.16);border:1px solid rgba(11,36,48,.16);margin-bottom:clamp(24px,3vw,36px)">
+      <sc-for list="{{ spacing }}" as="s" hint-placeholder-count="8">
+        <div style="background:var(--papir);padding:16px 16px 18px">
+          <div style="height:{{ s.h }};background:var(--hav5);margin-bottom:12px"></div>
+          <div style="font:500 12.5px/1 var(--sans);color:var(--rust)">{{ s.token }}</div>
+          <div style="margin-top:5px;font:400 14px/1.4 var(--sans);color:rgba(11,36,48,.55)">{{ s.px }}</div>
+          <div style="margin-top:6px;font:400 12.5px/1.45 var(--sans);color:rgba(11,36,48,.7)">{{ s.bruk }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:clamp(18px,2.5vw,34px);font:400 13.5px/1.65 var(--sans);color:rgba(11,36,48,.78)">
+      <div><span style="display:block;font:500 12px/1 var(--sans);color:var(--rust);margin-bottom:9px">Container</span>max-width 1400 px, padding clamp(20px, 4vw, 56px). Alt annet flyter.</div>
+      <div><span style="display:block;font:500 12px/1 var(--sans);color:var(--rust);margin-bottom:9px">Seksjonsrytme</span>clamp(52px, 6vw, 90px) topp, hårlinje + nummer + tittel + ingress i én rad.</div>
+      <div><span style="display:block;font:500 12px/1 var(--sans);color:var(--rust);margin-bottom:9px">Rutenett</span>repeat(auto-fit, minmax(210–300px, 1fr)) med 1 px hårlinje som gap-farge.</div>
+      <div><span style="display:block;font:500 12px/1 var(--sans);color:var(--rust);margin-bottom:9px">Hjørner</span>Radius 0 overalt. Ingen runde hjørner, ingen skygger, ingen glass.</div>
+    </div>
+  </section>
+
+  <!-- 04 KOMPONENTER -->
+  <section style="max-width:1400px;margin:0 auto;padding:clamp(52px,6vw,90px) clamp(20px,4vw,56px) 0">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(24px,3vw,38px);flex-wrap:wrap">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">04</span>
+      <h2 style="margin:0;font:400 clamp(26px,3.2vw,40px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:240px">Komponenter</h2>
+      <p style="margin:0;max-width:44ch;font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72)">Elleve deler bærer begge sidene. Hver av dem er ren tekst i HTML — ingenting av dette er bilder.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:1px;background:rgba(11,36,48,.16);border:1px solid rgba(11,36,48,.16)">
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">01 · Ordmerke med linjal</div>
+        <div style="margin:22px 0 18px;width:max-content;max-width:100%">
+          <div style="font:300 46px/.9 var(--serif);letter-spacing:-.03em">Kystloggen</div>
+          <div style="height:10px;margin-top:9px;width:100%;border-bottom:2px solid var(--rust);background:repeating-linear-gradient(90deg,var(--rust) 0 1px,transparent 1px 16px);background-position:bottom;background-size:100% 8px;background-repeat:repeat-x"></div>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Newsreader 300, letter-spacing −0,03em. Linjalen er like bred som ordet, med 1 px merker hver 16–24 px. Merkene skaleres med ordmerkets størrelse.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">02 · Seksjonshode</div>
+        <div style="margin:22px 0 18px;display:flex;align-items:baseline;gap:14px;border-top:1px solid rgba(11,36,48,.3);padding-top:12px">
+          <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">02</span>
+          <h3 style="margin:0;font:400 30px/1.05 var(--serif);letter-spacing:-.02em;flex:1">Tittelen her</h3>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Hårlinje over, tosifret nummer i rust sans, tittel i Newsreader, ingress til høyre i maks 44 tegn. Nummeret gjør sidene navigerbare i samtale.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">03 · Nøkkeltall</div>
+        <div style="margin:18px 0">
+          <div style="font:300 62px/.9 var(--serif);letter-spacing:-.03em;font-variant-numeric:tabular-nums">1 782</div>
+          <div style="margin-top:10px;font:500 15px/1 var(--sans);color:var(--rust)">Lokaliteter</div>
+          <p style="margin:9px 0 0;font:400 13.5px/1.5 var(--sans);color:rgba(11,36,48,.68);max-width:26ch">Én setning som forklarer hva tallet er.</p>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Tallet i Newsreader, etiketten i sans 15 px rust, og én setning som forklarer det. Ingen pyntegrafikk under.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">04 · Datachip</div>
+        <div style="margin:22px 0 18px;display:flex;flex-direction:column;gap:11px;font:400 14px/1 var(--sans)">
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;background:var(--dr)"></span>rød</span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;background:var(--dy)"></span>gul</span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;background:var(--dg)"></span>grønn</span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:11px;height:11px;border:1px solid var(--dtom)"></span>ikke oppgitt</span>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Kvadrat pluss ord, alltid sammen. «Ikke oppgitt» er en tom ramme — bevisst tom, ikke ødelagt. Aldri en farge for «mangler».</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">05 · Diff-rad (endringslogg)</div>
+        <div style="margin:20px 0 18px;padding:14px 0;border-top:1px solid rgba(11,36,48,.14);border-bottom:1px solid rgba(11,36,48,.14)">
+          <div style="font:400 13px/1 var(--sans);color:rgba(11,36,48,.52)">16. sep. kl. 04.09</div>
+          <div style="margin:8px 0 9px;font:400 22px/1.15 var(--serif)">Gulestø</div>
+          <div style="display:flex;align-items:center;gap:10px;font:400 13.5px/1 var(--sans)">
+            <span style="display:flex;align-items:center;gap:6px;color:rgba(11,36,48,.55)"><span style="width:10px;height:10px;background:var(--dr)"></span>rød</span>
+            <span style="color:var(--rust)">→</span>
+            <span style="display:flex;align-items:center;gap:6px;font-weight:500"><span style="width:10px;height:10px;background:var(--dy)"></span>gul</span>
+          </div>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Tidsstempel i sans, dempet; objektet i Newsreader; endringen som fra → til. Pilen er alltid rust. Gammel verdi er dempet, ny verdi er full styrke.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">06 · Områderad</div>
+        <div style="margin:20px 0 18px;background:var(--hav9);padding:4px 0">
+          <div style="display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;padding:13px 14px;border-left:2px solid var(--rust);border-bottom:1px solid rgba(231,219,208,.13)">
+            <span style="font:400 12.5px/1 var(--sans);color:var(--hav3)">04</span>
+            <span>
+              <span style="display:block;font:400 19px/1.15 var(--serif);color:var(--papir)">Nordhordland til Stadt</span>
+              <span style="display:flex;align-items:center;gap:7px;margin-top:5px;font:400 13px/1 var(--sans);color:#c9dbe3"><span style="width:9px;height:9px;background:var(--dy)"></span>gul</span>
+            </span>
+            <span style="font:400 14.5px/1 var(--sans);color:var(--hav3);font-variant-numeric:tabular-nums">141</span>
+          </div>
+          <div style="display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;padding:13px 14px;border-left:2px solid transparent">
+            <span style="font:400 12.5px/1 var(--sans);color:var(--hav3)">05</span>
+            <span>
+              <span style="display:block;font:400 19px/1.15 var(--serif);color:var(--papir)">Stadt til Hustadvika</span>
+              <span style="display:flex;align-items:center;gap:7px;margin-top:5px;font:400 13px/1 var(--sans);color:#c9dbe3"><span style="width:9px;height:9px;background:var(--dy)"></span>gul</span>
+            </span>
+            <span style="font:400 14.5px/1 var(--sans);color:var(--hav3);font-variant-numeric:tabular-nums">96</span>
+          </div>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Valgt rad får rust kantlinje til venstre og en papirtone på 9 % som bakgrunn. Ingen hover-skygge, ingen farget knapp.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">07 · Søkefelt</div>
+        <div style="margin:22px 0 18px;display:flex;align-items:stretch;background:var(--papir2);border:1px solid rgba(11,36,48,.2)">
+          <span style="display:flex;align-items:center;padding:0 4px 0 14px;color:var(--rust)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M16.2 16.2 21 21"></path></svg>
+          </span>
+          <span style="flex:1;padding:16px 12px;font:400 15px/1 var(--sans);color:rgba(11,36,48,.45)">Søk etter lokalitet, selskap eller kommune</span>
+          <span style="background:var(--hav8);color:var(--papir);font:500 14px/1 var(--sans);padding:0 22px;display:flex;align-items:center">Søk</span>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Lupen er rust, knappen er havblå og blir rust på hover. Treffliste på papir 2 med ett treff per rad: navn, type, kode.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">08 · Knapper og lenker</div>
+        <div style="margin:22px 0 18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+          <span style="background:var(--hav8);color:var(--papir);padding:14px 22px;font:500 14.5px/1 var(--sans)">Last ned datasettet</span>
+          <span style="border:1px solid rgba(11,36,48,.35);padding:14px 22px;font:500 14.5px/1 var(--sans)">Metode og kilder</span>
+          <span style="font:400 14px/1 var(--sans);border-bottom:1px solid var(--rust);padding-bottom:4px">Tekstlenke →</span>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Kvadratiske, sans 500 i 14,5 px, vanlig setning — aldri versaler. Hover bytter fyllet til rust. Aldri en grønn eller rød knapp — de fargene er opptatt.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">09 · Blåkopiramme</div>
+        <div style="margin:26px 0 22px;position:relative;border:1px solid rgba(11,36,48,.3);height:96px">
+          <i style="position:absolute;top:-1px;left:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+          <i style="position:absolute;top:-1px;right:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+          <i style="position:absolute;bottom:-1px;left:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+          <i style="position:absolute;bottom:-1px;right:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Hårlinje pluss fire rustmerker i hjørnene. Rammen brukes rundt kart, grafer og kolofon — aldri rundt brødtekst, og aldri med fyll.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">10 · Kart</div>
+        <div style="margin:20px 0 18px;height:120px;background:var(--hav9);position:relative;overflow:hidden">
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(45,85,104,.35) 0 1px,transparent 1px 22px),repeating-linear-gradient(0deg,rgba(45,85,104,.35) 0 1px,transparent 1px 22px)"></div>
+          <div style="position:absolute;left:18%;top:20%;width:9px;height:9px;background:var(--dg)"></div>
+          <div style="position:absolute;left:34%;top:52%;width:9px;height:9px;background:var(--dy)"></div>
+          <div style="position:absolute;left:58%;top:34%;width:9px;height:9px;background:var(--dr)"></div>
+          <div style="position:absolute;left:76%;top:64%;width:9px;height:9px;border:1px solid var(--dtom)"></div>
+          <div style="position:absolute;right:10px;bottom:8px;font:400 10.5px/1.6 var(--sans);color:var(--hav3)">Natural Earth 1:110 m</div>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Havblå 900 som sjø, land i havblå 700 med hårlinje. Produksjonsområdene er bånd langs kysten i datafarge, skravert for «ikke oppgitt». Enkeltanlegg vises ikke i oversikten — de finnes via søk. Kilde står i hjørnet.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">11 · Tidsserie med hull</div>
+        <div style="margin:20px 0 18px;height:120px;position:relative;border-bottom:1px solid rgba(11,36,48,.25)">
+          <div style="position:absolute;left:0;right:0;top:46%;border-top:1px dashed var(--rust)"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:flex-end;gap:2px">
+            <sc-for list="{{ sparkline }}" as="v" hint-placeholder-count="26">
+              <span style="flex:1;height:{{ v.h }};background:{{ v.farge }}"></span>
+            </sc-for>
+          </div>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Søyler i havblå 500, rust over tiltaksgrensen, og ingenting der det ikke finnes rapport. Manglende data tegnes aldri som null.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12px/1 var(--sans);color:var(--rust)">12 · Tabell</div>
+        <div style="margin:20px 0 18px;overflow-x:auto">
+          <table class="table" style="font-family:var(--sans);min-width:0">
+            <thead><tr><th>Nr.</th><th>Formål</th><th style="text-align:right">Kapasitet</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:var(--mono);font-variant-numeric:tabular-nums">GH 0012</td><td>Kommersiell</td><td style="text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">1 560 t</td></tr>
+              <tr><td style="font-family:var(--mono);font-variant-numeric:tabular-nums">GH 0091</td><td>Utvikling</td><td style="text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums">390 t</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Hode i sans, dempet. Mono bare i tallkolonnene — nummer, mengder, ISO-datoer — så sifrene står loddrett. Radlinjer på 8 % ink, tall høyrestilt. Ingen zebra-striper, ingen ramme rundt tabellen.</p>
+      </div>
+
+      <div style="background:var(--papir);padding:clamp(20px,2.5vw,28px)">
+        <div style="font:500 12.5px/1 var(--sans);color:var(--rust)">13 · Proveniens</div>
+        <div style="margin:22px 0 18px;background:var(--hav9);padding:16px 18px;font:400 13px/1.5 var(--sans);color:var(--hav3)">Bygget fra øyeblikksbildet for uke 38, 2026, hentet 16. september 2026 kl. 04.09. © 2026 Kystloggen.</div>
+        <p style="margin:0;font:400 13px/1.55 var(--sans);color:rgba(11,36,48,.68)">Én linje, nederst på hver side, under en hårlinje i foten. Hvilket øyeblikksbilde siden er bygget fra, og når. Ikke gjentatt ved hver rad — der ligger ukenummeret i hover.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 REGLER -->
+  <section style="max-width:1400px;margin:0 auto;padding:clamp(52px,6vw,90px) clamp(20px,4vw,56px) 0">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(24px,3vw,38px)">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">05</span>
+      <h2 style="margin:0;font:400 clamp(26px,3.2vw,40px)/1.05 var(--serif);letter-spacing:-.02em">Regler</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(20px,3vw,44px)">
+      <div>
+        <p style="margin:0 0 16px;font:500 12px/1 var(--sans);color:var(--rust)">Gjør</p>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ gjoer }}" as="g" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:22px 1fr;gap:12px;padding:13px 0;border-bottom:1px solid rgba(11,36,48,.12);font:400 14.5px/1.55 var(--sans)">
+              <span style="color:var(--rust);font-family:var(--sans);font-size:13px">+</span>
+              <span>{{ g }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <p style="margin:0 0 16px;font:500 12px/1 var(--sans);color:var(--rust)">Ikke gjør</p>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ ikke }}" as="i" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:22px 1fr;gap:12px;padding:13px 0;border-bottom:1px solid rgba(11,36,48,.12);font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72)">
+              <span style="color:rgba(11,36,48,.4);font-family:var(--sans);font-size:13px">−</span>
+              <span>{{ i }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 TOKENS -->
+  <section style="max-width:1400px;margin:0 auto;padding:clamp(52px,6vw,90px) clamp(20px,4vw,56px) clamp(60px,7vw,100px)">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(24px,3vw,38px);flex-wrap:wrap">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">06</span>
+      <h2 style="margin:0;font:400 clamp(26px,3.2vw,40px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:240px">Tokens</h2>
+      <p style="margin:0;max-width:44ch;font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72)">Kopier dette inn i et hvilket som helst statisk oppsett. Ingenting annet trengs.</p>
+    </div>
+    <pre style="margin:0;background:var(--hav9);color:#cfe0e8;padding:clamp(20px,3vw,34px);overflow-x:auto;font:400 13px/1.85 var(--mono);white-space:pre">:root{
+  /* hav — grunn, kart, hero, fot */
+  --hav-900:#06161d;  --hav-800:#0b2430;  --hav-700:#123241;
+  --hav-500:#2f5f74;  --hav-300:#7ba0b1;
+
+  /* papir — flaten man leser på */
+  --papir:#e7dbd0;    --papir-2:#efe6dd;  --papir-3:#d8c9bb;
+
+  /* rust — eneste aksent */
+  --rust:#aa3e04;
+
+  /* data — trafikklys, aldri pynt */
+  --data-groenn:#2f6b4f;  --data-gul:#c8992f;
+  --data-rod:#93211c;     --data-tom:#8a9aa1;
+
+  --ink:#0b2430;
+  --linje:rgba(11,36,48,.22);
+  --linje-svak:rgba(11,36,48,.12);
+
+  --serif:"Newsreader",Georgia,serif;
+  --sans:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace; /* KUN tallkolonner i tabeller */
+
+  --s-1:4px;  --s-2:8px;  --s-3:12px;  --s-4:16px;
+  --s-5:24px; --s-6:32px; --s-7:48px;  --s-8:64px;
+  --s-9:96px; --s-10:128px;
+
+  --radius:0;
+  --maks-bredde:1400px;
+  --kant:clamp(20px,4vw,56px);
+}</pre>
+    <p style="margin:18px 0 0;font:400 14px/1.7 var(--sans);color:rgba(11,36,48,.55);max-width:80ch">Fonter: Newsreader 300/400 og IBM Plex Sans 400/500/600 + IBM Plex Mono 400/500 fra Google Fonts. Ikoner: Lucide, strekbredde 1,5. Kart: d3-geo med Natural Earth 1:110 m for oversikt, Leaflet med OpenStreetMap for lokalitetsposisjon.</p>
+  </section>
+
+  <footer style="background:var(--hav9);color:var(--papir);padding:clamp(36px,5vw,60px) clamp(20px,4vw,56px)">
+    <div style="max-width:1400px;margin:0 auto;display:flex;align-items:baseline;gap:20px;flex-wrap:wrap">
+      <span style="font:300 32px/1 var(--serif);letter-spacing:-.03em">Kystloggen</span>
+      <span style="flex:1"></span>
+      <a href="Kystloggen – Forsiden.dc.html" style="font:400 13.5px/1 var(--sans);color:rgba(231,219,208,.85)">Forsiden</a>
+      <a href="Kystloggen – Lokalitet.dc.html" style="font:400 13.5px/1 var(--sans);color:rgba(231,219,208,.85)">Lokalitetssiden</a>
+      <span style="font:400 12.5px/1 var(--sans);color:var(--hav3)">Designsystem v1.1</span>
+    </div>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440}}">
+class Component extends DCLogic {
+  renderVals() {
+    var spark = [];
+    var verdier = [0.18, 0.31, 0.44, null, 0.52, 0.61, 0.48, 0.29, null, null, 0.22, 0.35, 0.58, 0.72, 0.55, 0.41, 0.26, null, 0.19, 0.24, 0.38, 0.47, 0.33, null, 0.21, 0.16];
+    verdier.forEach(function (v) {
+      spark.push(v == null
+        ? { h: '0', farge: 'transparent' }
+        : { h: Math.round(v / 0.85 * 100) + '%', farge: v > 0.5 ? '#aa3e04' : '#2f5f74' });
+    });
+
+    return {
+      farger: [
+        { token: '--hav-900', navn: 'Havblå 900', hex: '#06161d', bruk: 'Sjø i kart, hero, fot' },
+        { token: '--hav-800', navn: 'Havblå 800', hex: '#0b2430', bruk: 'Ink, primærknapp' },
+        { token: '--hav-700', navn: 'Havblå 700', hex: '#123241', bruk: 'Land i kart, flater' },
+        { token: '--hav-500', navn: 'Havblå 500', hex: '#2f5f74', bruk: 'Søyler i grafer' },
+        { token: '--hav-300', navn: 'Havblå 300', hex: '#7ba0b1', bruk: 'Metadata på mørkt' },
+        { token: '--papir', navn: 'Papir', hex: '#e7dbd0', bruk: 'Sideflate, lesegrunn' },
+        { token: '--papir-2', navn: 'Papir 2', hex: '#efe6dd', bruk: 'Hover, grafbakgrunn' },
+        { token: '--papir-3', navn: 'Papir 3', hex: '#d8c9bb', bruk: 'Kant mot papir' },
+        { token: '--rust', navn: 'Rust', hex: '#aa3e04', bruk: 'Eneste aksent: linjer, piler, etiketter' }
+      ],
+      datafarger: [
+        { navn: 'rød — kapasitet ned 6 %', hex: '#93211c', hex2: '#93211c', kant: '#93211c' },
+        { navn: 'gul — kapasitet uendret', hex: '#c8992f', hex2: '#c8992f', kant: '#c8992f' },
+        { navn: 'grønn — kapasitet opp 6 %', hex: '#2f6b4f', hex2: '#2f6b4f', kant: '#2f6b4f' },
+        { navn: 'ikke oppgitt — tom ramme', hex: 'transparent', hex2: '#8a9aa1', kant: '#8a9aa1' }
+      ],
+      typer: [
+        { navn: 'Ordmerke', spec: 'Newsreader 300 · 56–144 px', font: '300 clamp(44px,6vw,96px)/.9 var(--serif)', ls: '-.035em', prøve: 'Kystloggen' },
+        { navn: 'Løfte', spec: 'Newsreader 300 kursiv · 26–44 px', font: 'italic 300 clamp(24px,3vw,40px)/1.2 var(--serif)', ls: '0', prøve: 'Registrene viser nå. Vi tar vare på før.' },
+        { navn: 'Seksjonstittel', spec: 'Newsreader 400 · 26–44 px', font: '400 clamp(26px,3.2vw,40px)/1.05 var(--serif)', ls: '-.02em', prøve: 'Hele kysten, ett øyeblikksbilde' },
+        { navn: 'Nøkkeltall', spec: 'Newsreader 300 tabulær · 46–80 px', font: '300 clamp(40px,5vw,72px)/.9 var(--serif)', ls: '-.03em', prøve: '1 782' },
+        { navn: 'Objektnavn', spec: 'Newsreader 400 · 19–25 px', font: '400 23px/1.15 var(--serif)', ls: '-.01em', prøve: 'Nordhordland til Stadt' },
+        { navn: 'Brødtekst', spec: 'IBM Plex Sans 400 · 16 px / 1,65', font: '400 16px/1.65 var(--sans)', ls: '0', prøve: 'Kystloggen laster ned et fullt øyeblikksbilde hver uke, og tar vare på det.' },
+        { navn: 'Ingress', spec: 'IBM Plex Sans 400 · 14,5 px', font: '400 14.5px/1.55 var(--sans)', ls: '0', prøve: 'Fargen for 2026 er hentet fra forskriften.' },
+        { navn: 'Etikett', spec: 'IBM Plex Sans 400 · 13 px · dempet', font: '400 13px/1.3 var(--sans)', ls: '0', prøve: 'Produksjonsområde' },
+        { navn: 'Metadata', spec: 'IBM Plex Sans 400 · 13 px · dempet', font: '400 13px/1.4 var(--sans)', ls: '0', prøve: 'Siden 17. juni 2024' },
+        { navn: 'Tabelltall', spec: 'IBM Plex Mono 400 · 14 px · tabulær · kun i tabeller', font: '400 14px/1.3 var(--mono)', ls: '0', prøve: 'GH 0012    1 560 t MTB    2003-06-11' }
+      ],
+      spacing: [
+        { token: '--s-1', px: '4 px', h: '4px', bruk: 'Grunnenhet' },
+        { token: '--s-2', px: '8 px', h: '8px', bruk: 'Chip til tekst' },
+        { token: '--s-3', px: '12 px', h: '12px', bruk: 'Inne i rader' },
+        { token: '--s-4', px: '16 px', h: '16px', bruk: 'Celleluft' },
+        { token: '--s-5', px: '24 px', h: '24px', bruk: 'Kolonner' },
+        { token: '--s-6', px: '32 px', h: '32px', bruk: 'Blokker' },
+        { token: '--s-8', px: '64 px', h: '64px', bruk: 'Seksjon innvendig' },
+        { token: '--s-9', px: '96 px', h: '96px', bruk: 'Mellom seksjoner' }
+      ],
+      sparkline: spark,
+      gjoer: [
+        'Sett tall i Newsreader og gjør dem store nok til å bli lest som en overskrift.',
+        'Bruk hårlinjer til å dele opp — 1 px på 12–30 % ink, aldri skygge.',
+        'Skriv kilde og tidspunkt ved alt som er hentet fra et register.',
+        'La tomme felt være tomme, og si «ikke oppgitt» med ord.',
+        'Hold datafargene på kvadrater med label, i kart, grafer og lister.',
+        'Bruk tabulære tall i alle tabeller, tidsserier og nøkkeltall.',
+        'Skriv etiketter i vanlig setning, i sans, mindre og dempet.',
+        'Samle proveniensen i én linje nederst på siden.',
+        'La kartet være havblått 900 — sjøen er den mørkeste flaten på siden.'
+      ],
+      ikke: [
+        'Ikke bruk rød, gul eller grønn på knapper, varsler eller ikoner.',
+        'Ikke tegn manglende data som null — hull skal være hull.',
+        'Ikke legg til en fjerde farge, en gradient eller en skygge.',
+        'Ikke rund av hjørner, og ikke legg kort på kort.',
+        'Ikke bruk monospace til etiketter, overskrifter, datoer eller forklaringer. Mono er bare for tallkolonner i tabeller.',
+        'Ikke skriv etiketter i versaler med sperring.',
+        'Ikke gjenta metadata ved hver rad eller skriv bruksanvisninger på siden.',
+        'Ikke skriv tall som bilde — alt skal kunne markeres og indekseres.',
+        'Ikke fyll en flate med rust; den er en linje, ikke et felt.'
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

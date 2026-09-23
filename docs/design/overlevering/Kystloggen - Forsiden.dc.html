@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/styles.css">
+<script src="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+<style>
+:root{
+  --hav9:#06161d; --hav8:#0b2430; --hav7:#123241; --hav5:#2f5f74; --hav3:#7ba0b1;
+  --papir:#e7dbd0; --papir2:#efe6dd; --papir3:#d8c9bb;
+  --rust:#aa3e04; --ink:#0b2430;
+  --dg:#2f6b4f; --dy:#c8992f; --dr:#93211c; --dtom:#8a9aa1;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --color-bg:#e7dbd0; --color-surface:#efe6dd; --color-text:#0b2430;
+  --color-accent:#123241; --color-divider:rgba(11,36,48,.22);
+  --font-heading:var(--serif); --font-heading-weight:400; --font-body:var(--sans);
+}
+body{margin:0;background:var(--papir);color:var(--ink);font-family:var(--sans);font-size:16px;-webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-decoration:none}
+a:hover{color:var(--rust)}
+::selection{background:rgba(170,62,4,.22)}
+input::placeholder{color:rgba(11,36,48,.42)}
+@keyframes maake{from{transform:translate3d(-12vw,0,0)}to{transform:translate3d(118vw,0,0)}}
+@keyframes bob{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-14px) scaleY(.82)}}
+@keyframes lys{0%,100%{transform:translate3d(-8%,0,0)}50%{transform:translate3d(8%,0,0)}}
+@keyframes puls{0%,100%{opacity:.25}50%{opacity:1}}
+</style>
+</helmet>
+
+<div style="background:var(--papir)">
+
+  <!-- ══ HERO ══ -->
+  <header style="position:relative;background:var(--hav9);color:var(--papir);overflow:hidden;height:max(560px,70vh);display:flex;flex-direction:column">
+    <div style="position:absolute;inset:0;z-index:0;overflow:hidden">
+      <div style="position:absolute;inset:0">
+        <img src="https://images.unsplash.com/photo-1778598707323-dff7934497a8?fm=jpg&amp;q=75&amp;w=2400&amp;h=1350&amp;auto=format&amp;fit=crop&amp;crop=bottom" alt="Snødekte fjell over mørkt hav under skyer" style="display:block;width:100%;height:100%;object-fit:cover;object-position:center 85%">
+      </div>
+    </div>
+    <div style="position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(6,22,29,.62) 0%,rgba(6,22,29,0) 18%,rgba(6,22,29,0) 40%,rgba(6,22,29,.78) 72%,rgba(6,22,29,.96) 100%)"></div>
+    <div style="position:absolute;left:-20%;right:-20%;top:38%;height:34%;z-index:1;pointer-events:none;background:radial-gradient(60% 50% at 50% 50%,rgba(231,219,208,.13),transparent 70%);animation:lys 34s ease-in-out infinite"></div>
+
+    <div style="position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden">
+      <span style="position:absolute;top:19%;animation:maake 71s linear infinite"><svg width="44" height="13" viewBox="0 0 44 13" style="display:block;opacity:.55;animation:bob 6.5s ease-in-out infinite"><path d="M1 10C8 2 13 2 22 7c9-5 14-5 21 3" fill="none" stroke="#e7dbd0" stroke-width="1.2"/></svg></span>
+      <span style="position:absolute;top:27%;animation:maake 103s linear infinite;animation-delay:-31s"><svg width="30" height="9" viewBox="0 0 44 13" style="display:block;opacity:.4;animation:bob 8.2s ease-in-out infinite"><path d="M1 10C8 2 13 2 22 7c9-5 14-5 21 3" fill="none" stroke="#e7dbd0" stroke-width="1.5"/></svg></span>
+      <span style="position:absolute;top:14%;animation:maake 88s linear infinite;animation-delay:-54s"><svg width="22" height="7" viewBox="0 0 44 13" style="display:block;opacity:.3;animation:bob 7.4s ease-in-out infinite"><path d="M1 10C8 2 13 2 22 7c9-5 14-5 21 3" fill="none" stroke="#e7dbd0" stroke-width="2"/></svg></span>
+      <span style="position:absolute;top:33%;animation:maake 126s linear infinite;animation-delay:-12s"><svg width="17" height="5" viewBox="0 0 44 13" style="display:block;opacity:.26;animation:bob 9.1s ease-in-out infinite"><path d="M1 10C8 2 13 2 22 7c9-5 14-5 21 3" fill="none" stroke="#e7dbd0" stroke-width="2.4"/></svg></span>
+    </div>
+
+    <nav style="position:relative;z-index:3;display:flex;align-items:center;gap:clamp(16px,3vw,38px);padding:22px clamp(20px,4vw,56px);border-bottom:1px solid rgba(231,219,208,.16)">
+      <a href="#" style="font:400 19px/1 var(--serif);letter-spacing:.01em;color:var(--papir);border-bottom:2px solid var(--rust);padding-bottom:3px">Kystloggen</a>
+      <span style="flex:1"></span>
+      <a href="#kart" style="font:400 13.5px/1 var(--sans);letter-spacing:.02em;color:rgba(231,219,208,.82)" style-hover="color:var(--papir)">Lokaliteter</a>
+      <a href="#omrader" style="font:400 13.5px/1 var(--sans);letter-spacing:.02em;color:rgba(231,219,208,.82)" style-hover="color:var(--papir)">Produksjonsområder</a>
+      <a href="#endringer" style="font:400 13.5px/1 var(--sans);letter-spacing:.02em;color:rgba(231,219,208,.82)" style-hover="color:var(--papir)">Endringer</a>
+      <a href="#om" style="font:400 13.5px/1 var(--sans);letter-spacing:.02em;color:rgba(231,219,208,.82)" style-hover="color:var(--papir)">Om</a>
+      <span style="font:400 12.5px/1 var(--sans);color:rgba(231,219,208,.8);padding-left:6px;border-left:1px solid rgba(231,219,208,.2)">Uke 38, 2026</span>
+    </nav>
+
+    <div style="position:relative;z-index:3;flex:1;display:flex;flex-direction:column;justify-content:flex-end;max-width:1400px;width:100%;margin:0 auto;padding:24px clamp(20px,4vw,56px) clamp(22px,2.6vw,34px)">
+      <p style="margin:0 0 clamp(14px,1.6vw,22px);font:400 12.5px/1 var(--sans);color:var(--hav3)">Et uavhengig, åpent arkiv over offentlige data om norsk havbruk</p>
+      <div style="width:max-content;max-width:100%">
+        <h1 style="margin:0;font:300 clamp(52px,8vw,120px)/.86 var(--serif);letter-spacing:-.035em;color:var(--papir)">Kystloggen</h1>
+        <div style="height:12px;margin:clamp(14px,2vw,26px) 0 0;width:100%;border-bottom:2px solid var(--rust);background:repeating-linear-gradient(90deg,var(--rust) 0 1px,transparent 1px 22px);background-position:bottom;background-size:100% 10px;background-repeat:repeat-x"></div>
+      </div>
+      <p style="margin:clamp(26px,3vw,40px) 0 0;max-width:30ch;font:300 clamp(22px,2.4vw,32px)/1.22 var(--serif);font-style:italic;color:var(--papir);text-wrap:pretty">Registrene viser nå. Vi tar vare på før.</p>
+
+      <div style="position:relative;margin-top:clamp(20px,2.4vw,32px);max-width:720px;width:100%">
+        <div style="display:flex;align-items:stretch;background:var(--papir);box-shadow:0 18px 54px rgba(0,0,0,.42)">
+          <span style="display:flex;align-items:center;padding:0 4px 0 18px;color:var(--rust)">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M16.2 16.2 21 21"></path></svg>
+          </span>
+          <input type="search" value="{{ q }}" onInput="{{ skriv }}" placeholder="Søk etter lokalitet, selskap eller kommune" aria-label="Søk etter lokalitet, selskap eller kommune" style="flex:1;min-width:0;border:0;outline:none;background:transparent;font:400 clamp(16px,1.5vw,19px)/1 var(--sans);color:var(--ink);padding:22px 14px">
+          <button type="button" style="border:0;border-left:1px solid var(--papir3);background:var(--hav8);color:var(--papir);font:500 15px/1 var(--sans);padding:0 clamp(20px,3vw,34px);cursor:pointer" style-hover="background:var(--rust)">Søk</button>
+        </div>
+        <sc-if value="{{ visTreff }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;left:0;right:0;top:100%;z-index:9;background:var(--papir2);border-top:1px solid var(--papir3);box-shadow:0 22px 54px rgba(0,0,0,.4)">
+            <sc-for list="{{ treff }}" as="t" hint-placeholder-count="3">
+              <a href="{{ t.href }}" style="display:flex;align-items:baseline;gap:14px;padding:13px 18px;border-bottom:1px solid rgba(11,36,48,.1)" style-hover="background:rgba(170,62,4,.07)">
+                <span style="font:400 18px/1.1 var(--serif);flex:1">{{ t.navn }}</span>
+                <span style="font:400 12px/1 var(--sans);color:rgba(11,36,48,.55)">{{ t.type }}</span>
+                <span style="font:500 13.5px/1 var(--sans);color:var(--rust);min-width:52px;text-align:right">{{ t.kode }}</span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="position:relative;z-index:3;display:flex;flex-wrap:wrap;gap:clamp(18px,3vw,40px);padding:0 clamp(20px,4vw,56px) 26px;font:400 13px/1.6 var(--sans);color:var(--hav3)">
+      <span>Kilder: Akvakulturregisteret, BarentsWatch og Mattilsynet</span>
+      <span style="flex:1"></span>
+      <a href="https://unsplash.com/photos/snowy-mountains-overlook-a-dark-choppy-ocean-under-cloudy-skies-cbaS3DXXCl4" style="color:var(--hav3)">Foto: Wolfgang Hasselmann / Unsplash</a>
+    </div>
+  </header>
+
+  <!-- ══ NØKKELTALL ══ -->
+  <section style="max-width:1400px;margin:0 auto;padding:clamp(36px,4vw,56px) clamp(20px,4vw,56px)">
+    <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:18px clamp(32px,5vw,80px);border-bottom:1px solid rgba(11,36,48,.18);padding-bottom:clamp(28px,3vw,40px)">
+      <div style="display:flex;align-items:baseline;gap:12px"><span style="font:300 clamp(40px,4.4vw,64px)/1 var(--serif);letter-spacing:-.03em;font-variant-numeric:tabular-nums">1 782</span><span style="font:400 clamp(17px,1.5vw,21px)/1.2 var(--serif);color:rgba(11,36,48,.72)">lokaliteter</span></div>
+      <div style="display:flex;align-items:baseline;gap:12px"><span style="font:300 clamp(40px,4.4vw,64px)/1 var(--serif);letter-spacing:-.03em;font-variant-numeric:tabular-nums">481</span><span style="font:400 clamp(17px,1.5vw,21px)/1.2 var(--serif);color:rgba(11,36,48,.72)">selskaper</span></div>
+      <div style="display:flex;align-items:baseline;gap:12px"><span style="font:300 clamp(40px,4.4vw,64px)/1 var(--serif);letter-spacing:-.03em;font-variant-numeric:tabular-nums">765</span><span style="font:400 clamp(17px,1.5vw,21px)/1.2 var(--serif);color:rgba(11,36,48,.72)">uker med lusetall</span></div>
+      <a href="#om" style="margin-left:auto;font:400 14px/1 var(--sans);color:var(--rust)">Mer om arkivet →</a>
+    </div>
+  </section>
+
+  <!-- ══ KART + OMRÅDER ══ -->
+  <section id="kart" style="background:var(--hav9);color:var(--papir);padding:clamp(56px,7vw,104px) 0">
+    <div style="max-width:1400px;margin:0 auto;padding:0 clamp(20px,4vw,56px)">
+      <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(231,219,208,.3);padding-top:14px;margin-bottom:clamp(26px,3vw,40px);flex-wrap:wrap">
+        <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">02</span>
+        <h2 style="margin:0;font:400 clamp(28px,3.4vw,44px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:280px;color:var(--papir)">Hele kysten, ett øyeblikksbilde</h2>
+        <p style="margin:0;max-width:40ch;font:400 14.5px/1.55 var(--sans);color:var(--hav3);text-wrap:pretty">Tretten produksjonsområder langs kysten, farget etter trafikklyset for 2026, med antall lokaliteter i hvert. Klikk et område for å gå inn; enkeltanlegg finner du med søket.</p>
+      </div>
+
+              <div style="position:relative;border:1px solid rgba(231,219,208,.22);height:clamp(520px,82vh,900px)">
+          <i style="position:absolute;top:-1px;left:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+          <i style="position:absolute;top:-1px;right:-1px;width:13px;height:13px;border-top:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+          <i style="position:absolute;bottom:-1px;left:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+          <i style="position:absolute;bottom:-1px;right:-1px;width:13px;height:13px;border-bottom:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+          <x-import component-from-global-scope="kyst-kart" from="./kystloggen-viz.js" aktiv-po="{{ aktivPoAttr }}" lenke="#po-{nr}" etiketter="nei" hint-size="100%,100%"></x-import>
+          <div style="position:absolute;right:14px;bottom:12px;font:400 11.5px/1.7 var(--sans);color:var(--hav3);text-align:right;pointer-events:none">
+            Natural Earth 1:110 m · områdegrenser forenklet
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px;margin-top:16px">
+            <div style="display:flex;flex-wrap:wrap;gap:18px;font:400 13px/1 var(--sans);color:var(--hav3)">
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;background:var(--dr)"></span>rød — ned 6 %</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;background:var(--dy)"></span>gul — uendret</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;background:var(--dg)"></span>grønn — opp 6 %</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border:1px solid var(--dtom)"></span>ikke oppgitt</span>
+            </div>
+          <span style="font:400 13px/1.4 var(--sans);color:var(--hav3)">Fargene er trafikklyssystemets kapasitetsvurdering, ikke varsler.</span>
+        </div>
+    </div>
+  </section>
+
+  <!-- ══ OMRÅDENE SOM LISTE ══ -->
+  <section id="omrader" style="max-width:1400px;margin:0 auto;padding:clamp(56px,7vw,104px) clamp(20px,4vw,56px) 0">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(26px,3vw,44px);flex-wrap:wrap">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">03</span>
+      <h2 style="margin:0;font:400 clamp(28px,3.4vw,44px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:280px">Kysten delt i tretten</h2>
+      <p style="margin:0;max-width:40ch;font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72);text-wrap:pretty">Trafikklyset fastsettes annethvert år. Forskriften navngir bare områder der noe skjer, så en tom rute er et steg i historien — ikke et hull i dataene.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--papir);box-shadow:0 0 0 1px rgba(11,36,48,.16)">
+      <sc-for list="{{ omrader }}" as="o" hint-placeholder-count="13">
+        <a id="{{ o.anker }}" href="#kart" onClick="{{ o.velg }}" style="display:flex;flex-direction:column;background:var(--papir);box-shadow:0 0 0 1px rgba(11,36,48,.16);padding:22px 22px 18px;min-height:236px;scroll-margin-top:24px" style-hover="background:var(--papir2)">
+          <span style="font:400 12.5px/1 var(--sans);color:var(--rust);font-variant-numeric:tabular-nums">Produksjonsområde {{ o.nr }}</span>
+          <span style="display:block;margin:14px 0 0;font:400 clamp(21px,2.1vw,27px)/1.1 var(--serif);letter-spacing:-.015em;text-wrap:balance">{{ o.navn }}</span>
+          <span style="flex:1;min-height:18px"></span>
+          <span style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px">
+            <sc-for list="{{ o.hist }}" as="h" hint-placeholder-count="5">
+              <span style="display:flex;flex-direction:column;gap:6px" title="{{ h.tittel }}">
+                <span style="height:22px;box-sizing:border-box;background:{{ h.fyll }};border:1px solid {{ h.kant }}"></span>
+                <span style="font:400 12px/1 var(--sans);color:{{ h.aarFarge }};font-variant-numeric:tabular-nums">{{ h.aar }}</span>
+              </span>
+            </sc-for>
+          </span>
+          <span style="margin-top:10px;font:400 13.5px/1.35 var(--sans);color:rgba(11,36,48,.62)">{{ o.historie }}</span>
+          <span style="margin-top:14px;display:flex;align-items:baseline;justify-content:space-between;border-top:1px solid rgba(11,36,48,.14);padding-top:10px">
+            <span style="font:400 13.5px/1 var(--sans);color:rgba(11,36,48,.55);font-variant-numeric:tabular-nums">{{ o.nStr }} lokaliteter</span>
+            <span style="font:400 13px/1 var(--sans);color:var(--rust)">→</span>
+          </span>
+        </a>
+      </sc-for>
+    </div>
+    <p style="margin:14px 0 0;font:400 13.5px/1.5 var(--sans);color:rgba(11,36,48,.5)">Hel rute = farge fastsatt i forskriften det året. Tom rute = «ikke oppgitt»: forskriften nevner ikke området. Kystloggen fyller ikke inn det kilden lar stå tomt.</p>
+  </section>
+
+  <!-- ══ SISTE ENDRINGER ══ -->
+  <section id="endringer" style="max-width:1400px;margin:0 auto;padding:clamp(56px,7vw,104px) clamp(20px,4vw,56px) 0">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(26px,3vw,40px);flex-wrap:wrap">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">04</span>
+      <h2 style="margin:0;font:400 clamp(28px,3.4vw,44px)/1.05 var(--serif);letter-spacing:-.02em;flex:1;min-width:280px">Siste endringer</h2>
+      <p style="margin:0;max-width:40ch;font:400 14.5px/1.55 var(--sans);color:rgba(11,36,48,.72);text-wrap:pretty">Differansen mellom forrige ukes øyeblikksbilde og dette. Registeret sier bare hva som gjelder nå; loggen sier hva som gjaldt før.</p>
+    </div>
+
+    <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid rgba(11,36,48,.3)">
+      <span style="display:flex;align-items:center;gap:9px;font:500 12.5px/1 var(--sans);color:var(--rust)"><span style="width:7px;height:7px;background:var(--rust);animation:puls 2.6s ease-in-out infinite"></span>Uke 38, 2026</span>
+      <span style="font:400 15px/1.4 var(--sans);color:rgba(11,36,48,.8)"><b style="font-weight:600;font-variant-numeric:tabular-nums">15</b> lokaliteter fikk ny trafikklysfarge i Akvakulturregisteret</span>
+    </div>
+
+    <div>
+      <sc-for list="{{ endringer }}" as="e" hint-placeholder-count="15">
+        <div style="display:grid;grid-template-columns:minmax(140px,auto) minmax(0,1fr) minmax(190px,auto);align-items:center;gap:clamp(12px,2vw,30px);padding:15px 8px 15px 0;border-bottom:1px solid rgba(11,36,48,.12)" style-hover="background:var(--papir2)">
+          <span style="font:400 13px/1 var(--sans);color:rgba(11,36,48,.52);font-variant-numeric:tabular-nums">{{ e.tid }}</span>
+          <a href="Kystloggen – Lokalitet.dc.html" style="font:400 clamp(19px,2vw,25px)/1.1 var(--serif);letter-spacing:-.01em">{{ e.navn }}</a>
+          <span style="display:flex;align-items:center;gap:10px;font:400 13.5px/1 var(--sans)">
+            <span style="display:flex;align-items:center;gap:6px;color:rgba(11,36,48,.55)"><span style="width:10px;height:10px;background:{{ e.fraHex }}"></span>{{ e.fra }}</span>
+            <span style="color:var(--rust)">→</span>
+            <span style="display:flex;align-items:center;gap:6px;color:var(--ink);font-weight:500"><span style="width:10px;height:10px;background:{{ e.tilHex }}"></span>{{ e.til }}</span>
+          </span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 0 0">
+      <a href="#" style="font:400 14px/1 var(--sans);letter-spacing:.02em;border-bottom:1px solid var(--rust);padding-bottom:4px">Hele endringsloggen, uke for uke siden 2012 →</a>
+      <span style="font:400 12.5px/1 var(--sans);color:rgba(11,36,48,.45)">Neste øyeblikksbilde: uke 39, mandag kl. 04.00</span>
+    </div>
+  </section>
+
+  <!-- ══ OM ══ -->
+  <section id="om" style="max-width:1400px;margin:0 auto;padding:clamp(56px,7vw,110px) clamp(20px,4vw,56px) clamp(60px,8vw,120px)">
+    <div style="display:flex;align-items:baseline;gap:18px;border-top:1px solid rgba(11,36,48,.3);padding-top:14px;margin-bottom:clamp(30px,4vw,54px)">
+      <span style="font:500 12.5px/1 var(--sans);color:var(--rust)">05</span>
+      <h2 style="margin:0;font:400 clamp(28px,3.4vw,44px)/1.05 var(--serif);letter-spacing:-.02em">Om Kystloggen</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(28px,5vw,72px);align-items:start">
+      <div>
+        <p style="margin:0 0 26px;font:300 clamp(24px,2.8vw,36px)/1.28 var(--serif);letter-spacing:-.015em;text-wrap:pretty">De offentlige registrene over norsk havbruk er åpne, men de har ingen hukommelse. De viser nåtilstanden, og skriver over seg selv hver uke.</p>
+        <p style="margin:0 0 16px;font:400 16px/1.65 var(--sans);color:rgba(11,36,48,.82);max-width:58ch;text-wrap:pretty">Kystloggen laster ned et fullt øyeblikksbilde av Akvakulturregisteret, lusetallene og produksjonsområdenes status hver uke, og tar vare på det. Når en lokalitet bytter eier, en tillatelse endrer kapasitet eller et område skifter farge, står det i loggen: hva som sto der før, hva som står der nå, og nøyaktig når det ble byttet ut.</p>
+        <p style="margin:0 0 16px;font:400 16px/1.65 var(--sans);color:rgba(11,36,48,.82);max-width:58ch;text-wrap:pretty">Arkivet er uavhengig og drives uten oppdrag fra næringen eller forvaltningen. Alt er offentlige data, gjengitt uendret og med kildehenvisning til datoen de ble hentet. Finner du et avvik mellom det vi viser og det registeret sier i dag, er det som regel nettopp poenget — men si fra.</p>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:28px">
+          <a href="#" style="display:inline-flex;align-items:center;gap:10px;background:var(--hav8);color:var(--papir);padding:15px 24px;font:500 14.5px/1 var(--sans)" style-hover="background:var(--rust)">Last ned datasettet</a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:10px;border:1px solid rgba(11,36,48,.35);padding:15px 24px;font:500 14.5px/1 var(--sans)" style-hover="border-color:var(--rust);color:var(--rust)">Metode og kilder</a>
+        </div>
+      </div>
+
+      <div style="position:relative;border:1px solid rgba(11,36,48,.3);padding:clamp(24px,3vw,38px)">
+        <i style="position:absolute;top:-1px;left:-1px;width:14px;height:14px;border-top:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+        <i style="position:absolute;top:-1px;right:-1px;width:14px;height:14px;border-top:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+        <i style="position:absolute;bottom:-1px;left:-1px;width:14px;height:14px;border-bottom:1px solid var(--rust);border-left:1px solid var(--rust)"></i>
+        <i style="position:absolute;bottom:-1px;right:-1px;width:14px;height:14px;border-bottom:1px solid var(--rust);border-right:1px solid var(--rust)"></i>
+        <p style="margin:0 0 20px;font:500 12px/1 var(--sans);color:var(--rust)">Kolofon</p>
+        <p style="margin:0 0 4px;font:400 26px/1.15 var(--serif);letter-spacing:-.015em">Heine Valø Nordbøe</p>
+        <p style="margin:0 0 26px;font:400 13.5px/1.5 var(--sans);color:rgba(11,36,48,.65)">Redaktør og utvikler. Står bak innsamling, arkivering og publisering.</p>
+        <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:11px 18px;font-size:13px">
+          <dt style="font:400 13.5px/1.6 var(--sans);color:rgba(11,36,48,.55)">Kilder</dt>
+          <dd style="margin:0;font:400 13.5px/1.6 var(--sans)">Akvakulturregisteret (Fiskeridirektoratet), BarentsWatch, Mattilsynet, Lovdata</dd>
+          <dt style="font:400 13.5px/1.6 var(--sans);color:rgba(11,36,48,.55)">Frekvens</dt>
+          <dd style="margin:0;font:400 13.5px/1.6 var(--sans)">Ukentlig øyeblikksbilde, mandag kl. 04.00</dd>
+          <dt style="font:400 13.5px/1.6 var(--sans);color:rgba(11,36,48,.55)">Lisens</dt>
+          <dd style="margin:0;font:400 13.5px/1.6 var(--sans)">NLOD 2.0 · fri gjenbruk med kildehenvisning</dd>
+          <dt style="font:400 13.5px/1.6 var(--sans);color:rgba(11,36,48,.55)">Format</dt>
+          <dd style="margin:0;font:400 13.5px/1.6 var(--sans)">CSV, Parquet og JSON-API, per uke og som fullt arkiv</dd>
+          <dt style="font:400 13.5px/1.6 var(--sans);color:rgba(11,36,48,.55)">Kontakt</dt>
+          <dd style="margin:0;font:400 13.5px/1.6 var(--sans)"><a href="mailto:post@kystloggen.no" style="border-bottom:1px solid var(--rust)">post@kystloggen.no</a></dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FOT ══ -->
+  <footer style="background:var(--hav9);color:var(--papir)">
+    <div style="max-width:1400px;margin:0 auto;padding:clamp(44px,6vw,80px) clamp(20px,4vw,56px) 40px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:36px">
+      <div>
+        <div style="font:300 44px/1 var(--serif);letter-spacing:-.03em">Kystloggen</div>
+        <div style="height:9px;margin-top:10px;max-width:5.6em;border-bottom:2px solid var(--rust);background:repeating-linear-gradient(90deg,var(--rust) 0 1px,transparent 1px 13px);background-position:bottom;background-size:100% 7px;background-repeat:repeat-x"></div>
+        <p style="margin:18px 0 0;font:400 13px/1.6 var(--sans);color:var(--hav3);max-width:30ch">Et uavhengig, åpent arkiv over offentlige data om norsk havbruk.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px;font:400 13.5px/1 var(--sans)">
+        <span style="font:500 12px/1 var(--sans);color:var(--hav3);margin-bottom:6px">Arkivet</span>
+        <a href="#kart" style="color:rgba(231,219,208,.85)">Lokaliteter</a>
+        <a href="#" style="color:rgba(231,219,208,.85)">Selskaper</a>
+        <a href="#omrader" style="color:rgba(231,219,208,.85)">Produksjonsområder</a>
+        <a href="#endringer" style="color:rgba(231,219,208,.85)">Endringslogg</a>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px;font:400 13.5px/1 var(--sans)">
+        <span style="font:500 12px/1 var(--sans);color:var(--hav3);margin-bottom:6px">Data</span>
+        <a href="#" style="color:rgba(231,219,208,.85)">Nedlasting</a>
+        <a href="#" style="color:rgba(231,219,208,.85)">API</a>
+        <a href="#" style="color:rgba(231,219,208,.85)">Metode</a>
+        <a href="#om" style="color:rgba(231,219,208,.85)">Om og kontakt</a>
+      </div>
+    </div>
+    <div style="max-width:1400px;margin:0 auto;padding:18px clamp(20px,4vw,56px) 30px;border-top:1px solid rgba(231,219,208,.14);font:400 13px/1.5 var(--sans);color:var(--hav3)">Bygget fra øyeblikksbildet for uke 38, 2026, hentet 19. september 2026 kl. 04.06. © 2026 Kystloggen · NLOD 2.0.</div>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440}}">
+class Component extends DCLogic {
+  state = { q: '', aktivPo: 0 };
+
+  po() {
+    return [
+      { nr: 1, navn: 'Svenskegrensen til Jæren', farge: 'grønn', n: 22, hist: 'g g g g g' },
+      { nr: 2, navn: 'Ryfylket', farge: 'ikke oppgitt', n: 51 },
+      { nr: 3, navn: 'Karmøy til Sotra', farge: 'rød', n: 88, hist: 'r r r r r' },
+      { nr: 4, navn: 'Nordhordland til Stadt', farge: 'gul', n: 141, hist: 'y r r r y' },
+      { nr: 5, navn: 'Stadt til Hustadvika', farge: 'gul', n: 96, hist: '- r y y y' },
+      { nr: 6, navn: 'Nordmøre og Sør-Trøndelag', farge: 'ikke oppgitt', n: 173 },
+      { nr: 7, navn: 'Nord-Trøndelag med Bindal', farge: 'ikke oppgitt', n: 129 },
+      { nr: 8, navn: 'Helgeland til Bodø', farge: 'ikke oppgitt', n: 231 },
+      { nr: 9, navn: 'Vestfjorden og Vesterålen', farge: 'ikke oppgitt', n: 205 },
+      { nr: 10, navn: 'Andøya til Senja', farge: 'ikke oppgitt', n: 118 },
+      { nr: 11, navn: 'Kvaløya til Loppa', farge: 'ikke oppgitt', n: 146 },
+      { nr: 12, navn: 'Vest-Finnmark', farge: 'grønn', n: 197, hist: 'g g g g g' },
+      { nr: 13, navn: 'Øst-Finnmark', farge: 'grønn', n: 185, hist: 'g g g g g' }
+    ];
+  }
+
+  hex(f) { return { 'grønn': '#2f6b4f', 'gul': '#c8992f', 'rød': '#93211c' }[f] || null; }
+
+  søkeindeks() {
+    var l = [
+      ['OTERNESET', 'lokalitet', '31397', 'Kystloggen – Lokalitet.dc.html'],
+      ['REKEVIKI', 'lokalitet', '', '#endringer'],
+      ['KALVØYA N', 'lokalitet', '', '#endringer'],
+      ['VÅGSØYA', 'lokalitet', '', '#endringer'],
+      ['SYRTANGEN', 'lokalitet', '', '#endringer'],
+      ['GULESTØ', 'lokalitet', '', '#endringer'],
+      ['FLAKSTADVÅG', 'lokalitet', '', '#endringer'],
+      ['SKARDBERGVIKA', 'lokalitet', '', '#endringer'],
+      ['MOWI ASA', 'selskap', '', '#'],
+      ['LERØY SEAFOOD GROUP ASA', 'selskap', '', '#'],
+      ['SALMAR ASA', 'selskap', '', '#'],
+      ['GULEN', 'kommune', '4635', '#'],
+      ['ALTA', 'kommune', '5601', '#'],
+      ['BRØNNØY', 'kommune', '1813', '#']
+    ];
+    this.po().forEach(function (p) {
+      l.push([p.navn, 'produksjonsområde', 'PO ' + p.nr, '#kart']);
+    });
+    return l;
+  }
+
+  renderVals() {
+    var self = this;
+    var q = (this.state.q || '').trim().toLowerCase();
+
+    var omrader = this.po().map(function (p) {
+      var h = self.hex(p.farge);
+      var aktiv = self.state.aktivPo === p.nr;
+      return {
+        nr: p.nr,
+        nr2: p.nr < 10 ? '0' + p.nr : '' + p.nr,
+        navn: p.navn,
+        fargenavn: p.farge,
+        hex: h || 'transparent',
+        harFarge: !!h,
+        tom: !h,
+        tekstfarge: h ? '#c9dbe3' : '#7f97a1',
+        tekstfargeLys: h ? 'rgba(11,36,48,.75)' : 'rgba(11,36,48,.45)',
+        nStr: p.n.toLocaleString('nb-NO').replace(/\u00a0/g, ' '),
+        tittel: p.nr + ' ' + p.navn + ' — ' + p.farge,
+        anker: 'po-' + p.nr,
+        hist: (p.hist || '- - - - -').split(' ').map(function (k, i) {
+          var navn = { g: 'grønn', y: 'gul', r: 'rød', '-': 'ikke oppgitt' }[k], hx = self.hex(navn), aar = 2018 + i * 2;
+          return { aar: String(aar), tittel: aar + ': ' + navn, fyll: hx || 'transparent', kant: hx || 'rgba(11,36,48,.32)', aarFarge: aar === 2026 ? '#0b2430' : 'rgba(11,36,48,.5)' };
+        }),
+        historie: (function () {
+          var l = (p.hist || '- - - - -').split(' ').map(function (k) { return { g: 'grønn', y: 'gul', r: 'rød', '-': 'ikke oppgitt' }[k]; });
+          if (l.every(function (x) { return x === 'ikke oppgitt'; })) return 'Ikke navngitt i forskriften 2018–2026';
+          if (l.every(function (x) { return x === l[0]; })) return l[0].charAt(0).toUpperCase() + l[0].slice(1) + ' i alle fem runder';
+          var ut = [l[0]]; l.forEach(function (x) { if (x !== ut[ut.length - 1]) ut.push(x); });
+          return ut.join(' → ');
+        })(),
+        kant: aktiv ? '#aa3e04' : 'transparent',
+        bakgrunn: aktiv ? 'rgba(231,219,208,.09)' : 'transparent',
+        velg: function () { self.setState({ aktivPo: aktiv ? 0 : p.nr }); }
+      };
+    });
+
+    var rå = [
+      ['REKEVIKI', 'rød', 'gul', '2026-09-15 04:12'],
+      ['KALVØYA N', 'rød', 'gul', '2026-09-15 04:12'],
+      ['VÅGSØYA', 'rød', 'gul', '2026-09-15 04:12'],
+      ['SYRTANGEN', 'rød', 'gul', '2026-09-15 04:13'],
+      ['STORLIA', 'rød', 'gul', '2026-09-15 04:13'],
+      ['GARVIK', 'rød', 'gul', '2026-09-15 04:13'],
+      ['GULESTØ', 'rød', 'gul', '2026-09-16 04:09'],
+      ['ÅLVORA', 'rød', 'gul', '2026-09-16 04:09'],
+      ['VEDVIKA', 'grønn', 'gul', '2026-09-16 04:10'],
+      ['DRAGNES', 'grønn', 'gul', '2026-09-17 04:07'],
+      ['NEDRE KVARV', 'grønn', 'gul', '2026-09-17 04:07'],
+      ['HORSVÅGEN', 'grønn', 'gul', '2026-09-17 04:08'],
+      ['HØGHOLMEN', 'grønn', 'gul', '2026-09-18 04:11'],
+      ['FLAKSTADVÅG', 'grønn', 'gul', '2026-09-18 04:11'],
+      ['SKARDBERGVIKA', 'grønn', 'gul', '2026-09-19 04:06']
+    ];
+    var endringer = rå.map(function (e) {
+      return {
+        navn: e[0], fra: e[1], til: e[2], tid: parseInt(e[3].slice(8, 10), 10) + '. sep. kl. ' + e[3].slice(11).replace(':', '.'),
+        fraHex: self.hex(e[1]), tilHex: self.hex(e[2])
+      };
+    });
+
+    var treff = [];
+    if (q.length > 0) {
+      treff = this.søkeindeks().filter(function (r) {
+        return r[0].toLowerCase().indexOf(q) >= 0;
+      }).slice(0, 6).map(function (r) {
+        return { navn: r[0], type: r[1], kode: r[2] || '—', href: r[3] };
+      });
+    }
+
+    return {
+      q: this.state.q,
+      omrader: omrader,
+      endringer: endringer,
+      treff: treff,
+      visTreff: treff.length > 0,
+      aktivPoAttr: this.state.aktivPo ? String(this.state.aktivPo) : '',
+      skriv: function (e) { self.setState({ q: e.target.value }); },
+      nullstill: function () { self.setState({ aktivPo: 0 }); }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

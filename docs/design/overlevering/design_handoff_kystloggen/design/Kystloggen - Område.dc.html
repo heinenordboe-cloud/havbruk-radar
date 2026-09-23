@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/styles.css">
+<script src="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+:root{--hav9:#06161d;--hav8:#0b2430;--hav3:#7ba0b1;--papir:#e7dbd0;--papir2:#efe6dd;--rust:#aa3e04;--ink:#0b2430;--serif:"Newsreader",Georgia,serif;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace;--color-bg:#e7dbd0;--color-text:#0b2430;--font-body:var(--sans);--font-heading:var(--serif)}
+body{margin:0;background:var(--papir);color:var(--ink);font-family:var(--sans);font-size:16px;-webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-decoration:none}
+a:hover{color:var(--rust)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+input::placeholder{color:rgba(11,36,48,.45)}
+</style>
+</helmet>
+
+<div style="background:var(--papir)">
+  <header style="background:var(--hav9);color:var(--papir)">
+    <dc-import name="KL Topp" hint-size="100%,86px"></dc-import>
+    <div style="max-width:1400px;margin:0 auto;padding:clamp(24px,3vw,40px) clamp(20px,4vw,56px) clamp(30px,3.4vw,48px)">
+      <p style="margin:0 0 16px;font:400 13.5px/1.3 var(--sans);color:#7ba0b1"><a href="Kystloggen - Forsiden v2.dc.html#kysten" style="color:#7ba0b1">Produksjonsområder</a> / Område 4</p>
+      <h1 style="margin:0;font:300 clamp(40px,5vw,76px)/.95 var(--serif);letter-spacing:-.03em">Nordhordland til Stadt</h1>
+      <p style="margin:12px 0 0;font:400 15px/1.45 var(--sans);color:#9fb9c4">Produksjonsområde 4 · <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">141</span> lokaliteter · <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">63</span> selskaper · <a href="#" style="color:#9fb9c4;border-bottom:1px solid rgba(159,185,196,.4)">Følg området (feed)</a></p>
+
+      <h2 style="margin:clamp(28px,3vw,40px) 0 14px;font:500 15px/1 var(--sans);color:#d9804a">Trafikklys 2018–2026</h2>
+      <ol style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:6px">
+        <sc-for list="{{ runder }}" as="r" hint-placeholder-count="5">
+          <li style="display:flex;flex-direction:column">
+            <div style="height:clamp(64px,7vw,96px);background:{{ r.bg }};box-shadow:inset 0 0 0 {{ r.kant }}"></div>
+            <div style="padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+              <span style="font:400 26px/1 var(--serif)">{{ r.aar }}</span>
+              <span style="font:500 15px/1 var(--sans)">{{ r.farge }}</span>
+            </div>
+            <div style="margin-top:7px;font:400 13px/1.4 var(--sans);color:#c9d6dc"><span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">{{ r.belegg }}</span></div>
+            <a href="#" style="margin-top:3px;font:400 13px/1.4 var(--sans);color:#7ba0b1" style-hover="color:#e7dbd0">{{ r.kilde }}</a>
+          </li>
+        </sc-for>
+      </ol>
+      <div style="display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:20px;padding-top:14px;border-top:1px solid rgba(231,219,208,.14);font:400 13.5px/1.4 var(--sans);color:#c9d6dc">
+        <span style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:12px;background:#c8992f"></span>Fargeordet står i forskriften</span>
+        <span style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:12px;background:rgba(200,153,47,.28);box-shadow:inset 0 0 0 2px #c8992f"></span>Utledet av hvilket kapittel området står i</span>
+        <span style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:12px;background:repeating-linear-gradient(45deg,#6f8a95 0 1.3px,transparent 1.3px 4.5px)"></span>Ikke oppgitt</span>
+      </div>
+    </div>
+  </header>
+
+  <main style="max-width:1400px;margin:0 auto;padding:clamp(32px,4vw,56px) clamp(20px,4vw,56px);display:flex;flex-direction:column;gap:clamp(40px,4vw,56px)">
+    <section aria-labelledby="lok-t">
+      <div style="display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:14px 30px;margin-bottom:16px">
+        <h2 id="lok-t" style="margin:0;font:400 28px/1.1 var(--serif);letter-spacing:-.01em">Lokalitetene i området</h2>
+        <form action="" method="get" role="search" style="display:flex;flex:0 1 460px;min-width:0;box-shadow:inset 0 0 0 1px rgba(11,36,48,.35);background:var(--papir2)">
+          <label for="fq" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Søk i området</label>
+          <input id="fq" name="q" type="search" placeholder="Søk etter lokalitet, selskap eller kommune i området" value="{{ q }}" onInput="{{ settQ }}" style="flex:1;min-width:0;border:0;background:transparent;padding:12px 14px;font:400 15px/1.2 var(--sans);color:var(--ink);outline:none">
+          <button type="submit" style="border:0;background:var(--hav8);color:var(--papir);font:500 14px/1 var(--sans);padding:0 18px;cursor:pointer">Søk</button>
+        </form>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="min-width:760px">
+          <thead><tr>
+            <th scope="col" style="text-align:right;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4);width:60px">Nr.</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Lokalitet</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Kommune</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Selskap</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Status</th>
+            <th scope="col" style="text-align:right;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Tonn MTB</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 0 8px;border-bottom:1px solid rgba(11,36,48,.4)">Sist endret</th>
+          </tr></thead>
+          <tbody>
+            <sc-for list="{{ lokaliteter }}" as="l" hint-placeholder-count="8">
+              <tr style-hover="background:rgba(11,36,48,.04)">
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono);text-align:right"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ l.nr }}</span></td>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:500 14.5px/1.3 var(--sans)"><a href="Kystloggen - Lokalitet v2.dc.html" style="border-bottom:1px solid rgba(11,36,48,.25)">{{ l.navn }}</a></td>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14px/1.3 var(--sans);color:rgba(11,36,48,.75)">[kommune]</td>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14px/1.3 var(--sans)"><a href="Kystloggen - Selskap.dc.html" style="color:rgba(11,36,48,.85)">[Selskap AS]</a></td>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14px/1.3 var(--sans);color:rgba(11,36,48,.75)">{{ l.status }}</td>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono);text-align:right"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ l.mtb }}</span></td>
+                <td style="padding:8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13px/1.3 var(--mono);color:rgba(11,36,48,.65)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ l.endret }}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin:12px 0 0;font:400 14px/1.4 var(--sans);color:rgba(11,36,48,.65)">{{ viser }} · <a href="#" style="color:var(--rust)">Vis alle</a> · <a href="#" style="color:var(--rust)">Last ned som CSV</a></p>
+    </section>
+
+    <section aria-labelledby="omr-endr-t">
+      <h2 id="omr-endr-t" style="margin:0 0 4px;font:400 28px/1.1 var(--serif);letter-spacing:-.01em">Endringer i området</h2>
+      <p style="margin:0 0 16px;font:400 14px/1.5 var(--sans);color:rgba(11,36,48,.65)">Siste <span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">12</span> uker. <a href="Kystloggen - Endringer uke.dc.html" style="color:var(--rust)">Alle endringer i område 4</a></p>
+      <div style="overflow-x:auto">
+        <table style="min-width:620px">
+          <thead><tr>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4);width:110px">Observert</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Lokalitet</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Type</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 0 8px;border-bottom:1px solid rgba(11,36,48,.4)">Endring</th>
+          </tr></thead>
+          <tbody>
+            <sc-for list="{{ endringer }}" as="e" hint-placeholder-count="4">
+              <tr>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono);color:rgba(11,36,48,.75)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ e.dato }}</span></td>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:500 14.5px/1.3 var(--sans)"><a href="Kystloggen - Lokalitet v2.dc.html" style="border-bottom:1px solid rgba(11,36,48,.25)">{{ e.navn }}</a></td>
+                <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--sans);color:rgba(11,36,48,.65)">{{ e.type }}</td>
+                <td style="padding:8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14.5px/1.3 var(--sans)">{{ e.fra }} <span style="color:rgba(11,36,48,.5)">→</span> <b style="font-weight:500">{{ e.til }}</b></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dc-import name="KL Fot" proveniens="Bygget fra øyeblikksbildet for uke 38, 2026, hentet 16. september 2026 kl. 04.09. Forskriftsrundene er lest fra Lovdata. © 2026 Kystloggen · NLOD 2.0." hint-size="100%,340px"></dc-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { q: '' };
+  renderVals() {
+    const HEX = { 'grønn': '#2f6b4f', 'gul': '#c8992f', 'rød': '#93211c' };
+    const TINT = { 'grønn': 'rgba(47,107,79,.3)', 'gul': 'rgba(200,153,47,.28)', 'rød': 'rgba(147,33,28,.32)' };
+    const R = [[2018, 'gul', false, 'Forskrift 2017-12-19'], [2020, 'rød', true, 'Forskrift 2020-02-04'], [2022, 'rød', true, 'Forskrift 2022-06-15'], [2024, 'rød', true, 'Forskrift 2024-06-20'], [2026, 'gul', true, 'Forskrift 2026-08-20']];
+    const runder = R.map(([aar, f, ord, kilde]) => ({
+      aar: String(aar), farge: f, kilde: kilde + ' ↗',
+      belegg: ord ? 'fargeordet står i forskriften' : 'utledet av kapittelplassering',
+      bg: ord ? HEX[f] : TINT[f], kant: ord ? '0 transparent' : '2px ' + HEX[f]
+    }));
+    const alle = [
+      ['31397', 'OTERNESET', 'i drift', '3 120', '2026-09-16'], ['[nr]', '[LOKALITET]', 'i drift', '3 900', '2026-09-15'],
+      ['[nr]', '[LOKALITET]', 'brakklagt', '2 340', '2026-08-03'], ['[nr]', '[LOKALITET]', 'i drift', '4 680', '2026-07-21'],
+      ['[nr]', '[LOKALITET]', 'i drift', '1 560', '2026-05-12'], ['[nr]', '[LOKALITET]', 'i drift', '3 120', '2025-11-30'],
+      ['[nr]', '[LOKALITET]', 'i drift', '780', '2025-09-02'], ['[nr]', '[LOKALITET]', 'i drift', '2 700', '2024-06-17']
+    ].map(r => ({ nr: r[0], navn: r[1], status: r[2], mtb: r[3], endret: r[4] }));
+    const q = this.state.q.trim().toLowerCase();
+    const lokaliteter = q ? alle.filter(l => (l.navn + ' ' + l.nr).toLowerCase().includes(q)) : alle;
+    return {
+      runder, lokaliteter, q: this.state.q,
+      settQ: (e) => this.setState({ q: e.target.value }),
+      viser: 'Viser ' + lokaliteter.length + ' av 141',
+      endringer: [
+        { dato: '2026-09-16', navn: 'OTERNESET', type: 'Biomasse', fra: '2 340 t MTB', til: '3 120 t MTB' },
+        { dato: '2026-09-15', navn: '[LOKALITET]', type: 'Trafikklys', fra: 'rød', til: 'gul' },
+        { dato: '2026-08-03', navn: '[LOKALITET]', type: 'Eierskap', fra: '[Selskap A AS]', til: '[Selskap B AS]' },
+        { dato: '2026-07-21', navn: '[LOKALITET]', type: 'Ny lokalitet', fra: 'ikke i registeret', til: 'klarert' }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

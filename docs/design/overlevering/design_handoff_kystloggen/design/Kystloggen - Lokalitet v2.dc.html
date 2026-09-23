@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/styles.css">
+<script src="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<style>
+:root{--hav9:#06161d;--hav8:#0b2430;--hav7:#123241;--hav5:#2f5f74;--hav3:#7ba0b1;--papir:#e7dbd0;--papir2:#efe6dd;--papir3:#d8c9bb;--rust:#aa3e04;--ink:#0b2430;--serif:"Newsreader",Georgia,serif;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace;--color-bg:#e7dbd0;--color-text:#0b2430;--font-body:var(--sans);--font-heading:var(--serif)}
+body{margin:0;background:var(--papir);color:var(--ink);font-family:var(--sans);font-size:16px;-webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-decoration:none}
+a:hover{color:var(--rust)}
+::selection{background:rgba(170,62,4,.22)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+summary{cursor:pointer}
+.leaflet-control-zoom a{background:#0b2430;color:#e7dbd0;border-color:#2d5568}
+</style>
+</helmet>
+
+<div style="background:var(--papir)">
+  <header style="background:var(--hav9);color:var(--papir)">
+    <dc-import name="KL Topp" hint-size="100%,86px"></dc-import>
+    <div style="max-width:1400px;margin:0 auto;padding:clamp(24px,3vw,40px) clamp(20px,4vw,56px) clamp(28px,3vw,44px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:28px clamp(28px,4vw,64px);align-items:start">
+      <div>
+        <p style="margin:0 0 18px;font:400 13.5px/1.3 var(--sans);color:#7ba0b1"><a href="Kystloggen - Forsiden v2.dc.html" style="color:#7ba0b1">Kystloggen</a> / <a href="Kystloggen - Område.dc.html" style="color:#7ba0b1">Nordhordland til Stadt</a> / Lokalitet 31397</p>
+        <h1 style="margin:0;font:300 clamp(46px,6vw,88px)/.92 var(--serif);letter-spacing:-.03em">Oterneset</h1>
+        <p style="margin:12px 0 0;font:400 15px/1.4 var(--sans);color:#9fb9c4">Lokalitet 31397 · <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">[i drift]</span> · <span>[Laks, regnbueørret]</span></p>
+        <dl style="margin:26px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:0;border-top:1px solid rgba(231,219,208,.2)">
+          <div style="padding:13px 16px 13px 0;border-bottom:1px solid rgba(231,219,208,.12)"><dt style="font:400 13px/1 var(--sans);color:#7ba0b1">Kommune</dt><dd style="margin:7px 0 0;font:400 19px/1.2 var(--serif)">[Kommune]</dd></div>
+          <div style="padding:13px 16px 13px 0;border-bottom:1px solid rgba(231,219,208,.12)"><dt style="font:400 13px/1 var(--sans);color:#7ba0b1">Produksjonsområde</dt><dd style="margin:7px 0 0;font:400 19px/1.2 var(--serif)"><a href="Kystloggen - Område.dc.html" style="color:#e7dbd0;border-bottom:1px solid rgba(231,219,208,.35)">4 Nordhordland til Stadt</a><span style="display:flex;align-items:center;gap:7px;margin-top:6px;font:400 13.5px/1 var(--sans);color:#c9d6dc"><span style="width:10px;height:10px;background:#c8992f"></span>gul i 2026</span></dd></div>
+          <div style="padding:13px 16px 13px 0;border-bottom:1px solid rgba(231,219,208,.12)"><dt style="font:400 13px/1 var(--sans);color:#7ba0b1">Selskap</dt><dd style="margin:7px 0 0;font:400 19px/1.2 var(--serif)"><a href="Kystloggen - Selskap.dc.html" style="color:#e7dbd0;border-bottom:1px solid rgba(231,219,208,.35)">[Selskap AS]</a><span style="display:block;margin-top:6px;font:400 13.5px/1.3 var(--sans);color:#9fb9c4">siden <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">17. juni 2024</span></span></dd></div>
+          <div style="padding:13px 16px 13px 0;border-bottom:1px solid rgba(231,219,208,.12)"><dt style="font:400 13px/1 var(--sans);color:#7ba0b1">Tillatelser</dt><dd style="margin:7px 0 0;font:400 19px/1.2 var(--serif)"><span style="text-decoration:underline dotted #d9804a;text-underline-offset:4px">3</span><span style="display:block;margin-top:6px;font:400 13.5px/1.3 var(--sans);color:#9fb9c4">til sammen <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">3 120</span> tonn MTB</span></dd></div>
+        </dl>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px">
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;box-shadow:inset 0 0 0 1px rgba(231,219,208,.4);color:#e7dbd0;font:500 14px/1 var(--sans)" style-hover="box-shadow:inset 0 0 0 1px #d9804a;color:#e7dbd0">Følg denne lokaliteten (feed)</a>
+          <a href="#siter" style="display:inline-flex;align-items:center;padding:10px 16px;color:#9fb9c4;font:400 14px/1 var(--sans)" style-hover="color:#e7dbd0">Siter</a>
+        </div>
+      </div>
+      <figure style="margin:0">
+        <div style="position:relative;height:clamp(240px,28vw,360px);border:1px solid rgba(231,219,208,.2)">
+          <x-import component-from-global-scope="posisjons-kart" from="./kystloggen-viz.js" lat="60.9741" lon="5.0338" hint-size="100%,100%"></x-import>
+        </div>
+        <figcaption style="margin-top:9px;font:400 13px/1.4 var(--sans);color:#7ba0b1"><span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">60°58,4′ N, 5°02,0′ Ø</span> · posisjon fra Akvakulturregisteret</figcaption>
+      </figure>
+    </div>
+  </header>
+
+  <main style="max-width:1400px;margin:0 auto;padding:clamp(32px,4vw,56px) clamp(20px,4vw,56px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:40px clamp(32px,4vw,64px);align-items:start">
+
+    <section aria-labelledby="endr-t" style="grid-column:span 1">
+      <h2 id="endr-t" style="margin:0 0 6px;font:400 26px/1.1 var(--serif);letter-spacing:-.01em">Endringer vi har sett</h2>
+      <p style="margin:0 0 20px;font:400 14px/1.5 var(--sans);color:rgba(11,36,48,.65)">Hver endring i registerfeltene siden første øyeblikksbilde. Datoen er når vi så den.</p>
+      <ol style="list-style:none;margin:0;padding:0;border-left:1px solid rgba(11,36,48,.3)">
+        <sc-for list="{{ logg }}" as="l" hint-placeholder-count="6">
+          <li title="{{ l.uke }}" style="position:relative;padding:0 0 20px 20px">
+            <span style="position:absolute;left:-5px;top:5px;width:9px;height:9px;background:{{ l.prikk }}"></span>
+            <div style="font:500 14px/1.3 var(--sans)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ l.dato }}</span> <span style="font-weight:400;color:rgba(11,36,48,.6)">· {{ l.felt }}</span></div>
+            <div style="margin-top:4px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font:400 14.5px/1.4 var(--sans)">
+              <span style="color:rgba(11,36,48,.65)">{{ l.fra }}</span><span aria-label="til" style="color:rgba(11,36,48,.45)">→</span><span style="font-weight:500">{{ l.til }}</span>
+            </div>
+          </li>
+        </sc-for>
+      </ol>
+    </section>
+
+    <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:40px;order:-1">
+      <section aria-labelledby="lus-t">
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 24px;margin-bottom:12px">
+          <h2 id="lus-t" style="margin:0;font:400 26px/1.1 var(--serif);letter-spacing:-.01em">Lakselus, voksne hunnlus per fisk</h2>
+          <span style="font:400 14px/1.4 var(--sans);color:rgba(11,36,48,.65)">Uke for uke fra <span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">2012</span>. Kilde: BarentsWatch.</span>
+        </div>
+        <figure style="margin:0">
+          <div style="position:relative;height:clamp(220px,24vw,300px);border-top:1px solid rgba(11,36,48,.2);border-bottom:1px solid rgba(11,36,48,.2)">
+            <x-import component-from-global-scope="luse-graf" from="./kystloggen-viz.js" hint-size="100%,100%"></x-import>
+          </div>
+          <figcaption style="display:flex;flex-wrap:wrap;gap:8px 20px;padding-top:11px;font:400 13px/1.3 var(--sans);color:rgba(11,36,48,.65)">
+            <span style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;background:#2f5f74"></span>under tiltaksgrensen</span>
+            <span style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:10px;background:#aa3e04"></span>over tiltaksgrensen</span>
+            <span style="display:flex;align-items:center;gap:7px"><span style="width:16px;border-top:1px dashed #aa3e04"></span>tiltaksgrense <span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">0,5</span></span>
+            <span style="display:flex;align-items:center;gap:7px"><span style="width:10px;height:3px;background:rgba(11,36,48,.2)"></span>brakklagt</span>
+            <span>tomrom = ingen rapport, ikke null</span>
+          </figcaption>
+        </figure>
+        <details style="margin-top:14px;border-top:1px solid rgba(11,36,48,.14)">
+          <summary style="padding:10px 0;font:500 14px/1.3 var(--sans)">Tallene i tabell</summary>
+          <table style="max-width:560px">
+            <thead><tr>
+              <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Uke</th>
+              <th scope="col" style="text-align:right;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Hunnlus per fisk</th>
+              <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 0 8px;border-bottom:1px solid rgba(11,36,48,.4)">Merknad</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{ lus }}" as="u" hint-placeholder-count="6">
+                <tr>
+                  <td style="padding:7px 16px 7px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ u.uke }}</span></td>
+                  <td style="padding:7px 16px 7px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono);text-align:right"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ u.v }}</span></td>
+                  <td style="padding:7px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--sans);color:rgba(11,36,48,.65)">{{ u.m }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+          <p style="margin:10px 0 0;font:400 13.5px/1.4 var(--sans)"><a href="#" style="color:var(--rust)">Hele serien som CSV</a> · <a href="#" style="color:var(--rust)">JSON</a></p>
+        </details>
+      </section>
+
+      <section aria-labelledby="bio-t">
+        <h2 id="bio-t" style="margin:0 0 10px;font:400 26px/1.1 var(--serif);letter-spacing:-.01em">Biomasse</h2>
+        <div style="padding:18px 20px;box-shadow:inset 0 0 0 1px rgba(11,36,48,.18);background:repeating-linear-gradient(45deg,rgba(11,36,48,.05) 0 1px,transparent 1px 7px)">
+          <p style="margin:0;font:400 15px/1.5 var(--sans);max-width:64ch">Ingen biomassetall for denne lokaliteten. Fiskeridirektoratet publiserer biomasse per lokalitet bare der innehaveren har samtykket; der tallene finnes, vises de her som månedlige søyler i samme form som lusegrafen.</p>
+        </div>
+      </section>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:40px">
+      <section aria-labelledby="till-t">
+        <h2 id="till-t" style="margin:0 0 14px;font:400 26px/1.1 var(--serif);letter-spacing:-.01em">Tillatelser</h2>
+        <div style="overflow-x:auto">
+          <table style="min-width:440px">
+            <thead><tr>
+              <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Tillatelse</th>
+              <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Formål</th>
+              <th scope="col" style="text-align:right;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Tonn MTB</th>
+              <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 0 8px;border-bottom:1px solid rgba(11,36,48,.4)">Tildelt</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{ tillatelser }}" as="t" hint-placeholder-count="3">
+                <tr>
+                  <td style="padding:8px 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ t.nr }}</span></td>
+                  <td style="padding:8px 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14px/1.3 var(--sans)">{{ t.formal }}</td>
+                  <td style="padding:8px 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono);text-align:right"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ t.mtb }}</span></td>
+                  <td style="padding:8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ t.dato }}</span></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="felt-t">
+        <h2 id="felt-t" style="margin:0 0 4px;font:400 26px/1.1 var(--serif);letter-spacing:-.01em">Registerfeltene</h2>
+        <p style="margin:0 0 14px;font:400 14px/1.5 var(--sans);color:rgba(11,36,48,.65)">Slik Akvakulturregisteret viser lokaliteten i siste øyeblikksbilde.</p>
+        <table>
+          <thead><tr>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.4);width:40%">Felt</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 14px 8px 0;border-bottom:1px solid rgba(11,36,48,.4)">Verdi</th>
+            <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 0 8px;border-bottom:1px solid rgba(11,36,48,.4)">Sist endret</th>
+          </tr></thead>
+          <tbody>
+            <sc-for list="{{ felt }}" as="f" hint-placeholder-count="9">
+              <tr>
+                <th scope="row" style="text-align:left;padding:7px 14px 7px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--sans);color:rgba(11,36,48,.7)">{{ f.navn }}</th>
+                <td style="padding:7px 14px 7px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14px/1.3 var(--sans)">{{ f.verdi }}</td>
+                <td style="padding:7px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13px/1.3 var(--mono);color:rgba(11,36,48,.65)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ f.endret }}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="siter" aria-labelledby="siter-t" style="padding:20px 22px;box-shadow:inset 0 0 0 1px rgba(11,36,48,.25);background:var(--papir2)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:10px">
+          <h2 id="siter-t" style="margin:0;font:400 20px/1.1 var(--serif)">Siter denne siden</h2>
+          <button type="button" onClick="{{ kopier }}" style="border:0;background:var(--hav8);color:var(--papir);font:500 13.5px/1 var(--sans);padding:9px 14px;cursor:pointer" style-hover="background:var(--rust)">{{ kopierTekst }}</button>
+        </div>
+        <p style="margin:0;font:400 14.5px/1.55 var(--sans);text-wrap:pretty">Kystloggen (2026). <i>Oterneset, lokalitet 31397.</i> Øyeblikksbilde uke <span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">38</span>, <span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">16. september 2026</span>. https://kystloggen.no/lokalitet/31397/?uke=2026-38</p>
+      </section>
+    </div>
+  </main>
+
+  <dc-import name="KL Fot" proveniens="Bygget fra øyeblikksbildet for uke 38, 2026, hentet 16. september 2026 kl. 04.09. © 2026 Kystloggen · NLOD 2.0." hint-size="100%,340px"></dc-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { kopiert: false };
+  renderVals() {
+    const RUST = '#aa3e04', INK = '#0b2430';
+    return {
+      logg: [
+        { dato: '16. sep. 2026', uke: 'Øyeblikksbilde uke 38, 2026', felt: 'Kapasitet', fra: '2 340 t MTB', til: '3 120 t MTB', prikk: RUST },
+        { dato: '17. juni 2024', uke: 'Øyeblikksbilde uke 25, 2024', felt: 'Innehaver', fra: '[Selskap A AS]', til: '[Selskap AS]', prikk: INK },
+        { dato: '3. mars 2023', uke: 'Øyeblikksbilde uke 9, 2023', felt: 'Driftsstatus', fra: 'brakklagt', til: 'i drift', prikk: INK },
+        { dato: '9. feb. 2023', uke: 'Øyeblikksbilde uke 6, 2023', felt: 'Driftsstatus', fra: 'i drift', til: 'brakklagt', prikk: INK },
+        { dato: '12. okt. 2022', uke: 'Øyeblikksbilde uke 41, 2022', felt: 'Tillatelse', fra: '2 tillatelser', til: '3 tillatelser', prikk: INK },
+        { dato: '14. mars 2022', uke: 'Øyeblikksbilde uke 11, 2022', felt: 'Første øyeblikksbilde', fra: 'ikke i arkivet', til: 'arkivert', prikk: 'rgba(11,36,48,.35)' }
+      ],
+      lus: [
+        { uke: '2026-38', v: '0,21', m: '' }, { uke: '2026-37', v: '0,34', m: '' }, { uke: '2026-36', v: '—', m: 'ingen rapport' },
+        { uke: '2026-35', v: '0,52', m: 'over tiltaksgrensen' }, { uke: '2026-34', v: '0,41', m: '' }, { uke: '2026-33', v: '0,29', m: '' }
+      ],
+      tillatelser: [
+        { nr: 'H-AV-0012', formal: 'Kommersiell, matfisk', mtb: '1 560', dato: '2003-06-11' },
+        { nr: 'H-AV-0147', formal: 'Kommersiell, matfisk', mtb: '780', dato: '2009-02-02' },
+        { nr: 'H-AV-0221', formal: 'Kommersiell, matfisk', mtb: '780', dato: '2022-10-12' }
+      ],
+      felt: [
+        { navn: 'Lokalitetsnummer', verdi: '31397', endret: '2022-03-14' },
+        { navn: 'Navn', verdi: 'OTERNESET', endret: '2022-03-14' },
+        { navn: 'Kommune', verdi: '[Kommune]', endret: '2022-03-14' },
+        { navn: 'Plassering', verdi: 'Sjø', endret: '2022-03-14' },
+        { navn: 'Vannmiljø', verdi: 'Saltvann', endret: '2022-03-14' },
+        { navn: 'Art', verdi: '[Laks, regnbueørret]', endret: '2022-03-14' },
+        { navn: 'Innehaver', verdi: '[Selskap AS]', endret: '2024-06-17' },
+        { navn: 'Kapasitet', verdi: '3 120 t MTB', endret: '2026-09-16' },
+        { navn: 'Driftsstatus', verdi: 'i drift', endret: '2023-03-03' }
+      ],
+      kopierTekst: this.state.kopiert ? 'Kopiert' : 'Kopier',
+      kopier: () => {
+        const t = 'Kystloggen (2026). Oterneset, lokalitet 31397. Øyeblikksbilde uke 38, 16. september 2026. https://kystloggen.no/lokalitet/31397/?uke=2026-38';
+        (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).catch(() => {}).finally(() => {
+          this.setState({ kopiert: true }); setTimeout(() => this.setState({ kopiert: false }), 1800);
+        });
+      }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

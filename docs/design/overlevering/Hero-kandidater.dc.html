@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/styles.css">
+<script src="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/_ds_bundle.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;1,6..72,300&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0;background:#d8c9bb;color:#0b2430;font-family:"IBM Plex Sans",system-ui,sans-serif}
+a{color:#0b2430;text-decoration:none}
+a:hover{color:#aa3e04}
+</style>
+</helmet>
+
+<section style="padding:56px">
+  <p style="margin:0 0 8px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.2em;color:#aa3e04">TUR 1 · HERO-FOTO</p>
+  <h1 style="margin:0 0 36px;font:300 44px/1 Newsreader,Georgia,serif;letter-spacing:-.02em">Tre kandidater — vist med heroens overlegg og ordmerke</h1>
+  <div style="display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start">
+    <sc-for list="{{ kandidater }}" as="k" hint-placeholder-count="3">
+      <div id="{{ k.id }}" style="width:760px;display:flex;flex-direction:column;gap:14px">
+        <div style="position:relative;height:460px;overflow:hidden;background:#06161d">
+          <img src="{{ k.src }}" alt="{{ k.alt }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:{{ k.pos }}">
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,22,29,.86) 0%,rgba(6,22,29,.55) 38%,rgba(6,22,29,.72) 70%,rgba(6,22,29,.95) 100%)"></div>
+          <div style="position:absolute;left:44px;right:44px;top:120px;color:#e7dbd0">
+            <div style="width:max-content">
+              <div style="font:300 84px/.86 Newsreader,Georgia,serif;letter-spacing:-.035em">Kystloggen</div>
+              <div style="height:9px;margin-top:12px;border-bottom:2px solid #aa3e04;background:repeating-linear-gradient(90deg,#aa3e04 0 1px,transparent 1px 16px);background-position:bottom;background-size:100% 7px;background-repeat:repeat-x"></div>
+            </div>
+            <p style="margin:30px 0 0;font:italic 300 24px/1.2 Newsreader,Georgia,serif">Registrene viser nå. Vi tar vare på før.</p>
+          </div>
+          <span style="position:absolute;top:16px;left:16px;background:#e7dbd0;color:#0b2430;font:500 13px/1 'IBM Plex Mono',monospace;padding:7px 10px">{{ k.id }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:6px 20px;align-items:baseline">
+          <span style="font:400 21px/1.2 Newsreader,Georgia,serif">{{ k.tittel }}</span>
+          <a href="{{ k.url }}" style="font:400 12px/1 'IBM Plex Mono',monospace;border-bottom:1px solid #aa3e04;padding-bottom:3px">Kilde →</a>
+          <span style="grid-column:1/-1;font:400 12.5px/1.5 'IBM Plex Mono',monospace;color:rgba(11,36,48,.7)">{{ k.meta }}</span>
+          <span style="grid-column:1/-1;font:400 14px/1.55 'IBM Plex Sans',sans-serif;color:rgba(11,36,48,.82);text-wrap:pretty">{{ k.vurdering }}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <p style="margin:32px 0 0;max-width:90ch;font:400 12.5px/1.6 'IBM Plex Mono',monospace;color:rgba(11,36,48,.62)">Unsplash-lisensen tillater fri bruk, også kommersielt, uten krav om kreditering. Kreditering anbefales likevel — foreslått i foten: «Foto: [navn] / Unsplash».</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    var q = '?fm=jpg&q=70&w=1800&auto=format&fit=crop';
+    return {
+      kandidater: [
+        { id: '1a', src: 'https://images.unsplash.com/photo-1778598707323-dff7934497a8' + q, pos: 'center 55%',
+          alt: 'Snødekte fjell over mørkt, urolig hav under skyer',
+          tittel: 'Snødekte fjell over mørkt hav', url: 'https://unsplash.com/photos/snowy-mountains-overlook-a-dark-choppy-ocean-under-cloudy-skies-cbaS3DXXCl4',
+          meta: 'Wolfgang Hasselmann · Unsplash · Unsplash-lisens · 2026',
+          vurdering: 'Tyngst og mest alvorlig. Mørkt hav i forgrunnen gir ordmerket ro; fjellrekken ligger lavt og lar himmelen bære teksten. Ingen måker.' },
+        { id: '1b', src: 'https://images.unsplash.com/photo-1742458498143-14ae8de88e75' + q, pos: 'center 50%',
+          alt: 'Snødekte fjell og hav en vinterdag ved Tromsø',
+          tittel: 'Vinterdag ved Tromsø', url: 'https://unsplash.com/photos/snow-covered-mountains-and-sea-on-a-winter-day-EZf4aY9VHcc',
+          meta: 'Lawrence Chismorie · Unsplash · Unsplash-lisens · 2025 · Cinestill 400D-film',
+          vurdering: 'Nærmest briefen: klar vinterdag, kaldt lys, blått hav. Filmkornet gir et redaksjonelt, ikke-stock preg. Ingen måker.' },
+        { id: '1c', src: 'https://images.unsplash.com/photo-1598912805009-c565ec5b31d1' + q, pos: 'center 45%',
+          alt: 'Fugler som flyr over havet ved et fjell i Lofoten',
+          tittel: 'Sjøfugl over havet, Lofoten', url: 'https://unsplash.com/photos/birds-flying-over-the-sea-near-mountain-vNdPO_YwiCk',
+          meta: 'Sadan Ekdemir · Unsplash · Unsplash-lisens · 2020',
+          vurdering: 'Den eneste med fugler i lufta. Grå, tåket og vindfull — mer høst enn klar vinter, og lite snø.' }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

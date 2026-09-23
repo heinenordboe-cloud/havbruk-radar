@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/styles.css">
+<script src="_ds/industry-2ce1ea11-39d3-4322-a7f1-b16ecccba20a/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+:root{--hav9:#06161d;--hav8:#0b2430;--hav3:#7ba0b1;--papir:#e7dbd0;--papir2:#efe6dd;--rust:#aa3e04;--ink:#0b2430;--serif:"Newsreader",Georgia,serif;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace;--color-bg:#e7dbd0;--color-text:#0b2430;--font-body:var(--sans);--font-heading:var(--serif)}
+body{margin:0;background:var(--papir);color:var(--ink);font-family:var(--sans);font-size:16px;-webkit-font-smoothing:antialiased}
+a{color:var(--ink);text-decoration:none}
+a:hover{color:var(--rust)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+</style>
+</helmet>
+
+<div style="background:var(--papir)">
+  <header style="background:var(--hav9);color:var(--papir)">
+    <dc-import name="KL Topp" hint-size="100%,86px"></dc-import>
+    <div style="max-width:1400px;margin:0 auto;padding:clamp(24px,3vw,40px) clamp(20px,4vw,56px) clamp(28px,3vw,40px)">
+      <nav aria-label="Uker" style="display:flex;justify-content:space-between;gap:16px;margin:0 0 16px;font:400 14px/1.3 var(--sans)">
+        <a href="#" style="color:#9fb9c4" style-hover="color:#e7dbd0">← Uke <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">37</span></a>
+        <a href="#" style="color:#9fb9c4" style-hover="color:#e7dbd0">Alle uker</a>
+        <span style="color:rgba(159,185,196,.5)">Uke <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">39</span> →</span>
+      </nav>
+      <h1 style="margin:0;font:300 clamp(40px,5vw,76px)/.95 var(--serif);letter-spacing:-.03em">Endringer, uke <span style="text-decoration:underline dotted #d9804a;text-decoration-thickness:1px;text-underline-offset:8px">38</span> 2026</h1>
+      <p style="margin:14px 0 0;font:400 15px/1.5 var(--sans);color:#9fb9c4;max-width:70ch">Observert i øyeblikksbildene <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">14.–20. september 2026</span>, sammenlignet med uke <span style="text-decoration:underline dotted #d9804a;text-underline-offset:3px">37</span>. Permalenke: <span style="color:#e7dbd0">kystloggen.no/endringer/2026-38/</span></p>
+    </div>
+  </header>
+
+  <main style="max-width:1400px;margin:0 auto;padding:clamp(28px,3.4vw,48px) clamp(20px,4vw,56px) clamp(40px,4vw,60px)">
+    <p style="margin:0 0 24px;max-width:62ch;font:400 clamp(20px,1.8vw,25px)/1.35 var(--serif);text-wrap:pretty">Akvakulturregisteret fulgte opp 2026-forskriften: <span style="text-decoration:underline dotted #aa3e04;text-underline-offset:4px">15</span> lokaliteter fikk ny trafikklysfarge. Ingen andre felt endret seg.</p>
+
+    <form action="" method="get" aria-label="Filtrer på endringstype" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 0;border-top:1px solid rgba(11,36,48,.3);border-bottom:1px solid rgba(11,36,48,.14)">
+      <span style="font:500 13px/1 var(--sans);color:rgba(11,36,48,.65);margin-right:6px">Endringstype</span>
+      <sc-for list="{{ typer }}" as="t" hint-placeholder-count="6">
+        <label style="display:inline-flex;align-items:center;gap:8px;padding:7px 11px;box-shadow:inset 0 0 0 1px {{ t.kant }};font:400 14px/1 var(--sans);color:{{ t.farge }};cursor:pointer;background:{{ t.bg }}">
+          <input type="checkbox" name="type" value="{{ t.id }}" checked="{{ t.pa }}" onChange="{{ t.bytt }}" style="margin:0;accent-color:#aa3e04">
+          {{ t.navn }} <span style="font-weight:500;text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ t.n }}</span>
+        </label>
+      </sc-for>
+      <span style="flex:1"></span>
+      <span style="font:400 13.5px/1.3 var(--sans)"><a href="#" style="color:var(--rust)">CSV</a> · <a href="#" style="color:var(--rust)">JSON</a> · <a href="#" style="color:var(--rust)">Feed</a></span>
+    </form>
+
+    <div style="overflow-x:auto;margin-top:6px">
+      <table style="min-width:820px">
+        <caption style="text-align:left;padding:10px 0;font:400 13.5px/1.3 var(--sans);color:rgba(11,36,48,.65)">{{ viser }}</caption>
+        <thead><tr>
+          <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 9px 0;border-bottom:1px solid rgba(11,36,48,.4);width:110px">Observert</th>
+          <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 9px 0;border-bottom:1px solid rgba(11,36,48,.4)">Lokalitet</th>
+          <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 9px 0;border-bottom:1px solid rgba(11,36,48,.4)">Kommune</th>
+          <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 9px 0;border-bottom:1px solid rgba(11,36,48,.4)">Produksjonsområde</th>
+          <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 16px 9px 0;border-bottom:1px solid rgba(11,36,48,.4)">Type</th>
+          <th scope="col" style="text-align:left;font:500 12.5px/1.3 var(--sans);color:rgba(11,36,48,.6);padding:0 0 9px;border-bottom:1px solid rgba(11,36,48,.4)">Endring</th>
+        </tr></thead>
+        <tbody>
+          <sc-for list="{{ rader }}" as="r" hint-placeholder-count="15">
+            <tr style-hover="background:rgba(11,36,48,.04)">
+              <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--mono);color:rgba(11,36,48,.75)"><span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">{{ r.dato }}</span></td>
+              <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:500 14.5px/1.3 var(--sans)"><a href="Kystloggen - Lokalitet v2.dc.html" style="border-bottom:1px solid rgba(11,36,48,.25)">{{ r.navn }}</a></td>
+              <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14px/1.3 var(--sans);color:rgba(11,36,48,.7)">[kommune]</td>
+              <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14px/1.3 var(--sans);color:rgba(11,36,48,.7)">[område]</td>
+              <td style="padding:8px 16px 8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 13.5px/1.3 var(--sans);color:rgba(11,36,48,.65)">{{ r.type }}</td>
+              <td style="padding:8px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14.5px/1.3 var(--sans)">
+                <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:{{ r.fraHex }}"></span>{{ r.fra }}</span>
+                <span aria-label="til" style="color:rgba(11,36,48,.5);margin:0 6px">→</span>
+                <span style="display:inline-flex;align-items:center;gap:6px;font-weight:500"><span style="width:10px;height:10px;background:#c8992f"></span>gul</span>
+              </td>
+            </tr>
+          </sc-for>
+          <sc-if value="{{ tom }}" hint-placeholder-val="{{ false }}">
+            <tr><td colspan="6" style="padding:22px 0;border-bottom:1px solid rgba(11,36,48,.1);font:400 14.5px/1.4 var(--sans);color:rgba(11,36,48,.65)">Ingen endringer av valgt type denne uka.</td></tr>
+          </sc-if>
+        </tbody>
+      </table>
+    </div>
+
+    <section aria-labelledby="u-siter-t" style="margin-top:36px;max-width:760px;padding:20px 22px;box-shadow:inset 0 0 0 1px rgba(11,36,48,.25);background:var(--papir2)">
+      <h2 id="u-siter-t" style="margin:0 0 10px;font:400 20px/1.1 var(--serif)">Siter denne uka</h2>
+      <p style="margin:0;font:400 14.5px/1.55 var(--sans);text-wrap:pretty">Kystloggen (2026). <i>Endringer i akvakulturregistrene, uke 38 2026.</i> Øyeblikksbilder <span style="text-decoration:underline dotted #aa3e04;text-underline-offset:3px">14.–20. september 2026</span>. https://kystloggen.no/endringer/2026-38/</p>
+    </section>
+  </main>
+
+  <dc-import name="KL Fot" proveniens="Sammenligning av øyeblikksbildene for uke 37 og uke 38, 2026, siste hentet 16. september 2026 kl. 04.09. © 2026 Kystloggen · NLOD 2.0." hint-size="100%,340px"></dc-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { av: {} };
+  renderVals() {
+    const T = [['trafikklys', 'Trafikklys', 15], ['biomasse', 'Biomasse', 0], ['eierskap', 'Eierskap', 0], ['tillatelse', 'Tillatelse', 0], ['ny', 'Ny lokalitet', 0], ['nedlagt', 'Nedlagt lokalitet', 0]];
+    const av = this.state.av;
+    const rg = ['REKEVIKI', 'KALVØYA N', 'VÅGSØYA', 'SYRTANGEN', 'STORLIA', 'GARVIK', 'GULESTØ', 'ÅLVORA'];
+    const gg = ['VEDVIKA', 'DRAGNES', 'NEDRE KVARV', 'HORSVÅGEN', 'HØGHOLMEN', 'FLAKSTADVÅG', 'SKARDBERGVIKA'];
+    const alle = rg.map(n => ({ dato: '2026-09-15', navn: n, fra: 'rød', fraHex: '#93211c' }))
+      .concat(gg.map(n => ({ dato: '2026-09-16', navn: n, fra: 'grønn', fraHex: '#2f6b4f' })))
+      .map(r => Object.assign(r, { type: 'Trafikklys', t: 'trafikklys' }));
+    const rader = alle.filter(r => !av[r.t]);
+    return {
+      typer: T.map(([id, navn, n]) => {
+        const pa = !av[id];
+        return {
+          id, navn, n: String(n), pa,
+          farge: n ? '#0b2430' : 'rgba(11,36,48,.5)',
+          kant: pa && n ? 'rgba(11,36,48,.5)' : 'rgba(11,36,48,.15)',
+          bg: pa && n ? 'rgba(239,230,221,1)' : 'transparent',
+          bytt: () => this.setState(s => ({ av: Object.assign({}, s.av, { [id]: !s.av[id] }) }))
+        };
+      }),
+      rader, tom: rader.length === 0,
+      viser: 'Viser ' + rader.length + ' av ' + alle.length + ' endringer'
+    };
+  }
+}
+
+</script>
+</body>
+</html>
