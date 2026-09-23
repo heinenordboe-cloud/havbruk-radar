@@ -213,6 +213,23 @@ BINAERFILER = {
         "maler/favicon.svg 21.09.2026",
     "20b6fc8bf832023ffd1d09df2220fb66eaa6189f34e3ede5e5f6154e66be3365":
         "apple-touch-icon.png — samme ikon, 180x180",
+    # HEROFOTOGRAFIET, tre bredder av det samme motivet. Segmentene er
+    # lest ut én gang: JFIF (APP0) og en sRGB-ICC-profil (APP2), og
+    # INGEN APP1 — altså ingen EXIF, ingen GPS, intet kameraserienummer
+    # og ingen navn. Se docs/design/HEROFOTO.md.
+    #
+    # At de tre er skalerte utgaver av det samme motivet gjør dem ikke
+    # til én fil: sha256 pinner INNHOLD, og tre filer er tre innhold.
+    #
+    # De gikk ut umerket ved første bygg 22.09.2026, og porten stoppet
+    # publiseringen med «ugranska — .jpg». Det er slik den skal virke.
+    "4aececeb4f01f8b9cfc445d3dc687c9f6fd8415c788615e5ffc4af9035b0ccbd":
+        "bilde/hero-800.jpg — herofoto, Unsplash-lisens. Segmentene "
+        "inspisert 22.09.2026: ingen EXIF, se docs/design/HEROFOTO.md",
+    "3c8c0e7f92dbcc8e63791f96886f7faeef079b60834f3ad716c8433f7a7ac1e8":
+        "bilde/hero-1600.jpg — samme motiv, 1600 px bred",
+    "1233af0d2cb4ced13f084ca41aaae198d6cea6a172585ddb1af085e6a244c781":
+        "bilde/hero-2400.jpg — samme motiv, 2400 px bred",
 }
 
 # Filtypene der KOLONNEOVERSKRIFTEN er merkingen, og der prøvene derfor

@@ -34,6 +34,57 @@ tidspunktet tilhører KILDEN, ikke oss.
 
 ---
 
+## Tabell 2 — det NETTSTEDET SELV distribuerer
+
+Tabellen over er KILDENE: data vi henter, sammenstiller og gjengir.
+Denne er noe annet — filer vi selv sender ut sammen med sidene, og som
+har sine egne vilkår. Fram til 22.09.2026 var det én rad (Newsreader);
+designoverleveringen gjorde det til seks.
+
+Skillet er verdt en egen tabell fordi PLIKTEN er en annen. En kilde
+krever en attribusjonssetning på siden; en font under OFL krever at
+lisensteksten følger FILA, og det er et krav om et filnavn på en
+adresse — ikke om en setning. Se `nettsted.VAART_LAAN`, som er raden
+som faktisk står på /om/.
+
+| hva | rolle | lisens | krever | ligger på | proveniens |
+|---|---|---|---|---|---|
+| Newsreader | overskrifter, ordmerke, nøkkeltall | SIL OFL 1.1 | lisensteksten følger fila | `/newsreader-OFL.txt` | `docs/design/NEWSREADER.md` |
+| IBM Plex Sans | brødtekst, etiketter, tabeller | SIL OFL 1.1 | lisensteksten følger fila | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
+| IBM Plex Mono | tallverdier i tabellkolonner | SIL OFL 1.1 | samme fil som Sans | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
+| Herofotografiet | forsidens hero | Unsplash-lisensen | **ingenting** — navngiving er frivillig | — | `docs/design/HEROFOTO.md` |
+| Kystlinje, Natural Earth 1:10 m | kartene | public domain | **ingenting** | `/naturalearth-LICENSE.md` | `docs/design/KARTGEOMETRI.md` |
+| Produksjonsområdepolygoner | kartene | NLOD (Fiskeridirektoratet) | «Kilde: Fiskeridirektoratet» | dekkes av kildeattribusjonen | `docs/design/KARTGEOMETRI.md` |
+
+### Merknad G — de to som ikke krever noe
+
+Unsplash-lisensen og Natural Earths vilkår krever ingen navngiving.
+Begge er likevel navngitt, på /om/ og i proveniensfilene, og det er
+ikke en misforståelse av lisensen: en side som ikke sier hvor et bilde
+eller en kystlinje kommer fra, kan ingen etterprøve. Det er samme
+grunn som at datokolonnen i tabellen over finnes.
+
+Natural Earth ber uttrykkelig om at kreditering IKKE er nødvendig, og
+oppgir en formulering for dem som vil likevel: «Made with Natural
+Earth.» Den står i `docs/design/KARTGEOMETRI.md`.
+
+### Merknad H — polygonene er NLOD, og de er fra en karttjeneste
+
+`produksjonsomrader.geojson` er hentet fra Fiskeridirektoratets egen
+ArcGIS-tjeneste, ikke fra en av kildene i `sources/`. Lisensen er
+likevel den samme — merknad A gjelder «den som tar i bruk data fra
+Fiskeridirektoratet» og skiller ikke på hvilket endepunkt dataene kom
+fra. Attribusjonen «Kilde: Fiskeridirektoratet» står allerede i
+bunnteksten på hver side som viser kartet, fordi `akvakultur` er en av
+sidens kilder.
+
+**Ett felt i den fila brukes IKKE:** `status`, som bærer «grønn», «gul»
+og «rød». Se `kart.py` — fargen er et forvaltningsvedtak med en dato og
+en hjemmel, og et statusfelt i et karttjenestelag er en gjengivelse av
+det uten noen av delene.
+
+---
+
 ## Merknad A — Fiskeridirektoratet
 
 Ordlyden er hentet fra `docs/KILDE-BIOMASSE.md` punkt 10, ikke gjengitt

@@ -63,4 +63,57 @@
   lokalitetssiden. Artsnavnene er oversatt fra kildens koder; verdien i
   dataene er uendret.
 </p>
+
+{# LOKALITETER UTEN KOORDINATER. Lista lå på forsiden ved siden av
+   punktkartet den forklarte; kartet er byttet ut med områdekartet
+   22.09.2026, og regnskapet flyttet hit. Ankeret
+   `#akvakultur-uten-koordinater` er det samme, og det er lenket fra
+   forsidens kart — se 2026-09-16-url-struktur.md punkt 5: et anker er
+   en URL, og den flytter ikke på seg fordi siden gjorde det.
+
+   Uenighetsregelen: et punkt som mangler skal ikke bare forsvinne.
+   Se docs/REGEL-UENIGE-KILDER.md. #}
+<h2 id="uten-koordinater">Lokaliteter uten koordinater</h2>
+<p>
+  {{ d.uten_koordinater_antall }} av {{ d.antall }} lokaliteter mangler
+  breddegrad eller lengdegrad i Akvakulturregisteret og kan derfor ikke
+  tegnes på et kart.
+  {% if d.uten_koordinater %}
+  De står her, slik at et punkt som mangler ikke bare forsvinner:
+  {% else %}
+  Ingen mangler i dette snapshotet. Tallet står likevel, fordi et tall
+  man bare ser når det er galt er et tall ingen kjenner normalverdien
+  til.
+  {% endif %}
+</p>
+{% if d.uten_koordinater %}
+<div class="tabellramme" role="region"
+     aria-labelledby="akvakultur-uten-koordinater-tittel" tabindex="0">
+<table id="akvakultur-uten-koordinater">
+  <caption id="akvakultur-uten-koordinater-tittel">
+    Lokaliteter uten breddegrad eller lengdegrad, snapshot
+    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
+  </caption>
+  <thead>
+    <tr>
+      <th scope="col">Lokalitet</th>
+      <th scope="col">Navn</th>
+      <th scope="col">Kommune</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in d.uten_koordinater %}
+    <tr>
+      <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
+      <td class="eier" data-felt="navn">{{ l.navn }}</td>
+      <td data-felt="kommune">{{ l.kommune }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="tabellnote">
+  De har side som alle andre — det er bare kartet de ikke kan være på.
+</p>
+{% endif %}
 {% endblock %}

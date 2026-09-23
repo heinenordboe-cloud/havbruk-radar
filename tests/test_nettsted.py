@@ -82,6 +82,7 @@ def _grunn(undermappe: str = "", **over) -> dict:
         "meny_aktiv": "",
         "feed": "",
         "feed_tittel": "",
+        "main_klasse": "",
     }
     grunn.update(over)
     return grunn
@@ -1417,44 +1418,130 @@ def test_lokalitet_uten_koordinater_utelates_men_forsvinner_ikke():
 
 
 def _forside(**overstyr) -> str:
+    """Forsiden rendret av en fikstur.
+
+    NØKLENE MÅ FØLGE `bygg_forside`: malen kjører med `StrictUndefined`,
+    så en nøkkel som mangler her feller prøvene framfor å rendre et
+    hull. Det er meningen — da er det denne fila som må rettes når
+    forsiden får en ny verdi, og ikke utputtet som blir stille feil.
+    """
+    omraade = {
+        "nr": "4", "navn": "Nordhordland til Stadt", "lokaliteter": 137,
+        "farge": "gul", "farge_klasse": "lys-gul", "uenig": "",
+        "stripe": [{"aar": "2024", "farge": "rød", "klasse": "lys-rod",
+                    "tittel": "2024: rød"},
+                   {"aar": "2026", "farge": "gul", "klasse": "lys-gul",
+                    "tittel": "2026: gul"}],
+        "historie": "rød → gul",
+    }
+    hendelse = {
+        "dato": "2026-09-21", "uke": "2026-39", "type": "trafikklys",
+        "type_navn": "Trafikklys", "kilde": "akvakultur",
+        "entity_id": "31397", "felt": "prodomraade_status",
+        "etikett": "Trafikklysfarge", "fra": "rød", "til": "gul",
+        "fra_klasse": "lys-rod", "til_klasse": "lys-gul", "er_farge": True,
+        "gjelder": "Oterneset", "gjelder_url": "/lokalitet/31397/",
+        "gjelder_slag": "lokalitet", "lokalitet": "Oterneset",
+        "lokalitet_url": "/lokalitet/31397/", "kommune": "HARSTAD",
+        "po": "4", "po_navn": "Nordhordland til Stadt",
+    }
+    uke = {
+        "slug": "2026-39", "aar": "2026", "ukenr": "39",
+        "vist": "uke 39, 2026", "spenn": "21.–27. september 2026",
+        "datoer": ["2026-09-21"], "forste_dato": "2026-09-21",
+        "siste_dato": "2026-09-21", "hendelser": [hendelse], "antall": 812,
+        "typer": [dict(k, antall=(362 if k["id"] == "trafikklys" else 0))
+                  for k in nettsted.ENDRINGSTYPER],
+        "utenfor_uka": 32979,
+    }
     f = {
         "lokaliteter": 1782, "produksjonsomraader": 13, "selskaper": 481,
         "tillatelser": 2945, "luke_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
-        "akva_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
-        "punkter": [{"loknr": "31397", "x": 100.0, "y": 200.0}],
-        "punkter_antall": 1782,
-        "kart_bredde": 900, "kart_hoyde": 1026.6, "kart_punkt": 1.7,
-        "uten_koordinater": [], "uten_koordinater_antall": 0,
-        # Gradnettet, i formen `kartpunkter()` faktisk returnerer.
-        # NØKLENE MÅ FØLGE `bygg_forside`: malen kjører med
-        # StrictUndefined, så en nøkkel som mangler her feller prøvene
-        # framfor å rendre et hull. Det er meningen — da er det denne
-        # fila som må rettes når forsiden får en ny verdi, og ikke
-        # utputtet som blir stille feil.
-        "gitter": {
-            "bredde": [{"y": 200.0, "grad": 65, "etikett": "65°N",
-                        "etikett_x": 894, "etikett_y": 195.0}],
-            "lengde": [{"x": 300.0, "grad": 10, "etikett": "10°Ø",
-                        "etikett_x": 306.0, "etikett_anker": "start"}],
-            "bredde_px": 900, "hoyde_px": 1026.6, "etikett_y_bunn": 1018.6,
-        },
+        "akva_dato": "2026-09-21", "akva_hentet": "2026-09-21T04:00:00+00:00",
+        "eierskap_dato": "2026-09-21",
+
+        "uke": uke,
+        "sammendrag": ["812 endringer observert i uke 39, 2026."],
+        "forskriftslinje": None,
+        "rader": [hendelse],
+        "flere_rader": 804,
+        "forrige_uke": "2026-38", "forrige_uke_vist": "uke 38, 2026",
+        "uker_totalt": 5,
+
+        "snapshots": 6, "forste_snapshot": "2026-08-17",
+        "siste_snapshot": "2026-09-21",
+        "sjekksum": "efe1c0884c4e39d20b7d775a363dfe1fc55b21ce0bcda9a9c2e2",
+
+        "omraader": [omraade],
+        "kart": {"bredde": 760, "hoyde": 870.4,
+                 "omraader": [{"nr": "4", "navn": "Nordhordland til Stadt",
+                               "farge_klasse": "lys-gul", "farge": "gul",
+                               "antall": 137, "baner": ["M10 10L20 20Z"]}],
+                 "mangler_geometri": [],
+                 "kyst": ["M0 0L5 5"],
+                 "gitter": {"bredde": [{"y": 200.0, "grad": 65,
+                                        "etikett": "65°N",
+                                        "etikett_x": 754, "etikett_y": 195.0}],
+                            "lengde": [{"x": 300.0, "grad": 10,
+                                        "etikett": "10°Ø",
+                                        "etikett_x": 306.0,
+                                        "etikett_anker": "start"}],
+                            "etikett_y_bunn": 862.4, "etiketter": True}},
+        "i_omraade": 969,
+        "runder": ["2018", "2020", "2022", "2024", "2026"],
+
+        "uten_koordinater_antall": 0,
     }
     f.update(overstyr)
     return nettsted._miljo().get_template("forside.html.j2").render(
         f=f,
         **_grunn(jsonld=nettsted.jsonld_forside(f, nettsted.kildevilkaar()),
-                 attribusjon=nettsted.attribusjon(nettsted.FORSIDEKILDER)))
+                 attribusjon=nettsted.attribusjon(nettsted.FORSIDEKILDER),
+                 main_klasse="fullbredde"))
 
 
 def test_forsiden_svarer_paa_de_tre_tingene():
-    """Hva er dette, hvem lagde det, hva kan jeg gjøre her."""
+    """Hva er dette, hva har skjedd, kan jeg stole på det."""
     html = " ".join(_forside().split())
-    assert "Offentlige registerdata om norsk akvakultur" in html
+    assert "Registrene viser nå. Vi tar vare på før." in html
+    assert "Et uavhengig, åpent arkiv over offentlige data" in html
     assert "Heine Valø Nordbøe" in html
     assert "github.com/heinenordboe-cloud/havbruk-radar" in html
-    for lenke in ("/lokalitet/", "/produksjonsomrade/", "/selskap/", "/om/"):
+    for lenke in ("/lokalitet/", "/produksjonsomrade/", "/selskap/",
+                  "/om/", "/endringer/"):
         assert f'href="{lenke}"' in html
+
+
+def test_forsiden_leder_med_uka_og_ikke_med_seg_selv():
+    """Bevegelsen er produktet. «Denne uka» skal stå FØR alt annet
+    innhold, over bretten på 1440x900."""
+    html = _forside()
+    assert html.index('id="uka"') < html.index('id="kysten"')
+    assert html.index('id="uka"') < html.index('arkivlinje')
+    flat = " ".join(html.split())
+    assert "812 endringer observert i uke 39, 2026." in flat
+    assert "Alle 812 endringene i uke 39, 2026" in flat
+
+
+def test_alle_endringstyper_vises_ogsaa_de_med_null():
+    """Et tall man bare ser når det er noe der, er et tall ingen
+    kjenner normalverdien til. Overleveringens krav: typer med 0 er
+    dempet, men vises alltid."""
+    html = _forside()
+    for slag in nettsted.ENDRINGSTYPER:
+        assert f'/endringer/2026-39/{slag["id"]}/' in html, slag["id"]
+    # De dempede er merket som dempet, ikke utelatt.
+    assert "typemerke--tom" in html
+
+
+def test_typelenkene_er_stier_og_ikke_sporrestrenger():
+    """En spørrestreng gjør identiteten til et argument, og en statisk
+    side har ingenting som leser den. Se 2026-09-16-url-struktur.md."""
+    html = _forside()
+    assert "?type=" not in html
+    assert "?uke=" not in html
+    assert "?q=" not in html
 
 
 def test_kartet_er_statisk_uten_tjeneste_og_uten_js():
@@ -1465,31 +1552,60 @@ def test_kartet_er_statisk_uten_tjeneste_og_uten_js():
     assert html.count("<script") == 1
     assert 'type="application/ld+json"' in html
     for forbudt in ("tile", "mapbox", "openstreetmap", "leaflet",
-                    "googleapis", "http://", "fetch("):
+                    "googleapis", "unpkg", "http://", "fetch("):
         assert forbudt not in html.lower(), forbudt
+
+
+def test_herobildet_hostes_av_oss_og_aldri_av_unsplash():
+    """En `images.unsplash.com`-URL i markupen ville fortalt dem hvem
+    som leser siden, og gjort forsidens hovedbilde avhengig av at en
+    tredjepart svarer."""
+    html = _forside()
+    assert "unsplash" not in html.lower()
+    for bredde in (800, 1600, 2400):
+        assert f"/bilde/hero-{bredde}.jpg" in html
 
 
 def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():
     html = _forside()
     assert 'role="img"' in html
-    assert "<title id=\"karttittel\">" in html
-    assert "<desc id=\"kartbeskrivelse\">" in html
+    assert '<title id="kysttittel">' in html
+    assert '<desc id="kystbeskrivelse">' in html
+
+
+def test_omradene_er_lenker_i_kartet_ogsaa_uten_js():
+    """Uten JavaScript er kartet et bilde. `<a>` inne i SVG-en gjør det
+    til navigasjon uansett."""
+    html = _forside()
+    assert '<a href="/produksjonsomrade/4/"' in html
+    assert 'aria-label="Produksjonsområde 4 Nordhordland til Stadt, gul' in html
 
 
 def test_antallet_uten_koordinater_staar_ogsaa_naar_det_er_null():
     """Et tall man bare ser når det er galt, er et tall ingen kjenner
     normalverdien til."""
     flat = " ".join(_forside().split())
-    assert "0 av 1782" in flat
-    assert "Ingen mangler i dette snapshotet" in flat
+    assert "0 av 1782 lokaliteter mangler koordinater" in flat
+    assert 'href="/lokalitet/#akvakultur-uten-koordinater"' in flat
 
 
-def test_uten_koordinater_faar_tabell_med_lenke_naar_de_finnes():
-    html = _forside(
-        uten_koordinater=[{"loknr": "10002", "navn": "X", "kommune": "Y"}],
-        uten_koordinater_antall=1)
-    assert '<a href="/lokalitet/10002/">10002</a>' in html
-    assert "slik at et punkt som mangler ikke bare forsvinner" in " ".join(html.split())
+def test_arkivtallet_skjuler_ikke_at_det_er_lite():
+    """Seks øyeblikksbilder er seks uker, og et arkiv som later som det
+    er eldre enn det er, er verdiløst den dagen noen sjekker."""
+    flat = " ".join(_forside().split())
+    assert "6</strong> ukentlige øyeblikksbilder siden" in flat
+    assert "17. august 2026" in flat
+    assert "sjekksum" in flat
+
+
+def test_ukesbrevskjemaet_er_ikke_bygget_og_star_derfor_ikke_der():
+    """Et skjema som poster til en adresse ingen lytter på, er verre
+    enn ingen: det ser ut som en vei inn."""
+    html = _forside()
+    assert "/ukesbrev/" not in html
+    assert 'method="post"' not in html.lower()
+    # Feedene er det som FAKTISK finnes, og de står.
+    assert "/endringer/feed.xml" in html
 
 
 # ---- indekssidene -----------------------------------------------------
@@ -1532,7 +1648,9 @@ def test_indeksene_er_flate_uten_paginering():
     felles = SimpleNamespace(
         akva={str(10000 + i): {"navn": f"L{i}", "kommune": "K",
                                "fylke": "F", "prodomraade_kode": "",
-                               "arter": "SALMON"} for i in range(50)},
+                               "arter": "SALMON",
+                               "breddegrad": f"{60 + i / 100:.2f}",
+                               "lengdegrad": "5.0"} for i in range(50)},
         akva_dato="2026-09-14")
     d = nettsted.bygg_lokalitetsindeks(felles)
     assert d["antall"] == 50
@@ -1545,6 +1663,35 @@ def test_indeksene_er_flate_uten_paginering():
     # prefikset ga 51. Mønsteret spør om det prøven faktisk vil vite:
     # én lenke per lokalitetsnummer.
     assert len(re.findall(r'<a href="/lokalitet/\d+/"', html)) == 50
+    assert d["uten_koordinater_antall"] == 0
+
+
+def test_lokaliteter_uten_koordinater_star_paa_indeksen():
+    """Lista lå på forsiden ved siden av punktkartet den forklarte.
+    Kartet er byttet ut med områdekartet, og et punkt som mangler skal
+    fortsatt ikke bare forsvinne — se docs/REGEL-UENIGE-KILDER.md.
+
+    ANKERET ER DET SAMME som før flyttingen. Et anker er en URL, og den
+    flytter ikke på seg fordi siden gjorde det."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        akva={"10001": {"navn": "MED", "kommune": "K", "fylke": "F",
+                        "prodomraade_kode": "", "arter": "SALMON",
+                        "breddegrad": "60.0", "lengdegrad": "5.0"},
+              "10002": {"navn": "UTEN", "kommune": "K", "fylke": "F",
+                        "prodomraade_kode": "", "arter": "SALMON",
+                        "breddegrad": "", "lengdegrad": "5.0"}},
+        akva_dato="2026-09-14")
+    d = nettsted.bygg_lokalitetsindeks(felles)
+    assert d["uten_koordinater_antall"] == 1
+    assert [r["loknr"] for r in d["uten_koordinater"]] == ["10002"]
+
+    html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
+        d=d, **_grunn("lokalitet"))
+    assert 'id="akvakultur-uten-koordinater"' in html
+    assert "slik at et punkt som mangler ikke bare forsvinner" in \
+        " ".join(html.split())
     # Prøven ser etter pagineringsKONTROLLER, ikke etter ordet: sida
     # forklarer selv at den IKKE er paginert, og en prøve på ordet felte
     # sin egen begrunnelse.
@@ -1838,11 +1985,15 @@ def test_etikettene_klippes_ikke_av_viewboxen():
                for l in gitter["bredde"])
 
 
-def test_gradnettet_tegnes_under_punktene():
-    """SVG har ingen z-indeks. Rekkefølgen i markupen ER lagdelingen, og
-    et nett tegnet sist ville ligget oppå 1782 punkter."""
+def test_lagdelingen_i_kartet_er_rekkefolgen_i_markupen():
+    """SVG har ingen z-indeks. Rekkefølgen ER lagdelingen: gradnettet
+    under områdene, kystlinja over dem — en kystlinje tegnet først ville
+    ligget under tretten fylte flater og ikke vært synlig i det hele
+    tatt."""
     html = _forside()
-    assert html.index('class="gitter"') < html.index('class="punkter"')
+    assert (html.index('class="kart-gitter"')
+            < html.index('class="kart-omraader"')
+            < html.index('class="kart-kyst"'))
 
 
 # ---- lusegrafen -------------------------------------------------------
@@ -1958,7 +2109,13 @@ def test_laanelista_peker_paa_filer_som_faktisk_skrives(tmp_path):
     den sier at teksten finnes."""
     nettsted.skriv_stil(tmp_path)
     nettsted.skriv_fonter(tmp_path)
+    nettsted.skriv_bilder(tmp_path)
     for l in nettsted.VAART_LAAN:
+        # TOM STI BETYR at lisensen ikke krever at teksten følger med.
+        # Raden står likevel — se docs/LISENSKJEDE.md merknad G — og
+        # prøven skal ikke kreve en fil som ikke skal finnes.
+        if not l["sti"]:
+            continue
         assert (tmp_path / l["sti"].lstrip("/")).exists(), l["sti"]
 
 

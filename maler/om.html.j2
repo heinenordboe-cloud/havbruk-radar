@@ -217,8 +217,8 @@
    ingen finner. Lenken her er veien dit. #}
 <h2 id="hva-nettstedet-laaner">Hva nettstedet selv låner</h2>
 <p>
-  Tabellen over gjelder dataene. Selve siden låner to ting, og begge
-  ligger i det som publiseres:
+  Tabellen over gjelder dataene. Selve siden låner fem ting til, og de
+  ligger alle i det som publiseres:
 </p>
 <div class="tabellramme" role="region"
      aria-labelledby="om-laan-tittel" tabindex="0">
@@ -240,17 +240,29 @@
       <th scope="row">{{ l.hva }}</th>
       <td data-felt="rolle">{{ l.rolle }}</td>
       <td data-felt="opphav">{{ l.opphav }}</td>
-      <td data-felt="lisens"><a href="{{ l.sti }}">{{ l.lisens }}</a></td>
+      {# TOM STI = LISENSTEKSTEN LIGGER IKKE PÅ NETTSTEDET, fordi
+         lisensen ikke krever det. Unsplash-lisensen krever ingen
+         navngiving i det hele tatt; raden står likevel, se
+         docs/LISENSKJEDE.md merknad G. En lenke til en fil som ikke
+         finnes ville vært verre enn ingen lenke. #}
+      <td data-felt="lisens">
+        {%- if l.sti %}<a href="{{ l.sti }}" data-felt="lisens">{{ l.lisens }}</a>
+        {%- else %}{{ l.lisens }}{% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
 <p class="tabellnote">
-  Ingen av dem hentes fra et nett ved visning. Fonten ligger på
-  nettstedet selv, og tokenene er slått sammen i stilarket — en side
-  som henter en fil fra en CDN slutter å se riktig ut den dagen den
-  tjenesten gjør det.
+  Ingen av dem hentes fra et nett ved visning. De tre fontene og
+  herobildet ligger på nettstedet selv, og kartgeometrien er tegnet
+  inn i sidene ved bygging — en side som henter en fil fra en CDN
+  slutter å se riktig ut den dagen den tjenesten gjør det, og forteller
+  dem hvem som leser den så lenge den virker.
+  De to siste radene krever ingen navngiving, og står likevel: en side
+  som ikke sier hvor et bilde eller en kystlinje kommer fra, kan ingen
+  etterprøve.
 </p>
 
 <p>

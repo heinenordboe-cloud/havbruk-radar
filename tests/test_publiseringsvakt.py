@@ -453,9 +453,13 @@ def test_hver_pinnet_sum_finnes_som_fil_i_maler(tmp_path):
     kvittering for noe som ikke finnes — og da er den bare støy som
     skjuler at den ekte fila er ukvittert."""
     import hashlib
+    # REKURSIVT. Fra 22.09.2026 ligger herofotografiet i `maler/bilde/`
+    # og kartgeometrien i `maler/geo/`, og en `iterdir()` som bare så
+    # toppnivået meldte tre pinnede summer som «uten fil» — altså
+    # motsatt av hva prøven finnes for.
     maler = pathlib.Path(vakt.__file__).parent / "maler"
     paa_disk = {hashlib.sha256(f.read_bytes()).hexdigest()
-                for f in maler.iterdir() if f.is_file()}
+                for f in maler.rglob("*") if f.is_file()}
     for sum_, hva in vakt.BINAERFILER.items():
         assert sum_ in paa_disk, f"pinnet sum uten fil i maler/: {hva}"
 

@@ -490,6 +490,12 @@ body {
    Innholdsbredden er derfor en regel om INNHOLD og ikke om en boks:
    hver seksjon setter den selv med `.ark`. */
 .ark {
+  /* `inline-size: 100%` OG `margin-inline: auto`. Begge trengs, og det
+     er ikke belt-and-braces: heroen er en FLEX-KOLONNE, og en auto-marg
+     i innlinjeaksen der slår ut `align-items: stretch` og krymper
+     elementet til innholdet sitt. MÅLT: ordmerket sto midtstilt på
+     forsiden mens det sto venstrestilt overalt ellers. */
+  inline-size: 100%;
   max-width: var(--maal-side);
   margin-inline: auto;
   padding-inline: var(--marg-side);
@@ -800,7 +806,7 @@ main {
 main.fullbredde {
   max-width: none;
   padding-inline: 0;
-  padding-block: 0 0;
+  padding-block: 0;
 }
 
 /* ---- overskrifter ---- */
@@ -971,133 +977,516 @@ a:hover {
 
 
 /* ---------------------------------------------------------------- *
- * 2c. HERO-BÅNDET
+ * 5. FORSIDEN
  *
- * Havet er den ENESTE mettede flaten på nettstedet, og dette er den.
- * Den finnes på forsiden og ingen andre steder: en flate som står på
- * hver side er en bakgrunn, og en bakgrunn betyr ingenting.
+ * ## Heroen er et FOTOGRAFI, ikke en fargeflate
  *
- * ## Tallene står i båndet, ikke i avsnittet
+ * Fram til 22.09.2026 var heroen `--hav` som flate, og begrunnelsen var
+ * at havet skulle være den eneste mettede flaten på nettstedet. Den
+ * regelen står — havet er fortsatt den eneste — men flata er nå et
+ * bilde av det: snødekte fjell over mørkt hav (Wolfgang Hasselmann,
+ * Unsplash-lisens, hostet av oss i tre bredder).
  *
- * Fram til 21.09.2026 sto «1782 lokaliteter, 2945 tillatelser og 481
- * selskaper» midt i en setning i brødteksten. Det er nettstedets
- * substans skrevet som løpende tekst: en leser som vil vite omfanget
- * må lese en setning for å finne fire tall.
+ * Gradienten er bare NEDERST, og den er der for lesbarhet og ikke for
+ * stemning: teksten står i bunnen, og uten den ville ordmerket ligget
+ * oppå en fjellside. Verdiene er overleveringens, ordrett.
  *
- * De står nå som en `<dl>` og ikke som en `<table>`. Det er ikke for å
- * slippe unna markupkontrakten — en tabell KREVER caption, thead og
- * `th scope`, og det er riktig for en tabell. Men fire etikett/verdi-par
- * er ikke en tabell; det er en beskrivelsesliste, og en `<thead>` over
- * dem ville vært semantikk vi fant på for å ha noe å fylle ut.
+ * ## Lysskimmeret respekterer `prefers-reduced-motion`
  *
- * ## Aksenten opptrer som STREK her, aldri som flate
- *
- * Regelen fra avsnitt 1, håndhevet: strek over nøkkeltallene, og det
- * er alt. `--aksent-lys` og ikke `--aksent`, fordi flata er mørk.
+ * 34 sekunder er lenge nok til at bevegelsen ikke leses som bevegelse,
+ * men noen blir kvalme av den likevel. Den slås av, ikke dempes.
  * ---------------------------------------------------------------- */
 
 .hero {
-  max-width: var(--maal-side);
-  margin: 0 auto;
-  padding: var(--rom-44) var(--rom-32) var(--rom-40);
-  background: var(--hav);
-  color: var(--hav-tekst);
-}
-
-.hero h1 {
-  /* `--hav-tittel`, ikke `--farge-tekst` og ikke `--ark`.
-
-     `--farge-tekst` er blekk, og blekk på hav er 1,2:1.
-
-     `--ark` var første utkast, og `test_kontrast` felte det: arket er
-     papirfarget i lys modus, men #182327 i mørk — der er det en MØRK
-     flate. Båndet er derimot mørkt i BEGGE moduser, så skriften i det
-     må være lys i begge. En farge som er riktig fordi den tilfeldigvis
-     er lys i den ene modusen, er nøyaktig den slags kobling som
-     ryker. */
-  color: var(--hav-tittel);
-  max-width: none;
-  margin: 0 0 var(--rom-16);
-
-  /* DEN ENE STØRRELSEN UTENFOR SKALAEN. Typeskalaen stopper på steg 8
-     (2,25rem) fordi steg 9 og 10 ble utelatt fra tokens: vi hadde
-     ingen bruk for dem. Båndet er bruken. `clamp` og ikke en fast
-     verdi, fordi 3,5rem på en telefon er seks tegn per linje. */
-  font-size: clamp(var(--fs-30), 1.4rem + 3.4vw, 3.5rem);
-}
-
-.hero .ingress {
-  max-width: var(--maal-tekst);
-  margin: 0;
-  font-size: var(--fs-19);
-  line-height: var(--lh-normal);
-  color: var(--hav-tekst);
-}
-
-.hero .datolinje {
-  /* IKKE `--maal-tekst`. Målebåndet er for løpende tekst; dette er tre
-     korte opplysninger etter hverandre, og 29em tvang «2012-01-02» til
-     å brekke midt i datoen. `<time>` brekkes uansett aldri, se
-     avsnitt 2. */
-  margin: var(--rom-24) 0 0;
-  font-size: var(--fs-13);
-  line-height: var(--lh-normal);
-  color: var(--hav-dempet);
-  max-width: 58em;
-}
-
-/* NØKKELTALLENE. `dl` med `dt`/`dd` i par.
-
-   FLEX OG IKKE GRID. Første utkast var `repeat(auto-fit, minmax(11rem,
-   1fr))`, og den fordelte fire tall utover hele båndets 84rem med 20rem
-   luft mellom hvert. Fire tall som står langt fra hverandre er fire
-   tall, ikke en gruppe. Flex lar dem klumpe seg til venstre i sin egen
-   bredde og brekke til neste linje når det trengs. */
-.nokkeltall {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rom-24) var(--rom-44);
-  margin: var(--rom-40) 0 0;
-  padding-block-start: var(--rom-24);
-  border-block-start: var(--rom-4) solid var(--aksent-lys);
-}
-
-.nokkeltall dt {
-  order: 2;                       /* etiketten UNDER tallet */
-  font-size: var(--fs-13);
-  color: var(--hav-dempet);
-}
-
-.nokkeltall dd {
-  order: 1;
-  margin: 0 0 var(--rom-4);
-  font-family: var(--skrift-tittel);
-  font-weight: 600;
-  font-size: var(--fs-30);
-  line-height: 1;
-  letter-spacing: var(--knip-1);
-  color: var(--hav-tittel);
-}
-
-.nokkeltall > div {
+  position: relative;
   display: flex;
   flex-direction: column;
-  min-width: 7rem;
+  overflow: hidden;
+  background: var(--hav9);
+  color: var(--papir);
+
+  /* Høyden er valgt slik at «Denne uka» starter over bretten på
+     1440x900. Overleveringens verdi. */
+  min-height: clamp(460px, 60vh, 560px);
 }
 
-/* Lenkene i båndet. Aksenten på mørk flate, og understreket beholdes —
-   en lenke som bare er en farge er en lenke noen ikke ser. */
-.hero a {
-  color: var(--aksent-lys);
-  text-decoration-thickness: from-font;
+.hero-bilde {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+
+  /* IKKE FORHÅNDSBESKÅRET. Fila er portrett 2:3, som kilden leverte
+     den, og utsnittet velges her. 42 % legger horisonten der båndet er
+     høyest og fjellene under teksten. */
+  object-position: center 42%;
 }
 
-.hero a:hover { color: var(--hav-tittel); }
+.hero-slor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+      rgba(6, 22, 29, 0.45) 0%,
+      rgba(6, 22, 29, 0) 22%,
+      rgba(6, 22, 29, 0) 42%,
+      rgba(6, 22, 29, 0.82) 72%,
+      rgba(6, 22, 29, 0.96) 100%);
+}
 
-/* Merket på havbåndet, om det noen gang havner der: aksenten er den
-   lyse varianten på mørk flate, som alt annet i båndet. */
-.hero .merke--strek::after,
-.hero .merke--punktum::after { background: var(--aksent-lys); color: var(--aksent-lys); }
+.hero-lys {
+  position: absolute;
+  inset-inline: -20%;
+  top: 40%;
+  block-size: 30%;
+  pointer-events: none;
+  background: radial-gradient(60% 50% at 50% 50%,
+      rgba(231, 219, 208, 0.1), transparent 70%);
+  animation: skimmer 34s ease-in-out infinite;
+}
+
+@keyframes skimmer {
+  0%, 100% { transform: translate3d(-8%, 0, 0); }
+  50%      { transform: translate3d(8%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-lys { animation: none; }
+}
+
+.hero-meny, .hero-bunn { position: relative; z-index: 2; }
+
+.hero-bunn {
+  margin-block-start: auto;
+  padding-block-end: clamp(22px, 2.6vw, 32px);
+}
+
+.hero-tagline {
+  margin: 0 0 var(--rom-14);
+  font-size: var(--fs-13);
+  line-height: var(--lh-tett);
+  color: var(--hav-sekundaer);
+  max-width: none;
+}
+
+.hero-ordmerke { inline-size: max-content; max-inline-size: 100%; }
+
+.hero h1 {
+  margin: 0;
+  font-size: var(--fs-hero);
+  line-height: 0.86;
+  font-weight: 300;
+  letter-spacing: var(--knip-4);
+  color: var(--papir);
+  max-width: none;
+}
+
+/* LINJALEN under ordmerket. En logg er linjert, og linja er det som
+   gjør den til en logg framfor et ark: en heltrukken understrek med
+   loddrette merker, som på en målestokk. Rent ornament, og derfor
+   `aria-hidden` i markupen. */
+.linjal {
+  block-size: 10px;
+  margin-block-start: clamp(12px, 1.6vw, 20px);
+  border-block-end: 2px solid var(--rust);
+  background: repeating-linear-gradient(90deg,
+      var(--rust) 0 1px, transparent 1px 20px);
+  background-position: bottom;
+  background-size: 100% 8px;
+  background-repeat: repeat-x;
+}
+
+.hero-losen {
+  margin: clamp(20px, 2.4vw, 30px) 0 0;
+  font-family: var(--skrift-tittel);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(21px, 2.2vw, 30px);
+  line-height: 1.2;
+  color: var(--papir);
+  max-width: none;
+}
+
+/* SØKESKJEMAET. Ett felt og én knapp, på papirflate midt i det mørke.
+   Etiketten er skjult visuelt og ikke fjernet: en `placeholder` er
+   ikke en etikett — den forsvinner i det noen begynner å skrive. */
+.sok {
+  display: flex;
+  margin-block-start: clamp(18px, 2vw, 26px);
+  max-inline-size: 700px;
+  background: var(--papir);
+}
+
+.sok label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.sok input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  padding: 17px 18px;
+  font: 400 clamp(15px, 1.3vw, 18px) / 1.2 var(--skrift-tekst);
+  color: var(--ink);
+}
+
+.sok input::placeholder { color: var(--ink-dempet); }
+.sok input:focus { outline: 2px solid var(--rust); outline-offset: -2px; }
+.sok .knapp { padding-inline: 26px; }
+
+/* ---- seksjonene på papir ---- */
+
+.seksjon { padding-block: var(--rom-seksjon) var(--rom-seksjon-stor); }
+.seksjon + .seksjon { padding-block-start: 0; }
+
+/* MØRK SEKSJON i full bredde. Kystseksjonen er den ene på forsiden. */
+.mork {
+  background: var(--hav9);
+  color: var(--hav-tegn);
+  padding-block: var(--rom-seksjon-stor);
+}
+
+.mork h2 { color: var(--hav-tittel); }
+.mork a { color: var(--hav-tegn); }
+.mork a:visited { color: var(--hav-tegn); }
+.mork a:hover { color: var(--rust-lys); }
+.mork .tabellnote, .mork figcaption, .mork p { color: var(--hav-sekundaer); }
+
+/* TABELLEN PÅ MØRK FLATE. Captionen er det viktigste på siden når man
+   ikke vet hva man ser på, og en caption i blekkfarge på havbåndet er
+   1,2:1 — altså borte. */
+.mork caption { color: var(--hav-tegn); border-inline-start-color: var(--rust-lys); }
+.mork thead th { color: var(--hav3); border-block-end-color: rgba(231,219,208,.45); }
+.mork tbody th, .mork tbody td { border-block-end-color: rgba(231,219,208,.13); }
+.mork tbody tr:hover { background: rgba(231, 219, 208, 0.05); }
+
+/* ---- denne uka ---- */
+
+.uke-datoer { margin: 0; font-size: var(--fs-14); color: var(--ink-dempet); }
+
+.uke-topp {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--rom-24) clamp(32px, 5vw, 80px);
+  margin-block-start: var(--rom-28);
+  align-items: end;
+}
+
+.uke-sammendrag p {
+  margin: 0 0 var(--rom-10);
+  font-family: var(--skrift-tittel);
+  font-size: var(--fs-sammendrag);
+  line-height: 1.3;
+  font-weight: 400;
+  letter-spacing: var(--knip-1);
+  text-wrap: pretty;
+  max-width: 34ch;
+}
+
+.uke-sammendrag p:last-child { margin-block-end: 0; }
+
+/* TIDSLINJA. To punkter og en strek, og dagene mellom dem står som
+   tall — ikke som en proporsjonal avstand alene: 32 dager tegnet som
+   32 piksler er ikke lesbart, og 32 dager tegnet som hele bredden ville
+   vært en påstand om at det er langt. */
+.tidslinje { margin: 0; }
+
+.tidslinje-spor {
+  display: flex;
+  align-items: center;
+  gap: var(--rom-8);
+}
+
+.tidslinje-punkt {
+  inline-size: 9px;
+  block-size: 9px;
+  flex: none;
+  background: var(--ink-dempet);
+  border-radius: 50%;
+}
+
+.tidslinje-punkt--oss { background: var(--rust); }
+.tidslinje-strek { flex: 1; block-size: 1px; background: var(--papir3); }
+
+.tidslinje-poster {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--rom-12);
+  list-style: none;
+  margin: var(--rom-8) 0 var(--rom-12);
+  padding: 0;
+  max-width: none;
+  font-size: var(--fs-13);
+}
+
+.tidslinje-poster li { margin: 0; }
+.tidslinje-poster li:last-child { text-align: right; }
+
+.tidslinje-etikett {
+  display: block;
+  color: var(--ink-dempet);
+  margin-block-end: 2px;
+}
+
+.tidslinje-gap {
+  color: var(--rust);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- endringstypene ---- */
+
+.typemerker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-8) var(--rom-10);
+  list-style: none;
+  margin: var(--rom-28) 0 var(--rom-20);
+  padding: 0;
+  max-width: none;
+}
+
+.typemerker li { margin: 0; }
+
+.typemerke {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  padding: var(--rom-6) var(--rom-12);
+  font-size: var(--fs-13);
+  color: var(--ink);
+  text-decoration: none;
+  box-shadow: inset 0 0 0 1px rgba(11, 36, 48, 0.25);
+}
+
+.typemerke:visited { color: var(--ink); }
+.typemerke:hover { color: var(--rust); box-shadow: inset 0 0 0 1px var(--rust); }
+.typemerke-tall { font-family: var(--skrift-tall); font-size: var(--fs-13); }
+
+/* TYPER MED NULL VISES ALLTID, dempet. Et tall man bare ser når det er
+   noe der, er et tall ingen kjenner normalverdien til. */
+.typemerke--tom { color: var(--ink-dempet); box-shadow: inset 0 0 0 1px var(--papir3); }
+.typemerke--tom:visited { color: var(--ink-dempet); }
+
+/* ---- arkivlinja ---- */
+
+/* ARKIVLINJA er en INNFELT flate og går derfor helt ut i kanten, som
+   de mørke seksjonene. Den indre `.ark` holder innholdet på plass. */
+.arkivlinje-flate {
+  background: var(--papir2);
+  margin-block-end: var(--rom-seksjon);
+}
+
+.arkivlinje { padding-block: var(--rom-24); }
+
+.arkivtall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-8) var(--rom-32);
+  margin: 0 0 var(--rom-10);
+  max-width: none;
+  font-size: var(--fs-15);
+}
+
+.arkivtall strong {
+  font-family: var(--skrift-tittel);
+  font-weight: 400;
+  font-size: var(--fs-26);
+  line-height: 1;
+  letter-spacing: var(--knip-1);
+  margin-inline-end: 0.15em;
+}
+
+.arkivnote {
+  margin: 0;
+  max-width: none;
+  font-size: var(--fs-13);
+  color: var(--ink-dempet);
+}
+
+.arkivnote code { background: none; padding: 0; }
+
+/* ---- kysten ---- */
+
+.kyst-ingress { max-width: 44ch; margin: 0; font-size: var(--fs-14); }
+
+.kyst-to {
+  display: grid;
+  gap: var(--rom-32) clamp(32px, 4vw, 64px);
+  margin-block-start: var(--rom-32);
+}
+
+@media (min-width: 68.75rem) {
+  /* 1100px: kart | tabell. Overleveringens brytpunkt. */
+  .kyst-to { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr); }
+}
+
+.kystkart {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+/* Kartrammen på mørk flate har ingen egen bakgrunn: båndet ER
+   bakgrunnen, og en ramme rundt kartet ville laget en boks i en boks. */
+.mork .kartramme { margin: 0; }
+
+.kart-omraader .omraade {
+  fill: var(--ink-dempet);
+  fill-opacity: 0.75;
+  stroke: rgba(231, 219, 208, 0.3);
+  stroke-width: 0.6;
+}
+
+.kart-omraader .lys-rod   { fill: var(--lys-rod); }
+.kart-omraader .lys-gul   { fill: var(--lys-gul); }
+.kart-omraader .lys-gronn { fill: var(--lys-gronn); }
+
+/* «IKKE OPPGITT» ER SKRAVUR, og det er den SAMME formen som i rutene i
+   tabellen. Et mønster kan ikke settes som `fill` uten en `<pattern>`
+   i SVG-en; her er den løst som en gjennomsiktig flate med en stiplet
+   kant, som er det nærmeste en enkelt path kommer. */
+.kart-omraader .omraade--skravert {
+  fill: #6f8a95;
+  fill-opacity: 0.16;
+  stroke: #6f8a95;
+  stroke-dasharray: 3 3;
+}
+
+.kart-omraader a:hover .omraade { fill-opacity: 1; }
+.kart-omraader a:focus-visible .omraade { stroke: var(--rust-lys); stroke-width: 2; }
+
+.kart-kyst path {
+  fill: none;
+  stroke: var(--hav-tegn);
+  stroke-width: 0.55;
+  stroke-opacity: 0.8;
+}
+
+.kart-gitter line {
+  stroke: var(--hav3);
+  stroke-width: 0.4;
+  stroke-opacity: 0.35;
+}
+
+.kart-gitter text {
+  font-family: var(--skrift-tekst);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--hav3);
+}
+
+/* ---- femårsstripa ---- */
+
+.stripe { display: inline-flex; gap: 3px; }
+
+.rute {
+  display: inline-block;
+  inline-size: 18px;
+  block-size: 14px;
+  flex: none;
+  box-shadow: inset 0 0 0 1px var(--ink-ring);
+}
+
+.rute.lys-rod   { background: var(--lys-rod); }
+.rute.lys-gul   { background: var(--lys-gul); }
+.rute.lys-gronn { background: var(--lys-gronn); }
+.rute--skravert { background-image: var(--skravur-papir); }
+.mork .rute--skravert { background-image: var(--skravur-moerk); }
+.mork .rute { box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.4); }
+
+.historie {
+  display: block;
+  font-size: var(--fs-13);
+  color: var(--ink-dempet);
+}
+
+.mork .historie { color: var(--hav3); }
+
+.tegnforklaring {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-8) var(--rom-20);
+  list-style: none;
+  margin: var(--rom-16) 0;
+  padding: 0;
+  max-width: none;
+  font-size: var(--fs-13);
+  color: var(--hav-tegn);
+}
+
+.tegnforklaring li {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0;
+}
+
+/* Rutene i tegnforklaringen er mindre enn i stripa: der er de data, her
+   er de en nøkkel. */
+.tegnforklaring .rute { inline-size: 13px; block-size: 11px; }
+
+.dekningsnote {
+  font-size: var(--fs-13);
+  color: var(--hav3);
+  max-width: 56ch;
+}
+
+/* ---- endringscellen ----
+ *
+ * Firkanten står for den NYE verdien, og bare den. En celle har ett
+ * `::before`, og av «grønn → gul» er det gul som gjelder fra nå.
+ *
+ * ORDET ER BÆREREN, som ellers: cellen inneholder «Trafikklysfarge:
+ * grønn → gul» som tekst i vanlig tekstfarge. Slås stilarket av, står
+ * setningen igjen alene og raden er like sann.
+ */
+
+.endring.lys-rod::before,
+.endring.lys-gul::before,
+.endring.lys-gronn::before {
+  content: "";
+  display: inline-block;
+  inline-size: 0.75em;
+  block-size: 0.75em;
+  margin-inline-end: 0.5em;
+  vertical-align: -0.02em;
+  box-shadow: inset 0 0 0 1px var(--ink-ring);
+}
+
+.endring.lys-rod::before   { background: var(--lys-rod); }
+.endring.lys-gul::before   { background: var(--lys-gul); }
+.endring.lys-gronn::before { background: var(--lys-gronn); }
+.mork .endring::before { box-shadow: inset 0 0 0 1px rgba(231,219,208,.4); }
+
+/* ---- felles småting ---- */
+
+.visuelt-skjult {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.videre {
+  display: block;
+  margin-block-end: var(--rom-12);
+  inline-size: max-content;
+  max-inline-size: 100%;
+  font-weight: 500;
+  text-decoration: none;
+  border-block-end: 2px solid var(--rust);
+}
+
+.videre:hover { border-block-end-color: var(--rust-moerk); }
 
 /* ---------------------------------------------------------------- *
  * 3. TABELLER
@@ -1384,6 +1773,7 @@ td[data-felt="registerdata_mangler"] {
  * ---------------------------------------------------------------- */
 
 td[data-felt="farge"]::before,
+td[data-felt="prodomraade_status"]::before,
 td[data-felt="farge_mangler"]::before {
   content: "";
   display: inline-block;
@@ -1396,13 +1786,20 @@ td[data-felt="farge_mangler"]::before {
      samme farge, ville den gule firkantens synlighet hengt på den gule
      — og gul kan ikke nå 3:1 mot hvitt uten å slutte å være gul.
      #717a84 gir 3,58–4,36:1 mot hver flate en firkant står på. */
-  border: 1px solid var(--farge-kant);
-  border-radius: 0;
+  border: 1px solid var(--ink-ring);
 }
 
-td[data-felt="farge"].lys-rod::before   { background: var(--lys-rod); }
-td[data-felt="farge"].lys-gul::before   { background: var(--lys-gul); }
-td[data-felt="farge"].lys-gronn::before { background: var(--lys-gronn); }
+td.lys-rod::before   { background: var(--lys-rod); }
+td.lys-gul::before   { background: var(--lys-gul); }
+td.lys-gronn::before { background: var(--lys-gronn); }
+
+/* PÅ MØRK FLATE er den nøytrale ringen for mørk til å gjøre jobben
+   sin. Den er lys der, med samme begrunnelse: det er RINGEN som bærer
+   at en gul rute er synlig, ikke gulen. */
+.mork td[data-felt="prodomraade_status"]::before,
+.mork td[data-felt="farge"]::before {
+  border-color: rgba(231, 219, 208, 0.45);
+}
 
 /* BEVISST TOM, IKKE ØDELAGT. Samme rute, samme plass i rekka, stiplet
    og uten fyll: plassen finnes, og ingen har fylt den. En celle uten

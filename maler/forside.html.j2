@@ -1,194 +1,456 @@
-{# Forsiden. Skal svare en fremmed på tre ting i løpet av fem sekunder:
-   hva er dette, hvem lagde det, hva kan jeg gjøre her.
+{# Forsiden. Rekkefølgen er overleveringens:
+   hero → denne uka → arkivtall → kysten → følg med → bunntekst.
 
-   Kartet er statisk SVG, generert ved bygging. Ingen karttjeneste, ingen
-   JavaScript, ingen flis hentet i runtime — det skal virke om ti år uten
-   at noen fornyer en nøkkel.
+   Den skal svare en fremmed på tre ting: hva er dette, hva har skjedd,
+   kan jeg stole på det. «Denne uka» ligger derfor rett under heroen og
+   over bretten på 1440x900 — bevegelsen er produktet.
+
+   INGEN TALL, DATOER ELLER NAVN ER SKREVET HER. Alt kommer fra `f`,
+   som `nettsted.bygg_forside()` bygger av snapshotene.
 
    Markupkontrakten gjelder: caption/thead/th scope på hver tabell,
-   data-felt på hver verdicelle, <time datetime> på hver dato. #}
+   data-felt på hver verdicelle, <time datetime> på hver dato.
+   Se docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md. #}
 {% extends "base.html.j2" %}
 
-{# HERO-BÅNDET. Bare forsiden har det — se avsnitt 2c i stil.css.
+{# ---------------------------------------------------------------- 1
+   HEROEN. Overstyrer HELE `topp`-blokka, fordi menyen her ligger oppå
+   et fotografi og ikke i det mørke båndet.
 
-   TALLENE STÅR SOM TALL. De sto i en setning fram til 21.09.2026, og
-   en setning er feil form for fire størrelser noen vil sammenligne.
-   `<dl>` og ikke `<table>`: fire etikett/verdi-par er en
-   beskrivelsesliste, og en tabell ville krevd en `<caption>` og en
-   `<thead>` vi måtte funnet på.
+   BILDET ER HOSTET AV OSS, i tre bredder. `srcset` lar nettleseren
+   velge: en telefon henter 106 kB der en 1440-skjerm henter 375. Ingen
+   CDN, av samme grunn som fontene — og en Unsplash-URL i markupen ville
+   dessuten fortalt dem hvem som leser siden.
 
-   Rekkefølgen i markupen er tall-så-etikett fordi det er den
-   rekkefølgen en skjermleser skal lese dem i («1782 — lokaliteter»).
-   At etiketten står ØVERST visuelt er CSS-ens `order`, og det er
-   grensa mellom fritt og bundet: markupen bærer betydningen. #}
-{% block toppinnhold %}
-<div class="hero ark">
-  <h1>Kystloggen</h1>
-  <p class="ingress">
-    Offentlige registerdata om norsk akvakultur, sammenstilt og datert.
-    Registrene viser nåtilstanden, og den skrives over. Her samles et
-    snapshot i uka, og det som har endret seg står i klartekst.
-  </p>
-  <dl class="nokkeltall">
-    <div>
-      <dd>{{ f.lokaliteter }}</dd>
-      <dt>lokaliteter</dt>
+   `loading="eager"` og `fetchpriority="high"`: dette er det første
+   leseren ser, og et lat-lastet herobilde er en grå flate i et halvt
+   sekund. Motsatt av alle andre bilder. #}
+{% block topp %}
+<header class="hero">
+  <img class="hero-bilde" alt=""
+       src="/bilde/hero-1600.jpg"
+       srcset="/bilde/hero-800.jpg 800w,
+               /bilde/hero-1600.jpg 1600w,
+               /bilde/hero-2400.jpg 2400w"
+       sizes="100vw" width="1600" height="2400"
+       loading="eager" fetchpriority="high" decoding="async">
+  {# Gradienten ligger i CSS-en og ikke her: den er en flate og ikke
+     innhold. Uten stilark står teksten rett på bildet — lesbart nok,
+     og siden er hel. #}
+  <div class="hero-slor" aria-hidden="true"></div>
+  <div class="hero-lys" aria-hidden="true"></div>
+
+  <div class="ark hero-meny">
+    {% include "meny.html.j2" %}
+  </div>
+
+  <div class="ark hero-bunn">
+    <p class="hero-tagline">Et uavhengig, åpent arkiv over offentlige
+      data om norsk havbruk</p>
+    <div class="hero-ordmerke">
+      <h1>Kystloggen</h1>
+      {# LINJALEN. Ornament, og derfor i markupen som et tomt element og
+         ikke som tekst: en skjermleser skal lese «Kystloggen», ikke
+         «Kystloggen understrek». #}
+      <div class="linjal" aria-hidden="true"></div>
     </div>
-    <div>
-      <dd>{{ f.selskaper }}</dd>
-      <dt>selskaper</dt>
-    </div>
-    <div>
-      <dd>{{ f.produksjonsomraader }}</dd>
-      <dt>produksjonsområder</dt>
-    </div>
-    <div>
-      <dd>{{ f.luke_uker }}</dd>
-      <dt>uker med lusetall</dt>
-    </div>
-  </dl>
-  <p class="datolinje">
-    Registerdata fra snapshot
-    <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
-    Lusetall fra
-    <time datetime="{{ f.lus_fra }}">{{ f.lus_fra }}</time> til
-    <time datetime="{{ f.lus_til }}">{{ f.lus_til }}</time>.
-    {{ f.tillatelser }} tillatelser i eierskapsregisteret
-    <time datetime="{{ f.eierskap_dato }}">{{ f.eierskap_dato }}</time>.
-  </p>
-</div>
+    <p class="hero-losen">Registrene viser nå. Vi tar vare på før.</p>
+
+    {# SØKET. Uten JavaScript peker skjemaet på den flate
+       lokalitetsindeksen, som er hele lista på én side — se avviket i
+       oppdraget, punkt 5. Med Pagefind lastet svarer /sok/ i stedet.
+       Skjemaet er det samme; det er svarsiden som blir bedre. #}
+    <form class="sok" action="/sok/" method="get" role="search">
+      <label for="q">Søk etter lokalitet, selskap eller kommune</label>
+      <input id="q" name="q" type="search"
+             placeholder="Søk etter lokalitet, selskap eller kommune">
+      <button class="knapp" type="submit">Søk</button>
+    </form>
+  </div>
+</header>
 {% endblock %}
 
 {% block innhold %}
-<p>
-  Dataene finnes fra før hos Fiskeridirektoratet, Brønnøysundregistrene,
-  BarentsWatch og Lovdata. Det som ikke finnes fra før, er
-  <strong>hva de sa forrige uke</strong>. Hver verdi her bærer datoen
-  den gjelder for, og hver side sier hva den ikke vet.
-</p>
 
-<h2 id="hva-kan-jeg-gjore">Hva kan du gjøre her</h2>
-<ul>
-  <li><a href="/lokalitet/">Alle {{ f.lokaliteter }} lokalitetene</a> —
-      registerdata, hvem som eier tillatelsene, ukentlige lusetall og en
-      endringslogg per lokalitet.</li>
-  <li><a href="/produksjonsomrade/">De {{ f.produksjonsomraader }}
-      produksjonsområdene</a> — trafikklysfargen i hver fastsatte runde,
-      med hvor sterkt den er belagt i forskriften.</li>
-  <li><a href="/selskap/">De {{ f.selskaper }} selskapene</a> — hvilke
-      tillatelser og lokaliteter hvert av dem har, og siden når.</li>
-  <li><a href="/om/">Om prosjektet</a> — kilder, lisenser, hvor ofte det
-      samles inn, hva dekningen er, hvem som står bak, og hvordan du
-      siterer det.</li>
-</ul>
+{# ---------------------------------------------------------------- 2
+   DENNE UKA. Sidens hovedsak. #}
+<section class="ark seksjon" id="uka" aria-labelledby="uka-tittel">
+  <div class="seksjonshode">
+    <h2 class="etikett" id="uka-tittel">Denne uka i registrene</h2>
+    {% if f.uke %}
+    <p class="uke-datoer">
+      <time datetime="{{ f.uke.aar }}-W{{ f.uke.ukenr }}">{{ f.uke.vist }}</time>,
+      {{ f.uke.spenn }}
+      {% if f.forrige_uke %}
+      · <a href="/endringer/{{ f.forrige_uke }}/">forrige uke</a>
+      {% endif %}
+    </p>
+    {% endif %}
+  </div>
 
-<h2 id="kart">Hvor de ligger</h2>
-<p>
-  {{ f.punkter_antall }} lokaliteter med koordinater fra
-  Akvakulturregisteret, snapshot
-  <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
-  Kartet er tegnet av dataene ved bygging — ingen karttjeneste, ingen
-  JavaScript, ingen bakgrunnsflis. Det er punktene og et gradnett:
-  ingen kystlinje, fordi vi ikke har en kystlinje vi har lisens til å
-  tegne. Gradnettet krever ingen lisens — det er aritmetikk — og er den
-  eneste referansen kartet kan gi. 65°N deler landet omtrent ved
-  Rørvik, 70°N ligger like nord for Tromsø.
-</p>
+  <div class="uke-topp">
+    <div class="uke-sammendrag">
+      {% for setning in f.sammendrag %}
+      <p>{{ setning }}</p>
+      {% endfor %}
+    </div>
 
-{# Ingen `style=`-attributt og ingen `fill="currentColor"`. Fargen,
-   kanten og punktstørrelsen kommer fra `.kart` i stil.css, sammen med
-   resten av siden — en SVG med fargene skrevet inn i seg er en SVG som
-   driver fra paletten ved første endring av den.
+    {# TIDSLINJA. To punkter og ikke tre: «fastsatt» er ikke samlet inn,
+       og en dato vi ikke har hentet skal ikke stå på siden. Se
+       `_forskriftslinje()`. #}
+    {% if f.forskriftslinje %}
+    {% set fl = f.forskriftslinje %}
+    <figure class="tidslinje">
+      <div class="tidslinje-spor" aria-hidden="true">
+        <span class="tidslinje-punkt tidslinje-punkt--kilde"></span>
+        <span class="tidslinje-strek"></span>
+        <span class="tidslinje-punkt tidslinje-punkt--oss"></span>
+      </div>
+      <ol class="tidslinje-poster">
+        <li>
+          <span class="tidslinje-etikett">Forskriften utgitt</span>
+          <time datetime="{{ fl.utgitt }}">{{ fl.utgitt_vist }}</time>
+        </li>
+        <li class="tidslinje-gap">{{ fl.dager }} dager</li>
+        <li>
+          <span class="tidslinje-etikett">Observert her</span>
+          <time datetime="{{ fl.observert }}">{{ fl.observert_vist }}</time>
+        </li>
+      </ol>
+      <figcaption>
+        {{ fl.antall }} lokaliteter fikk ny trafikklysfarge i
+        Akvakulturregisteret. Utgivelsen er
+        <strong>kildens</strong> tidspunkt, observasjonen er
+        <strong>vårt</strong>. {{ fl.note }}
+      </figcaption>
+    </figure>
+    {% endif %}
+  </div>
 
-   Uten stilark: sirklene faller til svart fyll og kartet står uten
-   ramme. Det er fortsatt et kart. #}
-<div class="kartramme" role="region"
-     aria-labelledby="karttittel" tabindex="0">
-<svg class="kart" viewBox="0 0 {{ f.kart_bredde }} {{ f.kart_hoyde }}"
-     width="{{ f.kart_bredde }}" height="{{ f.kart_hoyde }}"
-     role="img" aria-labelledby="karttittel kartbeskrivelse">
-  <title id="karttittel">Kart over {{ f.punkter_antall }} norske
-    akvakulturlokaliteter</title>
-  <desc id="kartbeskrivelse">Ett punkt per lokalitet, plassert etter
-    breddegrad og lengdegrad fra Akvakulturregisteret. Ekvirektangulær
-    projeksjon med breddekorreksjon. Gradnett hver femte grad, uten
-    kystlinje. Kartet er en oversikt over utbredelse; navn og tall står
-    i lokalitetslisten.</desc>
-  {# GRADNETTET FØRST i markupen, så punktene tegnes OVER linjene.
-     SVG har ingen z-indeks; rekkefølgen er lagdelingen. #}
-  <g class="gitter" aria-hidden="true">
-    {% for l in f.gitter.bredde %}
-    <line x1="0" y1="{{ l.y }}" x2="{{ f.kart_bredde }}" y2="{{ l.y }}"/>
-    <text x="{{ l.etikett_x }}" y="{{ l.etikett_y }}"
-          text-anchor="end">{{ l.etikett }}</text>
+  {# ENDRINGSTYPENE. Alle vises alltid, også de med null: et tall man
+     bare ser når det er noe der, er et tall ingen kjenner
+     normalverdien til. Lenkene er STIER og ikke spørrestrenger — se
+     avviket i oppdraget, punkt 5, og 2026-09-16-url-struktur.md. #}
+  {% if f.uke %}
+  <ul class="typemerker" aria-label="Endringstyper denne uka">
+    {% for t in f.uke.typer %}
+    <li>
+      <a class="typemerke{% if not t.antall %} typemerke--tom{% endif %}"
+         href="/endringer/{{ f.uke.slug }}/{{ t.id }}/" title="{{ t.hva }}">
+        {{ t.navn }} <span class="typemerke-tall">{{ t.antall }}</span>
+      </a>
+    </li>
     {% endfor %}
-    {% for l in f.gitter.lengde %}
-    <line x1="{{ l.x }}" y1="0" x2="{{ l.x }}" y2="{{ f.kart_hoyde }}"/>
-    <text x="{{ l.etikett_x }}" y="{{ f.gitter.etikett_y_bunn }}"
-          text-anchor="{{ l.etikett_anker }}">{{ l.etikett }}</text>
-    {% endfor %}
-  </g>
-  <g class="punkter">
-    {% for p in f.punkter %}
-    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ f.kart_punkt }}"/>
-    {% endfor %}
-  </g>
-</svg>
-</div>
-
-{# Et punkt som mangler skal ikke bare forsvinne. Uenighetsregelen i et
-   annet format — se docs/REGEL-UENIGE-KILDER.md. #}
-<h3 id="uten-koordinater">Lokaliteter uten koordinater</h3>
-<p>
-  {{ f.uten_koordinater_antall }} av {{ f.lokaliteter }}
-  lokaliteter mangler koordinater i Akvakulturregisteret og er derfor
-  ikke tegnet på kartet.
-  {% if f.uten_koordinater %}
-  De står her i stedet, slik at et punkt som mangler ikke bare
-  forsvinner:
-  {% else %}
-  Ingen mangler i dette snapshotet. Tallet står likevel, fordi et tall
-  man bare ser når det er galt er et tall ingen kjenner normalverdien
-  til.
+  </ul>
   {% endif %}
-</p>
-{% if f.uten_koordinater %}
-<div class="tabellramme" role="region"
-     aria-labelledby="akvakultur-uten-koordinater-tittel" tabindex="0">
-<table id="akvakultur-uten-koordinater">
-  <caption id="akvakultur-uten-koordinater-tittel">
-    Lokaliteter uten breddegrad eller lengdegrad, snapshot
-    <time datetime="{{ f.akva_dato }}">{{ f.akva_dato }}</time>.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Lokalitet</th>
-      <th scope="col">Navn</th>
-      <th scope="col">Kommune</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for l in f.uten_koordinater %}
-    <tr>
-      <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
-      <td class="eier" data-felt="navn">{{ l.navn }}</td>
-      <td data-felt="kommune">{{ l.kommune }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  De har side som alle andre — det er bare kartet de ikke kan være på.
-</p>
-{% endif %}
 
-<h2 id="hvem">Hvem står bak</h2>
-<p>
-  Heine Valø Nordbøe. Koden er åpen og ligger på
-  <a href="https://github.com/heinenordboe-cloud/havbruk-radar">github.com/heinenordboe-cloud/havbruk-radar</a>.
-  Sammenstillingen er min; tallene er kildenes, gjengitt uendret.
-  <a href="/om/">Om-siden</a> har kildene med lisens, hvor ofte det
-  samles inn, hva dekningen er, og hvordan du siterer dette.
-</p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="endringer-uke-tittel" tabindex="0">
+  <table id="endringer-uke">
+    <caption id="endringer-uke-tittel">
+      {% if f.uke %}
+      De {{ f.rader|length }} nyeste av {{ f.uke.antall }} endringer i
+      {{ f.uke.vist }}.
+      {% else %}
+      Ingen uker med endringer ennå.
+      {% endif %}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Observert</th>
+        <th scope="col">Gjelder</th>
+        <th scope="col">Kommune</th>
+        <th scope="col">Produksjonsområde</th>
+        <th scope="col">Endring</th>
+      </tr>
+    </thead>
+    {# DOBBELTMERKINGEN PÅ EN LENKET VERDI er med vilje, og den er ikke
+       pynt: markupkontrakten krever `data-felt` på `<td>`, mens
+       publiseringsvaktens `FELTMERKE` fanger teksten fra `>` fram til
+       første `<` — og det er `<a` når verdien er en lenke. Cellen får
+       derfor merkingen for KONTRAKTEN, og lenka får den for PORTEN.
+       Uten den andre er vakten blind for hvert navn som er en lenke.
+       Se `test_et_lenket_navn_er_synlig_for_porten`. #}
+    <tbody>
+      {% for r in f.rader %}
+      <tr>
+        <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
+        <td class="gjelder" data-felt="entity_name">
+          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="entity_name">{{ r.gjelder }}</a>
+          {%- else %}{{ r.gjelder }}{% endif %}
+        </td>
+        <td data-felt="kommune">{{ r.kommune or "—" }}</td>
+        <td data-felt="prodomraade_kode">
+          {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
+          {%- else %}—{% endif %}
+        </td>
+        {# ORDET ER BÆREREN. Firkanten foran en trafikklysverdi er en
+           `::before` som bare finnes i CSS-en; slås stilarket av, står
+           ordet igjen alene og cellen er like sann. #}
+        <td class="endring {{ r.til_klasse }}" data-felt="{{ r.felt }}">{{ r.etikett }}: {{ r.fra }} → {{ r.til }}</td>
+      </tr>
+      {% endfor %}
+      {% if not f.rader %}
+      <tr>
+        <td colspan="5">Ingen rader. Alle felt står som de sto forrige
+          gang vi spurte.</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+
+  <p class="tabellnote">
+    {% if f.flere_rader %}
+    <a class="videre" href="/endringer/{{ f.uke.slug }}/">Alle
+      {{ f.uke.antall }} endringene i {{ f.uke.vist }} →</a>
+    {% endif %}
+    <strong>«Observert»</strong> er datoen vi så endringen i
+    øyeblikksbildet, ikke datoen registeret gjorde den. Registeret
+    oppgir ikke det siste.
+    {% if f.uke and f.uke.utenfor_uka %}
+    {{ f.uke.utenfor_uka }} endringer står utenfor ukesregnskapet fordi
+    kilden daterer dem til perioden de HANDLER OM og ikke til dagen vi
+    hentet dem — forskriftsrunder, journalførte overføringer og
+    månedlige beholdningstall. De står på entitetenes egne sider.
+    {% endif %}
+  </p>
+</section>
+
+{# ---------------------------------------------------------------- 3
+   ARKIVTALLENE. Én innfelt linje.
+
+   TALLET ER LITE, OG DET SKJULES IKKE. Seks øyeblikksbilder er seks
+   uker, og et arkiv som later som det er eldre enn det er, er verdiløst
+   den dagen noen sjekker. Se avviket i oppdraget, punkt 9. #}
+<section class="arkivlinje-flate" aria-labelledby="arkiv-tittel">
+<div class="ark arkivlinje">
+  <h2 class="visuelt-skjult" id="arkiv-tittel">Arkivet</h2>
+  <p class="arkivtall">
+    <span><strong>{{ f.lokaliteter }}</strong> lokaliteter</span>
+    <span><strong>{{ f.selskaper }}</strong> selskaper</span>
+    <span><strong>{{ f.snapshots }}</strong> ukentlige øyeblikksbilder
+      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
+    <span><strong>{{ f.luke_uker }}</strong> uker med lusetall siden
+      <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time></span>
+  </p>
+  <p class="arkivnote">
+    Siste øyeblikksbilde:
+    <time datetime="{{ f.siste_snapshot }}">{{ f.siste_snapshot|dato }}</time>
+    · sjekksum <code>{{ f.sjekksum[:8] }}…{{ f.sjekksum[-4:] }}</code>
+    · <a href="/om/#metode">Slik samler vi inn</a>
+  </p>
+</div>
+</section>
+
+{# ---------------------------------------------------------------- 4
+   KYSTEN. Mørk seksjon: kart til venstre, de tretten til høyre.
+
+   KARTET ER STATISK SVG, tegnet ved bygging av Fiskeridirektoratets
+   egne polygoner og Natural Earths kystlinje. Ingen flis, ingen
+   karttjeneste, ingen JavaScript — se kart.py.
+
+   Områdene er `<a>`-lenker i SVG-en, så kartet virker uten JS. #}
+<section class="fullbredde mork kysten" id="kysten"
+         aria-labelledby="kyst-tittel">
+  <div class="ark">
+    <div class="seksjonshode">
+      <div>
+        <p class="etikett">Kysten</p>
+        <h2 id="kyst-tittel">{{ f.produksjonsomraader }}
+          produksjonsområder</h2>
+      </div>
+      <p class="kyst-ingress">
+        Trafikklyset fastsettes annethvert år. Forskriften navngir bare
+        områder der noe skjer, så en skravert rute i stripa er et steg
+        i historien og ikke et hull.
+      </p>
+    </div>
+
+    <div class="kyst-to">
+      <figure class="kartramme" role="region"
+              aria-labelledby="kysttittel" tabindex="0">
+      <svg class="kystkart" viewBox="0 0 {{ f.kart.bredde }} {{ f.kart.hoyde }}"
+           width="{{ f.kart.bredde }}" height="{{ f.kart.hoyde }}"
+           role="img" aria-labelledby="kysttittel kystbeskrivelse">
+        <title id="kysttittel">Kart over de
+          {{ f.produksjonsomraader }} produksjonsområdene</title>
+        <desc id="kystbeskrivelse">Fiskeridirektoratets offisielle
+          polygoner, fylt med trafikklysfargen Akvakulturregisteret
+          oppgir nå. Kystlinja er Natural Earth 1:10 millioner.
+          Ekvirektangulær projeksjon med breddekorreksjon, gradnett hver
+          femte grad. Alle navn, farger og tall står i tabellen ved
+          siden av.</desc>
+        {# Rekkefølgen er lagdelingen: SVG har ingen z-indeks. #}
+        <g class="kart-gitter" aria-hidden="true">
+          {% for l in f.kart.gitter.bredde %}
+          <line x1="0" y1="{{ l.y }}" x2="{{ f.kart.bredde }}" y2="{{ l.y }}"/>
+          {% endfor %}
+          {% for l in f.kart.gitter.lengde %}
+          <line x1="{{ l.x }}" y1="0" x2="{{ l.x }}" y2="{{ f.kart.hoyde }}"/>
+          {% endfor %}
+        </g>
+        <g class="kart-omraader">
+          {% for o in f.kart.omraader %}
+          <a href="/produksjonsomrade/{{ o.nr }}/"
+             aria-label="Produksjonsområde {{ o.nr }} {{ o.navn }}, {{ o.farge }}, {{ o.antall }} lokaliteter">
+            {% for d in o.baner %}
+            <path class="omraade {{ o.farge_klasse or 'omraade--skravert' }}"
+                  d="{{ d }}"/>
+            {% endfor %}
+          </a>
+          {% endfor %}
+        </g>
+        <g class="kart-kyst" aria-hidden="true">
+          {% for d in f.kart.kyst %}
+          <path d="{{ d }}"/>
+          {% endfor %}
+        </g>
+        <g class="kart-gitter kart-gitter--tekst" aria-hidden="true">
+          {% for l in f.kart.gitter.bredde %}
+          <text x="{{ l.etikett_x }}" y="{{ l.etikett_y }}"
+                text-anchor="end">{{ l.etikett }}</text>
+          {% endfor %}
+        </g>
+      </svg>
+      <figcaption>
+        Områdegrensene er Fiskeridirektoratets offisielle polygoner.
+        Fargen er den Akvakulturregisteret oppgir nå, ikke den
+        forskriften sist navnga — de to er ikke alltid de samme, og
+        stripa i tabellen viser forskjellen.
+        {# ET PUNKT SOM MANGLER SKAL IKKE BARE FORSVINNE. Tallet står
+           her, lista står på lokalitetsindeksen. Skrives ALLTID, også
+           når det er null: et tall man bare ser når det er galt, er et
+           tall ingen kjenner normalverdien til. #}
+        {{ f.uten_koordinater_antall }} av {{ f.lokaliteter }}
+        lokaliteter mangler koordinater i registeret;
+        <a href="/lokalitet/#akvakultur-uten-koordinater">de står oppført
+        på lokalitetslista</a>.
+      </figcaption>
+      </figure>
+
+      <div class="kyst-tabell">
+        <div class="tabellramme" role="region"
+             aria-labelledby="trafikklysvedtak-oversikt-tittel" tabindex="0">
+        <table id="trafikklysvedtak-oversikt">
+          <caption id="trafikklysvedtak-oversikt-tittel">
+            De {{ f.produksjonsomraader }} produksjonsområdene med
+            fargen som gjelder nå{% if f.runder %}, og fargen i hver av
+            de {{ f.runder|length }} forskriftsrundene{% endif %}.
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Nr.</th>
+              <th scope="col">Område</th>
+              <th scope="col">Nå</th>
+              <th scope="col">
+                {%- if f.runder %}{{ f.runder[0] }}–{{ f.runder[-1] }}
+                {%- else %}Runder{% endif %}</th>
+              <th scope="col" class="tall">Lokaliteter</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in f.omraader %}
+            <tr>
+              <th scope="row">{{ o.nr }}</th>
+              <td data-felt="prodomraade_navn">
+                <a href="/produksjonsomrade/{{ o.nr }}/" data-felt="prodomraade_navn">{{ o.navn }}</a>
+                <span class="historie">{{ o.historie }}</span>
+              </td>
+              <td class="{{ o.farge_klasse }}" data-felt="prodomraade_status">{{ o.farge }}</td>
+              <td data-felt="stripe">
+                <span class="stripe">
+                  {% for s in o.stripe %}
+                  <span class="rute {{ s.klasse or 'rute--skravert' }}"
+                        title="{{ s.aar }}: {{ s.farge }}"></span>
+                  {% endfor %}
+                </span>
+              </td>
+              <td class="tall" data-felt="lokaliteter_antall">{{ o.lokaliteter }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+
+        {# TEGNFORKLARINGEN. Ordet står ved hver farge — farge bærer
+           aldri mening alene. #}
+        <ul class="tegnforklaring" aria-label="Fargeforklaring">
+          <li><span class="rute lys-rod"></span>rød</li>
+          <li><span class="rute lys-gul"></span>gul</li>
+          <li><span class="rute lys-gronn"></span>grønn</li>
+          <li><span class="rute rute--skravert"></span>ikke oppgitt i
+            forskriften</li>
+        </ul>
+
+        <p class="dekningsnote">
+          {{ f.i_omraade }} av {{ f.lokaliteter }} lokaliteter ligger i
+          et produksjonsområde. Landbaserte anlegg og
+          ferskvannslokaliteter har ingen, og telles ikke med her.
+          {% if f.kart.mangler_geometri %}
+          {{ f.kart.mangler_geometri|length }} områder mangler geometri i
+          kartfila og er derfor ikke tegnet; de står i tabellen.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ---------------------------------------------------------------- 5
+   FØLG MED. Feeds, og bare feeds.
+
+   UKESBREVET ER IKKE BYGGET, og skjemaet står derfor ikke her — se
+   avviket i oppdraget, punkt 6. Et skjema som poster til en adresse
+   ingen lytter på, er verre enn ingen: det ser ut som en vei inn. #}
+<section class="ark seksjon" id="folg" aria-labelledby="folg-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Følg med</p>
+      <h2 id="folg-tittel">Få beskjed når noe endrer seg</h2>
+    </div>
+  </div>
+  <p>
+    Hver lokalitet, hvert produksjonsområde og hvert selskap har sin
+    egen feed, og det finnes én for alt. Legg den inn i en feedleser.
+    Ingen konto, ingen e-postadresse, ingen sporing — en feed er en fil
+    du henter, og vi får aldri vite at du gjorde det.
+  </p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="feeder-tittel" tabindex="0">
+  <table id="feeder">
+    <caption id="feeder-tittel">Atom-feedene, bygget av
+      endringsloggen.</caption>
+    <thead>
+      <tr>
+        <th scope="col">Hva</th>
+        <th scope="col">Adresse</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row">Alle endringer</th>
+        <td data-felt="feed"><a href="/endringer/feed.xml" data-felt="feed">/endringer/feed.xml</a></td>
+      </tr>
+      <tr>
+        <th scope="row">Én lokalitet</th>
+        <td data-felt="feed"><code>/lokalitet/&lt;nr&gt;/feed.xml</code></td>
+      </tr>
+      <tr>
+        <th scope="row">Ett produksjonsområde</th>
+        <td data-felt="feed"><code>/produksjonsomrade/&lt;nr&gt;/feed.xml</code></td>
+      </tr>
+      <tr>
+        <th scope="row">Ett selskap</th>
+        <td data-felt="feed"><code>/selskap/&lt;orgnr&gt;/feed.xml</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    Feeden for en lokalitet ligger i lokalitetens egen mappe, ved siden
+    av siden og CSV-en. Kopierer du mappa, følger alt tre med — se
+    <a href="/om/#siter">Slik siterer du</a>.
+  </p>
+</section>
 {% endblock %}

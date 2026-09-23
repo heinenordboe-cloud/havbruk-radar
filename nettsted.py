@@ -86,7 +86,7 @@ import math
 import os
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -97,6 +97,7 @@ from markupsafe import Markup
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+import kart                                                # noqa: E402
 import publiseringsvakt                                    # noqa: E402
 import visningsord                                         # noqa: E402
 from core import changelog, diff, snapshot                 # noqa: E402
@@ -264,7 +265,7 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
                    tittel: str, beskrivelse: str, jsonld,
                    kilder, proveniens_tekst: str,
                    meny_aktiv: str = "", feed: str = "",
-                   feed_tittel: str = "") -> dict:
+                   feed_tittel: str = "", main_klasse: str = "") -> dict:
     """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
     i_dag = dt.date.today().isoformat()
     return {
@@ -282,6 +283,11 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
         "meny_aktiv": meny_aktiv,
         "feed": feed,
         "feed_tittel": feed_tittel,
+        # `fullbredde` når sidetypen har seksjoner som går helt ut i
+        # kanten og selv setter innholdsbredden med en indre `.ark`.
+        # To lag sidemarg er dobbelt innrykk, og MÅLT ble forsidens
+        # innhold stående 112 px inn der det skulle stått 56.
+        "main_klasse": main_klasse,
     }
 
 
@@ -324,6 +330,29 @@ def _siste(kilde: str) -> tuple[str, dict[str, dict[str, str]]]:
         raise SystemExit(f"{kilde}: ingen snapshots i {DATA_DIR}")
     versjonene = snapshot.versjoner(kilde, dato)
     return dato, _pivot(versjonene[-1][1])
+
+
+def _sjekksum(kilde: str) -> str:
+    """`raw_hash` i nyeste snapshot av kilden. Tom når den mangler.
+
+    ÉN verdi per snapshot: hashen er av KROPPEN kilden sendte, ikke av
+    raden, så alle radene i en fil bærer den samme. Det er nettopp
+    derfor den kan stå på forsiden som «sjekksum for dette
+    øyeblikksbildet» — den identifiserer svaret vi fikk, og en
+    etterprøving kan sammenligne mot arkivet i `data/arkiv/`.
+
+    Skulle en fil bære flere, er den satt sammen av flere kropper, og da
+    er det ingen ÉN sjekksum å oppgi. Tom streng er da svaret, ikke den
+    første av dem.
+    """
+    dato = snapshot.siste_dato(kilde)
+    if dato is None:
+        return ""
+    ramme = snapshot.versjoner(kilde, dato)[-1][1]
+    if "raw_hash" not in ramme.columns:
+        return ""
+    verdier = [v for v in ramme["raw_hash"].unique().to_list() if v]
+    return verdier[0] if len(verdier) == 1 else ""
 
 
 def _hentet(kilde: str) -> str:
@@ -444,6 +473,15 @@ class Felles:
     # Adressen folk melder feil til. Tom når `HAVBRUK_KONTAKT` ikke er
     # satt, og da SIER bunnteksten det framfor å finne på en.
     kontakt: str
+    # HELE CHANGELOGGEN, filtrert av `diff.bevegelse()`. Ligger her og
+    # ikke bak et nytt kall fordi lesingen koster 6 s, og fordi
+    # `les_endringsuker()` og `registerendringer` ellers ville vært to
+    # lesinger av det samme som kan svare ulikt — formen F6 og F7 hadde.
+    bevegelse: pl.DataFrame
+    # Trafikklysfargen slik AKVAKULTURREGISTERET oppgir den nå, per
+    # produksjonsområde. En annen kilde enn `po_farger`, og den svarer
+    # på et annet spørsmål — se `_po_naa()`.
+    po_naa: dict[str, dict[str, str]]
 
 
 def les_felles() -> Felles:
@@ -546,7 +584,65 @@ def les_felles() -> Felles:
         enhet_dato=enhet_dato,
         akva_hentet=_hentet("akvakultur"),
         kontakt=_kontakt(),
+        bevegelse=beveg,
+        po_naa=_po_naa(akva),
     )
+
+
+def _po_naa(akva: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
+    """Trafikklysfargen slik REGISTERET oppgir den nå, per område.
+
+    ## Hvorfor dette ikke er det samme som `_po_farger()`
+
+    De to svarer på hver sin ting, og forskjellen er hele grunnen til at
+    begge finnes:
+
+        _po_farger()   HVA FORSKRIFTEN SA i hver runde, med belegg.
+                       Leses av `trafikklysvedtak`. 19 av 65 celler er
+                       tomme, fordi forskriften bare navngir områder
+                       der noe endrer seg.
+        _po_naa()      HVILKEN FARGE SOM GJELDER NÅ. Leses av
+                       `akvakultur.prodomraade_status`, som
+                       Fiskeridirektoratet setter på hver lokalitet.
+                       Ingen tomme: alle 13 har en verdi.
+
+    Å utlede «gjelder nå» av forskriftsrundene ville krevd at vi antok
+    at en farge står til den endres. Det er sant, men det er VÅR
+    slutning — og her finnes et register som sier det selv. Still
+    spørsmålet til den som faktisk vet (CLAUDE.md 1b-1).
+
+    ## Uenighet sies, den pusses ikke bort
+
+    Fargen står på hver LOKALITET og ikke på området. Skulle to
+    lokaliteter i samme område oppgi ulik farge, er det en uenighet i
+    kilden, og raden sier det framfor at en av de to vinner ved et
+    sammentreff i iterasjonsrekkefølgen. Se docs/REGEL-UENIGE-KILDER.md.
+    """
+    per_po: dict[str, Counter] = defaultdict(Counter)
+    for a in akva.values():
+        kode = (a.get("prodomraade_kode") or "").strip()
+        farge = (a.get("prodomraade_status") or "").strip()
+        if kode and farge:
+            per_po[kode][farge] += 1
+
+    ut: dict[str, dict[str, str]] = {}
+    for kode, teller in per_po.items():
+        if len(teller) == 1:
+            raa = next(iter(teller))
+            ut[kode] = {
+                "farge": visningsord.verdi("prodomraade_status", raa),
+                "klasse": FARGE_KLASSE.get(_fargekode(raa.lower()), ""),
+                "uenig": "",
+            }
+        else:
+            ut[kode] = {
+                "farge": FARGE_MANGLER,
+                "klasse": "",
+                "uenig": "; ".join(f"{visningsord.verdi('prodomraade_status', f)}"
+                                   f" på {n} lokaliteter"
+                                   for f, n in teller.most_common()),
+            }
+    return ut
 
 
 def _isouke(dato: str) -> tuple[int, int]:
@@ -836,6 +932,389 @@ def _dekning_fra() -> list[dict]:
         if datoer:
             ut.append({"kilde": kilde, "fra": min(datoer)})
     return ut
+
+
+# ---------------------------------------------------- ENDRINGSUKENE
+#
+# «Denne uka i registrene» på forsiden, og siden `/endringer/<år>-<uke>/`.
+# Det er nettstedets eneste side som er om TIDA framfor om en entitet,
+# og den er hele produktet: registrene viser nå, og bevegelsen er det
+# som ikke finnes noe annet sted.
+#
+# ## HVILKE KILDER SOM HAR EN UKE, og hvorfor det ikke er en liste her
+#
+# `observed_at` betyr ikke det samme i alle kilder, og kilden sier det
+# selv: `Source.partisjonering` er enten «henting» eller «verden».
+#
+#     henting   observed_at ER innsamlingsdatoen. akvakultur,
+#               biomasselag, eierskap, enhetsregisteret.
+#     verden    observed_at er perioden raden HANDLER OM.
+#               trafikklysvedtak dateres til vedtaksåret (2026-12-31),
+#               eierskap_historikk til journalåret, biomasse til
+#               månedsslutt.
+#
+# En «verden»-rad har ingen uke i denne forstand. MÅLT 22.09.2026:
+# `trafikklysvedtak` og `eierskap_historikk` har 2026-12-31 som
+# `observed_at`, altså uke 53 av 2026 — en uke som ikke har vært. Tatt
+# med ville forsiden påstått at vi observerte noe i framtida.
+#
+# Lista utledes derfor av kildenes egen erklæring og står ikke her. Det
+# er samme regel som `ubelagte()`: en liste hos publiseringsleddet kan
+# bli stående uendret når en ny kilde kommer til, og den manglende
+# uka ville vist seg først den dagen noen så etter.
+#
+# At radene er UTELATT står på siden med et tall, ikke i stillhet.
+
+
+def ukentlige_kilder() -> frozenset[str]:
+    """Kildene der `observed_at` ER innsamlingsdatoen.
+
+    UTLEDET av `Source.partisjonering`, aldri listet. I dag er svaret
+    `{akvakultur, biomasselag, eierskap, enhetsregisteret}`.
+    """
+    from core import registry
+    from core.contract import erklaert_partisjonering
+
+    ut: dict[str, str] = {}
+    for kilde in registry.discover():
+        ut.update(erklaert_partisjonering(kilde))
+    return frozenset(n for n, v in ut.items() if v == "henting")
+
+
+# ------------------------------------------------- HVA SLAGS ENDRING
+#
+# Overleveringen ber om seks etiketter: Trafikklys, Biomasse, Eierskap,
+# Tillatelse, Ny lokalitet, Nedlagt lokalitet. Dataene har ÅTTE slag, og
+# to av dem er store: 369 endringer i `antall_ansatte` og 362 i
+# `prodomraade_status` i uke 39 alene.
+#
+# De to som mangler i overleveringens liste er
+# SELSKAPSOPPLYSNING (enhetsregisteret) og LOKALITETSOPPLYSNING
+# (akvakulturfelt som ikke er trafikklyset). Å presse dem inn i
+# «Eierskap» eller å utelate dem ville vært å la designet bestemme hva
+# dataene inneholder. README-en sier selv: «Datafeltene er foreslåtte
+# navn; tilpass modellen.»
+#
+# ## TABELLEN ER EKSPLISITT, OG DET ER POENGET
+#
+# Ingen heuristikk, ingen «hvis feltnavnet inneholder eier». Et felt som
+# ikke står her faller til `annet` og TELLES — samme regel som
+# `visningsord`: en ukjent kode slipper igjennom uendret og blir talt,
+# slik at den ikke står på siden igjen om et halvår uten at noen så det.
+
+# (source, field) -> type. Feltet `*` betyr «alle andre felt i kilden».
+ENDRINGSTYPE_REGLER = {
+    # Trafikklysfargen slik REGISTERET oppgir den per lokalitet. Dette
+    # er kilden til at fargen endrer seg i en bestemt UKE: forskriften
+    # dateres til vedtaksåret, mens Akvakulturregisteret følger den opp
+    # og vi ser det den mandagen det skjer.
+    ("akvakultur", "prodomraade_status"): "trafikklys",
+    ("trafikklysvedtak", "farge"): "trafikklys",
+    ("trafikklysvedtak", "farge__lesemaate"): "trafikklys",
+
+    # Hvem som eier tillatelsen.
+    ("eierskap", "eier_navn"): "eierskap",
+    ("eierskap", "eier_orgnr"): "eierskap",
+    ("eierskap", "eier_type"): "eierskap",
+    ("eierskap", "organisasjonsform"): "eierskap",
+
+    # Selve tillatelsen: hva den gjelder, hvor stor den er, hvor den
+    # ligger. Alt annet `eierskap` bærer.
+    ("eierskap", "*"): "tillatelse",
+    ("akvakultur", "tillatelser"): "tillatelse",
+    ("akvakultur", "tillatelser_antall"): "tillatelse",
+    ("akvakultur", "tillatelser_trukket"): "tillatelse",
+
+    # Fisk til stede. `biomasselag` sier om det STÅR fisk på
+    # lokaliteten, ikke hvor mye — mengden er per produksjonsområde og
+    # hører hjemme på områdesiden. Se avviket i oppdraget, punkt 1.
+    ("biomasselag", "*"): "biomasse",
+
+    # Resten av akvakultur: navn, kommune, arter, kapasitet, koordinater.
+    ("akvakultur", "*"): "lokalitet",
+
+    # Enhetsregisteret om selskapet: ansatte, regnskap, konkurs, adresse.
+    ("enhetsregisteret", "*"): "selskap",
+}
+
+# Rekkefølgen etikettene står i, og teksten på dem. Rekkefølgen er
+# TEMATISK og ikke etter antall: etiketter som bytter plass fra uke til
+# uke er etiketter ingen lærer seg.
+ENDRINGSTYPER = (
+    {"id": "trafikklys", "navn": "Trafikklys",
+     "hva": "produksjonsområdets farge, slik registeret oppgir den"},
+    {"id": "eierskap", "navn": "Eierskap",
+     "hva": "hvem som eier en tillatelse"},
+    {"id": "tillatelse", "navn": "Tillatelse",
+     "hva": "tillatelsens formål, kapasitet eller lokaliteter"},
+    {"id": "ny", "navn": "Ny i registeret",
+     "hva": "en lokalitet, tillatelse eller et selskap vi ikke så forrige uke"},
+    {"id": "borte", "navn": "Ute av registeret",
+     "hva": "en oppføring som var der forrige uke og ikke er det nå"},
+    {"id": "lokalitet", "navn": "Lokalitetsopplysning",
+     "hva": "navn, kommune, arter, kapasitet eller posisjon"},
+    {"id": "biomasse", "navn": "Fisk til stede",
+     "hva": "om det står fisk på lokaliteten"},
+    {"id": "selskap", "navn": "Selskapsopplysning",
+     "hva": "ansatte, regnskap, konkurs eller adresse i Enhetsregisteret"},
+    {"id": "annet", "navn": "Annet",
+     "hva": "et felt som ikke er klassifisert ennå"},
+)
+
+# Kodene som falt ut av tabellen. Telles og skrives i byggerapporten, av
+# samme grunn som `visningsord.UKJENTE`.
+UKJENTE_ENDRINGER: defaultdict = defaultdict(int)
+
+
+def endringstype(source: str, field: str, change_type: str) -> str:
+    """Hvilken av `ENDRINGSTYPER` en changelog-rad hører til.
+
+    ## `ny` og `borte` slår alt annet
+
+    En oppføring som kommer eller går er ÉN hendelse, ikke tjue. At det
+    er `organisasjonsform` og `kommune` og nitten felt til som dukket
+    opp samtidig, er hvordan `diff.compare()` skriver det — ikke hva som
+    skjedde. Se `_ukens_hendelser()`, som slår dem sammen per entitet.
+    """
+    if change_type in ("ny", "borte"):
+        return change_type
+    nøkkel = (source, field)
+    if nøkkel in ENDRINGSTYPE_REGLER:
+        return ENDRINGSTYPE_REGLER[nøkkel]
+    if (source, "*") in ENDRINGSTYPE_REGLER:
+        return ENDRINGSTYPE_REGLER[(source, "*")]
+    UKJENTE_ENDRINGER[f"{source}/{field}"] += 1
+    return "annet"
+
+
+# Verdien i en «fra»- eller «til»-celle når oppføringen ikke fantes.
+# Ikke tom, ikke «0» — overleveringens egen tekst.
+IKKE_I_REGISTERET = "ikke i registeret"
+
+
+def _omvendt(dato: str) -> tuple:
+    """Sorteringsnøkkel som gjør en ISO-dato SYNKENDE i en stigende sort.
+
+    Trengs fordi de andre leddene i nøkkelen skal stige. `reverse=True`
+    på hele nøkkelen ville snudd dem også.
+    """
+    return tuple(-int(d) for d in dato.split("-"))
+
+
+def _ukeslug(dato: str) -> str:
+    """«2026-09-21» -> «2026-39». ISO-uke, og den står i URL-en.
+
+    ISO-ÅRET og ikke kalenderåret: 2019-12-30 er mandag i uke 1 av
+    2020, og `/endringer/2019-01/` for den datoen ville vært en adresse
+    som peker på feil uke for alltid. En URL kan ikke gjøres om — se
+    2026-09-16-url-struktur.md.
+    """
+    aar, ukenr = _isouke(dato)
+    return f"{aar}-{ukenr:02d}"
+
+
+def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
+    """Én changelog-rad (eller én samlet ny/borte-oppføring) som en
+    tabellrad på forsiden og på endringssiden.
+
+    ## Hvem raden GJELDER, og hvorfor det ikke alltid er en lokalitet
+
+    Overleveringen har kolonnen «Lokalitet». Dataene har tre slags
+    entiteter: lokaliteter (akvakultur, biomasselag), TILLATELSER
+    (eierskap) og SELSKAPER (enhetsregisteret). 776 av uke 39s 812
+    hendelser gjelder ikke en lokalitet.
+    
+    Kolonnen heter derfor «Gjelder», og lokaliteten står i sin egen
+    kolonne der den finnes. Å presse et selskap inn i en
+    lokalitetskolonne ville vært designet som bestemte hva dataene
+    inneholder.
+    """
+    kilde = str(rad["source"])
+    eid = str(rad["entity_id"])
+    felt = str(rad["field"])
+    endring = str(rad["change_type"])
+    slag = endringstype(kilde, felt, endring)
+
+    gjelder_navn = gjelder_url = kommune = po = po_navn = ""
+    lok_navn = lok_url = ""
+    if kilde in ("akvakultur", "biomasselag"):
+        a = felles.akva.get(eid) or {}
+        gjelder_navn = visningsord.tittelform(a.get("navn", "")) or f"Lokalitet {eid}"
+        gjelder_url = f"/lokalitet/{eid}/"
+        gjelder_slag = "lokalitet"
+        kommune = a.get("kommune", "")
+        po, po_navn = a.get("prodomraade_kode", ""), a.get("prodomraade_navn", "")
+        lok_navn, lok_url = gjelder_navn, gjelder_url
+    elif kilde == "eierskap":
+        gjelder_navn = f"Tillatelse {eid}"
+        gjelder_slag = "tillatelse"
+        d = felles.eierskap.get(eid) or {}
+        orgnr = (d.get("eier_orgnr") or "").strip()
+        if orgnr and orgnr in felles.tillatelser_per_eier:
+            gjelder_url = f"/selskap/{orgnr}/"
+        lokaliteter = _liste(d.get("lokaliteter"))
+        if len(lokaliteter) == 1:
+            a = felles.akva.get(lokaliteter[0]) or {}
+            lok_navn = (visningsord.tittelform(a.get("navn", ""))
+                        or f"Lokalitet {lokaliteter[0]}")
+            lok_url = f"/lokalitet/{lokaliteter[0]}/"
+            kommune = a.get("kommune", "")
+            po, po_navn = (a.get("prodomraade_kode", ""),
+                           a.get("prodomraade_navn", ""))
+        elif lokaliteter:
+            lok_navn = f"{len(lokaliteter)} lokaliteter"
+    elif kilde == "enhetsregisteret":
+        reg = felles.enhet.get(eid) or {}
+        gjelder_navn = reg.get("navn", "") or f"Organisasjonsnummer {eid}"
+        gjelder_slag = "selskap"
+        if eid in felles.tillatelser_per_eier:
+            gjelder_url = f"/selskap/{eid}/"
+        kommune = reg.get("kommune", "")
+    else:
+        gjelder_navn = eid
+        gjelder_slag = kilde
+
+    raa_fra = rad["old_value"] if rad["old_value"] is not None else ""
+    raa_til = rad["new_value"] if rad["new_value"] is not None else ""
+    if endring == "ny":
+        fra, til = IKKE_I_REGISTERET, f"{antall_felt} felt registrert"
+        fra_raa = til_raa = ""
+    elif endring == "borte":
+        fra, til = f"{antall_felt} felt", IKKE_I_REGISTERET
+        fra_raa = til_raa = ""
+    else:
+        fra = visningsord.verdi(felt, raa_fra)
+        til = visningsord.verdi(felt, raa_til)
+        fra_raa, til_raa = str(raa_fra).strip().lower(), str(raa_til).strip().lower()
+
+    return {
+        "dato": str(rad["observed_at"]),
+        "uke": _ukeslug(str(rad["observed_at"])),
+        "type": slag,
+        "type_navn": next(x["navn"] for x in ENDRINGSTYPER if x["id"] == slag),
+        "kilde": kilde,
+        "entity_id": eid,
+        "felt": felt if endring == "endret" else "change_type",
+        "etikett": (visningsord.felt(felt) if endring == "endret"
+                    else ("Ny oppføring" if endring == "ny"
+                          else "Borte fra registeret")),
+        "fra": fra,
+        "til": til,
+        # FARGEKLASSEN ER EN PRESENTASJONSKROK, som i fargetabellen: CSS
+        # kan ikke velge på celletekst, så «hvilken av de tre» må stå
+        # som en klasse for at ruta foran ordet skal kunne få farge.
+        # Ordet er fortsatt bæreren.
+        "fra_klasse": FARGE_KLASSE.get(_fargekode(fra_raa), ""),
+        "til_klasse": FARGE_KLASSE.get(_fargekode(til_raa), ""),
+        "er_farge": slag == "trafikklys",
+        "gjelder": gjelder_navn,
+        "gjelder_url": gjelder_url,
+        "gjelder_slag": gjelder_slag,
+        "lokalitet": lok_navn,
+        "lokalitet_url": lok_url,
+        "kommune": kommune,
+        "po": po,
+        "po_navn": po_navn,
+    }
+
+
+# Registerets skrivemåte av fargeordet er VERSALER («GUL»), forskriftens
+# er normalisert ascii («gul»). Begge skal treffe den samme ruta.
+_FARGEKODER = {"rod": "rod", "rød": "rod", "gul": "gul",
+               "gronn": "gronn", "grønn": "gronn"}
+
+
+def _fargekode(raa: str) -> str:
+    return _FARGEKODER.get(raa, "")
+
+
+def les_endringsuker(felles: Felles) -> list[dict]:
+    """Én post per ISO-uke vi har observert endringer i, nyest først.
+
+    ## `ny` og `borte` slås sammen per ENTITET
+
+    `diff.compare()` skriver én rad per felt. For en oppføring som
+    dukker opp eller forsvinner er det ikke tjue hendelser — det er én,
+    skrevet tjue ganger. MÅLT uke 39: 625 `borte`-rader fra
+    enhetsregisteret er 29 selskaper.
+
+    En «endret»-rad er derimot ÉN hendelse per felt: at et selskap både
+    byttet adresse og meldte konkurs er to ting som skjedde.
+
+    ## Hva som IKKE er med
+
+    Kilder der `observed_at` ikke er innsamlingsdatoen — se
+    `ukentlige_kilder()`. Og UBELAGTE kilder, som ellers på nettstedet.
+    Begge deler telles og står på siden.
+    """
+    ukentlige = sorted(ukentlige_kilder())
+    ubelagt = ubelagte(felles.vilkaar)
+    beveg = felles.bevegelse
+
+    utenfor = beveg.filter(
+        ~pl.col("source").is_in(ukentlige)
+        & ~pl.col("source").is_in(sorted(MAALESERIER))
+        & ~pl.col("source").is_in(sorted(ubelagt))).height
+
+    mine = beveg.filter(pl.col("source").is_in(ukentlige))
+
+    # `ny`/`borte`: ett kall per (kilde, entitet, dato), med antall felt.
+    samlet: dict[tuple, dict] = {}
+    rader: list[dict] = []
+    for r in mine.iter_rows(named=True):
+        if r["change_type"] == "endret":
+            rader.append(_hendelse(r, felles))
+            continue
+        nøkkel = (str(r["source"]), str(r["entity_id"]),
+                  str(r["change_type"]), str(r["observed_at"]))
+        post = samlet.get(nøkkel)
+        if post is None:
+            samlet[nøkkel] = {"rad": r, "felt": 1}
+        else:
+            post["felt"] += 1
+    rader += [_hendelse(p["rad"], felles, p["felt"]) for p in samlet.values()]
+
+    per_uke: dict[str, list[dict]] = defaultdict(list)
+    for h in rader:
+        per_uke[h["uke"]].append(h)
+
+    uker = []
+    for slug in sorted(per_uke, reverse=True):
+        # SORTERINGEN ER TRE LEDD, og bare det første er «nyest først».
+        #
+        # Første utkast sorterte alt synkende, og følgen var at
+        # forsidens åtte rader ble Ø, Ø, Ø, Ø, Æ, Å, Å, Å — alfabetets
+        # slutt, baklengs. Åtte rader som alle heter nesten det samme
+        # ser ut som en feil i utvalget, og det var det også: navnet
+        # skal stige, det er bare DATOEN som skal synke.
+        #
+        # Midterste ledd er typerekkefølgen fra `ENDRINGSTYPER`, som er
+        # tematisk: trafikklys først, «annet» sist. En uke der noe
+        # skjedde med fargen skal vise DET øverst, ikke et regnskapstall
+        # fra Enhetsregisteret som tilfeldigvis er alfabetisk først.
+        rang = {k["id"]: i for i, k in enumerate(ENDRINGSTYPER)}
+        hendelser = sorted(
+            per_uke[slug],
+            key=lambda h: (_omvendt(h["dato"]), rang.get(h["type"], 99),
+                           h["gjelder"]))
+        datoer = sorted({h["dato"] for h in hendelser})
+        antall = Counter(h["type"] for h in hendelser)
+        uker.append({
+            "slug": slug,
+            "aar": slug[:4],
+            "ukenr": slug[5:],
+            "vist": f"uke {int(slug[5:])}, {slug[:4]}",
+            "spenn": visningsord.ukespenn(datoer[0]),
+            "datoer": datoer,
+            "forste_dato": datoer[0],
+            "siste_dato": datoer[-1],
+            "hendelser": hendelser,
+            "antall": len(hendelser),
+            "typer": [dict(k, antall=antall.get(k["id"], 0))
+                      for k in ENDRINGSTYPER],
+            "utenfor_uka": utenfor,
+        })
+    return uker
 
 
 # ------------------------------------------- produksjonsområdene
@@ -1688,13 +2167,28 @@ def _miljo() -> Environment:
     tall ser riktig ut, og det er den feilen som er dyrest å oppdage
     sent.
     """
-    return Environment(
+    miljo = Environment(
         loader=FileSystemLoader(MALER),
         autoescape=True,
         undefined=StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
     )
+    # FILTRENE ER `visningsord`, ikke nye funksjoner. En mal som skriver
+    # «16. september 2026» skal gjøre det gjennom det samme ene stedet
+    # som CSV-en og byggerapporten bruker — to steder som staver
+    # september hver for seg er formen F6 og F7 hadde.
+    #
+    # Bare DATOFORMENE er filtre. `verdi()` og `felt()` tar et feltnavn
+    # og hører hjemme i Python, der den som bygger raden vet hvilket
+    # felt det er; i malen ville feltnavnet måttet skrives en gang til.
+    miljo.filters["dato"] = visningsord.dato
+    miljo.filters["uke"] = visningsord.uke
+    miljo.filters["isouke"] = visningsord.isouke
+    miljo.filters["ukespenn"] = visningsord.ukespenn
+    miljo.filters["tidspunkt"] = visningsord.tidspunkt
+    miljo.filters["tall"] = visningsord.tall
+    return miljo
 
 
 # Stien fra en side til stilarket. RELATIV, ikke absolutt.
@@ -1898,6 +2392,25 @@ FONTFILER = ("newsreader.woff2", "newsreader-OFL.txt",
 # si noe annet enn den.
 IKONFILER = ("favicon.svg", "favicon-32.png", "apple-touch-icon.png")
 
+# HEROFOTOGRAFIET, i tre bredder. Hostet av oss, aldri hentet fra
+# Unsplash i runtime: en `images.unsplash.com`-URL i markupen ville
+# fortalt dem hvem som leser siden, og en side som henter sitt eget
+# hovedbilde fra en tredjepart er en side som ser feil ut den dagen den
+# tjenesten gjør det.
+#
+# Ligger i `bilde/` og ikke i rota, fordi rota er for filer som må
+# ligge der (`/stil.css`, fontene, faviconene, `robots.txt`). Se
+# `docs/design/HEROFOTO.md` for proveniens, lisens og sha256.
+BILDEMAPPE = "bilde"
+BILDEFILER = ("hero-800.jpg", "hero-1600.jpg", "hero-2400.jpg")
+
+# KARTGEOMETRIEN SENDES IKKE UT. Den er tegnet INN i SVG-en på hver
+# side, og en GeoJSON-fil ved siden av ville vært 365 kB ingen henter.
+# LISENSFILA sendes ut: Natural Earth krever ingen attribusjon, men en
+# lisens som ligger i repoet og ikke på nettstedet er en lisens en
+# leser ikke kan finne. Se `docs/design/KARTGEOMETRI.md`.
+GEOFILER = ("naturalearth-LICENSE.md",)
+
 
 def _kopier_fra_maler(rot: Path, navn: tuple[str, ...], hvorfor: str) -> list[Path]:
     """Kopierer navngitte filer fra `maler/` til nettstedets rot.
@@ -1930,6 +2443,29 @@ def skriv_ikoner(rot: Path) -> list[Path]:
     return _kopier_fra_maler(
         rot, IKONFILER,
         "base.html.j2 viser til fila i <head>.")
+
+
+def skriv_bilder(rot: Path) -> list[Path]:
+    """Herofotografiet til `/bilde/`, og kartlisensen til rota."""
+    (rot / BILDEMAPPE).mkdir(parents=True, exist_ok=True)
+    skrevet = []
+    for navn in BILDEFILER:
+        kilde = MALER / BILDEMAPPE / navn
+        if not kilde.exists():
+            raise FileNotFoundError(
+                f"{kilde} mangler. Forsiden viser til fila i `srcset`; "
+                f"uten den er heroen en tom flate.")
+        ut = rot / BILDEMAPPE / navn
+        ut.write_bytes(kilde.read_bytes())
+        skrevet.append(ut)
+    for navn in GEOFILER:
+        kilde = MALER / "geo" / navn
+        if not kilde.exists():
+            raise FileNotFoundError(f"{kilde} mangler.")
+        ut = rot / navn
+        ut.write_bytes(kilde.read_bytes())
+        skrevet.append(ut)
+    return skrevet
 
 
 # ------------------------------------------- sitemap, robots, llms
@@ -2233,6 +2769,20 @@ VAART_LAAN = (
      "lisens": "SIL Open Font License 1.1",
      "opphav": "IBM, via google/fonts",
      "sti": "/ibmplex-OFL.txt"},
+    # DE TO SISTE KREVER INGENTING, og står her likevel. En side som
+    # ikke sier hvor et bilde eller en kystlinje kommer fra, kan ingen
+    # etterprøve — samme grunn som at datokolonnen i lisenskjeden
+    # finnes. Se docs/LISENSKJEDE.md merknad G.
+    {"hva": "Herofotografiet, av Wolfgang Hasselmann",
+     "rolle": "forsidens hero",
+     "lisens": "Unsplash-lisensen (navngiving er frivillig)",
+     "opphav": "unsplash.com/photos/cbaS3DXXCl4",
+     "sti": ""},
+    {"hva": "Kystlinje, Natural Earth 1:10 millioner",
+     "rolle": "kartene",
+     "lisens": "public domain",
+     "opphav": "naturalearthdata.com",
+     "sti": "/naturalearth-LICENSE.md"},
 )
 
 
@@ -2292,9 +2842,22 @@ def bygg_lokalitetsindeks(felles: Felles) -> dict:
         "arter": visningsord.verdi("arter", a.get("arter", "")),
     } for loknr, a in felles.akva.items()]
     rader.sort(key=lambda r: int(r["loknr"]) if r["loknr"].isdigit() else 0)
+
+    # LOKALITETER UTEN KOORDINATER. Lista lå på forsiden til 22.09.2026,
+    # ved siden av punktkartet den forklarte. Kartet er byttet ut med
+    # områdekartet, og regnskapet flyttet hit — der alle 1 782 uansett
+    # står. Uenighetsregelen er den samme: et punkt som mangler skal
+    # ikke bare forsvinne. Se docs/REGEL-UENIGE-KILDER.md.
+    _punkter, uten, _hoyde, _gitter = kartpunkter(felles.akva)
     return {"rader": rader, "antall": len(rader),
             "akva_dato": felles.akva_dato,
-            "uten_po": sum(1 for r in rader if not r["po_kode"])}
+            "uten_po": sum(1 for r in rader if not r["po_kode"]),
+            "uten_koordinater": [
+                {"loknr": nr,
+                 "navn": felles.akva[nr].get("navn", ""),
+                 "kommune": felles.akva[nr].get("kommune", "")}
+                for nr in uten],
+            "uten_koordinater_antall": len(uten)}
 
 
 def bygg_poindeks(felles: Felles) -> dict:
@@ -2547,39 +3110,246 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
             round(hoyde, 1), gitter)
 
 
-FORSIDEKILDER = ("akvakultur", "eierskap", "lusetall")
+# HVOR MANGE RADER FORSIDENS ENDRINGSTABELL VISER. Overleveringen sier
+# åtte, og deretter «Alle N endringer i uke W →». Tallet står her og
+# ikke i malen: et tall i en mal er et tall ingen kan teste.
+FORSIDERADER = 8
+
+
+def _sammendrag(uke: dict | None) -> list[str]:
+    """Én til tre setninger om uka, generert av tallene.
+
+    ## Hvorfor generert og ikke skrevet
+
+    Fordi den skal stemme hver mandag uten at noen leser korrektur. En
+    håndskrevet ingress om «trafikklysuka» ville stått der uka etter
+    også.
+
+    ## Hvorfor det ikke er en tolkning
+
+    Setningene sier HVA SOM ENDRET SEG og HVOR MANGE. De sier ikke
+    hvorfor, og de sier ikke om det er mye eller lite: «362 lokaliteter
+    fikk ny trafikklysfarge» er en telling, «uvanlig mange» ville vært
+    en vurdering vi ikke har grunnlag for før vi har mer enn fem uker.
+    """
+    if uke is None or not uke["antall"]:
+        return ["Ingen endringer i registrene denne uka. Alle felt står "
+                "som de sto forrige gang vi spurte."]
+
+    med_tall = sorted((k for k in uke["typer"] if k["antall"]),
+                      key=lambda k: -k["antall"])
+    setninger = [
+        f"{visningsord.tall(uke['antall'])} endringer observert i "
+        f"{uke['vist']}, fordelt på {len(med_tall)} "
+        f"{'slag' if len(med_tall) == 1 else 'slag'}."
+    ]
+
+    storst = med_tall[0]
+    if storst["id"] == "trafikklys":
+        setninger.append(
+            f"Akvakulturregisteret oppgir ny trafikklysfarge for "
+            f"{visningsord.tall(storst['antall'])} lokaliteter — "
+            f"forskriften dateres til vedtaksåret, og dette er uka "
+            f"registeret fulgte den opp.")
+    else:
+        setninger.append(
+            f"Størst er {storst['navn'].lower()} med "
+            f"{visningsord.tall(storst['antall'])}: {storst['hva']}.")
+
+    if len(med_tall) > 1:
+        nest = med_tall[1]
+        setninger.append(
+            f"Deretter {nest['navn'].lower()} med "
+            f"{visningsord.tall(nest['antall'])}.")
+    return setninger
+
+
+def _forskriftslinje(felles: Felles, uke: dict | None) -> dict | None:
+    """De to tidspunktene vi HAR for en trafikklysendring, og gapet.
+
+    ## Overleveringen ber om tre punkter. Vi har to.
+
+    Tidslinja i designet er «Fastsatt → Kunngjort → Observert her».
+    FASTSATT-datoen er ikke samlet inn: `trafikklysvedtak` bærer `farge`
+    og `farge__lesemaate` og ingenting annet, og en dato vi ikke har
+    hentet skal ikke stå på siden. Punktet utelates — overleveringens
+    egen regel for komponenten: «punkter uten dato utelates, dager
+    beregnes ikke».
+
+    De to vi har er belagte:
+
+        utgitt        `published_at` på trafikklysvedtak-snapshotet.
+                      Det er KILDENS eget tidspunkt (CLAUDE.md 1b-7),
+                      lest av tjenesten og ikke utledet av oss.
+        observert     `observed_at` på akvakulturradene. Det er OSS.
+
+    ## Koblingen mellom dem er VÅR, og det står på siden
+
+    At registeret endret farge fordi denne forskriften ble utgitt, er en
+    slutning. Den er nærliggende og den er ikke bevist: ingen felt i
+    noen av de to kildene viser til den andre. `note` sier det, og
+    setningen rendres sammen med tidslinja — ikke i en fotnote noen
+    kan hoppe over.
+    """
+    if uke is None:
+        return None
+    trafikklys = [h for h in uke["hendelser"] if h["type"] == "trafikklys"]
+    if not trafikklys:
+        return None
+
+    runder = snapshot.datoer("trafikklysvedtak")
+    utgitt = ""
+    if runder:
+        ramme = snapshot.versjoner("trafikklysvedtak", runder[-1])[-1][1]
+        utgitt = snapshot.published_at_i(ramme) or ""
+    if not utgitt:
+        return None
+
+    observert = min(h["dato"] for h in trafikklys)
+    try:
+        dager = (dt.date.fromisoformat(observert)
+                 - dt.date.fromisoformat(utgitt[:10])).days
+    except ValueError:
+        return None
+    if dager < 0:
+        # Observert FØR utgivelsen: da er det ikke denne runden vi ser,
+        # og en tidslinje som viste den ville vært en usann kobling.
+        return None
+
+    return {
+        "utgitt": utgitt[:10],
+        "utgitt_vist": visningsord.dato(utgitt[:10]),
+        "observert": observert,
+        "observert_vist": visningsord.dato(observert),
+        "dager": dager,
+        "antall": len(trafikklys),
+        "runde": runder[-1][:4],
+        "note": ("Koblingen mellom de to datoene er vår lesning. Ingen "
+                 "felt i noen av kildene viser til den andre — "
+                 "forskriften sier ikke når registeret skal følge opp, "
+                 "og registeret sier ikke hvilken forskrift det følger."),
+    }
+
+
+def _omraaderader(felles: Felles) -> list[dict]:
+    """De tretten radene i kysttabellen, med femårsstripa.
+
+    Stripa er RUNDENE, ikke årene: 2018, 2020, 2022, 2024, 2026 er fem
+    forskrifter, og et hull mellom dem er ikke en rute som mangler.
+    `title` på hver rute bærer året og fargeordet, fordi en rute uten
+    tekst er en farge som bærer mening alene.
+    """
+    rader = []
+    for po in sorted(felles.po_navn, key=lambda k: int(k) if k.isdigit() else 0):
+        runder = _fargerader(po, felles)
+        naa = felles.po_naa.get(po) or {"farge": FARGE_MANGLER, "klasse": "",
+                                        "uenig": ""}
+        rader.append({
+            "nr": po,
+            "navn": felles.po_navn[po],
+            "lokaliteter": len(felles.lokaliteter_per_po.get(po, ())),
+            "farge": naa["farge"],
+            "farge_klasse": naa["klasse"],
+            "uenig": naa["uenig"],
+            "stripe": [{"aar": r["aar"], "farge": r["farge"],
+                        "klasse": r["farge_klasse"],
+                        "tittel": f"{r['aar']}: {r['farge']}"}
+                       for r in runder],
+            "historie": _historietekst(runder),
+        })
+    return rader
+
+
+def _historietekst(runder: list[dict]) -> str:
+    """«grønn i alle fem runder», «gul → rød → gul», «ikke oppgitt i
+    noen runde». Avledet av stripa, aldri skrevet.
+
+    Runder UTEN farge hoppes over i pilrekka framfor å stå som «ikke
+    oppgitt → gul → ikke oppgitt»: forskriften navngir bare områder der
+    noe endrer seg, så en tom runde er fravær av en BESTEMMELSE og ikke
+    fravær av en farge. At rutene i stripa likevel er skravert, er
+    forskjellen på hva vi VET og hva som gjelder — og de to skal ikke
+    slås sammen.
+    """
+    med = [r["farge"] for r in runder if r["farge"] != FARGE_MANGLER]
+    if not med:
+        return "ikke oppgitt i noen runde"
+    kjede = [med[0]] + [f for forrige, f in zip(med, med[1:]) if f != forrige]
+    if len(kjede) == 1:
+        if len(med) == len(runder):
+            return f"{kjede[0]} i alle {len(runder)} rundene"
+        return f"{kjede[0]} i {len(med)} av {len(runder)} runder"
+    return " → ".join(kjede)
+
+
+FORSIDEKILDER = ("akvakultur", "eierskap", "lusetall", "trafikklysvedtak")
 
 
 def bygg_forside(felles: Felles) -> dict:
-    """Tallene og kartet forsiden viser.
+    """Alt forsiden viser: heroen, uka, arkivtallene, kysten og feedene.
 
-    Forsiden skal svare en fremmed på tre ting: hva er dette, hvem lagde
-    det, hva kan jeg gjøre her. Tallene er det første svaret — en
-    påstand om omfang som kan etterprøves ved å klikke.
+    Rekkefølgen i dicten er sidens: hero, denne uka, arkivtall, kysten,
+    følg med.
     """
-    punkter, uten_koordinater, hoyde, gitter = kartpunkter(felles.akva)
-    uten = [{"loknr": loknr, "navn": felles.akva[loknr].get("navn", ""),
-             "kommune": felles.akva[loknr].get("kommune", "")}
-            for loknr in uten_koordinater]
-    uker = len(felles.lusetall_snapshots)
+    _punkter, uten, _hoyde, _gitter = kartpunkter(felles.akva)
+    uker = les_endringsuker(felles)
+    uke = uker[0] if uker else None
+    omraader = _omraaderader(felles)
+    akva_datoer = snapshot.datoer("akvakultur")
+
     return {
+        # ---- tallene ----
         "lokaliteter": len(felles.akva),
         "produksjonsomraader": len(felles.po_navn),
         "selskaper": sum(1 for o in felles.tillatelser_per_eier
                          if not personeier(o, felles)),
         "tillatelser": len(felles.eierskap),
-        "luke_uker": uker,
-        "lus_fra": felles.lusetall_snapshots[0] if uker else "",
-        "lus_til": felles.lusetall_snapshots[-1] if uker else "",
+        "luke_uker": len(felles.lusetall_snapshots),
+        "lus_fra": (felles.lusetall_snapshots[0]
+                    if felles.lusetall_snapshots else ""),
+        "lus_til": (felles.lusetall_snapshots[-1]
+                    if felles.lusetall_snapshots else ""),
         "akva_dato": felles.akva_dato,
+        "akva_hentet": felles.akva_hentet,
         "eierskap_dato": felles.eierskap_dato,
-        "punkter": punkter,
-        "punkter_antall": len(punkter),
-        "kart_bredde": KART_BREDDE,
-        "kart_hoyde": hoyde,
-        "kart_punkt": KART_PUNKT,
-        "gitter": gitter,
-        "uten_koordinater": uten,
+
+        # ---- denne uka ----
+        "uke": uke,
+        "sammendrag": _sammendrag(uke),
+        "forskriftslinje": _forskriftslinje(felles, uke),
+        "rader": (uke["hendelser"][:FORSIDERADER] if uke else []),
+        "flere_rader": (max(uke["antall"] - FORSIDERADER, 0) if uke else 0),
+        "forrige_uke": (uker[1]["slug"] if len(uker) > 1 else ""),
+        "forrige_uke_vist": (uker[1]["vist"] if len(uker) > 1 else ""),
+        "uker_totalt": len(uker),
+
+        # ---- arkivtall ----
+        # SNAPSHOTS, ikke filer: `snapshot.datoer()` teller datoer, og
+        # to versjoner av samme dato er ett øyeblikksbilde av verden.
+        "snapshots": len(akva_datoer),
+        "forste_snapshot": akva_datoer[0] if akva_datoer else "",
+        "siste_snapshot": akva_datoer[-1] if akva_datoer else "",
+        "sjekksum": _sjekksum("akvakultur"),
+
+        # ---- kysten ----
+        "omraader": omraader,
+        "kart": kart.kystkart(omraader),
+        "i_omraade": sum(len(v) for v in felles.lokaliteter_per_po.values()),
+        "runder": [d[:4] for d in felles.runder],
+
+        # ---- det kartet IKKE viser ----
+        #
+        # PUNKTKARTET ER BORTE fra forsiden. Fram til 22.09.2026 var
+        # forsidens kart 1 782 prikker med et gradnett; overleveringen
+        # setter områdekartet der i stedet, og to kart over det samme
+        # landet på den samme siden er ett kart for mye.
+        #
+        # Regnskapet over lokaliteter UTEN koordinater følger ikke med
+        # prikkene ut. Det er uenighetsregelen (docs/REGEL-UENIGE-KILDER.md):
+        # et punkt som mangler skal ikke bare forsvinne. Tallet står i
+        # kartets bildetekst her, og hele lista står på
+        # /lokalitet/#akvakultur-uten-koordinater — der alle 1 782
+        # uansett er.
         "uten_koordinater_antall": len(uten),
     }
 
@@ -2600,7 +3370,8 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
             jsonld=jsonld_forside(f, felles.vilkaar),
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
             feed="/endringer/feed.xml",
-            feed_tittel="Kystloggen: alle endringer"),
+            feed_tittel="Kystloggen: alle endringer",
+            main_klasse="fullbredde"),
     )
     sti = rot / "index.html"
     rot.mkdir(parents=True, exist_ok=True)
@@ -3073,6 +3844,7 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     for skriv in (lambda: skriv_stil(rot),
                   lambda: skriv_fonter(rot),
                   lambda: skriv_ikoner(rot),
+                  lambda: skriv_bilder(rot),
                   lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),
                   lambda: skriv_llms(rot, felles)):
