@@ -58,8 +58,20 @@ class Stopp(SystemExit):
 
 def kjor(*args: str, mappe: Path = ROT, vis: bool = False) -> str:
     """Kjør en kommando. `Stopp` ved feil, med kommandoens egen melding."""
-    ut = subprocess.run(args, cwd=mappe, text=True,
-                        capture_output=not vis)
+    try:
+        ut = subprocess.run(args, cwd=mappe, text=True,
+                            capture_output=not vis)
+    except FileNotFoundError:
+        # En kommando som ikke finnes skal si HVA som mangler, ikke
+        # vise et spor fra subprocess. Dette rammer `npx` på en maskin
+        # uten Node, og da er svaret å installere Node — ikke å lese
+        # en stakktrace.
+        raise Stopp(
+            f"\n  STOPPET: kommandoen «{args[0]}» finnes ikke.\n"
+            + ("  Installer Node.js (som gir npx), og kjør\n"
+               "    npx wrangler login\n"
+               "  én gang før første publisering."
+               if args[0] == "npx" else ""))
     if ut.returncode != 0:
         melding = (ut.stderr or ut.stdout or "").strip() if not vis else ""
         raise Stopp(f"\n  STOPPET i {mappe.name}: {' '.join(args)}\n"
