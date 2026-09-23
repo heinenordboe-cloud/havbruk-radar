@@ -165,7 +165,20 @@
     filtrer();
   }
 
-  [kopier, omraadesok, endringsfilter].forEach(function (del) {
+  /* --------------------------------------------- selskapsdata-delen
+   *
+   * `<details open>` i markupen, lukket her. Rekkefølgen er hele
+   * poenget: uten skript står delen ÅPEN, og alt innholdet er der.
+   * En del som må åpnes av et skript er en del som ikke finnes for
+   * den som har skript av — det er samme regel som knappen som er
+   * `hidden` til den virker, speilvendt.
+   */
+  function selskapsdel() {
+    var deler = document.querySelectorAll("details[data-lukk-ved-js]");
+    Array.prototype.forEach.call(deler, function (d) { d.open = false; });
+  }
+
+  [kopier, omraadesok, endringsfilter, selskapsdel].forEach(function (del) {
     try {
       del();
     } catch (e) {

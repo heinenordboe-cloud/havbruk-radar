@@ -2482,6 +2482,28 @@ figcaption {
 
 .rundenote .rute-foran { white-space: nowrap; }
 
+/* ---- selskapsdata-delen på ukessiden ---- */
+
+.egen-del {
+  margin-block: var(--rom-32);
+  padding: var(--rom-16) var(--rom-20);
+  background: var(--papir2);
+  box-shadow: inset 0 0 0 1px var(--papir3);
+}
+
+.egen-del > summary {
+  font-family: var(--skrift-tittel);
+  font-size: var(--fs-19);
+  cursor: pointer;
+}
+
+.egen-del-tall {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.egen-del > .tabellnote { max-width: 68ch; margin-block-start: var(--rom-12); }
+
 /* ---- søkefeltet i området ---- */
 
 .omraadesok {

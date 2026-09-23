@@ -68,19 +68,23 @@
     <p>{{ rader|length }} av {{ u.antall_rader }} rader i {{ u.vist }} er
       {{ valgt.navn|lower }} — {{ valgt.hva }}.</p>
     {% else %}
-    <p>{{ u.antall }} endringer observert i {{ u.vist }}, fordelt på
-      {{ u.typer|selectattr("antall")|rejectattr("teller", "defined")|list|length }} slag.</p>
+    <p>{{ u.antall }} endringer observert i {{ u.vist }}:
+      {{ u.ledet_slag }}.</p>
     {% endif %}
     {# DE TO TALLENE ER IKKE DET SAMME, og forskjellen skjules ikke.
        «Felt oppgitt første gang» og «Felt ikke lenger oppgitt» er
        opplysninger om hva KILDEN rapporterer, ikke om hva som skjedde
        i havbruket, og de telles derfor ikke i tallet over. De står i
        tabellen. #}
-    {% if u.utenfor_tellingen %}
+    {% if u.utenfor_tellingen and not valgt %}
     <p class="tabellnote">
       {{ u.utenfor_tellingen }} rader til står i tabellen uten å telle
       med: de sier at kilden begynte eller sluttet å oppgi et felt om en
       oppføring, ikke at noe skjedde med oppføringen.
+      {% if u.antall_egen_del %}
+      {{ u.antall_egen_del }} endringer i selskapsdata står lenger ned,
+      i sin egen del.
+      {% endif %}
     </p>
     {% endif %}
   </div>
@@ -131,8 +135,9 @@
        aria-labelledby="endringer-uke-tittel" tabindex="0">
   <table id="endringer-uke">
     <caption id="endringer-uke-tittel">
-      <span data-teller>Viser {{ rader|length }} av {{ u.antall_rader }}</span>
-      rader i {{ u.vist }}.
+      <span data-teller>Viser {{ rader|length }} av {{ rader|length }}</span>
+      {% if valgt %}rader{% else %}endringer utenom selskapsdata{% endif %}
+      i {{ u.vist }}.
     </caption>
     <thead>
       <tr>
@@ -177,6 +182,60 @@
     </tbody>
   </table>
   </div>
+
+  {# SELSKAPSDATA, I SIN EGEN DEL.
+     `<details open>` og ikke `hidden`: uten JavaScript står den ÅPEN,
+     og skriptet lukker den. En del som må åpnes av et skript er en del
+     som ikke finnes for den som har skript av. Se avvik 5 og
+     `maler/kystloggen.js`. #}
+  {% if egen %}
+  <details class="egen-del" open data-lukk-ved-js>
+    <summary>
+      <span class="egen-del-tall">{{ egen|length }}</span>
+      endringer i selskapsdata
+    </summary>
+    <p class="tabellnote">
+      Ansatte, næringskode, adresse, regnskap, kapital og konkurs fra
+      Enhetsregisteret. Radene er ekte — de er kontrollert mot
+      Brønnøysunds egne svar — men de er løpende registervedlikehold og
+      ikke hendelser i havbruket, og de telles derfor ikke i tallet
+      over. MÅLT uke 39: 369 av 402 var antall ansatte, som oppdateres
+      månedlig for alle selskaper samtidig.
+    </p>
+    <div class="tabellramme" role="region"
+         aria-labelledby="endringer-selskapsdata-tittel" tabindex="0">
+    <table id="endringer-selskapsdata">
+      <caption id="endringer-selskapsdata-tittel">
+        Alle {{ egen|length }} selskapsdataendringene i {{ u.vist }}.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Observert</th>
+          <th scope="col">Gjelder</th>
+          <th scope="col">Kommune</th>
+          <th scope="col">Endring</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in egen %}
+        <tr data-type="{{ r.type }}">
+          <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
+          <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
+            {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
+            {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
+          </td>
+          <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+          <td class="endring" data-felt="endringstekst">{{ r.etikett }}:
+            <span data-felt="{{ r.fra_felt }}">{{ r.fra }}</span>
+            <span class="pil" aria-label="ble til">→</span>
+            <span data-felt="{{ r.til_felt }}">{{ r.til }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+  {% endif %}
 
   <p class="tabellnote">
     <strong>«Observert»</strong> er datoen vi så endringen i

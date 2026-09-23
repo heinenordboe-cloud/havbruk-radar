@@ -1310,11 +1310,11 @@ ENDRINGSTYPE_REGLER = {
 # TEMATISK og ikke etter antall: etiketter som bytter plass fra uke til
 # uke er etiketter ingen lærer seg.
 ENDRINGSTYPER = (
-    {"id": "trafikklys", "navn": "Trafikklys",
+    {"id": "trafikklys", "navn": "Trafikklys", "kort": "trafikklys",
      "hva": "produksjonsområdets farge, slik registeret oppgir den"},
-    {"id": "eierskap", "navn": "Eierskap",
+    {"id": "eierskap", "navn": "Eierskap", "kort": "eierskap",
      "hva": "hvem som eier en tillatelse"},
-    {"id": "tillatelse", "navn": "Tillatelse",
+    {"id": "tillatelse", "navn": "Tillatelse", "kort": "tillatelser",
      "hva": "tillatelsens formål, kapasitet eller lokaliteter"},
     # «I VÅRT UTVALG», IKKE «I REGISTERET». Skillet er målt, ikke
     # forsiktighet: 23.09.2026 slo vi opp alle de 29 selskapene uke 39
@@ -1327,11 +1327,12 @@ ENDRINGSTYPER = (
     # som går ut av lista går ut av SØKET, og fra to øyeblikksbilder
     # alene kan ingen se hvilket av de to som skjedde. Da er det
     # svakeste sanne utsagnet det eneste vi har lov til å trykke.
-    {"id": "ny", "navn": "Ny i vårt utvalg",
+    {"id": "ny", "navn": "Ny i vårt utvalg", "kort": "nye oppføringer",
      "hva": "en lokalitet, tillatelse eller et selskap som ikke var med "
             "forrige uke. Utvalget vårt er et søk, så «ny for oss» er "
             "ikke det samme som «ny i registeret»"},
     {"id": "borte", "navn": "Ute av vårt utvalg",
+     "kort": "oppføringer som gikk ut",
      "hva": "en oppføring som var med forrige uke og ikke er det nå. "
             "Den kan være slettet fra registeret, eller ha fått en "
             "næringskode utenfor søket vårt — vi kan ikke se hvilket"},
@@ -1342,19 +1343,42 @@ ENDRINGSTYPER = (
     # på entitetens egen tidslinje, fordi kilden selv skiller «gikk til
     # null» fra «sluttet å rapportere» og vi lagrer det skillet.
     {"id": "felt_ny", "navn": "Felt oppgitt første gang", "teller": False,
+     "kort": "felt oppgitt første gang",
      "hva": "kilden oppgir et felt om denne oppføringen for første gang"},
     {"id": "felt_borte", "navn": "Felt ikke lenger oppgitt", "teller": False,
+     "kort": "felt som ikke lenger oppgis",
      "hva": "kilden sluttet å oppgi et felt om denne oppføringen"},
-    {"id": "lokalitet", "navn": "Lokalitetsopplysning",
+    {"id": "lokalitet", "navn": "Lokalitetsopplysning", "kort": "lokalitetsopplysninger",
      "hva": "navn, kommune, arter, kapasitet eller posisjon"},
-    {"id": "biomasse", "navn": "Fisk til stede",
+    {"id": "biomasse", "navn": "Fisk til stede", "kort": "fisk til stede",
      "hva": "om det står fisk på lokaliteten"},
-    {"id": "sykdom", "navn": "Sykdom (ILA/PD)",
+    {"id": "sykdom", "navn": "Sykdom (ILA/PD)", "kort": "sykdomsflagg",
      "hva": "ILA- eller PD-flagget satt eller fjernet i BarentsWatch. "
             "Kilden sier ikke om flagget betyr mistanke eller påvist"},
-    {"id": "selskap", "navn": "Selskapsopplysning",
-     "hva": "ansatte, regnskap, konkurs eller adresse i Enhetsregisteret"},
-    {"id": "annet", "navn": "Annet",
+    # SELSKAPSDATA STÅR FOR SEG, og telles ikke i ukas overskriftstall.
+    #
+    # MÅLT uke 39: 402 av 440 telte endringer var dette ene slaget, og
+    # 369 av dem var `antall_ansatte` — A-ordningens månedlige
+    # oppdatering, kontrollert rad for rad mot Brønnøysunds egne
+    # kropper (docs/MALING-UKE-39.md). Radene er ekte. De er bare ikke
+    # det noen kommer hit for.
+    #
+    # Et tall der 91 % er løpende registervedlikehold, svarer ikke på
+    # «hva skjedde i havbruket denne uka» — det svarer på «hvor mange
+    # felt endret seg i et register», og de to ser like ut helt til man
+    # spør hva de betyr. Samme skille som `utvalgsutvidelse` og
+    # `revidert` i CLAUDE.md 1b-6: radene beholdes, merkes og vises,
+    # men summeres ikke som aktivitet.
+    #
+    # `egen_del` sier hvor de HØRER HJEMME: utenfor forsidens korte
+    # tabell, og i sin egen sammenfoldede del på ukessiden. Uten
+    # JavaScript står den åpen — en `<details open>` som skriptet
+    # lukker, ikke en skjult del som skriptet åpner.
+    {"id": "selskap", "navn": "Selskapsdata", "teller": False,
+     "egen_del": True, "kort": "selskapsdata",
+     "hva": "ansatte, næringskode, adresse, regnskap, konkurs eller "
+            "kapital i Enhetsregisteret"},
+    {"id": "annet", "navn": "Annet", "kort": "annet",
      "hva": "et felt som ikke er klassifisert ennå"},
 )
 
@@ -1366,6 +1390,10 @@ UKJENTE_ENDRINGER: defaultdict = defaultdict(int)
 # `ENDRINGSTYPER`, aldri listet ved siden av — to lister som skal si det
 # samme er to steder å glemme det.
 TELLER = {k["id"]: k.get("teller", True) for k in ENDRINGSTYPER}
+
+# Slagene som står for seg: utenfor forsidens korte tabell, og i sin
+# egen sammenfoldede del på ukessiden. Se `selskap` i `ENDRINGSTYPER`.
+EGEN_DEL = frozenset(k["id"] for k in ENDRINGSTYPER if k.get("egen_del"))
 
 # Feltene der ÉN beslutning står skrevet på hver lokalitet i et
 # produksjonsområde.
@@ -1874,7 +1902,26 @@ def les_endringsuker(felles: Felles) -> list[dict]:
         # `teller: False` står i tabellen og i feeden, men ikke i
         # «812 endringer» — samme asymmetri som `utvalgsutvidelse`:
         # merket og beholdt, ikke summert. Se `ENDRINGSTYPER`.
-        telt = sum(n for t, n in antall.items() if TELLER.get(t, True))
+        # TRE TALL, OG DE SVARER PÅ TRE TING. MÅLT uke 39:
+        #
+        #   antall_rader      453   alle radene i uka
+        #   antall            453 - 402 - 13 = 38   overskriftstallet
+        #   antall_egen_del   402   selskapsdata, står for seg
+        #   utenfor_tellingen  13   felt som kom eller gikk
+        #
+        # Et tall der 91 % er løpende registervedlikehold svarer ikke på
+        # spørsmålet forsiden stiller. Se `selskap` i `ENDRINGSTYPER`.
+        telt = sum(n for t, n in antall.items()
+                   if TELLER.get(t, True) and t not in EGEN_DEL)
+        egen = [h for h in hendelser if h["type"] in EGEN_DEL]
+        ledet = [h for h in hendelser if h["type"] not in EGEN_DEL]
+        ikke_telt = sum(n for t, n in antall.items()
+                        if not TELLER.get(t, True) and t not in EGEN_DEL)
+        # HVA TALLET TELLER, skrevet av slagene som faktisk er der.
+        # «38 endringer» alene lar leseren tro det er alt.
+        navn_i_ledet = [k["kort"] for k in ENDRINGSTYPER
+                        if k["id"] not in EGEN_DEL and antall.get(k["id"])
+                        and k.get("teller", True)]
         uker.append({
             "slug": slug,
             "aar": slug[:4],
@@ -1885,9 +1932,13 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "forste_dato": datoer[0],
             "siste_dato": datoer[-1],
             "hendelser": hendelser,
+            "ledet": ledet,
+            "egen_del": egen,
             "antall": telt,
+            "antall_egen_del": len(egen),
+            "ledet_slag": visningsord.liste(navn_i_ledet),
             "antall_rader": len(hendelser),
-            "utenfor_tellingen": len(hendelser) - telt,
+            "utenfor_tellingen": ikke_telt,
             "typer": [dict(k, antall=antall.get(k["id"], 0))
                       for k in ENDRINGSTYPER],
             "utenfor_uka": utenfor,
@@ -3942,8 +3993,16 @@ def skriv_endringssider(rot: Path, felles: Felles,
                    else f"/{ENDRINGER_STI}/{uke['slug']}/")
             tittel = (f"{valgt['navn']} i {uke['vist']}" if valgt
                       else f"Endringer i {uke['vist']}")
+            # SELSKAPSDATA STÅR FOR SEG PÅ UKESIDEN. På den ufiltrerte
+            # sida deles radene; på en typeside er valget alt gjort, og
+            # da er alt ett bord.
+            if slag:
+                ledet, egen = hendelser, []
+            else:
+                ledet = [h for h in hendelser if h["type"] not in EGEN_DEL]
+                egen = [h for h in hendelser if h["type"] in EGEN_DEL]
             skriv_html(sti, uke_mal.render(
-                u=uke, rader=hendelser, valgt=valgt, url=url,
+                u=uke, rader=ledet, egen=egen, valgt=valgt, url=url,
                 nyere=nyere, eldre=eldre, uker_totalt=len(uker),
                 siter={"url": _basisurl() + url,
                        "uke": uke["vist"], "aar": uke["aar"],
@@ -5043,17 +5102,30 @@ def _sammendrag(uke: dict | None) -> list[str]:
     # hendelse i havbruket, og en oppsummering som sa «fordelt på ni
     # slag» og listet det som nest størst, ville gjort rapportering om
     # til aktivitet.
+    # BARE SLAGENE SOM TELLER OG SOM ER LEDET. Selskapsdata står for
+    # seg — 402 av uke 39s 440 — og en oppsummering som ledet med dem
+    # ville svart på «hvor mange felt endret seg i et register» framfor
+    # på «hva skjedde i havbruket denne uka».
     med_tall = sorted((k for k in uke["typer"]
-                       if k["antall"] and k.get("teller", True)),
+                       if k["antall"] and k.get("teller", True)
+                       and k["id"] not in EGEN_DEL),
                       key=lambda k: -k["antall"])
     if not med_tall:
-        return ["Ingen endringer i registrene denne uka. Alle felt står "
-                "som de sto forrige gang vi spurte."]
+        return ["Ingen endringer i lokaliteter, tillatelser eller "
+                "trafikklys denne uka. Alle felt står som de sto forrige "
+                "gang vi spurte."]
+    # TALLET SIER HVA DET TELLER. «38 endringer» alene lar leseren tro
+    # det er alt som skjedde; setningen navngir slagene, og neste
+    # setning sier hvor selskapsdataene ble av.
     setninger = [
         f"{visningsord.tall(uke['antall'])} endringer observert i "
-        f"{uke['vist']}, fordelt på {len(med_tall)} "
-        f"{'slag' if len(med_tall) == 1 else 'slag'}."
+        f"{uke['vist']}: {uke['ledet_slag']}."
     ]
+    if uke["antall_egen_del"]:
+        setninger.append(
+            f"{visningsord.tall(uke['antall_egen_del'])} endringer i "
+            f"selskapsdata — ansatte, næringskode, adresse, regnskap — "
+            f"står for seg på ukessiden.")
 
     storst = med_tall[0]
     if storst["id"] == "trafikklys":
@@ -5235,8 +5307,11 @@ def bygg_forside(felles: Felles) -> dict:
         "uke": uke,
         "sammendrag": _sammendrag(uke),
         "forskriftslinje": _forskriftslinje(felles, uke),
-        "rader": (uke["hendelser"][:FORSIDERADER] if uke else []),
-        "flere_rader": (max(uke["antall"] - FORSIDERADER, 0) if uke else 0),
+        # FORSIDENS KORTE TABELL viser bare det som er LEDET. De 402
+        # selskapsdataradene står på ukessiden, i sin egen del.
+        "rader": (uke["ledet"][:FORSIDERADER] if uke else []),
+        "flere_rader": (max(len(uke["ledet"]) - FORSIDERADER, 0)
+                        if uke else 0),
         "forrige_uke": (uker[1]["slug"] if len(uker) > 1 else ""),
         "forrige_uke_vist": (uker[1]["vist"] if len(uker) > 1 else ""),
         "uker_totalt": len(uker),

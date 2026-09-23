@@ -629,3 +629,18 @@ def tittelform(navn: object) -> str:
             ut.append(bit[:1] + bit[1:].lower())
         er_forste = False
     return "".join(ut)
+
+
+def liste(ord_: list[str]) -> str:
+    """«a», «a og b», «a, b og c». Norsk, uten Oxford-komma.
+
+    Finnes fordi forsidens setning om HVA tallet teller bygges av
+    slagene som faktisk er der — en fast setning ville stått og løyet
+    den uka et slag mangler.
+    """
+    rene = [o for o in ord_ if o]
+    if not rene:
+        return ""
+    if len(rene) == 1:
+        return rene[0]
+    return ", ".join(rene[:-1]) + " og " + rene[-1]

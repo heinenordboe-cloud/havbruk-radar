@@ -1627,8 +1627,13 @@ def _forside(**overstyr) -> str:
         "slug": "2026-39", "aar": "2026", "ukenr": "39",
         "vist": "uke 39, 2026", "spenn": "21.–27. september 2026",
         "datoer": ["2026-09-21"], "forste_dato": "2026-09-21",
-        "siste_dato": "2026-09-21", "hendelser": [hendelse], "antall": 440,
-        "antall_rader": 453, "utenfor_tellingen": 13,
+        "siste_dato": "2026-09-21", "hendelser": [hendelse],
+        "ledet": [hendelse], "egen_del": [],
+        # TRE TALL SOM IKKE ER DET SAMME: 38 i overskriften, 402
+        # selskapsdata for seg, 13 felt som kom eller gikk.
+        "antall": 38, "antall_rader": 453, "antall_egen_del": 402,
+        "utenfor_tellingen": 13,
+        "ledet_slag": "trafikklys og tillatelser",
         "typer": [dict(k, antall=(4 if k["id"] == "trafikklys" else 0))
                   for k in nettsted.ENDRINGSTYPER],
         "utenfor_uka": 32979,
@@ -1641,7 +1646,8 @@ def _forside(**overstyr) -> str:
         "eierskap_dato": "2026-09-21",
 
         "uke": uke,
-        "sammendrag": ["440 endringer observert i uke 39, 2026."],
+        "sammendrag": ["38 endringer observert i uke 39, 2026: "
+                       "trafikklys og tillatelser."],
         "forskriftslinje": None,
         "rader": [hendelse],
         "flere_rader": 804,
@@ -1703,8 +1709,14 @@ def test_forsiden_leder_med_uka_og_ikke_med_seg_selv():
     # `antall_rader` er hvor mange rader tabellen har. De skilles fra
     # 23.09.2026, fordi «felt oppgitt første gang» står i tabellen uten
     # å være en hendelse i havbruket — se `nettsted.TELLER`.
-    assert "440 endringer observert i uke 39, 2026." in flat
-    assert "Alle 453 radene i uke 39, 2026" in flat
+    # TRE TALL, OG DE ER IKKE DET SAMME. `antall` er overskriftstallet
+    # UTENOM selskapsdata; `antall_rader` er alle radene i uka. De
+    # skilles fra 23.09.2026, fordi 402 av 440 var løpende
+    # registervedlikehold — se `nettsted.EGEN_DEL`.
+    assert ("38 endringer observert i uke 39, 2026: trafikklys og "
+            "tillatelser." in flat)
+    assert "Alle 453 endringene i uke 39, 2026, selskapsdata medregnet" in flat
+    assert "utenom selskapsdata" in flat
 
 
 def test_alle_endringstyper_vises_ogsaa_de_med_null():
@@ -2763,3 +2775,78 @@ def test_beslutning_er_en_egen_beleggsgrad():
     assert set(nettsted.LESEMAATE) >= {"ordrett", "kapittelhjemmel",
                                        "beslutning"}
     assert "ikke i forskriften" in nettsted.LESEMAATE["beslutning"]
+
+
+# ================================ selskapsdata står for seg
+#
+# MÅLT uke 39: 402 av 440 telte endringer var ett slag, og 369 av dem
+# var `antall_ansatte`. Et tall der 91 % er løpende registervedlikehold
+# svarer ikke på spørsmålet forsiden stiller.
+
+def _enh_rad(felt, gammel, ny, eid="912345678"):
+    return {"entity_id": eid, "entity_type": "selskap",
+            "entity_name": "Testlaks AS", "field": felt,
+            "old_value": gammel, "new_value": ny, "change_type": "endret",
+            "source": "enhetsregisteret", "observed_at": "2026-09-21",
+            "forrige_observed_at": "2026-09-14", "forrige_fetched_at": "",
+            "published_at": "", "forrige_published_at": ""}
+
+
+def test_selskapsdata_telles_ikke_i_overskriftstallet():
+    felles = _felles_stubb(
+        akva={"1": {"navn": "A", "prodomraade_kode": "4"}},
+        po_navn={"4": "Nordhordland til Stadt"},
+        enhet={"912345678": {"navn": "Testlaks AS", "kommune": "BODØ"}},
+        bevegelse=pl.DataFrame([
+            _enh_rad("antall_ansatte", "12", "13"),
+            _enh_rad("poststed", "BODØ", "TROMSØ"),
+            _po_rad("1", "ROD", "GUL"),
+        ]))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    assert uke["antall_rader"] == 3
+    assert uke["antall"] == 1, "bare trafikklysvedtaket telles"
+    assert uke["antall_egen_del"] == 2
+    assert [h["type"] for h in uke["ledet"]] == ["trafikklys"]
+    assert {h["type"] for h in uke["egen_del"]} == {"selskap"}
+
+
+def test_tallet_sier_hva_det_teller():
+    """«38 endringer» alene lar leseren tro det er alt som skjedde.
+    Setningen navngir slagene, og den bygges av slagene som FAKTISK er
+    der — en fast setning ville stått og løyet den uka et slag mangler."""
+    felles = _felles_stubb(
+        akva={"1": {"navn": "A", "prodomraade_kode": "4"}},
+        po_navn={"4": "Nordhordland til Stadt"},
+        enhet={"912345678": {"navn": "Testlaks AS", "kommune": "BODØ"}},
+        bevegelse=pl.DataFrame([_enh_rad("antall_ansatte", "12", "13"),
+                                _po_rad("1", "ROD", "GUL")]))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    assert uke["ledet_slag"] == "trafikklys"
+    tekst = " ".join(nettsted._sammendrag(uke))
+    assert "1 endringer observert i uke 39, 2026: trafikklys." in tekst
+    assert "selskapsdata" in tekst, "leseren skal få vite hvor de 402 ble av"
+
+
+def test_selskapsdatadelen_er_apen_uten_javascript():
+    """`<details open>` som skriptet LUKKER, ikke en skjult del som
+    skriptet åpner. En del som må åpnes av et skript er en del som ikke
+    finnes for den som har skript av."""
+    mal = (Path(__file__).resolve().parents[1]
+           / "maler" / "endringer-uke.html.j2").read_text(encoding="utf-8")
+    assert 'details class="egen-del" open data-lukk-ved-js' in mal
+
+    js = (Path(__file__).resolve().parents[1]
+          / "maler" / "kystloggen.js").read_text(encoding="utf-8")
+    assert "details[data-lukk-ved-js]" in js
+    assert "d.open = false" in js
+
+
+def test_selskapsdata_heter_selskapsdata():
+    etiketter = {k["id"]: k["navn"] for k in nettsted.ENDRINGSTYPER}
+    assert etiketter["selskap"] == "Selskapsdata"
+    assert nettsted.EGEN_DEL == frozenset({"selskap"})
+    assert nettsted.TELLER["selskap"] is False

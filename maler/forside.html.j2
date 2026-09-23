@@ -150,8 +150,8 @@
   <table id="endringer-uke">
     <caption id="endringer-uke-tittel">
       {% if f.uke %}
-      De {{ f.rader|length }} nyeste av {{ f.uke.antall_rader }} radene i
-      {{ f.uke.vist }}.
+      De {{ f.rader|length }} nyeste av {{ f.uke.antall }} endringene i
+      {{ f.uke.vist }}, utenom selskapsdata.
       {% else %}
       Ingen uker med endringer ennå.
       {% endif %}
@@ -205,9 +205,10 @@
   </div>
 
   <p class="tabellnote">
-    {% if f.flere_rader %}
+    {% if f.uke %}
     <a class="videre" href="/endringer/{{ f.uke.slug }}/">Alle
-      {{ f.uke.antall_rader }} radene i {{ f.uke.vist }} →</a>
+      {{ f.uke.antall_rader }} endringene i {{ f.uke.vist }},
+      selskapsdata medregnet →</a>
     {% endif %}
     <strong>«Observert»</strong> er datoen vi så endringen i
     øyeblikksbildet, ikke datoen registeret gjorde den. Registeret
