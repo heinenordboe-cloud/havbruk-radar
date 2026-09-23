@@ -131,10 +131,15 @@ domene `kystloggen.no`.
     python publiser.py --produksjon     # kystloggen.no
     python publiser.py --uten-bygg      # bruk mappa som den er
 
-**Første gang, og bare da:** logg inn i wrangler. Det skjer i
+**Første gang, og bare da:** Node.js må være installert (det gir
+`npx`), og wrangler må være logget inn. Innloggingen skjer i
 nettleseren, og skriptet rører ikke nøkler:
 
     npx wrangler login
+
+MÅLT 23.09.2026: `node` og `npx` finnes ikke på utviklingsmaskinen.
+Steg 1–4 kjører uten dem — sporbarhet, bygg, port og tallene — og
+steg 5 stopper med beskjed om hva som mangler.
 
 ### Seks steg, og rekkefølgen er poenget
 
