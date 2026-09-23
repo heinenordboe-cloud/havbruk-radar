@@ -3,6 +3,12 @@
 Tatt 23.09.2026 av det ferdige bygget, ikke av prototypene.
 Lys modus, `deviceScaleFactor: 1`, fem sider i to bredder.
 
+**Fornyet 23.09.2026, etter tre endringer som alle er synlige i
+bildene:** uke 39 sier 38 endringer og ikke 812, selskapsdata står i
+sin egen sammenfoldede del nederst på endringssiden, og
+produksjonsområdesiden har den nye beleggsgraden «beslutning» med
+sitatet fra departementets kunngjøring.
+
 | Fil | Side |
 |---|---|
 | `forside-*.png` | `/` |
@@ -13,13 +19,22 @@ Lys modus, `deviceScaleFactor: 1`, fem sider i to bredder.
 
 ## Bildene er KUTTET ved 9 000 px, og det står her fordi det er et kutt
 
-Full sidehøyde for endringssiden er 65 472 px ved 390 px bredde: 812
-rader. Et slikt bilde er ikke et skjermbilde av et design, det er et
-arkiv av en tabell — og det ville ligget i git for alltid.
+| fil | px | hel? |
+|---|---:|---|
+| `forside-1440` | 5 086 | hel |
+| `forside-390` | 7 484 | hel |
+| `lokalitet-31397-1440` | 7 467 | hel |
+| `lokalitet-31397-390` | 9 000 | kuttet av 12 538 |
+| `produksjonsomrade-4-1440` | 9 000 | kuttet av 14 695 |
+| `produksjonsomrade-4-390` | 9 000 | kuttet av 25 097 |
+| `selskap-964118191-1440` | 9 000 | kuttet av 16 816 |
+| `selskap-964118191-390` | 9 000 | kuttet av 45 401 |
+| `endringer-2026-39-1440` | 5 518 | hel |
+| `endringer-2026-39-390` | 9 000 | kuttet av 9 112 |
 
-Kuttet gjelder `lokalitet-390`, `produksjonsomrade-4` i begge bredder,
-`selskap-964118191` i begge og `endringer-2026-39` i begge. Forsiden og
-lokalitetssiden ved 1440 px er hele.
+Endringssiden ved 1440 px er nå HEL, og det er en følge av designet og
+ikke av kuttet: de 402 selskapsdataradene ligger i en `<details>` som
+skriptet lukker. Før 23.09 var den samme siden 43 322 px.
 
 ## Hvordan de er tatt
 
