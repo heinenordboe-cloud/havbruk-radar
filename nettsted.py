@@ -2330,6 +2330,29 @@ def _po_fargerader(po: str, felles: Felles) -> list[dict]:
     return ut
 
 
+def _rundeopplysninger(aar: str) -> dict:
+    """Beslutningsdato, dokumenttype og tegnforklaring for én runde.
+
+    Tegnforklaringen er IKKE felles for de fem rundene, og det er ikke
+    en detalj: i 2018 ble de røde områdene ikke trukket ned. Se
+    `beslutning.FOLGER`.
+
+    Tom for en runde som ikke er godkjent — da står bare forskriftens
+    egen lenke, som før.
+    """
+    if aar not in beslutning.GODKJENT:
+        return {"dato": "", "type": "", "url": "", "tegn": []}
+    dato = beslutning.KROPPER.get(aar, ("", ""))[0]
+    return {
+        "dato": dato,
+        "type": beslutning.dokumenttype(aar),
+        "url": beslutning.url(aar),
+        "tegn": [dict(t, farge_vist=visningsord.verdi("farge", t["farge"]),
+                      klasse=FARGE_KLASSE.get(t["farge"], ""))
+                 for t in beslutning.tegnforklaring(aar)],
+    }
+
+
 def _po_saerskilt(po: str, felles: Felles) -> list[dict]:
     """Rundene der departementet sier det vurderte DETTE området særskilt.
 
@@ -2422,6 +2445,11 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
         "akva_dato": felles.akva_dato,
         "akva_hentet": felles.akva_hentet,
         "runder": _po_fargerader(po, felles),
+        # Beslutningsdato, dokumenttype og tegnforklaring PER RUNDE.
+        # Står ved siden av rundene og ikke i dem: den gjelder alle
+        # tretten områdene i runden, ikke dette ene.
+        "rundeopplysninger": [dict(_rundeopplysninger(d[:4]), aar=d[:4])
+                              for d in felles.runder],
         # DEPARTEMENTETS EGEN MERKNAD om at det vurderte NETTOPP dette
         # området særskilt. Bare de rundene et menneske har lest, og
         # bare ordrett — se `beslutning.saerskilt()` og punktet i

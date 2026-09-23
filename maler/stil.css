@@ -2482,6 +2482,43 @@ figcaption {
 
 .rundenote .rute-foran { white-space: nowrap; }
 
+/* ---- tegnforklaring per runde ---- */
+
+.rundefakta { margin-block: var(--rom-24); max-width: 72ch; }
+
+.rundefakta-liste { margin: 0; }
+
+.rundefakta-liste dt {
+  font-family: var(--skrift-tittel);
+  font-size: var(--fs-16);
+  margin-block-start: var(--rom-14);
+  color: var(--hav-tittel);
+}
+
+.rundefakta-liste dd { margin: var(--rom-4) 0 0; }
+
+.rundefakta-kilde {
+  font-family: var(--skrift-tekst);
+  font-size: var(--fs-12);
+  color: var(--hav-sekundaer);
+  margin-inline-start: var(--rom-8);
+}
+
+.rundefakta-kilde a { color: var(--rust-lys); text-decoration: none; }
+.rundefakta-kilde a:visited { color: var(--rust-lys); }
+.rundefakta-kilde a:hover { text-decoration: underline; }
+
+.rundefakta-hvor { color: var(--hav-sekundaer); font-size: var(--fs-12); }
+
+.rundefakta-avvik {
+  display: block;
+  margin-block-start: var(--rom-4);
+  padding-inline-start: var(--rom-10);
+  border-inline-start: 2px solid var(--rust-lys);
+  font-size: var(--fs-12);
+  color: var(--hav-sekundaer);
+}
+
 /* ---- selskapsdata-delen på ukessiden ---- */
 
 .egen-del {

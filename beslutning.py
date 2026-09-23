@@ -86,14 +86,26 @@ KROPPER = {
 
 # Rundene som er LEST av et menneske mot kroppen, og som derfor vises.
 #
-# 2026 er godkjent 23.09.2026: avsnittene navngir alle tretten områdene
-# med nummer og farge, i tre setninger som begynner med «Tre
-# produksjonsområder (PO) fargelegges grønt», «Ni produksjonsområder
-# fargelegges gult» og «Ett produksjonsområde fargelegges rødt».
+# Alle fem er godkjent 23.09.2026. Heine leste avsnittene i
+# `docs/VERIFISERING-FARGELEGGINGEN.md` mot sidene på regjeringen.no,
+# lagret som PDF 23.09.2026 kl. 11.45–11.46, og alle stemmer ordrett.
 #
-# De fire andre er parset og lagt fram, men ikke godkjent. En tom
-# celle er et ærligere svar enn en celle ingen har sett på.
-GODKJENT = frozenset({"2026"})
+# Lista blir stående som en liste, ikke erstattet av «alle»: kommer det
+# en 2028-runde, skal den leses før den vises. En tom celle er et
+# ærligere svar enn en celle ingen har sett på.
+GODKJENT = frozenset({"2018", "2020", "2022", "2024", "2026"})
+
+# Rundene der den SÆRSKILTE VURDERINGEN er lest og godkjent.
+#
+# Egen liste, og den er kortere: avsnittene for 2018 og 2020 ble funnet
+# 23.09.2026, etter at fargeleggingen var lest. De står ordrett i
+# `docs/VERIFISERING-FARGELEGGINGEN.md` og venter på samme lesing.
+#
+# 2018 er dessuten en annen SLAGS setning enn de andre — et sitat fra
+# statsråden om ett område, ikke en redegjørelse for metoden — og 2020
+# er en faktaboks med fire avsnitt om seks områder. At de ligner er
+# ikke nok; de skal leses.
+SAERSKILT_GODKJENT = frozenset({"2022", "2024", "2026"})
 
 
 class Kroppsprik(RuntimeError):
@@ -157,33 +169,45 @@ def _numre(bit: str) -> list[str]:
     return [n for n in ut if n in OMRAADER]
 
 
-# HVA FARGEN BETØR I DENNE RUNDEN, lest av kunngjøringen.
+# HVA FARGEN BETØR, lest av kunngjøringen — og HVOR det står.
 #
-# ## Hvorfor dette ikke er én fast tegnforklaring
+# ## To slags setninger, og de kan si ulike ting
 #
-# «rød = ned 6 %, grønn = opp 6 %» er sant for fire av fem runder og
-# USANT for den første. Kunngjøringen 30.10.2017 skriver:
+#   beslutningsavsnittet   beskriver DENNE RUNDEN, og navngir områdene
+#   faktaboksen            beskriver SYSTEMET, uten å nevne et område
 #
-#   «Det er tidligere besluttet at kapasiteten i de røde områdene ikke
-#    skal reduseres i denne runden. Nedtrekk vil først skje i de
-#    områdene som blir røde i neste runde i 2019.»
+# For fire av fem runder sier de det samme. For 2018 gjør de det ikke,
+# og forskjellen er ikke en nyanse:
 #
-# PO3 og PO4 var røde i 2018 og ble IKKE trukket ned. En felles
-# tegnforklaring ville sagt at de ble det, og det er en påstand om et
-# forvaltningsvedtak — ikke en forenkling.
+#   faktaboksen (30.10.2017):
+#     «kapasiteten justeres med 6 prosent, opp (grønt) eller ned (rødt).
+#      I gule områder fryses kapasiteten.»
 #
-# Grønt i 2018 er også annerledes: «tilbud om økt produksjonskapasitet»
-# uten oppgitt prosent.
+#   beslutningsavsnittet, samme melding:
+#     «Det er tidligere besluttet at kapasiteten i de røde områdene ikke
+#      skal reduseres i denne runden. Nedtrekk vil først skje i de
+#      områdene som blir røde i neste runde i 2019.»
 #
-# Mønstrene leses derfor per runde, av kroppen. Finner de ingenting for
-# en farge, står tegnforklaringen tom — se `gul` i 2018, der
-# kunngjøringen ikke sier hva gult betyr.
+# PO3 og PO4 var røde i 2018 og ble IKKE trukket ned. En tegnforklaring
+# som bare leste faktaboksen ville sagt at de ble det — en påstand om et
+# forvaltningsvedtak, ikke en forenkling.
+#
+# **Beslutningsavsnittet går foran.** Faktaboksen vises ved siden av,
+# merket med hvor den står, fordi det er den som forklarer hva systemet
+# ELLERS gjør — og fordi en leser som bare fikk unntaket ikke ville
+# skjønt at det var et unntak.
+#
+# Skillet måles på om avsnittet navngir områder: en setning som sier
+# «(PO3)» eller «(3 og 4)» handler om runden, en som sier «i gule
+# områder» handler om systemet.
 FOLGER = (
     # rødt
     (re.compile(r"ikke skal reduseres i denne runden"), "rod",
      "ingen reduksjon i denne runden"),
     (re.compile(r"redusere[rs]? produksjonskapasiteten med (\d+) prosent"),
      "rod", "{} prosent nedtrekk"),
+    (re.compile(r"kapasiteten justeres med (\d+) prosent, opp \(grønt\) "
+                r"eller ned \(rødt\)"), "rod", "{} prosent ned"),
     # grønt
     (re.compile(r"øke produksjonskapasiteten med inntil (\d+) prosent"),
      "gronn", "tilbud om inntil {} prosent vekst"),
@@ -192,17 +216,23 @@ FOLGER = (
     (re.compile(r"tilbud om økt produksjonskapasitet i de områdene som "
                 r"settes til grønt"), "gronn",
      "tilbud om økt produksjonskapasitet, uten oppgitt prosent"),
+    (re.compile(r"kapasiteten justeres med (\d+) prosent, opp \(grønt\)"),
+     "gronn", "{} prosent opp"),
     # gult
     (re.compile(r"ingen endringer i produksjonskapasiteten"), "gul",
      "ingen endring i kapasiteten"),
     (re.compile(r"opprettholdes dagens produksjonskapasitet"), "gul",
      "dagens kapasitet opprettholdes"),
+    (re.compile(r"I gule områder fryses kapasiteten"), "gul",
+     "kapasiteten fryses"),
 )
 
-# Sidens egen dokumenttype, lest av kroppen. regjeringen.no merker hver
-# side som «Pressemelding», «Nyhet» eller noe annet, og de to første er
-# ikke det samme: en nyhet er ikke et kunngjort vedtak. MÅLT 23.09.2026:
-# 2020 og 2024 er Nyhet, de tre andre Pressemelding.
+# Overskriften kilden selv setter over faktaboksen. Brukes bare til å
+# NAVNGI hvor en generell setning står — ikke til å skille de to, for
+# 2020-meldingen har «Fakta» som overskrift over to underavsnitt som
+# begge handler om runden.
+FAKTAOVERSKRIFT = re.compile(r"^Fakta(boks)?\b", re.I)
+
 #
 # `og:type` er «website» på alle fem og sier ingenting. Merkelappen står
 # i sidens egen typeblokk, etterfulgt av en loddrett strek.
@@ -236,29 +266,79 @@ def _kropp(runde: str) -> bytes:
 
 
 @lru_cache(maxsize=8)
-def folge(runde: str) -> dict[str, dict[str, str]]:
-    """{farge: {"tekst": …, "sitat": …}} — hva fargen BETØR i runden.
+def folge(runde: str) -> dict[str, dict[str, dict[str, str]]]:
+    """{farge: {"beslutning": {...}, "faktaboks": {...}}} — og HVOR det står.
 
-    Tegnforklaringen er ikke felles for de fem rundene, og det er ikke
-    en detalj: i 2018 ble de røde områdene IKKE trukket ned. Se
-    `FOLGER`.
+    Hver post har `tekst`, `sitat` og `hvor`. Nøkkelen `beslutning` er
+    setningen om DENNE RUNDEN; `faktaboks` er en setning om systemet.
+    Bare de som finnes, står i svaret.
 
-    En farge kunngjøringen ikke sier noe om, står ikke i svaret. Gult i
-    2018 er et slikt tilfelle.
+    Se `FOLGER`: for 2018 sier de to ulike ting om rødt, og
+    beslutningsavsnittet går foran.
     """
     rå = _kropp(runde)
     if not rå:
         return {}
-    ut: dict[str, dict[str, str]] = {}
-    for avsnitt in _tekst(rå):
+
+    avsnitt = _tekst(rå)
+    fakta_fra = next((i for i, a in enumerate(avsnitt)
+                      if FAKTAOVERSKRIFT.match(a)), len(avsnitt))
+
+    ut: dict[str, dict[str, dict[str, str]]] = {}
+    for i, a in enumerate(avsnitt):
+        # NAVNGIR AVSNITTET OMRÅDER? Da handler det om runden. Ellers om
+        # systemet. Overskriften «Fakta» duger ikke alene til å skille
+        # dem: 2020-meldingen har den over to underavsnitt som begge
+        # handler om runden.
+        om_runden = bool([n for m in NUMMER.finditer(a)
+                          for n in _numre(m.group(1))])
+        nokkel = "beslutning" if om_runden else "faktaboks"
+        hvor = ("beslutningsavsnittet" if om_runden else
+                "faktaboksen" if i >= fakta_fra else
+                "generell omtale i meldingen")
         for mønster, farge, mal in FOLGER:
-            if farge in ut:
+            if nokkel in ut.get(farge, {}):
                 continue
-            m = mønster.search(avsnitt)
+            m = mønster.search(a)
             if not m:
                 continue
-            tekst = mal.format(*m.groups()) if m.groups() else mal
-            ut[farge] = {"tekst": tekst, "sitat": avsnitt}
+            ut.setdefault(farge, {})[nokkel] = {
+                "tekst": mal.format(*m.groups()) if m.groups() else mal,
+                "sitat": a, "hvor": hvor}
+    return ut
+
+
+def tegnforklaring(runde: str) -> list[dict[str, str]]:
+    """Tegnforklaringen for én runde, i rekkefølgen grønn, gul, rød.
+
+    `tekst` er beslutningsavsnittets der det finnes, ellers
+    faktaboksens. `avvik` er faktaboksens tekst NÅR den sier noe annet
+    — og bare da: å vise to like setninger ved siden av hverandre ville
+    fått leseren til å lete etter en forskjell som ikke er der.
+    """
+    kilder = folge(runde)
+    ut = []
+    for farge in ("gronn", "gul", "rod"):
+        par = kilder.get(farge) or {}
+        hoved = par.get("beslutning") or par.get("faktaboks")
+        if not hoved:
+            continue
+        # BARE FAKTABOKSEN teller som et avvik verdt å vise. 2026-
+        # meldingen har en INNLEDNING som sier «Her opprettholdes dagens
+        # produksjonskapasitet» der beslutningsavsnittet sier «ingen
+        # endringer i produksjonskapasiteten» — samme sak, andre ord. Å
+        # stille dem opp mot hverandre ville fått leseren til å lete
+        # etter en forskjell som ikke er der.
+        annen = par.get("faktaboks") if par.get("beslutning") else None
+        if annen and annen["hvor"] != "faktaboksen":
+            annen = None
+        rad = {"farge": farge, "tekst": hoved["tekst"],
+               "sitat": hoved["sitat"], "hvor": hoved["hvor"],
+               "avvik": "", "avvik_sitat": "", "avvik_hvor": ""}
+        if annen and annen["tekst"] != hoved["tekst"]:
+            rad.update(avvik=annen["tekst"], avvik_sitat=annen["sitat"],
+                       avvik_hvor=annen["hvor"])
+        ut.append(rad)
     return ut
 
 
@@ -322,8 +402,12 @@ def saerskilt(runde: str) -> dict[str, dict[str, str]]:
 
 
 def saerskilt_for_runde(runde: str) -> dict[str, dict[str, str]]:
-    """Som `saerskilt()`, men tom for en runde som ikke er godkjent."""
-    return saerskilt(runde) if runde in GODKJENT else {}
+    """Som `saerskilt()`, men tom for en runde som ikke er godkjent.
+
+    `SAERSKILT_GODKJENT`, ikke `GODKJENT`: fargeleggingen for 2018 og
+    2020 er lest, den særskilte vurderingen er det ikke.
+    """
+    return saerskilt(runde) if runde in SAERSKILT_GODKJENT else {}
 
 
 @lru_cache(maxsize=8)

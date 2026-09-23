@@ -304,3 +304,78 @@ leser CSS-en slik kontrastprøven gjør?
 
 Den andre veien fanger nettopp denne feilen og koster ingenting. Den
 fanger ikke neste, som blir noe annet.
+
+### 9. Auksjonsarkivene har ingen kodeproveniens
+
+Fra 23.09.2026, som følge av
+`docs/beslutninger/2026-09-23-kodeproveniens-per-snapshot.md`.
+
+`snapshot.write()` stempler `kode_commit` og `kode_rent` på hver rad.
+`arkiver_auksjon.py` går ikke gjennom den døra: den importerer bare
+`core.raw` og `sources._http` (linje 61–62), kaller ikke
+`kodeproveniens.krev_sporbar()`, og skriver til `data/arkiv/` via
+`raw.arkiver_ny()` (linje 106). Den er dermed heller ikke omfattet av
+sperren i `run.py`.
+
+**Argumentet for at det er greit:** en arkivfil er en RÅ KROPP, ikke
+tolkede rader. `raw_hash` — sha256 av kroppen — identifiserer den
+fullstendig, og den er uavhengig av hvilken kode som lastet den ned. To
+kjøringer av ulik kode mot samme svar gir samme fil og samme sum. Det er
+nettopp det et snapshot IKKE har: samme kropp gir 1934 eller 2611
+overføringer alt etter hvilket filter som leste den, og det er derfor
+snapshotene trengte stempelet.
+
+**Argumentet mot, og grunnen til at dette står som et åpent spørsmål:**
+
+1. Koden avgjør likevel HVA som ble hentet. `arkiver_auksjon.py` velger
+   URL-er ved å lese en indeksside og følge lenker; en endring i den
+   utvelgelsen endrer hvilke kropper som finnes, uten å endre noen sum.
+   Fraværet av en fil er ikke synlig i noen sjekksum.
+2. Kilden kan ikke etterprøves mot koden. Finner noen om fem år en
+   arkivfil som ser rar ut, er det ingenting i `data/arkiv/` som sier
+   hvilken utgave av nedlasteren som hentet den.
+3. Sperren gjelder ikke. En auksjonskjøring fra upushet kode er mulig i
+   dag, og ingen ville sett det.
+
+**Spørsmålet:** skal `data/arkiv/` få en sidevogn — én linje per fil med
+commit, renhet og hentetidspunkt — eller holder `raw_hash`?
+
+En sidevogn bryter ikke append-only så lenge den også er append-only,
+men den er en ANDRE fil per kropp, og det er en kostnad i et arkiv som
+allerede har 1 800 filer.
+
+### 10. `trafikklysvedtak` hentes ikke igjen før 2027
+
+Fra 23.09.2026.
+
+`gjelder_for()` returnerer `siste_dag(NYESTE_RUNDE)` —
+`sources/trafikklysvedtak.py` **linje 1347** — og `NYESTE_RUNDE` er
+`max(runde for f in FORSKRIFTER for runde in f.aar)`, altså 2026
+(linje 1161). Datoen blir `2026-12-31`, og det snapshotet ligger
+skrevet.
+
+Steg 2b i `run.py` hopper derfor over kilden hver uke:
+`finnes_allerede("2026-12-31")` er sann. Kilden tilbys kjøringen —
+`min_dager_mellom = 7` — men henter ingenting.
+
+**Spørsmålet: fanges en endring i 2026-forskriften som kunngjøres
+senere i år?**
+
+**Nei.** Blir FOR-2026-08-20-1764 endret i november, eller kommer det en
+endringsforskrift som justerer en farge, henter ikke kilden den. Den
+henter først igjen når `NYESTE_RUNDE` blir 2028, og det skjer bare ved
+at et menneske legger 2028-forskriften inn i `FORSKRIFTER`.
+
+Det er samme form som F4 og F8: en vakt som måler noe som LIGNER det den
+skal måle. «Har vi runden» er ikke «er runden uendret».
+
+Merk at dette IKKE er det samme som revisjonsaksen (1b-5). Den finnes
+for kilder som publiserer på nytt og endrer fortiden; her er problemet
+at vi ikke spør i det hele tatt.
+
+**Hva som ville lukket det:** at `gjelder_for()` eller en egen vakt
+målte forskriftens `published_at`/`Last-Modified` mot det vi har, i
+stedet for å spørre om året finnes. Det er en endring i kilden, ikke i
+kjernen.
+
+Ikke rørt nå, etter beskjed.

@@ -128,24 +128,31 @@ gangen. Det blokkerer ikke.
 
 | # | krav | status |
 |---|---|---|
-| 11 | Alle 65 trafikklysceller har en farge | **DELVIS** — 53 av 65 |
+| 11 | Alle 65 trafikklysceller har en farge | **OPPFYLT 23.09** — 65 av 65 |
 | 12 | Ingen plassholder fra designet i utputtet | **OPPFYLT** — 33 mønstre, alle treff verifisert |
 | 13 | Ukas tall teller bare det som skjedde | **OPPFYLT 23.09** |
 | 14 | Entall og flertall | **OPPFYLT 23.09** |
 | 15 | Alle sider måler 390 px uten vannrett rulling | **OPPFYLT** |
 | 16 | WCAG 2.2 AA kontrast, målt | **OPPFYLT** — `tests/test_kontrast.py` |
 
-**Punkt 11, de 12 tomme cellene.** Rundene 2018, 2020, 2022 og 2024 er
-parset fra departementets kunngjøringer og lagt fram ORDRETT i
-`docs/VERIFISERING-FARGELEGGINGEN.md`. De står ikke på nettstedet ennå:
-`beslutning.GODKJENT` er en menneskelig kvittering, og avsnittene skal
-leses mot kroppen av et menneske før de publiseres.
+**Punkt 11, lukket.** Alle fem fargeleggingsrundene er lest mot sidene
+på regjeringen.no (PDF 23.09.2026 kl. 11.45–11.46) og lagt i
+`beslutning.GODKJENT`. Ingen celle står tom.
 
-    runde 2026    publisert — fyller 7 celler, bekrefter 6
-    2018/2020/2022/2024    lagt fram, ikke godkjent — 12 celler tomme
+    før:    46 av 65, 19 tomme
+    etter:  65 av 65, 0 tomme
 
-**Handling: Heine leser avsnittene og legger rundene til i `GODKJENT`.**
-Målingen er gjort: der begge kildene sier noe, er de enige i 46 av 46.
+    17  grønn / utledet      17  grønn / ordrett     17  gul / beslutning
+     7  rød   / ordrett       5  gul   / ordrett      2  rød / beslutning
+
+Der begge kildene sier noe, er de enige i 46 av 46. Null sprik.
+
+**Det som står igjen her er mindre:** den SÆRSKILTE VURDERINGEN for
+2018 (PO7) og 2020 (PO2–PO5, PO7, PO10) er lagt fram ordrett i
+`docs/VERIFISERING-FARGELEGGINGEN.md`, men ikke publisert —
+`SAERSKILT_GODKJENT` er {2022, 2024, 2026}. Parseren finner dem heller
+ikke, så publisering krever enten en utvidet parser eller en tabell
+skrevet for hånd. Det avgjøres etter lesingen.
 
 ### Dokumentasjon
 
@@ -195,8 +202,9 @@ begrunnelse kan bare etterprøves på HVA, ikke på HVORFOR.
 Tre ting står igjen før første publisering, og bare ett av dem er
 arbeid:
 
-1. **Heine leser de fire fargeleggingsrundene** og legger dem til i
-   `beslutning.GODKJENT`. Avsnittene er lagt fram ordrett.
+1. **Heine leser de to særskilte vurderingene** (2018 PO7, 2020
+   faktaboksen) og avgjør om de skal publiseres. Fargeleggingen selv er
+   lest og lagt inn — 65 av 65 celler.
 2. **Heine skriver «Hvorfor» i utkastene** — eller bestemmer at det kan
    vente.
 3. **Hosting og domene velges**, med tallene over som grunnlag.

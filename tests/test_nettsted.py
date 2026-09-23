@@ -1232,6 +1232,22 @@ def _po(**overstyr) -> str:
              "sitat_dato": "2024-03-06",
              "sitat_url": "https://www.regjeringen.no/no/aktuelt/x/id3028522/"},
         ],
+        # Tegnforklaring per runde: i 2018 ble røde områder IKKE
+        # trukket ned, og faktaboksen i samme melding sa noe annet.
+        "rundeopplysninger": [
+            {"aar": "2018", "type": "Pressemelding", "dato": "2017-10-30",
+             "url": "https://www.regjeringen.no/x/id2577032/",
+             "tegn": [{"farge": "rod", "farge_vist": "rød",
+                       "klasse": nettsted.FARGE_KLASSE["rod"],
+                       "tekst": "ingen reduksjon i denne runden",
+                       "sitat": "…ikke skal reduseres i denne runden.",
+                       "hvor": "beslutningsavsnittet",
+                       "avvik": "6 prosent ned",
+                       "avvik_sitat": "…justeres med 6 prosent…",
+                       "avvik_hvor": "faktaboksen"}]},
+            {"aar": "2024", "type": "Nyhet", "dato": "2024-03-06",
+             "url": "https://www.regjeringen.no/x/id3028522/", "tegn": []},
+        ],
         # Departementets egen merknad om at området ble vurdert
         # særskilt. Ordrett, med dato og lenke — ingen tolkning.
         "saerskilt": [
@@ -2765,16 +2781,27 @@ def test_saerskilt_leses_ordrett_og_bare_der_omraadet_navngis(
     assert d["9"]["dato"] == "2026-06-19"
 
 
-def test_bare_godkjente_runder_naar_nettstedet():
-    """`GODKJENT` er en menneskelig kvittering: avsnittene leses mot
-    kroppen før de publiseres. En tom celle er ærligere enn en celle
-    ingen har sett på."""
-    assert beslutning.GODKJENT == frozenset({"2026"})
-    assert set(beslutning.KROPPER) - beslutning.GODKJENT == {
-        "2018", "2020", "2022", "2024"}
-    for runde in set(beslutning.KROPPER) - beslutning.GODKJENT:
-        assert beslutning.for_runde(runde) == {}, runde
-        assert beslutning.saerskilt_for_runde(runde) == {}, runde
+def test_alle_fem_fargeleggingsrundene_er_lest_og_godkjent():
+    """Heine leste avsnittene i docs/VERIFISERING-FARGELEGGINGEN.md mot
+    sidene på regjeringen.no 23.09.2026, og alle stemmer ordrett.
+
+    Lista blir stående som en LISTE og ikke «alle»: kommer det en
+    2028-runde, skal den leses før den vises."""
+    # Konstantene, ikke parsingen: testsuiten kjører mot en tom
+    # engangsmappe (tests/conftest.py), så arkivkroppene finnes ikke
+    # her. At de fem faktisk parser til 65 celler er MÅLT og står i
+    # docs/VERIFISERING-FARGELEGGINGEN.md.
+    assert beslutning.GODKJENT == set(beslutning.KROPPER)
+
+
+def test_den_saerskilte_vurderingen_har_sin_EGEN_kvittering():
+    """Avsnittene for 2018 og 2020 ble funnet etter at fargeleggingen
+    var lest, og er ikke godkjent ennå. At de ligner er ikke nok."""
+    assert beslutning.SAERSKILT_GODKJENT == frozenset(
+        {"2022", "2024", "2026"})
+    assert {"2018", "2020"} <= set(beslutning.KROPPER), (
+        "de to er PARSET — de skal bare ikke vises")
+    assert not (beslutning.SAERSKILT_GODKJENT & {"2018", "2020"})
 
 
 def test_beslutning_er_en_egen_beleggsgrad():

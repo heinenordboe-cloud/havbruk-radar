@@ -31,14 +31,64 @@ MÅLT 23.09.2026 over alle 65 cellene (13 områder × 5 runder):
 
 ## Hva som vises på nettstedet nå
 
-Bare runde **2026**. `beslutning.GODKJENT` er en menneskelig kvittering,
-ikke en teknisk grense: avsnittene skal leses mot kroppen av et menneske
-før de publiseres. De fire andre står parset og lagt fram her, og legges
-til i `GODKJENT` når de er lest.
+**Alle fem rundene.** Heine leste avsnittene under mot sidene på
+regjeringen.no, lagret som PDF 23.09.2026 kl. 11.45–11.46, og alle
+stemmer ordrett. `beslutning.GODKJENT` inneholder alle fem fra
+23.09.2026.
 
-    runde 2026 publisert   fyller 7 celler, bekrefter 6
-    runde 2018/2020/2022/2024 lagt fram, ikke publisert — 12 celler står
-    fortsatt som «ikke oppgitt»
+    før:    46 celler av 65 hadde en farge, 19 sto som «ikke oppgitt»
+    etter:  65 av 65. Null tomme.
+
+    17  grønn / utledet av kapittel
+    17  grønn / ordrett i forskriften
+    17  gul   / departementets beslutning
+     7  rød   / ordrett i forskriften
+     5  gul   / ordrett i forskriften
+     2  rød   / departementets beslutning
+
+Lista blir stående som en LISTE og ikke «alle»: kommer det en
+2028-runde, skal den leses før den vises.
+
+Den SÆRSKILTE VURDERINGEN har sin egen kvittering,
+`beslutning.SAERSKILT_GODKJENT` = {2022, 2024, 2026}. Se nederst.
+
+## Tegnforklaringen er PER RUNDE, og 2018 er grunnen
+
+En felles forklaring — «rød = ned 6 %, grønn = opp 6 %» — er sann for
+fire runder og usann for den første.
+
+| runde | grønn | gul | rød |
+|---|---|---|---|
+| 2018 | tilbud om økt produksjonskapasitet, uten oppgitt prosent | kapasiteten fryses | **ingen reduksjon i denne runden** |
+| 2020 | tilbud om inntil 6 prosent vekst | ingen endring i kapasiteten | 6 prosent nedtrekk |
+| 2022 | tilbud om inntil 6 prosent vekst | ingen endring i kapasiteten | 6 prosent nedtrekk |
+| 2024 | tilbud om inntil 6 prosent vekst | ingen endring i kapasiteten | 6 prosent nedtrekk |
+| 2026 | tilbud om inntil 6 prosent vekst | ingen endring i kapasiteten | 6 prosent nedtrekk |
+
+**PO3 og PO4 var røde i 2018 og ble ikke trukket ned.** Beslutnings-
+avsnittet i kunngjøringen 30.10.2017:
+
+> Det er tidligere besluttet at kapasiteten i de røde områdene ikke skal
+> reduseres i denne runden. Nedtrekk vil først skje i de områdene som
+> blir røde i neste runde i 2019.
+
+### Faktaboksen i samme melding sier noe annet
+
+> Miljøpåvirkningen vurderes innenfor 13 fastsatte produksjonsområder
+> langs kysten. Det foretas vurderinger annet hvert år, og kapasiteten
+> justeres med 6 prosent, opp (grønt) eller ned (rødt). I gule områder
+> fryses kapasiteten.
+
+To setninger i den samme meldingen, og de er ikke enige om rødt.
+**Beslutningsavsnittet går foran** — det beskriver runden, faktaboksen
+beskriver systemet. Begge vises på områdesiden, merket med hvor de står.
+
+Faktaboksen er dessuten den ENESTE kilden til hva gult betød i 2018:
+beslutningsavsnittet sier ingenting om gule områder.
+
+Skillet måles på om avsnittet navngir områder. En setning som sier
+«(PO3)» eller «(3 og 4)» handler om runden; en som sier «i gule
+områder» handler om systemet.
 
 ## Områdenavnene
 
@@ -235,4 +285,78 @@ Fyller PO 3:
 Særskilt vurdert: PO 9
 
 > I områder der resultatet av miljøvurderinger er sammenfallende begge år følger fargeleggingen av ekspertvurderingene. For 2024 og 2025 er dette tilfellet for 12 av produksjonsområdene. I områder der ekspertgruppens vurderinger er ulik de to årene gjør departementet en mer helhetlig vurdering av miljøtilstanden. Ved årets fargelegging gjelder dette ett av produksjonsområdene, Vestfjorden og Vesterålen (PO9). Ekspertgruppens vurderinger er at området var moderat påvirket i 2024, men at det var like sannsynlig at påvirkningen var lav som moderat i 2025. Styringsgruppens råd er imidlertid at området var moderat påvirket også i 2025. I tråd med Trafikklysmeldingen, Meld. St. 16 (2014-2015), har departementet gjort en særskilt vurdering av miljøtilstanden i PO9. Her har blant annet de fysiske forholdene i sjøen, tilstanden til villaksen etter kvalitetsnormen, tilstanden til små og sårbare laksebestander og forholdene for sjøørreten blitt vurdert.
+
+
+---
+
+# Særskilt vurdering: 2018 og 2020
+
+**Disse er IKKE publisert.** `beslutning.SAERSKILT_GODKJENT` er
+`{2022, 2024, 2026}`. Avsnittene under er hentet ut av de arkiverte
+kroppene med et skript — ikke skrevet av for hånd — og venter på samme
+lesing som fargeleggingen fikk.
+
+## Parseren finner dem ikke, og det er verdt å si rett ut
+
+`beslutning.saerskilt()` leter etter et avsnitt som BÅDE nevner en egen
+vurdering OG navngir områder med nummer i parentes. Det gjør 2022, 2024
+og 2026. De to andre gjør det ikke:
+
+- **2018** skriver «produksjonsområde 7» uten parentes, og «etter en
+  helhetlig vurdering» — ikke «særskilt» eller «grundigere».
+- **2020** navngir områdene med NAVN og ikke med nummer, i fire avsnitt
+  under en egen overskrift.
+
+At de skal publiseres er derfor ikke bare en kvittering: det krever
+enten en utvidet parser eller en tabell skrevet for hånd. Hvilken av
+delene avgjøres etter lesingen. En navnebasert parser er ikke gratis —
+2020-kroppen skriver «Andøy til Senja» i faktaboksen og «Andøya til
+Senja (10)» i fargeavsnittet, så et eksakt navneoppslag ville mistet
+PO10.
+
+
+## Runde 2018 — Statsrådens begrunnelse
+
+Kunngjøring 2017-10-30, pressemelding. `sha256 896b9570c2d91346f06513fddba7bd7c45b1a5235950fb83f0410210b54eadda`
+
+<https://www.regjeringen.no/no/aktuelt/regjeringen-skrur-pa-trafikklyset/id2577032/>
+
+**Gjelder, etter Heines lesning:** PO7
+
+Avsnittsnumrene er posisjonen i kroppens rene tekst, slik `beslutning._tekst()` deler den.
+
+Avsnitt 178:
+
+> - Min vurdering er i hovedsak den samme som rådene fra styringsgruppen, men etter en helhetlig vurdering har jeg valgt å sette produksjonsområde 7 til grønt. Jeg mener at lusepåvirkningen i området ligger innenfor et akseptabelt risikonivå og at dette kan underbygges av gode faglige vurderinger, sier fiskeriminister Sandberg.
+
+
+## Runde 2020 — Faktaboksen «Områder med endring fra 2018 til 2019»
+
+Kunngjøring 2020-02-04, nyhet. `sha256 f02cd9a1494e908b6dc145b0551795c69b8f75425983b44dae1386e275ed9c6b`
+
+<https://www.regjeringen.no/no/aktuelt/regjeringen-skrur-pa-trafikklyset-i-havbruksnaringen/id2688939/>
+
+**Gjelder, etter Heines lesning:** PO2, PO3, PO4, PO5, PO7 og PO10
+
+Avsnittsnumrene er posisjonen i kroppens rene tekst, slik `beslutning._tekst()` deler den.
+
+Avsnitt 190:
+
+> Områder med endring fra 2018 til 2019
+
+Avsnitt 191:
+
+> Ryfylke og Nord-Trøndelag med Bindal får grønt lys. Her har utviklingen vært positiv i måleperioden og gått fra moderat til lav påvirkning fra lakselus. Det er også positivt at de nasjonale laksevassdragene er relativt lite påvirket av lakselus.
+
+Avsnitt 192:
+
+> Området fra Karmøy til Sotra får gult lys. Også dette området har hatt en positiv utvikling fra høy påvirkning fra lakselus i 2018 til moderat i 2019. Det er også positivt at smittepresset er lavt utenfor det nasjonale laksevassdraget Etne.
+
+Avsnitt 193:
+
+> Området fra Andøy til Senja får også gult lys. Her har det vært en negativ utvikling fra lav påvirkning fra lakselus i 2018 til moderat i 2019. Dette er bekymringsfullt så langt nord i landet.
+
+Avsnitt 194:
+
+> Produksjonsområdene fra Nordhordland til Stadt og fra Stadt til Hustadvika får rødt lys. Områdene har hatt en negativ utvikling fra moderat påvirkning fra lakselus i 2018 til høy påvirkning i 2019.
 

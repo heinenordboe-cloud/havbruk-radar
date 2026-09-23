@@ -51,7 +51,11 @@
 
      FYLLET SIER BELEGGET: heltrukket når fargeordet står i
      bestemmelsen, tonet med kant når fargen er utledet av
-     kapittelplasseringen, skravert når forskriften ikke oppgir noe.
+     kapittelplasseringen, stiplet underkant når fargen står i
+     departementets kunngjøring og ikke i forskriften, skravert når
+     ingen av dem sier noe. MÅLT 23.09.2026: den siste finnes ikke
+     lenger — alle 65 cellene har en farge — men ruta blir stående,
+     fordi en 2028-runde som ikke er lest ennå skal se ut som det.
      ORDET STÅR UANSETT — farge bærer aldri mening alene. #}
   <section class="runder" aria-labelledby="runder-tittel">
     <h2 class="etikett" id="runder-tittel">
@@ -90,6 +94,48 @@
       </li>
       {% endfor %}
     </ol>
+
+    {# TEGNFORKLARING PER RUNDE, og det er ikke pedanteri.
+       I 2018 ble de RØDE områdene ikke trukket ned: «Det er tidligere
+       besluttet at kapasiteten i de røde områdene ikke skal reduseres i
+       denne runden.» En felles forklaring med «rød = ned 6 %» ville
+       vært en påstand om et forvaltningsvedtak.
+
+       Der faktaboksen i samme melding sier noe ANNET, står begge —
+       merket med hvor de står. Se `beslutning.tegnforklaring()`. #}
+    <div class="rundefakta">
+      <h3 class="etikett">Hva fargen betød i hver runde</h3>
+      <dl class="rundefakta-liste">
+        {% for r in po.rundeopplysninger %}
+        {% if r.tegn %}
+        <dt>
+          <time datetime="{{ r.aar }}">{{ r.aar }}</time>
+          <span class="rundefakta-kilde">{{ r.type|lower }}
+            <time datetime="{{ r.dato }}">{{ r.dato|dato }}</time>
+            {% if r.url %}· <a href="{{ r.url }}">regjeringen.no ↗</a>{% endif %}
+          </span>
+        </dt>
+        <dd>
+          <ul class="tegnforklaring">
+            {% for t in r.tegn %}
+            <li>
+              <span class="rute rute--ordrett {{ t.klasse }}"></span>
+              <span data-felt="farge">{{ t.farge_vist }}</span> —
+              {{ t.tekst }}
+              <span class="rundefakta-hvor">({{ t.hvor }})</span>
+              {% if t.avvik %}
+              <span class="rundefakta-avvik">{{ t.avvik_hvor }} i samme
+                melding sier <strong>{{ t.avvik }}</strong>; runden
+                fulgte beslutningsavsnittet.</span>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </dd>
+        {% endif %}
+        {% endfor %}
+      </dl>
+    </div>
 
     <ul class="tegnforklaring" aria-label="Hva fyllet betyr">
       <li><span class="rute rute--ordrett"></span>fargeordet står i

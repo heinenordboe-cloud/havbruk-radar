@@ -274,8 +274,8 @@
       </div>
       <p class="kyst-ingress">
         Trafikklyset fastsettes annethvert år. Forskriften navngir bare
-        områder der noe skjer, så en skravert rute i stripa er et steg
-        i historien og ikke et hull.
+        områder der noe skjer — de øvrige fargene står i departementets
+        egen kunngjøring, og stripa viser begge.
       </p>
     </div>
 
@@ -391,8 +391,10 @@
           <li><span class="rute lys-rod"></span>rød</li>
           <li><span class="rute lys-gul"></span>gul</li>
           <li><span class="rute lys-gronn"></span>grønn</li>
-          <li><span class="rute rute--skravert"></span>ikke oppgitt i
-            forskriften</li>
+          {# RUTA BLIR STÅENDE selv om ingen celle bruker den nå:
+             MÅLT 23.09.2026 har alle 65 cellene en farge. En runde som
+             ikke er lest ennå skal fortsatt se ut som det. #}
+          <li><span class="rute rute--skravert"></span>ikke oppgitt</li>
         </ul>
 
         <p class="dekningsnote">
