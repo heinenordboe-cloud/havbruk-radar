@@ -98,6 +98,7 @@ from markupsafe import Markup
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+import beslutning                                          # noqa: E402
 import kart                                                # noqa: E402
 import publiseringsvakt                                    # noqa: E402
 import visningsord                                         # noqa: E402
@@ -1894,6 +1895,13 @@ LESEMAATE = {
     "kapitteloverskrift": "fargeordet står i kapitteloverskriften området "
                           "er plassert under",
     "kapittelhjemmel": "utledet av hvilket kapittel området er plassert i",
+    # TREDJE BELEGGSGRAD, fra 23.09.2026. Fargen står ikke i noen
+    # forskrift, og det er ikke en mangel i kilden: trafikklyset
+    # avgjøres i to trinn, og et GULT område krever ingen bestemmelse.
+    # Den står i departementets kunngjøring av fargeleggingen. Se
+    # `beslutning.py`.
+    "beslutning": "fargeordet står i departementets kunngjøring av "
+                  "fargeleggingen, ikke i forskriften",
 }
 
 # Teksten når forskriften ikke oppgir farge for et område i en runde.
@@ -1968,16 +1976,53 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
                 "farge_klasse": FARGE_KLASSE.get(raa, ""),
                 "lesemaate": maate,
                 "lesemaate_tekst": LESEMAATE.get(maate, maate or "ukjent"),
+                # NØKKELEN STÅR ALLTID, tom der den ikke gjelder. Malen
+                # kjører med `StrictUndefined`, og en nøkkel som bare
+                # finnes noen ganger er en side som faller på den
+                # fjortende raden.
+                "sitat": "",
+                "sitat_dato": "",
+                "sitat_url": "",
             })
-        else:
+            continue
+
+        # FORSKRIFTEN TIER. Da spør vi BESLUTNINGEN, som er trinnet før.
+        #
+        # Trafikklyset avgjøres i to trinn: departementet fargelegger
+        # alle tretten områdene, og deretter fastsettes forskrift for
+        # det som må REGULERES — vekst i grønne områder og nedtrekk i
+        # røde. Et gult område krever ingen bestemmelse, så fargen
+        # finnes uten å stå i Lovtidend. Det er hele forklaringen på de
+        # 19 tomme cellene, og den var ikke en mangel ved kilden.
+        #
+        # MÅLT 23.09.2026 over alle 65 cellene: der begge sier noe, er
+        # de enige i 46 av 46. Null sprik.
+        b = beslutning.for_runde(aar).get(po)
+        if b:
             rader.append({
                 "aar": aar,
-                "farge": FARGE_MANGLER,
-                "farge_felt": FARGE_MANGLER_FELT,
-                "farge_klasse": "",
-                "lesemaate": "",
-                "lesemaate_tekst": "ingen bestemmelse å lese",
+                "farge": visningsord.verdi("farge", b["farge"]),
+                "farge_felt": "farge",
+                "farge_klasse": FARGE_KLASSE.get(b["farge"], ""),
+                "lesemaate": "beslutning",
+                "lesemaate_tekst": LESEMAATE["beslutning"],
+                "sitat": b["sitat"],
+                "sitat_dato": b["dato"],
+                "sitat_url": beslutning.url(aar),
             })
+            continue
+
+        rader.append({
+            "aar": aar,
+            "farge": FARGE_MANGLER,
+            "farge_felt": FARGE_MANGLER_FELT,
+            "farge_klasse": "",
+            "lesemaate": "",
+            "lesemaate_tekst": "ingen bestemmelse å lese",
+            "sitat": "",
+            "sitat_dato": "",
+            "sitat_url": "",
+        })
     return rader
 
 
@@ -2200,6 +2245,27 @@ def _po_fargerader(po: str, felles: Felles) -> list[dict]:
     return ut
 
 
+def _po_saerskilt(po: str, felles: Felles) -> list[dict]:
+    """Rundene der departementet sier det vurderte DETTE området særskilt.
+
+    Fargeleggingen følger ekspertgruppens vurdering når de to
+    grunnlagsårene er enige. Er de ikke det, sier kunngjøringen at
+    departementet gjorde en egen vurdering — og navngir områdene.
+
+    Setningen gjengis ordrett, med dato og lenke. Ingen tolkning: at
+    en farge ble til på den ene eller andre måten er ikke vår sak å
+    veie, og en oppsummering ville vært nettopp det.
+    """
+    ut = []
+    for dato in felles.runder:
+        aar = dato[:4]
+        d = beslutning.saerskilt_for_runde(aar).get(po)
+        if d:
+            ut.append({"aar": aar, "sitat": d["sitat"], "dato": d["dato"],
+                       "url": beslutning.url(aar)})
+    return ut
+
+
 def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
     """Alt én produksjonsområdeside trenger.
 
@@ -2271,6 +2337,11 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
         "akva_dato": felles.akva_dato,
         "akva_hentet": felles.akva_hentet,
         "runder": _po_fargerader(po, felles),
+        # DEPARTEMENTETS EGEN MERKNAD om at det vurderte NETTOPP dette
+        # området særskilt. Bare de rundene et menneske har lest, og
+        # bare ordrett — se `beslutning.saerskilt()` og punktet i
+        # oppdraget: «Kort, uten tolkning.»
+        "saerskilt": _po_saerskilt(po, felles),
         "lokaliteter": lokaliteter,
         "lokaliteter_antall": len(lokaliteter),
         "selskaper_antall": len({l["selskap"]["orgnr"] for l in lokaliteter

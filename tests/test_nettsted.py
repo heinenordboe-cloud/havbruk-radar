@@ -24,6 +24,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
+import beslutning
 import kart
 import nettsted
 import visningsord
@@ -1208,15 +1209,35 @@ def _po(**overstyr) -> str:
             # tomme ruta, og den er stiplet, ikke fylt.
             {"aar": "2018", "farge": nettsted.FARGE_MANGLER,
              "farge_felt": nettsted.FARGE_MANGLER_FELT, "farge_klasse": "",
-             "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese"},
+             "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese",
+             "sitat": "", "sitat_dato": "", "sitat_url": ""},
             {"aar": "2020", "farge": "rød", "farge_felt": "farge",
              "farge_klasse": nettsted.FARGE_KLASSE["rod"],
              "lesemaate": "ordrett",
-             "lesemaate_tekst": nettsted.LESEMAATE["ordrett"]},
+             "lesemaate_tekst": nettsted.LESEMAATE["ordrett"],
+             "sitat": "", "sitat_dato": "", "sitat_url": ""},
             {"aar": "2022", "farge": "grønn", "farge_felt": "farge",
              "farge_klasse": nettsted.FARGE_KLASSE["gronn"],
              "lesemaate": "kapittelhjemmel",
-             "lesemaate_tekst": nettsted.LESEMAATE["kapittelhjemmel"]},
+             "lesemaate_tekst": nettsted.LESEMAATE["kapittelhjemmel"],
+             "sitat": "", "sitat_dato": "", "sitat_url": ""},
+            # BELEGGSGRAD TRE, fra 23.09.2026: fargeordet står i
+            # departementets kunngjøring og ikke i noen forskrift.
+            # Sitatet står på siden, ikke bare i koden.
+            {"aar": "2024", "farge": "gul", "farge_felt": "farge",
+             "farge_klasse": nettsted.FARGE_KLASSE["gul"],
+             "lesemaate": "beslutning",
+             "lesemaate_tekst": nettsted.LESEMAATE["beslutning"],
+             "sitat": "Fem produksjonsområder får gult lys: Ryfylke (PO2)",
+             "sitat_dato": "2024-03-06",
+             "sitat_url": "https://www.regjeringen.no/no/aktuelt/x/id3028522/"},
+        ],
+        # Departementets egen merknad om at området ble vurdert
+        # særskilt. Ordrett, med dato og lenke — ingen tolkning.
+        "saerskilt": [
+            {"aar": "2024", "dato": "2024-03-06",
+             "sitat": "Fargeleggingen følger direkte av handlingsregelen",
+             "url": "https://www.regjeringen.no/no/aktuelt/x/id3028522/"},
         ],
         "lokaliteter": [{"loknr": "31397", "navn": "Oterneset",
                          "original": "OTERNESET",
@@ -2611,3 +2632,129 @@ def test_borte_paastar_ikke_at_noe_forsvant_fra_registeret():
     assert "næringskode" in hva["borte"], (
         "forklaringen må si hvorfor en oppføring kan forsvinne uten å "
         "være slettet — ellers er etiketten bare vagere, ikke sannere")
+
+
+# ================================== beleggsgrad tre: BESLUTNINGEN
+#
+# Trafikklyset avgjøres i to trinn — departementet fargelegger alle 13
+# områdene, og så fastsettes forskrift for det som må reguleres. Et
+# gult område krever ingen bestemmelse. Se `beslutning.py`.
+#
+# TESTENE HER LESER SYNTETISKE KROPPER. Påstandene om de ekte fem —
+# 65 celler fylt, 46 av 46 enige med forskriftene, PO9 som eneste
+# særskilt vurderte området i 2026 — er MÅLT og står i
+# docs/VERIFISERING-PRESSEMELDINGER.md. Testsuiten kjører mot en tom
+# engangsmappe (se tests/conftest.py), og en test som krever
+# utviklerens datamappe er en test som er grønn fordi den ikke kjørte.
+
+def _kropp(tekst: str) -> bytes:
+    return f"""<!DOCTYPE html><html><head>
+<meta property="og:url" content="https://www.regjeringen.no/x/id1/">
+</head><body><p>{tekst}</p></body></html>""".encode("utf-8")
+
+
+def _legg_kropp(monkeypatch, tmp_path, runde, dato, tekst):
+    """Skriver en kropp og pinner summen, som for de ekte fem."""
+    import gzip
+    import hashlib
+
+    kat = tmp_path / "pm"
+    kat.mkdir(exist_ok=True)
+    rå = _kropp(tekst)
+    (kat / f"{dato}.bin.gz").write_bytes(gzip.compress(rå))
+    monkeypatch.setattr(beslutning, "ARKIV", kat)
+    monkeypatch.setitem(beslutning.KROPPER, runde,
+                        (dato, hashlib.sha256(rå).hexdigest()))
+    beslutning.hent.cache_clear()
+    beslutning._kropp.cache_clear()
+    beslutning.saerskilt.cache_clear()
+
+
+# Ordrett fra den arkiverte 2017-kroppen, sha256 896b9570…  Den er
+# hele grunnen til at parseren er posisjonsbasert.
+SETNING_2017 = (
+    "Regjeringen har besluttet at 8 produksjonsområder settes til grønt "
+    "(produksjonsområdene 1 og 7-13), tre produksjonsområder settes til "
+    "gult (2, 5 og 6) og to produksjonsområder settes til rødt (3 og 4)."
+)
+
+
+def test_tre_farger_i_en_setning_fordeles_riktig(monkeypatch, tmp_path):
+    """Regresjonen som ble målt 23.09.2026: et avsnittsvis oppslag ga
+    PO 2, 3, 4, 5 og 6 fargen GRØNN, der de er gul, rød, rød, gul, gul.
+    Hver parentes hører til fargeordet FORAN seg."""
+    _legg_kropp(monkeypatch, tmp_path, "2018", "2017-10-30", SETNING_2017)
+
+    d = beslutning.hent("2018")
+
+    assert {po: d[po]["farge"] for po in sorted(d, key=int)} == {
+        "1": "gronn", "2": "gul", "3": "rod", "4": "rod", "5": "gul",
+        "6": "gul", "7": "gronn", "8": "gronn", "9": "gronn",
+        "10": "gronn", "11": "gronn", "12": "gronn", "13": "gronn"}
+
+
+def test_en_endret_kropp_stopper_lesingen(monkeypatch, tmp_path):
+    """Summen er pinnet av samme grunn som fontene er det: en kropp som
+    har endret seg skal stoppe, ikke leses stille."""
+    _legg_kropp(monkeypatch, tmp_path, "2018", "2017-10-30", SETNING_2017)
+    monkeypatch.setitem(beslutning.KROPPER, "2018", ("2017-10-30", "00" * 32))
+    beslutning.hent.cache_clear()
+    beslutning._kropp.cache_clear()
+
+    with pytest.raises(beslutning.Kroppsprik):
+        beslutning.hent("2018")
+
+
+def test_aarstall_i_parentes_er_ikke_et_produksjonsomraade():
+    """«Meld. St. 16 (2014-2015)» står i et avsnitt i hver eneste av de
+    fem meldingene. Et produksjonsområde har nummer 1-13."""
+    assert beslutning._numre("2014-2015") == []
+    assert beslutning._numre("PO4") == ["4"]
+    assert beslutning._numre("produksjonsområdene 1 og 7-13") == [
+        "7", "8", "9", "10", "11", "12", "13", "1"]
+
+
+def test_sammendrag_uten_numre_fyller_ingen_celle(monkeypatch, tmp_path):
+    """«Ni områder får gult lys» er et sammendrag, ikke en oppregning.
+    En celle fylles av tall, aldri av en telling."""
+    _legg_kropp(monkeypatch, tmp_path, "2018", "2017-10-30",
+                "Ni områder får gult lys. Ett område får rødt lys.")
+
+    assert beslutning.hent("2018") == {}
+
+
+def test_saerskilt_leses_ordrett_og_bare_der_omraadet_navngis(
+        monkeypatch, tmp_path):
+    """Punktet i oppdraget: kort, med kilde, uten tolkning. Avsnittet
+    som bare NEVNER regelen, uten å navngi et område, fyller ingenting."""
+    _legg_kropp(
+        monkeypatch, tmp_path, "2026", "2026-06-19",
+        "Ved årets fargelegging gjelder dette ett av produksjonsområdene, "
+        "Vestfjorden og Vesterålen (PO9). I tråd med Trafikklysmeldingen, "
+        "Meld. St. 16 (2014-2015), har departementet gjort en særskilt "
+        "vurdering av miljøtilstanden i PO9.")
+
+    d = beslutning.saerskilt("2026")
+
+    assert list(d) == ["9"]
+    assert "særskilt vurdering av miljøtilstanden i PO9" in d["9"]["sitat"]
+    assert d["9"]["dato"] == "2026-06-19"
+
+
+def test_bare_godkjente_runder_naar_nettstedet():
+    """`GODKJENT` er en menneskelig kvittering: avsnittene leses mot
+    kroppen før de publiseres. En tom celle er ærligere enn en celle
+    ingen har sett på."""
+    assert beslutning.GODKJENT == frozenset({"2026"})
+    assert set(beslutning.KROPPER) - beslutning.GODKJENT == {
+        "2018", "2020", "2022", "2024"}
+    for runde in set(beslutning.KROPPER) - beslutning.GODKJENT:
+        assert beslutning.for_runde(runde) == {}, runde
+        assert beslutning.saerskilt_for_runde(runde) == {}, runde
+
+
+def test_beslutning_er_en_egen_beleggsgrad():
+    """Tre grader, og de sier hver sin ting om HVOR fargen står."""
+    assert set(nettsted.LESEMAATE) >= {"ordrett", "kapittelhjemmel",
+                                       "beslutning"}
+    assert "ikke i forskriften" in nettsted.LESEMAATE["beslutning"]

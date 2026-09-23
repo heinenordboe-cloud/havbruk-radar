@@ -10,8 +10,10 @@
      `prodomraade_status`  hvilken farge som GJELDER NÅ, fra
                            Akvakulturregisteret. Ingen tomme.
      `trafikklysvedtak`    hva FORSKRIFTEN SA i hver runde, med belegg.
-                           19 av 65 celler er tomme, fordi forskriften
-                           bare navngir områder der noe endrer seg.
+     `beslutning.py`       og der forskriften tier: hva departementet
+                           KUNNGJORDE da det fargela. Trafikklyset
+                           avgjøres i to trinn, og et gult område
+                           krever ingen bestemmelse.
    Begge står, og siden sier hvilken som er hvilken.
 
    BIOMASSEN STÅR HER og ikke på lokalitetssiden: de offentlige
@@ -67,7 +69,20 @@
            fraværet av en. Samme konstruksjon som `eier_ukjent`. #}
         <p class="runde-farge" data-felt="{{ r.farge_felt }}">{{ r.farge }}</p>
         <p class="runde-belegg">{{ r.lesemaate_tekst }}</p>
-        {% if r.forskrift %}
+        {% if r.sitat %}
+        {# SITATET STÅR PÅ SIDEN, ikke bare i koden. En farge som ikke
+           kan slås opp i Lovtidend må kunne etterprøves her, og da er
+           setningen som bærer den det eneste belegget. #}
+        <details class="runde-sitat">
+          <summary>Fra kunngjøringen
+            <time datetime="{{ r.sitat_dato }}">{{ r.sitat_dato|dato }}</time>
+          </summary>
+          <blockquote data-felt="beslutningssitat">{{ r.sitat }}</blockquote>
+          {% if r.sitat_url %}
+          <p class="runde-kilde"><a href="{{ r.sitat_url }}">regjeringen.no ↗</a></p>
+          {% endif %}
+        </details>
+        {% elif r.forskrift %}
         <p class="runde-kilde">
           <a href="{{ r.forskrift.url }}">{{ r.forskrift.id }} ↗</a>
         </p>
@@ -81,8 +96,26 @@
         forskriften</li>
       <li><span class="rute rute--utledet"></span>utledet av
         kapittelplasseringen</li>
+      <li><span class="rute rute--beslutning"></span>fra departementets
+        kunngjøring, ikke fra forskriften</li>
       <li><span class="rute rute--skravert"></span>ikke oppgitt</li>
     </ul>
+
+    {# DEPARTEMENTETS EGEN MERKNAD om dette området. Står ordrett, med
+       dato og lenke, og uten et sammendrag foran: hvorfor en farge ble
+       som den ble, er ikke vår sak å veie. #}
+    {% for m in po.saerskilt %}
+    <div class="saerskilt">
+      <p class="etikett">Departementet vurderte området særskilt i
+        <time datetime="{{ m.aar }}">{{ m.aar }}</time></p>
+      <blockquote data-felt="beslutningssitat">{{ m.sitat }}</blockquote>
+      <p class="runde-kilde">
+        Nærings- og fiskeridepartementet,
+        <time datetime="{{ m.dato }}">{{ m.dato|dato }}</time> ·
+        <a href="{{ m.url }}">regjeringen.no ↗</a>
+      </p>
+    </div>
+    {% endfor %}
 
     <p class="rundenote">
       Fargen som <strong>gjelder nå</strong> er

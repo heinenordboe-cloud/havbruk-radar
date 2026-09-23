@@ -2386,6 +2386,27 @@ figcaption {
 .runde--kapittelhjemmel.lys-gul   .runde-flate { box-shadow: inset 0 0 0 2px var(--lys-gul); }
 .runde--kapittelhjemmel.lys-gronn .runde-flate { box-shadow: inset 0 0 0 2px var(--lys-gronn); }
 
+/* BESLUTNING: fullt fyll som «ordlyd», men med en STIPLET underkant.
+   Fargeordet står ordrett — det står bare i kunngjøringen og ikke i
+   forskriften, og det er en forskjell i HVOR belegget er, ikke i hvor
+   sikkert det er. Derfor ikke tonet ned som «utledet»: et gult område
+   får ingen bestemmelse, og fraværet av en paragraf er ikke et
+   svakere belegg for fargen. */
+.runde--beslutning .runde-flate {
+  border-block-end: 2px dashed rgba(231, 219, 208, 0.55);
+}
+
+.runde-sitat { font-size: var(--fs-12); margin-block-start: var(--rom-4); }
+.runde-sitat summary { color: var(--rust-lys); cursor: pointer; }
+.runde-sitat blockquote {
+  margin: var(--rom-8) 0 0;
+  padding-inline-start: var(--rom-10);
+  border-inline-start: 2px solid var(--hav5);
+  font-size: var(--fs-12);
+  line-height: var(--lh-normal);
+  color: var(--hav-sekundaer);
+}
+
 /* INGEN BESTEMMELSE: skravur, samme mønster som overalt ellers. */
 .runde--ingen .runde-flate {
   background-color: transparent;
@@ -2428,6 +2449,28 @@ figcaption {
   background: var(--lys-gul);
   opacity: 0.45;
   box-shadow: inset 0 0 0 2px var(--lys-gul);
+}
+
+.rute--beslutning {
+  background: var(--lys-gul);
+  border-block-end: 2px dashed var(--ink-dempet);
+}
+
+.saerskilt {
+  max-width: 72ch;
+  margin-block: var(--rom-20);
+  padding: var(--rom-16) var(--rom-20);
+  background: rgba(231, 219, 208, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.18);
+}
+
+.saerskilt .etikett { margin-block-end: var(--rom-8); }
+
+.saerskilt blockquote {
+  margin: 0 0 var(--rom-10);
+  font-size: var(--fs-14);
+  line-height: var(--lh-normal);
+  color: var(--hav-tekst);
 }
 
 .rundenote {
