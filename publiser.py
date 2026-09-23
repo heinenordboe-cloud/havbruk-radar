@@ -148,7 +148,15 @@ def spor(tekst: str) -> None:
     Ikke «y», ikke enter, ikke «ja» med stor J som feiler stille. Et
     spørsmål som kan besvares ved et uhell er ikke et spørsmål.
     """
-    svar = input(tekst).strip().lower()
+    try:
+        svar = input(tekst).strip().lower()
+    except EOFError:
+        # Ingen å spørre. Da er svaret nei — et spørsmål uten et
+        # menneske er ikke besvart, og en publisering som gikk gjennom
+        # fordi stdin var lukket ville vært den verste varianten:
+        # stille, og uten at noen hadde sett tallene.
+        raise Stopp("\n\n  STOPPET: ingen å spørre (stdin er lukket). "
+                    "Kjør fra et terminalvindu.")
     if svar != "ja":
         raise Stopp("\n  Avbrutt. Ingenting er lastet opp.")
 
