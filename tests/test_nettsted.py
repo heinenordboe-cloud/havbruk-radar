@@ -3026,3 +3026,62 @@ def test_en_uenighet_mellom_kildene_gjemmes_ikke_bak_rangeringen():
            / "maler" / "produksjonsomrade.html.j2").read_text(encoding="utf-8")
     assert "runde-ellers--uenig" in mal
     assert "{% if e.enig %}også{% else %}men{% endif %}" in mal
+
+
+# ================================================== publiser.py
+
+def test_publiser_krever_ordet_ja():
+    """Ikke «y», ikke enter, ikke «ja» med stor J som feiler stille. Et
+    spørsmål som kan besvares ved et uhell er ikke et spørsmål."""
+    kode = (Path(__file__).resolve().parents[1]
+            / "publiser.py").read_text(encoding="utf-8")
+    assert 'if svar != "ja":' in kode
+
+
+def test_publiser_har_ingen_vei_rundt_porten():
+    """`--uten-bygg` hopper over byggingen. Den skal ikke kunne hoppe
+    over porten: et flagg som slo den av ville stått i vanen om et
+    halvt år."""
+    kode = (Path(__file__).resolve().parents[1]
+            / "publiser.py").read_text(encoding="utf-8")
+    assert "publiseringsvakt.ukvittert(funn)" in kode
+
+    # `--uten-vakt` sendes til BYGGET, fordi porten kjøres for seg i
+    # steg 3 og ikke skal kjøres to ganger. Den er ikke et flagg på
+    # `publiser.py`.
+    import argparse
+    import ast
+
+    tre = ast.parse(kode)
+    flagg = {a.value for n in ast.walk(tre)
+             if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "add_argument"
+             for a in n.args if isinstance(a, ast.Constant)}
+    assert flagg == {"--produksjon", "--uten-bygg"}, flagg
+    del argparse
+
+
+def test_publiser_krever_at_begge_repoene_er_rene_og_pushet():
+    kode = (Path(__file__).resolve().parents[1]
+            / "publiser.py").read_text(encoding="utf-8")
+    assert 'krev_sporbar(ROT, "koderepoet")' in kode
+    assert 'krev_sporbar(DATAREPO, "datarepoet")' in kode
+    assert '"log", "origin/main..HEAD"' in kode
+
+
+def test_publiser_gaar_til_forhandsvisning_uten_flagg():
+    """Produksjon er et VALG, ikke en standard."""
+    kode = (Path(__file__).resolve().parents[1]
+            / "publiser.py").read_text(encoding="utf-8")
+    assert 'if not args.produksjon:\n        wrangler += ["--branch"' in kode
+
+
+def test_publiser_ber_aldri_om_en_nokkel():
+    """wrangler autentiserer i nettleseren. Skriptet skal ikke lese,
+    skrive eller be om noe hemmelig."""
+    kode = (Path(__file__).resolve().parents[1]
+            / "publiser.py").read_text(encoding="utf-8")
+    for ord_ in ("CLOUDFLARE_API_TOKEN", "getpass", "api_token",
+                 "--api-key", "CF_API"):
+        assert ord_ not in kode, ord_

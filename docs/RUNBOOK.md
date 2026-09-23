@@ -122,6 +122,75 @@ Hemmelighetene heter `SPEIL_URL` og `SPEIL_TOKEN`, og variabelen som slår
 det på heter `SPEILING_AKTIV`. Ingen andre navn — en tidligere versjon av
 dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
 
+## Publisering: `publiser.py`
+
+Nettstedet ligger på **Cloudflare Pages**, prosjekt `kystloggen`,
+domene `kystloggen.no`.
+
+    python publiser.py                  # forhåndsvisning
+    python publiser.py --produksjon     # kystloggen.no
+    python publiser.py --uten-bygg      # bruk mappa som den er
+
+**Første gang, og bare da:** logg inn i wrangler. Det skjer i
+nettleseren, og skriptet rører ikke nøkler:
+
+    npx wrangler login
+
+### Seks steg, og rekkefølgen er poenget
+
+| # | steg | verner mot |
+|---|---|---|
+| 1 | sporbarhet | begge repoene rene og pushet — F15, to ganger |
+| 2 | bygg | fra disk, ikke fra en cache |
+| 3 | porten | ETT ukvittert funn stopper. Ingen overstyring |
+| 4 | ukas tall | skrevet ut, og du må skrive «ja» |
+| 5 | wrangler | forhåndsvisning med mindre `--produksjon` |
+| 6 | logg | én linje i `docs/publiseringslogg.tsv` i datarepoet |
+
+`--uten-bygg` hopper over steg 2. **Den hopper ikke over porten.**
+
+Steg 4 krever ordet `ja`, skrevet ut. Ikke `y`, ikke enter: et spørsmål
+som kan besvares ved et uhell er ikke et spørsmål.
+
+### Hvorfor begge repoene må være rene
+
+Nettstedet er en funksjon av to ting — koden som bygger og dataene som
+bygges. En publisering der ett av dem ikke kan gjøres rede for, er en
+side ingen kan bygge på nytt, og da er sjekksummen i arkivlinja en
+påstand uten dekning.
+
+Skriptet kjører `git pull --ff-only` i datarepoet først, så en
+publisering aldri bygger på en eldre kopi enn den som ligger på GitHub.
+
+### Loggen
+
+`docs/publiseringslogg.tsv` i DATAREPOET — der og ikke i koderepoet: en
+publisering er en hendelse i historikken, og historikken bor der
+dataene bor.
+
+    tidspunkt  miljo  kode_commit  data_commit  uke
+
+Skriptet skriver linja. **Du committer og pusher den selv**, som del av
+neste datacommit.
+
+### Ingen nøkler
+
+`wrangler` autentiserer i nettleseren og lagrer sin egen tilstand under
+`~/.config/.wrangler`. `publiser.py` leser den ikke, skriver den ikke,
+og ber ikke om den.
+
+### Vertsnavnet i en forhåndsvisning
+
+Bygget bruker `kystloggen.no` som kanonisk adresse. På en
+forhåndsvisning betyr det at `<link rel=canonical>` peker til
+produksjonsdomenet — som er riktig: forhåndsvisningen er en kopi, og
+den skal ikke be en søkemotor indeksere seg selv.
+
+Vil du ha en forhåndsvisning som oppgir SIN EGEN adresse:
+
+    HAVBRUK_BASEURL=https://forhandsvisning.kystloggen.pages.dev \
+        python publiser.py
+
 ## Når innsamlingen NEKTER å kjøre
 
 Fra 23.09.2026 stopper `run.py` før den henter noe, hvis kjøringen ikke
