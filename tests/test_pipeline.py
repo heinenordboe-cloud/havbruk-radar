@@ -2602,7 +2602,10 @@ def _skriv_gammelt_snapshot(rader, observed_at="2026-08-17"):
     lage dem kan ikke bevise at leseveien håndterer dem."""
     mappe = snapshot.RAW_DIR / "enhetsregisteret"
     mappe.mkdir(parents=True, exist_ok=True)
-    ramme = pl.DataFrame([o.as_dict() for o in rader]).select(snapshot.SCHEMA)
+    # UTEN KJØRINGSFELTENE: en fil skrevet før 23.09.2026 har dem ikke,
+    # og det er nettopp slike filer denne hjelperen finnes for å lage.
+    kolonner = [k for k in snapshot.SCHEMA if k not in snapshot.KJORINGSFELT]
+    ramme = pl.DataFrame([o.as_dict() for o in rader]).select(kolonner)
     ramme.write_parquet(mappe / f"{observed_at}.parquet")
 
 
@@ -3855,3 +3858,122 @@ def test_lesedora_rorer_ikke_filene(tmp_path, monkeypatch):
     changelog.les_alt()
 
     assert fil.read_bytes() == for_
+
+
+# ================================================== kodeproveniens
+#
+# F15 to ganger: den ukentlige innsamlingen kjørte upushet kode, og
+# ingenting i snapshotet sa det. Se core/kodeproveniens.py.
+
+def test_write_stempler_koden_som_skrev_fila(tmp_path, monkeypatch):
+    from core import kodeproveniens
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(kodeproveniens, "commit", lambda: "a" * 40)
+    monkeypatch.setattr(kodeproveniens, "rent", lambda: kodeproveniens.RENT)
+
+    snapshot.write([_obs("1", "navn", "A", "2026-01-01")], "2026-01-01")
+
+    [(_, ramme)] = snapshot.les_mellom("falsk", "2026-01-01", "2026-01-01")
+    assert ramme["kode_commit"].unique().to_list() == ["a" * 40]
+    assert ramme["kode_rent"].unique().to_list() == ["ja"]
+
+
+def test_urent_arbeidstre_stemples_som_urent(tmp_path, monkeypatch):
+    """`write()` NEKTER ikke — det er run.py sin jobb, før den henter
+    noe. Her stemples det som er SANT, også når det er stygt: en fil som
+    sier at treet var skittent er uendelig mye mer verdt enn en som
+    tier."""
+    from core import kodeproveniens
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(kodeproveniens, "commit", lambda: "b" * 40)
+    monkeypatch.setattr(kodeproveniens, "rent", lambda: kodeproveniens.URENT)
+
+    snapshot.write([_obs("1", "navn", "A", "2026-01-01")], "2026-01-01")
+
+    [(_, ramme)] = snapshot.les_mellom("falsk", "2026-01-01", "2026-01-01")
+    assert ramme["kode_rent"].unique().to_list() == ["nei"]
+
+
+def test_gammelt_snapshot_leses_som_kodeproveniens_ukjent(tmp_path, monkeypatch):
+    """Filene fra før 23.09.2026 har ikke feltene. De skal kunne leses,
+    og de skal lese som «vet ikke» — ikke som en påstand om en commit.
+    Append-only: de blir stående."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    katalog = tmp_path / "raw" / "falsk"
+    katalog.mkdir(parents=True)
+    pl.DataFrame({
+        "entity_id": ["1"], "entity_type": ["selskap"], "entity_name": ["A"],
+        "field": ["navn"], "value": ["A"], "source": ["falsk"],
+        "observed_at": ["2026-01-01"],
+    }).write_parquet(katalog / "2026-01-01.parquet")
+
+    [(_, ramme)] = snapshot.les_mellom("falsk", "2026-01-01", "2026-01-01")
+    assert ramme["kode_commit"].to_list() == [""]
+
+    [post] = snapshot.kodeproveniens_per_fil()
+    assert post["har_felt"] is False, (
+        "skillet mellom «fila hadde ikke feltet» og «feltet er tomt» må "
+        "overleve lesedøra — det første er en grense i historikken, det "
+        "andre er et funn")
+
+
+def test_felt_som_er_der_men_tomt_er_noe_annet(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    katalog = tmp_path / "raw" / "falsk"
+    katalog.mkdir(parents=True)
+    pl.DataFrame({
+        "entity_id": ["1"], "entity_type": ["selskap"], "entity_name": ["A"],
+        "field": ["navn"], "value": ["A"], "source": ["falsk"],
+        "observed_at": ["2026-01-01"], "kode_commit": [""], "kode_rent": [""],
+    }).write_parquet(katalog / "2026-01-01.parquet")
+
+    [post] = snapshot.kodeproveniens_per_fil()
+    assert post["har_felt"] is True and post["commit"] == []
+
+
+def test_kjoringsfeltene_star_ikke_paa_observation():
+    """Et felt på dataklassen er et felt en kilde kan fylle, og en kilde
+    som oppga sin egen commit ville kunnet oppgi feil. `write()`
+    stempler dem, i den ene veien alt går gjennom."""
+    from core.contract import Observation
+
+    felter = {f for f in Observation.__dataclass_fields__}
+    for kol in snapshot.KJORINGSFELT:
+        assert kol not in felter, kol
+        assert kol in snapshot.SCHEMA, kol
+
+
+def test_krev_sporbar_nekter_naar_head_ikke_er_pushet(monkeypatch):
+    from core import kodeproveniens
+
+    monkeypatch.setattr(kodeproveniens, "commit", lambda: "c" * 40)
+    monkeypatch.setattr(kodeproveniens, "rent", lambda: kodeproveniens.RENT)
+    monkeypatch.setattr(kodeproveniens, "paa_origin_main", lambda sha: False)
+
+    with pytest.raises(kodeproveniens.IkkeSporbar) as e:
+        kodeproveniens.krev_sporbar()
+    assert "origin/main" in str(e.value)
+
+
+def test_krev_sporbar_nekter_naar_treet_er_urent(monkeypatch):
+    from core import kodeproveniens
+
+    monkeypatch.setattr(kodeproveniens, "commit", lambda: "d" * 40)
+    monkeypatch.setattr(kodeproveniens, "rent", lambda: kodeproveniens.URENT)
+
+    with pytest.raises(kodeproveniens.IkkeSporbar) as e:
+        kodeproveniens.krev_sporbar()
+    assert "ikke rent" in str(e.value)
+
+
+def test_run_py_har_ingen_vei_rundt_kodeproveniensen():
+    """Et flagg for å hoppe over dette ville stått i cron-jobben om et
+    halvt år. `--torrkjor` er unntatt, og bare den: den skriver ingen
+    fil, så det finnes ingen fil som kan bli uetterprøvbar."""
+    kode = (ROT / "run.py").read_text(encoding="utf-8")
+    assert "kodeproveniens.krev_sporbar()" in kode
+    assert "if not args.torrkjor:" in kode
+    for flagg in ("--uten-kodeproveniens", "--tving-kode", "--hopp-over-kode"):
+        assert flagg not in kode, flagg

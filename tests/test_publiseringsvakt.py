@@ -1372,3 +1372,76 @@ def test_hvert_indeksert_sideutdrag_granskes(tmp_path):
     (pf / "pagefind-entry.json").write_text(
         json.dumps({"languages": {"nb": {"page_count": 3}}}), encoding="utf-8")
     assert vakt.utdrag_dekker_indeksen(pf) == (3, 2)
+
+
+# =============================================== porten og kodeproveniensen
+
+def _kodefil(rot, kilde, navn, **kolonner):
+    mappe = rot / kilde
+    mappe.mkdir(parents=True, exist_ok=True)
+    data = {"entity_id": ["1"], "entity_type": ["selskap"],
+            "entity_name": ["A"], "field": ["navn"], "value": ["A"],
+            "source": [kilde], "observed_at": ["2026-09-22"]}
+    data.update({k: [v] for k, v in kolonner.items()})
+    pl.DataFrame(data).write_parquet(mappe / navn)
+
+
+def test_snapshot_uten_kodeproveniens_feller_ikke_porten(tmp_path, monkeypatch):
+    """1 833 filer er skrevet før regelen fantes. En port som falt på
+    dem ville falt for alltid, og en port som alltid faller blir slått
+    av. De telles i stedet, hver kjøring."""
+    monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
+    _kodefil(tmp_path, "falsk", "2026-09-22.parquet")
+
+    assert vakt.kodeproveniensfunn() == []
+    [tall] = vakt.kodeproveniens_ukjente()
+    assert tall.slag == "kodeproveniens_ukjent"
+    assert "1 filer" in tall.utdrag
+
+
+def test_snapshot_med_tomt_felt_er_et_funn(tmp_path, monkeypatch):
+    """Feltet finnes, altså har den stemplende koden kjørt — og visste
+    likevel ikke. Det er noe annet enn en fil fra før regelen."""
+    monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
+    _kodefil(tmp_path, "falsk", "2026-09-22.parquet",
+             kode_commit="", kode_rent="")
+
+    [funn] = vakt.kodeproveniensfunn()
+    assert funn.slag == "kodeproveniens" and "tomt" in funn.utdrag
+    assert vakt.kodeproveniens_ukjente() == []
+
+
+def test_urent_arbeidstre_er_et_funn(tmp_path, monkeypatch):
+    monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: True)
+    _kodefil(tmp_path, "falsk", "2026-09-22.parquet",
+             kode_commit="e" * 40, kode_rent="nei")
+
+    [funn] = vakt.kodeproveniensfunn()
+    assert funn.slag == "kodeproveniens" and "ikke rent" in funn.utdrag
+
+
+def test_commit_utenfor_origin_main_er_et_funn(tmp_path, monkeypatch):
+    """F15 i sin rene form: koden fantes, men bare hos én maskin."""
+    monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: False)
+    _kodefil(tmp_path, "falsk", "2026-09-22.parquet",
+             kode_commit="f" * 40, kode_rent="ja")
+
+    [funn] = vakt.kodeproveniensfunn()
+    assert "origin/main" in funn.utdrag
+
+
+def test_pushet_og_rent_gir_ingen_funn(tmp_path, monkeypatch):
+    monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
+    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: True)
+    _kodefil(tmp_path, "falsk", "2026-09-22.parquet",
+             kode_commit="a" * 40, kode_rent="ja")
+
+    assert vakt.kodeproveniensfunn() == []
+    assert vakt.kodeproveniens_ukjente() == []

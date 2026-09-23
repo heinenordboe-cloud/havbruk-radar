@@ -10,6 +10,7 @@ from pathlib import Path
 
 import polars as pl
 
+from core import kodeproveniens
 from core import persondata
 from core import utvalg as utvalg_modul
 from core.contract import Observation
@@ -39,7 +40,28 @@ SCHEMA = [
     # målt 1,04x filstørrelse mot 24x for en full parliste. Se
     # core/domene.py.
     "domene",
+    # HVILKEN KODE SOM SKREV RADEN. Stemples av `write()`, ikke av
+    # kilden: en verdi som gjelder hele kjøringen skal ikke være noe
+    # tolv kildeforfattere må huske.
+    #
+    # F15 er grunnen, og den skjedde to ganger — se
+    # core/kodeproveniens.py. Uten disse to kan ingen se at snapshotet
+    # 21.09 ble skrevet av kode fra før 16.09, og at det derfor bærer
+    # personformer kildens gjeldende filter ville stoppet.
+    #
+    # Tom streng = «kodeproveniens ukjent». Alle filer skrevet før
+    # 23.09.2026 leser slik, og de blir stående — append-only.
+    "kode_commit",
+    "kode_rent",
 ]
+
+# Kolonnene som gjelder KJØRINGEN og ikke observasjonen.
+#
+# De står med vilje IKKE på `Observation`: et felt på dataklassen er et
+# felt en kilde kan fylle, og en kilde som oppga sin egen commit ville
+# kunnet oppgi feil. `write()` stempler dem, i den ene veien alt går
+# gjennom.
+KJORINGSFELT = ("kode_commit", "kode_rent")
 
 
 # Én kilde skal levere én verdi per entitet og felt per kjøring. Dette er
@@ -72,7 +94,14 @@ def to_frame(observations: list[Observation]) -> pl.DataFrame:
     """
     if not observations:
         return pl.DataFrame(schema={col: pl.Utf8 for col in SCHEMA})
-    frame = pl.DataFrame([o.as_dict() for o in observations]).select(SCHEMA)
+    fra_obs = [k for k in SCHEMA if k not in KJORINGSFELT]
+    frame = pl.DataFrame([o.as_dict() for o in observations]).select(fra_obs)
+    # KJØRINGSFELTENE LEGGES TIL TOMME her og fylles av `write()`.
+    # `to_frame()` er også en lesevei — `diff` og testene bruker den på
+    # observasjoner som aldri skrives — og den skal ikke spørre git.
+    frame = frame.with_columns(
+        [pl.lit("", dtype=pl.Utf8).alias(k) for k in KJORINGSFELT]
+    ).select(SCHEMA)
     return frame.unique(subset=NOKKEL, keep="first", maintain_order=True)
 
 
@@ -178,6 +207,24 @@ def write(observations: list[Observation], observed_at: str) -> list[Path]:
     grunnen til at enhetsregisteret filtrerer begge steder.
     """
     frame = to_frame(observations)
+
+    # KODEPROVENIENSEN STEMPLES HER, i den ene veien alt går gjennom.
+    #
+    # Ikke i hver kilde, og ikke hos kalleren: `run.py` og
+    # `backfill.py` skriver begge herfra, og en verdi som må stemples
+    # hver gang skal ikke være noe en ny skrivevei må huske. Samme
+    # begrunnelse som personformvakten og datokontrollen under.
+    #
+    # `write()` NEKTER ikke. Å nekte er `run.py`s jobb, før den henter
+    # noe — se `kodeproveniens.krev_sporbar()`. Her stemples det som er
+    # sant, også når det er «urent»: en fil som sier at treet var
+    # skittent er uendelig mye mer verdt enn en fil som tier.
+    if not frame.is_empty():
+        sha, tilstand = kodeproveniens.commit(), kodeproveniens.rent()
+        frame = frame.with_columns(
+            pl.lit(sha, dtype=pl.Utf8).alias("kode_commit"),
+            pl.lit(tilstand, dtype=pl.Utf8).alias("kode_rent"))
+
     written = []
 
     for (source,), group in frame.group_by(["source"]):
@@ -277,8 +324,14 @@ def _les(sti: Path) -> pl.DataFrame:
     return _les_med_tall(sti)[0]
 
 
-def _les_med_tall(sti: Path) -> tuple[pl.DataFrame, dict[str, int], list[str]]:
-    """Døra, og HVA DEN TOK: (ramme, {organisasjonsform: antall}, [id-er]).
+def _les_med_tall(
+        sti: Path) -> tuple[pl.DataFrame, dict[str, int], list[str], list[str]]:
+    """Døra, og HVA DEN TOK: (ramme, {form: antall}, [id-er], [råkolonner]).
+
+    Fjerde ledd er kolonnene fila FAKTISK hadde, før de manglende ble
+    lagt til under. Det er den eneste måten å skille «fila ble skrevet
+    uten kodeproveniens» fra «fila har den, og den er tom» — og de to
+    betyr helt forskjellige ting. Se `kodeproveniens_per_fil()`.
 
     Den ene `read_parquet`-en i repoet står her, og det er grunnen til at
     telleren må bo i samme funksjon: et andre oppslag for å finne ut hva
@@ -335,7 +388,19 @@ def _les_med_tall(sti: Path) -> tuple[pl.DataFrame, dict[str, int], list[str]]:
     # alle — inkludert biomasses 1809 ekte.
     if "domene" not in frame.columns:
         frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias("domene"))
-    return frame, fjernet, personer
+
+    # Og snapshots skrevet før 23.09.2026 har ingen kodeproveniens. De
+    # leses som UKJENT, ikke som «rent» og ikke som en påstand om noen
+    # commit. Filene blir stående — append-only, og en fil som fikk
+    # stemplet sitt i ettertid ville påstått at den ble skrevet av kode
+    # som ikke fantes da.
+    #
+    # MÅLT 23.09.2026: 1 830 filer, alle uten. Det er ikke en feil som
+    # kan rettes; det er en grense i historikken, og porten navngir den.
+    for kol in ("kode_commit", "kode_rent"):
+        if kol not in frame.columns:
+            frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias(kol))
+    return frame, fjernet, personer, list(raa.columns)
 
 
 def _en_verdi(frame: pl.DataFrame, kolonne: str) -> str | None:
@@ -612,7 +677,7 @@ def personentiteter(source: str | None = None) -> frozenset[tuple[str, str]]:
         filer = sorted(katalog.glob("*.parquet"))
         if not filer:
             continue
-        nyeste, _, personer = _les_med_tall(filer[-1])
+        nyeste, _, personer, _kol = _les_med_tall(filer[-1])
         felt = set(nyeste["field"].unique().to_list()) if "field" in nyeste.columns else set()
         if not felt & {persondata.FORM_FELT, persondata.SEKTOR_FELT}:
             continue
@@ -622,6 +687,48 @@ def personentiteter(source: str | None = None) -> frozenset[tuple[str, str]]:
             for eid in _les_med_tall(sti)[2]:
                 ut.add((katalog.name, str(eid)))
     return frozenset(ut)
+
+
+def kodeproveniens_per_fil() -> list[dict]:
+    """Én post per snapshotfil: hvilken kode som skrev den.
+
+    [{kilde, fil, har_felt, commit, rent}]
+
+    ## Hvorfor den bor HER
+
+    `test_ingen_leser_snapshots_utenom_les` nekter enhver annen modul å
+    kombinere kjennskap til `RAW_DIR` med en parquet-lesing, og den har
+    rett: en andre lesevei er en vei rundt persondatafilteret. Porten
+    spør derfor herfra — som den gjør for `filtrert_bort()` og
+    `personentiteter()`.
+
+    ## `har_felt` er ikke det samme som at feltet er utfylt
+
+    En fil skrevet før 23.09.2026 har ikke kolonnene i det hele tatt, og
+    `_les()` legger dem til som tomme ved lesing. Uten fjerde ledd fra
+    `_les_med_tall()` ville de to tilfellene lest likt:
+
+        har_felt=False, commit=""    skrevet før regelen fantes
+        har_felt=True,  commit=""    skrevet etter, og kan likevel ikke
+                                     gjøres rede for
+
+    Det første er en grense i historikken. Det andre er et funn.
+    """
+    if not RAW_DIR.exists():
+        return []
+
+    ut: list[dict] = []
+    for katalog in sorted(k for k in RAW_DIR.iterdir() if k.is_dir()):
+        for sti in sorted(katalog.glob("*.parquet")):
+            ramme, _tall, _pers, raa_kolonner = _les_med_tall(sti)
+            har = "kode_commit" in raa_kolonner
+            shaer = sorted({str(v or "") for v in ramme["kode_commit"].to_list()}
+                           - {""}) if not ramme.is_empty() else []
+            rene = sorted({str(v or "") for v in ramme["kode_rent"].to_list()}
+                          - {""}) if not ramme.is_empty() else []
+            ut.append({"kilde": katalog.name, "fil": sti.name,
+                       "har_felt": har, "commit": shaer, "rent": rene})
+    return ut
 
 
 def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]]:

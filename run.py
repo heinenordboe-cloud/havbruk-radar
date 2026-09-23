@@ -51,8 +51,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
 from core import (  # noqa: E402
-    changelog, diff, feltnormal, health, miljo, paths, predictions,
-    registry, runner, signals, snapshot,
+    changelog, diff, feltnormal, health, kodeproveniens, miljo, paths,
+    predictions, registry, runner, signals, snapshot,
 )
 
 
@@ -279,6 +279,7 @@ def main() -> int:
 
     print(f"\nKjøring {kjoredato}")
 
+
     # 1b. Har de aktive kildene nøklene sine? Spurt NÅ, samlet, for alle.
     #
     # FØR frekvensvakten, ikke etter. Det er ikke en detalj: lørdagens
@@ -299,6 +300,32 @@ def main() -> int:
         print(f"\n::error::Innsamlingen startet ikke: "
               f"{', '.join(sorted(mangler))} er ikke satt.")
         return 1
+
+    # 1c. KAN DENNE KJØRINGEN GJØRES REDE FOR?
+    #
+    # Spurt FØR noe hentes, og ETTER nøkkelsjekken: en manglende
+    # secret er en feil i oppsettet som skal meldes den dagen den
+    # oppstår, uansett hva arbeidstreet ser ut som. Rekkefølgen er
+    # målt, ikke valgt på magefølelse — `test_run_py_stopper_for_
+    # innsamlingen` holder den.
+    #
+    # F15 skjedde to ganger. Første gang lå 47 commits upushet i to
+    # uker og mandagens snapshot fikk personformer i seg; andre gang
+    # sto en tillatelse igjen i snapshotet 21.09 fordi kjøringen brukte
+    # kode fra før 16.09. Ingen av delene var synlige i dataene.
+    #
+    # `--torrkjor` er unntatt, og bare den: den skriver ingen fil, så
+    # det finnes ingen fil som kan bli uetterprøvbar. Alt annet stopper
+    # høylytt. Det finnes ikke noe flagg for å hoppe over dette — et
+    # slikt flagg ville stått i cron-jobben om et halvt år.
+    if not args.torrkjor:
+        try:
+            sha, _ = kodeproveniens.krev_sporbar()
+        except kodeproveniens.IkkeSporbar as e:
+            print()
+            print(f"::error::Innsamlingen startet ikke: {e}")
+            return 1
+        print(f"  kode        {sha[:12]}  rent, på origin/main")
 
     # 2. Hopp over kilder som ble hentet nylig nok
     #

@@ -6049,6 +6049,17 @@ def gransk_og_meld(rot: Path) -> int:
         for f in kvitterte:
             print(f"  {f}")
 
+    # GRENSA I HISTORIKKEN. Filene fra før 23.09.2026 har ingen
+    # kodeproveniens, og de kan ikke rettes — men tallet skrives hver
+    # kjøring, av samme grunn som `filtrert_bort()`. Det skal synke.
+    uten = publiseringsvakt.kodeproveniens_ukjente()
+    if uten:
+        sum_ = sum(int(f.utdrag.split()[0]) for f in uten)
+        print(f"\n{sum_} snapshotfiler har ingen kodeproveniens "
+              f"(skrevet før 23.09.2026, blokkerer ikke):")
+        for f in uten:
+            print(f"  {f}")
+
     igjen = publiseringsvakt.ukvittert(funn)
     if not igjen:
         print(f"\n{rot}: ingen ukvitterte funn"

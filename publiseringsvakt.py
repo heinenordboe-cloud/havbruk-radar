@@ -137,7 +137,7 @@ import polars as pl
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from core import persondata, snapshot                      # noqa: E402
+from core import kodeproveniens, persondata, snapshot       # noqa: E402
 from core.paths import KVITTERING_DIR, RAW_DIR              # noqa: E402
 
 # Ni siffer, men som et HELT TALL og ikke som en sifferstreng inni et
@@ -1305,6 +1305,79 @@ def _avvik(kilde: str, dato: str) -> int | None:
     return None
 
 
+def kodeproveniensfunn() -> list[Funn]:
+    """Snapshots som ikke kan spores tilbake til kode som er PUSHET.
+
+    F15 to ganger — se `core/kodeproveniens.py`. Prøven stiller
+    spørsmålet den faktisk vil ha svar på: ikke «finnes koden», men
+    «finnes den der alle kan se den».
+
+    ## Tre utfall, og bare to av dem er funn
+
+      * **Fila har ikke feltet.** Skrevet før 23.09.2026. Rapporteres som
+        `kodeproveniens_ukjent` og er IKKE et funn: de 1 833 filene er
+        append-only, og å felle porten på dem ville felt den for alltid.
+        En port som alltid faller blir slått av.
+      * **Feltet er der og tomt, eller treet var urent.** Funn. Da har
+        koden som stempler kjørt, og likevel visste den ikke — eller
+        visste at den ikke kunne gjøre rede for seg.
+      * **Hashen finnes ikke på `origin/main`.** Funn. Det er F15 i sin
+        rene form.
+
+    Skillet mellom de to første krever at man vet om KOLONNEN fantes, og
+    ikke bare om den er tom. `snapshot.kodeproveniens_per_fil()` svarer
+    på det; lesingen bor der fordi ingen annen modul får kombinere
+    `RAW_DIR` med en parquet-lesing.
+
+    ## Hvorfor «på origin/main» spørres på nytt hver gang
+
+    Om en commit er pushet kan endre seg ETTER at fila ble skrevet. Det
+    er en opplysning om verden nå, ikke om raden, og den lagres derfor
+    ikke i fila — CLAUDE.md 1b-7.
+    """
+    funn: list[Funn] = []
+    for post in snapshot.kodeproveniens_per_fil():
+        rel = f"data/raw/{post['kilde']}/{post['fil']}"
+        if not post["har_felt"]:
+            continue       # grensa i historikken, se `kodeproveniens_ukjente()`
+        if not post["commit"]:
+            funn.append(Funn(rel, "kodeproveniens",
+                             "feltet finnes, men er tomt"))
+            continue
+        for sha in post["commit"]:
+            if post["rent"] != [kodeproveniens.RENT]:
+                funn.append(Funn(
+                    rel, "kodeproveniens",
+                    f"{sha[:12]} — arbeidstreet var ikke rent "
+                    f"({', '.join(post['rent']) or 'uoppgitt'})"))
+            if not kodeproveniens.paa_origin_main(sha):
+                funn.append(Funn(rel, "kodeproveniens",
+                                 f"{sha[:12]} finnes ikke på origin/main"))
+
+    return funn
+
+
+def kodeproveniens_ukjente() -> list[Funn]:
+    """Filene som ble skrevet FØR regelen fantes, talt per kilde.
+
+    Ikke med i `gransk()`, og det er et valg: `gransk()` returnerer det
+    porten FALLER PÅ, og disse filene kan ikke rettes. De er
+    append-only, og et stempel satt i ettertid ville påstått at fila ble
+    skrevet av kode som ikke fantes da.
+
+    Men de skrives HVER kjøring, av samme grunn som `filtrert_bort()`:
+    et aggregat ingen ser er det samme som ingen kontroll. Grensa i
+    historikken skal være synlig, ikke glemt — og tallet skal synke.
+    """
+    ukjente: dict[str, int] = {}
+    for post in snapshot.kodeproveniens_per_fil():
+        if not post["har_felt"]:
+            ukjente[post["kilde"]] = ukjente.get(post["kilde"], 0) + 1
+    return [Funn(f"data/raw/{kilde}", "kodeproveniens_ukjent",
+                 f"{antall} filer skrevet før 23.09.2026")
+            for kilde, antall in sorted(ukjente.items())]
+
+
 def grunnlagsfunn() -> list[Funn]:
     """Erklæringer som ikke kan gjøres rede for mot dataene.
 
@@ -1412,7 +1485,7 @@ def gransk(mappe: Path) -> list[Funn]:
     for noe den ikke har sett, og et grønt bygg på den er verre enn et
     rødt. Porten skiller dem ikke, og exit-koden dekker begge.
     """
-    funn: list[Funn] = list(grunnlagsfunn())
+    funn: list[Funn] = list(grunnlagsfunn()) + list(kodeproveniensfunn())
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.
@@ -1561,6 +1634,15 @@ def main() -> int:
 
     igjen = ukvittert(funn)
     kvitterte = [f for f in funn if f.kvittert]
+
+    # GRENSA I HISTORIKKEN, skrevet hver kjøring. Se
+    # `kodeproveniens_ukjente()`.
+    uten_proveniens = kodeproveniens_ukjente()
+    if uten_proveniens:
+        print(f"\n{len(uten_proveniens)} kilder har snapshots uten "
+              f"kodeproveniens (blokkerer ikke):")
+        for f in uten_proveniens:
+            print(f"  {f}")
 
     if kvitterte:
         # Skrives ALLTID, ikke bare med --rapport. Exit 0 med kvitterte
