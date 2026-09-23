@@ -33,9 +33,9 @@
   </nav>
   <h1>Søk</h1>
   <p class="lok-undertittel">
-    {{ d.sider }} sider: {{ d.lokaliteter }} lokaliteter,
-    {{ d.produksjonsomraader }} produksjonsområder, {{ d.selskaper }}
-    selskaper, {{ d.endringsuker }} endringsuker og
+    {{ antall(d.sider, "side", "sider") }}: {{ antall(d.lokaliteter, "lokalitet", "lokaliteter") }},
+    {{ antall(d.produksjonsomraader, "produksjonsområde", "produksjonsområder") }},
+    {{ antall(d.selskaper, "selskap", "selskaper") }}, {{ antall(d.endringsuker, "endringsuke", "endringsuker") }} og
     {{ d.andre }} andre.
   </p>
 
@@ -67,15 +67,13 @@
       nettleserens egen søkefunksjon i dem:
     </p>
     <ul>
-      <li><a href="/lokalitet/">Alle {{ d.lokaliteter }} lokalitetene</a>
+      <li><a href="/lokalitet/">{{ alle(d.lokaliteter, "lokaliteten", "lokalitetene") }}</a>
         — nummer, navn, kommune, fylke, produksjonsområde og arter</li>
-      <li><a href="/produksjonsomrade/">Alle
-        {{ d.produksjonsomraader }} produksjonsområdene</a> — med
+      <li><a href="/produksjonsomrade/">{{ alle(d.produksjonsomraader, "produksjonsområdet", "produksjonsområdene") }}</a> — med
         fargen som gjelder nå</li>
-      <li><a href="/selskap/">Alle {{ d.selskaper }} selskapene</a> —
+      <li><a href="/selskap/">{{ alle(d.selskaper, "selskapet", "selskapene") }}</a> —
         med antall tillatelser og lokaliteter</li>
-      <li><a href="/endringer/">Alle {{ d.endringsuker }}
-        endringsukene</a> — med antall per type</li>
+      <li><a href="/endringer/">{{ alle(d.endringsuker, "endringsuka", "endringsukene") }}</a> — med antall per type</li>
     </ul>
     <p class="tabellnote">
       Sidene er ikke paginert, og det er et valg: en liste som er delt i

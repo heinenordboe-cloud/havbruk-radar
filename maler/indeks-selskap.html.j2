@@ -16,7 +16,7 @@
 <h1>Alle selskaper med akvakulturtillatelse</h1>
 
 <p>
-  {{ d.antall }} selskaper eier minst én tillatelse i eierskapssnapshotet
+  {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse i eierskapssnapshotet
   <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato }}</time>.
   Lista er ikke paginert.
 </p>

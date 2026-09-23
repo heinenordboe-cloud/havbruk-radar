@@ -92,7 +92,7 @@
          aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
     <table id="akvakultur-lokaliteter">
       <caption id="akvakultur-lokaliteter-tittel">
-        De {{ sel.lokaliteter_antall }} lokalitetene selskapets
+        De {{ antall(sel.lokaliteter_antall, "lokaliteten", "lokalitetene") }} selskapets
         tillatelser ligger på, øyeblikksbilde
         <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.
       </caption>
@@ -146,7 +146,7 @@
          aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
     <table id="eierskap-tillatelser">
       <caption id="eierskap-tillatelser-tittel">
-        De {{ sel.tillatelser_antall }} tillatelsene selskapet eier,
+        De {{ antall(sel.tillatelser_antall, "tillatelsen", "tillatelsene") }} selskapet eier,
         øyeblikksbilde
         <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
       </caption>
@@ -218,7 +218,7 @@
        aria-labelledby="eierskapslinje-tittel" tabindex="0">
   <table id="eierskapslinje">
     <caption id="eierskapslinje-tittel">
-      {{ sel.kom_til }} tillatelser kommet til og {{ sel.gikk_ut }} gått
+      {{ antall(sel.kom_til, "tillatelse", "tillatelser") }} kommet til og {{ sel.gikk_ut }} gått
       ut, nyeste først.
     </caption>
     <thead>

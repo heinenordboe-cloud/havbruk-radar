@@ -40,7 +40,7 @@
     {% else %}
     <span class="mangler">← ingen eldre uke</span>
     {% endif %}
-    <a href="/endringer/">Alle {{ uker_totalt }} ukene</a>
+    <a href="/endringer/">{{ alle(uker_totalt, "uka", "ukene") }}</a>
     {% if nyere %}
     <a href="/endringer/{{ nyere.slug }}/">{{ nyere.vist }} →</a>
     {% else %}
@@ -65,10 +65,10 @@
 <section class="ark seksjon">
   <div class="uke-sammendrag uke-sammendrag--bred">
     {% if valgt %}
-    <p>{{ rader|length }} av {{ u.antall_rader }} rader i {{ u.vist }} er
+    <p>{{ rader|length }} av {{ antall(u.antall_rader, "rad", "rader") }} i {{ u.vist }} er
       {{ valgt.navn|lower }} — {{ valgt.hva }}.</p>
     {% else %}
-    <p>{{ u.antall }} endringer observert i {{ u.vist }}:
+    <p>{{ antall(u.antall, "endring", "endringer") }} observert i {{ u.vist }}:
       {{ u.ledet_slag }}.</p>
     {% endif %}
     {# DE TO TALLENE ER IKKE DET SAMME, og forskjellen skjules ikke.
@@ -78,11 +78,11 @@
        tabellen. #}
     {% if u.utenfor_tellingen and not valgt %}
     <p class="tabellnote">
-      {{ u.utenfor_tellingen }} rader til står i tabellen uten å telle
+      {{ antall(u.utenfor_tellingen, "rad", "rader") }} til står i tabellen uten å telle
       med: de sier at kilden begynte eller sluttet å oppgi et felt om en
       oppføring, ikke at noe skjedde med oppføringen.
       {% if u.antall_egen_del %}
-      {{ u.antall_egen_del }} endringer i selskapsdata står lenger ned,
+      {{ antall(u.antall_egen_del, "endring", "endringer") }} i selskapsdata står lenger ned,
       i sin egen del.
       {% endif %}
     </p>
@@ -192,7 +192,7 @@
   <details class="egen-del" open data-lukk-ved-js>
     <summary>
       <span class="egen-del-tall">{{ egen|length }}</span>
-      endringer i selskapsdata
+      {{ "endring" if egen|length == 1 else "endringer" }} i selskapsdata
     </summary>
     <p class="tabellnote">
       Ansatte, næringskode, adresse, regnskap, kapital og konkurs fra
@@ -206,7 +206,7 @@
          aria-labelledby="endringer-selskapsdata-tittel" tabindex="0">
     <table id="endringer-selskapsdata">
       <caption id="endringer-selskapsdata-tittel">
-        Alle {{ egen|length }} selskapsdataendringene i {{ u.vist }}.
+        {{ alle(egen|length, "selskapsdataendringen", "selskapsdataendringene") }} i {{ u.vist }}.
       </caption>
       <thead>
         <tr>
@@ -243,7 +243,7 @@
     oppgir ikke det siste, så endringen kan ha skjedd når som helst i
     uka før.
     {% if u.utenfor_uka %}
-    {{ u.utenfor_uka }} endringer står utenfor ukesregnskapet fordi
+    {{ antall(u.utenfor_uka, "endring", "endringer") }} står utenfor ukesregnskapet fordi
     kilden daterer dem til perioden de HANDLER OM og ikke til dagen vi
     hentet dem — forskriftsrunder, journalførte overføringer og
     månedlige beholdningstall. De står på entitetenes egne sider.
@@ -256,7 +256,7 @@
     <a href="/endringer/{{ u.slug }}/endringer.json">JSON</a> ·
     <a href="/endringer/feed.xml">Atom-feed</a>
     <span class="nedlasting-note">Begge filene har alle
-      {{ u.antall_rader }} radene i uka, ikke bare de som vises her.</span>
+      {{ antall(u.antall_rader, "raden", "radene") }} i uka, ikke bare de som vises her.</span>
   </p>
 </section>
 

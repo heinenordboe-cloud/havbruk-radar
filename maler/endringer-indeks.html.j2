@@ -18,8 +18,8 @@
   </nav>
   <h1>Endringer, uke for uke</h1>
   <p class="lok-undertittel">
-    {{ uker|length }} uker med observerte endringer ·
-    {{ totalt }} hendelser til sammen
+    {{ antall(uker|length, "uke", "uker") }} med observerte endringer ·
+    {{ antall(totalt, "hendelse", "hendelser") }} til sammen
   </p>
   <p class="knapperad">
     <a class="knapp knapp--tynn" href="/endringer/feed.xml">Følg alle
@@ -35,7 +35,7 @@
     øyeblikksbilde. <strong>Datoen er når VI så endringen</strong> —
     registeret oppgir ikke når det gjorde den.
     {% if utenfor %}
-    {{ utenfor }} endringer står utenfor dette regnskapet fordi kilden
+    {{ antall(utenfor, "endring", "endringer") }} står utenfor dette regnskapet fordi kilden
     daterer dem til perioden de HANDLER OM og ikke til dagen vi hentet
     dem: forskriftsrunder dateres til vedtaksåret, journalførte
     overføringer til journalåret, og biomassetall til månedsslutt. De
@@ -47,7 +47,7 @@
        aria-labelledby="endringer-uker-tittel" tabindex="0">
   <table id="endringer-uker">
     <caption id="endringer-uker-tittel">
-      Alle {{ uker|length }} ukene, nyeste først. Tallene per type
+      {{ alle(uker|length, "uka", "ukene") }}, nyeste først. Tallene per type
       lenker rett til uka filtrert på den typen.
     </caption>
     <thead>

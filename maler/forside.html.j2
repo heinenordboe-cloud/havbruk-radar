@@ -111,16 +111,16 @@
           <span class="tidslinje-etikett">Forskriften utgitt</span>
           <time datetime="{{ fl.utgitt }}">{{ fl.utgitt_vist }}</time>
         </li>
-        <li class="tidslinje-gap">{{ fl.dager }} dager</li>
+        <li class="tidslinje-gap">{{ antall(fl.dager, "dag", "dager") }}</li>
         <li>
           <span class="tidslinje-etikett">Observert her</span>
           <time datetime="{{ fl.observert }}">{{ fl.observert_vist }}</time>
         </li>
       </ol>
       <figcaption>
-        {{ fl.antall }} produksjonsområder fikk ny trafikklysfarge i
+        {{ antall(fl.antall, "produksjonsområde", "produksjonsområder") }} fikk ny trafikklysfarge i
         Akvakulturregisteret, ført på hver av de
-        {{ fl.lokaliteter }} lokalitetene i dem. Utgivelsen er
+        {{ antall(fl.lokaliteter, "lokaliteten", "lokalitetene") }} i dem. Utgivelsen er
         <strong>kildens</strong> tidspunkt, observasjonen er
         <strong>vårt</strong>. {{ fl.note }}
       </figcaption>
@@ -150,7 +150,7 @@
   <table id="endringer-uke">
     <caption id="endringer-uke-tittel">
       {% if f.uke %}
-      De {{ f.rader|length }} nyeste av {{ f.uke.antall }} endringene i
+      {{ "Den" if f.rader|length == 1 else "De" }} {{ f.rader|length }} nyeste av {{ antall(f.uke.antall, "endringen", "endringene") }} i
       {{ f.uke.vist }}, utenom selskapsdata.
       {% else %}
       Ingen uker med endringer ennå.
@@ -207,14 +207,14 @@
   <p class="tabellnote">
     {% if f.uke %}
     <a class="videre" href="/endringer/{{ f.uke.slug }}/">Alle
-      {{ f.uke.antall_rader }} endringene i {{ f.uke.vist }},
+      {{ antall(f.uke.antall_rader, "endringen", "endringene") }} i {{ f.uke.vist }},
       selskapsdata medregnet →</a>
     {% endif %}
     <strong>«Observert»</strong> er datoen vi så endringen i
     øyeblikksbildet, ikke datoen registeret gjorde den. Registeret
     oppgir ikke det siste.
     {% if f.uke and f.uke.utenfor_uka %}
-    {{ f.uke.utenfor_uka }} endringer står utenfor ukesregnskapet fordi
+    {{ antall(f.uke.utenfor_uka, "endring", "endringer") }} står utenfor ukesregnskapet fordi
     kilden daterer dem til perioden de HANDLER OM og ikke til dagen vi
     hentet dem — forskriftsrunder, journalførte overføringer og
     månedlige beholdningstall. De står på entitetenes egne sider.
@@ -232,11 +232,19 @@
 <div class="ark arkivlinje">
   <h2 class="visuelt-skjult" id="arkiv-tittel">Arkivet</h2>
   <p class="arkivtall">
-    <span><strong>{{ f.lokaliteter }}</strong> lokaliteter</span>
-    <span><strong>{{ f.selskaper }}</strong> selskaper</span>
-    <span><strong>{{ f.snapshots }}</strong> ukentlige øyeblikksbilder
+    {# TALLET STÅR I <strong>, SUBSTANTIVET UTENFOR — derfor ikke
+       `antall()`, som gir begge som én streng. Formen velges på samme
+       måte, og `|tall` gir samme tusenskille som resten av siden. #}
+    <span><strong>{{ f.lokaliteter|tall }}</strong>
+      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</span>
+    <span><strong>{{ f.selskaper|tall }}</strong>
+      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</span>
+    <span><strong>{{ f.snapshots|tall }}</strong>
+      {{ "ukentlig øyeblikksbilde" if f.snapshots == 1
+         else "ukentlige øyeblikksbilder" }}
       siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
-    <span><strong>{{ f.luke_uker }}</strong> uker med lusetall siden
+    <span><strong>{{ f.luke_uker|tall }}</strong>
+      {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall siden
       <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time></span>
   </p>
   <p class="arkivnote">
@@ -262,8 +270,7 @@
     <div class="seksjonshode">
       <div>
         <p class="etikett">Kysten</p>
-        <h2 id="kyst-tittel">{{ f.produksjonsomraader }}
-          produksjonsområder</h2>
+        <h2 id="kyst-tittel">{{ antall(f.produksjonsomraader, "produksjonsområde", "produksjonsområder") }}</h2>
       </div>
       <p class="kyst-ingress">
         Trafikklyset fastsettes annethvert år. Forskriften navngir bare
@@ -279,7 +286,7 @@
            width="{{ f.kart.bredde }}" height="{{ f.kart.hoyde }}"
            role="img" aria-labelledby="kysttittel kystbeskrivelse">
         <title id="kysttittel">Kart over de
-          {{ f.produksjonsomraader }} produksjonsområdene</title>
+          {{ antall(f.produksjonsomraader, "produksjonsområdet", "produksjonsområdene") }}</title>
         <desc id="kystbeskrivelse">Fiskeridirektoratets offisielle
           polygoner, fylt med trafikklysfargen Akvakulturregisteret
           oppgir nå. Landflatene er Natural Earth 1:10 millioner.
@@ -298,7 +305,7 @@
         <g class="kart-omraader">
           {% for o in f.kart.omraader %}
           <a href="/produksjonsomrade/{{ o.nr }}/"
-             aria-label="Produksjonsområde {{ o.nr }} {{ o.navn }}, {{ o.farge }}, {{ o.antall }} lokaliteter">
+             aria-label="Produksjonsområde {{ o.nr }} {{ o.navn }}, {{ o.farge }}, {{ antall(o.antall, "lokalitet", "lokaliteter") }}">
             {% for d in o.baner %}
             <path class="omraade {{ o.farge_klasse or 'omraade--skravert' }}"
                   d="{{ d }}"/>
@@ -327,8 +334,8 @@
            her, lista står på lokalitetsindeksen. Skrives ALLTID, også
            når det er null: et tall man bare ser når det er galt, er et
            tall ingen kjenner normalverdien til. #}
-        {{ f.uten_koordinater_antall }} av {{ f.lokaliteter }}
-        lokaliteter mangler koordinater i registeret;
+        {{ f.uten_koordinater_antall }} av {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }}
+        mangler koordinater i registeret;
         <a href="/lokalitet/#akvakultur-uten-koordinater">de står oppført
         på lokalitetslista</a>.
       </figcaption>
@@ -339,7 +346,7 @@
              aria-labelledby="trafikklysvedtak-oversikt-tittel" tabindex="0">
         <table id="trafikklysvedtak-oversikt">
           <caption id="trafikklysvedtak-oversikt-tittel">
-            De {{ f.produksjonsomraader }} produksjonsområdene med
+            {{ "Det ene produksjonsområdet" if f.produksjonsomraader == 1 else "De " ~ f.produksjonsomraader ~ " produksjonsområdene" }} med
             fargen som gjelder nå{% if f.runder %}, og fargen i hver av
             de {{ f.runder|length }} forskriftsrundene{% endif %}.
           </caption>
@@ -389,11 +396,11 @@
         </ul>
 
         <p class="dekningsnote">
-          {{ f.i_omraade }} av {{ f.lokaliteter }} lokaliteter ligger i
+          {{ f.i_omraade }} av {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} ligger i
           et produksjonsområde. Landbaserte anlegg og
           ferskvannslokaliteter har ingen, og telles ikke med her.
           {% if f.kart.mangler_geometri %}
-          {{ f.kart.mangler_geometri|length }} områder mangler geometri i
+          {{ antall(f.kart.mangler_geometri|length, "område", "områder") }} mangler geometri i
           kartfila og er derfor ikke tegnet; de står i tabellen.
           {% endif %}
         </p>

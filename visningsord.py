@@ -644,3 +644,51 @@ def liste(ord_: list[str]) -> str:
     if len(rene) == 1:
         return rene[0]
     return ", ".join(rene[:-1]) + " og " + rene[-1]
+
+
+# ---------------------------------------------------------------- tall + ord
+#
+# «1 tillatelser» sto på lokalitetssiden fra den ble bygget. Feilen er
+# ikke en usannhet, men den er den slags slurv en leser bruker til å
+# avgjøre om resten er til å stole på — og den kommer tilbake hver gang
+# noen skriver `{{ n }} tillatelser` i en mal.
+#
+# Derfor én hjelper, brukt overalt, og en test som holder 0, 1 og 2.
+#
+# NULL TAR FLERTALL på norsk: «0 tillatelser», ikke «0 tillatelse». Bare
+# 1 tar entall. Det gjelder også −1, som ikke forekommer her, men som
+# regelen dekker uten unntak.
+
+def antall(n: object, entall: str, flertall: str) -> str:
+    """«1 tillatelse», «2 tillatelser», «0 tillatelser».
+
+    Begge formene oppgis. Norsk flertall er ikke en regel man kan regne
+    seg til — «lokalitet/lokaliteter», «selskap/selskaper»,
+    «område/områder», «uke/uker» — og en hjelper som gjettet ville tatt
+    feil stille.
+    """
+    try:
+        verdi = int(n)
+    except (TypeError, ValueError):
+        return f"{n} {flertall}"
+    return f"{tall(verdi)} {entall if abs(verdi) == 1 else flertall}"
+
+
+def alle(n: object, entall: str, flertall: str) -> str:
+    """«Den ene tillatelsen», «Alle 13 tillatelsene».
+
+    Formene er BESTEMTE her — «tillatelsen», ikke «tillatelse» — fordi
+    det er formen setningene bruker: «Alle 13 tillatelsene», «De 5
+    ukene».
+
+    Egen funksjon og ikke et flagg på `antall()`: med tallet foran et
+    bestemt substantiv blir «Alle 1 tillatelsen» galt uansett hvordan
+    tallet skrives. Det er determinativen som må byttes, ikke tallet.
+    """
+    try:
+        verdi = int(n)
+    except (TypeError, ValueError):
+        return f"Alle {n} {flertall}"
+    if abs(verdi) == 1:
+        return f"Den ene {entall}"
+    return f"Alle {tall(verdi)} {flertall}"

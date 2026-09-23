@@ -281,3 +281,82 @@ def test_tidspunkt_sier_hvilken_sone_det_er_i():
     # Uten klokkeslett faller den til datoen framfor å finne på 00.00.
     assert visningsord.tidspunkt("2026-09-16") == "16. september 2026"
     assert visningsord.tidspunkt("") == ""
+
+
+# ================================================== entall og flertall
+#
+# «1 tillatelser» sto på lokalitetssiden fra den ble bygget. Én hjelper,
+# brukt i alle malene, og prøvene her holder 0, 1 og 2.
+
+def test_antall_velger_riktig_form_for_null_en_og_to():
+    assert visningsord.antall(0, "tillatelse", "tillatelser") == "0 tillatelser"
+    assert visningsord.antall(1, "tillatelse", "tillatelser") == "1 tillatelse"
+    assert visningsord.antall(2, "tillatelse", "tillatelser") == "2 tillatelser"
+
+
+def test_null_tar_flertall_paa_norsk():
+    """«0 tillatelser», ikke «0 tillatelse». Bare 1 tar entall."""
+    assert visningsord.antall(0, "uke", "uker").endswith("uker")
+
+
+def test_antall_bruker_samme_tusenskille_som_resten():
+    assert visningsord.antall(1782, "lokalitet", "lokaliteter") == (
+        visningsord.tall(1782) + " lokaliteter")
+
+
+def test_antall_gjetter_ikke_flertallsformen():
+    """Norsk flertall er ikke en regel man kan regne seg til:
+    lokalitet/lokaliteter, selskap/selskaper, uke/uker. Begge formene
+    oppgis, og en hjelper som gjettet ville tatt feil stille."""
+    assert visningsord.antall(2, "selskap", "selskaper") == "2 selskaper"
+    assert visningsord.antall(2, "uke", "uker") == "2 uker"
+    assert visningsord.antall(2, "måned", "måneder") == "2 måneder"
+
+
+def test_antall_taaler_en_verdi_som_ikke_er_et_tall():
+    """En mal som får `None` skal ikke felle siden. Flertall er det
+    trygge valget: det er formen setningen ellers har."""
+    assert visningsord.antall(None, "uke", "uker") == "None uker"
+
+
+def test_alle_bytter_determinativen_og_ikke_tallet():
+    """«Alle 1 tillatelsen» er galt uansett hvordan tallet skrives. Det
+    er determinativen som må byttes."""
+    assert visningsord.alle(0, "uka", "ukene") == "Alle 0 ukene"
+    assert visningsord.alle(1, "uka", "ukene") == "Den ene uka"
+    assert visningsord.alle(2, "uka", "ukene") == "Alle 2 ukene"
+
+
+def test_ingen_mal_skriver_et_bart_tall_foran_et_substantiv():
+    """Regresjonen som ga «1 tillatelser». Prøven leser malene og
+    krever at et tall som står foran et av disse substantivene går
+    gjennom `antall()` eller `alle()` — eller har en synlig
+    entall/flertall-test ved siden av seg.
+
+    Lista er de substantivene som faktisk forekommer med et tall i
+    dag. En ny en fanges ikke av denne prøven, og det er en kjent
+    grense: den holder det som er rettet, den finner ikke det neste."""
+    import re
+    from pathlib import Path
+
+    SUBST = ("lokalitet", "tillatelse", "selskap", "uke", "endring",
+             "dag", "rad", "område", "produksjonsområde", "måned",
+             "hendelse", "post", "side", "øyeblikksbilde", "endringsuke")
+    mønster = re.compile(r"\{\{\s*([^}]{1,80}?)\s*\}\}\s*\n?\s*([a-zæøå-]+)")
+    funn = []
+    for mal in sorted((Path(__file__).resolve().parents[1] / "maler").glob("*.j2")):
+        tekst = mal.read_text(encoding="utf-8")
+        for m in mønster.finditer(tekst):
+            uttrykk, ord_ = m.group(1), m.group(2).lower()
+            if not any(ord_.startswith(s) for s in SUBST):
+                continue
+            if "antall(" in uttrykk or "alle(" in uttrykk:
+                continue
+            # Formen velges av en `if` rett etter tallet — se
+            # arkivlinja, der tallet står inne i <strong>.
+            hale = tekst[m.end():m.end() + 120]
+            if ord_ in hale and " if " in hale:
+                continue
+            linje = tekst[:m.start()].count("\n") + 1
+            funn.append(f"{mal.name}:{linje}  {{{{ {uttrykk} }}}} {ord_}")
+    assert funn == [], "bart tall foran substantiv:\n  " + "\n  ".join(funn)

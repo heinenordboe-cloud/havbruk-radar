@@ -115,7 +115,7 @@
       <th scope="row">lusetall</th>
       <td data-felt="observed_at"><time datetime="{{ om.lus_til }}">{{ om.lus_til }}</time></td>
       <td data-felt="datoforklaring">mandagen i uka tellingen gjelder for —
-        {{ om.lusetall_uker }} uker tilbake til
+        {{ antall(om.lusetall_uker, "uke", "uker") }} tilbake til
         <time datetime="{{ om.lus_fra }}">{{ om.lus_fra }}</time></td>
     </tr>
   </tbody>
@@ -124,7 +124,7 @@
 
 <h2 id="dekning">Hva dekningen er</h2>
 <p>
-  {{ om.med_eier }} av {{ om.lokaliteter }} lokaliteter
+  {{ om.med_eier }} av {{ antall(om.lokaliteter, "lokalitet", "lokaliteter") }}
   ({{ om.dekning }} %) har minst én tillatelse vi kan knytte til et
   navngitt selskap. De øvrige {{ om.uten_eier }} har det ikke,
   og de fordeler seg slik:

@@ -37,8 +37,8 @@
   <h1><span data-navn>{{ po.navn }}</span></h1>
   <p class="lok-undertittel">
     Produksjonsområde {{ po.nr }} ·
-    {{ po.lokaliteter_antall }} lokaliteter ·
-    {{ po.selskaper_antall }} selskaper
+    {{ antall(po.lokaliteter_antall, "lokalitet", "lokaliteter") }} ·
+    {{ antall(po.selskaper_antall, "selskap", "selskaper") }}
   </p>
 
   <p class="knapperad">
@@ -155,8 +155,8 @@
          viewBox="0 0 {{ b.bredde }} {{ b.hoyde }}"
          width="{{ b.bredde }}" height="{{ b.hoyde }}"
          role="img" aria-labelledby="biograf-tittel biograf-tekst">
-      <title id="biograf-tittel">Beholdning i tonn, {{ b.maaneder }}
-        måneder</title>
+      <title id="biograf-tittel">Beholdning i tonn,
+        {{ antall(b.maaneder, "måned", "måneder") }}</title>
       <desc id="biograf-tekst">Én søyle per måned fra
         <time datetime="{{ b.fra }}">{{ b.fra }}</time> til
         <time datetime="{{ b.til }}">{{ b.til }}</time>. Høyeste
@@ -186,8 +186,8 @@
     <figcaption>
       <span class="tegn"><span class="tegn-rute tegn-soyle"></span>beholdning,
         tusen tonn</span>
-      <span class="tegn">{{ b.maaneder_med_tall }} av {{ b.maaneder }}
-        måneder har tall</span>
+      <span class="tegn">{{ b.maaneder_med_tall }} av
+        {{ antall(b.maaneder, "måned", "måneder") }} har tall</span>
     </figcaption>
   </figure>
 
@@ -210,8 +210,8 @@
   </p>
 
   <details class="tallboks">
-    <summary>Tallene i tabell — siste {{ po.biomasse_rader|length }}
-      måneder</summary>
+    <summary>Tallene i tabell — siste
+      {{ antall(po.biomasse_rader|length, "måned", "måneder") }}</summary>
     <div class="tabellramme" role="region"
          aria-labelledby="biomasse-maaned-tittel" tabindex="0">
     <table id="biomasse-maaned-tabell">
@@ -248,7 +248,7 @@
     </table>
     </div>
     <p class="tabellnote">
-      Serien har {{ po.biomasse_maaneder }} måneder; tabellen viser de
+      Serien har {{ antall(po.biomasse_maaneder, "måned", "måneder") }}; tabellen viser de
       siste {{ po.biomasse_rader|length }}. Tallene er gjengitt uendret
       fra kilden — grafen over regner om til tonn, tabellen gjør det
       ikke.
@@ -270,7 +270,7 @@
   <div class="seksjonshode">
     <div>
       <p class="etikett">I området</p>
-      <h2 id="lok-tittel">{{ po.lokaliteter_antall }} lokaliteter</h2>
+      <h2 id="lok-tittel">{{ antall(po.lokaliteter_antall, "lokalitet", "lokaliteter") }}</h2>
     </div>
     <form class="omraadesok" action="/lokalitet/" method="get" role="search">
       <label for="omrq">Søk i området</label>
@@ -345,7 +345,7 @@
     summen av tillatelsenes MTB — de to er ulike størrelser, og en
     tillatelse kan brukes på flere lokaliteter.
     {% if po.uten_kjent_eier %}
-    For {{ po.uten_kjent_eier }} lokaliteter kan vi ikke gjøre rede for
+    For {{ antall(po.uten_kjent_eier, "lokalitet", "lokaliteter") }} kan vi ikke gjøre rede for
     innehaveren. Raden står likevel; se
     <code>docs/REGEL-UENIGE-KILDER.md</code>.
     {% endif %}
@@ -375,7 +375,7 @@
   <table id="trafikklysvedtak-endringer">
     <caption id="trafikklysvedtak-endringer-tittel">
       Registerendringer om området, nyest først.
-      {{ po.endringer|length }} endringer.
+      {{ antall(po.endringer|length, "endring", "endringer") }}.
     </caption>
     <thead>
       <tr>
@@ -405,15 +405,15 @@
 
   <h3>I lokalitetene i området</h3>
   <p class="historikk-forklaring">
-    De siste {{ po.endringsuker }} ukene vi har observert. Datoen er når
+    De siste {{ antall(po.endringsuker, "uka", "ukene") }} vi har observert. Datoen er når
     VI så endringen.
   </p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-omraade-tittel" tabindex="0">
   <table id="endringer-omraade">
     <caption id="endringer-omraade-tittel">
-      {{ po.i_omraadet|length }} endringer i lokalitetene i området, de
-      siste {{ po.endringsuker }} ukene.
+      {{ antall(po.i_omraadet|length, "endring", "endringer") }} i lokalitetene i området, de
+      siste {{ antall(po.endringsuker, "uka", "ukene") }}.
     </caption>
     <thead>
       <tr>
@@ -443,7 +443,7 @@
          unntak — har en `<td>` en `{{ "{{ }}" }}`, har den `data-felt`.
          En unntaksliste er en liste noen må huske. #}
       <tr><td colspan="4" data-felt="tomtekst">Ingen endringer i
-        lokalitetene de siste {{ po.endringsuker }} ukene.</td></tr>
+        lokalitetene de siste {{ antall(po.endringsuker, "uka", "ukene") }}.</td></tr>
       {% endif %}
     </tbody>
   </table>
@@ -454,7 +454,7 @@
     {{ po.maaleserie_rader }} slike rader mot {{ po.endringer|length }}
     vedtaksendringer. Tas de med, drukner vedtaket i serien.
     {% if po.ubelagte_rader %}
-    {{ po.ubelagte_rader }} endringer er dessuten holdt utenfor fordi
+    {{ antall(po.ubelagte_rader, "endring", "endringer") }} er dessuten holdt utenfor fordi
     kilden er UBELAGT ({{ po.ubelagte_kilder|join(", ") }}): vilkåret
     for å republisere er lett etter og ikke funnet, så tallene kan
     brukes i analyse men ikke vises her. Antallet står slik at

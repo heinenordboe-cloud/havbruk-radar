@@ -1783,7 +1783,13 @@ def test_antallet_uten_koordinater_staar_ogsaa_naar_det_er_null():
     """Et tall man bare ser når det er galt, er et tall ingen kjenner
     normalverdien til."""
     flat = " ".join(_forside().split())
-    assert "0 av 1782 lokaliteter mangler koordinater" in flat
+    # `visningsord.tall()` setter hardt mellomrom som tusenskille, som
+    # ellers på siden. Tallet formateres nå av `antall()`, som velger
+    # entall/flertall — se visningsord.antall().
+    # `visningsord.tall()` setter hardt mellomrom som tusenskille, og
+    # `split()` over lin.js flater det ut til et vanlig et. Tallet
+    # formateres nå av `antall()`, som også velger entall/flertall.
+    assert "0 av 1 782 lokaliteter mangler koordinater" in flat
     assert 'href="/lokalitet/#akvakultur-uten-koordinater"' in flat
 
 
@@ -1933,7 +1939,8 @@ def _om(**overstyr) -> str:
 
 def test_om_siden_oppgir_dekning_og_hvem_som_er_utelatt():
     flat = " ".join(_om().split())
-    assert "1717 av 1782 lokaliteter (96.35 %)" in flat
+    # Tallet formateres nå av `antall()`, med hardt tusenskille.
+    assert "1717 av 1 782 lokaliteter (96.35 %)" in flat
     assert "sektor 8200" in flat and "2300" in flat
     assert "personregister" in flat
     # Skjevheten skal stå, ikke bare tallet.

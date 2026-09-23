@@ -3564,6 +3564,10 @@ def _miljo() -> Environment:
     # `feltmerke` er en GLOBAL og ikke et filter: den tar to argumenter
     # der rekkefølgen betyr noe, og `{{ "kommune"|feltmerke(r.kommune) }}`
     # leser baklengs. Se `feltmerke()`.
+    # «1 tillatelser» sto på lokalitetssiden fra den ble bygget. Én
+    # hjelper, brukt overalt — se visningsord.antall()/alle().
+    miljo.globals["antall"] = visningsord.antall
+    miljo.globals["alle"] = visningsord.alle
     miljo.globals["feltmerke"] = feltmerke
     miljo.globals["personformnavn"] = personformnavn
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER

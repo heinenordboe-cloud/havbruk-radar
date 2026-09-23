@@ -103,8 +103,7 @@
           {# REGISTERETS EGEN KAPASITET, ikke summen av tillatelsenes
              MTB. De to er ulike størrelser — se `bygg_lokalitet`. #}
           <dd>{{ lok.kapasitet or "—" }}
-            <span class="fakta-bi">{{ lok.tillatelser_oppgitt }}
-              tillatelser</span></dd>
+            <span class="fakta-bi">{{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }}</span></dd>
         </div>
       </dl>
 
@@ -305,13 +304,13 @@
          width="{{ g.bredde }}" height="{{ g.hoyde }}"
          role="img" aria-labelledby="lusegraf-tittel lusegraf-tekst">
       <title id="lusegraf-tittel">Voksne hunnlus per fisk,
-        {{ g.uker }} uker</title>
+        {{ antall(g.uker, "uke", "uker") }}</title>
       <desc id="lusegraf-tekst">Én søyle per uke fra
         <time datetime="{{ g.fra }}">{{ g.fra }}</time> til
         <time datetime="{{ g.til }}">{{ g.til }}</time>. Høyeste målte
-        verdi er {{ g.maks }}. {{ g.uker_med_tall }} uker har tall, og i
-        {{ g.uten_tall }} uker oppgir kilden ingenting — de har ingen
-        søyle. {{ g.nuller }} uker er målt til null og har en hårstrek
+        verdi er {{ g.maks }}. {{ antall(g.uker_med_tall, "uke", "uker") }} har tall, og i
+        {{ antall(g.uten_tall, "uke", "uker") }} oppgir kilden ingenting — de har ingen
+        søyle. {{ antall(g.nuller, "uke", "uker") }} er målt til null og har en hårstrek
         på nullinja. Den lave stripa under aksen er uker lokaliteten var
         brakklagt. Alle tallene står i tabellen under.</desc>
 
@@ -356,16 +355,16 @@
 
     <p class="tabellnote">
       Høyeste målte verdi {{ g.maks }}.
-      {{ g.uker_med_tall }} av {{ g.uker }} uker har tall, og
+      {{ g.uker_med_tall }} av {{ antall(g.uker, "uke", "uker") }} har tall, og
       {{ g.nuller }} av dem er null.
       {% if g.uten_tall %}
-      {{ g.uten_tall }} uker har ingen søyle fordi kilden ikke oppgir
+      {{ antall(g.uten_tall, "uke", "uker") }} har ingen søyle fordi kilden ikke oppgir
       noe tall — <strong>tomrom betyr ikke null</strong>.
       {% if g.hull_forklart %}
       {{ g.hull_forklart }} av dem er uker lokaliteten var brakklagt.
       {% endif %}
       {% if g.hull_uforklart %}
-      {{ g.hull_uforklart }} uker mangler tall uten at noe vi har
+      {{ antall(g.hull_uforklart, "uke", "uker") }} mangler tall uten at noe vi har
       forklarer det.
       {% endif %}
       {% endif %}
@@ -378,7 +377,7 @@
     {% else %}
     <p class="tomt">
       Ingen lusetall rapportert. Lokaliteten finnes ikke i noen av de
-      {{ lok.lusetall_snapshots }} ukesnapshotene vi har fra
+      {{ antall(lok.lusetall_snapshots, "ukesnapshotet", "ukesnapshotene") }} vi har fra
       BarentsWatch — ikke i én uke med tomt tall, men ikke i registeret
       i det hele tatt. Det er ventet for anlegg som ikke har laksefisk:
       lusetellingen gjelder laks og ørret i sjø.
@@ -399,7 +398,7 @@
        tabellen — ikke omvendt, og ikke en forutsetning for den. #}
     <details class="tallboks">
       <summary>
-        {%- if lok.lus %}Tallene i tabell — siste {{ lok.lus|length }} uker
+        {%- if lok.lus %}Tallene i tabell — siste {{ antall(lok.lus|length, "uke", "uker") }}
         {%- else %}Tabellen, med hode og null rader{% endif %}</summary>
       <div class="tabellramme" role="region"
            aria-labelledby="lusetall-uke-tittel" tabindex="0">
@@ -407,7 +406,7 @@
         <caption id="lusetall-uke-tittel">
           {% if lok.lus_uker %}
           Voksne hunnlus per fisk, de siste {{ lok.lus|length }} av
-          {{ lok.lus_uker }} ukene vi har.
+          {{ antall(lok.lus_uker, "uka", "ukene") }} vi har.
           {% else %}
           Ingen lusetall for denne lokaliteten.
           {% endif %}
@@ -446,7 +445,7 @@
         {% if lok.lus_uker %}
         Serien dekker
         <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
-        {{ lok.lus_uker }} uker. Datoen er mandag i ISO-uka, og tallet
+        {{ antall(lok.lus_uker, "uke", "uker") }}. Datoen er mandag i ISO-uka, og tallet
         hentes fire uker på etterskudd fordi ferskere uker er
         ufullstendige. <strong>«{{ "–" }}» betyr at kilden ikke oppgir
         noe tall</strong> — ikke at tallet var null.
@@ -538,7 +537,7 @@
     {% else %}
     <p class="tomt">
       Lokaliteten står ikke i biomasselaget i noen av de
-      {{ lok.lusetall_snapshots and "" }}øyeblikksbildene vi har av det.
+      øyeblikksbildene vi har av det.
       Laget dekker lokaliteter med innsendt månedsrapport; en lokalitet
       uten fisk, eller uten rapportplikt, står ikke der.
     </p>
@@ -555,8 +554,7 @@
          aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
     <table id="eierskap-tillatelser">
       <caption id="eierskap-tillatelser-tittel">
-        Hvem som eier tillatelsene nå. {{ lok.tillatelser|length }}
-        tillatelser, øyeblikksbilde
+        Hvem som eier tillatelsene nå. {{ antall(lok.tillatelser|length, "tillatelse", "tillatelser") }}, øyeblikksbilde
         <time datetime="{{ lok.eierskap_dato }}">{{ lok.eierskap_dato }}</time>.
       </caption>
       <thead>
@@ -591,7 +589,7 @@
       historikken under.
       {% if lok.tillatelser_uten_eier %}
       For {{ lok.tillatelser_uten_eier }} av
-      {{ lok.tillatelser_oppgitt }} tillatelser vet vi ikke hvem eieren
+      {{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }} vet vi ikke hvem eieren
       er. Tillatelsen finnes og er aktiv i Akvakulturregisteret — det er
       eieren som mangler hos oss. Fiskeridirektoratet oppgir ikke
       organisasjonsnummer for eiere som er privatpersoner, og en eier vi
@@ -675,8 +673,8 @@
        aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
   <table id="eierskap_historikk-overforinger">
     <caption id="eierskap_historikk-overforinger-tittel">
-      Datoer kildene oppgir selv, eldst først. {{ lok.oppgitt|length }}
-      poster.
+      Datoer kildene oppgir selv, eldst først.
+      {{ antall(lok.oppgitt|length, "post", "poster") }}.
     </caption>
     <thead>
       <tr>
