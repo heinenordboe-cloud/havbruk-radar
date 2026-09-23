@@ -55,7 +55,10 @@
   <p class="lok-undertittel">
     Observert i øyeblikksbildene {{ u.spenn }}, sammenlignet med uka
     før. Permalenke:
-    <span class="tall-mono">kystloggen.no/endringer/{{ u.slug }}/{% if valgt %}{{ valgt.id }}/{% endif %}</span>
+    {# VERTSNAVNET KOMMER FRA KONFIGURASJONEN, ikke fra malen: en
+       forhåndsvisning skal ikke oppgi en permalenke som ikke serverer
+       innholdet. `kanonisk` er siden selv. #}
+    <span class="tall-mono">{{ kanonisk|replace("https://", "") }}</span>
   </p>
 </div>
 {% endblock %}

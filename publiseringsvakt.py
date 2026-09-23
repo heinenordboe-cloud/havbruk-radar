@@ -166,6 +166,18 @@ NI_SIFFER = re.compile(r"(?<![\d.,])\d{9}(?![\d.,])")
 TEKSTTYPER = {".html", ".htm", ".css", ".js", ".json", ".csv", ".tsv",
               ".md", ".txt", ".svg", ".xml"}
 
+# Tekstfiler UTEN endelse, som vi skriver selv.
+#
+# `_headers` og `_redirects` er Cloudflare Pages' eget format — se
+# `nettsted.skriv_vertsfiler()`. De er like publiserte som alt annet,
+# og de bærer URL-er. Porten meldte dem som `ugranska` første gang de
+# ble skrevet, og det er slik den skal virke: en fil den ikke kan lese,
+# sier den at den ikke har lest.
+#
+# En LUKKET liste og ikke «alt uten endelse er tekst»: en binærfil uten
+# endelse skal fortsatt falle til `ugranska`.
+TEKSTFILER = {"_headers", "_redirects"}
+
 # BINÆRFILENE VI SENDER UT MED VILJE, med sha256 pinnet.
 #
 # Fra 21.09.2026 hoster nettstedet én font, og den er ikke tekst. Tre
@@ -684,7 +696,7 @@ def hviteliste() -> tuple[set[str], set[str]]:
 def _tekst(sti: Path) -> str | None:
     if sti.suffix.lower() in PAKKEDE_TYPER:
         return _pakket_tekst(sti)
-    if sti.suffix.lower() not in TEKSTTYPER:
+    if sti.suffix.lower() not in TEKSTTYPER and sti.name not in TEKSTFILER:
         return None
     try:
         return sti.read_text(encoding="utf-8", errors="replace")
@@ -1305,6 +1317,32 @@ def _avvik(kilde: str, dato: str) -> int | None:
     return None
 
 
+# Filtaket hos verten.
+#
+# Cloudflare Pages tar 20 000 filer per utrulling på gratisplanen.
+# Grensa her er 15 000, og avstanden er med vilje: en port som fyrer
+# ved 19 999 gir én ukes varsel, og den uka går med til å finne ut hva
+# som skal kuttes. MÅLT 23.09.2026: 9 005 filer, og veksten er 0–15
+# filer i uka. Det gir år, ikke uker — men tallet skal ses, ikke
+# oppdages.
+FILTAK = 15_000
+
+
+def filtallsfunn(mappe: Path) -> list[Funn]:
+    """Nærmer publiseringsmappa seg vertens filtak?
+
+    Ikke et personvernfunn, og det er grunnen til at den står for seg:
+    porten er stedet som ser på det ferdige utputtet, og et nettsted som
+    ikke lar seg rulle ut er like upublisert som et med persondata i.
+    """
+    antall = sum(1 for p in mappe.rglob("*") if p.is_file())
+    if antall < FILTAK:
+        return []
+    return [Funn(str(mappe), "filtak",
+                 f"{antall} filer — taket hos Cloudflare Pages er 20 000, "
+                 f"og porten varsler fra {FILTAK}")]
+
+
 def kodeproveniensfunn() -> list[Funn]:
     """Snapshots som ikke kan spores tilbake til kode som er PUSHET.
 
@@ -1487,7 +1525,8 @@ def gransk(mappe: Path) -> list[Funn]:
     for noe den ikke har sett, og et grønt bygg på den er verre enn et
     rødt. Porten skiller dem ikke, og exit-koden dekker begge.
     """
-    funn: list[Funn] = list(grunnlagsfunn()) + list(kodeproveniensfunn())
+    funn: list[Funn] = (list(grunnlagsfunn()) + list(kodeproveniensfunn())
+                        + list(filtallsfunn(mappe)))
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.

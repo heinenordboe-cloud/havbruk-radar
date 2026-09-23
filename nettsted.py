@@ -270,10 +270,19 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
                    feed_tittel: str = "", main_klasse: str = "",
                    side_skript: str = "") -> dict:
     """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
+    # DEN KANONISKE ADRESSEN, regnet ut av filstien og vertsnavnet.
+    #
+    # Ett sted. Fram til 23.09.2026 sto `https://kystloggen.no` som
+    # bokstav fire steder i tillegg til `BASEURL` — tre `siter.url` og
+    # én permalenke i en mal — og de gikk utenom `_basisurl()`. En
+    # forhåndsvisning på pages.dev ville dermed fortalt leseren at den
+    # var originalen, og bedt henne sitere en adresse som ikke serverte
+    # innholdet.
     i_dag = dt.date.today().isoformat()
     return {
         "tittel": tittel,
         "beskrivelse": beskrivelse,
+        "kanonisk": kanonisk_url(sti, rot),
         "jsonld": jsonld,
         "attribusjon": attribusjon(kilder,
                                    felles.vilkaar if felles else None),
@@ -297,6 +306,28 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
 
 
 # --------------------------------------------------------- lesing
+
+
+def sidesti(sti: Path, rot: Path) -> str:
+    """Filstien som URL-sti: `lokalitet/31397/index.html` -> `/lokalitet/31397/`.
+
+    `index.html` faller bort, som i enhver statisk vert. Tom rot gir
+    `/`.
+    """
+    rel = sti.relative_to(rot).as_posix()
+    if rel.endswith("index.html"):
+        rel = rel[: -len("index.html")]
+    return "/" + rel.lstrip("/")
+
+
+def kanonisk_url(sti: Path, rot: Path) -> str:
+    """Absolutt adresse for en side, eller den relative stien.
+
+    Tom streng fra `_basisurl()` betyr «vi vet ikke hvor dette skal
+    ligge», og da er en relativ sti det sanne svaret — ikke et påfunnet
+    domene. Se kommentaren over `BASEURL`.
+    """
+    return _basisurl() + sidesti(sti, rot)
 
 
 def ubelagte(vilkaar: dict[str, tuple[str, ...] | None]) -> frozenset[str]:
@@ -2050,65 +2081,99 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
     rader = []
     for dato in felles.runder:
         aar = dato[:4]
-        d = (felles.po_farger.get(po) or {}).get(aar)
-        if d and (d.get("farge") or "").strip():
-            raa = d["farge"].strip()
-            maate = (d.get("farge__lesemaate") or "").strip()
-            rader.append({
-                "aar": aar,
-                "farge": visningsord.verdi("farge", raa),
-                "farge_felt": "farge",
-                "farge_klasse": FARGE_KLASSE.get(raa, ""),
-                "lesemaate": maate,
-                "lesemaate_tekst": LESEMAATE.get(maate, maate or "ukjent"),
-                # NØKKELEN STÅR ALLTID, tom der den ikke gjelder. Malen
-                # kjører med `StrictUndefined`, og en nøkkel som bare
-                # finnes noen ganger er en side som faller på den
-                # fjortende raden.
-                "sitat": "",
-                "sitat_dato": "",
-                "sitat_url": "",
-            })
-            continue
-
-        # FORSKRIFTEN TIER. Da spør vi BESLUTNINGEN, som er trinnet før.
-        #
-        # Trafikklyset avgjøres i to trinn: departementet fargelegger
-        # alle tretten områdene, og deretter fastsettes forskrift for
-        # det som må REGULERES — vekst i grønne områder og nedtrekk i
-        # røde. Et gult område krever ingen bestemmelse, så fargen
-        # finnes uten å stå i Lovtidend. Det er hele forklaringen på de
-        # 19 tomme cellene, og den var ikke en mangel ved kilden.
-        #
-        # MÅLT 23.09.2026 over alle 65 cellene: der begge sier noe, er
-        # de enige i 46 av 46. Null sprik.
-        b = beslutning.for_runde(aar).get(po)
-        if b:
-            rader.append({
-                "aar": aar,
-                "farge": visningsord.verdi("farge", b["farge"]),
-                "farge_felt": "farge",
-                "farge_klasse": FARGE_KLASSE.get(b["farge"], ""),
-                "lesemaate": "beslutning",
-                "lesemaate_tekst": LESEMAATE["beslutning"],
-                "sitat": b["sitat"],
-                "sitat_dato": b["dato"],
-                "sitat_url": beslutning.url(aar),
-            })
-            continue
-
-        rader.append({
-            "aar": aar,
-            "farge": FARGE_MANGLER,
-            "farge_felt": FARGE_MANGLER_FELT,
-            "farge_klasse": "",
-            "lesemaate": "",
-            "lesemaate_tekst": "ingen bestemmelse å lese",
-            "sitat": "",
-            "sitat_dato": "",
-            "sitat_url": "",
-        })
+        rader.append(_fargerad(po, aar, felles))
     return rader
+
+
+# BELEGGSRANGERING: hvilket belegg som VISES når flere kilder gir samme
+# farge i samme celle.
+#
+# Sterkest først. Skillet er hvor DIREKTE fargeordet står:
+#
+#   ordrett         fargeordet står i forskriftens egen bestemmelse
+#   beslutning      fargeordet står ordrett i departementets kunngjøring
+#   kapittelhjemmel fargen er SLUTTET av hvilket kapittel området står i
+#
+# De to første er begge ordrett; forskjellen er hvilket dokument. Den
+# tredje er en utledning, og den er svakere enn begge: ingen har skrevet
+# ordet «grønn» om området — vi har lest det ut av en plassering.
+#
+# MÅLT 23.09.2026: 17 celler står som «grønn/utledet» og har samtidig en
+# kunngjøring som sier «grønn» ordrett. De blir «beslutning», med
+# utledningen listet ved siden av.
+#
+# DE ANDRE FORSVINNER IKKE. En celle der to uavhengige dokumenter sier
+# det samme, er bedre belagt enn en der bare ett gjør det — og det er
+# nettopp den opplysningen en rangering uten liste ville kastet.
+BELEGGSRANG = ("ordrett", "beslutning", "kapitteloverskrift",
+               "kapittelhjemmel")
+
+
+def _fargerad(po: str, aar: str, felles: Felles) -> dict:
+    """Én celle: sterkeste belegg først, de andre ved siden av.
+
+    Samler ALLE kildene som sier noe om (område, runde), rangerer dem
+    etter `BELEGGSRANG`, og lar den sterkeste bære cellen.
+    """
+    kandidater: list[dict] = []
+
+    # Forskriften.
+    d = (felles.po_farger.get(po) or {}).get(aar)
+    if d and (d.get("farge") or "").strip():
+        raa = d["farge"].strip()
+        maate = (d.get("farge__lesemaate") or "").strip()
+        kandidater.append({
+            "lesemaate": maate,
+            "lesemaate_tekst": LESEMAATE.get(maate, maate or "ukjent"),
+            "raa": raa, "sitat": "", "sitat_dato": "", "sitat_url": "",
+            "kilde": forskrift_for_runde(aar).get("id", "forskriften"),
+        })
+
+    # Departementets kunngjøring.
+    b = beslutning.for_runde(aar).get(po)
+    if b:
+        kandidater.append({
+            "lesemaate": "beslutning",
+            "lesemaate_tekst": LESEMAATE["beslutning"],
+            "raa": b["farge"], "sitat": b["sitat"], "sitat_dato": b["dato"],
+            "sitat_url": beslutning.url(aar),
+            "kilde": f"kunngjøringen {visningsord.dato(b['dato'])}",
+        })
+
+    if not kandidater:
+        return {
+            "aar": aar, "farge": FARGE_MANGLER,
+            "farge_felt": FARGE_MANGLER_FELT, "farge_klasse": "",
+            "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese",
+            "sitat": "", "sitat_dato": "", "sitat_url": "", "ellers": [],
+        }
+
+    kandidater.sort(key=lambda k: BELEGGSRANG.index(k["lesemaate"])
+                    if k["lesemaate"] in BELEGGSRANG else len(BELEGGSRANG))
+    sterkest = kandidater[0]
+
+    # KILDENE SOM SIER DET SAMME, og de som IKKE gjør det.
+    #
+    # En uenighet skal ikke gjemmes bak en rangering. MÅLT 23.09.2026
+    # er det ingen — 46 av 46 overlappende celler er enige — men lista
+    # sier hvilken det er, så en framtidig uenighet ser ut som en.
+    ellers = [{"lesemaate_tekst": k["lesemaate_tekst"], "kilde": k["kilde"],
+               "farge": visningsord.verdi("farge", k["raa"]),
+               "enig": k["raa"] == sterkest["raa"]}
+              for k in kandidater[1:]]
+
+    return {
+        "aar": aar,
+        "farge": visningsord.verdi("farge", sterkest["raa"]),
+        "farge_felt": "farge",
+        "farge_klasse": FARGE_KLASSE.get(sterkest["raa"], ""),
+        "lesemaate": sterkest["lesemaate"],
+        "lesemaate_tekst": sterkest["lesemaate_tekst"],
+        "sitat": sterkest["sitat"],
+        "sitat_dato": sterkest["sitat_dato"],
+        "sitat_url": sterkest["sitat_url"],
+        "ellers": ellers,
+    }
 
 
 # ---------------------------------------------------- FORSKRIFTSRUNDENE
@@ -2480,7 +2545,7 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
         "ubelagte_kilder": sorted(ubelagt),
 
         "siter": {
-            "url": f"https://kystloggen.no/produksjonsomrade/{po}/",
+            "url": f"{_basisurl()}/produksjonsomrade/{po}/",
             "uke": visningsord.uke(felles.akva_dato),
             "dato": visningsord.dato(felles.akva_dato),
             "aar": felles.akva_dato[:4],
@@ -3315,7 +3380,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # som leser den — se 2026-09-16-url-struktur.md punkt 3, og
         # avvik 5 i oppdraget.
         "siter": {
-            "url": f"https://kystloggen.no/lokalitet/{loknr}/",
+            "url": f"{_basisurl()}/lokalitet/{loknr}/",
             "uke": visningsord.uke(akva_dato),
             "dato": visningsord.dato(akva_dato),
             "aar": akva_dato[:4],
@@ -4490,6 +4555,39 @@ def skriv_sok(rot: Path, felles: Felles, uker: list[dict]) -> Path:
 
 SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
 
+# Robotene som leter etter sitt EGET navn i robots.txt.
+#
+# Alle er dekket av `User-agent: *`, og står likevel her — se
+# `skriv_robots()`. Lista er de agentene som er dokumentert av sine
+# egne operatører per 23.09.2026, gruppert etter hva de gjør, fordi
+# det er skillet en leser vil vite om:
+#
+#   søk       henter en side fordi noen spurte om noe nå
+#   trening   henter en side for å bygge en modell
+#   agent     henter en side på vegne av én bruker, der og da
+#
+# Vi skiller ikke på dem. Gruppene står som kommentar fordi den som
+# senere VIL skille skal se hvilke navn som hører sammen.
+AI_ROBOTER = (
+    # OpenAI: søk, trening, agent
+    "OAI-SearchBot", "GPTBot", "ChatGPT-User",
+    # Anthropic: søk, trening, agent
+    "ClaudeBot", "Claude-SearchBot", "Claude-User", "anthropic-ai",
+    # Google
+    "Google-Extended", "GoogleOther",
+    # Microsoft / Bing
+    "bingbot", "msnbot",
+    # Perplexity
+    "PerplexityBot", "Perplexity-User",
+    # Apple, Amazon, Meta, ByteDance, Common Crawl, Mistral, You.com
+    "Applebot", "Applebot-Extended", "Amazonbot", "meta-externalagent",
+    "FacebookBot", "Bytespider", "CCBot", "MistralAI-User", "YouBot",
+    # Internet Archive — ikke AI, men samme grunn til å stå her:
+    # et arkiv som ikke kan arkiveres er et arkiv med ett punkt som
+    # kan svikte.
+    "ia_archiver", "archive.org_bot",
+)
+
 # Domenet nettstedet publiseres på. Én streng, ett sted.
 BASEURL = "https://kystloggen.no"
 
@@ -4551,15 +4649,49 @@ def skriv_sitemap(rot: Path, felles: Felles) -> Path:
 
 
 def skriv_robots(rot: Path) -> Path:
-    """robots.txt. Alt er åpent; det er poenget med å publisere det."""
+    """robots.txt. Alt er åpent; det er poenget med å publisere det.
+
+    ## Denne fila er ENESTE kilde til robotregler
+
+    Cloudflare kan sette robotregler for et nettsted uten å røre
+    `robots.txt` — «Bot Preference Sync» og liknende. Den er slått av
+    med vilje: to steder som kan si ulike ting om hvem som slipper inn,
+    er formen F6 og F7 hadde, og her ville det ene stedet vært en
+    innstilling i et kontrollpanel ingen leser i koden.
+
+    Er du usikker på om noe er skrudd på: det som står i denne fila er
+    det vi MENER, og et avvik er en feil i oppsettet.
+
+    ## AI-roboter nevnes ved navn, og får JA
+
+    `User-agent: *` dekker dem alt. De står likevel oppført, fordi et
+    fravær leses som et forbehold: flere av dem er laget for å lete
+    etter en egen regel, og en operatør som leter i fila skal finne et
+    svar og ikke en tolkning.
+
+    Dette er ikke en tilfeldig raushet. Nettstedet er offentlige
+    registerdata, sammenstilt og datert, og et arkiv som ikke kan leses
+    av det folk faktisk bruker til å slå opp er et arkiv færre finner.
+    Persondata holdes ute ved KILDEN og i lesedøra — ikke ved å nekte
+    noen å lese sidene.
+    """
     basis = _basisurl()
     linjer = [
         "# Kystloggen — offentlige registerdata, fritt tilgjengelige.",
         "# Sidene er statiske og tåler å bli indeksert i sin helhet.",
+        "#",
+        f"# Denne fila er ENESTE kilde til robotregler for "
+        f"{basis or 'dette nettstedet'}.",
+        "# Cloudflares «Bot Preference Sync» er slått AV med vilje.",
         "User-agent: *",
         "Allow: /",
         "",
+        "# AI-søk, AI-agenter og AI-trening: ja, alt sammen.",
+        "# «*» over dekker dem, men de står oppført fordi et fravær",
+        "# leses som et forbehold.",
     ]
+    for robot in AI_ROBOTER:
+        linjer += [f"User-agent: {robot}", "Allow: /", ""]
     if basis:
         linjer.append(f"Sitemap: {basis}/sitemap.xml")
     else:
@@ -4572,6 +4704,139 @@ def skriv_robots(rot: Path) -> Path:
     ut = rot / "robots.txt"
     ut.write_text("\n".join(linjer) + "\n", encoding="utf-8")
     return ut
+
+
+# ------------------------------------------------ filer for verten
+#
+# `_redirects` og `_headers` er Cloudflare Pages' eget format, og de
+# ligger i publiseringsmappa fordi det er DER de hører hjemme: en
+# innstilling i et kontrollpanel er en innstilling ingen ser i et
+# kodeopptak. Samme begrunnelse som robots.txt — se `skriv_robots()`.
+#
+# Filene starter med understrek og serveres ikke. Cloudflare leser dem
+# og fjerner dem fra utputtet.
+
+# Hodene som gjelder ALT. Verdien er én linje per hode.
+#
+# ## CSP-en kan være så streng som den er fordi siden er så enkel
+#
+# MÅLT 23.09.2026 over alle 2 348 sidene: NULL eksterne forespørsler.
+# Fontene, ikonene, herofotoet, skriptene og søkeindeksen hostes av
+# oss. Da er `'self'` ikke en innstramming som koster noe — det er en
+# beskrivelse av det som allerede er sant, håndhevet.
+#
+# `'unsafe-inline'` for stil står der fordi SVG-ene i kartet og grafene
+# bærer `fill`-attributter og fordi `<details>`-delen bruker `hidden`.
+# Ingen inline `<style>`-blokk finnes, men attributtene teller.
+# Skriptene har INGEN slik åpning: `kystloggen.js` og `sok.js` er
+# eksterne filer, og en inline `<script>` skal ikke kunne snike seg
+# inn uten at dette hodet må endres først.
+#
+# `wasm-unsafe-eval` er Pagefind. Uten den laster ikke søkemotoren.
+VERTSHODER = (
+    ("Content-Security-Policy",
+     "default-src 'self'; "
+     "script-src 'self' 'wasm-unsafe-eval'; "
+     "style-src 'self' 'unsafe-inline'; "
+     "img-src 'self' data:; "
+     "font-src 'self'; "
+     "connect-src 'self'; "
+     "form-action 'self'; "
+     "frame-ancestors 'none'; "
+     "base-uri 'none'; "
+     "object-src 'none'"),
+    ("X-Content-Type-Options", "nosniff"),
+    ("Referrer-Policy", "strict-origin-when-cross-origin"),
+    # Ingen av sidene ber om kamera, mikrofon eller posisjon. Å si det
+    # koster ingenting og fjerner en hel klasse spørsmål.
+    ("Permissions-Policy", "geolocation=(), camera=(), microphone=()"),
+)
+
+# Per filtype: (mønster, [(hode, verdi)]).
+#
+# ## Content-Type står her fordi verten gjetter
+#
+# Cloudflare Pages gjetter på filendelsen. `.xml` blir `text/xml` uten
+# tegnsett, og en Atom-feed med «Ø» i et selskapsnavn leses da som
+# latin-1 av enkelte lesere. `.csv` blir `text/csv` uten tegnsett, med
+# samme utfall i et regneark.
+#
+# Dette er ikke teoretisk for oss: 2 277 feeder og 1 787 CSV-er, og
+# nesten hvert eneste norske stedsnavn har en æøå i seg.
+VERTSFILHODER = (
+    ("/*.xml", (("Content-Type", "application/atom+xml; charset=utf-8"),)),
+    ("/*.csv", (("Content-Type", "text/csv; charset=utf-8"),)),
+    ("/*.json", (("Content-Type", "application/json; charset=utf-8"),)),
+    ("/*.txt", (("Content-Type", "text/plain; charset=utf-8"),)),
+    # Fonter og bilder er UFORANDERLIGE: filnavnet bærer innholdet, og
+    # et nytt innhold får et nytt navn. Ett år, og `immutable` så
+    # nettleseren ikke engang spør.
+    ("/*.woff2", (("Cache-Control", "public, max-age=31536000, immutable"),)),
+    ("/bilde/*", (("Cache-Control", "public, max-age=31536000, immutable"),)),
+    # Søkeindeksen skrives på nytt hver uke med nye filnavn (hashet av
+    # Pagefind), så den tåler det samme.
+    ("/pagefind/*", (("Cache-Control", "public, max-age=31536000, immutable"),)),
+)
+
+
+def skriv_vertsfiler(rot: Path) -> Path:
+    """`_redirects` og `_headers` for Cloudflare Pages.
+
+    Returnerer `_headers`; begge skrives.
+    """
+    # OMDIRIGERINGEN UTLEDES AV VERTSNAVNET, ikke skrevet av.
+    #
+    # En forhåndsvisning på pages.dev har ingen www-variant, og en
+    # regel som pekte dit ville sendt leseren til et domene siden ikke
+    # ligger på. Tomt vertsnavn gir ingen regel.
+    basis = _basisurl()
+    vert = basis.split("://", 1)[-1] if basis else ""
+    if vert and not vert.startswith("www."):
+        regel = (f"https://www.{vert}/* {basis}/:splat 301\n")
+    else:
+        regel = "# Ingen omdirigering: vertsnavnet er ikke satt.\n"
+    (rot / "_redirects").write_text(
+        "# www -> uten www, permanent.\n"
+        "#\n"
+        "# 301 og ikke 302: adressen uten www ER adressen, og en\n"
+        "# midlertidig omdirigering ville latt søkemotorer beholde\n"
+        "# begge som separate sider.\n" + regel,
+        encoding="utf-8")
+
+    linjer = ["# Hoder for Cloudflare Pages. Skrevet av nettsted.py —",
+              "# endre der, ikke her.", "", "/*"]
+    linjer += [f"  {navn}: {verdi}" for navn, verdi in VERTSHODER]
+    for monster, hoder in VERTSFILHODER:
+        linjer += ["", monster]
+        linjer += [f"  {navn}: {verdi}" for navn, verdi in hoder]
+    ut = rot / "_headers"
+    ut.write_text("\n".join(linjer) + "\n", encoding="utf-8")
+    return ut
+
+
+def skriv_404(rot: Path, felles: Felles) -> Path:
+    """404-siden, i samme drakt som resten.
+
+    Cloudflare Pages serverer `/404.html` for alt som ikke finnes.
+
+    Siden GJETTER IKKE hva leseren lette etter. Et lokalitetsnummer som
+    ikke finnes kan være nedlagt, feilskrevet eller utenfor utvalget
+    vårt, og en side som tipper ville tatt feil oftest der det betyr
+    mest. Den peker på de tre flate listene og på søket.
+    """
+    sti = rot / "404.html"
+    html = _miljo().get_template("404.html.j2").render(
+        d={"lokaliteter": len(felles.akva),
+           "produksjonsomraader": len(felles.po_navn),
+           "selskaper": len(felles.tillatelser_per_eier)},
+        **_grunnkontekst(
+            felles, rot, sti, kilder=FORSIDEKILDER,
+            tittel="Siden finnes ikke — Kystloggen",
+            beskrivelse="Adressen finnes ikke på Kystloggen. "
+                        "Her er listene og søket.",
+            jsonld="", proveniens_tekst="", meny_aktiv=""))
+    sti.write_text(html, encoding="utf-8")
+    return sti
 
 
 def skriv_llms(rot: Path, felles: Felles) -> Path:
@@ -5671,7 +5936,7 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
         "gikk_ut": sum(1 for o in eierskapslinje if o["retning"] == "ut"),
 
         "siter": {
-            "url": f"https://kystloggen.no/selskap/{orgnr}/",
+            "url": f"{_basisurl()}/selskap/{orgnr}/",
             "uke": visningsord.uke(felles.eierskap_dato),
             "dato": visningsord.dato(felles.eierskap_dato),
             "aar": felles.eierskap_dato[:4],
@@ -6036,7 +6301,9 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_skript(rot),
                   lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),
-                  lambda: skriv_llms(rot, felles)):
+                  lambda: skriv_llms(rot, felles),
+                  lambda: skriv_vertsfiler(rot),
+                  lambda: skriv_404(rot, felles)):
         try:
             skriv()
         except Exception as feil:                    # noqa: BLE001

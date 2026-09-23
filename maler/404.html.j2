@@ -1,0 +1,57 @@
+{# 404. Cloudflare Pages serverer denne for alt som ikke finnes.
+
+   SIDEN GJETTER IKKE. Et lokalitetsnummer som ikke finnes kan være
+   nedlagt, feilskrevet, eller utenfor næringskodesøket vårt — og en
+   side som tipper ville tatt feil oftest der det betyr mest. Den sier
+   hva den ikke vet, og peker på listene.
+
+   Ingen `noindex`: en 404 svarer allerede med status 404, og det er
+   det en crawler leser. Se 2026-09-16-url-struktur.md. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li aria-current="page">Siden finnes ikke</li>
+    </ol>
+  </nav>
+  <h1>Siden finnes ikke</h1>
+  <p class="lok-undertittel">
+    Adressen du kom til, finnes ikke på Kystloggen.
+  </p>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<section class="ark seksjon">
+  <p>
+    Vi gjetter ikke på hva du lette etter. Et lokalitetsnummer som ikke
+    finnes her kan være nedlagt før 2026, feilskrevet, eller utenfor
+    næringskodesøket vårt — og de tre betyr helt forskjellige ting.
+  </p>
+
+  <h2>Let i listene</h2>
+  <ul>
+    <li><a href="/lokalitet/">{{ antall(d.lokaliteter, "lokalitet", "lokaliteter") }}</a>
+      — nummer, navn, kommune, fylke og produksjonsområde, på én side</li>
+    <li><a href="/produksjonsomrade/">{{ antall(d.produksjonsomraader,
+      "produksjonsområde", "produksjonsområder") }}</a> — med fargen som gjelder nå</li>
+    <li><a href="/selskap/">{{ antall(d.selskaper, "selskap", "selskaper") }}</a>
+      — med antall tillatelser og lokaliteter</li>
+    <li><a href="/endringer/">Alle endringsukene</a></li>
+  </ul>
+
+  <p class="knapperad">
+    <a class="knapp" href="/sok/">Søk</a>
+    <a class="knapp knapp--tynn" href="/">Til forsiden</a>
+  </p>
+
+  <p class="tabellnote">
+    Tror du adressen burde virket, står kontaktopplysningene i
+    bunnteksten. En lenke som var riktig og er blitt feil, er en feil
+    hos oss — URL-ene skal ikke flytte seg.
+  </p>
+</section>
+{% endblock %}

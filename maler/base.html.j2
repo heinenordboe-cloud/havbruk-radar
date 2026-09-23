@@ -65,6 +65,17 @@
    Tre formater fordi plattformene ber om tre. SVG-en skalerer til alt;
    32px-PNG-en er reserven; 180px er iOS' hjemskjerm. Alle tre er den
    samme «K»-en — se `IKONFILER` i nettsted.py. #}
+{# DEN KANONISKE ADRESSEN. Regnet ut av filstien ETT sted, se
+   `nettsted.kanonisk_url()`. Tom når vertsnavnet ikke er satt — en
+   forhåndsvisning skal ikke fortelle en crawler at den er originalen. #}
+{% if kanonisk.startswith("http") %}
+<link rel="canonical" href="{{ kanonisk }}">
+<meta property="og:url" content="{{ kanonisk }}">
+{% endif %}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kystloggen">
+<meta property="og:title" content="{{ tittel }}">
+<meta property="og:description" content="{{ beskrivelse }}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">

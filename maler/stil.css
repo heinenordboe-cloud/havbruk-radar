@@ -2438,6 +2438,22 @@ figcaption {
   margin-block-end: var(--rom-8);
 }
 
+.runde-ellers {
+  font-size: var(--fs-12);
+  line-height: var(--lh-normal);
+  color: var(--hav-sekundaer);
+  margin-block-end: var(--rom-4);
+}
+
+/* EN UENIGHET SKAL SE UT SOM EN. Ingen finnes i dag; regelen står
+   likevel, fordi en framtidig uenighet ellers ville sett ut som enda
+   en bekreftelse. */
+.runde-ellers--uenig {
+  color: var(--rust-lys);
+  padding-inline-start: var(--rom-8);
+  border-inline-start: 2px solid var(--rust-lys);
+}
+
 .runde-kilde { font-size: var(--fs-12); }
 .runde-kilde a { color: var(--rust-lys); text-decoration: none; }
 .runde-kilde a:visited { color: var(--rust-lys); }

@@ -73,6 +73,20 @@
            fraværet av en. Samme konstruksjon som `eier_ukjent`. #}
         <p class="runde-farge" data-felt="{{ r.farge_felt }}">{{ r.farge }}</p>
         <p class="runde-belegg">{{ r.lesemaate_tekst }}</p>
+        {# DE ANDRE KILDENE SOM SIER DET SAMME.
+           En celle der to uavhengige dokumenter er enige, er bedre
+           belagt enn en der bare ett sier noe — og det er nettopp den
+           opplysningen en rangering uten liste ville kastet.
+           En UENIGHET vises som en uenighet; MÅLT 23.09.2026 finnes
+           ingen. #}
+        {% for e in r.ellers %}
+        <p class="runde-ellers{% if not e.enig %} runde-ellers--uenig{% endif %}">
+          {% if e.enig %}også{% else %}men{% endif %}
+          {{ e.kilde }}:
+          <span data-felt="farge">{{ e.farge }}</span>,
+          {{ e.lesemaate_tekst }}
+        </p>
+        {% endfor %}
         {% if r.sitat %}
         {# SITATET STÅR PÅ SIDEN, ikke bare i koden. En farge som ikke
            kan slås opp i Lovtidend må kunne etterprøves her, og da er

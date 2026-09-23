@@ -90,6 +90,9 @@ def _grunn(undermappe: str = "", **over) -> dict:
     """
     grunn = {
         "tittel": "T", "beskrivelse": "B", "jsonld": "{}",
+        # Den kanoniske adressen, som `_grunnkontekst()` regner ut av
+        # filstien. Se `nettsted.kanonisk_url()`.
+        "kanonisk": "https://kystloggen.no/" + undermappe,
         "attribusjon": ["Kilde: Fiskeridirektoratet"],
         "stilark": _stilark(undermappe),
         "bygget": "2026-09-20",
@@ -1210,17 +1213,20 @@ def _po(**overstyr) -> str:
             {"aar": "2018", "farge": nettsted.FARGE_MANGLER,
              "farge_felt": nettsted.FARGE_MANGLER_FELT, "farge_klasse": "",
              "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese",
-             "sitat": "", "sitat_dato": "", "sitat_url": ""},
+             "sitat": "", "sitat_dato": "", "sitat_url": "",
+             "ellers": []},
             {"aar": "2020", "farge": "rød", "farge_felt": "farge",
              "farge_klasse": nettsted.FARGE_KLASSE["rod"],
              "lesemaate": "ordrett",
              "lesemaate_tekst": nettsted.LESEMAATE["ordrett"],
-             "sitat": "", "sitat_dato": "", "sitat_url": ""},
+             "sitat": "", "sitat_dato": "", "sitat_url": "",
+             "ellers": []},
             {"aar": "2022", "farge": "grønn", "farge_felt": "farge",
              "farge_klasse": nettsted.FARGE_KLASSE["gronn"],
              "lesemaate": "kapittelhjemmel",
              "lesemaate_tekst": nettsted.LESEMAATE["kapittelhjemmel"],
-             "sitat": "", "sitat_dato": "", "sitat_url": ""},
+             "sitat": "", "sitat_dato": "", "sitat_url": "",
+             "ellers": []},
             # BELEGGSGRAD TRE, fra 23.09.2026: fargeordet står i
             # departementets kunngjøring og ikke i noen forskrift.
             # Sitatet står på siden, ikke bare i koden.
@@ -1230,7 +1236,10 @@ def _po(**overstyr) -> str:
              "lesemaate_tekst": nettsted.LESEMAATE["beslutning"],
              "sitat": "Fem produksjonsområder får gult lys: Ryfylke (PO2)",
              "sitat_dato": "2024-03-06",
-             "sitat_url": "https://www.regjeringen.no/no/aktuelt/x/id3028522/"},
+             "sitat_url": "https://www.regjeringen.no/no/aktuelt/x/id3028522/",
+             "ellers": [{"lesemaate_tekst": "utledet av kapittel",
+                         "kilde": "FOR-2024-03-22-515", "farge": "gul",
+                         "enig": True}]},
         ],
         # Tegnforklaring per runde: i 2018 ble røde områder IKKE
         # trukket ned, og faktaboksen i samme melding sa noe annet.
@@ -2884,3 +2893,136 @@ def test_selskapsdata_heter_selskapsdata():
     assert etiketter["selskap"] == "Selskapsdata"
     assert nettsted.EGEN_DEL == frozenset({"selskap"})
     assert nettsted.TELLER["selskap"] is False
+
+
+# ============================================ verten: Cloudflare Pages
+
+def test_vertsnavnet_staar_ett_sted():
+    """MÅLT 23.09.2026 sto `https://kystloggen.no` som bokstav fire
+    steder UTENOM `BASEURL`: tre `siter.url` og én permalenke i en mal.
+    En forhåndsvisning på pages.dev ville fortalt leseren at den var
+    originalen, og bedt henne sitere en adresse som ikke serverte
+    innholdet."""
+    from pathlib import Path
+
+    rot = Path(__file__).resolve().parents[1]
+    kode = (rot / "nettsted.py").read_text(encoding="utf-8")
+    # Konstanten selv, og kommentarene som forklarer den, er unntatt.
+    linjer = [ln for ln in kode.splitlines()
+              if "kystloggen.no" in ln
+              and not ln.lstrip().startswith("#")
+              and "BASEURL = " not in ln]
+    assert linjer == [], "hardkodet vertsnavn:\n  " + "\n  ".join(linjer)
+
+    for mal in sorted((rot / "maler").glob("*.j2")):
+        tekst = mal.read_text(encoding="utf-8")
+        # Kommentarblokker i malene ({# … #}) er prosa.
+        uten_prosa = re.sub(r"(?s)\{#.*?#\}", "", tekst)
+        assert "kystloggen.no" not in uten_prosa, mal.name
+
+
+def test_kanonisk_url_regnes_av_filstien():
+    from pathlib import Path
+
+    rot = Path("/ut")
+    assert nettsted.sidesti(rot / "index.html", rot) == "/"
+    assert nettsted.sidesti(rot / "lokalitet" / "31397" / "index.html",
+                            rot) == "/lokalitet/31397/"
+    assert nettsted.sidesti(rot / "endringer" / "feed.xml",
+                            rot) == "/endringer/feed.xml"
+
+
+def test_uten_vertsnavn_blir_kanonisk_en_relativ_sti(monkeypatch):
+    """Tom `HAVBRUK_BASEURL` betyr «vi vet ikke hvor dette skal ligge»,
+    og da er en relativ sti det sanne svaret — ikke et påfunnet domene.
+    Malen utelater da `<link rel=canonical>` helt."""
+    from pathlib import Path
+
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
+    rot = Path("/ut")
+    assert nettsted.kanonisk_url(rot / "om" / "index.html", rot) == "/om/"
+
+
+def test_robots_tillater_alle_roboter_ogsaa_ai(tmp_path):
+    tekst = nettsted.skriv_robots(tmp_path).read_text(encoding="utf-8")
+
+    assert "User-agent: *" in tekst and "Allow: /" in tekst
+    assert "Disallow:" not in tekst, "ingen skal stenges ute"
+    assert f"Sitemap: {nettsted.BASEURL}/sitemap.xml" in tekst
+
+    # AI-søk, AI-agent og AI-trening, hver for seg.
+    for robot in ("OAI-SearchBot", "GPTBot", "ChatGPT-User", "ClaudeBot",
+                  "Claude-User", "Google-Extended", "PerplexityBot",
+                  "CCBot", "Applebot-Extended", "Bytespider"):
+        assert f"User-agent: {robot}" in tekst, robot
+
+
+def test_robots_sier_at_den_er_eneste_kilde():
+    """To steder som kan si ulike ting om hvem som slipper inn, er
+    formen F6 og F7 hadde — og her ville det ene stedet vært en
+    innstilling i et kontrollpanel ingen leser i koden."""
+    import inspect
+
+    kilde = inspect.getsource(nettsted.skriv_robots)
+    assert "Bot Preference Sync" in kilde
+
+
+def test_redirects_sender_www_til_uten_www(tmp_path):
+    nettsted.skriv_vertsfiler(tmp_path)
+    tekst = (tmp_path / "_redirects").read_text(encoding="utf-8")
+
+    assert ("https://www.kystloggen.no/* https://kystloggen.no/:splat 301"
+            in tekst)
+
+
+def test_headers_er_strenge_fordi_siden_er_enkel(tmp_path):
+    """MÅLT: null eksterne forespørsler. Da er `'self'` ikke en
+    innstramming som koster noe — det er en beskrivelse av det som
+    allerede er sant, håndhevet."""
+    tekst = nettsted.skriv_vertsfiler(tmp_path).read_text(encoding="utf-8")
+
+    assert "default-src 'self'" in tekst
+    assert "frame-ancestors 'none'" in tekst
+    assert "object-src 'none'" in tekst
+    # Skript har INGEN inline-åpning. `wasm-unsafe-eval` er Pagefind.
+    assert "script-src 'self' 'wasm-unsafe-eval'" in tekst
+    assert "script-src 'self' 'unsafe-inline'" not in tekst
+
+    assert "X-Content-Type-Options: nosniff" in tekst
+    assert "Referrer-Policy: strict-origin-when-cross-origin" in tekst
+
+    # Tegnsett på det verten ellers gjetter feil på. 2 277 feeder og
+    # 1 787 CSV-er, og nesten hvert norsk stedsnavn har en æøå.
+    assert "Content-Type: application/atom+xml; charset=utf-8" in tekst
+    assert "Content-Type: text/csv; charset=utf-8" in tekst
+
+    assert "max-age=31536000, immutable" in tekst
+
+
+def test_404_gjetter_ikke(tmp_path):
+    """Et lokalitetsnummer som ikke finnes kan være nedlagt,
+    feilskrevet eller utenfor utvalget vårt — og de tre betyr helt
+    forskjellige ting."""
+    mal = (Path(__file__).resolve().parents[1]
+           / "maler" / "404.html.j2").read_text(encoding="utf-8")
+    assert "Vi gjetter ikke" in mal
+    assert 'href="/lokalitet/"' in mal and 'href="/sok/"' in mal
+
+
+def test_sterkeste_belegg_vises_og_de_andre_listes():
+    """Rekkefølgen er hvor DIREKTE fargeordet står: ordrett i
+    forskriften, så ordrett i kunngjøringen, så utledet av kapittel.
+    De to første er begge ordrett; den tredje er en slutning."""
+    assert nettsted.BELEGGSRANG[:2] == ("ordrett", "beslutning")
+    assert nettsted.BELEGGSRANG.index("kapittelhjemmel") > (
+        nettsted.BELEGGSRANG.index("beslutning"))
+
+
+def test_en_uenighet_mellom_kildene_gjemmes_ikke_bak_rangeringen():
+    """MÅLT 23.09.2026 finnes ingen — 46 av 46 overlappende celler er
+    enige. Regelen står likevel, fordi en framtidig uenighet ellers
+    ville sett ut som enda en bekreftelse."""
+    mal = (Path(__file__).resolve().parents[1]
+           / "maler" / "produksjonsomrade.html.j2").read_text(encoding="utf-8")
+    assert "runde-ellers--uenig" in mal
+    assert "{% if e.enig %}også{% else %}men{% endif %}" in mal
