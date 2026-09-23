@@ -122,6 +122,68 @@ Hemmelighetene heter `SPEIL_URL` og `SPEIL_TOKEN`, og variabelen som slår
 det på heter `SPEILING_AKTIV`. Ingen andre navn — en tidligere versjon av
 dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
 
+## Når innsamlingen NEKTER å kjøre
+
+Fra 23.09.2026 stopper `run.py` før den henter noe, hvis kjøringen ikke
+kan gjøres rede for. Se `core/kodeproveniens.py` og
+`docs/beslutninger/2026-09-23-kodeproveniens-per-snapshot.md`.
+
+### Hva du ser
+
+```
+::error::Innsamlingen startet ikke: HEAD abc123def456 finnes ikke på
+origin/main. Push først.
+  grunnlag: fjernlageret: origin/main = 9f8e7d6c5b4a
+```
+
+`run.py` returnerer 1. **Steget i GitHub Actions feiler, workflowen
+feiler, og GitHub sender e-post til den som eier repoet** — samme vei
+som en hvilken som helst annen feilet planlagt kjøring.
+
+> **Sjekk én gang at ingenting svelger exit-koden.** Har steget
+> `continue-on-error: true`, eller ender kommandoen på `|| true`, blir
+> en nektet kjøring usynlig. Den skal ikke det.
+
+### Hva du gjør
+
+1. **Push det som mangler.** Det vanligste tilfellet er at en commit
+   ligger lokalt.
+2. **Kjør samle.yml på nytt** — Actions → samle → Run workflow, uten
+   `--tving`.
+
+### En ny kjøring senere i uka er UKAS øyeblikksbilde
+
+Dette er verdt å si rett ut, fordi det avgjør om en nektet mandag er en
+tapt uke:
+
+**Den er det ikke.** En nektet kjøring henter ingenting, så:
+
+- `sist_ok` står uendret, og frekvensvakten regner kilden som forfalt
+  fortsatt. Den måler når vi sist LYKTES, ikke når vi sist prøvde —
+  se F8.
+- `finnes_allerede()` finner ingen fil for dagen, så ingenting hoppes
+  over.
+
+En kjøring tirsdag samler derfor inn som normalt, **uten flagg**.
+Snapshotet får tirsdagens dato, og det er riktig: `observed_at` for en
+`henting`-partisjonert kilde ER innsamlingsdatoen. For lusetall og de
+andre `verden`-partisjonerte kildene får fila uka den gjelder for, som
+alltid.
+
+Fristen er søndag. Kjører du ikke innen da, er uka tapt for godt —
+CLAUDE.md regel 5.
+
+### De tre vilkårene, og hva som kan velte dem
+
+| vilkår | git-kommando | kan den svikte i CI? |
+|---|---|---|
+| git svarer | `git rev-parse HEAD` | ja, ved «dubious ownership» — avvæpnet med `-c safe.directory` på hvert kall |
+| treet er rent | `git status --porcelain` | nei, `actions/checkout` gir et rent tre |
+| HEAD er på origin/main | `git ls-remote origin refs/heads/main`, ellers `refs/remotes/origin/main` | nei, begge veier er målt |
+
+**Det finnes ikke noe flagg for å hoppe over dette.** `--torrkjor` er
+unntatt, og bare den: den skriver ingen fil.
+
 ## Når volumvarselet fyrer
 
 Kjøringen er grønn, men commiten er merket `DELVIS:` og loggen har en

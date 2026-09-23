@@ -3950,7 +3950,7 @@ def test_krev_sporbar_nekter_naar_head_ikke_er_pushet(monkeypatch):
 
     monkeypatch.setattr(kodeproveniens, "commit", lambda: "c" * 40)
     monkeypatch.setattr(kodeproveniens, "rent", lambda: kodeproveniens.RENT)
-    monkeypatch.setattr(kodeproveniens, "paa_origin_main", lambda sha: False)
+    monkeypatch.setattr(kodeproveniens, "paa_origin_main", lambda sha: (False, "test"))
 
     with pytest.raises(kodeproveniens.IkkeSporbar) as e:
         kodeproveniens.krev_sporbar()
@@ -3977,3 +3977,80 @@ def test_run_py_har_ingen_vei_rundt_kodeproveniensen():
     assert "if not args.torrkjor:" in kode
     for flagg in ("--uten-kodeproveniens", "--tving-kode", "--hopp-over-kode"):
         assert flagg not in kode, flagg
+
+
+# Den EKTE funksjonen, tatt vare på før conftest stubber den ut.
+_ekte_paa_origin_main = __import__(
+    "core.kodeproveniens", fromlist=["x"]).paa_origin_main.__wrapped__
+
+
+def test_sperren_svarer_i_en_grunn_klone_uten_lokal_origin_main(monkeypatch):
+    """CI sjekker ut GRUNT. Er `refs/remotes/origin/main` fraværende —
+    som når `actions/checkout` får en sha i stedet for et grennavn —
+    svarte den gamle prøven NEI på noe som var sant, og ville stoppet
+    den ukentlige innsamlingen.
+
+    Fjernlageret spørres først, og det er også det riktige spørsmålet:
+    «finnes koden der alle kan se den» stilles til den som vet."""
+    from core import kodeproveniens as kp
+
+    # Conftest stubber `paa_origin_main` for at testene ikke skal
+    # avhenge av utviklerens arbeidstre. Her er den ekte funksjonen
+    # nettopp det som prøves.
+    monkeypatch.setattr(kp, "paa_origin_main", _ekte_paa_origin_main)
+    kp._fjern_main.cache_clear()
+    monkeypatch.setattr(kp, "_fjern_main", lambda: "a" * 40)
+    monkeypatch.setattr(kp, "_lokal_main", lambda: "")
+
+    pushet, hvordan = kp.paa_origin_main("a" * 40)
+
+    assert pushet is True
+    assert "fjernlageret" in hvordan
+
+
+def test_lokal_referanse_brukes_naar_fjernlageret_ikke_svarer(monkeypatch):
+    """`persist-credentials: false` kan gjøre `ls-remote` umulig. Da er
+    den lokale referansen svaret — og den er fersk i CI, hentet av
+    checkout sekunder før. Men svaret SIER at det er den som ble brukt."""
+    from core import kodeproveniens as kp
+
+    monkeypatch.setattr(kp, "paa_origin_main", _ekte_paa_origin_main)
+    monkeypatch.setattr(kp, "_fjern_main", lambda: "")
+    monkeypatch.setattr(kp, "_lokal_main", lambda: "b" * 40)
+
+    pushet, hvordan = kp.paa_origin_main("b" * 40)
+
+    assert pushet is True
+    assert "lokal" in hvordan and "svarte ikke" in hvordan
+
+
+def test_ingen_av_dem_svarer_gir_nei_og_sier_hvorfor(monkeypatch):
+    """Usikkerhet skal se ut som usikkerhet. Kan ingen av de to svare,
+    vet vi ikke om koden er pushet — og da samler vi ikke inn."""
+    from core import kodeproveniens as kp
+
+    monkeypatch.setattr(kp, "paa_origin_main", _ekte_paa_origin_main)
+    monkeypatch.setattr(kp, "_fjern_main", lambda: "")
+    monkeypatch.setattr(kp, "_lokal_main", lambda: "")
+
+    pushet, hvordan = kp.paa_origin_main("c" * 40)
+
+    assert pushet is False
+    assert "verken" in hvordan
+
+
+def test_git_kalles_med_safe_directory_og_uten_passordspoersmaal():
+    """To feil som ikke handler om koden, og som begge ville stoppet
+    den ukentlige innsamlingen:
+
+      dubious ownership   git nekter å lese et tre eid av en annen UID
+      passordprompt       `ls-remote` uten legitimasjon SPØR, og henger
+
+    Den andre er verst: en innsamling som henger feiler ikke høylytt,
+    den blir borte."""
+    from core import kodeproveniens as kp
+
+    kode = (ROT / "core" / "kodeproveniens.py").read_text(encoding="utf-8")
+    assert '"-c", f"safe.directory={ROT}"' in kode
+    assert kp.GIT_MILJO["GIT_TERMINAL_PROMPT"] == "0"
+    assert "BatchMode=yes" in kp.GIT_MILJO["GIT_SSH_COMMAND"]

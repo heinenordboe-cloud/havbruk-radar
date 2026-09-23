@@ -157,6 +157,60 @@ def _numre(bit: str) -> list[str]:
     return [n for n in ut if n in OMRAADER]
 
 
+# HVA FARGEN BETØR I DENNE RUNDEN, lest av kunngjøringen.
+#
+# ## Hvorfor dette ikke er én fast tegnforklaring
+#
+# «rød = ned 6 %, grønn = opp 6 %» er sant for fire av fem runder og
+# USANT for den første. Kunngjøringen 30.10.2017 skriver:
+#
+#   «Det er tidligere besluttet at kapasiteten i de røde områdene ikke
+#    skal reduseres i denne runden. Nedtrekk vil først skje i de
+#    områdene som blir røde i neste runde i 2019.»
+#
+# PO3 og PO4 var røde i 2018 og ble IKKE trukket ned. En felles
+# tegnforklaring ville sagt at de ble det, og det er en påstand om et
+# forvaltningsvedtak — ikke en forenkling.
+#
+# Grønt i 2018 er også annerledes: «tilbud om økt produksjonskapasitet»
+# uten oppgitt prosent.
+#
+# Mønstrene leses derfor per runde, av kroppen. Finner de ingenting for
+# en farge, står tegnforklaringen tom — se `gul` i 2018, der
+# kunngjøringen ikke sier hva gult betyr.
+FOLGER = (
+    # rødt
+    (re.compile(r"ikke skal reduseres i denne runden"), "rod",
+     "ingen reduksjon i denne runden"),
+    (re.compile(r"redusere[rs]? produksjonskapasiteten med (\d+) prosent"),
+     "rod", "{} prosent nedtrekk"),
+    # grønt
+    (re.compile(r"øke produksjonskapasiteten med inntil (\d+) prosent"),
+     "gronn", "tilbud om inntil {} prosent vekst"),
+    (re.compile(r"økt produksjonskapasitet med inntil (\d+) prosent"),
+     "gronn", "tilbud om inntil {} prosent vekst"),
+    (re.compile(r"tilbud om økt produksjonskapasitet i de områdene som "
+                r"settes til grønt"), "gronn",
+     "tilbud om økt produksjonskapasitet, uten oppgitt prosent"),
+    # gult
+    (re.compile(r"ingen endringer i produksjonskapasiteten"), "gul",
+     "ingen endring i kapasiteten"),
+    (re.compile(r"opprettholdes dagens produksjonskapasitet"), "gul",
+     "dagens kapasitet opprettholdes"),
+)
+
+# Sidens egen dokumenttype, lest av kroppen. regjeringen.no merker hver
+# side som «Pressemelding», «Nyhet» eller noe annet, og de to første er
+# ikke det samme: en nyhet er ikke et kunngjort vedtak. MÅLT 23.09.2026:
+# 2020 og 2024 er Nyhet, de tre andre Pressemelding.
+#
+# `og:type` er «website» på alle fem og sier ingenting. Merkelappen står
+# i sidens egen typeblokk, etterfulgt av en loddrett strek.
+DOKUMENTTYPE = re.compile(
+    r'<[^>]*class="[^"]*(?:article-type|documenttype|type)[^"]*"[^>]*>'
+    r'\s*([^<|]{3,40}?)\s*\|')
+
+
 @lru_cache(maxsize=8)
 def _kropp(runde: str) -> bytes:
     """Den arkiverte kroppen, verifisert mot sha256.
@@ -179,6 +233,50 @@ def _kropp(runde: str) -> bytes:
             f"{sti.name}: sha256 {faktisk[:16]}… der {sum_[:16]}… er "
             f"verifisert i docs/VERIFISERING-PRESSEMELDINGER.md")
     return rå
+
+
+@lru_cache(maxsize=8)
+def folge(runde: str) -> dict[str, dict[str, str]]:
+    """{farge: {"tekst": …, "sitat": …}} — hva fargen BETØR i runden.
+
+    Tegnforklaringen er ikke felles for de fem rundene, og det er ikke
+    en detalj: i 2018 ble de røde områdene IKKE trukket ned. Se
+    `FOLGER`.
+
+    En farge kunngjøringen ikke sier noe om, står ikke i svaret. Gult i
+    2018 er et slikt tilfelle.
+    """
+    rå = _kropp(runde)
+    if not rå:
+        return {}
+    ut: dict[str, dict[str, str]] = {}
+    for avsnitt in _tekst(rå):
+        for mønster, farge, mal in FOLGER:
+            if farge in ut:
+                continue
+            m = mønster.search(avsnitt)
+            if not m:
+                continue
+            tekst = mal.format(*m.groups()) if m.groups() else mal
+            ut[farge] = {"tekst": tekst, "sitat": avsnitt}
+    return ut
+
+
+@lru_cache(maxsize=8)
+def dokumenttype(runde: str) -> str:
+    """«Pressemelding» eller «Nyhet», lest av sidens egen merkelapp.
+
+    De to er ikke det samme, og forskjellen er departementets egen: en
+    nyhet er ikke merket som et kunngjort vedtak. MÅLT 23.09.2026: 2020
+    og 2024 er Nyhet, de tre andre Pressemelding.
+
+    `og:type` duger ikke — den er «website» på alle fem.
+    """
+    rå = _kropp(runde)
+    if not rå:
+        return ""
+    m = DOKUMENTTYPE.search(rå.decode("utf-8", "replace"))
+    return " ".join(m.group(1).split()) if m else ""
 
 
 def url(runde: str) -> str:

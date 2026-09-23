@@ -71,24 +71,65 @@ class IkkeSporbar(RuntimeError):
     """
 
 
-def _git(*args: str) -> str:
-    """Git-utdata som tekst, eller tom streng om kommandoen ikke svarer.
+# Miljøet hvert git-kall får.
+#
+# ## `GIT_TERMINAL_PROMPT=0` og `BatchMode=yes` er ikke pynt
+#
+# `ls-remote` mot et privat repo uten legitimasjon SPØR om passord. I en
+# CI-jobb finnes ingen å spørre, og kallet henger til jobben times ut.
+# En innsamling som henger er verre enn en som feiler: den feiler ikke
+# høylytt, den blir borte.
+GIT_MILJO = {
+    "GIT_TERMINAL_PROMPT": "0",
+    "GIT_SSH_COMMAND": "ssh -oBatchMode=yes -oStrictHostKeyChecking=accept-new",
+    "GIT_ASKPASS": "",
+    "GCM_INTERACTIVE": "never",
+}
 
-    Tom streng og ikke et unntak: modulen skal kunne importeres og
-    testes utenfor et git-arbeidstre. Den som KREVER sporbarhet kaller
-    `krev_sporbar()`, som gjør fraværet til en feil.
+# `safe.directory` settes på HVERT kall.
+#
+# Git nekter å lese et arbeidstre som eies av en annen bruker enn den
+# som kjører — «detected dubious ownership» — og returnerer da en
+# feilkode. Det skjer i CI-jobber som kjører i en container med annen
+# UID enn runneren som sjekket ut koden.
+#
+# Følgen ville vært at `commit()` ga tom streng, `krev_sporbar()` sa
+# «git svarer ikke», og den ukentlige innsamlingen stoppet av en grunn
+# som ikke handler om koden i det hele tatt.
+#
+# Å oppgi at mappa vi kjører i er mappa vi kjører i, svekker ingenting:
+# den sier ikke noe om hvilken kode som er pushet.
+
+
+def _git(*args: str, tid: int = 30) -> tuple[int, str]:
+    """(exit-kode, utdata). `-1` når kommandoen ikke lot seg kjøre.
+
+    Skillet mellom «git svarte nei» og «git svarte ikke» er hele
+    grunnen til at denne returnerer koden og ikke bare teksten: det
+    første handler om koden, det andre om maskinen, og de skal ikke
+    behandles likt av noe som kan stoppe en innsamling.
     """
+    import os
+
     try:
-        ut = subprocess.run(("git", *args), cwd=ROT, capture_output=True,
-                            text=True, timeout=30)
+        ut = subprocess.run(
+            ("git", "-c", f"safe.directory={ROT}", *args),
+            cwd=ROT, capture_output=True, text=True, timeout=tid,
+            env={**os.environ, **GIT_MILJO})
     except (OSError, subprocess.SubprocessError):
-        return ""
-    return ut.stdout.strip() if ut.returncode == 0 else ""
+        return -1, ""
+    return ut.returncode, (ut.stdout + ut.stderr).strip()
+
+
+def _git_ut(*args: str) -> str:
+    """Bare utdata, tom streng om kallet ikke gikk. For de enkle spørsmålene."""
+    kode, ut = _git(*args)
+    return ut if kode == 0 else ""
 
 
 def commit() -> str:
     """sha for HEAD, eller tom streng."""
-    return _git("rev-parse", "HEAD")
+    return _git_ut("rev-parse", "HEAD")
 
 
 def rent() -> str:
@@ -100,33 +141,89 @@ def rent() -> str:
     """
     if not commit():
         return UKJENT
-    ut = _git("status", "--porcelain")
+    kode, ut = _git("status", "--porcelain")
+    if kode != 0:
+        return UKJENT
     return URENT if ut else RENT
 
 
 @lru_cache(maxsize=4)
-def paa_origin_main(sha: str) -> bool:
-    """Er denne commiten en stamfar til `origin/main`?
+def _fjern_main() -> str:
+    """sha `origin/main` peker på HOS FJERNLAGERET, eller tom streng.
 
-    Det er spørsmålet «kjørte dette fra noe alle kan se», og det er et
-    annet spørsmål enn «finnes commiten lokalt». F15 var nettopp en
-    commit som fantes lokalt og ikke hos noen andre.
+    Dette er spørsmålet vi faktisk vil ha svar på — «finnes koden der
+    alle kan se den» — stilt til den som vet. Samme prinsipp som
+    `Tilgang.get()`s re-autentisering på 401 og som regel 3: spør om
+    DET du vil vite, ikke om noe som korrelerer med det.
+
+    Den lokale `refs/remotes/origin/main` korrelerer bare. Den
+    oppdateres ved `fetch`, så på en utviklermaskin kan den være uker
+    gammel: en commit som ER pushet leses som upushet, og en commit som
+    er force-pushet bort leses som pushet.
+
+    Tom streng når fjernlageret ikke lar seg spørre — ingen legitimasjon
+    (`persist-credentials: false`), ingen nett. Da svarer
+    `paa_origin_main()` på den lokale referansen i stedet, og sier det.
+    """
+    kode, ut = _git("ls-remote", "origin", "refs/heads/main", tid=20)
+    if kode != 0 or not ut:
+        return ""
+    første = ut.split("\n")[0].split()
+    return første[0] if første and len(første[0]) == 40 else ""
+
+
+def _lokal_main() -> str:
+    """sha den LOKALE `refs/remotes/origin/main` peker på, eller tom.
+
+    I CI er den fersk: `actions/checkout` hentet den sekunder før, og da
+    er den like god som fjernlageret. På en utviklermaskin kan den være
+    gammel — se `_fjern_main()`.
+    """
+    return _git_ut("rev-parse", "--verify", "--quiet",
+                   "refs/remotes/origin/main")
+
+
+def _er_stamfar(sha: str, mot: str) -> bool:
+    """Er `sha` lik eller stamfar til `mot`?
+
+    `--is-ancestor` gir exit 0 for ja og 1 for nei, og -1 fra `_git()`
+    når kallet ikke gikk. Bare 0 er ja. I et GRUNT arbeidstre kan git
+    mangle historikken mellom to ulike commiter og svare nei på noe som
+    er sant — derfor sjekkes likhet først, som er tilfellet i CI.
+    """
+    if sha == mot:
+        return True
+    kode, _ = _git("merge-base", "--is-ancestor", sha, mot)
+    return kode == 0
+
+
+@lru_cache(maxsize=4)
+def paa_origin_main(sha: str) -> tuple[bool, str]:
+    """(er den pushet, hvordan vi vet det).
+
+    Andre leddet er ikke pynt: det skiller «fjernlageret sa ja» fra «den
+    lokale referansen sa ja» fra «ingen av dem kunne svare», og det er
+    forskjellen på et svar og et gjett.
 
     Svaret kan endre seg over tid — en commit som ikke var pushet da
     fila ble skrevet, kan være pushet i dag — og derfor lagres det ikke
-    i fila. Det spørres på nytt.
+    i fila. Det spørres på nytt. CLAUDE.md 1b-7.
     """
     if not sha:
-        return False
-    # `merge-base --is-ancestor` gir exit 0 for ja, 1 for nei. `_git()`
-    # skiller dem ikke, så kallet gjøres direkte her.
-    try:
-        ut = subprocess.run(
-            ("git", "merge-base", "--is-ancestor", sha, "origin/main"),
-            cwd=ROT, capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return ut.returncode == 0
+        return False, "ingen HEAD"
+
+    fjern = _fjern_main()
+    if fjern:
+        return _er_stamfar(sha, fjern), f"fjernlageret: origin/main = {fjern[:12]}"
+
+    lokal = _lokal_main()
+    if lokal:
+        return (_er_stamfar(sha, lokal),
+                f"lokal refs/remotes/origin/main = {lokal[:12]} "
+                f"(fjernlageret svarte ikke)")
+
+    return False, ("verken fjernlageret eller en lokal "
+                   "refs/remotes/origin/main kunne svare")
 
 
 def krev_sporbar() -> tuple[str, str]:
@@ -156,11 +253,13 @@ def krev_sporbar() -> tuple[str, str]:
         raise IkkeSporbar(
             f"arbeidstreet er ikke rent (HEAD {sha[:12]}). Commit eller "
             f"still tilbake før du samler inn — ellers vet ingen hvilken "
-            f"kode som skrev fila.\n\n" + (_git("status", "--short") or ""))
+            f"kode som skrev fila.\n\n" + (_git_ut("status", "--short") or ""))
 
-    if not paa_origin_main(sha):
+    pushet, hvordan = paa_origin_main(sha)
+    if not pushet:
         raise IkkeSporbar(
-            f"HEAD {sha[:12]} finnes ikke på origin/main. Push først.\n\n"
+            f"HEAD {sha[:12]} finnes ikke på origin/main. Push først.\n"
+            f"  grunnlag: {hvordan}\n\n"
             f"Det er F15: 47 commits lå upushet i to uker, den ukentlige "
             f"innsamlingen kjørte gammel kode, og mandagens snapshot ble "
             f"skrevet med personformer i seg. Se CLAUDE.md regel 7.")

@@ -43,4 +43,5 @@ def _fast_kodeproveniens(monkeypatch):
 
     monkeypatch.setattr(kodeproveniens, "commit", lambda: "0" * 40)
     monkeypatch.setattr(kodeproveniens, "rent", lambda: kodeproveniens.RENT)
-    monkeypatch.setattr(kodeproveniens, "paa_origin_main", lambda sha: bool(sha))
+    monkeypatch.setattr(kodeproveniens, "paa_origin_main",
+                        lambda sha: (bool(sha), "testfast"))

@@ -1416,7 +1416,7 @@ def test_snapshot_med_tomt_felt_er_et_funn(tmp_path, monkeypatch):
 def test_urent_arbeidstre_er_et_funn(tmp_path, monkeypatch):
     monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
     monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
-    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: True)
+    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: (True, "test"))
     _kodefil(tmp_path, "falsk", "2026-09-22.parquet",
              kode_commit="e" * 40, kode_rent="nei")
 
@@ -1428,7 +1428,7 @@ def test_commit_utenfor_origin_main_er_et_funn(tmp_path, monkeypatch):
     """F15 i sin rene form: koden fantes, men bare hos én maskin."""
     monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
     monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
-    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: False)
+    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: (False, "test"))
     _kodefil(tmp_path, "falsk", "2026-09-22.parquet",
              kode_commit="f" * 40, kode_rent="ja")
 
@@ -1439,7 +1439,7 @@ def test_commit_utenfor_origin_main_er_et_funn(tmp_path, monkeypatch):
 def test_pushet_og_rent_gir_ingen_funn(tmp_path, monkeypatch):
     monkeypatch.setattr(vakt, "RAW_DIR", tmp_path)
     monkeypatch.setattr(vakt.snapshot, "RAW_DIR", tmp_path)
-    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: True)
+    monkeypatch.setattr(vakt.kodeproveniens, "paa_origin_main", lambda s: (True, "test"))
     _kodefil(tmp_path, "falsk", "2026-09-22.parquet",
              kode_commit="a" * 40, kode_rent="ja")
 

@@ -1350,9 +1350,11 @@ def kodeproveniensfunn() -> list[Funn]:
                     rel, "kodeproveniens",
                     f"{sha[:12]} — arbeidstreet var ikke rent "
                     f"({', '.join(post['rent']) or 'uoppgitt'})"))
-            if not kodeproveniens.paa_origin_main(sha):
-                funn.append(Funn(rel, "kodeproveniens",
-                                 f"{sha[:12]} finnes ikke på origin/main"))
+            pushet, hvordan = kodeproveniens.paa_origin_main(sha)
+            if not pushet:
+                funn.append(Funn(
+                    rel, "kodeproveniens",
+                    f"{sha[:12]} finnes ikke på origin/main ({hvordan})"))
 
     return funn
 
