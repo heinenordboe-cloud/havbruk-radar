@@ -329,12 +329,46 @@ def _pivot(ramme: pl.DataFrame) -> dict[str, dict[str, str]]:
 
 def _siste(kilde: str) -> tuple[str, dict[str, dict[str, str]]]:
     """Nyeste snapshot for kilden, pivotert. Går via `snapshot.versjoner()`
-    fordi den kjenner regelen om at `.10` sorterer etter `.2`."""
+    fordi den kjenner regelen om at `.10` sorterer etter `.2`.
+
+    ## KILDENS EGET TILLEGG kjøres her, ikke bare hos porten
+
+    `snapshot.versjoner()` kjører lesedøra, og døra spør om
+    `organisasjonsform` og `institusjonell_sektorkode`. For `eierskap`
+    er begge `None` på en tillatelse der formen bare står i
+    `eier_type` — CLAUDE.md regel 7 navngir nettopp den.
+
+    `publiseringsvakt._rammene_for()` har kalt `fjern_egne_personer()`
+    siden 19.09, og generatoren gjorde det ikke. To lesemåter av samme
+    kilde som kan svare ulikt er formen F6 og F7 hadde, og her var
+    retningen den farlige: porten så færre rader enn siden.
+    """
     dato = snapshot.siste_dato(kilde)
     if dato is None:
         raise SystemExit(f"{kilde}: ingen snapshots i {DATA_DIR}")
-    versjonene = snapshot.versjoner(kilde, dato)
-    return dato, _pivot(versjonene[-1][1])
+    ramme = snapshot.versjoner(kilde, dato)[-1][1]
+    return dato, _pivot(_uten_egne_personer(kilde, ramme))
+
+
+def _uten_egne_personer(kilde: str, ramme):
+    """Ramma etter kildens eget persontillegg. Urørt om kilden er ukjent.
+
+    Samme kall og samme rekkefølgevern som
+    `publiseringsvakt._rammene_for()`: en hook kan bare FJERNE.
+    """
+    from core import registry
+    from core.contract import kilder_per_navn
+
+    eier = kilder_per_navn(registry.discover()).get(kilde)
+    if eier is None:
+        return ramme
+    etter = eier.fjern_egne_personer(ramme)
+    if etter.height > ramme.height:
+        raise ValueError(
+            f"{kilde}.fjern_egne_personer() ga {etter.height} rader der "
+            f"den fikk {ramme.height}. Hooken skal filtrere, ikke legge "
+            f"til — se Source.fjern_egne_personer.")
+    return etter
 
 
 def _sjekksum(kilde: str) -> str:
@@ -2922,8 +2956,9 @@ def _lokalitetens_selskap(mine_till: dict, overforinger: list[dict],
     # 22.09.2026 — og en ny vei uten spørsmålet er en ny lekkasje.
     #
     # MÅLT: porten stoppet publiseringen på lokalitet 11593, der
-    # «PARTREDERIET BRØDRENE SIGLEN ANS» sto i overskriften mens
-    # tabellraden under sa «eieren er en personform». To steder som skal
+    # navnet til innehaveren av H-FJ-0018 — en personform — sto i
+    # overskriften mens tabellraden under sa «eieren er en
+    # personform». To steder som skal
     # si det samme om hvem vi ikke navngir, er formen F6 og F7 hadde —
     # og her er prisen et navngitt menneske på en offentlig side.
     from sources.eierskap import er_person

@@ -2464,9 +2464,14 @@ def test_malene_bruker_bare_blokker_grunnmalen_har():
 
 def test_en_personform_navngis_ikke_i_overskriften():
     """MÅLT: porten stoppet publiseringen på lokalitet 11593, der
-    «PARTREDERIET BRØDRENE SIGLEN ANS» sto i det nye
+    navnet til innehaveren av H-FJ-0018 — en personform — sto i det nye
     «Innehaver»-feltet i overskriften mens tabellraden under sa
     «eieren er en personform».
+
+    NAVNET STÅR IKKE HER, og det er ikke pynt: et personformnavn i et
+    offentlig repo er nøyaktig det regel 3 handler om. Nummeret er en
+    tillatelse i et offentlig register og peker på raden for den som
+    vil etterprøve.
 
     `_eierrad()` stilte spørsmålet; den nye veien til det samme navnet
     gjorde ikke. To steder som skal si det samme om hvem vi ikke

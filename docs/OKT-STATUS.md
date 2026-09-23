@@ -1,3 +1,133 @@
+# Øktstatus 23.09.2026 — de fire punktene før lansering
+
+Skrevet ved et avbrudd. **Testsuiten er grønn: 1 074 passerte.** Porten
+er ren (14 kvitterte funn står). Bygget er verifisert etter hver
+endring.
+
+Forrige øktstatus står nederst i fila, uendret.
+
+---
+
+## Ferdig og pushet
+
+### 1. Endringssiden for uke 39: 812 → 440 endringer
+
+`docs/beslutninger/2026-09-23-en-hendelse-er-ikke-en-rad.md`
+(commit `b196b32`). Tre målte feil i tellingen, alle med formen fra
+CLAUDE.md 1b, pluss én publiseringsblokker:
+
+- **362 trafikklysrader er fire vedtak.** PO 4 rød→gul (137
+  lokaliteter), PO 9/10/11 grønn→gul (109/72/44). Fargen er en egenskap
+  ved OMRÅDET, ført på hver lokalitet av registeret.
+  `nettsted.SAMLES_PER_OMRAADE`.
+- **«Ute av registeret» var usant for 20 av 22.** Slo opp alle 29
+  selskapene i Brønnøysunds åpne API: 20 sto der fortsatt med ny
+  næringskode, 2 var slettet, 7 hadde aldri forsvunnet. Alle 32
+  «ny»-entitetene var registrert 1995–2026-04, null i september.
+  Etiketten heter nå «Ute av vårt utvalg» / «Ny i vårt utvalg».
+- **Et felt som kom er ikke en ny oppføring.**
+  `changelog.merk_feltbevegelse()` spør snapshotene om entiteten står
+  på begge sider. Nye slag `felt_ny`/`felt_borte`, vises og telles
+  ikke.
+- **Changeloggen fikk en lesedør.** 18.09-beslutningen skrev at «en
+  'endringer denne uka' på tvers av kilder, eller en CSV av loggen»
+  ville snudd valget. Designrunden bygget den. `les_alt()` går nå
+  gjennom `fjern_personformer()`: 380 rader, 20 entiteter, ved lesing.
+
+De 369 `antall_ansatte`-endringene står: verdi til verdi, median ±2,
+maks 87. Én månedlig oppdatering, men 369 forskjellige fakta.
+
+### 2. Trafikklyset: ny beleggsgrad «beslutning»
+
+`docs/beslutninger/2026-09-23-fargeleggingen-er-et-eget-belegg.md` og
+`docs/VERIFISERING-FARGELEGGINGEN.md` (commit `295d1e4`).
+
+Trafikklyset besluttes i to trinn, og et gult område krever ingen
+forskrift. Det forklarer alle 19 tomme cellene — de var ikke en mangel
+ved kilden.
+
+    begge kildene sier noe   46   enige 46, sprik 0
+    bare beslutningen        19
+    bare forskriften          0
+
+`beslutning.py` leser de fem arkiverte pressemeldingene, pinnet på
+sha256. 2026-kolonnen er full, og registerets «gjelder nå» stemmer med
+2026-runden for alle tretten.
+
+**Alle fem pressemeldingene var allerede arkivert og verifisert.**
+Ingen re-arkivering trengtes; summene er identiske med
+`docs/VERIFISERING-PRESSEMELDINGER.md`.
+
+PO9 bærer departementets egen merknad om den særskilte vurderingen,
+ordrett og med kilde.
+
+Områdenavnene står som de står: produksjonsområdeforskriften bruker to
+stavemåter av fem navn, og Akvakulturregisterets navn er § 3s, tegn for
+tegn, for alle tretten. Punkt 4 i oppdraget er dermed besvart —
+«Ryfylket» kommer fra kilden og beholdes.
+
+---
+
+## Ikke pushet ennå (ligger i arbeidskatalogen)
+
+### 3. Publiseringsblokkerne — delvis
+
+`docs/beslutninger/2026-09-23-eier-type-inn-i-hooken.md`, utkast.
+
+**PERSONFORMER — nesten lukket.** Sju ledd er på plass: kildens
+`fetch()`, `parse()`, lesedøra i `snapshot._les()`, `snapshot.write()`,
+porten, changeloggens nye lesedør, og fra i dag `eier_type` i
+`eierskap.fjern_egne_personer()` pluss samme hook i
+`nettsted._siste()`.
+
+Det siste leddet kom fordi premisset for å utelate `eier_type` sviktet:
+MÅLT at `parse()` dropper H-FJ-0018 fra begge arkivkroppene, men at
+snapshotet 21.09 har den likevel — F15, innsamlingen kjørte upushet
+kode. Hvitelista leste den fila og gjorde dermed rede for en personform.
+Nå er navnet og orgnummeret ute av hvitelista.
+
+**Står igjen, kvittert:** tre personformnavn på 14 lokalitetssider, i
+`tildelt_navn`. `tildelt_type` finnes ikke, så de kan ikke lukkes med
+data — bare med navneendelsen, og den brukes til å OPPDAGE i porten,
+ikke til å skjule. Kvittert av Heine 19.09.2026.
+
+**Hvitelista mot `eierskap_historikk` — LØST**, og det ble løst 19.09.
+`_datoene()` leser alle datoer for `verden`-partisjonerte kilder og
+nyeste for `henting`. Verifisert 23.09: 21 årganger leses
+(2006-12-31 … 2026-12-31), 2 213 orgnumre og 12 237 navn i hvitelista,
+0 av de 106 personentitetene blant dem. Porten gir exit 0.
+
+---
+
+## Hva jeg holdt på med da økta ble avbrutt
+
+Jeg hadde nettopp bekreftet at lokalitet 11593 rendrer riktig etter
+hook-endringen («Innehaver: ikke oppgitt av kilden»), og hadde åpnet
+`maler/lokalitet.html.j2` linje 106 for å se på en KOSMETISK ting:
+nøkkeltallet viser «1 tillatelser» der det skal stå «1 tillatelse».
+Ingen endring gjort. Det er ikke en usannhet, bare dårlig norsk.
+
+## Hva som står igjen
+
+1. **Kosmetikk:** entall/flertall på `tillatelser_oppgitt` i
+   `maler/lokalitet.html.j2` linje 106, og samme sjekk for de andre
+   nøkkeltallene.
+2. **Punkt 2, resten:** rundene 2018, 2020, 2022 og 2024 er parset og
+   lagt fram ordrett i `docs/VERIFISERING-FARGELEGGINGEN.md`. Heine
+   leser avsnittene, og rundene legges til i `beslutning.GODKJENT` én
+   for én. Til da står 12 celler som «ikke oppgitt».
+3. **De fem utkastene** venter på «Hvorfor» og «hva som ville snudd
+   det»: design-implementert, gratis-mot-betalt-grense,
+   en-hendelse-er-ikke-en-rad, fargeleggingen-er-et-eget-belegg,
+   eier-type-inn-i-hooken.
+4. **Skjermbildene i `docs/design/implementert/`** er tatt før punkt 1
+   og 2. Forsiden og endringssiden viser 812 der de nå ville vist 440,
+   og PO-sidene mangler «beslutning»-ruta. De bør tas på nytt.
+5. **APNE-SPORSMAL punkt 8** (ingen test måler en side som er lagt ut)
+   står åpent.
+
+---
+
 # Øktstatus 27.08.2026 — ekspertgruppen som kilde
 
 > **Note 09.09.2026.** Dette er et øktreferat fra 27.08.2026 og er ikke

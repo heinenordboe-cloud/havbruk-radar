@@ -748,18 +748,46 @@ class Eierskap(Source):
         gjenkjennelige, og det er verre enn ingen filtrering. Samme
         begrunnelse som i `persondata.fjern_personformer()`.
 
-        Den ukentlige seriens `eier_type` står UTTRYKKELIG ikke her, og
-        det er et valg: en slik rad forsvinner fra neste snapshot av seg
-        selv, fordi `fetch()` og `parse()` stopper den — målt på
-        arkivkroppen fra 14.09, der dagens kode dropper H-FJ-0018 helt.
-        De 21 årgangene blir derimot aldri parset på nytt. Å ta
-        `eier_type` med her ville vært B1 fra 18.09, som ble vurdert og
-        ikke valgt.
+        ## `eier_type` KOM MED 23.09.2026, fordi premisset sviktet
+
+        Fram til da sto den ukentlige seriens `eier_type` uttrykkelig
+        IKKE her, med denne begrunnelsen: «en slik rad forsvinner fra
+        neste snapshot av seg selv, fordi `fetch()` og `parse()` stopper
+        den — målt på arkivkroppen fra 14.09, der dagens kode dropper
+        H-FJ-0018 helt».
+
+        Resonnementet var riktig og premisset ble likevel usant. NESTE
+        snapshot var 21.09, og MÅLT 23.09.2026 står H-FJ-0018 der
+        fortsatt, med et `eier_navn` som er en personform og
+        `eier_type = JointlyOwnedShippingCompany`. Navnet gjengis ikke
+        her — se regel 3; nummeret er offentlig og peker på raden.
+        Grunnen er F15: den
+        ukentlige innsamlingen kjørte kode fra før 16.09, fordi 47
+        commits lå upushet. Se CLAUDE.md regel 7.
+
+        Fila er append-only og blir stående. `eierskap` er
+        `henting`-partisjonert, så `publiseringsvakt.hviteliste()` leser
+        NØYAKTIG den fila — og gjorde dermed rede for navnet på en
+        personform. Lesedøra kan ikke fjerne raden: `organisasjonsform`
+        er `None` for den, og det er unntaket CLAUDE.md regel 7 navngir
+        ved navn.
+
+        Det som beskyttet navnet var at `_lokalitetens_selskap()` spør
+        `er_person()`. Det er én funksjon, ikke en dør — og en visning
+        som ikke spør, ville fått porten til å si grønt.
+
+        Å vente på at neste kjøring rydder opp, er å la beskyttelsen
+        hvile på at en jobb kjører. Feltet er derfor med nå.
         """
         if frame.is_empty() or {"entity_id", "field", "value"} - set(frame.columns):
             return frame
 
-        typerader = frame.filter(pl.col("field") == "mottaker_type")
+        # TO FELT, ÉN PRØVE. `mottaker_type` er de 21 årgangenes, og
+        # `eier_type` den ukentlige seriens. Begge bærer pub-aquas
+        # vokabular, begge spørres med `er_person()`, og den er den
+        # samme funksjonen `fetch()` og `parse()` bruker.
+        typerader = frame.filter(
+            pl.col("field").is_in(["mottaker_type", "eier_type"]))
         personer = {eid for eid, verdi
                     in typerader.select(["entity_id", "value"]).iter_rows()
                     if er_person(verdi)}

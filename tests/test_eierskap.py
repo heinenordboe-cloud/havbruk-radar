@@ -10,6 +10,7 @@ Derfor testes filteret i BEGGE lag hver for seg, med konstruerte rader
 som ikke finnes i den ekte responsen.
 """
 
+import inspect
 import pytest
 
 from core import persondata
@@ -593,24 +594,58 @@ def test_rorer_ikke_en_ramme_uten_mottaker_type():
     assert Eierskap().fjern_egne_personer(ramme).equals(ramme)
 
 
-def test_eier_type_staar_UTTRYKKELIG_ikke_i_hooken():
-    """Den ukentlige seriens `eier_type` er ikke med, og det er et valg.
+def test_eier_type_er_med_i_hooken_fra_23_09_2026():
+    """Valget ble snudd, og premisset er grunnen.
 
-    En slik rad forsvinner fra neste snapshot av seg selv — `fetch()` og
-    `parse()` stopper den, målt på arkivkroppen fra 14.09. De 21
-    årgangene parses aldri på nytt. Å ta `eier_type` med ville vært B1
-    fra 18.09, som ble vurdert og ikke valgt.
+    Fram til 23.09.2026 sto `eier_type` uttrykkelig UTENFOR hooken, med
+    begrunnelsen «en slik rad forsvinner fra neste snapshot av seg selv
+    — `fetch()` og `parse()` stopper den, målt på arkivkroppen fra
+    14.09».
 
-    Faller denne, er valget endret — og da skal beslutningen endres med
-    den."""
+    Resonnementet var riktig og premisset ble usant. Neste snapshot var
+    21.09, og MÅLT 23.09.2026 står H-FJ-0018 der fortsatt, med et
+    `eier_navn` som er en personform og
+    `eier_type = JointlyOwnedShippingCompany`. Den ukentlige
+    innsamlingen kjørte kode fra før 16.09 fordi 47 commits lå upushet
+    — F15, CLAUDE.md regel 7.
+
+    NAVNET STÅR IKKE HER. Et personformnavn i et offentlig repo er
+    nøyaktig det denne prøven finnes for å hindre; tillatelsesnummeret
+    er offentlig og peker på raden.
+
+    Fila er append-only, `eierskap` er `henting`-partisjonert, og
+    `publiseringsvakt.hviteliste()` leser nøyaktig den fila. Navnet var
+    dermed GJORT REDE FOR av porten. Se
+    docs/beslutninger/2026-09-23-eier-type-inn-i-hooken.md."""
     import polars as pl
 
     ramme = pl.DataFrame([
         {"entity_id": "H-FJ-0018", "field": "eier_type",
          "value": "JointlyOwnedShippingCompany"},
         {"entity_id": "H-FJ-0018", "field": "eier_navn", "value": "NOE ANS"},
+        {"entity_id": "H-S-0001", "field": "eier_type",
+         "value": "LimitedLiabilityCompany"},
+        {"entity_id": "H-S-0001", "field": "eier_navn", "value": "ET AS"},
     ])
-    assert Eierskap().fjern_egne_personer(ramme).equals(ramme)
+
+    etter = Eierskap().fjern_egne_personer(ramme)
+
+    assert etter["entity_id"].unique().to_list() == ["H-S-0001"], (
+        "hele tillatelsen ut, ikke bare typeraden — ellers står navnet "
+        "igjen uten etiketten som gjorde det gjenkjennelig")
+
+
+def test_hooken_naar_bade_generatoren_og_porten():
+    """To lesemåter av samme kilde som kan svare ulikt er formen F6 og
+    F7 hadde — og her var retningen den farlige: porten så færre rader
+    enn siden. Begge kaller hooken fra 23.09.2026."""
+    import nettsted
+    import publiseringsvakt as vakt
+
+    assert "fjern_egne_personer" in inspect.getsource(vakt._rammene_for)
+    assert "fjern_egne_personer" in inspect.getsource(
+        nettsted._uten_egne_personer)
+    assert "_uten_egne_personer" in inspect.getsource(nettsted._siste)
 
 
 def test_hooken_kan_bare_fjerne_aldri_legge_til():
