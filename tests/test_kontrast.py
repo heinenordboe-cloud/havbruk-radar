@@ -13,8 +13,10 @@ forhåndsregnede verdier ville bare målt at noen hadde kopiert riktig.
 
 ## Hva som måles, og hva som ikke kan måles her
 
-Fargene leses ut av `maler/tokens.css` og `maler/stil.css` — kildene,
-ikke en kopi. Parene under er skrevet ned, og det er grensa: prøven vet
+Fargene leses ut av `maler/stil.css` — kilden, ikke en kopi. (Fram til
+22.09.2026 leste den også `maler/tokens.css`; den fila finnes ikke
+lenger, se stilarkets egen innledning.) Parene under er skrevet ned, og
+det er grensa: prøven vet
 hvilke par som finnes fordi et menneske har fortalt den det, ikke fordi
 den har rendret siden. Settes en dempet tekst på en ny flate uten at
 lista utvides, er prøven grønn og blind der.
@@ -37,7 +39,6 @@ from pathlib import Path
 import pytest
 
 ROT = Path(__file__).resolve().parent.parent
-TOKENS = ROT / "maler" / "tokens.css"
 STIL = ROT / "maler" / "stil.css"
 
 AA_TEKST = 4.5
@@ -123,15 +124,14 @@ def _deklarasjoner(tekst: str) -> dict[str, str]:
 def palett(mork: bool) -> dict[str, str]:
     """Hvert variabelnavn løst helt ned til en hex-verdi.
 
-    Leser BEGGE filene og følger `var()`-kjeden: `--farge-tekst` peker
-    på `--ds-color-neutral-text-default`, som peker på en hex. Løses den
-    ikke opp, måler prøven på strengen «var(--…)» og er grønn uansett."""
+    Følger `var()`-kjeden: `--farge-tekst` peker på `--ink`, som peker
+    på en hex. Løses den ikke opp, måler prøven på strengen «var(--…)»
+    og er grønn uansett."""
     ut: dict[str, str] = {}
-    for sti in (TOKENS, STIL):
-        lys_del, mork_del = _blokker(sti.read_text(encoding="utf-8"))
-        ut.update(_deklarasjoner(lys_del))
-        if mork:
-            ut.update(_deklarasjoner(mork_del))
+    lys_del, mork_del = _blokker(STIL.read_text(encoding="utf-8"))
+    ut.update(_deklarasjoner(lys_del))
+    if mork:
+        ut.update(_deklarasjoner(mork_del))
 
     def los(navn: str, dybde: int = 0) -> str:
         verdi = ut[navn].strip()
@@ -152,60 +152,55 @@ def palett(mork: bool) -> dict[str, str]:
 # gjennomsiktig.
 
 PAR = [
-    # Brødtekst. Arket er hvitt, stripa er annenhver tabellrad, bunnen
-    # er flata bunnteksten ligger på utenfor arket.
-    ("--farge-tekst", "--farge-ark", AA_TEKST, "brødtekst på ark", 1.0),
-    ("--farge-tekst", "--farge-stripe", AA_TEKST, "tabellrad, tonet", 1.0),
-    ("--farge-tekst", "--farge-hode", AA_TEKST, "tabellhode", 1.0),
-    ("--farge-tekst", "--farge-bunn", AA_TEKST, "tekst utenfor arket", 1.0),
+    # ---- PAPIR ----
+    # Det er ikke lenger et hvitt ark under innholdet (se stilarkets
+    # avsnitt 2). Innholdet står på papiret, og den innfelte flata
+    # `--papir2` er siteringsboksen, arkivlinja og skjemafeltene.
+    ("--farge-tekst", "--papir", AA_TEKST, "brødtekst på papir", 1.0),
+    ("--farge-tekst", "--papir2", AA_TEKST, "brødtekst i innfelt boks", 1.0),
 
-    # Dempet tekst: captionens plass er full farge, men bunnteksten,
-    # «ikke oppgitt av kilden» og «forskriften oppgir ikke farge» er
-    # dempet. De er de mest utsatte parene på hele siden.
-    ("--farge-tekst-svak", "--farge-ark", AA_TEKST, "dempet på ark", 1.0),
-    ("--farge-tekst-svak", "--farge-stripe", AA_TEKST, "dempet i tonet rad", 1.0),
-    ("--farge-tekst-svak", "--farge-bunn", AA_TEKST, "bunnteksten", 1.0),
+    # Dempet tekst er de mest utsatte parene på hele siden, og den er
+    # en HEKSVERDI og ikke en alfa nettopp derfor — se AVVIK 1.
+    ("--farge-tekst-svak", "--papir", AA_TEKST, "dempet på papir", 1.0),
+    ("--farge-tekst-svak", "--papir2", AA_TEKST, "dempet i innfelt boks", 1.0),
 
-    # Lenker, i alle tre tilstandene og på hver flate de står på.
-    ("--farge-lenke", "--farge-ark", AA_TEKST, "lenke på ark", 1.0),
-    ("--farge-lenke", "--farge-stripe", AA_TEKST, "lenke i tonet rad", 1.0),
-    ("--farge-lenke", "--farge-bunn", AA_TEKST, "lenke i bunnteksten", 1.0),
-    ("--farge-lenke-besokt", "--farge-ark", AA_TEKST, "besøkt lenke", 1.0),
-    ("--farge-lenke-besokt", "--farge-stripe", AA_TEKST, "besøkt, tonet rad", 1.0),
-    ("--farge-lenke-aktiv", "--farge-ark", AA_TEKST, "lenke under peker", 1.0),
+    # Lenker, i alle tre tilstandene og på begge papirflater.
+    ("--farge-lenke", "--papir", AA_TEKST, "lenke på papir", 1.0),
+    ("--farge-lenke", "--papir2", AA_TEKST, "lenke i innfelt boks", 1.0),
+    ("--farge-lenke-besokt", "--papir", AA_TEKST, "besøkt lenke", 1.0),
+    ("--farge-lenke-aktiv", "--papir", AA_TEKST, "lenke under peker", 1.0),
 
-    # Grafikk og kanter: 3:1. Ringen rundt trafikklysruta står på tre
-    # ulike flater, og det er den som bærer at en GUL rute er synlig —
-    # gul kan ikke nå 3:1 mot hvitt og slutte å være gul.
-    ("--farge-kant", "--farge-ark", AA_GRAFIKK, "ring rundt fargerute", 1.0),
-    ("--farge-kant", "--farge-stripe", AA_GRAFIKK, "ring, tonet rad", 1.0),
-    ("--farge-kant", "--farge-hode", AA_GRAFIKK, "ring i tabellhode", 1.0),
-    ("--farge-kant-sterk", "--farge-hode", AA_GRAFIKK, "streken under hodet", 1.0),
-    ("--farge-fokus", "--farge-ark", AA_GRAFIKK, "fokusmarkør", 1.0),
+    # Grafikk og kanter: 3:1. Ringen rundt trafikklysruta står på to
+    # flater, og det er den som bærer at en GUL rute er synlig — gul
+    # kan ikke nå 3:1 mot L*88-papir og slutte å være gul (AVVIK 3).
+    ("--farge-kant", "--papir", AA_GRAFIKK, "ring rundt fargerute", 1.0),
+    ("--farge-kant", "--papir2", AA_GRAFIKK, "ring, innfelt boks", 1.0),
+    ("--farge-kant-sterk", "--papir", AA_GRAFIKK, "streken under tabellhodet", 1.0),
+    ("--farge-fokus", "--papir", AA_GRAFIKK, "fokusmarkør", 1.0),
 
-    # Kartpunktene, med fyllet de faktisk har. Flata er `--farge-bunn`
-    # fra 21.09.2026: kartet er en figur PÅ arket og har papiret som
-    # grunn, ikke arket selv.
-    ("--farge-kart-punkt", "--farge-bunn", AA_GRAFIKK, "kartpunkt (60 % fyll)", 0.6),
-    ("--kart-gitter", "--farge-bunn", AA_GRAFIKK, "gradnettets linjer", 1.0),
-    ("--farge-tekst-svak", "--farge-bunn", AA_TEKST, "gradnettets etiketter", 1.0),
+    # Kartet og grafene, med fyllet de faktisk har.
+    ("--farge-kart-punkt", "--papir", AA_GRAFIKK, "kartpunkt (60 % fyll)", 0.6),
+    ("--kart-gitter", "--papir", AA_GRAFIKK, "gradnettets linjer", 1.0),
+    ("--kart-kyst", "--kart-land", AA_GRAFIKK, "kystlinja mot landflata", 1.0),
+    ("--farge-tekst-svak", "--papir", AA_TEKST, "gradnettets etiketter", 1.0),
+    ("--graf-linje", "--papir", AA_GRAFIKK, "lusekurven", 1.0),
+    ("--graf-linje", "--graf-brakk", AA_GRAFIKK, "kurven over et brakkbånd", 1.0),
+    ("--hav5", "--papir", AA_GRAFIKK, "søyler i lus- og biomassegrafen", 1.0),
 
-    # Lusegrafen, på samme papirgrunn som kartet. Linja er DATA og
-    # måles mot 3:1 (WCAG 1.4.11), ikke mot tekstterskelen.
-    ("--graf-linje", "--farge-bunn", AA_GRAFIKK, "lusekurven", 1.0),
-    ("--graf-linje", "--graf-brakk", AA_GRAFIKK, "lusekurven over et brakkbånd", 1.0),
-
-    # HERO-BÅNDET (avsnitt 2c). Den eneste mettede flaten på nettstedet,
-    # og den eneste der teksten IKKE står på papir. Fire par, fordi
-    # båndet har fire slags tekst: overskrift, ingress, etikett, lenke.
+    # ---- MØRK FLATE ----
+    # Heroen, headeren på undersidene, kystseksjonen og bunnteksten.
     # `--hav-tittel` og ikke `--farge-tekst`: på hav er blekk 1,2:1.
-    # Og ikke `--ark`: den er MØRK i mørk modus, mens båndet er mørkt i
-    # begge. Prøven felte nettopp det utkastet.
-    ("--hav-tittel", "--hav", AA_STOR, "h1 og nøkkeltall i båndet", 1.0),
-    ("--hav-tekst", "--hav", AA_TEKST, "ingressen i båndet", 1.0),
-    ("--hav-dempet", "--hav", AA_TEKST, "etikett og datolinje i båndet", 1.0),
-    ("--aksent-lys", "--hav", AA_TEKST, "lenke i båndet", 1.0),
-    ("--aksent-lys", "--hav", AA_GRAFIKK, "streken over nøkkeltallene", 1.0),
+    ("--hav-tittel", "--hav9", AA_STOR, "H1 og nøkkeltall på mørk flate", 1.0),
+    ("--hav-tegn", "--hav9", AA_TEKST, "brødtekst på mørk flate", 1.0),
+    ("--hav-sekundaer", "--hav9", AA_TEKST, "sekundærtekst på mørk flate", 1.0),
+    ("--hav3", "--hav9", AA_TEKST, "brødsmule og etikett på mørk flate", 1.0),
+    ("--rust-lys", "--hav9", AA_TEKST, "lenke og etikett på mørk flate", 1.0),
+    ("--rust-lys", "--hav9", AA_GRAFIKK, "ordmerkets linjal på mørk flate", 1.0),
+
+    # Knappen. Teksten i den er `--knapp-tekst` og ikke `--papir`:
+    # knappen er mørk i BEGGE moduser, papiret er det ikke.
+    ("--knapp-tekst", "--knapp-flate", AA_TEKST, "tekst i primærknapp", 1.0),
+    ("--knapp-tekst", "--knapp-flate-pa", AA_TEKST, "tekst i knapp under peker", 1.0),
 ]
 
 # BÅNDET MOT SIDEN RUNDT. Ikke et WCAG-krav — en flate som er utydelig
@@ -215,9 +210,6 @@ PAR = [
 # som driver.
 BAND_MOT_SIDE = 1.25
 
-PAR += [
-]
-
 # Trafikklysrutene måles for seg. De har INGEN terskel som tekst, fordi
 # de ikke er tekst: ordet «gul» står i cellen i vanlig tekstfarge, og
 # ruta er en `::before` som bare finnes i CSS-en. Tallene står her fordi
@@ -225,9 +217,10 @@ PAR += [
 # ikke fordi en av dem skal passere 4,5.
 RUTER = ["--lys-rod", "--lys-gul", "--lys-gronn"]
 
-# Digdirs egne status-farger. IKKE variabler noe sted — de står i en
-# kommentar i tokens.css nettopp for at de ikke skal kunne brukes. Her
-# er de målestokken: hvor langt trafikklyset ligger fra dem.
+# Digdirs egne status-farger. IKKE variabler noe sted, og fra
+# 22.09.2026 ikke i noen fil i repoet heller — `tokens.css` er borte.
+# De står som literaler HER, som målestokken trafikklyset måles mot:
+# hvor langt en datafarge ligger fra en varselfarge.
 DS_STATUS = {
     False: {"--lys-rod": "#c01b1b", "--lys-gul": "#ea9b1b",
             "--lys-gronn": "#068718"},
@@ -298,9 +291,9 @@ def test_baandet_er_en_flate_i_begge_moduser(mork):
     papiret; i mørk modus må det være LYSERE, ellers forsvinner det i
     bunnen. Forholdet måles, retningen ikke."""
     p = palett(mork)
-    k = kontrast(p["--hav"], p["--farge-bunn"])
+    k = kontrast(p["--hav9"], p["--papir"])
     assert k >= BAND_MOT_SIDE, (
-        f"båndet {p['--hav']} mot siden {p['--farge-bunn']} = {k:.2f}:1")
+        f"båndet {p['--hav9']} mot siden {p['--papir']} = {k:.2f}:1")
 
 
 @pytest.mark.parametrize("mork", [False, True], ids=["lys", "mørk"])

@@ -1719,22 +1719,27 @@ def test_robots_aapner_alt_og_peker_paa_sitemapet(tmp_path, monkeypatch):
     assert "Sitemap: https://eksempel.no/sitemap.xml" in tekst
 
 
-# ---- fonten -----------------------------------------------------------
+# ---- fontene ----------------------------------------------------------
 #
-# Stilarket viser til `/newsreader.woff2`. Kommer fila ikke ut, er
-# `@font-face` en død lenke og overskriftene faller til Georgia — en
-# feil som ikke gir noen feilmelding og som ingen ser før de ser på
-# siden. Prøvene under er de tre måtene den kan oppstå på.
+# Stilarket viser til tre woff2-filer. Kommer en av dem ikke ut, er
+# `@font-face` en død lenke og skriften faller til en reserve — en feil
+# som ikke gir noen feilmelding og som ingen ser før de ser på siden.
+# Prøvene under er de tre måtene den kan oppstå på.
 
-def test_fonten_og_lisensen_kopieres_ut(tmp_path):
+def test_fontene_og_lisensene_kopieres_ut(tmp_path):
     skrevet = nettsted.skriv_fonter(tmp_path)
     navn = {s.name for s in skrevet}
-    assert navn == {"newsreader.woff2", "newsreader-OFL.txt"}
-    assert (tmp_path / "newsreader.woff2").stat().st_size > 10_000
+    assert navn == {"newsreader.woff2", "newsreader-OFL.txt",
+                    "ibmplexsans.woff2", "ibmplexmono.woff2",
+                    "ibmplex-OFL.txt"}
+    for font in ("newsreader.woff2", "ibmplexsans.woff2", "ibmplexmono.woff2"):
+        assert (tmp_path / font).stat().st_size > 10_000, font
     # OFL 1.1 krever at lisensteksten følger fonten. Den skal være
-    # lisensen, ikke en lenke til den.
-    lisens = (tmp_path / "newsreader-OFL.txt").read_text("utf-8")
-    assert "SIL OPEN FONT LICENSE Version 1.1" in lisens
+    # lisensen, ikke en lenke til den. Begge Plex-familiene ligger under
+    # den samme fila — se docs/design/IBM-PLEX.md.
+    for lisensfil in ("newsreader-OFL.txt", "ibmplex-OFL.txt"):
+        lisens = (tmp_path / lisensfil).read_text("utf-8")
+        assert "SIL OPEN FONT LICENSE Version 1.1" in lisens, lisensfil
 
 
 def test_manglende_font_stopper_byggingen(tmp_path, monkeypatch):
@@ -1751,6 +1756,9 @@ def test_stilarket_viser_til_en_fil_som_faktisk_sendes_ut():
     vist_til = set(re.findall(r'url\("([^"]+\.woff2)"\)', nettsted.stilark()))
     assert vist_til, "@font-face uten url(...woff2) — er fonten fjernet?"
     assert vist_til <= set(nettsted.FONTFILER)
+    # Og andre veien: en font som SENDES UT uten at noe viser til den,
+    # er 35 kB hver leser laster ned for ingenting.
+    assert {f for f in nettsted.FONTFILER if f.endswith(".woff2")} == vist_til
 
 
 # ---- gradnettet -------------------------------------------------------

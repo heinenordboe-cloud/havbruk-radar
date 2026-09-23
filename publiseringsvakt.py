@@ -191,9 +191,19 @@ TEKSTTYPER = {".html", ".htm", ".css", ".js", ".json", ".csv", ".tsv",
 # helhet, den inneholder opphavsrett og stilnavn, og ingenting fra våre
 # kilder.
 BINAERFILER = {
-    "d8e551fa73a848a2bb3806bc725cb1b705c8ec1e7c203e8b51c5ee338b01fcc7":
+    "14209ccee1fac927285fbf69eab415c27815d6b90c249ed07b807cf37f75faa9":
         "newsreader.woff2 — Newsreader, OFL 1.1. name-tabellen inspisert "
-        "21.09.2026, se docs/design/NEWSREADER.md",
+        "22.09.2026, se docs/design/NEWSREADER.md",
+    # De to Plex-fontene kom 22.09.2026 med designoverleveringen.
+    # Brødteksten er ikke lenger systemets sans, og tallkolonnene er
+    # ikke lenger systemets mono. Begge name-tabellene er lest ut i sin
+    # helhet og gjengitt i docs/design/IBM-PLEX.md.
+    "0e98868216b2ed175098bedc3ece2273382dc9b1f23bdd911bb12ebedfaa6344":
+        "ibmplexsans.woff2 — IBM Plex Sans, OFL 1.1. name-tabellen "
+        "inspisert 22.09.2026, se docs/design/IBM-PLEX.md",
+    "6e32afc77a2d702137db7bd95f8dd435db6861ae1ae8a56b001ac8a8e851edca":
+        "ibmplexmono.woff2 — IBM Plex Mono, OFL 1.1. name-tabellen "
+        "inspisert 22.09.2026, se docs/design/IBM-PLEX.md",
     # Ikonene. Rastret av `maler/favicon.svg`, som vakten leser som
     # tekst (`.svg` står i TEKSTTYPER) og granskes som alt annet. PNG-ene
     # kan derfor ikke inneholde noe SVG-en ikke inneholder — men de er

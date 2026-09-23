@@ -1,18 +1,16 @@
 {# Grunnmalen. Alt som er FELLES for hver publisert side, og ingenting
    som er design.
 
-   Ingen CSS-rammeverk og ingen JavaScript. Én webfont, Newsreader,
-   hostet av oss selv og aldri hentet fra en CDN — se `@font-face` i
-   maler/stil.css. Tallene skal stå i kildekoden — en side der tallene tegnes av et skript er en side
+   Ingen CSS-rammeverk. Tre webfonter — Newsreader, IBM Plex Sans og
+   IBM Plex Mono — alle hostet av oss selv og aldri hentet fra en CDN.
+   Se `@font-face` i maler/stil.css. Tallene skal stå i kildekoden — en side der tallene tegnes av et skript er en side
    som ikke kan siteres, ikke kan arkiveres av Wayback, og ikke kan leses
    av noen som slår av JS. Se docs/VISNING.md: «Ingen CDN, ingen npm,
    ingen server.»
 
    DESIGNET LIGGER I `/stil.css`, ikke her. Det er én fil, lenket og
-   ikke innebygd: innebygd ville den kostet ~12 kB per side over 2 279
-   sider, og hver leser ville hentet den på nytt for hver side. Den
-   settes sammen av `maler/tokens.css` (Digdirs verdier, hentet og
-   versjonert) og `maler/stil.css` (vår) av `nettsted.skriv_stil()`.
+   ikke innebygd: innebygd ville den kostet ~30 kB per side over 2 279
+   sider, og hver leser ville hentet den på nytt for hver side.
 
    MALEN SKAL VÆRE LESBAR UTEN DEN. Ingen tabell, ingen tekst og ingen
    rekkefølge på denne siden avhenger av at stilarket kom fram — det er

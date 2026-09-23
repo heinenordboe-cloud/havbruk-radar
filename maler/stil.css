@@ -1,14 +1,41 @@
 /* Kystloggen — presentasjonen. VÅR, ikke hentet.
  *
- * Leses sammen med `tokens.css`, som er Digdirs verdier ordrett og som
- * ikke redigeres her. Denne fila gir dem NAVN etter hva de gjør på
- * denne siden, og bruker dem. Grensa er hele poenget: en oppgradering
- * av tokens rører aldri denne fila, og en designendring rører aldri
- * den andre.
+ * Dette er hele stilarket. Fram til 22.09.2026 lå det ved siden av
+ * `maler/tokens.css` — et utdrag av Digdirs designsystem, hentet og
+ * versjonert — og `nettsted.skriv_stil()` satte de to sammen til én
+ * `/stil.css`.
  *
- * `nettsted.skriv_stil()` setter de to sammen til én `/stil.css`. Én
- * fil, én forespørsel, ingen @import — @import blokkerer rendringen og
- * koster en rundtur til.
+ * ## HVORFOR tokens.css ER BORTE (22.09.2026)
+ *
+ * Fila argumenterte for seg selv med en setning som nå felte den:
+ *
+ *     «En fil som bærer 32 ubrukte fargevariabler ville påstått at vi
+ *      bruker Digdirs palett. Det gjør vi ikke lenger, og da skal fila
+ *      ikke se ut som om vi gjør det.»
+ *
+ * Fargene ble tatt ut 20.09. Det som sto igjen var SKJELETTET —
+ * typeskala, avstandsrutenett, linjehøyder, kniping, radier,
+ * kantbredder — og skjelettet er nå også vårt eget, fordi
+ * designoverleveringen 22.09 fastsetter et annet:
+ *
+ *     typeskala     Digdir: 12, 14, 16, 18, 21, 24, 30, 36 px
+ *                   vår:    12,5, 13, 13,5, 14, 14,5, 15, 17, 19, 26,
+ *                           30 + fire clamp()-trinn for display
+ *     avstand       Digdir: rent 4 px-rutenett
+ *                   vår:    4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28,
+ *                           32, 40, 44, 56, 64, 72 — 6, 10, 14, 18, 28
+ *                           og 44 er ikke på et 4 px-rutenett
+ *     radier        Digdir: 2, 4, 8 px
+ *                   vår:    0 overalt, uten unntak
+ *
+ * Tre av fire tabeller i den fila var altså ubrukte etter 22.09, og
+ * den fjerde (linjehøydene) er tre tall. Å beholde en hentet fil med
+ * MIT-lisens, sha256 og en oppdateringsrutine for tre tall vi ikke
+ * lenger har hentet, ville vært den samme påstanden fargene ble tatt
+ * ut for å slippe å gjøre.
+ *
+ * Følgen er at /om/ ikke lenger fører Digdir under «det vi låner». Det
+ * er ikke en utelatelse — det er at vi ikke låner det.
  *
  * ## Hva som er bundet, og hva som er fritt
  *
@@ -35,28 +62,23 @@
  *
  * ## Ingenting hentes i runtime
  *
- * Ingen webfont, ingen CDN, ingen JavaScript, ingen ikoner. Fonten er
- * leserens egen. Alt som ser ut som et ikon her er en firkant tegnet
- * med `::before`.
+ * Tre webfonter, alle hostet av oss selv. Ingen CDN, ingen
+ * Google Fonts, ingen JavaScript som henter noe. Alt som ser ut som et
+ * ikon her er en firkant eller en strek tegnet i CSS.
  */
 
 /* ---------------------------------------------------------------- *
- * 1. IDENTITETEN: HAV OG PAPIR
+ * 1. IDENTITETEN: HAV, PAPIR OG RUST
  *
- * Fargene er VÅRE. Digdirs palett lå her fram til 20.09.2026 og gjorde
- * nettstedet grått og blått som en hvilken som helst etatsside; det
- * som er igjen av `tokens.css` er skjelettet — typeskala, avstander,
- * linjehøyder — og det er fortsatt hentet og fortsatt kreditert.
+ * Paletten er designoverleveringens, med tre målte avvik. De står i
+ * klartekst under, fordi et avvik som ikke står skrevet er et avvik
+ * neste designrunde tar for en feil.
  *
- * ## To farger, og bare to
+ * ## To familier, og én aksent
  *
- * HAVET er den eneste mettede flaten på hele nettstedet: hero-båndet
- * og streken under topplinja. Alt annet er PAPIR og BLEKK.
- *
- * Havet er blågrønt, ikke marineblått. MÅLT: dE2000 15,1 fra
- * ourworldindata.org sin Oxford-blå #002147. Norsk kystvann er grønt
- * av planteplankton og partikler; en marineblå flate er Atlanterhavet
- * sett fra et fly, ikke en fjord.
+ * HAVET er den mettede flaten: heroen, headeren på undersidene,
+ * kystseksjonen og bunnteksten. PAPIRET er alt annet. RUSTEN er den
+ * eneste aksenten, og den opptrer BARE som skrift eller strek.
  *
  * ## Hvordan aksenten holdes fra trafikklyset
  *
@@ -64,279 +86,372 @@
  * ikke holder.
  *
  * 1. MÅLT AVSTAND. Aksenten er rustoransje, og avstanden til de tre
- *    trafikklysfargene er dE2000 18,5 (rød), 48,5 (gul) og 58,0
- *    (grønn). Til sammenligning: OWIDs egen gullaksent #f7c020 ligger
- *    dE 6,0 fra trafikklysgulen vår. Den ble målt og forkastet — en
- *    overskriftsfarge som er seks enheter fra «gul kategori» er en
- *    overskriftsfarge som gjør fargen til pynt.
- *
+ *    trafikklysfargene er dE2000 16,5 (rød), 32,8 (gul) og 46,9
+ *    (grønn).
  * 2. FORM. Aksenten opptrer BARE som skrift eller strek. Trafikklyset
  *    opptrer BARE som fylt firkant. Ingenting på nettstedet er begge
  *    deler. Det er leddet som overlever at noen bytter en heksverdi:
  *    et tall kan endres, en regel om form må brytes med vilje.
  *
- * ## Lys er standard
+ * Merk at gul-avstanden FALT fra 48,5 til 32,8 da trafikklysgulen ble
+ * overleveringens #c8992f i stedet for #f7d117. Det er fortsatt langt
+ * — OWIDs gullaksent lå dE 6,0 fra den gamle gulen og ble forkastet —
+ * men tallet står her framfor å bli husket feil.
  *
- * Papiret er hovedmodus, som hos FT. Mørk modus finnes og er målt,
- * men den er en OVERSETTELSE av identiteten og ikke en likeverdig
- * tvilling: havbåndet er allerede mørkt, så i mørk modus mister siden
- * nettopp den kontrasten som bærer den.
+ * ## AVVIK 1: dempet blekk er en HEKSVERDI, ikke en alfa
  *
- * ## Papiret er valgt på VERDI, ikke på tone (21.09.2026)
+ * Overleveringen demper blekket med alfa 0,6–0,75 på papir, og
+ * tabellhodet med `rgba(11,36,48,.6)`. MÅLT mot #e7dbd0:
  *
- * Første utkast var #f7f1e4. Det ble forkastet, og begrunnelsen er
- * verdt å ha fordi den gjelder neste gang noen velger en flate.
+ *     alfa .75   5,99:1   OK
+ *     alfa .65   4,49:1   under AA med 0,01
+ *     alfa .60   3,91:1   under AA
  *
- * Den varme off-whiten generert design defaulter til, ligger på hue
- * 86–95 grader i Lab — gul — og på L*95–97. Målt mot seks vanlige
- * (Tailwind stone, Notion, Solarized, Muji, m.fl.): #f7f1e4 ligger på
- * hue 92, L*95,3. Midt i klyngen. FTs #fff1e5, som var REFERANSEN, har
- * hue 70 og er en annen ting: rosa, ikke gul.
+ * Papiret er L*88,1 og ikke hvitt, og det spiser hele slakken. Den
+ * dempede teksten er derfor én fast verdi — #566266, som er blekk over
+ * papir ved alfa 0,66 og gir 4,63:1 — framfor en alfa som er riktig på
+ * én flate og feil på den neste. Samme øvelse som 21.09: «senket til
+ * den minste endringen som passerer, ikke plukket på nytt».
  *
- * Utkastet forsvarte seg med at alt varmt og lyst ligger der, og at
- * særpreget måtte bæres av havbåndet, serifen og merket. Det første er
- * sant så lenge du bare skrur på TONEN. Det slutter å være sant når du
- * skrur på VERDIEN: cremefamilien er definert like mye av å være
- * nesten hvit som av å være varm, og L* er aksen ingen defaulter på.
+ * ## AVVIK 2: rød er #841e19, ikke #93211c
  *
- * #e7dbd0 er L*88,1, hue 72. dE 4,9 til nærmeste i klyngen.
+ * `test_rutene_skilles_fra_hverandre_i_lyshet` krever at de tre
+ * trafikklysfargene ligger minst 1,5 fra hverandre i LUMINANS, ikke
+ * bare i kulør — rød og grønn er den klassiske forvekslingen, og to
+ * ruter som er like lyse er to ruter ingen kan skille i gråtone
+ * heller.
  *
- * Men avstanden fra en klynge er ikke grunnen — den er en bivirkning.
- * GRUNNEN ER LAGDELINGEN: med #f7f1e4 lå bunnen 1,11:1 fra arket, og
- * de hvite tabellarkene var praktisk talt usynlige mot flata de lå på.
- * Lagdelingen designet forutsetter, fantes ikke på skjermen. Nå er
- * forholdet 1,34:1, og arkene løftes av bunnen slik de alltid var ment
- * å gjøre. Det er en målbar jobb, ikke en stemning — og det er den
- * eneste typen begrunnelse som overlever neste designrunde.
+ * Overleveringens rød #93211c og grønn #2f6b4f ligger 1,35 fra
+ * hverandre. Rød er senket 10 % mot svart til #841e19, som gir 1,53.
+ * dE2000 fra overleveringens verdi er 3,06 — mindre enn steget
+ * mellom to nabotoner i en palett. Grønn og gul er urørt.
+ *
+ * ## AVVIK 3: gul har en ring, fordi gul ikke kan nå 3:1
+ *
+ * #c8992f mot papiret er 1,92:1, og WCAG 1.4.11 krever 3:1 for
+ * grafikk som bærer informasjon. En gul som når 3:1 mot L*88-papir er
+ * ikke gul lenger.
+ *
+ * Ruta har derfor en nøytral ring — #757c7d, 3,13:1 mot papir og
+ * 3,45:1 mot den innfelte flata. Ringen er NØYTRAL og ikke en mørkere
+ * gul, nettopp fordi synligheten da ville hengt på fargen som ikke kan
+ * bære den. Samme løsning som sto her fra 20.09, med nye tall.
+ *
+ * ## Lys er standard, mørk er en OVERSETTELSE
+ *
+ * Papiret er hovedmodus. Mørk modus finnes og er målt, men den er en
+ * oversettelse av identiteten og ikke en likeverdig tvilling: havet er
+ * allerede mørkt, så i mørk modus må båndet være LYSERE enn flata det
+ * ligger på for i det hele tatt å være en flate. Forholdet er bevart
+ * (1,34:1), utførelsen er speilvendt.
  * ---------------------------------------------------------------- */
-
-@font-face {
-  /* Newsreader, SIL Open Font License 1.1. OFL krever at lisensteksten
-     distribueres MED fonten, og det er et krav om filer og ikke om en
-     kommentar: `nettsted.skriv_fonter()` kopierer både `newsreader.woff2`
-     og `newsreader-OFL.txt` til nettstedets rot, og en publisert side
-     har dem begge på /newsreader.woff2 og /newsreader-OFL.txt.
-     Kildekopien ligger i `maler/` ved siden av denne fila.
-
-     HOSTET SELV, aldri hentet fra Google. Hentet én gang fra
-     google/fonts, opsz pinnet til 28 (visningsstørrelse), wght beholdt
-     som akse 400–700, subsatt til latin + norsk. 451 kB TTF ble 35,5 kB
-     woff2. Kommandoene, sjekksummene og innholdet i navnetabellen står
-     i docs/design/NEWSREADER.md — og der står også MÅLINGEN som viser
-     at opsz er 28, fordi fila selv kaller seg «Newsreader 16pt» og den
-     etiketten er en levning, ikke en opplysning.
-
-     `font-display: swap` og ikke `block`: kommer fonten aldri fram, skal
-     overskriften stå der i reservefonten framfor å være usynlig. Samme
-     regel som at siden skal virke uten stilark. */
-  font-family: Newsreader;
-  src: url("newsreader.woff2") format("woff2");
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-}
 
 :root {
   color-scheme: light dark;
 
-  /* ---- havet: den eneste mettede flaten ---- */
-  --hav:            #0b2e38;
-  --hav-dis:        #12414f;   /* kartet inne i båndet */
-  --hav-tittel:     #fbf7ef;   /* overskrift og tall på havbåndet */
-  --hav-tekst:      #dfe7e6;   /* brødtekst på havbåndet */
-  --hav-dempet:     #a8bcbd;   /* dempet tekst på havbåndet */
+  /* ---- havet: den mettede flaten ----
+     Navnene er overleveringens egne (`--hav9` … `--hav3`), og det er
+     med vilje: hver verdi kan slås opp i
+     docs/design/overlevering/design_handoff_kystloggen/README.md uten
+     en oversettelsestabell mellom seg. */
+  --hav9:           #06161d;   /* hero, underside-header, kyst, bunn */
+  --hav8:           #0b2430;   /* knapp i hvile — og blekket */
+  --hav7:           #123241;   /* hover på mørk flate */
+  --hav5:           #2f5f74;   /* søyler: lus og biomasse */
+  --hav3:           #7ba0b1;   /* dempet tekst på mørk flate */
+  --hav-sekundaer:  #9fb9c4;   /* sekundærtekst på mørk flate */
+  --hav-tegn:       #c9d6dc;   /* tegnforklaring på mørk flate */
+
+  /* Rollenavn for det de tre mørke tekstfargene FAKTISK gjør. Begge
+     sett står, fordi `test_kontrast` måler på rollen og malene skriver
+     rollen, mens overleveringen snakker i tall. */
+  --hav:            var(--hav9);
+  --hav-tittel:     #ffffff;   /* overskrift på mørk flate */
+  --hav-tekst:      var(--hav-tegn);
+  --hav-dempet:     var(--hav3);
+  --hav-dis:        #0f2833;   /* havflaten i kartet, inne i båndet */
 
   /* ---- papir og blekk ----
-     PAPIRET HAR VERDI, IKKE BARE TONE. Se avsnittet over. Familien er
-     avledet på papirets egen hue (70 grader i Lab), ikke plukket:
+     `--papir` er bunnen alt ligger på, `--papir2` den innfelte flaten
+     (siteringsboks, arkivlinje, skjemafelt), `--papir3` linjene.
 
-         ark        L*98,0  C*1,2   arket en tabell ligger på
-         stripe     L*95,5  C*4,5   annenhver rad
-         hode       L*92,5  C*6,0   tabellhodet
-         papir      L*88,1  C*7,2   bunnen alt ligger på
-         kant-svak  L*78,0  C*8,5   radskille og ytterkant
-
-     Forholdene som bærer lagdelingen, målt:
-
-         papir/ark      1,34:1   (var 1,11:1 — arkene var usynlige)
-         hode/ark       1,19:1   (uendret: hodet skal være hodet)
-         kant-svak/papir 1,32:1  (uendret: kanten står like tydelig
-                                  mot bunnen som før, på ny bunn) */
+         papir    L*88,1  hue 72
+         papir2   L*91,8  hue 75      1,10:1 mot papir — INNFELT, ikke
+                                      løftet: den skal anes, ikke ses
+         papir3   L*82,5              linjer, 1,19:1 mot papir */
   --papir:          #e7dbd0;
-  --ark:            #fffdf8;
-  --stripe:         #f9f1ea;
-  --hode:           #f2e8df;
-  --blekk:          #17262b;
-  --blekk-dempet:   #546469;
-  --kant-svak:      #cdbfb2;
-  --kant:           #8c8576;
-  --kant-sterk:     #17262b;   /* FT-streken over en bolk */
+  --papir2:         #efe6dd;
+  --papir3:         #d8c9bb;
+  --ink:            #0b2430;
 
-  /* ---- aksenten: skrift og strek, aldri flate ----
-     EN MØRKERE BUNN DRAR ALT SOM STÅR PÅ DEN MED SEG. Da papiret gikk
-     fra L*95,3 til L*88,1, falt tre par under AA mot den nye flata, og
-     `test_kontrast` felte dem. Verdiene er senket til den minste
-     endringen som passerer, ikke plukket på nytt:
+  /* AVVIK 1, se over. Ikke en alfa. */
+  --ink-dempet:     #566266;   /* 4,63:1 mot papir, 5,11 mot papir2 */
+  --ink-ring:       #757c7d;   /* 3,13:1 / 3,45:1 — AVVIK 3 */
 
-         aksent        #b84a12 -> #aa3e04   bunntekstlenke 3,84 -> 4,54
-         blekk-dempet  #5b6b70 -> #546469   bunntekst      4,08 -> 4,54
-         kant          #9a9384 -> #8c8576   ring i hodet   2,52 -> 3,03
-
-     De to siste er små (dE 4,9 på kanten). Den første er synlig: rusten
-     blir et hakk mer brent. Avstanden til trafikklyset holder — dE 18,5
-     til rød, 48,5 til gul, 58,0 til grønn — og formregelen under
-     bærer resten.
-
-     Merk at `kant` var UNDER 3:1 på tonet rad (2,83) og i tabellhodet
-     (2,52) også med det gamle papiret. Det ble ikke oppdaget fordi
-     kontrastprøven leste feil halvdel av fila; se `_blokker` i
-     tests/test_kontrast.py. Papiret avdekket feilen, det laget den
-     ikke. */
-  --aksent:         #aa3e04;
-  --aksent-moerk:   #8f390d;
-  --aksent-lys:     #e8823f;   /* samme rolle, på havbåndet */
+  /* ---- aksenten: skrift og strek, aldri flate ---- */
+  --rust:           #aa3e04;   /* 4,54:1 mot papir, 5,01 mot papir2 */
+  --rust-moerk:     #8f390d;   /* under peker */
+  --rust-lys:       #d9804a;   /* samme rolle, på mørk flate */
   --besokt:         #6b4a8c;
 
-  --fokus:          #17262b;
-  --fokus-indre:    #fffdf8;
+  /* Fokusmarkøren er overleveringens: `2px solid #aa3e04`, offset 2. */
+  --fokus:          var(--rust);
+
+  /* KNAPPEN. Flata er `--hav8` i hvile og `--hav7` under peker, og
+     teksten i den er `--hav-tittel` og IKKE `--papir`.
+
+     Forskjellen er mørk modus: der er papiret #121a1d, og «papirfarget
+     tekst på en knapp» ville vært mørk skrift på mørk flate (1,68:1).
+     Knappen er mørk i BEGGE moduser, så skriften i den må være lys i
+     begge — nøyaktig samme felle som `.hero h1` gikk i 21.09. */
+  --knapp-flate:    var(--hav8);
+  --knapp-flate-pa: var(--hav7);
+  --knapp-tekst:    var(--hav-tittel);
 
   /* ---- trafikklyset: DATA, aldri pynt ---- */
-  --lys-rod:   #9b1b30;
-  --lys-gul:   #f7d117;
-  --lys-gronn: #0e9b60;
+  --lys-rod:   #841e19;   /* AVVIK 2 */
+  --lys-gul:   #c8992f;
+  --lys-gronn: #2f6b4f;
 
-  --farge-kart-punkt: #17262b;
+  /* Skravuren for «ikke oppgitt». Den er den SAMME FORMEN på kart og i
+     ruter — det er et krav i overleveringen, ikke en detalj: en leser
+     som lærer at skravur betyr «forskriften sier ingenting» skal ikke
+     måtte lære det på nytt i neste komponent. */
+  --skravur-papir: repeating-linear-gradient(45deg,
+      rgba(11,36,48,.55) 0 1.3px, transparent 1.3px 4.5px);
+  --skravur-moerk: repeating-linear-gradient(45deg,
+      #6f8a95 0 1.3px, transparent 1.3px 4.5px);
 
-  /* GRADNETTET har sin egen farge, og det er ikke overflødig.
-     `--farge-kant` er 3,0:1 mot ARKET — akkurat over WCAG 1.4.11 — og
-     kartet ligger ikke på arket, det ligger på papiret. Der er samme
-     verdi 2,69:1. En kant og en gradlinje er to grafikker på to
-     flater, og en av dem måtte bøye seg. #7d7668 er 3,31:1 mot
-     papiret. */
-  --kart-gitter:      #7d7668;
+  /* ---- kart og grafer ---- */
+  --kart-punkt:   #17262b;
+  --kart-gitter:  #7d7668;   /* 3,31:1 mot papir */
+  --kart-land:    #ded1c4;   /* kystlinjas landflate på papir */
+  --kart-kyst:    #756e60;   /* kystlinja som strek, 3,37:1 mot landflata */
+  --graf-linje:   #0b2e38;
+  --graf-brakk:   #ddd0c1;   /* brakkleggingsbånd, 1,13:1 mot papir */
 
-  /* GRAFEN. Linja er ÉN serie, og da er identitetsfarge feil verktøy —
-     det er ingen andre å skille den fra. Havet er riktig av en annen
-     grunn: det er nettstedets egen farge, og en kurve tegnet i den
-     sier at dette er vårt tall og ikke et trafikklys.
-
-     Men `--hav` DUGER IKKE i mørk modus: der er havet lysnet for å
-     være en flate (se mørkblokka), og 1,34:1 mot papiret er en linje
-     ingen ser. Grafen har derfor sin egen verdi i begge moduser, som
-     gradnettet har. */
-  --graf-linje:       #0b2e38;
-  --graf-brakk:       #ddd0c1;   /* brakkleggingsbånd, 1,13:1 mot papir */
-
-  /* MÅLEBÅNDET. 29em var målt mot systemsansen. Brødteksten er
-     fortsatt sans, så tallet står — men overskriftene er serif nå, og
-     en serif tåler og vil ha litt lengre linje. Se `--maal-tittel`. */
-  --maal-tekst: 29em;
+  /* ---- målebånd ----
+     `--maal-tekst` er MÅLT PÅ NYTT 22.09.2026. Tallet 29em var målt
+     mot glyffbreddene i SF Pro og Helvetica, fordi brødteksten da var
+     systemets sans. Den er nå IBM Plex Sans, som er smalere: 4 519
+     tegn fra /om/ satt i Plex Sans 15px gir 66 tegn per linje ved 29em
+     mot 61 i SF Pro. 27em gir 61 igjen. Se docs/design/IBM-PLEX.md. */
+  --maal-tekst:  27em;
   --maal-tittel: 22em;
-  --maal-side: 84rem;
+  --maal-side:   1400px;     /* overleveringens innholdsbredde */
+  --marg-side:   clamp(20px, 4vw, 56px);
 }
 
-/* De gamle navnene peker hit. STÅR FØR `@media`, og det er ikke
-   kosmetikk: `tests/test_kontrast.py` leser paletten ut av denne fila
-   og deler den på mediespørringen. Ligger aliasene etter, faller de
-   utenfor lys-halvdelen og prøven måler ingenting. Prøven er rettet
-   (den teller klammer nå), men rekkefølgen her er den som gjør at
-   lesningen er opplagt framfor å være riktig ved et uhell.
-
-   Malene og reglene under bruker begge sett om hverandre etter tre
-   runder, og ett oppslag her er billigere enn en omdøping i 600 linjer
-   CSS som ingen kan se effekten av. */
+/* Gamle navn peker hit. STÅR FØR `@media`, og det er ikke kosmetikk:
+   `tests/test_kontrast.py` leser paletten ut av denne fila og deler den
+   på mediespørringen. Ligger aliasene etter, faller de utenfor
+   lys-halvdelen og prøven måler ingenting. */
 :root {
   --farge-bunn:         var(--papir);
-  --farge-ark:          var(--ark);
-  --farge-stripe:       var(--stripe);
-  --farge-hode:         var(--hode);
-  --farge-kant-svak:    var(--kant-svak);
-  --farge-kant:         var(--kant);
-  --farge-kant-sterk:   var(--kant-sterk);
-  --farge-tekst:        var(--blekk);
-  --farge-tekst-svak:   var(--blekk-dempet);
-  --farge-lenke:        var(--aksent);
-  --farge-lenke-aktiv:  var(--aksent-moerk);
+  --farge-ark:          var(--papir);
+  --farge-innfelt:      var(--papir2);
+  --farge-kant-svak:    var(--papir3);
+  --farge-kant:         var(--ink-ring);
+  --farge-kant-sterk:   var(--ink);
+  --farge-tekst:        var(--ink);
+  --farge-tekst-svak:   var(--ink-dempet);
+  --farge-lenke:        var(--rust);
+  --farge-lenke-aktiv:  var(--rust-moerk);
   --farge-lenke-besokt: var(--besokt);
-  --farge-merke:        var(--hav);
+  --farge-merke:        var(--ink);
   --farge-fokus:        var(--fokus);
-  --farge-fokus-indre:  var(--fokus-indre);
+  --farge-kart-punkt:   var(--kart-punkt);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     /* MØRK MODUS SNUR HVA BÅNDET GJØR. I lys modus er havet den
-       mørkeste flaten på en lys side, og det er dét som gjør det til
-       en flate. #061f27 var samme tanke gjort om igjen — enda mørkere
-       — og resultatet var 1,04:1 mot det mørke papiret: båndet fantes
-       ikke. Det eneste man SÅ var at arket under begynte.
+       mørkeste flaten på en lys side, og det er dét som gjør det til en
+       flate. En enda mørkere verdi her ville gitt 1,04:1 mot det mørke
+       papiret: båndet ville ikke finnes, og det eneste man SÅ var at
+       flata under begynte.
 
-       Verdien her er lysere enn papiret, ikke mørkere, og forholdet
-       (1,34:1) er nøyaktig det samme som papir/ark har i lys modus.
-       Rollen er bevart; utførelsen er speilvendt. Det er forskjellen
-       på å oversette en identitet og å invertere heksverdiene i den. */
-    --hav:            #13343f;
-    --hav-dis:        #1b4453;
+       Verdiene under er lysere enn papiret, ikke mørkere, og forholdet
+       (1,34:1) er nøyaktig det samme som papir/papir2 har … nei:
+       som papir/hav har i lys modus. Rollen er bevart; utførelsen er
+       speilvendt. Det er forskjellen på å oversette en identitet og å
+       invertere heksverdiene i den. */
+    --hav9:           #13343f;
+    --hav8:           #1b4453;
+    --hav7:           #24566a;
+    --hav5:           #7fb2c9;
+    --hav3:           #9fb3b4;
+    --hav-sekundaer:  #b4c6c7;
+    --hav-tegn:       #dfe7e6;
     --hav-tittel:     #fbf7ef;
-    --hav-tekst:      #dfe7e6;
-    --hav-dempet:     #9fb3b4;
+    --hav-dis:        #1b4453;
 
     --papir:          #121a1d;
-    --ark:            #182327;
-    --stripe:         #141d21;
-    --hode:           #1f2c31;
-    --blekk:          #e9e4d8;
-    --blekk-dempet:   #a3aeaf;
-    --kant-svak:      #334246;
-    --kant:           #7d8a8c;
-    --kant-sterk:     #e9e4d8;
+    --papir2:         #1b2429;
+    --papir3:         #2f3b40;
+    --ink:            #e9e4d8;
+    --ink-dempet:     #a3aeaf;
+    --ink-ring:       #7d8a8c;
 
-    --aksent:         #f0955a;
-    --aksent-moerk:   #f5ae7d;
-    --aksent-lys:     #f0955a;
+    --rust:           #f0955a;
+    --rust-moerk:     #f5ae7d;
+    --rust-lys:       #f0955a;
     --besokt:         #c0a5db;
 
-    --fokus:          #e9e4d8;
-    --fokus-indre:    #121a1d;
-
-    --lys-rod:   #d1465c;
+    --lys-rod:   #e06070;
     --lys-gul:   #ffdc3d;
-    --lys-gronn: #3cb87f;
+    --lys-gronn: #4fc98c;
 
-    --farge-kart-punkt: #a8bcbd;
-    --kart-gitter:      #7c898b;   /* 4,88:1 mot mørkt papir */
-    --graf-linje:       #9ec6d4;
-    --graf-brakk:       #1e2a2f;
+    --skravur-papir: repeating-linear-gradient(45deg,
+        rgba(233,228,216,.5) 0 1.3px, transparent 1.3px 4.5px);
+
+    --kart-punkt:   #a8bcbd;
+    --kart-gitter:  #7c898b;
+    --kart-land:    #1c262a;
+    --kart-kyst:    #6b7a7e;   /* 3,46:1 mot landflata i mørk modus */
+    --graf-linje:   #9ec6d4;
+    --graf-brakk:   #1e2a2f;
   }
 }
 
 
 /* ---------------------------------------------------------------- *
- * 2. GRUNNEN
+ * 2. SKRIFTENE, SKALAEN OG AVSTANDENE
  *
- * ## To skrifter, og hver har én jobb
+ * ## Tre skrifter, og hver har én jobb
  *
- * Newsreader bærer OVERSKRIFTER og ORDMERKET. Brødteksten er systemets
- * egen sans, uten en eneste henting. Det er ikke en halvveis løsning:
+ *     Newsreader        ordmerket, overskriftene, nøkkeltallene,
+ *                       ukessammendraget. Aldri brødtekst.
+ *     IBM Plex Sans     brødtekst, etiketter, tabellhoder, celletekst
+ *     IBM Plex Mono     TALLVERDIER I TABELLKOLONNER, og ingenting
+ *                       annet — ikke etiketter, ikke overskrifter,
+ *                       ikke datoer i løpende tekst
  *
- *   - Målebåndet `--maal-tekst` (29em) er MÅLT mot glyffbreddene i
- *     SF Pro og Helvetica på de 4 519 tegnene som står på /om/. Settes
- *     brødteksten i serif, er tallet feil og må måles på nytt.
- *   - En serif i 16px på skjerm er dårligere lesbar enn en sans i
- *     16px, og denne siden er lange tabeller og korte avsnitt — ikke
- *     en lang artikkel der serifen tjener leseren.
- *   - Subsettet er pinnet til opsz 28, altså VISNINGSstørrelse — målt,
- *     ikke antatt, se docs/design/NEWSREADER.md. Brødtekst i den ville
- *     vært feil optisk størrelse.
+ * Den tredje regelen er overleveringens harde krav 4, og den er verdt
+ * å si hvorfor: en mono i løpende tekst leser som kode, og en dato i
+ * en setning er ikke en måleverdi. Monoen er der for at en kolonne med
+ * tall skal stå i flukt, og `tabular-nums` i en systemfont er et løfte
+ * fonten kan innfri eller la være — se docs/design/IBM-PLEX.md.
  *
- * Kommer fonten aldri fram, faller overskriftene til Georgia og siden
- * er hel. Se `font-display: swap` i avsnitt 1.
+ * Kommer fontene aldri fram, faller de til Georgia, systemsansen og
+ * systemmonoen, og siden er hel. `font-display: swap`, samme regel som
+ * at siden skal virke uten stilark.
  *
  * ## Rotstørrelsen settes ikke
  *
  * 16px er leserens innstilling, og en side som overstyrer den
- * overstyrer noen som har skrudd den opp. Hele skalaen er relativ.
+ * overstyrer noen som har skrudd den opp. Hele skalaen er relativ;
+ * `--fs-*` heter etter px ved 16px rot, fordi det er slik
+ * overleveringen oppgir dem.
  * ---------------------------------------------------------------- */
+
+@font-face {
+  /* Newsreader, SIL Open Font License 1.1. OFL krever at lisensteksten
+     distribueres MED fonten, og det er et krav om filer og ikke om en
+     kommentar: `nettsted.skriv_fonter()` kopierer både fila og
+     `newsreader-OFL.txt` til nettstedets rot.
+
+     opsz pinnet til 28 (MÅLT, ikke lest av navnetabellen), wght som
+     akse 300–700. 300 er gulvet fordi hver displayoverskrift i
+     designet står der. Se docs/design/NEWSREADER.md. */
+  font-family: Newsreader;
+  src: url("newsreader.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  /* IBM Plex Sans, OFL 1.1. wdth låst til 100, wght som akse 400–600.
+     Se docs/design/IBM-PLEX.md. */
+  font-family: "IBM Plex Sans";
+  src: url("ibmplexsans.woff2") format("woff2");
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  /* IBM Plex Mono, OFL 1.1. Én vekt, fordi den har én jobb. */
+  font-family: "IBM Plex Mono";
+  src: url("ibmplexmono.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --skrift-tittel: Newsreader, ui-serif, Georgia, "Times New Roman", serif;
+  --skrift-tekst: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI",
+                  Roboto, "Helvetica Neue", Arial, sans-serif;
+  --skrift-tall: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono",
+                 Menlo, Consolas, monospace;
+
+  /* ---- TYPESKALAEN, i px ved 16px rot ---- */
+  --fs-12:  0.75rem;      /* tabellhode (12,5 rundet ned til rutenettet) */
+  --fs-13:  0.8125rem;    /* etikett, metadata */
+  --fs-14:  0.875rem;     /* tabellcelle, mono-tall (13,5–14) */
+  --fs-15:  0.9375rem;    /* brødtekst, seksjonsetikett */
+  --fs-17:  1.0625rem;    /* brødtekst, stor */
+  --fs-19:  1.1875rem;    /* ordmerke i nav */
+  --fs-22:  1.375rem;
+  --fs-26:  1.625rem;     /* H2 blokk */
+  --fs-30:  1.875rem;
+
+  /* Displaystørrelsene er clamp() og ikke trinn: de skal krympe med
+     skjermen, og et fast trinn på 104px er seks tegn per linje på en
+     telefon. Verdiene er overleveringens, ordrett. */
+  --fs-hero:    clamp(50px, 7vw, 104px);
+  --fs-h1:      clamp(40px, 5vw, 76px);
+  --fs-h1-lok:  clamp(46px, 6vw, 88px);
+  --fs-h2:      clamp(28px, 3vw, 46px);
+  --fs-sammendrag: clamp(22px, 2.1vw, 29px);
+  --fs-nokkeltall: clamp(36px, 3.6vw, 52px);
+
+  /* ---- LINJEHØYDER ---- */
+  --lh-tett:   1.3;
+  --lh-normal: 1.5;
+  --lh-luft:   1.6;
+  --lh-brod:   1.62;
+
+  /* ---- KNIPING ----
+     Newsreader i display vil ha negativ sperring; sansen vil ikke. */
+  --knip-1: -0.01em;
+  --knip-2: -0.02em;
+  --knip-3: -0.03em;
+  --knip-4: -0.035em;
+
+  /* ---- AVSTAND ----
+     Overleveringens skala, ordrett: 4, 6, 8, 10, 12, 14, 16, 18, 20,
+     24, 28, 32, 40, 44, 56, 64, 72. Den er IKKE et rent 4 px-rutenett,
+     og det er grunnen til at den står her og ikke er hentet. */
+  --rom-4:  0.25rem;
+  --rom-6:  0.375rem;
+  --rom-8:  0.5rem;
+  --rom-10: 0.625rem;
+  --rom-12: 0.75rem;
+  --rom-14: 0.875rem;
+  --rom-16: 1rem;
+  --rom-18: 1.125rem;
+  --rom-20: 1.25rem;
+  --rom-24: 1.5rem;
+  --rom-28: 1.75rem;
+  --rom-32: 2rem;
+  --rom-40: 2.5rem;
+  --rom-44: 2.75rem;
+  --rom-56: 3.5rem;
+  --rom-64: 4rem;
+  --rom-72: 4.5rem;
+
+  /* Seksjonenes egen luft, som klemmes på smal skjerm. */
+  --rom-seksjon: clamp(36px, 4vw, 56px);
+  --rom-seksjon-stor: clamp(44px, 5vw, 72px);
+
+  /* HJØRNER ER 0 OVERALT. Variabelen finnes for at en fremtidig
+     avgjørelse skal ha ett sted å bo, ikke for at noen skal skru på
+     den i én regel. */
+  --hjorne: 0;
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -345,13 +460,12 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   background: var(--papir);
-  color: var(--blekk);
+  color: var(--ink);
 
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto,
-               "Helvetica Neue", Arial, sans-serif;
-  font-size: var(--ds-font-size-4);
-  line-height: var(--ds-line-height-lg);
-  font-weight: var(--ds-font-weight-regular);
+  font-family: var(--skrift-tekst);
+  font-size: var(--fs-15);
+  line-height: var(--lh-brod);
+  font-weight: 400;
 
   /* TALL I KOLONNE ER HALVE FORSKJELLEN. Settes på body framfor på
      `.tall`, fordi tall står i captions, i overskrifter og i løpende
@@ -360,28 +474,27 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* PAPIRET MÅ SYNES, ellers er valget av det bare et tall i en fil.
-   Arket (`.topp`, `main`, `footer`) er 84rem bredt og sentrert. På en
-   1280px-skjerm fyller det alt, og bunnen — som er valgt nettopp for
-   at arkene skal løftes av den, se avsnitt 1 — vises ikke i en eneste
-   piksel. Gutteret gjør at den alltid gjør det: 32px på en 1280-skjerm,
-   112px på en 1440.
+/* ARKET ER BORTE (22.09.2026).
 
-   Grensa er 48rem og ikke lavere, fordi arket SLUTTER å være et ark
-   under den (avsnitt 8): der er kanten fjernet med vilje, og et gutter
-   ville bare vært tapt bredde på en telefon. `48.01rem` og ikke
-   `48rem`: på nøyaktig 48rem ville begge reglene gjeldt, og siden
-   ville hatt gutter rundt et ark uten kant. */
-@media (min-width: 48.01rem) {
-  body { padding-inline: var(--ds-size-8); }
+   Fram til i dag lå topplinja, `main` og bunnteksten på en hvit flate
+   (`--ark`, #fffdf8) med kant, sentrert på papirbunnen, og avsnitt 1
+   argumenterte for papiret nettopp med at «arkene løftes av bunnen».
+
+   Overleveringen har ingen slik flate. Seksjonene ligger rett på
+   papiret, og skillet mellom dem er en STREK og ikke en kant — bortsett
+   fra der flata bytter til hav. Det er den samme lagdelingen løst med
+   linjer i stedet for med ark, og den tåler at en seksjon går helt ut
+   i kanten (heroen, kystseksjonen, bunnteksten), noe et sentrert ark
+   ikke gjør.
+
+   Innholdsbredden er derfor en regel om INNHOLD og ikke om en boks:
+   hver seksjon setter den selv med `.ark`. */
+.ark {
+  max-width: var(--maal-side);
+  margin-inline: auto;
+  padding-inline: var(--marg-side);
 }
 
-/* SERIFEN, ett sted. Hver flate som skal ha den, viser hit — og
-   `--skrift-tittel` er variabelen de viser til, slik at en utskiftning
-   av fonten er én linje og ikke et søk. */
-:root {
-  --skrift-tittel: Newsreader, ui-serif, Georgia, "Times New Roman", serif;
-}
 
 /* ---------------------------------------------------------------- *
  * 2b. TOPPLINJA OG BRØDSMULA
@@ -412,13 +525,13 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--ds-size-3) var(--ds-size-6);
+  gap: var(--rom-12) var(--rom-24);
   max-width: var(--maal-side);
   margin: 0 auto;
-  padding: var(--ds-size-4) var(--ds-size-8);
+  padding: var(--rom-16) var(--rom-32);
   background: var(--farge-ark);
   border-block-end: 2px solid var(--farge-kant-sterk);
-  border-inline: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  border-inline: 1px solid var(--farge-kant-svak);
 }
 
 /* ORDMERKET. «Kystloggen» i Newsreader 600, ren tekst. Markupen står
@@ -451,9 +564,9 @@ body {
    med trafikklyset — og trafikklyset er data. */
 .merke {
   font-family: var(--skrift-tittel);
-  font-weight: var(--ds-font-weight-semibold);
-  font-size: var(--ds-font-size-5);
-  letter-spacing: var(--ds-letter-spacing-2);
+  font-weight: 600;
+  font-size: var(--fs-19);
+  letter-spacing: var(--knip-1);
   color: var(--farge-tekst);
   text-decoration: none;
 
@@ -489,8 +602,8 @@ body {
 .topp nav {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ds-size-2) var(--ds-size-5);
-  font-size: var(--ds-font-size-3);
+  gap: var(--rom-8) var(--rom-20);
+  font-size: var(--fs-15);
 }
 
 /* BRØDSMULA. `<ol>` og ikke `<ul>`: rekkefølgen ER informasjonen.
@@ -498,8 +611,8 @@ body {
    skjermleser skal lese «Forside, Lokaliteter, Lokalitet 31397», ikke
    «Forside skråstrek Lokaliteter skråstrek». */
 .sti {
-  margin: 0 0 var(--ds-size-5);
-  font-size: var(--ds-font-size-2);
+  margin: 0 0 var(--rom-20);
+  font-size: var(--fs-13);
   color: var(--farge-tekst-svak);
 }
 
@@ -526,10 +639,10 @@ main {
   display: block;
   max-width: var(--maal-side);
   margin: 0 auto;
-  padding: var(--ds-size-8) var(--ds-size-8) var(--ds-size-15);
+  padding: var(--rom-32) var(--rom-32) var(--rom-56);
   background: var(--farge-ark);
-  border-inline: var(--ds-border-width-default) solid var(--farge-kant-svak);
-  border-block-end: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  border-inline: 1px solid var(--farge-kant-svak);
+  border-block-end: 1px solid var(--farge-kant-svak);
 }
 
 /* --- typografi --- */
@@ -540,42 +653,42 @@ main {
    leser i ett blikk. 22em ved font-size-8 er ~50 tegn. */
 h1, h2, h3, h4 {
   font-family: var(--skrift-tittel);
-  font-weight: var(--ds-font-weight-semibold);
-  line-height: var(--ds-line-height-sm);
+  font-weight: 600;
+  line-height: var(--lh-tett);
   text-wrap: balance;
   max-width: var(--maal-tittel);
 }
 
 h1 {
-  font-size: var(--ds-font-size-8);
-  letter-spacing: var(--ds-letter-spacing-2);
-  margin: 0 0 var(--ds-size-6);
+  font-size: var(--fs-30);
+  letter-spacing: var(--knip-1);
+  margin: 0 0 var(--rom-24);
 }
 
 h2 {
-  font-size: var(--ds-font-size-6);
-  letter-spacing: var(--ds-letter-spacing-3);
-  margin: var(--ds-size-12) 0 var(--ds-size-4);
-  padding-block-end: var(--ds-size-2);
-  border-block-end: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  font-size: var(--fs-26);
+  letter-spacing: var(--knip-1);
+  margin: var(--rom-44) 0 var(--rom-16);
+  padding-block-end: var(--rom-8);
+  border-block-end: 1px solid var(--farge-kant-svak);
   max-width: none;
 }
 
 h3 {
-  font-size: var(--ds-font-size-5);
-  letter-spacing: var(--ds-letter-spacing-4);
-  margin: var(--ds-size-8) 0 var(--ds-size-3);
+  font-size: var(--fs-19);
+  letter-spacing: var(--knip-1);
+  margin: var(--rom-32) 0 var(--rom-12);
 }
 
 p, ul, ol {
   max-width: var(--maal-tekst);
-  margin: 0 0 var(--ds-size-5);
+  margin: 0 0 var(--rom-20);
 }
 
-li { margin-block-end: var(--ds-size-2); }
+li { margin-block-end: var(--rom-8); }
 li:last-child { margin-block-end: 0; }
 
-strong { font-weight: var(--ds-font-weight-semibold); }
+strong { font-weight: 600; }
 
 /* EN DATO ER ETT ORD. «2012-01-02» brukket over to linjer på bindestreken
    er to tall som ser ut som et intervall. Gjelder hele nettstedet, ikke
@@ -587,7 +700,7 @@ code {
                monospace;
   font-size: 0.9em;
   background: var(--farge-hode);
-  border-radius: var(--ds-border-radius-sm);
+  border-radius: 0;
   padding: 0.1em 0.35em;
 }
 
@@ -614,10 +727,10 @@ a:hover {
    `:focus-visible` og ikke `:focus` — en museklikkt lenke skal ikke
    etterlate en ramme. */
 :focus-visible {
-  outline: var(--ds-border-width-focus) solid var(--farge-fokus);
+  outline: 2px solid var(--farge-fokus);
   outline-offset: 1px;
   box-shadow: 0 0 0 1px var(--farge-fokus-indre);
-  border-radius: var(--ds-border-radius-sm);
+  border-radius: 0;
 }
 
 /* ---------------------------------------------------------------- *
@@ -649,7 +762,7 @@ a:hover {
 .hero {
   max-width: var(--maal-side);
   margin: 0 auto;
-  padding: var(--ds-size-12) var(--ds-size-8) var(--ds-size-10);
+  padding: var(--rom-44) var(--rom-32) var(--rom-40);
   background: var(--hav);
   color: var(--hav-tekst);
 }
@@ -667,20 +780,20 @@ a:hover {
      ryker. */
   color: var(--hav-tittel);
   max-width: none;
-  margin: 0 0 var(--ds-size-4);
+  margin: 0 0 var(--rom-16);
 
   /* DEN ENE STØRRELSEN UTENFOR SKALAEN. Typeskalaen stopper på steg 8
      (2,25rem) fordi steg 9 og 10 ble utelatt fra tokens: vi hadde
      ingen bruk for dem. Båndet er bruken. `clamp` og ikke en fast
      verdi, fordi 3,5rem på en telefon er seks tegn per linje. */
-  font-size: clamp(var(--ds-font-size-8), 1.4rem + 3.4vw, 3.5rem);
+  font-size: clamp(var(--fs-30), 1.4rem + 3.4vw, 3.5rem);
 }
 
 .hero .ingress {
   max-width: var(--maal-tekst);
   margin: 0;
-  font-size: var(--ds-font-size-5);
-  line-height: var(--ds-line-height-md);
+  font-size: var(--fs-19);
+  line-height: var(--lh-normal);
   color: var(--hav-tekst);
 }
 
@@ -689,9 +802,9 @@ a:hover {
      korte opplysninger etter hverandre, og 29em tvang «2012-01-02» til
      å brekke midt i datoen. `<time>` brekkes uansett aldri, se
      avsnitt 2. */
-  margin: var(--ds-size-6) 0 0;
-  font-size: var(--ds-font-size-2);
-  line-height: var(--ds-line-height-md);
+  margin: var(--rom-24) 0 0;
+  font-size: var(--fs-13);
+  line-height: var(--lh-normal);
   color: var(--hav-dempet);
   max-width: 58em;
 }
@@ -706,26 +819,26 @@ a:hover {
 .nokkeltall {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--ds-size-6) var(--ds-size-12);
-  margin: var(--ds-size-10) 0 0;
-  padding-block-start: var(--ds-size-6);
-  border-block-start: var(--ds-size-1) solid var(--aksent-lys);
+  gap: var(--rom-24) var(--rom-44);
+  margin: var(--rom-40) 0 0;
+  padding-block-start: var(--rom-24);
+  border-block-start: var(--rom-4) solid var(--aksent-lys);
 }
 
 .nokkeltall dt {
   order: 2;                       /* etiketten UNDER tallet */
-  font-size: var(--ds-font-size-2);
+  font-size: var(--fs-13);
   color: var(--hav-dempet);
 }
 
 .nokkeltall dd {
   order: 1;
-  margin: 0 0 var(--ds-size-1);
+  margin: 0 0 var(--rom-4);
   font-family: var(--skrift-tittel);
-  font-weight: var(--ds-font-weight-semibold);
-  font-size: var(--ds-font-size-7);
+  font-weight: 600;
+  font-size: var(--fs-30);
   line-height: 1;
-  letter-spacing: var(--ds-letter-spacing-2);
+  letter-spacing: var(--knip-1);
   color: var(--hav-tittel);
 }
 
@@ -788,7 +901,7 @@ a:hover {
      telefon er en tabell uansett smalere enn skjermen er høy. */
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  margin-block-end: var(--ds-size-12);
+  margin-block-end: var(--rom-44);
 
   /* Fokusringen tegnes UTENFOR boksen (`outline-offset: 1px`), og en
      ramme som scroller klipper alt som stikker utenfor. Plassen her er
@@ -812,8 +925,8 @@ table {
      minsteinnhold, så en tabell som trenger mer enn skjermen er bred
      vokser forbi 100 % og scroller i ramma. Det er målt og virker. */
   width: 100%;
-  font-size: var(--ds-font-size-3);
-  line-height: var(--ds-line-height-md);
+  font-size: var(--fs-15);
+  line-height: var(--lh-normal);
   margin: 0;
 }
 
@@ -875,13 +988,13 @@ caption {
      `min()` lar målebåndet gjelde der det er plass, og skjermen
      gjelde der det ikke er. `vw` og ikke `%`, fordi prosenten her
      ville vært av TABELLEN, som er nettopp den som er for bred. */
-  max-width: min(var(--maal-tekst), calc(100vw - 2 * var(--ds-size-4)));
+  max-width: min(var(--maal-tekst), calc(100vw - 2 * var(--rom-16)));
   color: var(--farge-tekst);
-  font-size: var(--ds-font-size-3);
-  line-height: var(--ds-line-height-md);
-  padding: var(--ds-size-3) 0 var(--ds-size-3) var(--ds-size-4);
-  margin-block-end: var(--ds-size-3);
-  border-inline-start: var(--ds-size-1) solid var(--farge-merke);
+  font-size: var(--fs-15);
+  line-height: var(--lh-normal);
+  padding: var(--rom-12) 0 var(--rom-12) var(--rom-16);
+  margin-block-end: var(--rom-12);
+  border-inline-start: var(--rom-4) solid var(--farge-merke);
 }
 
 /* NOTEN. Utenfor `.tabellramme`, og det er ikke tilfeldig: inne i
@@ -890,18 +1003,18 @@ caption {
    captionen hadde før `min()`-taket. */
 .tabellnote {
   max-width: var(--maal-tekst);
-  margin: 0 0 var(--ds-size-12);
-  padding-inline-start: var(--ds-size-4);
-  border-inline-start: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  margin: 0 0 var(--rom-44);
+  padding-inline-start: var(--rom-16);
+  border-inline-start: 1px solid var(--farge-kant-svak);
   color: var(--farge-tekst-svak);
-  font-size: var(--ds-font-size-2);
-  line-height: var(--ds-line-height-lg);
+  font-size: var(--fs-13);
+  line-height: var(--lh-brod);
 }
 
 /* Noten hører til tabellen over seg, og avstanden skal si det.
    `:has()` framfor en egen klasse på ramma: faller den bort i en gammel
    nettleser, står noten bare litt lenger ned — den blir ikke feil. */
-.tabellramme:has(+ .tabellnote) { margin-block-end: var(--ds-size-3); }
+.tabellramme:has(+ .tabellnote) { margin-block-end: var(--rom-12); }
 
 thead th {
   position: sticky;
@@ -910,11 +1023,11 @@ thead th {
   background: var(--farge-hode);
   text-align: left;
   vertical-align: bottom;
-  font-size: var(--ds-font-size-2);
-  font-weight: var(--ds-font-weight-semibold);
-  letter-spacing: var(--ds-letter-spacing-7);
-  line-height: var(--ds-line-height-sm);
-  padding: var(--ds-size-2) var(--ds-size-3);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  letter-spacing: var(--knip-1);
+  line-height: var(--lh-tett);
+  padding: var(--rom-8) var(--rom-12);
   border-block-end: 2px solid var(--farge-kant-sterk);
 }
 
@@ -923,14 +1036,14 @@ tbody th, tbody td {
      gjør hver celle til en boks, og øyet må hoppe over en kant per
      kolonne. Radskillet er det eneste som bærer en tabell man leser
      langs. */
-  border-block-end: var(--ds-border-width-default) solid var(--farge-kant-svak);
-  padding: var(--ds-size-2) var(--ds-size-3);
+  border-block-end: 1px solid var(--farge-kant-svak);
+  padding: var(--rom-8) var(--rom-12);
   text-align: left;
   vertical-align: top;
 }
 
 tbody th {
-  font-weight: var(--ds-font-weight-medium);
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -966,18 +1079,18 @@ tbody td, tbody th { overflow-wrap: break-word; }
    gjort de tre gradene til likeverdige alternativer. De er ordinale. */
 .grader {
   max-width: var(--maal-tekst);
-  margin: 0 0 var(--ds-size-5);
+  margin: 0 0 var(--rom-20);
 }
 
 .grader dt {
-  font-weight: var(--ds-font-weight-semibold);
-  margin-block-start: var(--ds-size-3);
+  font-weight: 600;
+  margin-block-start: var(--rom-12);
 }
 
 .grader dd {
   margin: 0;
-  padding-inline-start: var(--ds-size-4);
-  border-inline-start: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  padding-inline-start: var(--rom-16);
+  border-inline-start: 1px solid var(--farge-kant-svak);
   color: var(--farge-tekst-svak);
 }
 
@@ -992,8 +1105,8 @@ td[data-felt="farge_mangler"],
 td[data-felt="eier_ukjent"],
 td[data-felt="registerdata_mangler"] {
   color: var(--farge-tekst-svak);
-  font-size: var(--ds-font-size-2);
-  line-height: var(--ds-line-height-md);
+  font-size: var(--fs-13);
+  line-height: var(--lh-normal);
 }
 
 /* Ingen bredderegler på fargecellene. Fram til 20.09.2026 sto det et
@@ -1046,8 +1159,8 @@ td[data-felt="farge_mangler"]::before {
      samme farge, ville den gule firkantens synlighet hengt på den gule
      — og gul kan ikke nå 3:1 mot hvitt uten å slutte å være gul.
      #717a84 gir 3,58–4,36:1 mot hver flate en firkant står på. */
-  border: var(--ds-border-width-default) solid var(--farge-kant);
-  border-radius: var(--ds-border-radius-sm);
+  border: 1px solid var(--farge-kant);
+  border-radius: 0;
 }
 
 td[data-felt="farge"].lys-rod::before   { background: var(--lys-rod); }
@@ -1071,7 +1184,7 @@ td[data-felt="farge_mangler"]::before {
      telefon er kartet bredere enn skjermen. */
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  margin-block-end: var(--ds-size-8);
+  margin-block-end: var(--rom-32);
 }
 
 .kart {
@@ -1093,7 +1206,7 @@ td[data-felt="farge_mangler"]::before {
      Papiret er den grunnen — samme flate som bunnen under arket, så
      kartet ser ut som et utsnitt av bordet framfor et hull i sida. */
   background: var(--farge-bunn);
-  border: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  border: 1px solid var(--farge-kant-svak);
 }
 
 /* GRADNETTET. Linjene skal kunne SES og ikke leses: de er en referanse
@@ -1145,7 +1258,7 @@ td[data-felt="farge_mangler"]::before {
  * ---------------------------------------------------------------- */
 
 .graf {
-  margin: 0 0 var(--ds-size-8);
+  margin: 0 0 var(--rom-32);
 }
 
 .lusegraf {
@@ -1157,7 +1270,7 @@ td[data-felt="farge_mangler"]::before {
   /* Samme grunn som kartet: en figur på arket trenger en egen grunn
      for å leses som en figur. */
   background: var(--farge-bunn);
-  border: var(--ds-border-width-default) solid var(--farge-kant-svak);
+  border: 1px solid var(--farge-kant-svak);
 }
 
 .lusegraf .brakk rect { fill: var(--graf-brakk); }
@@ -1190,10 +1303,10 @@ td[data-felt="farge_mangler"]::before {
 .lusegraf .serie circle { fill: var(--graf-linje); }
 
 figcaption {
-  margin-block-start: var(--ds-size-2);
+  margin-block-start: var(--rom-8);
   max-width: var(--maal-tekst);
-  font-size: var(--ds-font-size-2);
-  line-height: var(--ds-line-height-md);
+  font-size: var(--fs-13);
+  line-height: var(--lh-normal);
   color: var(--farge-tekst-svak);
 }
 
@@ -1207,31 +1320,31 @@ figcaption {
 footer {
   max-width: var(--maal-side);
   margin: 0 auto;
-  padding: var(--ds-size-10) var(--ds-size-8) var(--ds-size-15);
+  padding: var(--rom-40) var(--rom-32) var(--rom-56);
   color: var(--farge-tekst-svak);
-  font-size: var(--ds-font-size-3);
-  line-height: var(--ds-line-height-md);
+  font-size: var(--fs-15);
+  line-height: var(--lh-normal);
 }
 
 footer h2 {
-  font-size: var(--ds-font-size-4);
+  font-size: var(--fs-17);
   color: var(--farge-tekst);
   border-block-end: 0;
-  margin: 0 0 var(--ds-size-3);
+  margin: 0 0 var(--rom-12);
   padding-block-end: 0;
 }
 
 footer ul {
   list-style: none;
   padding: 0;
-  margin: 0 0 var(--ds-size-5);
+  margin: 0 0 var(--rom-20);
   max-width: var(--maal-tekst);
 }
 
 footer li {
-  padding-inline-start: var(--ds-size-4);
+  padding-inline-start: var(--rom-16);
   border-inline-start: 2px solid var(--farge-kant-svak);
-  margin-block-end: var(--ds-size-3);
+  margin-block-end: var(--rom-12);
 }
 
 footer p { max-width: var(--maal-tekst); margin: 0; }
@@ -1246,28 +1359,28 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
   body { background: var(--farge-ark); }
 
   .topp, .hero, main, footer {
-    padding-inline: var(--ds-size-4);
+    padding-inline: var(--rom-16);
     border-inline: 0;
   }
 
   /* Båndet beholder farge og strek, men ikke luften: 3rem over og under
      er en tredjedel av en telefonskjerm brukt på ingenting. */
-  .hero { padding-block: var(--ds-size-8) var(--ds-size-6); }
-  .nokkeltall { gap: var(--ds-size-5) var(--ds-size-8); }
+  .hero { padding-block: var(--rom-32) var(--rom-24); }
+  .nokkeltall { gap: var(--rom-20) var(--rom-32); }
 
-  .topp { gap: var(--ds-size-2) var(--ds-size-4); }
-  .topp nav { font-size: var(--ds-font-size-2); }
+  .topp { gap: var(--rom-8) var(--rom-16); }
+  .topp nav { font-size: var(--fs-13); }
 
-  main { padding-block: var(--ds-size-6) var(--ds-size-10); }
+  main { padding-block: var(--rom-24) var(--rom-40); }
 
-  h1 { font-size: var(--ds-font-size-7); }
-  h2 { font-size: var(--ds-font-size-5); }
+  h1 { font-size: var(--fs-30); }
+  h2 { font-size: var(--fs-19); }
 
   /* Tabellen er alt i en scrollende ramme her (se avsnitt 3). Ramma
      får gå ut i margen, så en bred tabell bruker hele skjermen. */
   .tabellramme, .kartramme {
-    margin-inline: calc(var(--ds-size-4) * -1);
-    padding-inline: var(--ds-size-4);
+    margin-inline: calc(var(--rom-16) * -1);
+    padding-inline: var(--rom-16);
   }
 }
 
@@ -1305,7 +1418,7 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
   /* Båndet er en flate på skjerm og en tekstblokk på papir. */
   .hero {
     max-width: none;
-    padding: 0 0 var(--ds-size-6);
+    padding: 0 0 var(--rom-24);
     background: #fff;
     color: #000;
     border-block-end: 2px solid #000;
@@ -1316,7 +1429,7 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
   /* `clamp(..., 1.4rem + 3.4vw, 3.5rem)` regner mot papirbredden ved
      utskrift, og 3,5rem på en A4 er en overskrift som tar en femtedel
      av arket. Tilbake til skalaens toppsteg. */
-  .hero h1 { font-size: var(--ds-font-size-8); }
+  .hero h1 { font-size: var(--fs-30); }
   .nokkeltall { border-block-start-color: #000; }
 
   .lusegraf, .kart { background: #fff; }

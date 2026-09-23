@@ -1673,14 +1673,19 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
 # hver leser ville lastet det på nytt for hver side. Lenket er det én
 # fil og én forespørsel, og nettleseren hentet den sist på forsiden.
 #
-# ## Hvorfor to filer på disk, men én på nettet
+# ## ÉN FIL, og det ble den 22.09.2026
 #
-# `maler/tokens.css` er HENTET — Digdirs verdier ordrett, med tagg,
-# sha256 og lisens. `maler/stil.css` er SKREVET. Grensa er hele grunnen
-# til at de ligger hver for seg: en oppgradering av tokens skal kunne
-# byttes ut som en blokk, uten at noen må skille våre verdier fra
-# deres. Sammensetningen her er tekstsammenslåing og ikke et byggesteg
-# — ingen preprosessor, ingen minifisering, ingen kildekart.
+# Fram til da var `/stil.css` to filer slått sammen: `maler/tokens.css`
+# (Digdirs verdier ordrett, med tagg, sha256 og MIT-lisens) og
+# `maler/stil.css` (vår). Grensa var at en oppgradering av tokens skulle
+# kunne byttes ut som en blokk.
+#
+# Designoverleveringen fastsetter sin egen typeskala, sitt eget
+# avstandsrutenett og radius 0 overalt, og da var det ingenting igjen i
+# den hentede fila som faktisk ble brukt. Den er fjernet, og
+# begrunnelsen står i sin helhet øverst i `maler/stil.css`. Følgen er at
+# /om/ ikke lenger fører Digdir under «det vi låner» — ikke en
+# utelatelse, men at vi ikke låner det.
 #
 # ## Stien er absolutt, som hver annen URL på nettstedet
 #
@@ -1690,12 +1695,15 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
 # med `file://` finner nettleseren verken stilarket eller nabosidene.
 #     python -m http.server --directory <ut-mappa>
 
-STILFILER = ("tokens.css", "stil.css")
+STILFILER = ("stil.css",)
 
 
 def stilark() -> str:
-    """Tokens + vår CSS, i den rekkefølgen. Rekkefølgen er ikke fri:
-    `stil.css` leser `--ds-*` som `tokens.css` definerer."""
+    """Stilarket. Én fil siden 22.09.2026 — se kommentaren over.
+
+    Lista står igjen som en TUPPEL og ikke som en enkeltsti, fordi den
+    er stedet en andre fil skal legges inn hvis det noen gang blir en
+    av dem igjen. Rekkefølgen i lista er rekkefølgen i utputtet."""
     biter = []
     for navn in STILFILER:
         sti = MALER / navn
@@ -1735,7 +1743,14 @@ def skriv_stil(rot: Path) -> Path:
 # henter, og gjort at stilarket ikke kan mellomlagres uavhengig av
 # fonten. To filer, to forespørsler, begge cachbare.
 
-FONTFILER = ("newsreader.woff2", "newsreader-OFL.txt")
+# TRE FONTER FRA 22.09.2026, og to lisensfiler.
+#
+# `ibmplex-OFL.txt` dekker BEGGE Plex-familiene: hos google/fonts ligger
+# de under hver sin katalog med hver sin OFL, og de to filene er
+# bit-identiske (`sha256 7e6b2818…`). Én fil er derfor ikke en
+# forenkling — det er den samme fila. Se docs/design/IBM-PLEX.md.
+FONTFILER = ("newsreader.woff2", "newsreader-OFL.txt",
+             "ibmplexsans.woff2", "ibmplexmono.woff2", "ibmplex-OFL.txt")
 
 # IKONENE. Samme «K» i alle tre, samme kvadrat, tre formater fordi
 # plattformene ber om tre:
@@ -2070,17 +2085,28 @@ def bygg_om(felles: Felles) -> dict:
 # parser som gjettet «lisens» ut av en CSS-kommentar ville vært et sted
 # til der noe kan bli feil, og lista er tre rader som endres når noen
 # bytter en avhengighet — altså sjeldnere enn parseren ville råtnet.
+#
+# DIGDIR STO HER TIL 22.09.2026. Raden er fjernet fordi låntakingen er
+# det — designoverleveringen har sin egen typeskala og sitt eget
+# avstandsrutenett, og `maler/tokens.css` finnes ikke lenger. En rad om
+# et lån vi ikke lenger tar, ville vært en usann opplysning på den ene
+# siden som finnes for å svare på om man kan stole på dette.
 VAART_LAAN = (
     {"hva": "Newsreader",
-     "rolle": "overskriftene og ordmerket",
+     "rolle": "overskrifter, ordmerke og nøkkeltall",
      "lisens": "SIL Open Font License 1.1",
      "opphav": "Production Type, via google/fonts",
      "sti": "/newsreader-OFL.txt"},
-    {"hva": "Designtokens fra Digdirs designsystem v1.22.0",
-     "rolle": "typeskala, avstander, linjehøyder",
-     "lisens": "MIT",
-     "opphav": "digdir/designsystemet",
-     "sti": "/stil.css"},
+    {"hva": "IBM Plex Sans",
+     "rolle": "brødtekst, etiketter og tabeller",
+     "lisens": "SIL Open Font License 1.1",
+     "opphav": "IBM, via google/fonts",
+     "sti": "/ibmplex-OFL.txt"},
+    {"hva": "IBM Plex Mono",
+     "rolle": "tallverdier i tabellkolonner",
+     "lisens": "SIL Open Font License 1.1",
+     "opphav": "IBM, via google/fonts",
+     "sti": "/ibmplex-OFL.txt"},
 )
 
 

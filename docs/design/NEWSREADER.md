@@ -1,8 +1,14 @@
 # Newsreader — hvor fila kommer fra, og hvordan den er laget
 
-`maler/newsreader.woff2` er den eneste binærfila nettstedet sender ut.
-Den er hostet av oss og hentes aldri fra en CDN. Dette er
-proveniensen — samme krav som til enhver annen hentet fil i repoet.
+`maler/newsreader.woff2` er en av de tre binærfilene nettstedet sender
+ut — de to andre er IBM Plex Sans og Mono, se `IBM-PLEX.md`. Den er
+hostet av oss og hentes aldri fra en CDN. Dette er proveniensen — samme
+krav som til enhver annen hentet fil i repoet.
+
+**Fila er laget om 22.09.2026** (vekt 300 og samisk lagt til). Den
+forrige utgaven — `wght` 400–700, 203 glyffer, 35 520 byte, sha256
+`d8e551fa…8b01fcc7` — står nederst under «Forrige utgave», fordi en
+sjekksum som forsvinner er en sjekksum ingen kan etterprøve.
 
 ## Kilde og lisens
 
@@ -23,23 +29,47 @@ nettstedets rot; en publisert side har dem på `/newsreader.woff2` og
     kilde   Newsreader.ttf (variabel, opsz 6–72, wght 200–800)
             8a08d13f8a6c0d51be379a60af84f945f65369a67e509ee3c3bdcc421254d7c1
 
-    vår     maler/newsreader.woff2   35 520 byte
-            d8e551fa73a848a2bb3806bc725cb1b705c8ec1e7c203e8b51c5ee338b01fcc7
+    vår     maler/newsreader.woff2   64 800 byte
+            14209ccee1fac927285fbf69eab415c27815d6b90c249ed07b807cf37f75faa9
 
     lisens  maler/newsreader-OFL.txt
             fdfad38143ec470553cae82a1e45320bdd1b9ec70415d37bd0171051d8a4ded8
 
 ## Hvordan den ble laget
 
-    fonttools varLib.instancer Newsreader.ttf opsz=28 wght=400:700 \
+    fonttools varLib.instancer Newsreader.ttf opsz=28 wght=300:700 \
         -o Newsreader-pinned.ttf
 
-    pyftsubset Newsreader-pinned.ttf \
-        --unicodes="<latin + norsk>" \
+    pyftsubset Newsreader-pinned.ttf --unicodes="$UNI" \
+        --layout-features='kern,liga,calt,ccmp,locl,mark,mkmk' \
         --flavor=woff2 --output-file=newsreader.woff2
 
-451 kB TTF ble 35,5 kB woff2. `wght` er beholdt som akse 400–700, slik
-at `font-weight: 400 700` i `@font-face` er en påstand fila kan innfri.
+`$UNI` er den SAMME strengen de to Plex-fontene bruker, ordrett fra
+`IBM-PLEX.md`. Tre fonter med hvert sitt subsett er tre steder en glyff
+kan mangle i én av dem, og symptomet — ett tegn i en annen font midt i
+et ord — ser ut som et designvalg framfor en manglende glyff.
+
+451 kB TTF ble 64,8 kB woff2. `wght` er beholdt som akse 300–700, slik
+at `font-weight: 300 700` i `@font-face` er en påstand fila kan innfri.
+
+### Hvorfor 300 og ikke 400 som gulv
+
+Designoverleveringen setter hver eneste Newsreader-overskrift i 300:
+ordmerket i heroen (104 px), H1 på undersidene (76 px), H2 på
+seksjonene (46 px) og nøkkeltallene (52 px). Bare ordmerket i
+navigasjonen og noen blokkoverskrifter står i 400.
+
+Det er ikke pynt. En displayserif i 104 px satt i Regular er tung på en
+måte den ikke er i 16 px — vekt og optisk størrelse trekker samme vei,
+og en font som bare har 400 som letteste vekt kan ikke sette en stor
+overskrift lett. Fram til 22.09.2026 hadde fila ikke 300, og en
+`font-weight: 300` i CSS-en ville da fått 400 uten å si fra.
+
+### Og hvorfor 203 glyffer ble 339
+
+Latin Extended-A, av samme grunn som i `IBM-PLEX.md`: samiske
+stedsnavn. Begrunnelsen og målingen står der, og den gjelder alle tre
+fontene.
 
 ## opsz ER 28, selv om navnetabellen sier «16pt»
 
@@ -82,10 +112,27 @@ gang, og innholdet er:
     nameID   5  Version 1.003
     nameID   6  Newsreader16pt-Regular
     nameID 256  Weight            257  Optical Size
-    nameID 260  Regular           261  Medium
-    nameID 262  SemiBold          263  Bold
+    nameID 259  Light             260  Regular
+    nameID 261  Medium            262  SemiBold
+    nameID 263  Bold
     nameID 268  Italic            269  Roman
+
+(`259 Light` kom til 22.09.2026 med vektaksens nye gulv. Resten er
+uendret; tabellen er lest på nytt av fila som faktisk går ut.)
 
 Ingen personnavn, ingen ni-sifrede tall, ingenting fra kildene våre.
 `publiseringsvakt.BINAERFILER` pinner sha256-summen over: endres fila,
 faller porten og inspeksjonen må gjøres på nytt.
+
+
+## Forrige utgave (til og med 21.09.2026)
+
+    vår     maler/newsreader.woff2   35 520 byte
+            d8e551fa73a848a2bb3806bc725cb1b705c8ec1e7c203e8b51c5ee338b01fcc7
+            opsz=28, wght 400–700, 203 glyffer
+
+Kilda er den samme fila, og sha256-en på den er uendret
+(`8a08d13f…1254d7c1`) — det er BARE instansieringen og subsettet som er
+gjort om. Summen står her slik at en gammel publisering kan
+etterprøves; `publiseringsvakt.BINAERFILER` pinner bare den nye, fordi
+det er den som går ut.
