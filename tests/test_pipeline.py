@@ -3705,3 +3705,153 @@ def test_filtrert_antall_er_null_for_fetch():
     from sources.enhetsregisteret import Enhetsregisteret
 
     assert Enhetsregisteret().filtrert_antall == 0
+
+
+# ================================================ felt kontra entitet
+#
+# `diff.compare()` skriver `ny` og `borte` PER FELT. Et nettsted som
+# samler radene per entitet og kaller resultatet «Ny i registeret»,
+# stiller et annet spørsmål enn raden svarer på.
+
+def _logg(rader):
+    return pl.DataFrame(rader)
+
+
+def test_felt_som_kommer_er_ikke_en_ny_entitet(tmp_path, monkeypatch):
+    """MÅLT uke 39: sju «ny»-entiteter i enhetsregisteret, null av dem
+    nye. Alle sju sto i BEGGE snapshots og hadde fått ett felt."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS")], ["03.211"])
+    _skriv(monkeypatch, tmp_path, "2026-01-08",
+           [("1", "navn", "Gammel AS"), ("1", "antall_ansatte", "12"),
+            ("2", "navn", "Fersk AS")], ["03.211"])
+
+    logg = _logg([
+        # Entiteten sto der før; det er FELTET som er nytt.
+        {"entity_id": "1", "entity_type": "selskap", "entity_name": "Gammel AS",
+         "field": "antall_ansatte", "old_value": None, "new_value": "12",
+         "change_type": "ny", "source": "falsk", "observed_at": "2026-01-08"},
+        # Entiteten er ny.
+        {"entity_id": "2", "entity_type": "selskap", "entity_name": "Fersk AS",
+         "field": "navn", "old_value": None, "new_value": "Fersk AS",
+         "change_type": "ny", "source": "falsk", "observed_at": "2026-01-08"},
+    ])
+
+    merket = changelog.merk_feltbevegelse(logg, kilder=["falsk"])
+
+    assert merket.height == logg.height, "ingen rad forsvinner"
+    assert dict(zip(merket["entity_id"].to_list(),
+                    merket["change_type"].to_list())) == {
+        "1": diff.FELT_NY, "2": "ny"}
+
+
+def test_felt_som_forsvinner_er_ikke_en_borte_entitet(tmp_path, monkeypatch):
+    """Speilbildet. «Ute av registeret» om et selskap som står der, er
+    den samme påstanden med motsatt fortegn."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Står AS"), ("1", "antall_ansatte", "12"),
+            ("2", "navn", "Gikk AS")], ["03.211"])
+    _skriv(monkeypatch, tmp_path, "2026-01-08",
+           [("1", "navn", "Står AS")], ["03.211"])
+
+    logg = _logg([
+        {"entity_id": "1", "entity_type": "selskap", "entity_name": "Står AS",
+         "field": "antall_ansatte", "old_value": "12", "new_value": None,
+         "change_type": "borte", "source": "falsk", "observed_at": "2026-01-08"},
+        {"entity_id": "2", "entity_type": "selskap", "entity_name": "Gikk AS",
+         "field": "navn", "old_value": "Gikk AS", "new_value": None,
+         "change_type": "borte", "source": "falsk", "observed_at": "2026-01-08"},
+    ])
+
+    merket = changelog.merk_feltbevegelse(logg, kilder=["falsk"])
+
+    assert dict(zip(merket["entity_id"].to_list(),
+                    merket["change_type"].to_list())) == {
+        "1": diff.FELT_BORTE, "2": "borte"}
+
+
+def test_kilder_utenfor_lista_rores_ikke(tmp_path, monkeypatch):
+    """`kilder` er en oppslagskostnad, ikke en definisjon — men den skal
+    virke: en kilde utenfor lista skal komme urørt gjennom, også når
+    snapshotene ville svart."""
+    _skriv(monkeypatch, tmp_path, "2026-01-01",
+           [("1", "navn", "Gammel AS")], ["03.211"])
+    _skriv(monkeypatch, tmp_path, "2026-01-08",
+           [("1", "navn", "Gammel AS"), ("1", "antall_ansatte", "12")],
+           ["03.211"])
+    logg = _logg([
+        {"entity_id": "1", "entity_type": "selskap", "entity_name": "Gammel AS",
+         "field": "antall_ansatte", "old_value": None, "new_value": "12",
+         "change_type": "ny", "source": "falsk", "observed_at": "2026-01-08"},
+    ])
+
+    assert changelog.merk_feltbevegelse(
+        logg, kilder=["annen"])["change_type"].to_list() == ["ny"]
+
+
+def test_manglende_snapshot_lar_raden_staa(tmp_path, monkeypatch):
+    """Usikkerhet skal se ut som usikkerhet — samme regel som
+    `merk_utvalgsutvidelse()`. Uten et snapshot å spørre står «ny»."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    (tmp_path / "raw").mkdir(parents=True)
+    logg = _logg([
+        {"entity_id": "1", "entity_type": "selskap", "entity_name": "A",
+         "field": "navn", "old_value": None, "new_value": "A",
+         "change_type": "ny", "source": "falsk", "observed_at": "2026-01-08"},
+    ])
+    assert changelog.merk_feltbevegelse(
+        logg, kilder=["falsk"])["change_type"].to_list() == ["ny"]
+
+
+# ============================================ changeloggens lesedør
+#
+# 18.09-beslutningen lot de 381 radene ligge og skrev ned hva som ville
+# snudd valget: «en 'endringer denne uka' på tvers av kilder, eller en
+# CSV av loggen ved siden av sidene». Designrunden bygget det.
+
+def test_changeloggen_har_en_lesedor_for_personformer(tmp_path, monkeypatch):
+    """En changelog-rad om en personform skal ikke kunne leses ut av
+    `les_alt()` — uansett hvilken visning som spør."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+    _skriv_gammelt_snapshot(_snapshot_med_enk(), observed_at="2026-01-01")
+
+    (tmp_path / "changelog").mkdir(parents=True)
+    pl.DataFrame([
+        {"entity_id": "111111111", "entity_type": "selskap",
+         "entity_name": "Kari Nordmann", "field": "kommune",
+         "old_value": "BODØ", "new_value": "TROMSØ", "change_type": "endret",
+         "source": "enhetsregisteret", "observed_at": "2026-01-08"},
+        {"entity_id": "222222222", "entity_type": "selskap",
+         "entity_name": "Testlaks AS", "field": "kommune",
+         "old_value": "BODØ", "new_value": "TROMSØ", "change_type": "endret",
+         "source": "enhetsregisteret", "observed_at": "2026-01-08"},
+    ]).write_parquet(tmp_path / "changelog" / "2026-01-08.parquet")
+
+    assert changelog.les_alt(ufiltrert=True).height == 2
+    gjennom = changelog.les_alt()
+    assert gjennom["entity_id"].to_list() == ["222222222"]
+    assert "Kari Nordmann" not in gjennom["entity_name"].to_list()
+
+
+def test_lesedora_rorer_ikke_filene(tmp_path, monkeypatch):
+    """Append-only gjelder. Døra fjerner ved LESING, som i
+    `snapshot._les()` — den skriver ikke om noe."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+    _skriv_gammelt_snapshot(_snapshot_med_enk(), observed_at="2026-01-01")
+    (tmp_path / "changelog").mkdir(parents=True)
+    fil = tmp_path / "changelog" / "2026-01-08.parquet"
+    pl.DataFrame([
+        {"entity_id": "111111111", "entity_type": "selskap",
+         "entity_name": "Kari Nordmann", "field": "kommune",
+         "old_value": "BODØ", "new_value": "TROMSØ", "change_type": "endret",
+         "source": "enhetsregisteret", "observed_at": "2026-01-08"},
+    ]).write_parquet(fil)
+    for_ = fil.read_bytes()
+
+    changelog.les_alt()
+
+    assert fil.read_bytes() == for_

@@ -183,6 +183,19 @@ def tell_personer(frame: pl.DataFrame) -> dict[str, int]:
     return dict(sorted(ut.items()))
 
 
+def person_ider(frame: pl.DataFrame) -> list[str]:
+    """`entity_id` til hver entitet ramma peker ut som en fysisk person.
+
+    Samme prøve som `fjern_personformer()`, men svaret er LISTA framfor
+    den filtrerte ramma. Changeloggens lesedør trenger id-ene: den kan
+    ikke stille spørsmålet selv, fordi en changelog-rad har `old_value`
+    og `new_value` der et øyeblikksbilde har `value`.
+    """
+    if frame.is_empty() or not {"entity_id", "field", "value"} <= set(frame.columns):
+        return []
+    return [str(e) for e in _personene(frame)["entity_id"].unique().to_list()]
+
+
 def fjern_personformer(frame: pl.DataFrame) -> pl.DataFrame:
     """Alle rader om entiteter som er fysiske personer, ut av en ramme.
 

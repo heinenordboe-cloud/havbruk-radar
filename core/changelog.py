@@ -71,6 +71,8 @@ kaster da, med beskjed om hvilken fil som er i veien.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from functools import lru_cache
 from pathlib import Path
 
 import polars as pl
@@ -219,6 +221,100 @@ def skriv_per_dato(endringer: pl.DataFrame) -> list[Path]:
 # er Brregs ord. En kilde som ikke står her kan ikke etterprøves, og da
 # blir radene stående som "ny" — usikkerhet skal se ut som usikkerhet.
 STARTDATOFELT = {"enhetsregisteret": "registreringsdato"}
+
+
+def merk_feltbevegelse(
+    endringer: pl.DataFrame,
+    kilder: Iterable[str] | None = None,
+) -> pl.DataFrame:
+    """Skiller «entiteten kom/gikk» fra «ET FELT kom/gikk».
+
+    `diff.compare()` skriver `ny` og `borte` per (entitet, felt), og det
+    er sant på feltnivå. Men et nettsted som samler radene per entitet og
+    kaller resultatet «Ny i registeret», stiller et ANNET spørsmål enn
+    det raden svarer på — og de to faller bare sammen når alle feltene
+    kom samtidig.
+
+    MÅLT 23.09.2026, uke 39, enhetsregisteret 14.09 -> 21.09:
+
+        «ny»     7 entiteter, 0 av dem nye. Seks fikk `antall_ansatte`
+                 for første gang, én `mva_registreringsdato`.
+        «borte»  29 entiteter, 22 av dem faktisk borte. De sju andre
+                 sto i begge snapshots og mistet bare `antall_ansatte`.
+
+    ## Prøven er den samme som regel 3 krever: spør om DET du vil vite
+
+    Ikke «hvor mange felt hadde raden» — det er en stedfortreder som er
+    riktig helt til en entitet kommer inn med ett felt. Spørsmålet er om
+    ENTITETEN står i snapshotet på den andre siden, og det er nøyaktig
+    det som slås opp her.
+
+    ## `kilder` begrenser oppslaget, ikke definisjonen
+
+    1 569 (kilde, dato)-par i changeloggen har `ny`- eller `borte`-rader,
+    og 1 528 av dem er lusetall og sjøtemperatur — to serier på 764 uker
+    som ikke vises som ukesendringer i det hele tatt. Å lese 1 528
+    snapshots for å svare på et spørsmål ingen stiller, er
+    oppslagskostnaden og ikke regelen. Uten `kilder` gjelder den alle.
+
+    Rader den IKKE rører, alle fire med samme begrunnelse som
+    `merk_utvalgsutvidelse()` — å gjette ville undertrykt en ekte
+    hendelse:
+
+      * alt som ikke er `ny` eller `borte`
+      * kilder utenfor `kilder`
+      * rader der snapshotet på den andre siden ikke finnes
+      * entiteter vi ikke finner igjen på noen av sidene
+    """
+    from core import diff, snapshot          # sent: unngår importsyklus
+
+    if endringer.is_empty() or "change_type" not in endringer.columns:
+        return endringer
+
+    bare = frozenset(str(k) for k in kilder) if kilder is not None else None
+    aktuelle = endringer.filter(pl.col("change_type").is_in(["ny", "borte"]))
+    if bare is not None:
+        aktuelle = aktuelle.filter(pl.col("source").is_in(sorted(bare)))
+    if aktuelle.is_empty():
+        return endringer
+
+    # Entitetene i snapshotet FØR og snapshotet PÅ hver dato. Begge
+    # trengs: `ny` spør om entiteten fantes før, `borte` om den finnes nå.
+    for_par: dict[tuple[str, str], frozenset[str]] = {}
+    naa_par: dict[tuple[str, str], frozenset[str]] = {}
+    for kilde, dato in aktuelle.select(["source", "observed_at"]).unique().iter_rows():
+        kilde, dato = str(kilde), str(dato)
+        forrige = snapshot.previous(kilde, before=dato)
+        if forrige is not None and not forrige.is_empty():
+            for_par[(kilde, dato)] = frozenset(
+                str(e) for e in forrige["entity_id"].to_list())
+        naa = snapshot.les_mellom(kilde, dato, dato)
+        if naa:
+            naa_par[(kilde, dato)] = frozenset(
+                str(e) for e in naa[-1][1]["entity_id"].to_list())
+
+    def merk(rad: dict) -> str:
+        ct = str(rad["change_type"])
+        if ct not in ("ny", "borte"):
+            return ct
+        kilde, dato = str(rad["source"]), str(rad["observed_at"])
+        if bare is not None and kilde not in bare:
+            return ct
+        par = (kilde, dato)
+        før, naa = for_par.get(par), naa_par.get(par)
+        if før is None or naa is None:
+            return ct
+        eid = str(rad["entity_id"])
+        # BEGGE SIDER MÅ KJENNE ENTITETEN for at det skal være et felt
+        # som flyttet seg. Er den bare på én side, er det entiteten.
+        if eid in før and eid in naa:
+            return diff.FELT_NY if ct == "ny" else diff.FELT_BORTE
+        return ct
+
+    nye = [merk(r) for r in endringer.iter_rows(named=True)]
+    return endringer.with_columns(
+        pl.Series("change_type", nye, dtype=pl.Utf8)
+    )
 
 
 def merk_utvalgsutvidelse(
@@ -459,12 +555,83 @@ def _filer() -> list[Path]:
     return sorted(flate + per_kilde, key=lambda p: (p.stem, p.parent.name))
 
 
-def les_alt() -> pl.DataFrame:
-    """Hele endringsloggen, eldste først.
+def personentiteter() -> frozenset[tuple[str, str]]:
+    """(kilde, entity_id) for hver entitet snapshotdøra fjerner.
+
+    Spørsmålet stilles til `snapshot`, som EIER døra og er det ene
+    stedet som leser rådata. En kopi av oppslaget her ville vært en
+    andre lesevei, og `test_changelog_og_predictions_leser_ikke_raadata`
+    nekter den — med rette: to dører som skal si det samme, er formen F6
+    og F7 hadde.
+
+    ## Hvorfor krysspeilingen, og ikke bare loggen selv
+
+    18.09-notatet målte begge veier: en dør som bare leser loggens egne
+    `organisasjonsform`- og `institusjonell_sektorkode`-rader fjerner
+    376 av 379 og MISTER 3 — enkeltstående `endret`-rader uten et
+    klassifiserende felt. «Skal alle 19 tas, må døra krysspeile
+    snapshotene.» Den gjør det.
+    """
+    from core import snapshot
+
+    return snapshot.personentiteter()
+
+
+def fjern_personformer(endringer: pl.DataFrame) -> pl.DataFrame:
+    """Changeloggens lesedør. Hele entiteten ut, ikke bare noen rader.
+
+    ## Hvorfor den finnes fra 23.09.2026, og ikke før
+
+    18.09-beslutningen lot de 381 radene ligge, og skrev ned hva som
+    ville snudd valget: «En visning uten `entity_id`-filter — en
+    oversiktsside, et søk, en 'endringer denne uka' på tvers av kilder,
+    eller en CSV av loggen ved siden av sidene — fjerner vilkår 1 og 3
+    samtidig.»
+
+    Designrunden bygget nøyaktig det. `/endringer/<år>-<uke>/` er
+    endringer denne uka på tvers av kilder, med CSV og JSON ved siden.
+    MÅLT 23.09.2026 nådde én rad om en personform uke 39s side —
+    `RØN GARD DA`, som `Ny i vårt utvalg` — og den hadde ikke noe navn
+    på siden bare fordi entiteten var ute av snapshotet og oppslaget
+    falt til en nøytral etikett. Det er ikke en beskyttelse; det er en
+    tilfeldighet til.
+
+    Notatet sa at valget skulle tas FØR visningen skrives. Det ble det
+    ikke. Dette er alternativ 2, tatt etterpå.
+
+    ## Den fjerner ikke historikken
+
+    Radene blir liggende i `data/changelog/` som før — append-only
+    gjelder. De forsvinner ved LESING, hver gang, som i
+    `snapshot._les()`.
+    """
+    if endringer.is_empty() or "entity_id" not in endringer.columns:
+        return endringer
+    personer = personentiteter()
+    if not personer:
+        return endringer
+    per_kilde: dict[str, set[str]] = {}
+    for kilde, eid in personer:
+        per_kilde.setdefault(kilde, set()).add(eid)
+
+    behold = [
+        str(e) not in per_kilde.get(str(k), ())
+        for k, e in zip(endringer["source"].to_list(),
+                        endringer["entity_id"].to_list())
+    ]
+    return endringer.filter(pl.Series(behold, dtype=pl.Boolean))
+
+
+def les_alt(*, ufiltrert: bool = False) -> pl.DataFrame:
+    """Hele endringsloggen, eldste først, gjennom lesedøra.
 
     Leser også den gamle samlefila hvis den finnes, så historikk fra før
     omleggingen ikke forsvinner. Analyselaget skal ikke måtte vite at
     formatet har endret seg.
+
+    `ufiltrert=True` gir loggen slik den ligger på disk. Den finnes for
+    revisjon — å måle hva døra fjerner krever å se begge sider — og skal
+    ikke brukes av noe som skriver til nettstedet.
     """
     rammer = []
 
@@ -478,4 +645,5 @@ def les_alt() -> pl.DataFrame:
 
         return pl.DataFrame(schema=CHANGE_SCHEMA)
 
-    return pl.concat(rammer, how="diagonal_relaxed").sort("observed_at")
+    alt = pl.concat(rammer, how="diagonal_relaxed").sort("observed_at")
+    return alt if ufiltrert else fjern_personformer(alt)

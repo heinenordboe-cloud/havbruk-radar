@@ -65,11 +65,23 @@
 <section class="ark seksjon">
   <div class="uke-sammendrag uke-sammendrag--bred">
     {% if valgt %}
-    <p>{{ rader|length }} av {{ u.antall }} endringer i {{ u.vist }} er
+    <p>{{ rader|length }} av {{ u.antall_rader }} rader i {{ u.vist }} er
       {{ valgt.navn|lower }} — {{ valgt.hva }}.</p>
     {% else %}
     <p>{{ u.antall }} endringer observert i {{ u.vist }}, fordelt på
-      {{ u.typer|selectattr("antall")|list|length }} slag.</p>
+      {{ u.typer|selectattr("antall")|rejectattr("teller", "defined")|list|length }} slag.</p>
+    {% endif %}
+    {# DE TO TALLENE ER IKKE DET SAMME, og forskjellen skjules ikke.
+       «Felt oppgitt første gang» og «Felt ikke lenger oppgitt» er
+       opplysninger om hva KILDEN rapporterer, ikke om hva som skjedde
+       i havbruket, og de telles derfor ikke i tallet over. De står i
+       tabellen. #}
+    {% if u.utenfor_tellingen %}
+    <p class="tabellnote">
+      {{ u.utenfor_tellingen }} rader til står i tabellen uten å telle
+      med: de sier at kilden begynte eller sluttet å oppgi et felt om en
+      oppføring, ikke at noe skjedde med oppføringen.
+    </p>
     {% endif %}
   </div>
 
@@ -102,7 +114,7 @@
     <li>
       <a class="typemerke{% if not valgt %} typemerke--valgt{% endif %}"
          href="/endringer/{{ u.slug }}/">
-        Alle <span class="typemerke-tall">{{ u.antall }}</span>
+        Alle <span class="typemerke-tall">{{ u.antall_rader }}</span>
       </a>
     </li>
     {% for k in u.typer %}
@@ -119,8 +131,8 @@
        aria-labelledby="endringer-uke-tittel" tabindex="0">
   <table id="endringer-uke">
     <caption id="endringer-uke-tittel">
-      <span data-teller>Viser {{ rader|length }} av {{ u.antall }}</span>
-      endringer i {{ u.vist }}.
+      <span data-teller>Viser {{ rader|length }} av {{ u.antall_rader }}</span>
+      rader i {{ u.vist }}.
     </caption>
     <thead>
       <tr>
@@ -185,7 +197,7 @@
     <a href="/endringer/{{ u.slug }}/endringer.json">JSON</a> ·
     <a href="/endringer/feed.xml">Atom-feed</a>
     <span class="nedlasting-note">Begge filene har alle
-      {{ u.antall }} hendelsene i uka, ikke bare de som vises her.</span>
+      {{ u.antall_rader }} radene i uka, ikke bare de som vises her.</span>
   </p>
 </section>
 

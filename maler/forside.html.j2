@@ -118,8 +118,9 @@
         </li>
       </ol>
       <figcaption>
-        {{ fl.antall }} lokaliteter fikk ny trafikklysfarge i
-        Akvakulturregisteret. Utgivelsen er
+        {{ fl.antall }} produksjonsområder fikk ny trafikklysfarge i
+        Akvakulturregisteret, ført på hver av de
+        {{ fl.lokaliteter }} lokalitetene i dem. Utgivelsen er
         <strong>kildens</strong> tidspunkt, observasjonen er
         <strong>vårt</strong>. {{ fl.note }}
       </figcaption>
@@ -149,7 +150,7 @@
   <table id="endringer-uke">
     <caption id="endringer-uke-tittel">
       {% if f.uke %}
-      De {{ f.rader|length }} nyeste av {{ f.uke.antall }} endringer i
+      De {{ f.rader|length }} nyeste av {{ f.uke.antall_rader }} radene i
       {{ f.uke.vist }}.
       {% else %}
       Ingen uker med endringer ennå.
@@ -206,7 +207,7 @@
   <p class="tabellnote">
     {% if f.flere_rader %}
     <a class="videre" href="/endringer/{{ f.uke.slug }}/">Alle
-      {{ f.uke.antall }} endringene i {{ f.uke.vist }} →</a>
+      {{ f.uke.antall_rader }} radene i {{ f.uke.vist }} →</a>
     {% endif %}
     <strong>«Observert»</strong> er datoen vi så endringen i
     øyeblikksbildet, ikke datoen registeret gjorde den. Registeret

@@ -277,8 +277,8 @@ def _les(sti: Path) -> pl.DataFrame:
     return _les_med_tall(sti)[0]
 
 
-def _les_med_tall(sti: Path) -> tuple[pl.DataFrame, dict[str, int]]:
-    """Døra, og HVA DEN TOK: (ramme, {organisasjonsform: antall}).
+def _les_med_tall(sti: Path) -> tuple[pl.DataFrame, dict[str, int], list[str]]:
+    """Døra, og HVA DEN TOK: (ramme, {organisasjonsform: antall}, [id-er]).
 
     Den ene `read_parquet`-en i repoet står her, og det er grunnen til at
     telleren må bo i samme funksjon: et andre oppslag for å finne ut hva
@@ -294,6 +294,13 @@ def _les_med_tall(sti: Path) -> tuple[pl.DataFrame, dict[str, int]]:
     """
     raa = pl.read_parquet(sti)
     fjernet = persondata.tell_personer(raa)
+    # ID-ENE, IKKE BARE TALLET. `filtrert_bort()` viser aggregatet og
+    # skal fortsette med det; `personentiteter()` trenger hvem, fordi
+    # changeloggens dør ikke kan stille spørsmålet selv — en
+    # changelog-rad har `old_value` og `new_value` der et snapshot har
+    # `value`. Oppslaget skjer her av samme grunn som telleren gjør det:
+    # et andre oppslag ville vært en andre lesevei.
+    personer = persondata.person_ider(raa)
     frame = persondata.fjern_personformer(raa)
 
     # Snapshots skrevet før 24.08.2026 har ingen `utvalg`-kolonne. De
@@ -328,7 +335,7 @@ def _les_med_tall(sti: Path) -> tuple[pl.DataFrame, dict[str, int]]:
     # alle — inkludert biomasses 1809 ekte.
     if "domene" not in frame.columns:
         frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias("domene"))
-    return frame, fjernet
+    return frame, fjernet, personer
 
 
 def _en_verdi(frame: pl.DataFrame, kolonne: str) -> str | None:
@@ -570,6 +577,51 @@ def filtrert_bort(source: str, observed_at: str) -> dict[str, int]:
         for form, antall in _les_med_tall(sti)[1].items():
             ut[form] = ut.get(form, 0) + antall
     return dict(sorted(ut.items()))
+
+
+def personentiteter(source: str | None = None) -> frozenset[tuple[str, str]]:
+    """(kilde, entity_id) for hver entitet lesedøra tar ut.
+
+    `filtrert_bort()` svarer HVOR MANGE, og er aggregatet en rapport skal
+    vise. Denne svarer HVEM, og finnes fordi changeloggen ikke kan stille
+    spørsmålet selv: en changelog-rad har `old_value` og `new_value` der
+    et øyeblikksbilde har `value`, og `persondata._personene()` leser
+    `value`. Se `changelog.fjern_personformer()`.
+
+    ## Kostnaden, og hvorfor den ikke er 1 830 filer
+
+    En kilde probes på NYESTE fil. Bærer den verken `organisasjonsform`
+    eller `institusjonell_sektorkode`, kan ingen av kildens filer peke ut
+    en person, og resten leses ikke. MÅLT 23.09.2026: tre kilder svarer
+    ja, og 1 530 av de 1 830 filene — lusetall og sjøtemperatur — leses
+    aldri.
+
+    Svaret er et TAK på samme måte som `filtrert_bort()`: summert over
+    alle versjoner og alle datoer. En entitet som var en DA i 2024 og et
+    AS i 2026 står på lista, og det er riktig vei å ta feil på.
+    """
+    if not RAW_DIR.exists():
+        return frozenset()
+
+    ut: set[tuple[str, str]] = set()
+    kataloger = ([RAW_DIR / source] if source
+                 else sorted(k for k in RAW_DIR.iterdir() if k.is_dir()))
+    for katalog in kataloger:
+        if not katalog.is_dir():
+            continue
+        filer = sorted(katalog.glob("*.parquet"))
+        if not filer:
+            continue
+        nyeste, _, personer = _les_med_tall(filer[-1])
+        felt = set(nyeste["field"].unique().to_list()) if "field" in nyeste.columns else set()
+        if not felt & {persondata.FORM_FELT, persondata.SEKTOR_FELT}:
+            continue
+        for eid in personer:
+            ut.add((katalog.name, str(eid)))
+        for sti in filer[:-1]:
+            for eid in _les_med_tall(sti)[2]:
+                ut.add((katalog.name, str(eid)))
+    return frozenset(ut)
 
 
 def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]]:

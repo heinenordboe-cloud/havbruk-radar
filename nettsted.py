@@ -502,6 +502,36 @@ class Felles:
     sist_endret: dict[tuple[str, str], str]
 
 
+@lru_cache(maxsize=1)
+def _les_beveg() -> pl.DataFrame:
+    """Changeloggen slik NETTSTEDET skal lese den. Ett sted.
+
+    Tre merkinger og ett filter, i den rekkefølgen:
+
+        merk_utvalgsutvidelse   entiteten kom fordi VI begynte å spørre
+        merk_feltbevegelse      det var et FELT som kom eller gikk, ikke
+                                entiteten
+        bevegelse()             fjerner det som ikke skjedde i verden
+
+    ## Hvorfor det er én funksjon og ikke to like kall
+
+    Fram til 23.09.2026 sto de samme to linjene i `les_felles()` og i
+    `_endringer()`. De var like den dagen de ble skrevet, og en tredje
+    merking måtte legges inn to steder for at forsiden og
+    lokalitetssiden skulle si det samme om den samme raden. Det er
+    formen F6 og F7 hadde: ett oppslag gjort på nytt et sted til.
+
+    ## Hvorfor `merk_feltbevegelse` bare får de ukentlige kildene
+
+    Oppslagskostnad, ikke definisjon. Se funksjonens egen docstring:
+    1 528 av 1 569 (kilde, dato)-par er lusetall og sjøtemperatur, som
+    ikke vises som ukesendringer i det hele tatt.
+    """
+    alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
+    alle = changelog.merk_feltbevegelse(alle, kilder=ukentlige_kilder())
+    return diff.bevegelse(alle)
+
+
 def les_felles() -> Felles:
     """Leser snapshots og changelog én gang. Tar ~14 s.
 
@@ -523,10 +553,8 @@ def les_felles() -> Felles:
     for o in _overforinger().values():
         ovf_per_till[o.get("tillatelse_nr", "")].append(o)
 
-    # Changeloggen én gang. `bevegelse()` har alt filtrert bort
-    # utvalgsutvidelse og revisjon — se docs/ARKITEKTUR.md.
-    alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
-    beveg = diff.bevegelse(alle)
+    # Changeloggen én gang, gjennom den ENE lesedøra — se `_les_beveg()`.
+    beveg = _les_beveg()
     maaleserie = sorted(MAALESERIER)
 
     # SKILLET GÅR PÅ (kilde, felt) — se `er_maaleserie()`. Ramma
@@ -989,8 +1017,7 @@ def _endringer(loknr: str, tillatelser: list[str]
     `ENDRINGER_UTELATT`. Lista står der og ikke her fordi
     `_endringer_av_indeks()` skal svare det samme.
     """
-    alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
-    beveg = diff.bevegelse(alle)
+    beveg = _les_beveg()
 
     mine = beveg.filter(
         (pl.col("entity_id") == loknr)
@@ -1254,10 +1281,35 @@ ENDRINGSTYPER = (
      "hva": "hvem som eier en tillatelse"},
     {"id": "tillatelse", "navn": "Tillatelse",
      "hva": "tillatelsens formål, kapasitet eller lokaliteter"},
-    {"id": "ny", "navn": "Ny i registeret",
-     "hva": "en lokalitet, tillatelse eller et selskap vi ikke så forrige uke"},
-    {"id": "borte", "navn": "Ute av registeret",
-     "hva": "en oppføring som var der forrige uke og ikke er det nå"},
+    # «I VÅRT UTVALG», IKKE «I REGISTERET». Skillet er målt, ikke
+    # forsiktighet: 23.09.2026 slo vi opp alle de 29 selskapene uke 39
+    # kalte «Ute av registeret» mot Brønnøysunds åpne API. 20 av dem
+    # sto der fortsatt og hadde byttet næringskode ut av lista vår
+    # (til 68.200 eiendom, 55.100 hotell, 10.410 fôr …), 2 var faktisk
+    # slettet, og 7 hadde aldri forsvunnet — se `felt_borte`.
+    #
+    # Vår luke inn i Enhetsregisteret ER et næringskodesøk. En entitet
+    # som går ut av lista går ut av SØKET, og fra to øyeblikksbilder
+    # alene kan ingen se hvilket av de to som skjedde. Da er det
+    # svakeste sanne utsagnet det eneste vi har lov til å trykke.
+    {"id": "ny", "navn": "Ny i vårt utvalg",
+     "hva": "en lokalitet, tillatelse eller et selskap som ikke var med "
+            "forrige uke. Utvalget vårt er et søk, så «ny for oss» er "
+            "ikke det samme som «ny i registeret»"},
+    {"id": "borte", "navn": "Ute av vårt utvalg",
+     "hva": "en oppføring som var med forrige uke og ikke er det nå. "
+            "Den kan være slettet fra registeret, eller ha fått en "
+            "næringskode utenfor søket vårt — vi kan ikke se hvilket"},
+
+    # FELTET KOM ELLER GIKK, ikke entiteten. Telles ikke i ukas tall:
+    # at et selskap begynner å oppgi antall ansatte er en opplysning om
+    # rapporteringen, ikke en hendelse i havbruket. Raden STÅR likevel,
+    # på entitetens egen tidslinje, fordi kilden selv skiller «gikk til
+    # null» fra «sluttet å rapportere» og vi lagrer det skillet.
+    {"id": "felt_ny", "navn": "Felt oppgitt første gang", "teller": False,
+     "hva": "kilden oppgir et felt om denne oppføringen for første gang"},
+    {"id": "felt_borte", "navn": "Felt ikke lenger oppgitt", "teller": False,
+     "hva": "kilden sluttet å oppgi et felt om denne oppføringen"},
     {"id": "lokalitet", "navn": "Lokalitetsopplysning",
      "hva": "navn, kommune, arter, kapasitet eller posisjon"},
     {"id": "biomasse", "navn": "Fisk til stede",
@@ -1275,6 +1327,33 @@ ENDRINGSTYPER = (
 # samme grunn som `visningsord.UKJENTE`.
 UKJENTE_ENDRINGER: defaultdict = defaultdict(int)
 
+# Hvilke slag som telles i «X endringer denne uka». Utledet av
+# `ENDRINGSTYPER`, aldri listet ved siden av — to lister som skal si det
+# samme er to steder å glemme det.
+TELLER = {k["id"]: k.get("teller", True) for k in ENDRINGSTYPER}
+
+# Feltene der ÉN beslutning står skrevet på hver lokalitet i et
+# produksjonsområde.
+#
+# ## MÅLT uke 39, og det er derfor regelen finnes
+#
+# `akvakultur.prodomraade_status` ga 362 rader den 21.09.2026. De er
+# ikke 362 hendelser — de er FIRE:
+#
+#     PO  4   RØD   -> GUL   137 lokaliteter
+#     PO  9   GRØNN -> GUL   109
+#     PO 10   GRØNN -> GUL    72
+#     PO 11   GRØNN -> GUL    44
+#
+# Hver lokalitet i området fikk samme nye verdi samme dag, fordi
+# fargen ikke er en egenskap ved lokaliteten. Den er en egenskap ved
+# OMRÅDET, ført på hver lokalitet av registeret.
+#
+# Det er nøyaktig samme form som `ny`/`borte`: én hendelse skrevet én
+# gang per rad kilden har. Forskjellen er bare hva raden deles på —
+# entiteten der, området her.
+SAMLES_PER_OMRAADE = frozenset({("akvakultur", "prodomraade_status")})
+
 
 def endringstype(source: str, field: str, change_type: str) -> str:
     """Hvilken av `ENDRINGSTYPER` en changelog-rad hører til.
@@ -1286,7 +1365,7 @@ def endringstype(source: str, field: str, change_type: str) -> str:
     opp samtidig, er hvordan `diff.compare()` skriver det — ikke hva som
     skjedde. Se `_ukens_hendelser()`, som slår dem sammen per entitet.
     """
-    if change_type in ("ny", "borte"):
+    if change_type in ("ny", "borte", diff.FELT_NY, diff.FELT_BORTE):
         return change_type
     nøkkel = (source, field)
     if nøkkel in ENDRINGSTYPE_REGLER:
@@ -1382,6 +1461,18 @@ def _ukeslug(dato: str) -> str:
     """
     aar, ukenr = _isouke(dato)
     return f"{aar}-{ukenr:02d}"
+
+
+def _po_av_endring(rad: dict, felles: Felles) -> str:
+    """Produksjonsområdet raden gjelder, lest av lokaliteten.
+
+    Nøkkelen `SAMLES_PER_OMRAADE` slår sammen på. Tom streng når
+    lokaliteten ikke er i et område vi kjenner — og da blir nøkkelen
+    delt med andre uten område, som er riktig: vi kan ikke påstå at de
+    hører til det samme.
+    """
+    a = felles.akva.get(str(rad["entity_id"])) or {}
+    return str(a.get("prodomraade_kode") or "")
 
 
 def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
@@ -1540,6 +1631,32 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         gjelder_navn = f"En oppføring i {kilde}"
         gjelder_slag = kilde
 
+    # EN OMRÅDEBESLUTNING GJELDER OMRÅDET, ikke den lokaliteten som
+    # tilfeldigvis var den første raden i gruppa. Uten dette ville uke
+    # 39 sagt «OTERNESET: rød -> gul» om et vedtak som traff 137
+    # lokaliteter, og navnet hadde vært det eneste som skilte den fra
+    # de 136 andre som ikke sto der.
+    omfang = 1
+    if (kilde, felt) in SAMLES_PER_OMRAADE:
+        omfang = antall_felt
+        kode = _po_av_endring(rad, felles)
+        navn = felles.po_navn.get(kode, "")
+        # NAVNET ALENE, ikke «Produksjonsområde 4 Nordhordland til
+        # Stadt». Cellen merkes `prodomraade_navn`, og porten slår
+        # verdien opp i hvitelista: en sammensatt streng står ikke der,
+        # og MÅLT stoppet den publiseringen med 16 `ukjent_navn`. Det er
+        # samme feil som «Eier: X → Y» gjorde i endringscellen — en
+        # merking skal peke på ÉN verdi fra kilden.
+        #
+        # Nummeret står i sin egen kolonne, som for enhver annen rad.
+        gjelder_navn = navn or (f"Produksjonsområde {kode}" if kode
+                                else "Lokaliteter uten produksjonsområde")
+        gjelder_felt = "prodomraade_navn" if navn else "gjelder"
+        gjelder_url = f"/produksjonsomrade/{kode}/" if kode else ""
+        gjelder_slag = "produksjonsomrade"
+        po, po_navn = kode, navn
+        lok_navn = lok_url = kommune = ""
+
     raa_fra = rad["old_value"] if rad["old_value"] is not None else ""
     raa_til = rad["new_value"] if rad["new_value"] is not None else ""
     if endring == "ny":
@@ -1587,6 +1704,9 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         "fra_klasse": FARGE_KLASSE.get(_fargekode(fra_raa), ""),
         "til_klasse": FARGE_KLASSE.get(_fargekode(til_raa), ""),
         "er_farge": slag == "trafikklys",
+        # HVOR MANGE RADER HENDELSEN ER SLÅTT SAMMEN AV. 1 for alt
+        # annet enn en områdebeslutning, og da er det lokaliteter.
+        "omfang": omfang,
         "gjelder": gjelder_navn,
         "gjelder_felt": gjelder_felt,
         # IDENTITETEN SOM PUBLISERES, som er noe annet enn `entity_id`.
@@ -1658,15 +1778,31 @@ def les_endringsuker(felles: Felles) -> list[dict]:
 
     mine = beveg.filter(pl.col("source").is_in(ukentlige))
 
-    # `ny`/`borte`: ett kall per (kilde, entitet, dato), med antall felt.
+    # TO SLAGS SAMMENSLÅING, og de har hver sin nøkkel fordi de svarer
+    # på hver sin «hva skjedde egentlig én gang her».
+    #
+    #   ny/borte      per (kilde, entitet, dato). Én oppføring som kom
+    #                 eller gikk, skrevet én gang per felt.
+    #   trafikklys    per (produksjonsområde, fra, til, dato). ÉN
+    #                 fargebeslutning, skrevet én gang per lokalitet i
+    #                 området — se `_po_av_endring()`.
+    #
+    # `felt_ny`/`felt_borte` slås IKKE sammen: der er hvert felt sin
+    # egen hendelse, og det er hele poenget med å skille dem ut.
     samlet: dict[tuple, dict] = {}
     rader: list[dict] = []
     for r in mine.iter_rows(named=True):
-        if r["change_type"] == "endret":
+        ct = str(r["change_type"])
+        if ct in ("ny", "borte"):
+            nøkkel = ("entitet", str(r["source"]), str(r["entity_id"]),
+                      ct, str(r["observed_at"]))
+        elif (str(r["source"]), str(r["field"])) in SAMLES_PER_OMRAADE:
+            nøkkel = ("omraade", str(r["source"]), str(r["field"]),
+                      _po_av_endring(r, felles), str(r["old_value"]),
+                      str(r["new_value"]), str(r["observed_at"]))
+        else:
             rader.append(_hendelse(r, felles))
             continue
-        nøkkel = (str(r["source"]), str(r["entity_id"]),
-                  str(r["change_type"]), str(r["observed_at"]))
         post = samlet.get(nøkkel)
         if post is None:
             samlet[nøkkel] = {"rad": r, "felt": 1}
@@ -1699,6 +1835,11 @@ def les_endringsuker(felles: Felles) -> list[dict]:
                            h["gjelder"]))
         datoer = sorted({h["dato"] for h in hendelser})
         antall = Counter(h["type"] for h in hendelser)
+        # UKAS TALL TELLER BARE DET SOM SKJEDDE I VERDEN. En rad med
+        # `teller: False` står i tabellen og i feeden, men ikke i
+        # «812 endringer» — samme asymmetri som `utvalgsutvidelse`:
+        # merket og beholdt, ikke summert. Se `ENDRINGSTYPER`.
+        telt = sum(n for t, n in antall.items() if TELLER.get(t, True))
         uker.append({
             "slug": slug,
             "aar": slug[:4],
@@ -1709,7 +1850,9 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "forste_dato": datoer[0],
             "siste_dato": datoer[-1],
             "hendelser": hendelser,
-            "antall": len(hendelser),
+            "antall": telt,
+            "antall_rader": len(hendelser),
+            "utenfor_tellingen": len(hendelser) - telt,
             "typer": [dict(k, antall=antall.get(k["id"], 0))
                       for k in ENDRINGSTYPER],
             "utenfor_uka": utenfor,
@@ -4790,8 +4933,16 @@ def _sammendrag(uke: dict | None) -> list[str]:
         return ["Ingen endringer i registrene denne uka. Alle felt står "
                 "som de sto forrige gang vi spurte."]
 
-    med_tall = sorted((k for k in uke["typer"] if k["antall"]),
+    # BARE SLAGENE SOM TELLER. «Felt oppgitt første gang» er ikke en
+    # hendelse i havbruket, og en oppsummering som sa «fordelt på ni
+    # slag» og listet det som nest størst, ville gjort rapportering om
+    # til aktivitet.
+    med_tall = sorted((k for k in uke["typer"]
+                       if k["antall"] and k.get("teller", True)),
                       key=lambda k: -k["antall"])
+    if not med_tall:
+        return ["Ingen endringer i registrene denne uka. Alle felt står "
+                "som de sto forrige gang vi spurte."]
     setninger = [
         f"{visningsord.tall(uke['antall'])} endringer observert i "
         f"{uke['vist']}, fordelt på {len(med_tall)} "
@@ -4802,8 +4953,9 @@ def _sammendrag(uke: dict | None) -> list[str]:
     if storst["id"] == "trafikklys":
         setninger.append(
             f"Akvakulturregisteret oppgir ny trafikklysfarge for "
-            f"{visningsord.tall(storst['antall'])} lokaliteter — "
-            f"forskriften dateres til vedtaksåret, og dette er uka "
+            f"{visningsord.tall(storst['antall'])} "
+            f"{'produksjonsområde' if storst['antall'] == 1 else 'produksjonsområder'}"
+            f" — forskriften dateres til vedtaksåret, og dette er uka "
             f"registeret fulgte den opp.")
     else:
         setninger.append(
@@ -4877,6 +5029,12 @@ def _forskriftslinje(felles: Felles, uke: dict | None) -> dict | None:
         "observert_vist": visningsord.dato(observert),
         "dager": dager,
         "antall": len(trafikklys),
+        # OMRÅDER OG LOKALITETER ER TO TALL. Registeret fører fargen på
+        # hver lokalitet, men beslutningen gjelder området — se
+        # `SAMLES_PER_OMRAADE`. Forsiden sier begge, fordi «4 områder»
+        # alene skjuler hvor mange som ble berørt og «362 lokaliteter»
+        # alene later som det var 362 vedtak.
+        "lokaliteter": sum(h.get("omfang", 1) for h in trafikklys),
         "runde": runder[-1][:4],
         "note": ("Koblingen mellom de to datoene er vår lesning. Ingen "
                  "felt i noen av kildene viser til den andre — "

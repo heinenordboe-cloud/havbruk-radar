@@ -47,9 +47,40 @@ REVIDERT = "revidert"
 # historikken som ikke kan rettes.
 TAUSHET = "taushet"
 
+# ET FELT kom eller gikk — ikke entiteten.
+#
+# `compare()` skriver `ny` og `borte` PER FELT, og det er riktig på
+# feltnivå: paret (entitet, felt) fantes ikke før, og finnes nå. Men en
+# leser som får «ny» servert, leser det om ENTITETEN, og de to faller
+# bare sammen når alle feltene kom samtidig.
+#
+# MÅLT 23.09.2026 for uke 39, mot snapshotene 14.09 og 21.09:
+#
+#     «ny» i enhetsregisteret     7 entiteter — 0 av dem nye. Alle sju
+#                                 står i BEGGE snapshots; seks fikk
+#                                 `antall_ansatte` for første gang og
+#                                 én `mva_registreringsdato`.
+#     «borte» i enhetsregisteret  29 entiteter — 7 av dem står i begge,
+#                                 og mistet bare `antall_ansatte`.
+#
+# Nettstedet skrev «Ny i registeret» og «Ute av registeret» om alle
+# sammen. Merket settes av `changelog.merk_feltbevegelse()`, som spør
+# snapshotene om entiteten finnes på BEGGE sider.
+FELT_NY = "felt_ny"
+FELT_BORTE = "felt_borte"
+
 # Endringstypene som beskriver at noe skjedde i verden. Alt utenfor er
 # noe som skjedde med OSS eller med KILDEN, og telles ikke som aktivitet
 # — se `bevegelse()`.
+#
+# FELT_NY OG FELT_BORTE STÅR IKKE HER, og det er et valg. At et selskap
+# begynner eller slutter å oppgi antall ansatte, er en opplysning om
+# selskapet og ikke om oss — kilden sier det selv, i `ansatte_er_
+# registrert`, og `sources/enhetsregisteret.py` har lagret det feltet
+# siden begynnelsen nettopp for å kunne skille «gikk til null» fra
+# «sluttet å rapportere». De skal stå på entitetens tidslinje. De skal
+# bare ikke telles som «ny i registeret», og det er en sak for
+# VISNINGEN — se `nettsted.ENDRINGSTYPER` og feltet `teller`.
 IKKE_BEVEGELSE = frozenset({UTVALGSUTVIDELSE, REVIDERT, TAUSHET})
 
 

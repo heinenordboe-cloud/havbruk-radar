@@ -21,6 +21,7 @@ import json
 import re
 from pathlib import Path
 
+import polars as pl
 import pytest
 
 import kart
@@ -1605,8 +1606,9 @@ def _forside(**overstyr) -> str:
         "slug": "2026-39", "aar": "2026", "ukenr": "39",
         "vist": "uke 39, 2026", "spenn": "21.–27. september 2026",
         "datoer": ["2026-09-21"], "forste_dato": "2026-09-21",
-        "siste_dato": "2026-09-21", "hendelser": [hendelse], "antall": 812,
-        "typer": [dict(k, antall=(362 if k["id"] == "trafikklys" else 0))
+        "siste_dato": "2026-09-21", "hendelser": [hendelse], "antall": 440,
+        "antall_rader": 453, "utenfor_tellingen": 13,
+        "typer": [dict(k, antall=(4 if k["id"] == "trafikklys" else 0))
                   for k in nettsted.ENDRINGSTYPER],
         "utenfor_uka": 32979,
     }
@@ -1618,7 +1620,7 @@ def _forside(**overstyr) -> str:
         "eierskap_dato": "2026-09-21",
 
         "uke": uke,
-        "sammendrag": ["812 endringer observert i uke 39, 2026."],
+        "sammendrag": ["440 endringer observert i uke 39, 2026."],
         "forskriftslinje": None,
         "rader": [hendelse],
         "flere_rader": 804,
@@ -1676,8 +1678,12 @@ def test_forsiden_leder_med_uka_og_ikke_med_seg_selv():
     assert html.index('id="uka"') < html.index('id="kysten"')
     assert html.index('id="uka"') < html.index('arkivlinje')
     flat = " ".join(html.split())
-    assert "812 endringer observert i uke 39, 2026." in flat
-    assert "Alle 812 endringene i uke 39, 2026" in flat
+    # TO TALL, OG DE ER IKKE DET SAMME. `antall` er det som SKJEDDE;
+    # `antall_rader` er hvor mange rader tabellen har. De skilles fra
+    # 23.09.2026, fordi «felt oppgitt første gang» står i tabellen uten
+    # å være en hendelse i havbruket — se `nettsted.TELLER`.
+    assert "440 endringer observert i uke 39, 2026." in flat
+    assert "Alle 453 radene i uke 39, 2026" in flat
 
 
 def test_alle_endringstyper_vises_ogsaa_de_med_null():
@@ -2502,3 +2508,106 @@ def test_porten_ser_ikke_tankestreken_som_et_ukjent_navn():
     funn = [f for f in vakt.gransk_tekst(html, orgnr_ok, navn_ok)
             if f.slag == "ukjent_navn"]
     assert funn == [], funn
+
+
+# ========================================= én beslutning, én hendelse
+#
+# MÅLT uke 39: 362 rader i `akvakultur.prodomraade_status`, fordelt på
+# fire produksjonsområder som hver fikk én ny farge. Se
+# `nettsted.SAMLES_PER_OMRAADE`.
+
+def _felles_stubb(**overstyr):
+    """En `Felles` med bare det `les_endringsuker()` faktisk leser.
+
+    `SimpleNamespace` og ikke den ekte dataklassen, som de andre
+    stubbene i denne fila: testen skal falle hvis funksjonen begynner å
+    lese et felt den ikke leste før, ikke bare fylles ut med nuller.
+    """
+    from types import SimpleNamespace
+
+    grunn = dict(akva={}, enhet={}, eierskap={}, po_navn={},
+                 tillatelser_per_eier={}, vilkaar={},
+                 bevegelse=pl.DataFrame([]))
+    grunn.update(overstyr)
+    return SimpleNamespace(**grunn)
+
+
+def _po_rad(loknr, gammel, ny, dato="2026-09-21"):
+    return {"entity_id": loknr, "entity_type": "lokalitet",
+            "entity_name": f"LOK {loknr}", "field": "prodomraade_status",
+            "old_value": gammel, "new_value": ny, "change_type": "endret",
+            "source": "akvakultur", "observed_at": dato,
+            "forrige_observed_at": "2026-09-14", "forrige_fetched_at": "",
+            "published_at": "", "forrige_published_at": ""}
+
+
+def test_en_omradebeslutning_blir_en_hendelse(monkeypatch):
+    """Fargen er en egenskap ved OMRÅDET, ført på hver lokalitet av
+    registeret. Tre rader fra samme område er ett vedtak."""
+    felles = _felles_stubb(
+        akva={"1": {"navn": "A", "prodomraade_kode": "4"},
+              "2": {"navn": "B", "prodomraade_kode": "4"},
+              "3": {"navn": "C", "prodomraade_kode": "9"}},
+        po_navn={"4": "Nordhordland til Stadt", "9": "Vestfjorden"},
+        bevegelse=pl.DataFrame([_po_rad("1", "ROD", "GUL"),
+                                _po_rad("2", "ROD", "GUL"),
+                                _po_rad("3", "GRONN", "GUL")]))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    trafikk = [h for h in uke["hendelser"] if h["type"] == "trafikklys"]
+    assert len(trafikk) == 2, "to områder, ikke tre lokaliteter"
+    assert {h["gjelder"] for h in trafikk} == {"Nordhordland til Stadt",
+                                               "Vestfjorden"}
+    assert {h["omfang"] for h in trafikk} == {2, 1}
+
+
+def test_ulik_overgang_i_samme_omrade_er_to_hendelser():
+    """Nøkkelen er (område, fra, til). To områder som begge gikk til
+    gult fra hver sin farge, er to vedtak — og to lokaliteter i samme
+    område som gikk hver sin vei, er det også."""
+    felles = _felles_stubb(
+        akva={"1": {"navn": "A", "prodomraade_kode": "4"},
+              "2": {"navn": "B", "prodomraade_kode": "4"}},
+        po_navn={"4": "Nordhordland til Stadt"},
+        bevegelse=pl.DataFrame([_po_rad("1", "ROD", "GUL"),
+                                _po_rad("2", "GRONN", "GUL")]))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    assert len([h for h in uke["hendelser"] if h["type"] == "trafikklys"]) == 2
+
+
+def test_felt_som_kom_telles_ikke_som_ukas_endring():
+    """«Felt oppgitt første gang» står i tabellen og ikke i tallet. At
+    et selskap begynner å oppgi antall ansatte, er en opplysning om
+    rapporteringen — ikke en hendelse i havbruket."""
+    rad = {"entity_id": "912345678", "entity_type": "selskap",
+           "entity_name": "Testlaks AS", "field": "antall_ansatte",
+           "old_value": None, "new_value": "12",
+           "change_type": nettsted.diff.FELT_NY, "source": "enhetsregisteret",
+           "observed_at": "2026-09-21", "forrige_observed_at": "2026-09-14",
+           "forrige_fetched_at": "", "published_at": "",
+           "forrige_published_at": ""}
+    felles = _felles_stubb(
+        enhet={"912345678": {"navn": "Testlaks AS", "kommune": "BODØ"}},
+        bevegelse=pl.DataFrame([rad]))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    assert uke["antall_rader"] == 1, "raden står"
+    assert uke["antall"] == 0, "men den telles ikke"
+    assert uke["utenfor_tellingen"] == 1
+
+
+def test_borte_paastar_ikke_at_noe_forsvant_fra_registeret():
+    """MÅLT 23.09.2026 mot Brønnøysunds åpne API: av de 29 selskapene
+    uke 39 kalte «Ute av registeret», sto 20 der fortsatt og hadde
+    byttet næringskode ut av søket vårt. Utvalget vårt ER et søk."""
+    etiketter = {k["id"]: k["navn"] for k in nettsted.ENDRINGSTYPER}
+    assert etiketter["borte"] == "Ute av vårt utvalg"
+    assert etiketter["ny"] == "Ny i vårt utvalg"
+    hva = {k["id"]: k["hva"] for k in nettsted.ENDRINGSTYPER}
+    assert "næringskode" in hva["borte"], (
+        "forklaringen må si hvorfor en oppføring kan forsvinne uten å "
+        "være slettet — ellers er etiketten bare vagere, ikke sannere")
