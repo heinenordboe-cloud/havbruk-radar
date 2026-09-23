@@ -275,3 +275,32 @@ i ti år).
 
 Se `docs/beslutninger/2026-08-24-utvalgsutvidelse-er-ikke-endring.md`.
 Designrunden har ikke rørt noen av dem.
+
+### 8. Ingen test måler en side som er LAGT UT
+
+Fra 23.09.2026.
+
+Forsiden rullet vannrett ved 390 px fra den ble bygget til den ble
+skjermbildet — `document.scrollWidth` var 489 der viewporten var 390.
+Den var den eneste av sju sidetyper med feilen, og 1 056 tester var
+grønne hele tiden.
+
+Grunnen er at ingen av dem måler et LAYOUT. `test_kontrast.py` leser
+CSS-en som tekst og regner luminans; `test_markupkontrakt.py` leser
+malene som tekst og krever `data-felt` og `scope`; resten leser data.
+Ingen av dem vet hvor bred en `<figure>` ble.
+
+En slik test krever en nettleser, og en nettleser er 200 MB som må
+holdes oppdatert — den samme avveiningen som pagefind-binæren, men med
+en vesentlig forskjell: pagefind-binæren er valgfri og bygget SIER fra
+når den mangler. En layouttest som ikke kan kjøre, er en test som
+stille slutter å gjelde, og det er formen på F4 og F8.
+
+**Spørsmålet:** skal repoet ha en layoutprøve som krever Chrome, kjørt
+manuelt før en designendring pushes og med et skript i `docs/`, eller
+skal bredden håndheves i CSS-en selv — for eksempel med en regel om at
+hvert rutenett må oppgi `grid-template-columns`, og en tekstprøve som
+leser CSS-en slik kontrastprøven gjør?
+
+Den andre veien fanger nettopp denne feilen og koster ingenting. Den
+fanger ikke neste, som blir noe annet.
