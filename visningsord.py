@@ -111,6 +111,41 @@ PLASSERING = {
 
 KLARERING = {"PERMANENT": "permanent", "TEMPORARY": "midlertidig"}
 
+# `versjon_status` — hva registeret sier om SELVE OPPFØRINGEN, ikke om
+# anlegget. MÅLT 22.09.2026: alle 1 782 lokaliteter har `APPROVED`.
+#
+# At kolonnen da er konstant er ikke en grunn til å utelate den: feltet
+# finnes for å kunne være noe annet, og en side som bare viste det når
+# det var noe annet ville vært en side der ingen kjenner normalverdien.
+VERSJONSSTATUS = {
+    "APPROVED": "godkjent",
+    "PENDING": "til behandling",
+    "REJECTED": "avslått",
+    "WITHDRAWN": "trukket",
+}
+
+# `versjon_aarsak` — hvorfor registeret laget en ny versjon av
+# oppføringen. Kildens egne koder, oversatt. Alle 16 er MÅLT i nyeste
+# snapshot; en kode som ikke står her vises ordrett og telles.
+VERSJONSAARSAK = {
+    "NEW_SITE": "ny lokalitet",
+    "IMPORTED": "importert fra gammelt register",
+    "SYNCH_FROM_OLD_AREG": "synkronisert fra gammelt register",
+    "COORDINATES": "koordinater endret",
+    "CAPACITY_CHANGE": "kapasitet endret",
+    "CAPACITY_ADJUSTMENT": "kapasitet justert",
+    "AREA_EVENT": "arealhendelse",
+    "AREA_PLACEMENT": "arealplassering",
+    "JOINT_OPERATIONS": "samdrift startet",
+    "JOINT_OPERATIONS_ENDED": "samdrift avsluttet",
+    "JOINT_OPERATIONS_SHARE_CHANGED": "samdriftsandel endret",
+    "TEMP_SITE_PERM_GRANTED": "midlertidig lokalitet gjort permanent",
+    "PERM_SITE_TEMP_GRANTED": "permanent lokalitet gjort midlertidig",
+    "PERM_SITE_RESURRECTED": "permanent lokalitet gjenopprettet",
+    "SITE_GRANT_EXTENDED": "klarering forlenget",
+    "DECISION_STATUS_CHANGED": "vedtaksstatus endret",
+}
+
 # Tre, ikke to. `kapitteloverskrift` står ikke i nyeste vedtak, men i
 # changeloggen: 4 rader fra 2020-12-31, PO 4 og PO 5. Ordene er kildens
 # egne og oversettes ikke — de er termer med en definisjon i
@@ -133,6 +168,8 @@ KODET: dict[str, dict[str, str]] = {
     "vanntype": VANNTYPE,
     "plasseringstype": PLASSERING,
     "klareringstype": KLARERING,
+    "versjon_status": VERSJONSSTATUS,
+    "versjon_aarsak": VERSJONSAARSAK,
     "farge__lesemaate": LESEMAATE,
     "prodomraade_status": {k.upper(): v for k, v in FARGE.items()}
                           | {"RØD": "rød", "GUL": "gul", "GRØNN": "grønn"},

@@ -489,6 +489,10 @@ class Felles:
     # observert. Se `_biomasselag()`.
     biomasselag: dict[str, list[dict]]
     biomasselag_uker: list[str]
+    # {po: [måned]} — offentlige beholdningstall per produksjonsområde,
+    # og {po: nyeste published_at}. Se `_biomasse()`.
+    biomasse: dict[str, list[dict]]
+    biomasse_utgitt: dict[str, str]
     # {(entity_id, felt): siste observed_at} — når vi sist SÅ feltet
     # endre seg. Brukes i «Sist endret»-kolonnen i registertabellene.
     sist_endret: dict[tuple[str, str], str]
@@ -574,6 +578,7 @@ def les_felles() -> Felles:
 
     enhet_dato, enhet = _siste("enhetsregisteret")
     biolag, biolag_uker = _biomasselag()
+    bio_serier, bio_utgitt = _biomasse()
 
     return Felles(
         akva_dato=akva_dato, akva=akva,
@@ -600,6 +605,8 @@ def les_felles() -> Felles:
         po_naa=_po_naa(akva),
         biomasselag=biolag,
         biomasselag_uker=biolag_uker,
+        biomasse=bio_serier,
+        biomasse_utgitt=bio_utgitt,
         sist_endret=sist_endret_av(beveg),
     )
 
@@ -1562,6 +1569,225 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
     return rader
 
 
+# ---------------------------------------------------- FORSKRIFTSRUNDENE
+#
+# Hvilken forskrift som uttaler seg om hvilken runde, LEST AV KILDEN og
+# ikke gjengitt her. `sources/trafikklysvedtak.FORSKRIFTER` er tabellen
+# som `gjenkjenn()` bruker for å avgjøre hvilket dokument en kropp ER,
+# og den bærer tittel, FOR-nummer, runder og URL. En kopi hos
+# publiseringsleddet ville vært en andre liste som kan bli stående
+# gammel — formen F6 og F7 hadde.
+
+
+def forskrift_for_runde(aar: str) -> dict:
+    """{tittel, id, url} for forskriften som gir fargen i runde `aar`.
+
+    NYESTE forskrift som dekker runden, og ikke den eldste. Grunnen er
+    at det er den vi faktisk viser: hver runde skrives først av den
+    eldste forskriften som dekker den og revideres deretter av de nyere
+    (se `backfill.py --rapporter`), så verdien i nyeste
+    `<aar>-12-31.parquet` kommer fra den nyeste kroppen.
+
+    Tom dict for en runde ingen forskrift i tabellen dekker. Da står
+    ingen lenke — en lenke til et dokument vi ikke har lest ville vært
+    en påstand om hvor tallet kom fra.
+    """
+    from sources.trafikklysvedtak import FORSKRIFTER
+
+    try:
+        runde = int(aar)
+    except (TypeError, ValueError):
+        return {}
+    treff = [f for f in FORSKRIFTER if runde in f.aar]
+    if not treff:
+        return {}
+    siste = treff[-1]
+    return {"tittel": siste.tittel, "id": siste.forskrift_id,
+            "url": siste.url, "merknad": siste.merknad}
+
+
+# ------------------------------------------------------- BIOMASSEGRAFEN
+#
+# ## HVORFOR DEN STÅR HER OG IKKE PÅ LOKALITETSSIDEN
+#
+# Overleveringen tegner biomassesøyler på lokalitetssiden.
+# Fiskeridirektoratets offentlige biomassetall er per
+# PRODUKSJONSOMRÅDE — se docs/KILDE-BIOMASSE.md — og mengdetallene per
+# lokalitet ligger i biomassedatabasen etter
+# akvakulturdriftsforskriften § 44, som er børssensitiv og ikke
+# offentlig (bekreftet av HI 09.09.2026).
+#
+# Grafen er derfor flyttet dit tallene finnes. Lokalitetssiden har i
+# stedet en ukestripe med ja/nei fra biomasselaget. Se avvik 1 i
+# oppdraget.
+#
+# ## BIOMASSE REVIDERER FORTIDEN, og grafen må si det
+#
+# CLAUDE.md 1b-5: fila publiseres på nytt den 20. hver måned, og hver
+# publisering kan endre tall helt tilbake til 2017. MÅLT 25.08.2026 mot
+# en Wayback-kopi fra 07.08.2024: 490 av 3 973 felles rader (12,3 %)
+# endret, i hvert eneste år i serien.
+#
+# Grafen viser NYESTE PÅSTAND om hver måned. Det er ikke det samme som
+# «tallet for den måneden», og forskjellen står i bildeteksten framfor
+# å bli pusset bort.
+
+BIOMASSE_BREDDE = 900
+BIOMASSE_HOYDE = 200
+BIOMASSE_MARG = {"v": 56, "h": 12, "o": 14, "u": 28}
+
+
+def biomassegraf(serie: list[dict]) -> dict | None:
+    """Månedlige søyler over beholdningen i tonn, eller None.
+
+    Samme grammatikk som lusegrafen — søyler, ikke en kurve — og av
+    samme grunn: et månedstall er én påstand om én måned, ikke et punkt
+    på en kontinuerlig kurve.
+    """
+    if not serie:
+        return None
+    verdier = []
+    for m in serie:
+        try:
+            verdier.append(float(m["tonn"]))
+        except (KeyError, TypeError, ValueError):
+            verdier.append(None)
+    if not any(v is not None for v in verdier):
+        return None
+
+    maks = max(v for v in verdier if v is not None)
+    tak, trinn = _grafskala(maks / 1000.0)      # skalaen regnes i kilotonn
+    tak, trinn = tak * 1000.0, trinn * 1000.0
+    n = len(serie)
+    v, h, o, u_ = (BIOMASSE_MARG["v"], BIOMASSE_MARG["h"],
+                   BIOMASSE_MARG["o"], BIOMASSE_MARG["u"])
+    plott_b = BIOMASSE_BREDDE - v - h
+    plott_h = BIOMASSE_HOYDE - o - u_
+    bunn = o + plott_h
+    steg = plott_b / n
+    bredde = round(max(steg * 0.82, 0.8), 2)
+
+    def x(i: int) -> float:
+        return round(v + steg * i, 1)
+
+    def y(verdi: float) -> float:
+        return round(o + plott_h * (1 - verdi / tak), 1)
+
+    gulv = 1.2
+    soyler = [{"x": x(i), "y": round(min(y(w), bunn - gulv), 1),
+               "h": round(max(bunn - y(w), gulv), 1),
+               "maaned": serie[i]["maaned"],
+               "verdi": visningsord.tall(round(w))}
+              for i, w in enumerate(verdier) if w is not None]
+
+    linjer = []
+    verdi = 0.0
+    while verdi <= tak + 1e-9:
+        linjer.append({"y": y(verdi), "verdi": verdi,
+                       "etikett": visningsord.tall(round(verdi / 1000))})
+        verdi += trinn
+
+    aar = [{"x": x(i), "etikett": m["maaned"][:4]}
+           for i, m in enumerate(serie)
+           if i and m["maaned"][:4] != serie[i - 1]["maaned"][:4]]
+    if aar:
+        hver = max(1, math.ceil(len(aar) * 34 / plott_b))
+        aar = aar[::hver]
+
+    return {
+        "bredde": BIOMASSE_BREDDE, "hoyde": BIOMASSE_HOYDE,
+        "plott_x": v, "plott_y": o,
+        "plott_bredde": plott_b, "plott_hoyde": plott_h,
+        "bunn": round(bunn, 1),
+        "soyler": soyler,
+        "soylebredde": bredde,
+        "linjer": linjer,
+        "aar": aar,
+        "maaneder": n,
+        "maaneder_med_tall": sum(1 for w in verdier if w is not None),
+        "maks": visningsord.tall(round(maks)),
+        "maks_maaned": serie[verdier.index(max(
+            w for w in verdier if w is not None))]["maaned"],
+        "siste": (visningsord.tall(round(verdier[-1]))
+                  if verdier[-1] is not None else ""),
+        "fra": serie[0]["maaned"],
+        "til": serie[-1]["maaned"],
+    }
+
+
+# Feltene biomassefila bærer, og som områdesiden viser. Eksplisitt
+# liste: en kilde som legger til et felt skal ikke endre en publisert
+# tabell uten at noen har bestemt det.
+BIOMASSEFELT = ("biomasse_kg", "beholdning_antall", "beholdning_antall_laks",
+                "beholdning_antall_regnbueorret", "utsett_smolt_antall",
+                "uttak_antall", "dodfisk_antall", "romming_antall",
+                "forforbruk_kg", "andel_av_beholdning")
+
+
+def _biomasse() -> tuple[dict[str, list[dict]], dict[str, str]]:
+    """({po: [måned, ...]}, {po: nyeste published_at}).
+
+    ## `observed_at` ER MÅNEDSSLUTT, ikke hentedatoen
+
+    Kilden er `verden`-partisjonert: fila for 2026-05-31 handler om mai
+    2026, uansett når vi hentet den. Det er derfor serien kan gå tilbake
+    til 2017 med seks uker med innsamling bak oss.
+
+    ## NYESTE PÅSTAND PER MÅNED
+
+    `snapshot.versjoner()` gir alle versjoner av samme dato, og vi tar
+    den siste. For en revisjonskilde er det et VALG og ikke en
+    selvfølge: de eldre versjonene er ikke feil, de er tidligere
+    påstander om den samme måneden (CLAUDE.md 1b-5). Grafen viser den
+    nyeste, og bildeteksten sier at det er det den gjør.
+    """
+    serier: dict[str, list[dict]] = defaultdict(list)
+    utgitt: dict[str, str] = {}
+    for dato in snapshot.datoer("biomasse"):
+        versjonene = snapshot.versjoner("biomasse", dato)
+        if not versjonene:
+            continue
+        _nr, ramme = versjonene[-1]
+        publisert = snapshot.published_at_i(ramme) or ""
+        per_po: dict[str, dict[str, str]] = defaultdict(dict)
+        for eid, felt, verdi in ramme.select(
+                ["entity_id", "field", "value"]).iter_rows():
+            if str(felt) in BIOMASSEFELT:
+                per_po[str(eid)][str(felt)] = verdi
+        for eid, raa in per_po.items():
+            kilo = raa.get("biomasse_kg") or ""
+            try:
+                tonn = float(kilo) / 1000.0
+            except ValueError:
+                tonn = None
+            serier[eid].append({
+                "maaned": dato,
+                "tonn": tonn,
+                "publisert": publisert,
+                **{f: (raa.get(f) or "") for f in BIOMASSEFELT},
+            })
+            if publisert > utgitt.get(eid, ""):
+                utgitt[eid] = publisert
+    return dict(serier), utgitt
+
+
+# Hvor mange uker med endringer områdesiden viser. Overleveringen sier
+# tolv; tallet står her og ikke i malen.
+PO_ENDRINGSUKER = 12
+
+
+def _po_fargerader(po: str, felles: Felles) -> list[dict]:
+    """Fargerundene med belegg OG lenke til forskriften.
+
+    Utvider `_fargerader()` med forskriftsopplysningene, som leses av
+    kilden — se `forskrift_for_runde()`.
+    """
+    ut = []
+    for r in _fargerader(po, felles):
+        ut.append(dict(r, forskrift=forskrift_for_runde(r["aar"])))
+    return ut
+
+
 def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
     """Alt én produksjonsområdeside trenger.
 
@@ -1569,48 +1795,101 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
     samme snapshotene, og en variant som leste selv ville vært en andre
     vei til samme side — formen F6 og F7 hadde.
     """
-    lokaliteter = [
-        {
+    lokaliteter = []
+    for loknr in felles.lokaliteter_per_po.get(po, ()):
+        a = felles.akva[loknr]
+        mine_till = {nr: felles.eierskap[nr] for nr in
+                     felles.tillatelser_per_lokalitet.get(loknr, ())}
+        ovf = [{"dato": o.get("journal_dato", ""),
+                "tillatelse": o.get("tillatelse_nr", ""),
+                "mottaker_navn": o.get("mottaker_navn", ""),
+                "mottaker_orgnr": o.get("mottaker_orgnr", "")}
+               for nr in mine_till
+               for o in felles.overforinger_per_tillatelse.get(nr, ())]
+        selskap = _lokalitetens_selskap(mine_till, ovf, felles.eierskap)
+        navn = visningsord.tittelform(a.get("navn", ""))
+        kommune = a.get("kommune", "")
+        lokaliteter.append({
             "loknr": loknr,
-            "navn": felles.akva[loknr].get("navn", ""),
-            "kommune": felles.akva[loknr].get("kommune", ""),
-            "kapasitet": visningsord.maalt(
-                felles.akva[loknr].get("kapasitet", ""),
-                felles.akva[loknr].get("kapasitet_enhet", "")),
-            "arter": visningsord.verdi("arter",
-                                       felles.akva[loknr].get("arter", "")),
-        }
-        for loknr in felles.lokaliteter_per_po.get(po, ())
-    ]
+            "navn": navn,
+            "original": a.get("navn", ""),
+            "kommune": kommune,
+            "selskap": selskap,
+            "status": visningsord.verdi("versjon_status",
+                                        a.get("versjon_status", "")),
+            "kapasitet": visningsord.maalt(a.get("kapasitet", ""),
+                                           a.get("kapasitet_enhet", "")),
+            "arter": visningsord.verdi("arter", a.get("arter", "")),
+            "sist_endret": max(
+                (d for (e, _f), d in felles.sist_endret.items() if e == loknr),
+                default=""),
+            # SØKENØKKELEN BYGGES HER og ikke av celletekst i
+            # nettleseren. Et treff på et kolonnenavn eller på en dato i
+            # en annen kolonne er et treff leseren ikke kan forklare.
+            # Se `omraadesok()` i maler/kystloggen.js.
+            "sok": " ".join(x.lower() for x in
+                            (loknr, navn, a.get("navn", ""), kommune,
+                             selskap.get("navn", "")) if x),
+        })
 
-    # Endringene for OMRÅDET. Måleseriene telles og vises ikke — samme
-    # regel som på lokalitetssiden, og for biomasse er forholdet 10 990
-    # mot 47. `ekspertgruppen` holdes helt utenfor: kilden er UBELAGT, og
-    # antallet oppgis framfor å forsvinne stille.
+    # Endringene for OMRÅDET SELV (trafikklysvedtak), og endringene i
+    # lokalitetene i det. To ulike ting: den første er et
+    # forvaltningsvedtak om området, den andre er hva som har skjedd med
+    # anleggene i det. De står i hver sin tabell framfor å blandes.
     rader = felles.registerendringer.get(po, ())
     ubelagt = ubelagte(felles.vilkaar)
-    register = [_endringsrad(r, po) for r in rader
-                if r["source"] not in MAALESERIER
-                and r["source"] not in ubelagt]
-    register.sort(key=lambda r: r["dato"], reverse=True)
+    om_omraadet = [_endringsrad(r, po) for r in rader
+                   if r["source"] not in MAALESERIER
+                   and r["source"] not in ubelagt]
+    om_omraadet.sort(key=lambda r: r["dato"], reverse=True)
 
+    mine = {l["loknr"] for l in lokaliteter}
+    uker = [u for u in les_endringsuker(felles)][:PO_ENDRINGSUKER]
+    i_omraadet = [h for u in uker for h in u["hendelser"]
+                  if h["entity_id"] in mine or h["po"] == po]
+
+    serie = felles.biomasse.get(po, [])
     return {
         "nr": po,
         "navn": felles.po_navn.get(po, ""),
         "status": (felles.akva[lokaliteter[0]["loknr"]].get("prodomraade_status", "")
                    if lokaliteter else ""),
+        "naa": (felles.po_naa.get(po)
+                or {"farge": FARGE_MANGLER, "klasse": "", "uenig": ""}),
         "akva_dato": felles.akva_dato,
-        "runder": _fargerader(po, felles),
+        "akva_hentet": felles.akva_hentet,
+        "runder": _po_fargerader(po, felles),
         "lokaliteter": lokaliteter,
         "lokaliteter_antall": len(lokaliteter),
-        "endringer": register,
+        "selskaper_antall": len({l["selskap"]["orgnr"] for l in lokaliteter
+                                 if l["selskap"]["orgnr"]}),
+        "uten_kjent_eier": sum(1 for l in lokaliteter
+                               if not l["selskap"]["orgnr"]),
+
+        # ---- biomassen, flyttet hit fra lokalitetssiden ----
+        "biomasse": biomassegraf(serie),
+        "biomasse_rader": list(reversed(serie[-24:])),
+        "biomasse_maaneder": len(serie),
+        "biomasse_utgitt": felles.biomasse_utgitt.get(po, ""),
+
+        # ---- endringene ----
+        "endringer": om_omraadet,
+        "i_omraadet": i_omraadet,
+        "endringsuker": len(uker),
         # FRA MÅLESERIEINDEKSEN, ikke fra `registerendringer` — den
         # inneholder per konstruksjon ingen måleserierader, så en telling
-        # der ville alltid gitt 0. Første utkast gjorde nettopp det, og
-        # sida ville påstått «0 biomasserader» der det er 840.
+        # der ville alltid gitt 0.
         "maaleserie_rader": felles.maaleserierader.get(po, 0),
         "ubelagte_rader": sum(1 for r in rader if r["source"] in ubelagt),
         "ubelagte_kilder": sorted(ubelagt),
+
+        "siter": {
+            "url": f"https://kystloggen.no/produksjonsomrade/{po}/",
+            "uke": visningsord.uke(felles.akva_dato),
+            "dato": visningsord.dato(felles.akva_dato),
+            "aar": felles.akva_dato[:4],
+            "sjekksum": felles.sjekksum,
+        },
     }
 
 
@@ -1805,7 +2084,14 @@ GRAF_BRAKK_HOYDE = 5
 
 # Trinnene en y-akse får lov å bruke. Et «pent» tall er ikke en estetisk
 # sak: 0,4 og 0,8 leses som fjerdedeler, 0,37 leses ikke som noe.
-GRAF_TRINN = (0.05, 0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0)
+# TRINNENE GÅR OPP TIL 1 000, og ikke bare til 10. Stigen stoppet der
+# så lenge den bare tjente lusegrafen, der 1,54 er en høy verdi. Da
+# biomassegrafen kom til 22.09.2026 — 108 kilotonn på det høyeste — falt
+# skalaen gjennom hele stigen og endte i reserven `maks / 4`, som ga
+# aksen 0 / 27 / 54 / 81 / 108. Et «pent» tall er ikke en estetisk sak:
+# 27 leses ikke som noe.
+GRAF_TRINN = (0.05, 0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0,
+              20.0, 25.0, 50.0, 100.0, 200.0, 250.0, 500.0, 1000.0)
 
 
 def _grafskala(maks: float) -> tuple[float, float]:
@@ -4226,6 +4512,7 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
                 felles.akva_dato, felles.akva_hentet,
                 "Forskriftsrundene er lest fra Lovdata."),
             meny_aktiv="produksjonsomrade",
+            main_klasse="fullbredde",
             feed=f"/produksjonsomrade/{po}/feed.xml",
             feed_tittel=f"Kystloggen: endringer i produksjonsområde {po}"),
     )

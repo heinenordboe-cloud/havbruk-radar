@@ -1,205 +1,494 @@
-{# Produksjonsområdesiden. Fargehistorikken, lokalitetene, endringene.
+{# Produksjonsområdesiden. Tretten sider.
 
    REKKEFØLGEN ER FARGEN FØRST. Det er det siden er til for: et
    forvaltningsvedtak som bestemmer om et område får vokse, stå stille
-   eller kutte. Fram til 20.09.2026 lå to avsnitt prosa foran den, og
-   den som slo opp området måtte lese seg forbi dem for å finne svaret.
-   Forbeholdet om at inndelingen er regulatorisk og ikke naturgitt er
-   ikke strøket — det står under «Hva denne siden ikke sier», sammen med
-   de to andre forbeholdene om området.
+   eller kutte. Forbeholdene om at inndelingen er regulatorisk og ikke
+   naturgitt står under «Hva denne siden ikke sier» — ikke foran
+   svaret.
 
-   CAPTION ER ÉN LINJE, forbeholdet er en `.tabellnote` UNDER tabellen.
-   Noten ligger utenfor `.tabellramme` med vilje: inne i ramma følger
-   den tabellen sidelengs når tabellen scroller. Se maler/stil.css.
+   TO KILDER TIL FARGE, og de svarer på hver sin ting:
+     `prodomraade_status`  hvilken farge som GJELDER NÅ, fra
+                           Akvakulturregisteret. Ingen tomme.
+     `trafikklysvedtak`    hva FORSKRIFTEN SA i hver runde, med belegg.
+                           19 av 65 celler er tomme, fordi forskriften
+                           bare navngir områder der noe endrer seg.
+   Begge står, og siden sier hvilken som er hvilken.
 
-   Ankernavnene er <kilde>-<hva>, som på lokalitetssiden — utledet av
-   kildenavnet i data/raw/ og av feltvokabularet, ikke av rekkefølgen på
-   siden. Se docs/beslutninger/2026-09-16-url-struktur.md.
+   BIOMASSEN STÅR HER og ikke på lokalitetssiden: de offentlige
+   mengdetallene er per produksjonsområde. Se `biomassegraf()` og
+   avvik 1 i oppdraget.
 
-   Markupkontrakten gjelder her som overalt: data-felt på hver
-   verdicelle, caption/thead/th scope på hver tabell, <time datetime> på
-   hver dato. Se docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md. #}
+   Ankernavnene er `<kilde>-<hva>`, som ellers — se
+   2026-09-16-url-struktur.md. Markupkontrakten gjelder. #}
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
 <div class="ark sidehode">
-<nav class="sti" aria-label="Du er her">
-  <ol>
-    <li><a href="/">Forside</a></li>
-    <li><a href="/produksjonsomrade/">Produksjonsområder</a></li>
-    <li aria-current="page">Område {{ po.nr }}</li>
-  </ol>
-</nav>
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Kystloggen</a></li>
+      <li><a href="/produksjonsomrade/">Produksjonsområder</a></li>
+      <li aria-current="page">Område {{ po.nr }}</li>
+    </ol>
+  </nav>
+
+  <h1><span data-navn>{{ po.navn }}</span></h1>
+  <p class="lok-undertittel">
+    Produksjonsområde {{ po.nr }} ·
+    {{ po.lokaliteter_antall }} lokaliteter ·
+    {{ po.selskaper_antall }} selskaper
+  </p>
+
+  <p class="knapperad">
+    <a class="knapp knapp--tynn" href="feed.xml">Følg området (feed)</a>
+    <a class="knapp knapp--tynn" href="#siter">Siter</a>
+  </p>
+
+  {# TRAFIKKLYSET, STORT. Én blokk per runde, med fargeord, belegg og
+     lenke til forskriften.
+
+     FYLLET SIER BELEGGET: heltrukket når fargeordet står i
+     bestemmelsen, tonet med kant når fargen er utledet av
+     kapittelplasseringen, skravert når forskriften ikke oppgir noe.
+     ORDET STÅR UANSETT — farge bærer aldri mening alene. #}
+  <section class="runder" aria-labelledby="runder-tittel">
+    <h2 class="etikett" id="runder-tittel">
+      Trafikklys {{ po.runder[0].aar }}–{{ po.runder[-1].aar }}
+    </h2>
+    <ol class="rundeliste">
+      {% for r in po.runder %}
+      <li class="runde runde--{{ r.lesemaate or 'ingen' }} {{ r.farge_klasse }}">
+        <span class="runde-flate" aria-hidden="true"></span>
+        <p class="runde-aar"><time datetime="{{ r.aar }}">{{ r.aar }}</time></p>
+        {# MERKINGEN SKILLER «rød» fra «ikke oppgitt», og den står her
+           selv om dette ikke er en tabellcelle: `FELTMERKE` leser
+           `data-felt` på hvilket som helst element. Blandes de to i
+           markupen, kan ingen maskin se forskjell på en farge og
+           fraværet av en. Samme konstruksjon som `eier_ukjent`. #}
+        <p class="runde-farge" data-felt="{{ r.farge_felt }}">{{ r.farge }}</p>
+        <p class="runde-belegg">{{ r.lesemaate_tekst }}</p>
+        {% if r.forskrift %}
+        <p class="runde-kilde">
+          <a href="{{ r.forskrift.url }}">{{ r.forskrift.id }} ↗</a>
+        </p>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+
+    <ul class="tegnforklaring" aria-label="Hva fyllet betyr">
+      <li><span class="rute rute--ordrett"></span>fargeordet står i
+        forskriften</li>
+      <li><span class="rute rute--utledet"></span>utledet av
+        kapittelplasseringen</li>
+      <li><span class="rute rute--skravert"></span>ikke oppgitt</li>
+    </ul>
+
+    <p class="rundenote">
+      Fargen som <strong>gjelder nå</strong> er
+      <span class="rute-foran {{ po.naa.klasse }}">{{ po.naa.farge }}</span>,
+      slik Akvakulturregisteret oppgir den på hver lokalitet i området
+      per <time datetime="{{ po.akva_dato }}">{{ po.akva_dato|dato }}</time>.
+      Den er ikke alltid den samme som den nyeste forskriften navngir:
+      en forskrift nevner bare områder der noe endrer seg, mens
+      registeret fører fargen videre.
+      {% if po.naa.uenig %}
+      <strong>Kildene er uenige her:</strong> {{ po.naa.uenig }}. Det er
+      en uenighet i registeret, og den står framfor at én av verdiene
+      vinner ved et sammentreff.
+      {% endif %}
+    </p>
+  </section>
 </div>
 {% endblock %}
 
 {% block innhold %}
-<h1>Produksjonsområde {{ po.nr }} <span data-navn>{{ po.navn }}</span></h1>
 
-<p>
-  {{ po.lokaliteter_antall }} akvakulturlokaliteter. Inndelingen i tretten
-  produksjonsområder er fastsatt i forskrift, og denne siden viser den
-  som er gjeldende per
-  <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>, slik
-  Akvakulturregisteret oppgir den.
-</p>
+{# ---------------------------------------------------------------- 1
+   BIOMASSEN. Flyttet hit fra lokalitetssiden. #}
+<section class="ark seksjon" id="biomasse-maaned"
+         aria-labelledby="biomasse-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Fisk i sjøen</p>
+      <h2 id="biomasse-tittel">Beholdning måned for måned</h2>
+    </div>
+  </div>
 
-{# ------------------------------------------------ fargen per runde #}
-<div class="tabellramme" role="region"
-     aria-labelledby="trafikklysvedtak-farger-tittel" tabindex="0">
-<table id="trafikklysvedtak-farger">
-  <caption id="trafikklysvedtak-farger-tittel">
-    Trafikklysfargen per fastsatt runde, eldst først. {{ po.runder|length }} runder.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Runde</th>
-      <th scope="col">Farge</th>
-      <th scope="col">Lesemåte</th>
-      <th scope="col">Hva lesemåten betyr</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in po.runder %}
-    <tr>
-      <th scope="row"><time datetime="{{ r.aar }}">{{ r.aar }}</time></th>
-      <td{% if r.farge_klasse %} class="{{ r.farge_klasse }}"{% endif %} data-felt="{{ r.farge_felt }}">{{ r.farge }}</td>
-      <td data-felt="farge__lesemaate">{{ r.lesemaate }}</td>
-      <td data-felt="lesemaate_forklart">{{ r.lesemaate_tekst }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  «Lesemåte» sier hvor sterkt fargen er belagt i forskriftsteksten; de
-  tre gradene er forklart <a href="#hvor-sterkt">under</a>.
-  «Ikke oppgitt» betyr at forskriften ikke oppgir farge for området i
-  den runden — ikke at området var utenfor ordningen.
-</p>
+  {% if po.biomasse %}
+  {% set b = po.biomasse %}
+  <figure class="graf">
+    <svg class="lusegraf biomassegraf"
+         viewBox="0 0 {{ b.bredde }} {{ b.hoyde }}"
+         width="{{ b.bredde }}" height="{{ b.hoyde }}"
+         role="img" aria-labelledby="biograf-tittel biograf-tekst">
+      <title id="biograf-tittel">Beholdning i tonn, {{ b.maaneder }}
+        måneder</title>
+      <desc id="biograf-tekst">Én søyle per måned fra
+        <time datetime="{{ b.fra }}">{{ b.fra }}</time> til
+        <time datetime="{{ b.til }}">{{ b.til }}</time>. Høyeste
+        beholdning er {{ b.maks }} tonn i
+        <time datetime="{{ b.maks_maaned }}">{{ b.maks_maaned }}</time>.
+        Siste måned er {{ b.siste }} tonn. Y-aksen er tusen tonn. Alle
+        tallene står i tabellen under.</desc>
+      <g class="akse" aria-hidden="true">
+        {% for l in b.linjer %}
+        <line x1="{{ b.plott_x }}" y1="{{ l.y }}"
+              x2="{{ b.plott_x + b.plott_bredde }}" y2="{{ l.y }}"/>
+        <text x="{{ b.plott_x - 8 }}" y="{{ l.y + 4 }}"
+              text-anchor="end">{{ l.etikett }}</text>
+        {% endfor %}
+        {% for a in b.aar %}
+        <text x="{{ a.x }}" y="{{ b.hoyde - 8 }}"
+              text-anchor="middle">{{ a.etikett }}</text>
+        {% endfor %}
+      </g>
+      <g class="soyler">
+        {% for s in b.soyler %}
+        <rect x="{{ s.x }}" y="{{ s.y }}" width="{{ b.soylebredde }}"
+              height="{{ s.h }}"><title>{{ s.maaned }}: {{ s.verdi }} tonn</title></rect>
+        {% endfor %}
+      </g>
+    </svg>
+    <figcaption>
+      <span class="tegn"><span class="tegn-rute tegn-soyle"></span>beholdning,
+        tusen tonn</span>
+      <span class="tegn">{{ b.maaneder_med_tall }} av {{ b.maaneder }}
+        måneder har tall</span>
+    </figcaption>
+  </figure>
 
-{# ------------------------------------------------------ lokalitetene #}
-<div class="tabellramme" role="region"
-     aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
-<table id="akvakultur-lokaliteter">
-  <caption id="akvakultur-lokaliteter-tittel">
-    Lokalitetene i området, snapshot
-    <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Lokalitet</th>
-      <th scope="col">Navn</th>
-      <th scope="col">Kommune</th>
-      <th scope="col">Kapasitet</th>
-      <th scope="col">Arter</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for l in po.lokaliteter %}
-    <tr>
-      <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
-      <td class="eier" data-felt="navn">{{ l.navn }}</td>
-      <td data-felt="kommune">{{ l.kommune }}</td>
-      <td class="tall" data-felt="kapasitet">{{ l.kapasitet }}</td>
-      <td data-felt="arter">{{ l.arter }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  Enheten står ved tallet fordi den varierer: tonn, stykk, dekar,
-  kvadratmeter, kubikkmeter og liter finnes i det samme registeret, og et
-  tall uten enhet er ubrukelig. Arts- og enhetsnavn er oversatt fra
-  kildens koder for lesbarhet; verdiene i dataene er uendret.
-</p>
+  {# REVISJONSFORBEHOLDET. Ikke en fotnote: dette er det leseren må vite
+     for å lese grafen riktig. CLAUDE.md 1b-5. #}
+  <p class="tabellnote">
+    <strong>Grafen viser nyeste påstand om hver måned, ikke tallet
+    slik det sto den gangen.</strong> Fiskeridirektoratet publiserer
+    biomassefila på nytt den 20. hver måned, og hver publisering kan
+    endre tall helt tilbake til 2017 — lokaliteter blir omklassifisert
+    mellom produksjonsområder i ettertid. Målt 25.08.2026 mot en
+    arkivkopi fra 07.08.2024 var 490 av 3 973 felles rader endret, i
+    hvert eneste år i serien. To øyeblikksbilder som er uenige om 2018
+    er derfor ikke en feil; det er to påstander om samme tidspunkt,
+    gjort på hver sin dato.
+    {% if po.biomasse_utgitt %}
+    Denne utgaven er utgitt av kilden
+    <time datetime="{{ po.biomasse_utgitt[:10] }}">{{ po.biomasse_utgitt[:10]|dato }}</time>.
+    {% endif %}
+  </p>
 
-{# -------------------------------------------- hva har endret seg #}
-<div class="tabellramme" role="region"
-     aria-labelledby="endringer-register-tittel" tabindex="0">
-<table id="endringer-register">
-  <caption id="endringer-register-tittel">
-    Registerendringer om området, nyest først.
-    {{ po.endringer|length }} endringer.
-  </caption>
-  <thead>
-    <tr>
-      <th scope="col">Dato</th>
-      <th scope="col">Gjelder</th>
-      <th scope="col">Kilde</th>
-      <th scope="col">Felt</th>
-      <th scope="col">Fra</th>
-      <th scope="col">Til</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for e in po.endringer %}
-    <tr>
-      <td data-felt="observed_at"><time datetime="{{ e.dato }}">{{ e.dato }}</time></td>
-      <td data-felt="gjelder">{{ e.gjelder }}</td>
-      <td data-felt="source">{{ e.kilde }}</td>
-      <th scope="row">{{ e.etikett }}</th>
-      <td data-felt="{{ e.felt }}">{{ e.fra }}</td>
-      <td data-felt="{{ e.felt }}">{{ e.til }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-<p class="tabellnote">
-  Måleseriene telles ikke som endringer her. Biomasse leverer nye
-  beholdningstall hver måned, og for dette området er det
-  {{ po.maaleserie_rader }} slike rader mot {{ po.endringer|length }}
-  registerendringer. Tas de med, drukner vedtaket i serien.
-  {% if po.ubelagte_rader %}
-  {{ po.ubelagte_rader }} endringer er dessuten holdt utenfor fordi
-  kilden er UBELAGT ({{ po.ubelagte_kilder|join(", ") }}): vilkåret for å
-  republisere er lett etter og ikke funnet, så tallene kan brukes i
-  analyse men ikke vises her. Antallet står slik at utelatelsen ikke er
-  stille. Se <code>docs/LISENSKJEDE.md</code>.
+  <details class="tallboks">
+    <summary>Tallene i tabell — siste {{ po.biomasse_rader|length }}
+      måneder</summary>
+    <div class="tabellramme" role="region"
+         aria-labelledby="biomasse-maaned-tittel" tabindex="0">
+    <table id="biomasse-maaned-tabell">
+      <caption id="biomasse-maaned-tittel">
+        Beholdning og bevegelse per måned, nyeste først. Tallene er
+        kildens egne, i kilo og stykk.
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Måned</th>
+          <th scope="col" class="tall">Biomasse (kg)</th>
+          <th scope="col" class="tall">Beholdning (stk)</th>
+          <th scope="col" class="tall">Utsett smolt</th>
+          <th scope="col" class="tall">Uttak</th>
+          <th scope="col" class="tall">Dødfisk</th>
+          <th scope="col" class="tall">Rømming</th>
+          <th scope="col" class="tall">Andel av landet</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in po.biomasse_rader %}
+        <tr>
+          <th scope="row"><time datetime="{{ m.maaned }}">{{ m.maaned }}</time></th>
+          <td class="tall" data-felt="{{ feltmerke(m.biomasse_kg, 'biomasse_kg') }}">{{ m.biomasse_kg or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(m.beholdning_antall, 'beholdning_antall') }}">{{ m.beholdning_antall or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(m.utsett_smolt_antall, 'utsett_smolt_antall') }}">{{ m.utsett_smolt_antall or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(m.uttak_antall, 'uttak_antall') }}">{{ m.uttak_antall or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(m.dodfisk_antall, 'dodfisk_antall') }}">{{ m.dodfisk_antall or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(m.romming_antall, 'romming_antall') }}">{{ m.romming_antall or VERDI_MANGLER }}</td>
+          <td class="tall" data-felt="{{ feltmerke(m.andel_av_beholdning, 'andel_av_beholdning') }}">{{ m.andel_av_beholdning or VERDI_MANGLER }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      Serien har {{ po.biomasse_maaneder }} måneder; tabellen viser de
+      siste {{ po.biomasse_rader|length }}. Tallene er gjengitt uendret
+      fra kilden — grafen over regner om til tonn, tabellen gjør det
+      ikke.
+    </p>
+  </details>
+  {% else %}
+  <p class="tomt">
+    Ingen biomassetall for dette området i noen av øyeblikksbildene vi
+    har av biomassefila.
+  </p>
   {% endif %}
-</p>
+</section>
 
-<h2 id="hvor-sterkt">Hvor sterkt fargen er belagt</h2>
-<p>
-  Fargen har tre ulike grader av belegg, og kolonnen «Lesemåte» i
-  tabellen øverst sier hvilken som gjelder for hver runde.
-</p>
-<dl class="grader">
-  <dt>Ordrett</dt>
-  <dd>Fargeordet står i bestemmelsen selv.</dd>
-  <dt>Kapitteloverskrift</dt>
-  <dd>Fargeordet står i overskriften på kapittelet området er plassert
-      under, ikke i bestemmelsen.</dd>
-  <dt>Kapittelhjemmel</dt>
-  <dd>Fargen står ikke skrevet noe sted. Den er utledet av hvilket
-      kapittel området er plassert i — det eneste leddet der vi tar et
-      steg kilden ikke tar.</dd>
-</dl>
-<p>
-  De tre er ikke like sterke, og forskjellen er hele grunnen til at
-  kolonnen finnes. En analyse som behandler dem likt, behandler en
-  utledning som en lesning.
-</p>
+{# ---------------------------------------------------------------- 2
+   LOKALITETENE. Søkefeltet filtrerer tabellen med JS; uten JS vises
+   hele tabellen og skjemaet sender til den flate lokalitetslista.
+   Se avvik 5 i oppdraget. #}
+<section class="ark seksjon" aria-labelledby="lok-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">I området</p>
+      <h2 id="lok-tittel">{{ po.lokaliteter_antall }} lokaliteter</h2>
+    </div>
+    <form class="omraadesok" action="/lokalitet/" method="get" role="search">
+      <label for="omrq">Søk i området</label>
+      <input id="omrq" name="q" type="search"
+             data-filtrerer="akvakultur-lokaliteter"
+             placeholder="Lokalitet, kommune eller selskap">
+      <button class="knapp" type="submit">Søk</button>
+    </form>
+  </div>
 
-<h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
-<p>
-  Ingenting om at inndelingen blir værende. Området er en regulatorisk
-  inndeling, ikke en naturgitt grense. Den kan tas om igjen, og et område
-  som endrer grenser eller nummer er et annet område enn det som lå her
-  før. Siden sier hva inndelingen var på datoen over.
-</p>
-<p>
-  Ingenting om hvorfor fargen ble som den ble.
-  Trafikklysordningen bygger på en faglig vurdering av
-  lakselusindusert villfiskdødelighet, og koblingen mellom den
-  vurderingen og fargen i forskriften finnes ikke i regelverket vi kan
-  lese. Siden viser vedtaket, ikke begrunnelsen.
-</p>
-<p>
-  Ingenting om foreslåtte inndelinger. Det finnes
-  forslag om å dele kysten finere enn dagens tretten områder. De er ikke
-  blandet inn her: denne siden handler om den inndelingen som gjelder.
-</p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
+  <table id="akvakultur-lokaliteter">
+    <caption id="akvakultur-lokaliteter-tittel">
+      Lokalitetene i området, øyeblikksbilde
+      <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
+      <span data-teller="Viser alle {{ po.lokaliteter_antall }}">Viser
+        alle {{ po.lokaliteter_antall }}</span>.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Nr.</th>
+        <th scope="col">Lokalitet</th>
+        <th scope="col">Kommune</th>
+        <th scope="col">Innehaver</th>
+        <th scope="col">Status</th>
+        <th scope="col" class="tall">Kapasitet</th>
+        <th scope="col">Sist observert</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in po.lokaliteter %}
+      <tr data-sok="{{ l.sok }}">
+        <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
+        <td data-felt="navn">
+          <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn }}</a>
+        </td>
+        <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune or VERDI_MANGLER }}</td>
+        {# INNEHAVEREN: navnet står bare der kilden ikke klassifiserer
+           den som en personform. Samme regel og samme tekst som på
+           lokalitetssiden — `_lokalitetens_selskap()` er det ene
+           stedet spørsmålet stilles. #}
+        {% if l.selskap.personform %}
+        <td class="mangler" data-felt="eier_personform">{{ l.selskap.navn }}</td>
+        {% elif l.selskap.url %}
+        <td class="eier" data-felt="eier_navn">
+          <a href="{{ l.selskap.url }}" data-felt="eier_navn">{{ l.selskap.navn }}</a>
+        </td>
+        {% elif l.selskap.navn %}
+        <td class="eier" data-felt="eier_navn">{{ l.selskap.navn }}</td>
+        {% else %}
+        <td class="mangler" data-felt="eier_ukjent">ikke oppgitt av kilden</td>
+        {% endif %}
+        <td data-felt="{{ feltmerke(l.status, 'versjon_status') }}">{{ l.status or VERDI_MANGLER }}</td>
+        <td class="tall" data-felt="{{ feltmerke(l.kapasitet, 'kapasitet') }}">{{ l.kapasitet or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(l.sist_endret, 'observed_at') }}">
+          {%- if l.sist_endret %}<time datetime="{{ l.sist_endret }}">{{ l.sist_endret }}</time>
+          {%- else %}{{ VERDI_MANGLER }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    Hele lista står her — den er ikke paginert, og søkefeltet filtrerer
+    den på stedet når JavaScript er på. Uten JavaScript sender skjemaet
+    til <a href="/lokalitet/">lokalitetslista</a>, som har alle
+    lokalitetene i landet.
+    «Kapasitet» er lokalitetens klarerte kapasitet fra registeret, ikke
+    summen av tillatelsenes MTB — de to er ulike størrelser, og en
+    tillatelse kan brukes på flere lokaliteter.
+    {% if po.uten_kjent_eier %}
+    For {{ po.uten_kjent_eier }} lokaliteter kan vi ikke gjøre rede for
+    innehaveren. Raden står likevel; se
+    <code>docs/REGEL-UENIGE-KILDER.md</code>.
+    {% endif %}
+  </p>
+</section>
+
+{# ---------------------------------------------------------------- 3
+   ENDRINGENE. To tabeller: om OMRÅDET (et forvaltningsvedtak) og i
+   området (hva som har skjedd med anleggene). De blandes ikke. #}
+<section class="ark seksjon" id="endringer-register"
+         aria-labelledby="endr-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Observert av Kystloggen</p>
+      <h2 id="endr-tittel">Endringer</h2>
+    </div>
+  </div>
+
+  <h3>Om selve området</h3>
+  <p class="historikk-forklaring">
+    Vedtak som gjelder produksjonsområdet: fargen, og hvor sterkt den er
+    belagt. Datoen er runden vedtaket gjelder for, ikke dagen vi hentet
+    det — <code>trafikklysvedtak</code> dateres til vedtaksåret.
+  </p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="trafikklysvedtak-endringer-tittel" tabindex="0">
+  <table id="trafikklysvedtak-endringer">
+    <caption id="trafikklysvedtak-endringer-tittel">
+      Registerendringer om området, nyest først.
+      {{ po.endringer|length }} endringer.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Runde</th>
+        <th scope="col">Felt</th>
+        <th scope="col">Fra</th>
+        <th scope="col">Til</th>
+        <th scope="col">Kilde</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in po.endringer %}
+      <tr>
+        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
+        <td data-felt="{{ e.felt }}">{{ e.etikett }}</td>
+        <td data-felt="{{ feltmerke(e.fra, e.felt) }}">{{ e.fra or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(e.til, e.felt) }}">{{ e.til or VERDI_MANGLER }}</td>
+        <td data-felt="source">{{ e.kilde }}</td>
+      </tr>
+      {% endfor %}
+      {% if not po.endringer %}
+      <tr><td colspan="5">Ingen vedtaksendringer i loggen vår.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+
+  <h3>I lokalitetene i området</h3>
+  <p class="historikk-forklaring">
+    De siste {{ po.endringsuker }} ukene vi har observert. Datoen er når
+    VI så endringen.
+  </p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="endringer-omraade-tittel" tabindex="0">
+  <table id="endringer-omraade">
+    <caption id="endringer-omraade-tittel">
+      {{ po.i_omraadet|length }} endringer i lokalitetene i området, de
+      siste {{ po.endringsuker }} ukene.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Observert</th>
+        <th scope="col">Gjelder</th>
+        <th scope="col">Type</th>
+        <th scope="col">Endring</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for h in po.i_omraadet %}
+      <tr>
+        <td data-felt="observed_at"><time datetime="{{ h.dato }}">{{ h.dato }}</time></td>
+        <td data-felt="{{ feltmerke(h.gjelder, 'entity_name') }}">
+          {%- if h.gjelder_url %}<a href="{{ h.gjelder_url }}" data-felt="entity_name">{{ h.gjelder }}</a>
+          {%- else %}{{ h.gjelder or VERDI_MANGLER }}{% endif %}
+        </td>
+        <td data-felt="endringstype">{{ h.type_navn }}</td>
+        <td class="endring {{ h.til_klasse }}" data-felt="{{ h.felt }}">{{ h.etikett }}: {{ h.fra }} → {{ h.til }}</td>
+      </tr>
+      {% endfor %}
+      {% if not po.i_omraadet %}
+      {# `data-felt` også på en forklaringscelle: regelen er uten
+         unntak — har en `<td>` en `{{ "{{ }}" }}`, har den `data-felt`.
+         En unntaksliste er en liste noen må huske. #}
+      <tr><td colspan="4" data-felt="tomtekst">Ingen endringer i
+        lokalitetene de siste {{ po.endringsuker }} ukene.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    Måleseriene telles ikke som endringer her. Biomasse leverer nye
+    beholdningstall hver måned, og for dette området er det
+    {{ po.maaleserie_rader }} slike rader mot {{ po.endringer|length }}
+    vedtaksendringer. Tas de med, drukner vedtaket i serien.
+    {% if po.ubelagte_rader %}
+    {{ po.ubelagte_rader }} endringer er dessuten holdt utenfor fordi
+    kilden er UBELAGT ({{ po.ubelagte_kilder|join(", ") }}): vilkåret
+    for å republisere er lett etter og ikke funnet, så tallene kan
+    brukes i analyse men ikke vises her. Antallet står slik at
+    utelatelsen ikke er stille. Se <code>docs/LISENSKJEDE.md</code>.
+    {% endif %}
+  </p>
+</section>
+
+{# ---------------------------------------------------------------- 4
+   FORBEHOLDENE, og siteringen. #}
+<section class="ark seksjon" aria-labelledby="hvor-sterkt">
+  <h2 id="hvor-sterkt">Hvor sterkt fargen er belagt</h2>
+  <p>
+    Fargen har tre ulike grader av belegg, og hver runde over sier
+    hvilken som gjelder. De tre er ikke like sterke, og forskjellen er
+    hele grunnen til at den står oppgitt: en analyse som behandler dem
+    likt, behandler en utledning som en lesning.
+  </p>
+  <dl class="grader">
+    <dt>Ordrett</dt>
+    <dd>Fargeordet står i bestemmelsen selv.</dd>
+    <dt>Kapitteloverskrift</dt>
+    <dd>Fargeordet står i overskriften på kapittelet området er
+        plassert under, ikke i bestemmelsen.</dd>
+    <dt>Kapittelhjemmel</dt>
+    <dd>Fargen står ikke skrevet noe sted. Den er utledet av hvilket
+        kapittel området er plassert i — det eneste leddet der vi tar
+        et steg kilden ikke tar.</dd>
+  </dl>
+
+  <h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
+  <p>
+    <strong>Ingenting om at inndelingen blir værende.</strong> Området
+    er en regulatorisk inndeling, ikke en naturgitt grense. Den kan tas
+    om igjen, og et område som endrer grenser eller nummer er et annet
+    område enn det som lå her før. Siden sier hva inndelingen var på
+    datoen over.
+  </p>
+  <p>
+    <strong>Ingenting om hvorfor fargen ble som den ble.</strong>
+    Trafikklysordningen bygger på en faglig vurdering av
+    lakselusindusert villfiskdødelighet, og koblingen mellom den
+    vurderingen og fargen i forskriften finnes ikke i regelverket vi
+    kan lese. Siden viser vedtaket, ikke begrunnelsen.
+  </p>
+  <p>
+    <strong>Ingenting om foreslåtte inndelinger.</strong> Det finnes
+    forslag om å dele kysten finere enn dagens tretten områder. De er
+    ikke blandet inn her: denne siden handler om den inndelingen som
+    gjelder.
+  </p>
+</section>
+
+<section class="ark" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    <p class="siterbar" id="siterbar">Kystloggen ({{ po.siter.aar }}).
+      <i>Produksjonsområde {{ po.nr }} {{ po.navn }}.</i>
+      Øyeblikksbilde {{ po.siter.uke }}, {{ po.siter.dato }},
+      sjekksum {{ po.siter.sjekksum[:8] }}…{{ po.siter.sjekksum[-4:] }}.
+      {{ po.siter.url }}</p>
+    <p class="siterboks-note">
+      Sjekksummen gjelder Akvakulturregisteret, som gir lokalitetene og
+      fargen som gjelder nå. Forskriftsrundene har sin egen proveniens:
+      hver runde lenker til LTI-versjonen på Lovdata, altså teksten slik
+      den ble kunngjort.
+    </p>
+  </div>
+</section>
 {% endblock %}

@@ -1412,8 +1412,20 @@ a:hover {
 .rute.lys-gul   { background: var(--lys-gul); }
 .rute.lys-gronn { background: var(--lys-gronn); }
 .rute--skravert { background-image: var(--skravur-papir); }
-.mork .rute--skravert { background-image: var(--skravur-moerk); }
-.mork .rute { box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.4); }
+
+/* SKRAVUREN ER DEN SAMME FORMEN OVERALT — det er et krav i
+   overleveringen, ikke en detalj: en leser som lærer at skravur betyr
+   «forskriften sier ingenting» skal ikke måtte lære det på nytt i neste
+   komponent. Mønsteret bytter tegnfarge med flata, ikke form.
+
+   `.sidetopp` står i lista fordi områdesidens tegnforklaring ligger i
+   det mørke båndet og ikke i en `.mork`-seksjon. En rute som var hvit
+   der ville sett ut som «ingen rute» framfor «ingen bestemmelse». */
+.mork .rute--skravert,
+.sidetopp .rute--skravert { background-image: var(--skravur-moerk); }
+
+.mork .rute,
+.sidetopp .rute { box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.4); }
 
 .historie {
   display: block;
@@ -2270,6 +2282,162 @@ figcaption {
 }
 
 .kopierknapp { font-size: var(--fs-13); padding: var(--rom-8) var(--rom-16); }
+
+/* ---------------------------------------------------------------- *
+ * 6b. OMRÅDESIDEN
+ *
+ * Tretten sider. FARGEN FØRST — det er det siden er til for.
+ *
+ * ## FYLLET SIER BELEGGET
+ *
+ * Tre grader, tre former, og ordet står uansett:
+ *
+ *     ordrett              heltrukket fyll
+ *     kapitteloverskrift   heltrukket fyll, som ordrett: ordet STÅR,
+ *                          bare i en overskrift
+ *     kapittelhjemmel      tonet fyll (alfa .3) med 2 px innvendig kant
+ *                          i full farge — det eneste leddet der vi tar
+ *                          et steg kilden ikke tar
+ *     ingen bestemmelse    skravur, samme mønster som på kartet og i
+ *                          femårsstripa
+ *
+ * At skravuren er den SAMME formen overalt er et krav i
+ * overleveringen, ikke en detalj: en leser som lærer at skravur betyr
+ * «forskriften sier ingenting» skal ikke måtte lære det på nytt i
+ * neste komponent.
+ * ---------------------------------------------------------------- */
+
+.runder { margin-block-start: var(--rom-40); }
+
+.rundeliste {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: var(--rom-16);
+  list-style: none;
+  margin: var(--rom-16) 0 var(--rom-20);
+  padding: 0;
+  max-width: none;
+}
+
+.runde {
+  margin: 0;
+  padding: var(--rom-14) var(--rom-16) var(--rom-16);
+  background: rgba(231, 219, 208, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.16);
+}
+
+/* FLATA er fargen, og den ligger som et bånd øverst i blokka framfor
+   som bakgrunn: en hel blokk i trafikklysfarge ville vært en mettet
+   flate, og de er forbeholdt havet. */
+.runde-flate {
+  display: block;
+  block-size: 10px;
+  margin-block-end: var(--rom-12);
+  background: rgba(231, 219, 208, 0.12);
+}
+
+.runde.lys-rod   .runde-flate { background: var(--lys-rod); }
+.runde.lys-gul   .runde-flate { background: var(--lys-gul); }
+.runde.lys-gronn .runde-flate { background: var(--lys-gronn); }
+
+/* UTLEDET: tonet fyll med kant i full farge. Overleveringens egen
+   oppskrift — «fyll i fargen med alfa ≈ .3 + 2 px innvendig kant i
+   full farge». Den skiller «utledet av kapittelplassering» fra
+   «ordlyd i forskriften» UTEN å bruke en annen farge. */
+.runde--kapittelhjemmel .runde-flate { opacity: 0.3; }
+
+.runde--kapittelhjemmel.lys-rod   .runde-flate { box-shadow: inset 0 0 0 2px var(--lys-rod); }
+.runde--kapittelhjemmel.lys-gul   .runde-flate { box-shadow: inset 0 0 0 2px var(--lys-gul); }
+.runde--kapittelhjemmel.lys-gronn .runde-flate { box-shadow: inset 0 0 0 2px var(--lys-gronn); }
+
+/* INGEN BESTEMMELSE: skravur, samme mønster som overalt ellers. */
+.runde--ingen .runde-flate {
+  background-color: transparent;
+  background-image: var(--skravur-moerk);
+  box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.25);
+}
+
+.runde p { margin: 0; max-width: none; }
+
+.runde-aar {
+  font-size: var(--fs-13);
+  color: var(--hav3);
+  margin-block-end: var(--rom-4);
+}
+
+.runde-farge {
+  font-family: var(--skrift-tittel);
+  font-size: var(--fs-26);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--hav-tittel);
+  margin-block-end: var(--rom-8);
+}
+
+.runde-belegg {
+  font-size: var(--fs-13);
+  line-height: var(--lh-normal);
+  color: var(--hav-sekundaer);
+  margin-block-end: var(--rom-8);
+}
+
+.runde-kilde { font-size: var(--fs-12); }
+.runde-kilde a { color: var(--rust-lys); text-decoration: none; }
+.runde-kilde a:visited { color: var(--rust-lys); }
+.runde-kilde a:hover { text-decoration: underline; }
+
+.rute--ordrett { background: var(--lys-gul); }
+
+.rute--utledet {
+  background: var(--lys-gul);
+  opacity: 0.45;
+  box-shadow: inset 0 0 0 2px var(--lys-gul);
+}
+
+.rundenote {
+  max-width: 68ch;
+  font-size: var(--fs-14);
+  color: var(--hav-sekundaer);
+  margin: 0;
+}
+
+.rundenote .rute-foran { white-space: nowrap; }
+
+/* ---- søkefeltet i området ---- */
+
+.omraadesok {
+  display: flex;
+  flex: 0 1 26rem;
+  background: var(--papir2);
+  box-shadow: inset 0 0 0 1px var(--papir3);
+}
+
+.omraadesok label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.omraadesok input {
+  flex: 1;
+  min-inline-size: 0;
+  border: 0;
+  background: transparent;
+  padding: var(--rom-10) var(--rom-14);
+  font: 400 var(--fs-14) / 1.2 var(--skrift-tekst);
+  color: var(--ink);
+}
+
+.omraadesok input::placeholder { color: var(--ink-dempet); }
+.omraadesok input:focus { outline: 2px solid var(--rust); outline-offset: -2px; }
+.omraadesok .knapp { padding: var(--rom-10) var(--rom-18); }
+
+/* ---- biomassegrafen ----
+   Samme grammatikk som lusegrafen: søyler i `--hav5` på innfelt flate.
+   Bredere søyler, fordi 104 måneder er noe helt annet enn 765 uker. */
+.biomassegraf .soyler rect { fill: var(--hav5); }
 
 /* ---------------------------------------------------------------- *
  * 7. BUNNTEKSTEN

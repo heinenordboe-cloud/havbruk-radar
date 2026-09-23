@@ -1204,19 +1204,48 @@ def _po(**overstyr) -> str:
              "lesemaate": "kapittelhjemmel",
              "lesemaate_tekst": nettsted.LESEMAATE["kapittelhjemmel"]},
         ],
-        "lokaliteter": [{"loknr": "31397", "navn": "OTERNESET",
+        "lokaliteter": [{"loknr": "31397", "navn": "Oterneset",
+                         "original": "OTERNESET",
                          "kommune": "HARSTAD", "kapasitet": "8000.0",
-                         "kapasitet_enhet": "TN", "arter": "SALMON"}],
+                         "kapasitet_enhet": "TN", "arter": "SALMON",
+                         "status": "godkjent", "sist_endret": "2026-09-14",
+                         "sok": "31397 oterneset harstad",
+                         "selskap": {"navn": "SALMAR OPPDRETT AS",
+                                     "orgnr": "928957489",
+                                     "url": "/selskap/928957489/",
+                                     "siden": "", "antall": 1, "flere": 0,
+                                     "personform": False}}],
         "lokaliteter_antall": 1,
+        "selskaper_antall": 1,
+        "uten_kjent_eier": 0,
+        "akva_hentet": "2026-09-14T04:00:00+00:00",
+        "naa": {"farge": "gul", "klasse": nettsted.FARGE_KLASSE["gul"],
+                "uenig": ""},
         "endringer": [{"dato": "2026-12-31", "gjelder": "lokaliteten",
                        "kilde": "trafikklysvedtak", "felt": "farge",
                        "fra": "rod", "til": "gul"}],
+        "i_omraadet": [],
+        "endringsuker": 12,
+        # BIOMASSEN, flyttet hit fra lokalitetssiden (avvik 1).
+        "biomasse": None,
+        "biomasse_rader": [],
+        "biomasse_maaneder": 0,
+        "biomasse_utgitt": "",
         "maaleserie_rader": 941,
         "ubelagte_rader": 56,
         "ubelagte_kilder": ["ekspertgruppen"],
+        "siter": {"url": "https://kystloggen.no/produksjonsomrade/4/",
+                  "uke": "uke 38, 2026", "dato": "14. september 2026",
+                  "aar": "2026", "sjekksum": "efe1c0884c4e39d20b7d775a363d"},
     }
     po.update(overstyr)
     po["endringer"] = _endringsrader(po["endringer"])
+    # `runder` bærer forskriftsopplysningene fra 22.09.2026. De leses av
+    # kilden (`sources/trafikklysvedtak.FORSKRIFTER`), ikke skrevet av
+    # her: en fikstur med sine egne URL-er er en fikstur som sier grønt
+    # om lenka i koden peker et annet sted.
+    po["runder"] = [dict(r, forskrift=nettsted.forskrift_for_runde(r["aar"]))
+                    for r in po["runder"]]
     for l_ in po["lokaliteter"]:
         if "kapasitet_enhet" in l_:
             l_["kapasitet"] = visningsord.maalt(l_.pop("kapasitet"),
@@ -1224,7 +1253,7 @@ def _po(**overstyr) -> str:
         l_["arter"] = visningsord.verdi("arter", l_.get("arter", ""))
     return nettsted._miljo().get_template("produksjonsomrade.html.j2").render(
         po=po,
-        **_grunn("produksjonsomrade/4",
+        **_grunn("produksjonsomrade/4", main_klasse="fullbredde",
                  jsonld=nettsted.jsonld_po(po, nettsted.kildevilkaar()),
                  attribusjon=nettsted.attribusjon(nettsted.PO_KILDER)))
 
@@ -1285,9 +1314,13 @@ def test_po_siden_lenker_til_hver_lokalitet():
 
 
 def test_po_siden_sier_at_inndelingen_er_dagens():
-    """Området er en regulatorisk inndeling som kan tas om igjen."""
+    """Området er en regulatorisk inndeling som kan tas om igjen, ikke
+    en naturgitt grense. Siden sier hva inndelingen var PÅ EN DATO, og
+    at et område som endrer grenser eller nummer er et annet område."""
     flat = " ".join(_po().split())
-    assert "gjeldende per" in flat.lower()
+    assert "regulatorisk inndeling, ikke en naturgitt grense" in flat
+    assert "Siden sier hva inndelingen var på datoen over" in flat
+    assert "2026-09-14" in flat
     assert "2026-09-14" in flat
     assert "regulatorisk inndeling" in flat
     assert "ikke en naturgitt grense" in flat
