@@ -97,7 +97,7 @@ bibliotek som base for URL-parsing. Ingen forespørsel.
 | 2 | Personformer filtreres i `fetch()` og `parse()` | **OPPFYLT** |
 | 3 | Lesedør i `snapshot._les()` | **OPPFYLT** — 72 rader fjernes per lesing |
 | 4 | `snapshot.write()` nekter personformer | **OPPFYLT** |
-| 5 | Lesedør i `changelog.les_alt()` | **OPPFYLT 23.09** — 380 rader, 20 entiteter |
+| 5 | Lesedør i `changelog.les_alt()` | **OPPFYLT 23.09, UTVIDET 24.09** — unionen av døra og kildens tillegg. 380 rader / 20 entiteter fjernes per lesing; de 16 utvidelsen fanget er ute av filene |
 | 6 | `eier_type` i kildens egen hook | **OPPFYLT 23.09** |
 | 7 | Generatoren og porten leser LIKT | **OPPFYLT 23.09** — `nettsted._siste()` kaller hooken |
 | 8 | Tre personformnavn i `tildelt_navn` | **KVITTERT** — se under |
@@ -118,6 +118,29 @@ noen ser det.
 
 **Kvitteringen er mekanismen, og den er avgitt.** Ingen handling
 gjenstår med mindre Heine ombestemmer seg.
+
+**Punkt 5, hva utvidelsen 24.09 la til.** Døra filtrerte på
+`snapshot.personentiteter()`, og settet ble bygget av
+`persondata.person_ider()` alene — altså av `organisasjonsform` og
+`institusjonell_sektorkode`. Den var dermed blind for entitetene
+`Source.fjern_egne_personer()` finnes for. MÅLT 24.09.2026 over hele
+loggen (1 016 150 rader, ufiltrert), FØR regenereringen under:
+
+    kilde                fjernet før    fjernet etter
+    enhetsregisteret             380              380
+    eierskap_historikk             0               16
+    alle andre                     0                0
+    SUM                          380              396
+
+Personsettet gikk fra 106 til 111 par. De fem nye er fire
+overføringsmottakere i `eierskap_historikk` og én tillatelse i
+`eierskap`; den siste har ingen rader i loggen, og derfor er 16 og ikke
+21 forskjellen i rader. De 16 radene er dessuten fjernet FRA FILENE —
+changeloggen er avledet og overskriver sin egen dato — og MÅLT etterpå
+fjerner døra 380 rader og 20 entiteter per lesing, alle
+`enhetsregisteret`. De 380 blir liggende med vilje; se beslutningen
+18.09. Se også
+`docs/beslutninger/2026-09-24-changelogdora-leser-kildens-tillegg.md`.
 
 **Punkt 9, grensa i historikken.** 1 833 snapshotfiler er skrevet før
 23.09.2026 og har ingen kodeproveniens. De blir stående — append-only —
