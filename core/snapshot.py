@@ -13,7 +13,7 @@ import polars as pl
 from core import kodeproveniens
 from core import persondata
 from core import utvalg as utvalg_modul
-from core.contract import Observation
+from core.contract import Observation, Source, kilder_per_navn
 from core.paths import RAW_DIR  # noqa: F401  (monkeypatches i testene treffer her)
 
 SCHEMA = [
@@ -644,6 +644,55 @@ def filtrert_bort(source: str, observed_at: str) -> dict[str, int]:
     return dict(sorted(ut.items()))
 
 
+def _kilder_med_eget_tillegg() -> dict[str, Source]:
+    """{kildenavn: kilden} for kildene som har OVERSTYRT personhooken.
+
+    Spørsmålet stilles til KONTRAKTEN, ikke til en liste: har klassen sin
+    egen `fjern_egne_personer()`, vet den noe døra ikke ser, og da må alle
+    filene hennes leses. Har den ikke det, er hooken `Source`-standarden,
+    og den returnerer ramma urørt — `test_standardtillegget_kan_ikke_
+    fjerne_noe` holder den påstanden.
+
+    Det er derfor dette ikke er et spesialtilfelle per kilde. En ny kilde
+    som bærer formen i sitt eget vokabular kommer med i settet ved å
+    overstyre hooken, uten at noe her endres — CLAUDE.md regel 1.
+
+    Importen er lat av samme grunn som i `predictions.py`: `registry`
+    importerer hver kildefil, og `core/snapshot.py` leses av dem alle.
+    """
+    from core import registry
+
+    return {navn: kilde
+            for navn, kilde in kilder_per_navn(registry.discover()).items()
+            if type(kilde).fjern_egne_personer is not Source.fjern_egne_personer}
+
+
+def _tillegget_fjerner(kilde: Source | None, ramme: pl.DataFrame) -> set[str]:
+    """`entity_id` KILDENS EGET tillegg tar ut av denne ramma.
+
+    Ramma er den døra ALLEREDE har vært gjennom — `_les_med_tall()` gir
+    ingen annen — og det er samme rekkefølge som `nettsted._siste()` og
+    `publiseringsvakt._rammene_for()` bruker: døra først, tillegget
+    etterpå, og tillegget kan bare fjerne mer.
+
+    Rekkefølgevernet står her og ikke bare hos kallerne: en hook som
+    leverer flere rader enn den fikk, har lagt til, og et personsett
+    bygget av differansen ville da vært tomt nettopp når det betydde mest.
+    """
+    if kilde is None or ramme.is_empty() or "entity_id" not in ramme.columns:
+        return set()
+    etter = kilde.fjern_egne_personer(ramme)
+    if etter.height > ramme.height:
+        raise ValueError(
+            f"{kilde.name}.fjern_egne_personer() ga {etter.height} rader "
+            f"der den fikk {ramme.height}. Hooken skal filtrere, ikke "
+            f"legge til — se Source.fjern_egne_personer.")
+    if etter.height == ramme.height:
+        return set()
+    return {str(e) for e in (set(ramme["entity_id"].to_list())
+                             - set(etter["entity_id"].to_list()))}
+
+
 def personentiteter(source: str | None = None) -> frozenset[tuple[str, str]]:
     """(kilde, entity_id) for hver entitet lesedøra tar ut.
 
@@ -653,13 +702,32 @@ def personentiteter(source: str | None = None) -> frozenset[tuple[str, str]]:
     et øyeblikksbilde har `value`, og `persondata._personene()` leser
     `value`. Se `changelog.fjern_personformer()`.
 
+    ## UNIONEN: døra ELLER kildens eget tillegg
+
+    Fram til 24.09.2026 var settet døras alene — `person_ider()`, altså
+    `organisasjonsform` og `institusjonell_sektorkode`. Det gjorde
+    changelogdøra blind for nøyaktig de entitetene
+    `Source.fjern_egne_personer()` finnes for: MÅLT 24.09.2026 sto 16
+    rader om 4 entiteter igjen i loggen etter `les_alt()`, fordi formen
+    deres står i kildens eget vokabular og døra svarte 0.
+
+    Begge leddene spørres nå, i samme rekkefølge som enhver annen
+    lesevei: døra først, tillegget på det døra returnerte.
+
     ## Kostnaden, og hvorfor den ikke er 1 830 filer
 
-    En kilde probes på NYESTE fil. Bærer den verken `organisasjonsform`
-    eller `institusjonell_sektorkode`, kan ingen av kildens filer peke ut
-    en person, og resten leses ikke. MÅLT 23.09.2026: tre kilder svarer
-    ja, og 1 530 av de 1 830 filene — lusetall og sjøtemperatur — leses
-    aldri.
+    En kilde probes på NYESTE fil, og prøven har TO ledd etter 24.09:
+    bærer fila `organisasjonsform` eller `institusjonell_sektorkode`,
+    eller har kilden overstyrt personhooken. Er svaret nei på begge, kan
+    ingen av kildens filer peke ut en person, og resten leses ikke. MÅLT
+    23.09.2026: tre kilder svarer ja på det første, og 1 530 av de 1 830
+    filene — lusetall og sjøtemperatur — leses aldri.
+
+    Merk at det andre leddet spørres av KLASSEN og ikke av fila. Det må
+    det: de fire entitetene over står i `2009-12-31.2`, `2014-12-31` og
+    `2014-12-31.2`, ikke i den nyeste fila, så en probe som lette etter
+    dem i nyeste fil ville hoppet over kilden med samme resultat som før.
+    Se `_kilder_med_eget_tillegg()`.
 
     Svaret er et TAK på samme måte som `filtrert_bort()`: summert over
     alle versjoner og alle datoer. En entitet som var en DA i 2024 og et
@@ -669,6 +737,7 @@ def personentiteter(source: str | None = None) -> frozenset[tuple[str, str]]:
         return frozenset()
 
     ut: set[tuple[str, str]] = set()
+    tillegg = _kilder_med_eget_tillegg()
     kataloger = ([RAW_DIR / source] if source
                  else sorted(k for k in RAW_DIR.iterdir() if k.is_dir()))
     for katalog in kataloger:
@@ -677,15 +746,22 @@ def personentiteter(source: str | None = None) -> frozenset[tuple[str, str]]:
         filer = sorted(katalog.glob("*.parquet"))
         if not filer:
             continue
+        eier = tillegg.get(katalog.name)
         nyeste, _, personer, _kol = _les_med_tall(filer[-1])
         felt = set(nyeste["field"].unique().to_list()) if "field" in nyeste.columns else set()
-        if not felt & {persondata.FORM_FELT, persondata.SEKTOR_FELT}:
+        if eier is None and not felt & {persondata.FORM_FELT,
+                                        persondata.SEKTOR_FELT}:
             continue
         for eid in personer:
             ut.add((katalog.name, str(eid)))
+        for eid in _tillegget_fjerner(eier, nyeste):
+            ut.add((katalog.name, eid))
         for sti in filer[:-1]:
-            for eid in _les_med_tall(sti)[2]:
+            ramme, _, ider, _kol = _les_med_tall(sti)
+            for eid in ider:
                 ut.add((katalog.name, str(eid)))
+            for eid in _tillegget_fjerner(eier, ramme):
+                ut.add((katalog.name, eid))
     return frozenset(ut)
 
 
