@@ -56,6 +56,23 @@ Spriket mellom sider og tekstutdrag er IKKE dette skrittets sak — det er
 portens `ugranska`-funn i steg 3, se nedenfor. To steder som stoppet på
 samme spørsmål kunne svart ulikt på det.
 
+### Og hva den IKKE svarer på
+
+Om indeksen er over DISSE sidene. Katalogen tømmes før hvert bygg, så et
+BYGG kan ikke etterlate en gammel indeks — men `--uten-bygg` laster opp
+mappa som den ligger, og en indeks fra et tidligere bygg ville passert.
+
+MÅLT 23.09.2026: utputtmappa bar en pagefind-indeks fra et tidligere
+bygg — 2 349 sider, men en annen språkhash enn dagens
+(`nb_64e7b3be60` mot `nb_47803f7523`) — skrevet av en binær som ikke
+lenger fantes på `PATH`. Den var trolig i orden. Ingenting i prøven ville
+sagt fra om den ikke var det.
+
+Å lukke det krever et stempel som knytter indeksen til sidene den ble
+bygget fra, og det finnes ikke i dag. Ført opp her framfor å bli
+oppdaget: det er formen på CLAUDE.md 1b-2, en prøve som svarer på noe
+som LIGNER spørsmålet.
+
 ## Hva som legges ut, og hvor mye
 
 MÅLT 22.09.2026 over 2 338 sider:

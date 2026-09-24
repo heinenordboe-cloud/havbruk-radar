@@ -186,6 +186,24 @@ def sokeindeks(ut: Path) -> tuple[str, str]:
     `PORTSTEG` som eier funnet (`ugranska`) — den sier at ordtabellene
     kan være bygget av noe ingen har lest. Her spørs det bare om det
     finnes en indeks i det hele tatt.
+
+    ## HVA DENNE PRØVEN IKKE SVARER PÅ
+
+    Om indeksen er over DISSE sidene. Den svarer på om det finnes en
+    indeks, og det er et annet spørsmål — nøyaktig den formen CLAUDE.md
+    1b-2 advarer mot, så den skal stå skrevet her framfor å bli oppdaget.
+
+    `skriv_sokeindeks()` tømmer katalogen før hver kjøring, så et bygg
+    kan ikke etterlate en gammel indeks. `--uten-bygg` kan: da lastes
+    mappa opp som den ligger, og en indeks fra et tidligere bygg ville
+    passert her. MÅLT 23.09.2026: utputtmappa BAR en pagefind-indeks fra
+    et tidligere bygg (2349 sider, annen språkhash enn dagens), skrevet
+    av en binær som ikke lenger fantes på `PATH`. Den var trolig i orden
+    — men ingenting i denne prøven ville sagt fra om den ikke var det.
+
+    Å lukke det krever et stempel som knytter indeksen til sidene den ble
+    bygget fra. Det finnes ikke i dag, og det er en åpen sak, ikke en
+    utelatelse.
     """
     import publiseringsvakt
 
