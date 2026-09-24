@@ -22,7 +22,9 @@ som ryker: porten.
                     nektes produksjon; forhåndsvisning advares.
     5  wrangler     forhåndsvisning med mindre --produksjon
     6  logg         én linje i datarepoet: hva som ble lagt ut, når,
-                    fra hvilken kode og hvilke data
+                    fra hvilken kode og hvilke data. Skriptet commiter
+                    og pusher den selv — en logglinje ingen pushet
+                    stopper NESTE publisering i steg 1.
 
 ## Ingen nøkler her
 
@@ -107,6 +109,23 @@ def kjor(*args: str, mappe: Path = ROT, vis: bool = False) -> str:
         raise Stopp(f"\n  STOPPET i {mappe.name}: {' '.join(args)}\n"
                     f"  {melding}")
     return (ut.stdout or "").strip() if not vis else ""
+
+
+def prov(*args: str, mappe: Path) -> str:
+    """Kjør en kommando. Tom streng når den gikk, ellers dens egen klage.
+
+    Som `kjor()`, men uten `Stopp`. Brukes det ene stedet der en feil
+    ikke skal stanse noe som helst, fordi det som kunne vært stanset
+    allerede har skjedd — se `bokfor()`.
+    """
+    try:
+        ut = subprocess.run(args, cwd=mappe, text=True, capture_output=True)
+    except FileNotFoundError:
+        return f"kommandoen «{args[0]}» finnes ikke"
+    if ut.returncode != 0:
+        return ((ut.stderr or ut.stdout or "").strip()
+                or f"{' '.join(args)} ga {ut.returncode}")
+    return ""
 
 
 def git(*args: str, mappe: Path) -> str:
@@ -324,6 +343,80 @@ def skriv_logg(kode: str, data: str, miljo: str, uke: str) -> None:
                 f"{miljo}\t{kode}\t{data}\t{uke}\n")
 
 
+def loggmelding(kode: str, data: str, miljo: str) -> str:
+    """Commit-meldingen for logglinja.
+
+    Den navngir MILJØET og BEGGE commitene, fordi det er nettopp de
+    opplysningene linja legger til: hva som ble lagt ut hvor, og fra
+    hvilken kode og hvilke data. `git log` på datarepoet skal kunne
+    svare på det uten at noen åpner tsv-fila.
+
+    Merk hvilken `data` det er: commiten datarepoet STO PÅ da steg 1
+    målte det, ikke denne commiten, som er barnet av den. Det er
+    riktig vei — raden sier hvilke data siden ble bygget av, og
+    bokføringen av publiseringen kan umulig være en del av dem.
+    """
+    return (f"Publiseringslogg: {miljo} — kode {kode[:12]}, "
+            f"data {data[:12]}")
+
+
+def bokfor(kode: str, data: str, miljo: str,
+           uke: str) -> tuple[str, list[str]]:
+    """Skriv logglinja, og commit og push AKKURAT den fila.
+
+    `("", [])` når linja står på `origin/main`. Ellers (grunnen til at
+    den ikke gjør det, kommandoene som gjenstår for hånd).
+
+    ## Hvorfor skriptet bokfører selv
+
+    Fram til 23.09.2026 skrev steg 6 linja og ba mennesket om å commite
+    den. Én glemt commit er nok til at NESTE publisering stopper i steg
+    1 på et urent tre — og den som da har det travelt, commiter loggen
+    sammen med hva som ellers måtte ligge i treet. Loggen er
+    maskinskrevet og append-only; da er det maskinen som skal føre den.
+
+    ## Hvorfor pathspec på commiten
+
+    `git commit --only -- <sti>` commiter DEN fila fra arbeidstreet og
+    lar resten av indeksen ligge. Steg 1 har allerede krevd et rent
+    tre, så noe annet skal ikke finnes — men «skal ikke» er ikke «kan
+    ikke», og en publisering skal ikke kunne dra en halvferdig endring
+    i datarepoet med seg på lasset. `git add` må stå foran likevel:
+    første gang er fila usporet, og pathspec matcher da ingenting.
+
+    ## Hvorfor en feil her ikke er `Stopp`
+
+    Fordi steg 5 allerede har lastet opp. Alt annet i dette skriptet
+    kan stanses fordi det står FORAN opplastingen; dette står bak den,
+    og der finnes ikke valget mellom å gjøre det og å la være. Svaret
+    er å si høyt hva som mangler, ikke å late som om ingenting skjedde.
+    """
+    skriv_logg(kode, data, miljo, uke)
+    sti = str(LOGG.relative_to(DATAREPO))
+    melding = loggmelding(kode, data, miljo)
+
+    feil = (prov("git", "add", "--", sti, mappe=DATAREPO)
+            or prov("git", "commit", "--only", "--message", melding,
+                    "--", sti, mappe=DATAREPO))
+    if feil:
+        return (f"logglinja er skrevet, men ikke committet:\n    {feil}",
+                [f"git add -- {sti}",
+                 f"git commit --only -m {melding!r} -- {sti}",
+                 "git push origin HEAD:main"])
+
+    # HEAD:main OG IKKE BARE `git push`: steg 1 målte `origin/main..HEAD`,
+    # så `origin/main` er grenen dette repoet er gjort rede for mot. Lot
+    # vi push velge selv, kunne linja lande et sted neste kjøring ikke
+    # leter — og da er den upushet uten at noe sier fra.
+    feil = prov("git", "push", "--quiet", "origin", "HEAD:main",
+                mappe=DATAREPO)
+    if feil:
+        return (f"logglinja er committet, men ikke pushet:\n    {feil}",
+                ["git pull --rebase    # om origin har flyttet seg",
+                 "git push origin HEAD:main"])
+    return "", []
+
+
 # ------------------------------------------------------------ hoved
 
 def main() -> int:
@@ -395,8 +488,21 @@ def main() -> int:
 
     # 6. Logg.
     print("\n[6/6] logg")
-    skriv_logg(kode, data, miljo, uke)
-    print(f"      {LOGG.relative_to(DATAREPO)} — commit og push den.")
+    sti = LOGG.relative_to(DATAREPO)
+    problem, gjenstaar = bokfor(kode, data, miljo, uke)
+    if problem:
+        # IKKE `Stopp`. Hver eneste Stopp-melding i dette skriptet ender
+        # på at ingenting er lastet opp, og her er det motsatte sant.
+        # Låner denne formen den, blir den utrygg alle de andre stedene.
+        print(f"\n  SIDEN ER UTE — steg 5 lastet opp til {miljo}, og det\n"
+              f"  står ved lag. Det er BOKFØRINGEN som mangler:\n\n"
+              f"  {problem}\n\n"
+              f"  Fullfør for hånd i {DATAREPO}:\n"
+              + "\n".join(f"    {k}" for k in gjenstaar)
+              + "\n\n  Står linja upushet, stopper neste publisering i "
+                "steg 1.\n  CLAUDE.md regel 7.\n")
+        return 1
+    print(f"      {sti} — committet og pushet")
     print(f"\nFerdig. {miljo}.\n")
     return 0
 

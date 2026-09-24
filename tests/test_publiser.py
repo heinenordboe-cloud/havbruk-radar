@@ -1,8 +1,8 @@
-"""Publiseringsskriptet — de to prøvene som ikke kan tas i etterkant.
+"""Publiseringsskriptet — prøvene som ikke kan tas i etterkant.
 
 Steg 5 kan ikke prøves her: den laster opp noe. Det som KAN prøves er
-stegene som avgjør om den skal få gjøre det, og de to som står her er
-begge skrevet etter en observert feil:
+stegene som avgjør om den skal få gjøre det, og steg 6, som rydder opp
+etter den. De to første er begge skrevet etter en observert feil:
 
   * **Søkeindeksen.** `nettsted.py` bygger siden ferdig også når
     pagefind-binæren mangler — `/sok/` skrives, veiviseren virker, og
@@ -19,6 +19,15 @@ begge skrevet etter en observert feil:
 
 Prøven på søket måler FILENE, ikke byggerapporten — se
 `publiser.sokeindeks()`. Derfor kan den kjøres uten å bygge noe.
+
+Gruppa nederst kom til 23.09.2026, og har ingen observert feil bak seg
+— den er et hull som ble sett før det rakk å bli en:
+
+  * **Bokføringen i steg 6.** Logglinja ble skrevet og latt ligge
+    ucommitet, og et urent datarepo stopper NESTE publisering i steg 1.
+    Prøvene her kjører ekte git mot en ekte origin, fordi spørsmålet
+    ikke er om vi kaller det vi tror vi kaller, men om linja havner på
+    `origin/main`.
 """
 
 import json
@@ -167,3 +176,155 @@ def test_nettsted_godtar_flagget_og_bare_ett_av_de_to():
         cwd=ROT, capture_output=True, text=True)
     assert begge.returncode != 0
     assert "not allowed with" in begge.stderr
+
+
+# ---- bokføringen av logglinja ---------------------------------------
+
+def _datarepo(tmp_path: Path) -> Path:
+    """Et datarepo med en origin å pushe til. Ekte git, ikke en attrapp.
+
+    Bokføringen er tre git-kall i rekkefølge mot et repo med en
+    fjernkopi. En attrapp ville prøvd at vi kaller det vi tror vi
+    kaller — og det er ikke det samme som at linja havner på
+    `origin/main`. CLAUDE.md regel 6.
+    """
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "--bare", "--initial-branch", "main",
+                    str(origin)], check=True, capture_output=True)
+    arbeid = tmp_path / "data"
+    subprocess.run(["git", "clone", str(origin), str(arbeid)],
+                   check=True, capture_output=True)
+    for n, v in (("user.email", "test@example.invalid"),
+                 ("user.name", "Test"), ("commit.gpgsign", "false")):
+        subprocess.run(["git", "-C", str(arbeid), "config", n, v],
+                       check=True, capture_output=True)
+    (arbeid / "README.md").write_text("data\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(arbeid), "add", "-A"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(arbeid), "commit", "-m", "start"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(arbeid), "push", "-u", "origin", "main"],
+                   check=True, capture_output=True)
+    return arbeid
+
+
+@pytest.fixture
+def datarepo(tmp_path, monkeypatch):
+    arbeid = _datarepo(tmp_path)
+    logg = arbeid / "docs" / "publiseringslogg.tsv"
+    monkeypatch.setattr(publiser, "DATAREPO", arbeid)
+    monkeypatch.setattr(publiser, "LOGG", logg)
+    return arbeid
+
+
+def _pa_origin(arbeid: Path) -> str:
+    return subprocess.run(
+        ["git", "-C", str(arbeid), "show", "origin/main:docs/"
+         "publiseringslogg.tsv"], capture_output=True, text=True).stdout
+
+
+def test_logglinja_havner_paa_origin_og_treet_blir_rent(datarepo):
+    """Prøven er ikke at vi commitet — den er at NESTE steg 1 går."""
+    problem, gjenstaar = publiser.bokfor("a" * 40, "b" * 40,
+                                         "produksjon", "2026-39")
+    assert (problem, gjenstaar) == ("", [])
+
+    urent = subprocess.run(["git", "-C", str(datarepo), "status",
+                            "--porcelain"], capture_output=True, text=True)
+    assert urent.stdout == ""
+
+    subprocess.run(["git", "-C", str(datarepo), "fetch", "--quiet", "origin"],
+                   check=True, capture_output=True)
+    upushet = subprocess.run(
+        ["git", "-C", str(datarepo), "log", "origin/main..HEAD", "--oneline"],
+        capture_output=True, text=True)
+    assert upushet.stdout == ""
+
+    innhold = _pa_origin(datarepo)
+    assert innhold.startswith("tidspunkt\tmiljo\t")
+    assert f"\tproduksjon\t{'a' * 40}\t{'b' * 40}\t2026-39\n" in innhold
+
+
+def test_commitmeldingen_navngir_miljo_og_begge_commitene(datarepo):
+    publiser.bokfor("a" * 40, "b" * 40, "forhandsvisning", "2026-39")
+    tittel = subprocess.run(
+        ["git", "-C", str(datarepo), "log", "-1", "--format=%s"],
+        capture_output=True, text=True).stdout.strip()
+    assert tittel == publiser.loggmelding("a" * 40, "b" * 40,
+                                          "forhandsvisning")
+    assert "forhandsvisning" in tittel
+    assert "a" * 12 in tittel and "b" * 12 in tittel
+
+
+def test_bokforingen_rorer_ingen_andre_filer(datarepo):
+    """Den ene fila, og bare den — også når noe annet ligger i treet.
+
+    Steg 1 har krevd et rent tre, så dette skal ikke kunne skje. «Skal
+    ikke» er ikke «kan ikke», og en publisering skal ikke kunne dra en
+    halvferdig endring i datarepoet med seg på lasset.
+    """
+    (datarepo / "README.md").write_text("rotet til\n", encoding="utf-8")
+    (datarepo / "nyfil.txt").write_text("ubedt\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(datarepo), "add", "-A"],
+                   check=True, capture_output=True)
+
+    problem, _ = publiser.bokfor("a" * 40, "b" * 40, "produksjon", "2026-39")
+    assert problem == ""
+
+    rort = subprocess.run(
+        ["git", "-C", str(datarepo), "show", "--name-only", "--format=",
+         "HEAD"], capture_output=True, text=True).stdout.split()
+    assert rort == ["docs/publiseringslogg.tsv"]
+    assert "data\n" == subprocess.run(
+        ["git", "-C", str(datarepo), "show", "HEAD:README.md"],
+        capture_output=True, text=True).stdout
+
+
+def test_linja_legges_til_og_skrives_ikke_om(datarepo):
+    """Append-only, som alt annet i datarepoet. CLAUDE.md regel 2."""
+    publiser.bokfor("a" * 40, "b" * 40, "forhandsvisning", "2026-38")
+    publiser.bokfor("c" * 40, "d" * 40, "produksjon", "2026-39")
+    linjer = _pa_origin(datarepo).strip().splitlines()
+    assert len(linjer) == 3
+    assert linjer[1].split("\t")[1:] == ["forhandsvisning", "a" * 40,
+                                         "b" * 40, "2026-38"]
+    assert linjer[2].split("\t")[1:] == ["produksjon", "c" * 40,
+                                         "d" * 40, "2026-39"]
+
+
+def test_feilet_push_sier_fra_uten_aa_paastaa_at_noe_kan_gjores_om(datarepo):
+    """Steg 5 har lastet opp. En feil her er en MANGLENDE BOKFØRING.
+
+    Origin flyttes under føttene på oss, så pushen avvises. Da skal
+    linja være committet, grunnen stå i klartekst, og kommandoene som
+    gjenstår være de som faktisk gjenstår — ikke en `Stopp`, som i dette
+    skriptet alltid betyr at ingenting er lastet opp.
+    """
+    fremmed = datarepo.parent / "fremmed"
+    subprocess.run(["git", "clone", str(datarepo.parent / "origin.git"),
+                    str(fremmed)], check=True, capture_output=True)
+    for n, v in (("user.email", "x@example.invalid"), ("user.name", "X")):
+        subprocess.run(["git", "-C", str(fremmed), "config", n, v],
+                       check=True, capture_output=True)
+    (fremmed / "annet.txt").write_text("i veien\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(fremmed), "add", "-A"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(fremmed), "commit", "-m", "kom først"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(fremmed), "push", "origin", "main"],
+                   check=True, capture_output=True)
+
+    problem, gjenstaar = publiser.bokfor("a" * 40, "b" * 40,
+                                         "produksjon", "2026-39")
+    assert "committet, men ikke pushet" in problem
+    assert gjenstaar and gjenstaar[-1] == "git push origin HEAD:main"
+
+    # Committet, og bare den ene fila — treet er rent, så det som
+    # gjenstår er ett push og ingen opprydding.
+    urent = subprocess.run(["git", "-C", str(datarepo), "status",
+                            "--porcelain"], capture_output=True, text=True)
+    assert urent.stdout == ""
+    rort = subprocess.run(
+        ["git", "-C", str(datarepo), "show", "--name-only", "--format=",
+         "HEAD"], capture_output=True, text=True).stdout.split()
+    assert rort == ["docs/publiseringslogg.tsv"]
