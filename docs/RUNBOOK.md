@@ -137,9 +137,37 @@ nettleseren, og skriptet rører ikke nøkler:
 
     npx wrangler login
 
-MÅLT 23.09.2026: `node` og `npx` finnes ikke på utviklingsmaskinen.
-Steg 1–4 kjører uten dem — sporbarhet, bygg, port og tallene — og
-steg 5 stopper med beskjed om hva som mangler.
+Node.js er installert uten sudo: den offisielle tarballen fra
+nodejs.org, sjekksum verifisert mot `SHASUMS256.txt` før utpakking, i
+`~/.local/node`, med én PATH-linje i `~/.zshrc`. v24.21.0 LTS,
+23.09.2026.
+
+### Prosjektet ble opprettet ÉN gang, med `--force`
+
+    npx wrangler pages project create kystloggen \
+        --production-branch main --force
+
+`--force` var nødvendig og skal IKKE gjentas. Wrangler 4.137
+videresender `pages project create` til den nye Workers-baserte Pages,
+som forventer å BYGGE i mappa den kjøres fra — den lette etter
+`./build` og `./_site` og feilet. Vår modell er motsatt: vi laster opp
+en ferdigbygget mappe.
+
+Det mislykkede forsøket skrev to ting inn i repoet uoppfordret, og
+begge ble fjernet: en `wrangler.jsonc` med feil prosjektnavn
+(`havbruk-radar`) og en peker til `_site` som ikke finnes, og fem
+linjer i `.gitignore`.
+
+**`.wrangler/` står nå i `.gitignore`**, og det er ikke kosmetikk:
+wrangler skriver en hurtigbuffer der hver gang den kjører, og
+`publiser.py` steg 1 nekter å publisere fra et urent tre. Uten linja
+ville hver eneste publisering stoppet på sin egen hurtigbuffer.
+
+Nøklene ligger IKKE i repoet: `~/Library/Preferences/.wrangler/config/`.
+
+    prosjekt          kystloggen
+    produksjonsgren   main
+    adresse           https://kystloggen.pages.dev
 
 ### Seks steg, og rekkefølgen er poenget
 

@@ -30,3 +30,12 @@ analyse/ut/
 # avledet, regenererbart, og 2 MB som ville ligget dobbelt i historikken.
 analyse/tekst/
 analyse/tekst-norm/
+
+# wranglers lokale hurtigbuffer. Skrives av `npx wrangler` i mappa den
+# kjøres fra, og inneholder konto-id og prosjektlista — ikke nøkler,
+# de ligger i ~/Library/Preferences/.wrangler.
+#
+# Den MÅ stå her: `publiser.py` steg 1 nekter å publisere fra et urent
+# tre, og en hurtigbuffer som dukker opp av seg selv ville stoppet hver
+# eneste publisering.
+.wrangler/
