@@ -135,7 +135,14 @@ domene `kystloggen.no`.
 `npx`), og wrangler må være logget inn. Innloggingen skjer i
 nettleseren, og skriptet rører ikke nøkler:
 
-    npx wrangler login
+    npx wrangler@4.139.0 login
+
+**Versjonen står med vilje.** Steg 5 kjører `npx wrangler@4.139.0`, og
+innloggingen skal gjøres av den samme — tilstanden under
+`~/Library/Preferences/.wrangler/` er wranglers egen, og to ulike
+versjoner som skriver og leser den er to ting som kan si hver sitt.
+Hvorfor den er pinnet i det hele tatt: se `WRANGLER` i `publiser.py`.
+`tests/test_publiser.py` krever at tallet her og der er det samme.
 
 Node.js er installert uten sudo: den offisielle tarballen fra
 nodejs.org, sjekksum verifisert mot `SHASUMS256.txt` før utpakking, i

@@ -28,10 +28,10 @@ som ryker: porten.
 
 ## Ingen nøkler her
 
-`wrangler` autentiserer i nettleseren (`npx wrangler login`) og lagrer
-sin egen tilstand under `~/.config/.wrangler`. Dette skriptet leser
-den ikke, skriver den ikke, og ber ikke om den. Kjører du uten å være
-logget inn, sier wrangler fra selv.
+`wrangler` autentiserer i nettleseren (`npx $WRANGLER login`, se
+konstanten) og lagrer sin egen tilstand under `~/.config/.wrangler`.
+Dette skriptet leser den ikke, skriver den ikke, og ber ikke om den.
+Kjører du uten å være logget inn, sier wrangler fra selv.
 """
 from __future__ import annotations
 
@@ -52,6 +52,34 @@ UT = DATA_DIR / "nettsted"
 LOGG = DATAREPO / "docs" / "publiseringslogg.tsv"
 
 PROSJEKT = "kystloggen"
+
+# VERSJONEN AV WRANGLER, oppgitt eksakt til npx. Uten `@`-delen henter
+# npx den nyeste utgivelsen på hver kjøring, og da er verktøyet som
+# legger ut siden det ene leddet i kjeden ingen har valgt.
+#
+# Begrunnelsen er den samme som for `requirements.txt` og for pagefind i
+# `requirements-verktoy.md`, og den gjelder med én skjerpelse her: en
+# publisering feiler i steg 5 ETTER at mennesket har skrevet «ja» i steg
+# 4, og et verktøy som byttet seg ut av seg selv gjør det den tilfeldige
+# dagen Cloudflare endrer noe i `pages deploy`. Oppgradering skal være en
+# handling, ikke noe som skjer mens du leser ukas tall.
+#
+# MÅLT 24.09.2026, og dette er hele grunnen til at pinningen er sann:
+# med 4.139.0 allerede i npx-bufferen svarer `npx wrangler@4.137.0
+# --version` fortsatt `4.137.0`. Spesifikasjonen BINDER — den er ikke et
+# minstekrav npx står fritt til å overgå.
+#
+# Merk hva den ikke gjør: den binder VERSJONEN, ikke bytene. Pagefind
+# lastes ned én gang og sammenlignes med en sha256 som står i repoet;
+# wrangler hentes av npx på nytt hver gang bufferen er tom, og
+# integriteten hviler da på npm-registeret. Å skrive ned en sum her
+# ville krevd at vi eide nedlastingen, og det gjør npx.
+#
+# Bumping: endre tallet, kjør pytest, legg ut til FORHÅNDSVISNING og se
+# at steg 5 svarer. Versjonen står også i `docs/RUNBOOK.md`, fordi
+# innloggingen skjer for hånd — og `tests/test_publiser.py` binder de to
+# sammen, så de ikke kan si ulike ting.
+WRANGLER = "wrangler@4.139.0"
 
 # GRENENE HOS CLOUDFLARE PAGES, og de er ikke det samme som grenene i
 # git — de er etiketter på en utrulling. Pages behandler ÉN av dem som
@@ -100,9 +128,9 @@ def kjor(*args: str, mappe: Path = ROT, vis: bool = False) -> str:
         # en stakktrace.
         raise Stopp(
             f"\n  STOPPET: kommandoen «{args[0]}» finnes ikke.\n"
-            + ("  Installer Node.js (som gir npx), og kjør\n"
-               "    npx wrangler login\n"
-               "  én gang før første publisering."
+            + (f"  Installer Node.js (som gir npx), og kjør\n"
+               f"    npx {WRANGLER} login\n"
+               f"  én gang før første publisering."
                if args[0] == "npx" else ""))
     if ut.returncode != 0:
         melding = (ut.stderr or ut.stdout or "").strip() if not vis else ""
@@ -507,7 +535,7 @@ def main() -> int:
     # GRENEN OPPGIS ALLTID, også for produksjon. Se `PRODUKSJONSGREN`.
     gren = PRODUKSJONSGREN if args.produksjon else FORHANDSGREN
     print(f"\n[5/6] wrangler → {miljo} (gren {gren})")
-    wrangler = ["npx", "wrangler", "pages", "deploy", str(UT),
+    wrangler = ["npx", WRANGLER, "pages", "deploy", str(UT),
                 "--project-name", PROSJEKT, "--branch", gren]
     kjor(*wrangler, vis=True)
 

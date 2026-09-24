@@ -1,8 +1,9 @@
 """Publiseringsskriptet — prøvene som ikke kan tas i etterkant.
 
-Steg 5 kan ikke prøves her: den laster opp noe. Det som KAN prøves er
-stegene som avgjør om den skal få gjøre det, og steg 6, som rydder opp
-etter den. De to første er begge skrevet etter en observert feil:
+Steg 5 kan ikke KJØRES her: den laster opp noe. Det som KAN prøves er
+stegene som avgjør om den skal få gjøre det, steg 6, som rydder opp
+etter den — og kommandoen steg 5 bygger, som er en tekst uansett om den
+kjøres. De to første er begge skrevet etter en observert feil:
 
   * **Søkeindeksen.** `nettsted.py` bygger siden ferdig også når
     pagefind-binæren mangler — `/sok/` skrives, veiviseren virker, og
@@ -33,9 +34,16 @@ bak seg — de er to hull som ble sett før de rakk å bli en:
     Prøvene her kjører ekte git mot en ekte origin, fordi spørsmålet
     ikke er om vi kaller det vi tror vi kaller, men om linja havner på
     `origin/main`.
+
+Gruppa om wrangler-versjonen kom 24.09.2026 og er av samme slag — et
+hull sett før det ble en feil. `npx wrangler` uten versjon hentet nyeste
+utgivelse hver gang, og det er samme risiko `requirements.txt` ble
+pinnet for. Prøvene her binder de tre stedene versjonen sies: konstanten,
+kallet i steg 5, og innloggingskommandoen i RUNBOOK.
 """
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -210,6 +218,51 @@ def test_hvert_flagg_staar_alene_i_hjelpen():
     assert hjelp.returncode == 0
     assert "--produksjon" in hjelp.stdout
     assert "--uten-bygg" in hjelp.stdout
+
+
+# ---- wrangler-versjonen ----------------------------------------------
+
+def test_wrangler_oppgis_med_en_eksakt_versjon():
+    """Ikke «nyeste», ikke et minstekrav. Ett tall.
+
+    `npx wrangler` uten `@`-del henter nyeste utgivelse ved hver
+    kjøring. Da er verktøyet som legger ut siden det ene leddet ingen
+    har valgt — og det byttes ut en tilfeldig dag, midt i steg 5, etter
+    at mennesket har svart «ja» i steg 4. Samme begrunnelse som
+    `requirements.txt`.
+    """
+    pakke, _, versjon = publiser.WRANGLER.partition("@")
+    assert pakke == "wrangler"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", versjon), publiser.WRANGLER
+
+
+def test_ingen_upinnet_npx_wrangler_noe_sted_i_skriptet():
+    """Konstanten hjelper ikke om ett kall eller én melding går rundt den.
+
+    Prøven er over HELE fila, ikke over steg 5 alene: meldingen `kjor()`
+    skriver når npx mangler ber leseren logge inn, og en innlogging med
+    en annen versjon enn den som deployer skriver wranglers egen tilstand
+    med et annet verktøy enn det som leser den.
+
+    `npx wrangler@…` er tillatt — det er en pinnet versjon. Det er
+    `npx wrangler` UTEN `@` som er funnet, og målingen i kommentaren over
+    `WRANGLER` nevner 4.137.0 nettopp på den formen.
+    """
+    kilde = (ROT / "publiser.py").read_text(encoding="utf-8")
+    assert '"npx", WRANGLER,' in kilde
+    assert not re.findall(r"npx wrangler(?!@)", kilde)
+
+
+def test_runbooken_navngir_samme_versjon_som_skriptet():
+    """To steder som KAN si ulike ting, bundet sammen.
+
+    Innloggingen gjøres for hånd, så versjonen må stå i RUNBOOK også.
+    Står de to fra hverandre etter en bump, logger mennesket inn med én
+    wrangler og publiserer med en annen.
+    """
+    runbook = (ROT / "docs" / "RUNBOOK.md").read_text(encoding="utf-8")
+    assert f"npx {publiser.WRANGLER} login" in runbook
+    assert not re.findall(r"npx wrangler(?!@) login", runbook)
 
 
 # ---- bokføringen av logglinja ---------------------------------------
