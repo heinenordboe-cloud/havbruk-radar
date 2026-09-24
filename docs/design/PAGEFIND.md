@@ -23,10 +23,38 @@ på `PATH`, eller i miljøvariabelen `HAVBRUK_PAGEFIND`.
 
     HAVBRUK_PAGEFIND=/sti/til/pagefind python nettsted.py --alle
 
+Installert uten sudo i `~/.local/bin`, med sjekksummen sammenlignet før
+utpakking — kommandoene står i `requirements-verktoy.md`, og det er
+samme mønster som Node fikk 23.09.2026.
+
 **Mangler den, sier bygget det.** `/sok/` skrives uansett, og
 veiviseren til de tre flate indeksene virker — men byggerapporten
 skriver `søkeindeks IKKE BYGGET` med grunnen. Et søk som stille slutter
 å virke er nøyaktig formen på feilene i CLAUDE.md 1b.
+
+### Og produksjon nektes
+
+At bygget SIER det, er ikke nok: linja står i en rapport på 30 linjer,
+og den dagen noen har det travelt er den lest av ingen.
+
+`publiser.py` steg 4 nekter derfor å legge ut til **produksjon** uten
+søkeindeks (`krev_sokeindeks()`, 23.09.2026). Til forhåndsvisning blir
+det en advarsel, fordi forhåndsvisningen ses av den som ba om den og
+produksjon av alle andre.
+
+To ting om HVA den måler:
+
+* **Filene, ikke rapporten.** `--uten-bygg` laster opp en mappe
+  `publiser.py` ikke har bygget, og da finnes ingen rapport å lese. En
+  rapport sier dessuten bare at vi PRØVDE (CLAUDE.md 1b-2); filene under
+  `nettsted/pagefind/` sier at indeksen er der.
+* **Også `pagefind.js`.** Uten modulen `maler/sok.js` laster ved første
+  tastetrykk, svarer søkefeltet ingenting uansett hvor komplette
+  tekstutdragene er.
+
+Spriket mellom sider og tekstutdrag er IKKE dette skrittets sak — det er
+portens `ugranska`-funn i steg 3, se nedenfor. To steder som stoppet på
+samme spørsmål kunne svart ulikt på det.
 
 ## Hva som legges ut, og hvor mye
 

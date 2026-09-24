@@ -18,7 +18,8 @@ som ryker: porten.
                     en påstand ingen kan etterprøve.
     2  bygg         fra det som ligger på disk, ikke fra en cache
     3  porten       ETT ukvittert funn stopper. Ingen overstyring.
-    4  ukas tall    skrevet ut, og du må skrive «ja»
+    4  ukas tall    skrevet ut, og du må skrive «ja». Mangler søket,
+                    nektes produksjon; forhåndsvisning advares.
     5  wrangler     forhåndsvisning med mindre --produksjon
     6  logg         én linje i datarepoet: hva som ble lagt ut, når,
                     fra hvilken kode og hvilke data
@@ -140,6 +141,77 @@ def krev_sporbar(mappe: Path, navn: str) -> str:
 
 # ------------------------------------------------------------ steg 4
 
+# MODULEN NETTLESEREN LASTER. `maler/sok.js` henter den ved første
+# tastetrykk; er den ikke der, svarer søkefeltet ingenting uansett hvor
+# komplett resten av indeksen er.
+SOKEMODUL = "pagefind/pagefind.js"
+
+
+def sokeindeks(ut: Path) -> tuple[str, str]:
+    """(mangel, linje) for søket i det som er i ferd med å bli lastet opp.
+
+    `mangel` er tom streng når søket svarer, ellers grunnen til at det
+    ikke gjør det.
+
+    MÅLT PÅ DISK, ikke lest av byggerapporten. Byggets rapport sier at
+    vi PRØVDE å bygge en indeks; filene under `ut/pagefind/` sier at den
+    er der. Det er skillet i CLAUDE.md 1b-2, og her har det to følger
+    som begge er reelle: `--uten-bygg` laster opp en mappe dette
+    skriptet ikke har bygget og ikke har noen rapport fra, og en indeks
+    kan være halv eller slettet lenge etter at rapporten ble skrevet.
+
+    Prøven er Pagefinds egen bokføring mot filene: `pagefind-entry.json`
+    oppgir hvor mange sider som er indeksert, og det skal finnes ett
+    tekstutdrag per side. Er de to ULIKE, er det porten i steg 3 som
+    eier funnet (`ugranska`) — den sier at ordtabellene kan være bygget
+    av noe ingen har lest. Her spørs det bare om det finnes en indeks i
+    det hele tatt.
+    """
+    import publiseringsvakt
+
+    sider, utdrag = publiseringsvakt.utdrag_dekker_indeksen(ut / "pagefind")
+    linje = f"søkeindeks: {sider} sider, {utdrag} tekstutdrag"
+    if sider <= 0 or utdrag == 0:
+        return (f"søkeindeksen er ikke bygget — {ut / 'pagefind'} har "
+                f"ingen lesbar pagefind-entry.json eller ingen "
+                f"tekstutdrag"), linje
+    if not (ut / SOKEMODUL).exists():
+        return (f"{SOKEMODUL} mangler — søkefeltet laster aldri motoren, "
+                f"og de {utdrag} tekstutdragene blir liggende ubrukt"), linje
+    return "", linje
+
+
+def krev_sokeindeks(ut: Path, produksjon: bool) -> list[str]:
+    """Linjene som skrives om søket. `Stopp` når produksjon mangler det.
+
+    ## Hvorfor produksjon NEKTES og forhåndsvisning bare advares
+
+    Fordi de to svarer på hver sin ting. En forhåndsvisning ses av den
+    som ba om den, og et søkefelt som ikke svarer der er en mangel
+    vedkommende selv oppdager i samme time. Produksjon ses av alle andre,
+    og et søkefelt som tar imot tastetrykk og svarer ingenting er
+    nøyaktig formen på feilene i CLAUDE.md 1b: stille, og usynlig for den
+    som ikke visste at det skulle kommet et svar.
+
+    Nektelsen kommer FØR spørsmålet i steg 4. Å spørre et menneske om lov
+    til noe vi like etter vil nekte, er å lære vedkommende at «ja» ikke
+    betyr noe.
+    """
+    mangel, linje = sokeindeks(ut)
+    if not mangel:
+        return [f"  {linje}"]
+    if produksjon:
+        raise Stopp(
+            f"\n  STOPPET: {mangel}\n\n"
+            f"  Produksjon krever et søk som svarer. Installer pagefind\n"
+            f"  (se requirements-verktoy.md), bygg på nytt — eller legg\n"
+            f"  ut til forhåndsvisning i mellomtiden.\n"
+            f"  Ingenting er lastet opp.")
+    return [f"  {linje}",
+            f"\n  ADVARSEL: {mangel}",
+            f"  Forhåndsvisningen legges ut uten søk. Produksjon nektes."]
+
+
 def ukas_tall() -> tuple[str, list[str]]:
     """(ukeslug, linjer) — hva som ligger i den ferskeste uka.
 
@@ -242,7 +314,8 @@ def main() -> int:
         print("\n[2/6] bygg — hoppet over (--uten-bygg)")
     else:
         print("\n[2/6] bygg")
-        kjor(sys.executable, "nettsted.py", "--alle", "--uten-vakt", vis=True)
+        kjor(sys.executable, "nettsted.py", "--alle",
+             "--uten-vakt", vis=True)
 
     if not UT.is_dir():
         raise Stopp(f"\n  STOPPET: {UT} finnes ikke.")
@@ -271,6 +344,8 @@ def main() -> int:
     filer = sum(1 for p in UT.rglob("*") if p.is_file())
     bytes_ = sum(p.stat().st_size for p in UT.rglob("*") if p.is_file())
     print(f"\n  {filer} filer, {bytes_ / 1e6:.1f} MB → {miljo}")
+    for linje in krev_sokeindeks(UT, args.produksjon):
+        print(linje)
     spor(f'\n  Skriv «ja» for å laste opp til {miljo}: ')
 
     # 5. Ut.

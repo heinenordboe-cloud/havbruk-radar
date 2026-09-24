@@ -4399,6 +4399,11 @@ def skriv_feeder(rot: Path, felles: Felles, uker: list[dict]) -> list[Path]:
 # uten indeksen (veiviseren står der), men byggerapporten skal ikke
 # tie: et søk som stille slutter å virke er nøyaktig formen på feilene
 # i CLAUDE.md 1b.
+#
+# Og det stopper ikke der: `publiser.py` steg 4 NEKTER å legge ut til
+# produksjon uten indeks, fordi en linje i en byggerapport er lest av
+# ingen den dagen noen har det travelt. Til forhåndsvisning blir det en
+# advarsel. Se `publiser.krev_sokeindeks()`.
 
 PAGEFIND_KATALOG = "pagefind"
 

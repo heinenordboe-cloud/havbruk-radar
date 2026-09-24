@@ -142,6 +142,12 @@ nodejs.org, sjekksum verifisert mot `SHASUMS256.txt` før utpakking, i
 `~/.local/node`, med én PATH-linje i `~/.zshrc`. v24.21.0 LTS,
 23.09.2026.
 
+**Pagefind må også være installert** — samme mønster: offisiell
+utgivelse for `aarch64-apple-darwin`, sjekksum sammenlignet før
+utpakking, `~/.local/bin/pagefind`. Kommandoene står i
+`requirements-verktoy.md`. Uten den bygges siden, men uten søk, og
+**steg 4 nekter da produksjon.**
+
 ### Prosjektet ble opprettet ÉN gang, med `--force`
 
     npx wrangler pages project create kystloggen \
@@ -176,11 +182,15 @@ Nøklene ligger IKKE i repoet: `~/Library/Preferences/.wrangler/config/`.
 | 1 | sporbarhet | begge repoene rene og pushet — F15, to ganger |
 | 2 | bygg | fra disk, ikke fra en cache |
 | 3 | porten | ETT ukvittert funn stopper. Ingen overstyring |
-| 4 | ukas tall | skrevet ut, og du må skrive «ja» |
+| 4 | ukas tall | skrevet ut, og du må skrive «ja». Søkeindeksen målt: mangler den, nektes produksjon |
 | 5 | wrangler | forhåndsvisning med mindre `--produksjon` |
 | 6 | logg | én linje i `docs/publiseringslogg.tsv` i datarepoet |
 
 `--uten-bygg` hopper over steg 2. **Den hopper ikke over porten.**
+
+Søkeindeksen måles i steg 4, på filene under `nettsted/pagefind/` — ikke
+på byggerapporten, som ikke finnes med `--uten-bygg`. Produksjon nektes
+uten indeks; forhåndsvisning advares. Se `docs/design/PAGEFIND.md`.
 
 Steg 4 krever ordet `ja`, skrevet ut. Ikke `y`, ikke enter: et spørsmål
 som kan besvares ved et uhell er ikke et spørsmål.
