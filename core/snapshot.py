@@ -615,6 +615,13 @@ def versjoner(source: str, observed_at: str) -> list[tuple[int, pl.DataFrame]]:
     return sorted(lest, key=lambda par: (publisert(par[1]), par[0]))
 
 
+# NØKKELEN FOR DET HOOKEN TOK, i `filtrert_bort()`. En etikett og ikke en
+# formkode: kjernen vet ikke hvilken form kilden så, og skal ikke vite
+# det. Står som konstant fordi den leses av rapporten i
+# `publiseringsvakt.filtrert_bort()`.
+TILLEGGSNOKKEL = "(kildens eget tillegg)"
+
+
 def filtrert_bort(source: str, observed_at: str) -> dict[str, int]:
     """{organisasjonsform: antall} som lesedøra tok ut av denne datoen.
 
@@ -630,17 +637,36 @@ def filtrert_bort(source: str, observed_at: str) -> dict[str, int]:
     mange personer som ble holdt ute hver eneste gang den kjører. Et
     grønt bygg skal ikke kunne bety «ingen persondata» uten at noen har
     sett tallet.
+
+    ## `(kildens eget tillegg)` — og hvorfor nøkkelen ikke er en formkode
+
+    `tell_personer()` svarer for DØRA alene, og må gjøre det: den og
+    `fjern_personformer()` går gjennom samme `_personene()` for at
+    telleren ikke skal kunne si noe annet enn filteret gjorde. Men et
+    aggregat et menneske leser som «hvor mange ble holdt ute», kan ikke
+    svare 0 når fire entiteter ble holdt ute — se docstringen der.
+
+    Derfor legges hookens entiteter til her, der kilden er kjent, under
+    nøkkelen `(kildens eget tillegg)`. Den er en ETIKETT og ikke en
+    formkode, fordi kjernen ikke vet hvilken form kilden så: formen står
+    i kildens eget vokabular, og det er hele grunnen til at hooken
+    finnes. Samme konvensjon som `(uten form)` i `tell_personer()`.
     """
     target_dir = RAW_DIR / source
     if not target_dir.exists():
         return {}
 
+    eier = _kilder_med_eget_tillegg().get(source)
     ut: dict[str, int] = {}
     for sti in sorted(target_dir.glob("*.parquet")):
         if _dato_og_versjon(sti.stem)[0] != observed_at:
             continue
-        for form, antall in _les_med_tall(sti)[1].items():
+        ramme, tall, _pers, _kol = _les_med_tall(sti)
+        for form, antall in tall.items():
             ut[form] = ut.get(form, 0) + antall
+        fra_hooken = len(_tillegget_fjerner(eier, ramme))
+        if fra_hooken:
+            ut[TILLEGGSNOKKEL] = ut.get(TILLEGGSNOKKEL, 0) + fra_hooken
     return dict(sorted(ut.items()))
 
 

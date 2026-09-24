@@ -2695,6 +2695,41 @@ def test_doren_teller_hva_den_tok(tmp_path, monkeypatch):
     assert snapshot.filtrert_bort("enhetsregisteret", "2026-08-24") == {}
 
 
+def test_aggregatet_teller_ogsaa_det_kildens_tillegg_tok(
+        tmp_path, monkeypatch):
+    """Et svar på 0 som ikke betyr 0, er feilen.
+
+    `tell_personer()` svarer for DØRA alene, og skal gjøre det — den og
+    `fjern_personformer()` deler `_personene()` nettopp for at telleren
+    ikke skal kunne si noe annet enn filteret gjorde. Men rapporten leser
+    `filtrert_bort()` som «hvor mange ble holdt ute», og det tallet kan
+    ikke være 0 når kildens eget tillegg tok noen.
+
+    Nøkkelen er en ETIKETT, ikke en formkode: kjernen vet ikke hvilken
+    form kilden så.
+    """
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path)
+    kilde = KildeMedEgetTillegg()
+    monkeypatch.setattr(registry, "discover", lambda: [kilde])
+
+    rader = []
+    for nr, type_ in [("H-XX-0001", "DA"), ("H-XX-0002", "AS")]:
+        for felt, verdi in [("mottaker_type", type_),
+                            ("mottaker_navn", f"navn {nr}")]:
+            rader.append(Observation(
+                entity_id=nr, entity_type="tillatelse", entity_name=nr,
+                field=felt, value=verdi, source=kilde.name,
+                observed_at="2014-12-31"))
+    _skriv_kildesnapshot(kilde.name, "2014-12-31", rader)
+
+    ramme = pl.read_parquet(
+        tmp_path / kilde.name / "2014-12-31.parquet")
+    assert persondata.tell_personer(ramme) == {}, "døra ser ingenting her"
+
+    assert snapshot.filtrert_bort(kilde.name, "2014-12-31") == {
+        snapshot.TILLEGGSNOKKEL: 1}
+
+
 def test_telleren_og_filteret_svarer_paa_det_samme(tmp_path, monkeypatch):
     """To uttrykk for samme spørsmål er formen F6 og F7 hadde. Her ville
     de gitt en rapport som sier noe annet enn døra gjorde."""

@@ -162,6 +162,28 @@ def tell_personer(frame: pl.DataFrame) -> dict[str, int]:
     en form vi ikke kjenner — føres under formkoden sin, og under
     `(uten form)` om ramma ikke har en formrad for den. Det er da den
     eneste måten å se at det finnes en femte personform på.
+
+    ## HVA ET SVAR PÅ 0 BETYR, OG HVA DET IKKE BETYR
+
+    Den teller det `fjern_personformer()` ville tatt, og ikke noe mer.
+    Begge går gjennom `_personene()` nettopp for at telleren ikke skal
+    kunne si noe annet enn filteret gjorde — og det er grunnen til at
+    denne funksjonen IKKE utvides til å spørre kilden.
+
+    Følgen skal sies rett ut, fordi den er målt: **0 her betyr «døra tar
+    ingen», ikke «det er ingen person her».** MÅLT 24.09.2026 på
+    `eierskap_historikk`: 36 360 rader, 0 med `organisasjonsform` og 0 med
+    `institusjonell_sektorkode`, altså 0 fra denne telleren — mens
+    `Source.fjern_egne_personer()` fjerner 4 entiteter, fordi formen står
+    i `mottaker_type`. Et svar på 0 som leses som «ingen der» er den
+    formen CLAUDE.md 1b-2 handler om.
+
+    `persondata` kan ikke lukke det selv uten å lære kildenes vokabular,
+    og det er nøyaktig det `Source.fjern_egne_personer()` finnes for å
+    unngå. Aggregatet et MENNESKE leser, teller derfor begge ledd:
+    `snapshot.filtrert_bort()` legger hookens entiteter til under
+    `(kildens eget tillegg)`. Spørsmålet «hvor mange ble holdt ute» stilles
+    der, ikke her.
     """
     if frame.is_empty() or not {"entity_id", "field", "value"} <= set(frame.columns):
         return {}
