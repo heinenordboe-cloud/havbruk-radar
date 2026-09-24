@@ -3,6 +3,7 @@
     python nettsted.py                     # bygger, gransker, exit 1 ved funn
     python nettsted.py --lokalitet 31397   # bare den ene siden
     python nettsted.py --uten-vakt         # bygg uten porten (utvikling)
+    python nettsted.py --vakt-kjores-av X  # porten kjøres av X, ikke her
 
 Statisk HTML, Jinja2, ingen JavaScript. Tallene står i kildekoden.
 
@@ -6327,6 +6328,34 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
 # --------------------------------------------------------- porten
 
 
+def vaktmelding(kjores_av: str) -> str:
+    """Linja bygget skriver når det ikke kjørte porten selv.
+
+    ## TO GRUNNER TIL Å HOPPE OVER, og de betyr motsatte ting
+
+    Fram til 23.09.2026 fantes bare `--uten-vakt`, og meldingen var
+    «VAKTEN ER HOPPET OVER. Siden skal ikke publiseres.» Den er riktig
+    for et utviklingsbygg: ingen har gransket denne mappa, og da skal den
+    ikke ut.
+
+    Men `publiser.py` steg 2 sendte samme flagg, og den KJØRER porten —
+    i sitt eget steg, med vilje, slik at `--uten-bygg` ikke kan hoppe
+    over den. Meldingen sa da at en side ikke skulle publiseres, midt i
+    skriptet som var i ferd med å publisere den etter en ren port. En
+    advarsel som er usann i normaltilfellet er en advarsel ingen leser
+    den dagen den er sann.
+
+    Flagget bar altså ÉN bit der spørsmålet har to svar: «ingen gransker
+    dette» og «noen andre gransker det». Skillet kan ikke gjettes her —
+    bare den som kaller vet det — så det kommer inn som et navn, på
+    samme måte som kjøredatoen i CLAUDE.md 1b. Tom streng er «ingen»,
+    ikke en antakelse om hvem.
+    """
+    if kjores_av:
+        return f"\nVAKTEN ER IKKE KJØRT HER. Den kjøres av {kjores_av}."
+    return "\nVAKTEN ER HOPPET OVER. Siden skal ikke publiseres."
+
+
 def gransk_og_meld(rot: Path) -> int:
     """Publiseringsvakten på det som nettopp ble bygget. 0 = rent.
 
@@ -6439,8 +6468,18 @@ def main() -> int:
     ap.add_argument("--grense", type=int, default=None,
                     help="med --alle: bygg bare de N første (for en prøve)")
     ap.add_argument("--ut", default=str(UT), help="målmappe")
-    ap.add_argument("--uten-vakt", action="store_true",
-                    help="hopp over publiseringsvakten (bare utvikling)")
+    # DE TO MÅTENE Å IKKE KJØRE PORTEN HER, og de utelukker hverandre
+    # fordi de betyr motsatte ting. Se `vaktmelding()`. Ett flagg som
+    # kunne stå sammen med det andre, ville vært to steder som kan si
+    # ulike ting om samme sak.
+    vakt = ap.add_mutually_exclusive_group()
+    vakt.add_argument("--uten-vakt", action="store_true",
+                      help="hopp over publiseringsvakten (bare utvikling). "
+                           "Siden skal da ikke publiseres.")
+    vakt.add_argument("--vakt-kjores-av", default="", metavar="HVEM",
+                      help="hopp over porten HER fordi den som kaller "
+                           "kjører den selv — navnet skrives i meldingen. "
+                           "Settes av publiser.py.")
     args = ap.parse_args()
 
     rot = Path(args.ut)
@@ -6458,8 +6497,8 @@ def main() -> int:
         print(f"  URL: /lokalitet/{args.lokalitet}/")
         print(f"  CSV: /lokalitet/{args.lokalitet}/{CSV_FILNAVN}")
 
-    if args.uten_vakt:
-        print("\nVAKTEN ER HOPPET OVER. Siden skal ikke publiseres.")
+    if args.uten_vakt or args.vakt_kjores_av:
+        print(vaktmelding(args.vakt_kjores_av))
         return 0
     return gransk_og_meld(rot)
 

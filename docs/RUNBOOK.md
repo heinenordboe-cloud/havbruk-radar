@@ -188,6 +188,12 @@ Nøklene ligger IKKE i repoet: `~/Library/Preferences/.wrangler/config/`.
 
 `--uten-bygg` hopper over steg 2. **Den hopper ikke over porten.**
 
+Steg 2 sender `--vakt-kjores-av "publiser.py steg 3"` til bygget, ikke
+`--uten-vakt`. Begge hopper over porten i BYGGET; forskjellen er hva
+bygget da skriver. Med `--uten-vakt` står «Siden skal ikke publiseres»,
+som er riktig for et utviklingsbygg og var villedende midt i en
+publisering der porten kjørte rent i steg 3.
+
 Søkeindeksen måles i steg 4, på filene under `nettsted/pagefind/` — ikke
 på byggerapporten, som ikke finnes med `--uten-bygg`. Produksjon nektes
 uten indeks; forhåndsvisning advares. Se `docs/design/PAGEFIND.md`.

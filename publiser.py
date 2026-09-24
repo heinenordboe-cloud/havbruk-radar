@@ -75,6 +75,12 @@ FORHANDSGREN = "forhandsvisning"
 # skriptet ikke kan oppdage i ettertid.
 assert FORHANDSGREN != PRODUKSJONSGREN
 
+# STEGET PORTEN KJØRER I, ett sted fordi det sies to steder: i
+# overskriften over steg 3, og i beskjeden bygget skriver om hvem som
+# kjører porten. Flyttes porten til et annet steg, skal ikke den andre
+# av de to kunne fortsette å si «steg 3».
+PORTSTEG = 3
+
 
 class Stopp(SystemExit):
     """Publiseringen stanset. Meldingen sier hvor og hvorfor."""
@@ -139,6 +145,20 @@ def krev_sporbar(mappe: Path, navn: str) -> str:
     return git("rev-parse", "HEAD", mappe=mappe)
 
 
+# ------------------------------------------------------------ steg 2
+
+def byggkommando() -> list[str]:
+    """Kommandoen steg 2 kjører.
+
+    Her og ikke inline, fordi den bærer ÉN opplysning på tvers av to
+    filer: at porten kjøres av dette skriptet, i steg `PORTSTEG`.
+    `nettsted.py` kan ikke vite det selv — og gjettet den, ville den
+    gjettet feil hver gang bygget kjøres for hånd.
+    """
+    return [sys.executable, "nettsted.py", "--alle",
+            "--vakt-kjores-av", f"{Path(__file__).name} steg {PORTSTEG}"]
+
+
 # ------------------------------------------------------------ steg 4
 
 # MODULEN NETTLESEREN LASTER. `maler/sok.js` henter den ved første
@@ -162,10 +182,10 @@ def sokeindeks(ut: Path) -> tuple[str, str]:
 
     Prøven er Pagefinds egen bokføring mot filene: `pagefind-entry.json`
     oppgir hvor mange sider som er indeksert, og det skal finnes ett
-    tekstutdrag per side. Er de to ULIKE, er det porten i steg 3 som
-    eier funnet (`ugranska`) — den sier at ordtabellene kan være bygget
-    av noe ingen har lest. Her spørs det bare om det finnes en indeks i
-    det hele tatt.
+    tekstutdrag per side. Er de to ULIKE, er det porten i steg
+    `PORTSTEG` som eier funnet (`ugranska`) — den sier at ordtabellene
+    kan være bygget av noe ingen har lest. Her spørs det bare om det
+    finnes en indeks i det hele tatt.
     """
     import publiseringsvakt
 
@@ -314,15 +334,14 @@ def main() -> int:
         print("\n[2/6] bygg — hoppet over (--uten-bygg)")
     else:
         print("\n[2/6] bygg")
-        kjor(sys.executable, "nettsted.py", "--alle",
-             "--uten-vakt", vis=True)
+        kjor(*byggkommando(), vis=True)
 
     if not UT.is_dir():
         raise Stopp(f"\n  STOPPET: {UT} finnes ikke.")
 
     # 3. Porten. Egen kjøring, også når bygget nettopp kjørte den:
     #    `--uten-bygg` skal ikke kunne hoppe over den.
-    print("\n[3/6] publiseringsvakten")
+    print(f"\n[{PORTSTEG}/6] publiseringsvakten")
     import publiseringsvakt
 
     funn = publiseringsvakt.gransk(UT)
