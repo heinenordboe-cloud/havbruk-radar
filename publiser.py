@@ -198,6 +198,8 @@ def sokeindeks(ut: Path) -> tuple[str, str]:
     som begge er reelle: `--uten-bygg` laster opp en mappe dette
     skriptet ikke har bygget og ikke har noen rapport fra, og en indeks
     kan være halv eller slettet lenge etter at rapporten ble skrevet.
+    Den andre rammer også et bygg som gikk: rapporten ble skrevet før
+    opplastingen, og prøven her spør etter filene rett før de sendes.
 
     Prøven er Pagefinds egen bokføring mot filene: `pagefind-entry.json`
     oppgir hvor mange sider som er indeksert, og det skal finnes ett
@@ -223,6 +225,12 @@ def sokeindeks(ut: Path) -> tuple[str, str]:
     Å lukke det krever et stempel som knytter indeksen til sidene den ble
     bygget fra. Det finnes ikke i dag, og det er en åpen sak, ikke en
     utelatelse.
+
+    FRA 23.09.2026 NÅR HULLET IKKE PRODUKSJON: `--uten-bygg` og
+    `--produksjon` utelukker hverandre, så den mappa som legges ut på
+    kystloggen.no er alltid bygget i samme kjøring. Hullet står igjen
+    for forhåndsvisningen, som ses av den som ba om den — samme skille
+    som `krev_sokeindeks()` gjør.
     """
     import publiseringsvakt
 
@@ -421,12 +429,29 @@ def bokfor(kode: str, data: str, miljo: str,
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--produksjon", action="store_true",
-                    help="legg ut på kystloggen.no. Uten denne går "
-                         "publiseringen til forhåndsvisningen.")
-    ap.add_argument("--uten-bygg", action="store_true",
-                    help="hopp over byggingen og bruk mappa som den er. "
-                         "Porten kjøres uansett.")
+    # DE TO UTELUKKER HVERANDRE, og grunnen er søkeindeksen.
+    #
+    # `--uten-bygg` laster opp mappa slik den ligger. Prøven i steg 4
+    # spør da om det FINNES en indeks under `pagefind/`, ikke om den er
+    # over disse sidene — den forskjellen er skrevet ut i
+    # `sokeindeks()`, og den ble målt 23.09.2026: en indeks fra et
+    # tidligere bygg lå igjen og ville passert.
+    #
+    # Stempelet som ville lukket det — indeksen knyttet til sidene den
+    # ble bygget fra — finnes ikke, og bygges ikke her. Produksjon
+    # bygger i stedet ALLTID, og da er spørsmålet ikke lenger åpent der
+    # det betyr noe: indeksen som lastes opp er skrevet av det bygget,
+    # i denne kjøringen. Forhåndsvisningen beholder snarveien, og
+    # hullet med den — den ses av den som ba om den.
+    hva = ap.add_mutually_exclusive_group()
+    hva.add_argument("--produksjon", action="store_true",
+                     help="legg ut på kystloggen.no. Uten denne går "
+                          "publiseringen til forhåndsvisningen. "
+                          "Bygger alltid.")
+    hva.add_argument("--uten-bygg", action="store_true",
+                     help="hopp over byggingen og bruk mappa som den er. "
+                          "Porten kjøres uansett. Ikke sammen med "
+                          "--produksjon.")
     args = ap.parse_args()
 
     miljo = "produksjon" if args.produksjon else "forhandsvisning"

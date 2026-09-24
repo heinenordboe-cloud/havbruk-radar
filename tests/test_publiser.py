@@ -20,8 +20,13 @@ etter den. De to første er begge skrevet etter en observert feil:
 Prøven på søket måler FILENE, ikke byggerapporten — se
 `publiser.sokeindeks()`. Derfor kan den kjøres uten å bygge noe.
 
-Gruppa nederst kom til 23.09.2026, og har ingen observert feil bak seg
-— den er et hull som ble sett før det rakk å bli en:
+De to gruppene nederst kom til 23.09.2026, og har ingen observert feil
+bak seg — de er to hull som ble sett før de rakk å bli en:
+
+  * **`--produksjon` med `--uten-bygg`.** Da lastes en mappa opp som
+    dette skriptet ikke bygget, og søkeindeksen under `pagefind/` kan
+    være fra et helt annet bygg. Prøven i steg 4 ville ikke sagt fra:
+    den spør om det FINNES en indeks. Flaggene utelukker hverandre.
 
   * **Bokføringen i steg 6.** Logglinja ble skrevet og latt ligge
     ucommitet, og et urent datarepo stopper NESTE publisering i steg 1.
@@ -176,6 +181,35 @@ def test_nettsted_godtar_flagget_og_bare_ett_av_de_to():
         cwd=ROT, capture_output=True, text=True)
     assert begge.returncode != 0
     assert "not allowed with" in begge.stderr
+
+
+# ---- utelukkelsen mellom --produksjon og --uten-bygg -----------------
+
+def _publiser(*flagg: str) -> subprocess.CompletedProcess:
+    """Kjør skriptet som kommando. `parse_args()` står først i `main()`,
+    så en kjøring som feiler i argparse har ikke rørt noe repo."""
+    return subprocess.run([sys.executable, "publiser.py", *flagg],
+                          cwd=ROT, capture_output=True, text=True)
+
+
+def test_produksjon_og_uten_bygg_utelukker_hverandre():
+    """Produksjon bygger alltid, så indeksen hører til sidene som går ut.
+
+    Uten denne kan `--uten-bygg --produksjon` legge ut en mappe der
+    `pagefind/` er igjen fra et tidligere bygg. Prøven i steg 4 spør om
+    det FINNES en indeks, ikke om den er over disse sidene — se
+    `publiser.sokeindeks()`, som måler det.
+    """
+    begge = _publiser("--produksjon", "--uten-bygg")
+    assert begge.returncode != 0
+    assert "not allowed with" in begge.stderr
+
+
+def test_hvert_flagg_staar_alene_i_hjelpen():
+    hjelp = _publiser("--help")
+    assert hjelp.returncode == 0
+    assert "--produksjon" in hjelp.stdout
+    assert "--uten-bygg" in hjelp.stdout
 
 
 # ---- bokføringen av logglinja ---------------------------------------
