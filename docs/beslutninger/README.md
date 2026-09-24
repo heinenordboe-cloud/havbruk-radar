@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-24** — [Changelogdøra leser kildens tillegg — en dør som frikjente på feil felt](2026-09-24-changelogdora-leser-kildens-tillegg.md) — utkast
 - **2026-09-21** — [Identiteten er hav og papir — og papiret er valgt på verdi, ikke på tone](2026-09-21-identiteten-hav-og-papir.md) — besluttet
 - **2026-09-19** — [CSS er fritt, markup er en kontrakt — og kontrakten har en test](2026-09-19-markup-er-en-kontrakt.md) — besluttet
 - **2026-09-19** — [Vi ligger på pub-aquas pagineringstak — og ArcGIS sier «for bredt» med 200 OK](2026-09-19-vi-ligger-paa-pagineringstaket.md) — besluttet
