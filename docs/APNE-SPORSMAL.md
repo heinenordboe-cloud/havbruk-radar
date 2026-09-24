@@ -1,7 +1,8 @@
 # Åpne spørsmål
 
-Det ubesvarte, med begrunnelse for hvorfor det betyr noe. To tekniske
-spørsmål står igjen, sortert etter hva som blokkerer mest.
+Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Elleve
+tekniske spørsmål står igjen: seks under, sortert etter hva som
+blokkerer mest, og fem fra designimplementeringen 22.09.2026.
 
 **Hygieneregel:** Når et spørsmål avgjøres, skrives beslutningen i
 `docs/beslutninger/` og spørsmålet fjernes herfra **i samme slengen**.
