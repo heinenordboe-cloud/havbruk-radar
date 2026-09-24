@@ -16,6 +16,7 @@ import pytest
 from core import changelog, diff, feltnormal, health, runner, signals, snapshot
 from core import persondata, utvalg
 from core import raw as raw_arkiv
+from core import registry
 from core.contract import Observation, Source
 
 ROT = Path(__file__).resolve().parent.parent
@@ -3836,6 +3837,114 @@ def test_changeloggen_har_en_lesedor_for_personformer(tmp_path, monkeypatch):
     gjennom = changelog.les_alt()
     assert gjennom["entity_id"].to_list() == ["222222222"]
     assert "Kari Nordmann" not in gjennom["entity_name"].to_list()
+
+
+class KildeMedEgetTillegg(Source):
+    """En kilde som vet noe døra ikke ser — uten å navngi noen ekte kilde.
+
+    Formen står i et felt kjernen ikke kjenner (`mottaker_type`), og
+    ramma har ingen `organisasjonsform` og ingen
+    `institusjonell_sektorkode` i det hele tatt. Døra kan derfor ikke
+    peke ut noen her, og det er hele poenget: det er nøyaktig formen der
+    `tell_personer()` svarer 0 uten at 0 er sant.
+    """
+
+    name = "falsk_med_tillegg"
+    entity_type = "tillatelse"
+    attribusjon = ("Oppdiktet kilde i prøven.",)
+
+    def fjern_egne_personer(self, frame):
+        if frame.is_empty() or "field" not in frame.columns:
+            return frame
+        personer = {
+            eid for eid, verdi in frame
+            .filter(pl.col("field") == "mottaker_type")
+            .select(["entity_id", "value"]).iter_rows()
+            if str(verdi).strip() == "DA"
+        }
+        if not personer:
+            return frame
+        return frame.filter(~pl.col("entity_id").is_in(sorted(personer)))
+
+    def fetch(self, kjoredato):
+        return {}
+
+    def parse(self, raw, observed_at):
+        return []
+
+
+def _skriv_kildesnapshot(kilde: str, observed_at: str, rader) -> None:
+    """Skriv et snapshot forbi `write()`, under et vilkårlig kildenavn."""
+    mappe = snapshot.RAW_DIR / kilde
+    mappe.mkdir(parents=True, exist_ok=True)
+    kolonner = [k for k in snapshot.SCHEMA if k not in snapshot.KJORINGSFELT]
+    pl.DataFrame([o.as_dict() for o in rader]).select(kolonner).write_parquet(
+        mappe / f"{observed_at}.parquet")
+
+
+def test_changelogdora_ser_ogsaa_det_kildens_tillegg_fjerner(
+        tmp_path, monkeypatch):
+    """Døra ELLER tillegget. Ikke bare døra.
+
+    `changelog.fjern_personformer()` filtrerer på
+    `snapshot.personentiteter()`, og den bygde settet av
+    `persondata.person_ider()` alene. En kilde som bærer formen i sitt
+    eget vokabular er da usynlig for changeloggen selv om
+    `Source.fjern_egne_personer()` fjerner entiteten fra hvert snapshot
+    — og en changelog-rad om et navngitt menneske blir lesbar.
+
+    Prøven navngir ingen ekte kilde. Den stiller spørsmålet KONTRAKTEN
+    stiller: alt en kilde selv sier er en person, skal ut av loggen.
+    """
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL",
+                        tmp_path / "finnes-ikke.parquet")
+    kilde = KildeMedEgetTillegg()
+    monkeypatch.setattr(registry, "discover", lambda: [kilde])
+
+    rader = []
+    for nr, type_, navn in [("H-XX-0001", "DA", "Kari Nordmann"),
+                            ("H-XX-0002", "AS", "Testlaks AS")]:
+        for felt, verdi in [("mottaker_type", type_), ("mottaker_navn", navn)]:
+            rader.append(Observation(
+                entity_id=nr, entity_type="tillatelse", entity_name=nr,
+                field=felt, value=verdi, source=kilde.name,
+                observed_at="2014-12-31"))
+    _skriv_kildesnapshot(kilde.name, "2014-12-31", rader)
+
+    (tmp_path / "changelog").mkdir(parents=True)
+    pl.DataFrame([
+        {"entity_id": nr, "entity_type": "tillatelse", "entity_name": nr,
+         "field": "mottaker_navn", "old_value": None, "new_value": navn,
+         "change_type": "ny", "source": kilde.name,
+         "observed_at": "2014-12-31"}
+        for nr, navn in [("H-XX-0001", "Kari Nordmann"),
+                         ("H-XX-0002", "Testlaks AS")]
+    ]).write_parquet(tmp_path / "changelog" / "2014-12-31.parquet")
+
+    # Døra alene ser ingenting her — det er forutsetningen for prøven.
+    raa = pl.read_parquet(
+        tmp_path / "raw" / kilde.name / "2014-12-31.parquet")
+    assert persondata.person_ider(raa) == []
+
+    assert changelog.les_alt(ufiltrert=True).height == 2
+    gjennom = changelog.les_alt()
+    assert gjennom["entity_id"].to_list() == ["H-XX-0002"]
+    assert "Kari Nordmann" not in gjennom["new_value"].to_list()
+
+
+def test_standardtillegget_kan_ikke_fjerne_noe():
+    """Forutsetningen for at en kilde UTEN eget tillegg kan hoppes over.
+
+    `personentiteter()` leser alle filene til en kilde som har overstyrt
+    hooken, og bare den nyeste til resten. Det er bare forsvarlig så
+    lenge standarden beviselig returnerer ramma urørt — ellers er
+    snarveien den samme formen som feilene i CLAUDE.md 1b.
+    """
+    ramme = pl.DataFrame({"entity_id": ["1"], "field": ["mottaker_type"],
+                          "value": ["DA"]})
+    assert Source.fjern_egne_personer(Source(), ramme).equals(ramme)
 
 
 def test_lesedora_rorer_ikke_filene(tmp_path, monkeypatch):
