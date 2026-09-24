@@ -379,3 +379,65 @@ stedet for å spørre om året finnes. Det er en endring i kilden, ikke i
 kjernen.
 
 Ikke rørt nå, etter beskjed.
+
+### 11. Prosjektet står på KLASSISK Pages, opprettet med `--force`
+
+Fra 23.09.2026.
+
+    npx wrangler pages project create kystloggen \
+        --production-branch main --force
+
+`--force` var ikke en snarvei rundt en advarsel om noe farlig — den var
+det ene som fikk kommandoen til å opprette et **klassisk**
+Pages-prosjekt. Wrangler 4.137.0 videresender `pages project create` til
+den nye, Workers-baserte Pages, som forventer å BYGGE i mappa den kjøres
+fra: den lette etter `./build` og `./_site` og feilet. Vår modell er
+motsatt — `nettsted.py` bygger, og steg 5 laster opp en ferdig mappe.
+
+BEKREFTET 23.09.2026, med `npx wrangler pages project list` under
+wrangler 4.137.0:
+
+    Project Name  Project Domains       Git Provider
+    kystloggen    kystloggen.pages.dev  No
+
+At kommandoen SVARER er i seg selv opplysningen: prosjektet ligger der
+klassisk Pages ligger. Og merk `Project Domains` — `kystloggen.no` er
+**ikke** knyttet til prosjektet ennå. Bare `pages.dev`-adressen står der.
+
+**Spørsmålet: hva skjer med publiseringen hvis klassisk Pages fases
+ut?**
+
+Det er ubesvart, og det skal stå som ubesvart: vi har ikke lest noe
+varsel om en dato, og at wrangler sender NYE prosjekter et annet sted er
+ikke det samme som at de gamle slutter å virke. Antagelsen om at
+`--force` fortsatt finnes neste år er nettopp en antagelse
+(CLAUDE.md regel 4).
+
+**Hva som ryker, og hva som ikke gjør det.** Nettstedet er en ren
+funksjon av snapshotene, og snapshotene er append-only i et annet repo.
+Faller Pages bort, er ingen historikk tapt — det er ÉN kommando som
+slutter å virke:
+
+    steg 1-4, 6   uberørt. Sporbarhet, bygg, porten, tallene, loggen
+    steg 5        `wrangler pages deploy` mot `PROSJEKT`
+    grenene       `PRODUKSJONSGREN` / `FORHANDSGREN` er Pages-begreper
+
+Den tredje linja er den som koster mest å tenke over på nytt. På klassisk
+Pages er en forhåndsvisning en utrulling med en annen GREN-etikett, og
+det er hele mekanismen bak `--produksjon`-flagget. Workers-modellen har
+versjoner og forhåndsvisnings-URL-er i stedet, og det er ikke den samme
+formen — en oversettelse mellom dem er ikke gjort her, og er ikke
+verifisert.
+
+**Hva som ville lukket spørsmålet, målt og ikke gjettet:** legg den
+ferdige mappa ut gjennom Workers' statiske filer (assets) i et
+ENGANGSPROSJEKT, og mål tre ting — at 2 571 pagefind-filer og
+`_headers`/`_redirects` kommer gjennom som de gjør i dag, at en
+forhåndsvisning kan skilles fra produksjon, og hvor mange linjer i
+`publiser.py` steg 5 det koster. Det kan gjøres uten å røre
+`kystloggen`.
+
+**Én ting taler for å gjøre det før heller enn etter:** så lenge
+`kystloggen.no` ikke er knyttet til prosjektet, er en flytting bare en
+ny opplasting. Etter at domenet er knyttet, er den også en
+DNS-operasjon på en adresse noen har lenket til.
