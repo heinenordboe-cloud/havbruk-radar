@@ -2318,6 +2318,13 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             per_uke[slug],
             key=lambda h: (_omvendt(h["dato"]), rang.get(h["type"], 99),
                            h["gjelder"]))
+        # ORDENE FOR SORTERINGEN, ved siden av sorteringen.
+        #
+        # Forsiden viser de åtte øverste og må si hva «øverste» betyr —
+        # ellers leser en fremmed utvalget som «de viktigste». Skrevet i
+        # malen ville de to kunnet bli uenige den dagen nøkkelen endres,
+        # og det ville ikke sagt fra.
+        sortert_etter = "dato, så type, så navn"
         datoer = sorted({h["dato"] for h in hendelser})
         # DATOENE VI SAMMENLIGNET MOT, lest av radene og ikke regnet ut
         # av kalenderen. `forrige_observed_at` står på hver rad nettopp
@@ -2376,6 +2383,7 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "forste_dato": datoer[0],
             "siste_dato": datoer[-1],
             "hendelser": hendelser,
+            "sortert_etter": sortert_etter,
             "ledet": ledet,
             "egen_del": egen,
             "antall": telt,

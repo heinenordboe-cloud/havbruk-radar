@@ -1690,6 +1690,8 @@ def _forside(**overstyr) -> str:
         "observert_datoer": ["2026-09-21"],
         "forrige_datoer": ["2026-09-14", "2026-09-15"],
         "utenfor_tellingen": 13,
+        # ORDENE FOR SORTERINGEN, som `les_endringsuker()` skriver dem.
+        "sortert_etter": "dato, så type, så navn",
         "ledet_slag": "trafikklys og tillatelser",
         "typer": [dict(k, antall=(4 if k["id"] == "trafikklys" else 0))
                   for k in nettsted.ENDRINGSTYPER],

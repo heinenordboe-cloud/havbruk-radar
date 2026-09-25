@@ -147,8 +147,15 @@
   {% endif %}
 
   <p class="tabelltittel" id="endringer-uke-tittel">{% if f.uke %}
-      {{ "Den" if f.rader|length == 1 else "De" }} {{ f.rader|length }} nyeste av {{ antall(f.uke.antall, "endringen", "endringene") }} i
-      {{ f.uke.vist }}, utenom selskapsdata.
+      {#- «ØVERSTE», IKKE «NYESTE». Radene er sortert på dato FØRST, men
+          en uke har som regel én observasjonsdato — og da er det type og
+          navn som avgjør hvilke åtte som står her. «De 8 nyeste» sa at
+          utvalget var en tidsakse; det er det bare på den første
+          nøkkelen. Ordene kommer fra `les_endringsuker()`, der
+          sorteringen skjer. #}
+      {{ "Den" if f.rader|length == 1 else "De" }} {{ f.rader|length }} øverste av {{ antall(f.uke.antall, "endringen", "endringene") }} i
+      {{ f.uke.vist }}, utenom selskapsdata — sortert på
+      {{ f.uke.sortert_etter }}.
       {% else %}
       Ingen uker med endringer ennå.
       {% endif %}</p>
