@@ -622,6 +622,52 @@ def fjern_personformer(endringer: pl.DataFrame) -> pl.DataFrame:
     return endringer.filter(pl.Series(behold, dtype=pl.Boolean))
 
 
+def fyll_entity_type(endringer: pl.DataFrame) -> pl.DataFrame:
+    """Typen på radene der den mangler, hentet fra KILDENS EGNE rader.
+
+    De skrevne filene kan ikke rettes — append-only — så dette skjer ved
+    LESING, som `merk_utvalgsutvidelse()` og persondatadøra gjør.
+
+    ## Hvorfor svaret hentes av dataene og ikke av `Source.entity_type`
+
+    En kilde kan skrive under to navn med hver sin type: `eierskap`
+    skriver `tillatelse`, og den SAMME klassen skriver `overforing`
+    under `eierskap_historikk` (se `parse_overforinger`).
+    `Source.entity_type` kjenner bare den ene, og en utfylling derfra
+    ville gitt 15 344 overføringer typen «tillatelse» — en påstand som
+    ser riktig ut og er feil.
+
+    Kildens egne rader svarer i stedet, per NAVN: `ny` og `endret` bærer
+    typen, og MÅLT 24.09.2026 har hver kilde nøyaktig én type blant dem.
+    Er navnet ukjent — en kilde som er fjernet, eller som bare har
+    borte-rader — blir feltet stående tomt. Å gjette ville vært verre enn
+    å la det stå: en type er en påstand om hva raden gjelder.
+
+    ## Hvorfor NAVNET ikke fylles inn på samme vis
+
+    Fordi det ikke er samme sak. Typen er en kategori; navnet er en
+    identitet, og hvitelista porten bygger er av NYESTE øyeblikksbilde.
+    Se `core/diff.compare()`.
+    """
+    if endringer.is_empty() or not {"entity_type", "source"} <= set(
+            endringer.columns):
+        return endringer
+
+    kjent: dict[str, str] = {}
+    for kilde, type_ in endringer.filter(
+            pl.col("entity_type") != "").select(
+            ["source", "entity_type"]).unique().iter_rows():
+        kjent.setdefault(str(kilde), str(type_))
+    if not kjent:
+        return endringer
+
+    return endringer.with_columns(
+        pl.when(pl.col("entity_type") == "")
+        .then(pl.col("source").replace_strict(kjent, default=""))
+        .otherwise(pl.col("entity_type"))
+        .alias("entity_type"))
+
+
 def les_alt(*, ufiltrert: bool = False) -> pl.DataFrame:
     """Hele endringsloggen, eldste først, gjennom lesedøra.
 
@@ -631,7 +677,9 @@ def les_alt(*, ufiltrert: bool = False) -> pl.DataFrame:
 
     `ufiltrert=True` gir loggen slik den ligger på disk. Den finnes for
     revisjon — å måle hva døra fjerner krever å se begge sider — og skal
-    ikke brukes av noe som skriver til nettstedet.
+    ikke brukes av noe som skriver til nettstedet. Den hopper også over
+    `fyll_entity_type()`, av samme grunn: revisjon skal se radene som de
+    er skrevet.
     """
     rammer = []
 
@@ -646,4 +694,9 @@ def les_alt(*, ufiltrert: bool = False) -> pl.DataFrame:
         return pl.DataFrame(schema=CHANGE_SCHEMA)
 
     alt = pl.concat(rammer, how="diagonal_relaxed").sort("observed_at")
-    return alt if ufiltrert else fjern_personformer(alt)
+    if ufiltrert:
+        return alt
+    # TYPEN FYLLES INN FØR DØRA, fordi døra filtrerer på (kilde, id) og
+    # ikke bryr seg om typen — men en leser som får ramma i hånda skal
+    # se det samme feltet uansett hvilken vei den kom.
+    return fjern_personformer(fyll_entity_type(alt))

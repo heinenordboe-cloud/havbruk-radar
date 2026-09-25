@@ -281,9 +281,22 @@ def compare(current: pl.DataFrame, observed_at: str,
                 )["entity_id"].to_list()
             )
 
+        # TYPEN FØLGER MED FRA DET GAMLE SNAPSHOTET, og det er ikke
+        # kosmetikk. For en «borte»-rad finnes entiteten ikke i `group`,
+        # så `row["entity_type"]` er None — og MÅLT 24.09.2026 var
+        # feltet derfor tomt i 65 575 av loggens borte-rader og utfylt i
+        # hver eneste ny/endret-rad. Et oppslag i den ene av to rammer,
+        # riktig i alle tilfellene der begge har entiteten.
+        #
+        # NAVNET hentes IKKE på samme vis. En oppføring som er borte
+        # navngis ikke: `publiseringsvakt.hviteliste()` bygges av nyeste
+        # øyeblikksbilde, og et navn som ikke står der kan porten ikke gå
+        # god for. MÅLT 22.09.2026 stoppet den publiseringen med 341
+        # slike funn. Typen er en kategori og ikke en identitet.
         key = ["entity_id", "field"]
         joined = group.join(
-            old.select(key + ["value"]).rename({"value": "old_value"}),
+            old.select(key + ["value", "entity_type"]).rename(
+                {"value": "old_value", "entity_type": "gammel_entity_type"}),
             on=key,
             how="full",
             coalesce=True,
@@ -337,7 +350,8 @@ def compare(current: pl.DataFrame, observed_at: str,
 
             changes.append({
                 "entity_id": row["entity_id"],
-                "entity_type": row.get("entity_type") or "",
+                "entity_type": (row.get("entity_type")
+                                or row.get("gammel_entity_type") or ""),
                 "entity_name": row.get("entity_name") or "",
                 "field": row["field"],
                 "old_value": old_value,
