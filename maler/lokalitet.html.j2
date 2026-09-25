@@ -736,7 +736,7 @@
         {% else %}
         <td>—</td>
         {% endif %}
-        <td data-felt="source">{{ o.kilde }}</td>
+        <td data-felt="source">{{ kilde(o.kilde) }}</td>
         <td data-felt="presisjon">{{ o.presisjon }}</td>
       </tr>
       {% endfor %}

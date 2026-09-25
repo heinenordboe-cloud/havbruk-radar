@@ -340,6 +340,41 @@ FELTNAVN = {
 }
 
 
+# ------------------------------------------------------------ kildenavn
+#
+# `eierskap_historikk` er mappa i `data/raw/` og verdien i
+# `source`-kolonnen. Det er et arbeidsnavn: det sier hvilken fil raden
+# ligger i, ikke hvem som står bak tallet. En «Kilde»-kolonne som sier
+# «eierskap_historikk» ber leseren kjenne katalogstrukturen vår.
+#
+# Formen er UTGIVER, DATASETT. Utgiveren er den som må navngis etter
+# lisensen, og datasettet er det som skiller to serier fra samme utgiver
+# — Fiskeridirektoratet står bak seks av dem.
+#
+# HVERT NAVN ER LEST AV KILDENS EGEN MODUL, ikke funnet på: docstringen
+# i `sources/<navn>.py` navngir tjenesten, og `LISENSRAD` i nettsted.py
+# navngir hjemmelen. Der de to bruker ulike ord, står tjenestens.
+# CLAUDE.md regel 4 — et navn vi ikke har lest, er et gjett om en
+# tredjepart.
+#
+# En kilde som ikke står her kommer ORDRETT igjennom og telles, som alt
+# annet i denne modulen. Standarden er arbeidsnavnet, ikke en gjettet
+# forskjønning.
+KILDENAVN = {
+    "akvakultur": "Fiskeridirektoratet, Akvakulturregisteret",
+    "biomasse": "Fiskeridirektoratet, biomassestatistikk",
+    "biomasselag": "Fiskeridirektoratet, biomasselaget",
+    "eierskap": "Fiskeridirektoratet, akvakulturtillatelser",
+    "eierskap_historikk": "Fiskeridirektoratet, eierskapshistorikk",
+    "romming": "Fiskeridirektoratet, rømmingsmeldinger",
+    "enhetsregisteret": "Brønnøysundregistrene, Enhetsregisteret",
+    "lusetall": "BarentsWatch, fiskehelse",
+    "sjotemperatur": "BarentsWatch, sjøtemperatur",
+    "trafikklysvedtak": "Lovdata, kapasitetsjusteringsforskriftene",
+    "ekspertgruppen": "Ekspertgruppen for vurdering av lusepåvirkning",
+    "reguleringsomraader": "Havforskningsinstituttet, reguleringsområder",
+}
+
 # ------------------------------------------------------------- oppslag
 
 def felt(navn: str) -> str:
@@ -355,6 +390,21 @@ def felt(navn: str) -> str:
         return FELTNAVN[navn]
     UKJENTE[("(feltnavn)", navn)] += 1
     return navn
+
+
+def kilde(navn: object) -> str:
+    """Kildenavnet slik en leser skal se det. Ukjent navn kommer ordrett
+    igjennom og telles, som `felt()` og `verdi()`.
+
+    Tom streng inn gir tom streng ut: fravær er ikke en kilde.
+    """
+    tekst = "" if navn is None else str(navn).strip()
+    if not tekst:
+        return ""
+    if tekst in KILDENAVN:
+        return KILDENAVN[tekst]
+    UKJENTE[("(kildenavn)", tekst)] += 1
+    return tekst
 
 
 def verdi(navn: str, raa: object) -> str:

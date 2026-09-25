@@ -3994,6 +3994,10 @@ def _miljo() -> Environment:
     miljo.globals["tall"] = visningsord.tall
     miljo.globals["prosent"] = visningsord.prosent
     miljo.globals["alle"] = visningsord.alle
+    # `kilde` er en GLOBAL av samme grunn som `feltmerke`: den slår opp
+    # en verdi i en tabell og hører hjemme der raden skrives. Se
+    # `visningsord.KILDENAVN`.
+    miljo.globals["kilde"] = visningsord.kilde
     miljo.globals["feltmerke"] = feltmerke
     miljo.globals["personformnavn"] = personformnavn
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER

@@ -61,6 +61,39 @@ def test_feltnavn_blir_etikett():
     assert visningsord.felt("artsbegrensninger_antall") == "Artsbegrensninger"
 
 
+def test_kildenavnet_er_utgiveren_ikke_mappa():
+    """«eierskap_historikk» er navnet på en mappe i data/raw.
+
+    En «Kilde»-kolonne som sier det, ber leseren kjenne
+    katalogstrukturen vår. Ukjent navn kommer ordrett igjennom og
+    telles, som alt annet i modulen.
+    """
+    assert visningsord.kilde("eierskap_historikk") == \
+        "Fiskeridirektoratet, eierskapshistorikk"
+    assert visningsord.kilde("enhetsregisteret") == \
+        "Brønnøysundregistrene, Enhetsregisteret"
+    assert visningsord.kilde("") == ""
+
+    for _ in range(2):
+        assert visningsord.kilde("nykilde_2027") == "nykilde_2027"
+    assert visningsord.UKJENTE[("(kildenavn)", "nykilde_2027")] == 2
+
+
+def test_hver_kilde_som_skriver_har_et_kildenavn():
+    """Tabellen måles mot kildene, ikke skrevet og glemt.
+
+    En ny kilde ville ellers vist mappenavnet sitt i «Kilde»-kolonnen,
+    og fallthrough-en er stille til noen leser byggerapporten. Prøven
+    spør kildene selv — ingen liste ved siden av, CLAUDE.md regel 1.
+    """
+    from core import registry
+    from core.contract import navnene_kilden_skriver
+
+    navn = {n for k in registry.discover() for n in navnene_kilden_skriver(k)}
+    mangler = sorted(navn - set(visningsord.KILDENAVN))
+    assert not mangler, f"uten kildenavn: {mangler}"
+
+
 def test_sammensatt_artsliste_slaas_opp_ledd_for_ledd():
     """MÅLT 20.09.2026: 11 av 15 `arter`-verdier er sammensatte. Slås
     hele strengen opp, faller flertallet ut av tabellen."""

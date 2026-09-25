@@ -442,7 +442,7 @@
         <td data-felt="{{ e.felt }}">{{ e.etikett }}</td>
         <td data-felt="{{ feltmerke(e.fra, e.felt) }}">{{ e.fra or VERDI_MANGLER }}</td>
         <td data-felt="{{ feltmerke(e.til, e.felt) }}">{{ e.til or VERDI_MANGLER }}</td>
-        <td data-felt="source">{{ e.kilde }}</td>
+        <td data-felt="source">{{ kilde(e.kilde) }}</td>
       </tr>
       {% endfor %}
       {% if not po.endringer %}

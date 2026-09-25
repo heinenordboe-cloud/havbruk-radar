@@ -96,22 +96,22 @@
   </thead>
   <tbody>
     <tr>
-      <th scope="row">akvakultur</th>
+      <th scope="row">{{ kilde("akvakultur") }}</th>
       <td data-felt="observed_at"><time datetime="{{ om.akva_dato }}">{{ om.akva_dato }}</time></td>
       <td data-felt="datoforklaring">dagen vi hentet registeret</td>
     </tr>
     <tr>
-      <th scope="row">eierskap</th>
+      <th scope="row">{{ kilde("eierskap") }}</th>
       <td data-felt="observed_at"><time datetime="{{ om.eierskap_dato }}">{{ om.eierskap_dato }}</time></td>
       <td data-felt="datoforklaring">dagen vi hentet registeret</td>
     </tr>
     <tr>
-      <th scope="row">enhetsregisteret</th>
+      <th scope="row">{{ kilde("enhetsregisteret") }}</th>
       <td data-felt="observed_at"><time datetime="{{ om.enhet_dato }}">{{ om.enhet_dato }}</time></td>
       <td data-felt="datoforklaring">dagen vi hentet registeret</td>
     </tr>
     <tr>
-      <th scope="row">lusetall</th>
+      <th scope="row">{{ kilde("lusetall") }}</th>
       <td data-felt="observed_at"><time datetime="{{ om.lus_til }}">{{ om.lus_til }}</time></td>
       <td data-felt="datoforklaring">mandagen i uka tellingen gjelder for —
         {{ antall(om.lusetall_uker, "uke", "uker") }} tilbake til
@@ -182,7 +182,7 @@
   <tbody>
     {% for k in om.kilder %}
     <tr>
-      <th scope="row">{{ k.navn }}</th>
+      <th scope="row">{{ kilde(k.navn) }}</th>
       <td data-felt="lisens">{{ k.lisens }}</td>
       <td data-felt="hjemmel">{{ k.hjemmel }}</td>
       <td data-felt="vilkaar_lest">{{ k.lest }}</td>
