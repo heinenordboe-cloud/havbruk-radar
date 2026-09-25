@@ -1987,6 +1987,48 @@ def test_om_siden_oppgir_dekning_og_hvem_som_er_utelatt():
     assert "små, personeide anlegg" in flat
 
 
+def test_ingen_vist_kilde_staar_som_nei():
+    """«Vises her» utledes av hva byggene oppgir, ikke skrevet for hånd.
+
+    Prøven leser HVER `kilder=`-tuppel i modulen og krever at hvert navn
+    er med i `viste_kilder()`. En ny sidetype som tar med en kilde, kan
+    da ikke la den stå som «nei» på /om/ uten at dette faller.
+
+    MÅLT 24.09.2026: kolonnen leste `navn in OM_KILDER` — kildene
+    om-siden SELV bruker — og sto derfor «nei» for `biomasselag`, som
+    står på hver ukesside.
+    """
+    import ast
+
+    kilde = (Path(__file__).resolve().parents[1] / "nettsted.py"
+             ).read_text(encoding="utf-8")
+    tre = ast.parse(kilde)
+    navngitte = {n.targets[0].id: [e.value for e in n.value.elts]
+                 for n in ast.walk(tre)
+                 if isinstance(n, ast.Assign)
+                 and isinstance(n.targets[0], ast.Name)
+                 and n.targets[0].id.endswith("KILDER")
+                 and isinstance(n.value, ast.Tuple)
+                 and all(isinstance(e, ast.Constant) for e in n.value.elts)}
+    assert navngitte, "fant ingen KILDER-tupler"
+
+    vist = nettsted.viste_kilder()
+    for navn, kilder in sorted(navngitte.items()):
+        for k in kilder:
+            assert k in vist, f"{navn} tar med {k!r}, som ikke er i viste_kilder()"
+
+    # Og kolonnen skal si «ja» for hver av dem.
+    rader = {k["navn"]: k["publiseres"] for k in _om_kilderader()}
+    for k in sorted(vist):
+        assert rader.get(k) is True, f"{k} vises, men står som «nei»"
+
+
+def _om_kilderader():
+    """Kilderadene om-siden bygger, uten å bygge hele siden."""
+    return [{"navn": navn, "publiseres": navn in nettsted.viste_kilder()}
+            for navn in sorted(nettsted.LISENSRAD)]
+
+
 def test_om_siden_merker_UBELAGT_kilde_som_ikke_vist():
     html = _om()
     flat = " ".join(html.split())

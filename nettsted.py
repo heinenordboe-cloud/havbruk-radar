@@ -5205,7 +5205,9 @@ def bygg_om(felles: Felles) -> dict:
             "lest": lest,
             "attribusjon": list(setninger) if setninger else [],
             "ubelagt": setninger is None,
-            "publiseres": navn in OM_KILDER,
+            # UTLEDET av hva byggene oppgir, ikke skrevet for hånd.
+            # Se `viste_kilder()`.
+            "publiseres": navn in viste_kilder(),
         })
 
     kontakt = _kontakt()
@@ -5446,6 +5448,36 @@ def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
     return ut_sti
 
 
+# INDEKSSIDENES KILDER. Navngitt og ikke inline, fordi `viste_kilder()`
+# skal kunne telle dem med — se `bygg_om()`.
+INDEKS_LOKALITET_KILDER = ("akvakultur",)
+INDEKS_OMRAADE_KILDER = ("akvakultur", "trafikklysvedtak")
+INDEKS_SELSKAP_KILDER = ("eierskap", "enhetsregisteret")
+
+
+def viste_kilder() -> frozenset[str]:
+    """Kildene som FAKTISK står på en publisert side.
+
+    UNIONEN av det hver sidetype oppgir til `_grunnkontekst(kilder=...)`,
+    og ikke en liste ved siden av. Det er de samme tuplene som driver
+    attribusjonen i bunnteksten, så «vises her» og «hvem må navngis» kan
+    ikke svare ulikt.
+
+    Fram til 24.09.2026 leste kolonnen «Vises her» på /om/ `navn in
+    OM_KILDER` — altså kildene OM-SIDEN SELV bruker. Den sto derfor
+    «nei» for `biomasselag`, som står på hver ukesside, og «ja» for alt
+    om-siden trengte. To lister som skal si det samme er formen F6 og F7
+    hadde; her var den ene dessuten om noe annet enn kolonnen spurte om.
+
+    `test_ingen_vist_kilde_staar_som_nei` holder at hver `kilder=`-tuppel
+    i modulen er med her.
+    """
+    return frozenset(
+        SIDENS_KILDER + ENDRINGSKILDER + FORSIDEKILDER + SELSKAPSKILDER
+        + PO_KILDER + OM_KILDER + INDEKS_LOKALITET_KILDER
+        + INDEKS_OMRAADE_KILDER + INDEKS_SELSKAP_KILDER)
+
+
 def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
     """De tre indekssidene."""
     return [
@@ -5455,21 +5487,21 @@ def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
             "Alle akvakulturlokaliteter — Kystloggen",
             "Flat liste over alle norske akvakulturlokaliteter med "
             "nummer, navn, kommune og produksjonsområde.",
-            ("akvakultur",), felles),
+            INDEKS_LOKALITET_KILDER, felles),
         _skriv_indeks(
             rot, "produksjonsomrade", "indeks-produksjonsomrade.html.j2",
             bygg_poindeks(felles),
             "Alle produksjonsområder — Kystloggen",
             "De tretten produksjonsområdene med nyeste trafikklysfarge "
             "og antall lokaliteter.",
-            ("akvakultur", "trafikklysvedtak"), felles),
+            INDEKS_OMRAADE_KILDER, felles),
         _skriv_indeks(
             rot, "selskap", "indeks-selskap.html.j2",
             bygg_selskapsindeks(felles),
             "Alle selskaper med akvakulturtillatelse — Kystloggen",
             "Flat liste over selskaper som eier minst én "
             "akvakulturtillatelse, med antall tillatelser og lokaliteter.",
-            ("eierskap", "enhetsregisteret"), felles),
+            INDEKS_SELSKAP_KILDER, felles),
     ]
 
 
