@@ -2744,9 +2744,15 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
             "kapasitet": visningsord.maalt(a.get("kapasitet", ""),
                                            a.get("kapasitet_enhet", "")),
             "arter": visningsord.verdi("arter", a.get("arter", "")),
-            "sist_endret": max(
-                (d for (e, _f), d in felles.sist_endret.items() if e == loknr),
-                default=""),
+            # `sist_endret` BYGGES IKKE HER LENGER (25.09.2026).
+            # Kolonnen er ute av lokalitetstabellen på områdesiden: den
+            # svarte på «når så VI dette» i en tabell som ellers svarer
+            # på «hva står i registeret nå», og den kostet ett oppslag
+            # over hele `felles.sist_endret` per lokalitet.
+            #
+            # Verdien finnes fortsatt der den betyr noe — kolonnen «Sist
+            # endret» i registerfelt-tabellen på lokalitetssiden og på
+            # selskapssiden, per FELT og ikke per entitet.
             # SØKENØKKELEN BYGGES HER og ikke av celletekst i
             # nettleseren. Et treff på et kolonnenavn eller på en dato i
             # en annen kolonne er et treff leseren ikke kan forklare.

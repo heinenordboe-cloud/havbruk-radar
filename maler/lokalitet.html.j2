@@ -628,12 +628,17 @@
         <tr>
           <th scope="col">Felt</th>
           <th scope="col">Verdi</th>
-          {# KOLONNEN HETER «SIST OBSERVERT», ikke «Sist endret».
-             Verdien er `observed_at` fra changeloggen, altså da VI så
-             feltet endre seg. Registeret oppgir ikke når det gjorde
-             det, og en kolonne som påsto det ville vært nøyaktig
-             forvekslingen CLAUDE.md 1b handler om. #}
-          <th scope="col">Sist observert</th>
+          {# KOLONNEN HETER «SIST ENDRET» fra 25.09.2026. Verdien er
+             uendret: `observed_at` fra changeloggen, altså da VI så
+             feltet endre seg, og registeret oppgir ikke når det gjorde
+             det.
+
+             Fram til i dag sto «Sist observert» her, med den grunnen.
+             Ordet er byttet fordi «observert» er vårt ord om vår egen
+             prosess, og en leser som ikke kjenner den leser kolonnen
+             som «sist endret» uansett. Forbeholdet står fortsatt under
+             tabellen — «i loggen vår» — og det er der det bærer. #}
+          <th scope="col">Sist endret</th>
         </tr>
       </thead>
       <tbody>

@@ -278,10 +278,11 @@
       <tr>
         <th scope="col">Felt</th>
         <th scope="col">Verdi</th>
-        {# «Sist observert», ikke «Sist endret»: verdien er `observed_at`
-           fra changeloggen, altså da VI så feltet endre seg. Registeret
-           oppgir ikke når det gjorde det. #}
-        <th scope="col">Sist observert</th>
+        {# «Sist endret», som på lokalitetssiden. Det er den SAMME
+           kolonnen av de samme dataene — `observed_at` fra changeloggen
+           — og to ord for én ting er verre enn det ene ordet som er
+           upresist. Se lokalitet.html.j2. #}
+        <th scope="col">Sist endret</th>
       </tr>
     </thead>
     <tbody>

@@ -354,7 +354,6 @@
         <th scope="col">Innehaver</th>
         <th scope="col">Status</th>
         <th scope="col" class="tall">Kapasitet</th>
-        <th scope="col">Sist observert</th>
       </tr>
     </thead>
     <tbody>
@@ -383,10 +382,6 @@
         {% endif %}
         <td data-felt="{{ feltmerke(l.status, 'versjon_status') }}">{{ l.status or VERDI_MANGLER }}</td>
         <td class="tall" data-felt="{{ feltmerke(l.kapasitet, 'kapasitet') }}">{{ l.kapasitet or VERDI_MANGLER }}</td>
-        <td data-felt="{{ feltmerke(l.sist_endret, 'observed_at') }}">
-          {%- if l.sist_endret %}<time datetime="{{ l.sist_endret }}">{{ l.sist_endret }}</time>
-          {%- else %}{{ VERDI_MANGLER }}{% endif %}
-        </td>
       </tr>
       {% endfor %}
     </tbody>
