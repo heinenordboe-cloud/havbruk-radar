@@ -38,6 +38,22 @@ JINJA_KOMMENTAR = re.compile(r"\{#.*?#\}", re.S)
 VERDICELLE = re.compile(r"<td\b([^>]*)>(.*?)</td>", re.S)
 TABELL = re.compile(r"<table\b([^>]*)>(.*?)</table>", re.S)
 
+# ET MERKET BARN teller som merking av verdien sitt.
+#
+# Kravet er at ingen VERDI står umerket, og `data-felt` på cella er den
+# vanlige måten å oppfylle det. Den holder så lenge cella bærer ÉN verdi.
+#
+# En celle med TO verdier kan ikke merkes på cella: porten leser hele
+# celleteksten som én verdi, og «912345678 (i dag: MOWI ASA)» slås da opp
+# i hvitelista som ett navn. Den står ikke der, og MÅLT 22.09.2026
+# stoppet nettopp den formen publiseringen med 341 funn. Se
+# `nettsted._oppgitt_historikk()`.
+#
+# Da merkes hver verdi på sitt eget element, og cella slipper. Prøven
+# under krever at ALLE `{{ }}` i cella ligger inne i et slikt element —
+# én umerket verdi ved siden av to merkede er fortsatt et brudd.
+MERKET_BARN = re.compile(r"<(\w+)\b[^>]*\bdata-felt=[^>]*>.*?</\1>", re.S)
+
 
 def _uten_kommentarer(mal: str) -> str:
     return JINJA_KOMMENTAR.sub("", mal)
@@ -60,6 +76,10 @@ def markupbrudd(mappe: Path) -> list[str]:
         for m in VERDICELLE.finditer(mal):
             attributter, kropp = m.group(1), m.group(2)
             if "{{" not in kropp:
+                continue
+            # Hvert merkede barn fjernes. Står det ingen verdi igjen, er
+            # alle verdiene i cella merket — se `MERKET_BARN`.
+            if "{{" not in MERKET_BARN.sub("", kropp):
                 continue
             if "data-felt" not in attributter:
                 brudd.append(
@@ -187,3 +207,27 @@ def test_kommentarer_granskes_ikke(tmp_path):
                  '<td data-felt="navn">{{ s.navn }}</td></tr></tbody></table>'
                  "\n{# slik: <td>{{ verdi }}</td> uten merking #}")
     assert markupbrudd(mappe) == []
+
+
+def test_to_merkede_verdier_i_en_celle_er_ikke_brudd(tmp_path):
+    """En celle med to verdier merkes på verdiene, ikke på cella.
+
+    `nettsted._oppgitt_historikk()` skriver organisasjonsnummeret og
+    dagens navn på det i samme celle. Merket cella dem samlet, ville
+    porten slått opp «912345678 (i dag: MOWI ASA)» i hvitelista som ett
+    navn — og MÅLT 22.09.2026 stoppet nettopp den formen publiseringen.
+    """
+    mappe = _mal(tmp_path, TABELLHODE + (
+        '<td><span data-felt="tildelt_orgnr">{{ o.orgnr }}</span>'
+        '<span data-felt="tildelt_navn">{{ o.navn }}</span></td>'
+        "</tr></tbody></table>"))
+    assert markupbrudd(mappe) == []
+
+
+def test_en_umerket_verdi_ved_siden_av_en_merket_er_fortsatt_brudd(tmp_path):
+    """Unntaket gjelder celler der ALT er merket. Ellers ville en celle
+    med ett merket barn dekket over hver umerket verdi ved siden av."""
+    mappe = _mal(tmp_path, TABELLHODE + (
+        '<td><span data-felt="tildelt_orgnr">{{ o.orgnr }}</span>'
+        "{{ o.navn }}</td></tr></tbody></table>"))
+    assert len(markupbrudd(mappe)) == 1

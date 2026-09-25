@@ -2781,6 +2781,7 @@ def _eierrad(nr: str, d: dict) -> dict:
             # faller på en annen dato i norsk tid.
             "tildelt_dato": visningsord.oslodato(d.get("tildelt_tid")),
             "tildelt_navn": "",
+            "tildelt_orgnr": "",
         }
     return {
         "nr": nr,
@@ -2792,6 +2793,7 @@ def _eierrad(nr: str, d: dict) -> dict:
                                        d.get("kapasitet_enhet", "")),
         "tildelt_dato": visningsord.oslodato(d.get("tildelt_tid")),
         "tildelt_navn": d.get("tildelt_navn", ""),
+        "tildelt_orgnr": d.get("tildelt_orgnr", ""),
     }
 
 
@@ -3154,17 +3156,36 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             "dato": klarert, "slag": "Første klarering",
             "hva": "Lokaliteten klarert av Fiskeridirektoratet",
             "navn": "", "navn_felt": "",
+            "orgnr": "", "navn_er_i_dag": False,
             "kilde": "akvakultur", "felt": "forste_klarering",
             "presisjon": "dato oppgitt av registeret",
         })
     for till in tillatelser:
         if till["tildelt_dato"]:
+            # NUMMERET ER IDENTITETEN, NAVNET ER «I DAG».
+            #
+            # MÅLT 24.09.2026: `tildelt_navn` er pub-aquas
+            # `grantInformation.legalEntityName`, og det er DAGENS navn
+            # på organisasjonsnummeret — ikke navnet ved tildelingen.
+            # For 1 452 av 1 452 tillatelser der nummeret også står i
+            # vårt Enhetsregister-uttrekk, er navnet identisk med dagens
+            # `navn` der; for 1 463 av 1 463 som aldri har skiftet hender,
+            # er det identisk med dagens `eier_navn`. Null avvik, også
+            # for tildelinger fra 1995.
+            #
+            # «T-G-0008 tildelt til MOWI ASA» i 1995 leses som at
+            # selskapet het det den gangen. Nummeret står derfor først,
+            # og navnet merkes «i dag» — i sin EGEN celleverdi, ikke
+            # sammensatt med nummeret: porten slår celleverdien opp i
+            # hvitelista, og en sammensatt streng står ikke der.
             poster.append({
                 "dato": till["tildelt_dato"],
                 "slag": "Tillatelse tildelt",
                 "hva": f"{till['nr']} tildelt",
                 "navn": till["tildelt_navn"],
                 "navn_felt": "tildelt_navn",
+                "orgnr": till.get("tildelt_orgnr", ""),
+                "navn_er_i_dag": True,
                 "kilde": "eierskap", "felt": "tildelt_tid",
                 "presisjon": "dato oppgitt av registeret",
             })
@@ -3176,6 +3197,7 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                 "hva": f"{o['tillatelse']} overført",
                 "navn": o["mottaker_navn"],
                 "navn_felt": "mottaker_navn",
+                "orgnr": "", "navn_er_i_dag": False,
                 "kilde": "eierskap_historikk", "felt": "journal_dato",
                 "presisjon": "journalført senest denne datoen",
             })

@@ -697,8 +697,25 @@
            søkeindeks er en maskinlesbar liste over hvert ord på
            nettstedet, og et navn som kan slås opp der er en oppføring i
            et register. Se `personformnavn()` og regel 3. #}
+        {%- if o.navn_er_i_dag %}
+        {#- NUMMERET ER IDENTITETEN, navnet er registerets navn på det I
+            DAG — se `_oppgitt_historikk()`. Cellen bærer derfor ikke
+            merkingen selv: begge verdiene står i hver sin span, med hver
+            sin merking. En sammensatt streng som «912345678 (i dag: MOWI
+            ASA)» ville porten slått opp i hvitelista som ett navn, og
+            den står ikke der. Samme grunn som at `slag` og `navn` er to
+            nøkler og ikke én. #}
+        <td{% if personformnavn(o.navn) %} data-pagefind-ignore{% endif %}>
+          {#- `feltmerke()` merker tankestreken som fravær og ikke som en
+              verdi fra kilden — se `VERDI_MANGLER_FELT`. #}
+          <span data-felt="{{ feltmerke(o.orgnr, 'tildelt_orgnr') }}">{{ o.orgnr or VERDI_MANGLER }}</span>
+          <span class="dempet">(i dag:
+            <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</span>)</span>
+        </td>
+        {%- else %}
         <td class="eier" data-felt="{{ o.navn_felt }}"
             {%- if personformnavn(o.navn) %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
+        {%- endif %}
         {% else %}
         <td>—</td>
         {% endif %}
@@ -709,6 +726,13 @@
     </tbody>
   </table>
   </div>
+  <p class="tabellnote">
+    <strong>Navnet ved «Tillatelse tildelt» er dagens navn</strong> på
+    organisasjonsnummeret, ikke navnet selskapet hadde da tillatelsen
+    ble gitt. Registeret oppgir nummeret og slår navnet opp når det
+    svarer, så en tildeling fra 1995 viser navnet nummeret bærer nå.
+    Derfor står nummeret først.
+  </p>
   <p class="tabellnote">
     <strong>«Journalført senest denne datoen»</strong> er ikke det samme
     som overdragelsesdato. Journaldatoen er da saken ble ført, og
