@@ -338,3 +338,53 @@ def test_rapport(capsys):
                 f"{DS_STATUS[mork][r]}")
     print("\n".join(linjer))
     assert capsys.readouterr().out
+
+
+# ==================================== heroen over et bilde med snø
+#
+# Flata under teksten i heroen er et FOTO, ikke en farge, og et foto kan
+# ikke leses av `palett()`. MÅLT 24.09.2026 med Chromium på
+# `maler/bilde/hero-1600.jpg`: bildet inneholder RENE HVITE piksler
+# (255,255,255), både i øverste fjerdedel der menyen står og i nederste
+# der tagline og løsen står.
+#
+# `--papir` #e7dbd0 over hvitt er 1,36:1. Toningen er derfor ikke
+# stemning — den er det eneste som gjør teksten lesbar, og alfaen er
+# regnet ut her og ikke valgt.
+
+HERO_TONING = re.compile(r"\.hero-(?:meny|bunn)\s*\{([^}]*)\}", re.S)
+RGBA = re.compile(r"rgba\(\s*6,\s*22,\s*29,\s*([\d.]+)\s*\)")
+
+
+def test_toningen_bak_heroteksten_holder_45_mot_hvitt():
+    """Gulvet er målt, ikke valgt: 0,65 gir 4,24:1 og 0,70 gir 5,07:1.
+
+    Prøven leser alfaene ut av stilarket og krever at hver av dem som
+    IKKE er en utfasing (0) holder 4,5:1 mot hvitt. Faller den, er det
+    fordi noen dempet toningen — og da er teksten uleselig over snøen
+    uten at noe annet endrer seg.
+    """
+    css = STIL.read_text(encoding="utf-8")
+    # `.hero-meny, .hero-bunn { position: relative }` treffer også, og
+    # den har ingen toning. Vi vil ha blokkene som HAR en.
+    blokker = [b for b in HERO_TONING.findall(css) if "rgba" in b]
+    assert len(blokker) == 2, "fant ikke begge toningene"
+
+    alfaer = [float(a) for b in blokker for a in RGBA.findall(b)]
+    assert alfaer, "ingen rgba-stopp i toningen"
+    for alfa in alfaer:
+        if alfa == 0:
+            continue                     # utfasingen mot bildet
+        flate = over("#06161d", "#ffffff", alfa)
+        assert kontrast("#e7dbd0", flate) >= 4.5, (
+            f"alfa {alfa} gir {kontrast('#e7dbd0', flate):.2f}:1 mot hvitt")
+
+
+def test_soekefeltet_har_egen_ugjennomsiktig_bunn():
+    """Feltet er ikke tekst på et foto — det er en lys boks med mørk
+    tekst. Ble bunnen gjennomsiktig, ville bildet skint gjennom, og da
+    er det toningen som måtte båret den også."""
+    css = STIL.read_text(encoding="utf-8")
+    blokk = re.search(r"\n\.sok \{([^}]*)\}", css).group(1)
+    assert "background: var(--papir)" in blokk
+    assert "rgba" not in blokk, "en gjennomsiktig bunn slipper bildet gjennom"

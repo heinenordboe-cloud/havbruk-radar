@@ -1089,9 +1089,38 @@ a:hover {
 
 .hero-meny, .hero-bunn { position: relative; z-index: 2; }
 
+/* MØRK TONING BAK TEKSTEN, og den er MÅLT og ikke stemning.
+ *
+ * Bildet er snødekte fjell, og MÅLT 24.09.2026 inneholder det RENE
+ * HVITE piksler (255,255,255) — både i øverste fjerdedel, der menyen
+ * står, og i nederste, der tagline og søkefeltet står. Teksten er
+ * `--papir` #e7dbd0, og over hvitt gir den 1,36:1. Det er ikke lesbart,
+ * og det er ikke et spørsmål om skjerm eller smak.
+ *
+ * `hero-slor` var en gradient for STEMNING: 0,45 øverst, 0 fra 22 % til
+ * 42 %, og 0,82 først ved 72 %. Menyen sto altså i 0,25–0,45, og
+ * taglinen kunne stå i 0,55.
+ *
+ * Toningen ligger derfor på TEKSTBLOKKENE, ikke på hele flata: da
+ * beholder bildet lyset i midten, og hvert sted det står tekst har sin
+ * egen bunn. MÅLT alfa mot hvitt: 0,65 gir 4,24:1 og 0,70 gir 5,07:1,
+ * så gulvet er 0,74 med margin. `test_heroen_har_kontrast_bak_teksten`
+ * måler det på den RENDREDE siden, i begge bredder, ved å skjule
+ * teksten og lese den lyseste piksel bak den. */
+.hero-meny {
+  background: linear-gradient(180deg,
+      rgba(6, 22, 29, 0.88) 0%,
+      rgba(6, 22, 29, 0.80) 70%,
+      rgba(6, 22, 29, 0) 100%);
+}
+
 .hero-bunn {
   margin-block-start: auto;
   padding-block-end: clamp(22px, 2.6vw, 32px);
+  background: linear-gradient(180deg,
+      rgba(6, 22, 29, 0) 0%,
+      rgba(6, 22, 29, 0.80) 10%,
+      rgba(6, 22, 29, 0.92) 100%);
 }
 
 .hero-tagline {
