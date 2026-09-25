@@ -1952,16 +1952,18 @@ def _datoord(datoer: list[str], med_aar: bool = True) -> str:
     """
     if not datoer:
         return ""
-    vist = [visningsord.dato(d) for d in datoer]
+    # ÅRET FJERNES PER DATO, ikke av den ferdige strengen. Et `rsplit`
+    # på slutten tok året av den SISTE datoen og lot det stå på de
+    # andre: «siden 2. september 2026, 7. september 2026 og 10.
+    # september». Målt på uke 38.
+    vist = [visningsord.dato(d) if med_aar
+            else visningsord.dato(d).rsplit(" ", 1)[0] for d in datoer]
     if len(datoer) == 1:
-        ut = vist[0]
-    else:
-        maaneder = {d[:7] for d in datoer}
-        if len(datoer) == 2 and len(maaneder) == 1:
-            ut = f"{datoer[0][8:].lstrip('0')}.–{vist[1]}"
-        else:
-            ut = visningsord.liste(vist)
-    return ut if med_aar else ut.rsplit(" ", 1)[0]
+        return vist[0]
+    maaneder = {d[:7] for d in datoer}
+    if len(datoer) == 2 and len(maaneder) == 1:
+        return f"{datoer[0][8:].lstrip('0')}.–{vist[1]}"
+    return visningsord.liste(vist)
 
 
 def _ukemerke(datoer: list[str], forrige: list[str]) -> str:

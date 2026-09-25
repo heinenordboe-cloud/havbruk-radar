@@ -2944,6 +2944,17 @@ def test_ukemerket_sier_naar_vi_saa_og_hva_vi_sammenlignet_mot():
     assert nettsted._ukemerke(["2026-09-21"], []) == "Observert 21. september 2026"
 
 
+def test_aaret_fjernes_fra_hver_dato_og_ikke_fra_strengen():
+    """Et `rsplit` på den ferdige strengen tok året av den SISTE datoen
+    og lot det stå på de andre. Målt på uke 38: «siden 2. september
+    2026, 7. september 2026 og 10. september»."""
+    ut = nettsted._ukemerke(
+        ["2026-09-14", "2026-09-15"],
+        ["2026-09-02", "2026-09-07", "2026-09-10"])
+    assert ut == ("Observert 14.–15. september 2026, endringer siden "
+                  "2. september, 7. september og 10. september")
+
+
 def test_tre_datoer_skrives_med_og_og_ikke_med_tankestrek():
     """En tankestrek mellom 14. og 20. ville påstått at vi observerte
     noe hver dag i mellom."""
