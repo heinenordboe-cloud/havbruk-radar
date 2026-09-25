@@ -67,6 +67,90 @@ bærer sine egne merknader slik CloudCannon la dem. Proveniensen —
 utgivelse, sha256 av tarballen og sha256 av hver wasm-fil — står i
 `docs/design/PAGEFIND.md` og i `publiseringsvakt.BINAERFILER_VERKTOY`.
 
+### Merknad J — Kartverket, LEST 25.09.2026, IKKE TATT I BRUK
+
+Lest i forkant av en mulig ekte kystlinje i kartene. **Ingen
+Kartverket-data ligger i repoet eller i utputtet per 25.09.2026**, og
+raden i tabell 2 skrives den dagen den første fila gjør det.
+
+**Lisensen, ordrett fra Kartverkets egen vilkårsside**
+([kartverket.no/api-og-data/vilkar-for-bruk](https://www.kartverket.no/api-og-data/vilkar-for-bruk),
+lest 25.09.2026, sidas egen «Siste oppdatering» 21.07.26):
+
+> Kartverkets gratisprodukt er lisensierte etter Creative Commons
+> Navngivelse 4.0 international (CC BY 4.0).
+>
+> Dette inneber at Kartverkets namn skal visast i alle samanhengar der
+> produkta eller uttrekk av produkta blir brukt, det vere seg
+> applikasjonar, webløysingar, trykte produkt, illustrasjonar eller
+> anna, på følgjande måte: © Kartverket. Det skal også linkast til
+> nettsidene våre der det er mogleg.
+>
+> Nokre av produkta har opphavsrettsleg vern, nokre har databasevern,
+> og nokre har gått ut på dato. Som det står i CC BY, omfattar denne
+> berre det som er verna, og kravet til å oppgi kjelde gjeld difor så
+> langt produktet er verna eller skal namngis av andre grunnar (god
+> forretningsskikk).
+
+Og om ansvar, samme side, ordrett:
+
+> Kartverkets gratisprodukt blir distribuert slik dei er. Kartverket
+> tar ikkje noko ansvar for bruk og vidarebruk. Kart frå historisk
+> arkiv skal ikkje brukast til navigasjon.
+>
+> Brukarane må vere merksame på at kart ikkje alltid stemmer med
+> terrenget, og bruken må skje på aktsamt vis i høve til utstyr og
+> bruksområde.
+
+**Attribusjonsformen er «© Kartverket», med lenke til kartverket.no.**
+Det er den ordrette formen siden ber om, og den er kortere enn NLOD-
+setningene i tabell 1 — CC BY 4.0 krever i tillegg at lisensen navngis
+og lenkes, som er det `/om/`-tabellen gjør for hver rad i tabell 2.
+
+#### Datasettene, med lisensen slik Geonorge oppgir den per datasett
+
+Hvert datasett har sin EGEN lisensangivelse i Geonorges metadata, og
+den er lest der og ikke antatt av vilkårssiden. Alle fem sier det
+samme. Hentet fra `kartkatalog.geonorge.no/api/getdata/<uuid>`
+25.09.2026:
+
+| datasett | uuid | tilgang | lisens | bruksbegrensning, ordrett |
+|---|---|---|---|---|
+| N50 Kartdata | `ea192681-…-f3ce04c189ac` | Åpne data | CC BY 4.0 | «Ingen begrensninger på bruk er oppgitt» |
+| N250 Kartdata | `442cae64-…-545bc1d9ab48` | Åpne data | CC BY 4.0 | «Ingen begrensninger på bruk er oppgitt.» |
+| Dybdedata – kurver generaliserte | `871960a1-…-7886a4126d23` | Åpne data | CC BY 4.0 | (tom) |
+| Dybdedata – terrengmodeller 50 m | `67a3a191-…-eaaf7c513549` | Åpne data | CC BY 4.0 | «Ingen begrensninger på bruk er oppgitt.» |
+| Sjøkart – Dybdedata | `2751aacf-…-3532a51c529a` | Åpne data | CC BY 4.0 | «Dataene er ikke godkjent for navigasjon. De er ikke egnet for nøyaktige masseberegninger.» |
+
+Lisenslenken hvert av dem oppgir er
+[creativecommons.org/licenses/by/4.0](https://creativecommons.org/licenses/by/4.0/).
+
+**Den siste raden bærer et vilkår de andre ikke har.** «Ikke godkjent
+for navigasjon» er ikke en formalitet på et nettsted som viser
+oppdrettsanlegg i sjøen: en dybdekurve tegnet ved siden av en lokalitet
+ser ut som et sjøkart, og det er nettopp den lesningen Kartverket
+fraskriver seg. Blir dybdedata tatt i bruk, må setningen stå ved
+visningen — ikke bare i denne fila.
+
+#### Størrelse, målt på Geonorges nedlastingstre 25.09.2026
+
+Kartdataene finnes som statiske filer under
+`nedlasting.geonorge.no/geonorge/Basisdata/`, i EUREF89 UTM 33N
+(EPSG:25833) blant andre. Formatene er FGDB, GML, PostGIS og SOSI —
+**ingen GeoJSON og ingen GeoPackage.**
+
+    N50   ingen landsdekkende fil og ingen fylkesfil; per KOMMUNE
+          Harstad 5503      5,3 MB     Bremanger 4648   16,3 MB
+          Nordkapp 5620    11,0 MB     Hammerfest 5603  43,1 MB
+    N250  landsdekkende GML-zip       354,4 MB
+    N500  landsdekkende GML-zip        68,0 MB
+    N1000 landsdekkende GML-zip        22,3 MB
+    N2000 landsdekkende GML-zip         4,9 MB
+    N5000 landsdekkende GML-zip         1,3 MB
+
+Dybdedataene er ikke målt på størrelse her utover lisensen, som var det
+som ble bedt om.
+
 ### Merknad G — de to som ikke krever noe
 
 Unsplash-lisensen og Natural Earths vilkår krever ingen navngiving.
