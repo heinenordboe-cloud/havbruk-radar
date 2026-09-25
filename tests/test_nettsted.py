@@ -1705,8 +1705,9 @@ def _forside(**overstyr) -> str:
         "eierskap_dato": "2026-09-21",
 
         "uke": uke,
-        "sammendrag": ["38 endringer observert i uke 39, 2026: "
-                       "trafikklys og tillatelser."],
+        "sammendrag": [{"tekst": "38 endringer observert i uke 39, 2026: "
+                                 "trafikklys og tillatelser.",
+                        "brod": False}],
         "forskriftslinje": None,
         "rader": [hendelse],
         "flere_rader": 804,
@@ -3462,9 +3463,13 @@ def test_tallet_sier_hva_det_teller():
     [uke] = nettsted.les_endringsuker(felles)
 
     assert uke["ledet_slag"] == "trafikklys"
-    tekst = " ".join(nettsted._sammendrag(uke))
+    setninger = nettsted._sammendrag(uke)
+    tekst = " ".join(s["tekst"] for s in setninger)
     assert "1 endringer observert i uke 39, 2026: trafikklys." in tekst
     assert "selskapsdata" in tekst, "leseren skal få vite hvor de 402 ble av"
+    # ... og den setningen er BRØDTEKST, ikke ukas sak. Se `_sammendrag()`.
+    [bi] = [s for s in setninger if s["brod"]]
+    assert "selskapsdata" in bi["tekst"]
 
 
 def test_selskapsdatadelen_er_apen_uten_javascript():

@@ -1264,6 +1264,19 @@ a:hover {
 
 .uke-sammendrag p:last-child { margin-block-end: 0; }
 
+/* EN SETNING SOM IKKE ER UKAS SAK. «402 endringer i selskapsdata står
+   for seg på ukessiden» er en henvisning, ikke en hovedsak — og i
+   overskriftsskrift leste den som det motsatte. Brødtekst, og bredere
+   målebånd fordi den er en setning og ikke en overskrift. */
+.uke-sammendrag p.sammendrag-bi {
+  font-family: var(--skrift-tekst);
+  font-size: var(--fs-15);
+  line-height: 1.5;
+  letter-spacing: normal;
+  color: var(--ink-dempet);
+  max-width: 52ch;
+}
+
 /* TIDSLINJA. To punkter og en strek, og dagene mellom dem står som
    tall — ikke som en proporsjonal avstand alene: 32 dager tegnet som
    32 piksler er ikke lesbart, og 32 dager tegnet som hele bredden ville

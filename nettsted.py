@@ -5929,8 +5929,16 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
 FORSIDERADER = 8
 
 
-def _sammendrag(uke: dict | None) -> list[str]:
+def _sammendrag(uke: dict | None) -> list[dict]:
     """Én til tre setninger om uka, generert av tallene.
+
+    Hver setning er `{"tekst": ..., "brod": bool}`. `brod` er sant for
+    den ene setningen som ikke er ukas sak: selskapsdataene som står for
+    seg. Den sto i samme 29-pikslers overskriftsskrift som de andre og
+    leste da som en hovedsak — og det er nettopp det
+    23.09-beslutningen sier at den ikke er. Flagget er her og ikke en
+    klasse i malen, fordi det er HER det er kjent hvilken setning det
+    gjelder.
 
     ## Hvorfor generert og ikke skrevet
 
@@ -5945,9 +5953,12 @@ def _sammendrag(uke: dict | None) -> list[str]:
     fikk ny trafikklysfarge» er en telling, «uvanlig mange» ville vært
     en vurdering vi ikke har grunnlag for før vi har mer enn fem uker.
     """
+    def sak(tekst: str) -> dict:
+        return {"tekst": tekst, "brod": False}
+
     if uke is None or not uke["antall"]:
-        return ["Ingen endringer i registrene denne uka. Alle felt står "
-                "som de sto forrige gang vi spurte."]
+        return [sak("Ingen endringer i registrene denne uka. Alle felt "
+                    "står som de sto forrige gang vi spurte.")]
 
     # BARE SLAGENE SOM TELLER. «Felt oppgitt første gang» er ikke en
     # hendelse i havbruket, og en oppsummering som sa «fordelt på ni
@@ -5962,40 +5973,43 @@ def _sammendrag(uke: dict | None) -> list[str]:
                        and k["id"] not in EGEN_DEL),
                       key=lambda k: -k["antall"])
     if not med_tall:
-        return ["Ingen endringer i lokaliteter, tillatelser eller "
-                "trafikklys denne uka. Alle felt står som de sto forrige "
-                "gang vi spurte."]
+        return [sak("Ingen endringer i lokaliteter, tillatelser eller "
+                    "trafikklys denne uka. Alle felt står som de sto "
+                    "forrige gang vi spurte.")]
     # TALLET SIER HVA DET TELLER. «38 endringer» alene lar leseren tro
     # det er alt som skjedde; setningen navngir slagene, og neste
     # setning sier hvor selskapsdataene ble av.
     setninger = [
-        f"{visningsord.tall(uke['antall'])} endringer observert i "
-        f"{uke['vist']}: {uke['ledet_slag']}."
+        sak(f"{visningsord.tall(uke['antall'])} endringer observert i "
+            f"{uke['vist']}: {uke['ledet_slag']}.")
     ]
     if uke["antall_egen_del"]:
-        setninger.append(
-            f"{visningsord.tall(uke['antall_egen_del'])} endringer i "
-            f"selskapsdata — ansatte, næringskode, adresse, regnskap — "
-            f"står for seg på ukessiden.")
+        # BRØDTEKST. Setningen sier hvor noe IKKE er, og en henvisning
+        # satt i samme skrift som ukas sak leses som ukas sak.
+        setninger.append({
+            "tekst": (f"{visningsord.tall(uke['antall_egen_del'])} "
+                      f"endringer i selskapsdata — ansatte, næringskode, "
+                      f"adresse, regnskap — står for seg på ukessiden."),
+            "brod": True})
 
     storst = med_tall[0]
     if storst["id"] == "trafikklys":
-        setninger.append(
+        setninger.append(sak(
             f"Akvakulturregisteret oppgir ny trafikklysfarge for "
             f"{visningsord.tall(storst['antall'])} "
             f"{'produksjonsområde' if storst['antall'] == 1 else 'produksjonsområder'}"
             f" — forskriften dateres til vedtaksåret, og dette er uka "
-            f"registeret fulgte den opp.")
+            f"registeret fulgte den opp."))
     else:
-        setninger.append(
+        setninger.append(sak(
             f"Størst er {storst['navn'].lower()} med "
-            f"{visningsord.tall(storst['antall'])}: {storst['hva']}.")
+            f"{visningsord.tall(storst['antall'])}: {storst['hva']}."))
 
     if len(med_tall) > 1:
         nest = med_tall[1]
-        setninger.append(
+        setninger.append(sak(
             f"Deretter {nest['navn'].lower()} med "
-            f"{visningsord.tall(nest['antall'])}.")
+            f"{visningsord.tall(nest['antall'])}."))
     return setninger
 
 

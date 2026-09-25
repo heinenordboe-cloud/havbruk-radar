@@ -91,8 +91,12 @@
 
   <div class="uke-topp">
     <div class="uke-sammendrag">
+      {#- SETNINGEN OM SELSKAPSDATA ER BRØDTEKST. Den sier hvor noe
+          IKKE er, og satt i den samme 29-pikslers overskriftsskriften
+          som ukas sak leste den som ukas sak. Hvilken setning det er,
+          vet `_sammendrag()` — ikke malen. #}
       {% for setning in f.sammendrag %}
-      <p>{{ setning }}</p>
+      <p{% if setning.brod %} class="sammendrag-bi"{% endif %}>{{ setning.tekst }}</p>
       {% endfor %}
     </div>
 
