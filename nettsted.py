@@ -5449,6 +5449,7 @@ def bygg_lokalitetsindeks(felles: Felles) -> dict:
     return {"rader": rader, "antall": len(rader),
             "akva_dato": felles.akva_dato,
             "uten_po": sum(1 for r in rader if not r["po_kode"]),
+            "uten_omraade": uten_omraade_tekst(felles.akva),
             "uten_koordinater": [
                 {"loknr": nr,
                  "navn": felles.akva[nr].get("navn", ""),
@@ -5476,7 +5477,8 @@ def bygg_poindeks(felles: Felles) -> dict:
     return {"rader": rader, "antall": len(rader),
             "akva_dato": felles.akva_dato,
             "uten_po": sum(1 for a in felles.akva.values()
-                           if not (a.get("prodomraade_kode") or "").strip())}
+                           if not (a.get("prodomraade_kode") or "").strip()),
+            "uten_omraade": uten_omraade_tekst(felles.akva)}
 
 
 def bygg_selskapsindeks(felles: Felles) -> dict:
@@ -5952,6 +5954,55 @@ TEGNFORKLARING = (
 )
 
 
+# SETNINGEN OM LOKALITETENE UTEN OMRÅDE. Ett sted, tre sider.
+#
+# Fram til 24.09.2026 sa forsiden «landbaserte anlegg og
+# ferskvannslokaliteter har ingen», og lokalitetsindeksen det samme i
+# parentes. Begge var for enkle: MÅLT 24.09.2026 er 402 av de 813 på
+# land og 284 i ferskvann, brakkvann eller blandet — men 44 er
+# slakterier, og 299 er sjølokaliteter for skjell, alger eller annen
+# fisk. Og 56 er lakselokaliteter i sjø, som forklaringen ikke dekket i
+# det hele tatt.
+UTEN_OMRAADE_TEKST = (
+    "Produksjonsområdene gjelder oppdrett av laks og ørret i sjø. "
+    "{forklart} av de {uten} lokalitetene uten område er landanlegg, "
+    "ferskvannslokaliteter, slakterier eller sjølokaliteter for andre "
+    "arter. {rest} lakselokaliteter i sjø står også uten område i "
+    "registeret; registeret sier ikke hvorfor."
+)
+
+
+def uten_omraade(akva: dict[str, dict[str, str]]) -> dict[str, int]:
+    """Hvor mange lokaliteter som står uten produksjonsområde, og hvorfor.
+
+    TALLENE HENTES AV DATAENE VED BYGGING, ikke skrevet inn. En setning
+    med et tall i seg er en påstand som råtner: «757 av 813» er sann den
+    uka den skrives, og usann uka etter uten at noe sier fra.
+
+    Resten — lakselokaliteter i SJØ og SALTVANN som ikke er slakteri —
+    er de som forklaringen ikke dekker. MÅLT 24.09.2026: 56 av 813, og
+    registeret oppgir ingen grunn.
+    """
+    uten = [a for a in akva.values()
+            if not (a.get("prodomraade_kode") or "").strip()]
+    rest = [a for a in uten
+            if a.get("plasseringstype") == "Offshore"
+            and a.get("vanntype") == "Salt"
+            and a.get("er_slakteri") != "True"
+            and "SALMON" in (a.get("arter") or "")]
+    return {"uten": len(uten), "rest": len(rest),
+            "forklart": len(uten) - len(rest)}
+
+
+def uten_omraade_tekst(akva: dict[str, dict[str, str]]) -> str:
+    """`UTEN_OMRAADE_TEKST` med tallene fra dataene."""
+    tall = uten_omraade(akva)
+    return UTEN_OMRAADE_TEKST.format(
+        forklart=visningsord.tall(tall["forklart"]),
+        uten=visningsord.tall(tall["uten"]),
+        rest=visningsord.tall(tall["rest"]))
+
+
 def _tegnforklaring(omraader: list[dict]) -> list[dict]:
     """Bare de tegnene tabellen FAKTISK bruker, i fast rekkefølge.
 
@@ -6023,6 +6074,7 @@ def bygg_forside(felles: Felles) -> dict:
 
         # ---- kysten ----
         "omraader": omraader,
+        "uten_omraade": uten_omraade_tekst(felles.akva),
         # BARE TEGNENE TABELLEN BRUKER. Se `_tegnforklaring()`.
         "tegnforklaring": _tegnforklaring(omraader),
         "kart": kart.kystkart(omraader),

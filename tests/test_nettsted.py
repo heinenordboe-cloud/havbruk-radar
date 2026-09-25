@@ -1716,6 +1716,11 @@ def _forside(**overstyr) -> str:
         # andre avledede leddene i fiksturen: en håndskrevet liste ville
         # sagt grønt om utledningen endret seg.
         "tegnforklaring": nettsted._tegnforklaring([omraade]),
+        # Setningen om lokalitetene uten område, utledet av dataene —
+        # se `nettsted.uten_omraade_tekst()`.
+        "uten_omraade": nettsted.uten_omraade_tekst(
+            {"1": {"prodomraade_kode": "4"},
+             "2": {"prodomraade_kode": "", "plasseringstype": "Onshore"}}),
         "kart": {"bredde": 760, "hoyde": 870.4,
                  "omraader": [{"nr": "4", "navn": "Nordhordland til Stadt",
                                "farge_klasse": "lys-gul", "farge": "gul",
@@ -2058,6 +2063,32 @@ def test_verken_tar_eller_og_ikke_og():
     """«Verken A, B og C» er ikke norsk."""
     assert visningsord.liste(["A", "B", "C"], "eller") == "A, B eller C"
     assert visningsord.liste(["A", "B", "C"]) == "A, B og C"
+
+
+def test_setningen_om_lokaliteter_uten_omraade_kommer_av_dataene():
+    """«Landbaserte anlegg og ferskvannslokaliteter har ingen» dekket
+    ikke de 44 slakteriene, de 299 sjølokalitetene for andre arter
+    eller de 56 lakselokalitetene i sjø.
+
+    Tallene HENTES av dataene: en setning med et tall i seg er en
+    påstand som råtner.
+    """
+    akva = {
+        "1": {"prodomraade_kode": "4"},
+        "2": {"prodomraade_kode": "", "plasseringstype": "Onshore"},
+        "3": {"prodomraade_kode": "", "plasseringstype": "Offshore",
+              "vanntype": "Salt", "er_slakteri": "True", "arter": "SALMON"},
+        "4": {"prodomraade_kode": "", "plasseringstype": "Offshore",
+              "vanntype": "Salt", "arter": "SHELL_FISH"},
+        # Den ene som forklaringen IKKE dekker.
+        "5": {"prodomraade_kode": "", "plasseringstype": "Offshore",
+              "vanntype": "Salt", "arter": "SALMON"},
+    }
+    assert nettsted.uten_omraade(akva) == {"uten": 4, "rest": 1, "forklart": 3}
+    tekst = nettsted.uten_omraade_tekst(akva)
+    assert "3 av de 4 lokalitetene uten område" in tekst
+    assert "1 lakselokaliteter i sjø står også uten område" in tekst
+    assert "registeret sier ikke hvorfor" in tekst
 
 
 def test_tegnforklaringen_viser_bare_farger_som_brukes():

@@ -399,9 +399,16 @@
         </ul>
 
         <p class="dekningsnote">
-          {{ f.i_omraade }} av {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} ligger i
-          et produksjonsområde. Landbaserte anlegg og
-          ferskvannslokaliteter har ingen, og telles ikke med her.
+          {{ tall(f.i_omraade) }} av
+          {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} ligger i
+          et produksjonsområde.
+          {#- SETNINGEN ER UTLEDET AV DATAENE, ett sted for tre sider —
+              se `nettsted.uten_omraade_tekst()`. Den gamle sa
+              «landbaserte anlegg og ferskvannslokaliteter har ingen»,
+              og det dekket ikke de 44 slakteriene, de 299
+              sjølokalitetene for andre arter eller de 56
+              lakselokalitetene i sjø. #}
+          {{ f.uten_omraade }}
           {% if f.kart.mangler_geometri %}
           {{ antall(f.kart.mangler_geometri|length, "område", "områder") }} mangler geometri i
           kartfila og er derfor ikke tegnet; de står i tabellen.
