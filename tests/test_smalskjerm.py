@@ -1,4 +1,7 @@
-"""390 piksler: ingen vannrett rulling i body, og ingen celle kuttet.
+"""Det som bare kan måles på en RENDRET side, i en ekte nettleser.
+
+390 piksler: ingen vannrett rulling i body, og ingen celle kuttet.
+Brikkene: minst 44 piksler høye, i begge bredder.
 
 ## Hvorfor denne prøven ikke går i den vanlige runden
 
@@ -108,6 +111,66 @@ def test_ingen_vannrett_rulling_paa_390(side, tjener, sti):
     dokument, vindu = bredde
     assert dokument <= vindu, (
         f"{sti}: dokumentet er {dokument}px bredt i et {vindu}px vindu")
+
+
+# ---- brikkene ---------------------------------------------------------
+#
+# 44 PIKSLER. WCAG 2.2 AA 2.5.8 setter 24x24 som minstemål; 44 er det
+# som gjør en brikke til et treffsikkert mål med en tommel. Brikkene
+# står side om side med 10 piksler mellom seg, så et lite mål her er et
+# feilklikk, ikke bare en unøyaktighet.
+#
+# MÅLT I BEGGE BREDDER: høyden kommer av `min-block-size` og av hvor
+# mange linjer teksten brekker til, og et navn som brekker på 390 og
+# ikke på 1440 gir to ulike høyder.
+
+MINSTE_TREFF = 44
+
+
+@pytest.mark.parametrize("bredde", (390, 1440))
+@pytest.mark.parametrize("sti", ("/", "/endringer/2026-39/"))
+def test_brikkene_er_minst_44_piksler_hoye(side, tjener, sti, bredde):
+    side.set_viewport_size({"width": bredde, "height": 844})
+    side.goto(tjener + sti, wait_until="load")
+    smaa = side.evaluate("""(minste) => {
+      const ut = [];
+      for (const b of document.querySelectorAll(".typemerke")) {
+        const h = b.getBoundingClientRect().height;
+        if (h < minste) {
+          ut.push(b.textContent.trim().slice(0, 30) + " (" + Math.round(h) + "px)");
+        }
+      }
+      return ut.slice(0, 5);
+    }""", MINSTE_TREFF)
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert not smaa, f"{sti} @ {bredde}: brikker under {MINSTE_TREFF}px: {smaa}"
+
+
+@pytest.mark.parametrize("sti", ("/", "/endringer/2026-39/"))
+def test_en_brikke_med_null_er_ikke_klikkbar(side, tjener, sti):
+    """Den fører til en side som viser null rader.
+
+    Formen sier det — ingen ramme, ingen bakgrunn, dempet tekst — og
+    `aria-disabled` sier det samme til den som ikke ser formen. Prøven
+    måler begge deler på rendret side: at ingen null-brikke er et `<a>`,
+    og at ingen av dem har en synlig ramme.
+    """
+    side.goto(tjener + sti, wait_until="load")
+    feil = side.evaluate("""() => {
+      const ut = [];
+      for (const b of document.querySelectorAll(".typemerke--tom")) {
+        const stil = getComputedStyle(b);
+        if (b.tagName === "A") { ut.push("lenke: " + b.textContent.trim()); }
+        if (b.getAttribute("aria-disabled") !== "true") {
+          ut.push("uten aria-disabled: " + b.textContent.trim());
+        }
+        if (stil.boxShadow !== "none") {
+          ut.push("med ramme: " + b.textContent.trim());
+        }
+      }
+      return ut.slice(0, 5);
+    }""")
+    assert not feil, f"{sti}: {feil}"
 
 
 @pytest.mark.parametrize("sti", SIDER)

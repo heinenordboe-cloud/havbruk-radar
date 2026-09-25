@@ -139,12 +139,24 @@
      avviket i oppdraget, punkt 5, og 2026-09-16-url-struktur.md. #}
   {% if f.uke %}
   <ul class="typemerker" aria-label="Endringstyper denne uka">
+    {# EN BRIKKE MED NULL ER IKKE EN LENKE. Den fører til en side som
+       viser null rader, og en lenke som lover et sted å gå er en lenke
+       leseren bruker et klikk på for ingenting. Den står likevel —
+       tallet skal kunne følges over tid — som et `<span>` med
+       `aria-disabled`, så en skjermleser sier det samme som formen. #}
     {% for t in f.uke.typer %}
     <li>
-      <a class="typemerke{% if not t.antall %} typemerke--tom{% endif %}"
+      {% if t.antall %}
+      <a class="typemerke"
          href="/endringer/{{ f.uke.slug }}/{{ t.id }}/" title="{{ t.hva }}">
         {{ t.navn }} <span class="typemerke-tall">{{ tall(t.antall) }}</span>
       </a>
+      {% else %}
+      <span class="typemerke typemerke--tom" aria-disabled="true"
+            title="{{ t.hva }}">
+        {{ t.navn }} <span class="typemerke-tall">{{ tall(t.antall) }}</span>
+      </span>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

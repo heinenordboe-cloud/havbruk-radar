@@ -105,16 +105,26 @@
       aria-label="Endringstyper i {{ u.vist }}">
     <li>
       <a class="typemerke{% if not valgt %} typemerke--valgt{% endif %}"
-         href="/endringer/{{ u.slug }}/">
+         href="/endringer/{{ u.slug }}/"
+         {%- if not valgt %} aria-current="page"{% endif %}>
         Alle <span class="typemerke-tall">{{ tall(u.antall_rader) }}</span> rader
       </a>
     </li>
+    {# EN BRIKKE MED NULL ER IKKE EN LENKE — se forsiden. #}
     {% for k in u.typer %}
     <li>
-      <a class="typemerke{% if not k.antall %} typemerke--tom{% endif %}{% if valgt and valgt.id == k.id %} typemerke--valgt{% endif %}"
-         href="/endringer/{{ u.slug }}/{{ k.id }}/" title="{{ k.hva }}">
+      {% if k.antall %}
+      <a class="typemerke{% if valgt and valgt.id == k.id %} typemerke--valgt{% endif %}"
+         href="/endringer/{{ u.slug }}/{{ k.id }}/" title="{{ k.hva }}"
+         {%- if valgt and valgt.id == k.id %} aria-current="page"{% endif %}>
         {{ k.navn }} <span class="typemerke-tall">{{ tall(k.antall) }}</span>
       </a>
+      {% else %}
+      <span class="typemerke typemerke--tom" aria-disabled="true"
+            title="{{ k.hva }}">
+        {{ k.navn }} <span class="typemerke-tall">{{ tall(k.antall) }}</span>
+      </span>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>

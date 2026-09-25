@@ -1340,14 +1340,32 @@ a:hover {
 
 .typemerker li { margin: 0; }
 
+/* BRIKKENE HAR TRE TILSTANDER, og hver av dem ser ulik ut UTEN å bruke
+ * farge alene:
+ *
+ *   klikkbar   svak bakgrunn + ramme. Den fører et sted.
+ *   aktiv      oransje ramme. Den er stedet du står.
+ *   null       ingen ramme, ingen bakgrunn, dempet tekst, ingen
+ *              hover-respons, `aria-disabled`. Den fører ingensteds.
+ *
+ * MINST 44 PIKSLER HØY. WCAG 2.2 AA 2.5.8 setter 24x24 som minstemål,
+ * men 44 er det som gjør en brikke til et treffsikkert mål med en
+ * tommel — samme tall Apple og Google har målt seg fram til. Fram til
+ * 25.09.2026 var de 30 piksler, og de står side om side med 10 piksler
+ * mellom seg.
+ *
+ * `align-items: center` og ikke `baseline`: med en fast minstehøyde er
+ * baseline det som gjør at teksten klistrer seg til toppen av boksen. */
 .typemerke {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.5em;
+  min-block-size: 44px;
   padding: var(--rom-6) var(--rom-12);
   font-size: var(--fs-13);
   color: var(--ink);
   text-decoration: none;
+  background: var(--papir2);
   box-shadow: inset 0 0 0 1px rgba(11, 36, 48, 0.25);
 }
 
@@ -1358,13 +1376,17 @@ a:hover {
 /* TYPER MED NULL VISES ALLTID, dempet. Et tall man bare ser når det er
    noe der, er et tall ingen kjenner normalverdien til.
  *
- * RAMMEN SITTER PÅ DE KLIKKBARE. Fram til 24.09.2026 hadde begge slag
- * ramme — de tomme bare i en lysere tone — og en ramme rundt alt sier
- * ingenting om hva som fører et sted. Nå bærer ramma nettopp det
- * skillet: brikker med rader har den, brikker med null har den ikke. */
-.typemerke--tom { color: var(--ink-dempet); box-shadow: none; }
+ * DEN ER IKKE ET `<a>` fra 25.09.2026 — se malen. Regelen her dekker
+ * likevel hover og besøkt, fordi en brikke som en dag skulle bli en
+ * lenke igjen ikke skal arve en respons som lover et klikk. */
+.typemerke--tom {
+  color: var(--ink-dempet);
+  background: none;
+  box-shadow: none;
+  cursor: default;
+}
 .typemerke--tom:visited { color: var(--ink-dempet); }
-.typemerke--tom:hover { box-shadow: none; }
+.typemerke--tom:hover { color: var(--ink-dempet); box-shadow: none; }
 
 /* ---- arkivlinja ---- */
 
@@ -2913,9 +2935,15 @@ figcaption {
 
 /* DEN VALGTE TYPEN er merket med aksenten som STREK, ikke som flate —
    regelen fra avsnitt 1 gjelder her som overalt. */
+/* AKTIV: ORANSJE RAMME, hele veien rundt. Fram til 25.09.2026 var det
+ * en tynn ramme PLUSS en tykk strek i underkant — to signaler for én
+ * tilstand, og streken leste som en understreking i en rad der ingen
+ * andre var understreket. En ramme i to piksler er det samme signalet
+ * én gang. `aria-current="page"` står i markupen og sier det samme til
+ * den som ikke ser ramma. */
 .typemerke--valgt {
   color: var(--rust);
-  box-shadow: inset 0 0 0 1px var(--rust), inset 0 -3px 0 0 var(--rust);
+  box-shadow: inset 0 0 0 2px var(--rust);
 }
 
 .typemerke--valgt:visited { color: var(--rust); }

@@ -1806,13 +1806,23 @@ def test_forsiden_leder_med_uka_og_ikke_med_seg_selv():
 
 def test_alle_endringstyper_vises_ogsaa_de_med_null():
     """Et tall man bare ser når det er noe der, er et tall ingen
-    kjenner normalverdien til. Overleveringens krav: typer med 0 er
-    dempet, men vises alltid."""
+    kjenner normalverdien til. Typer med 0 er dempet, men vises alltid.
+
+    OG DE ER IKKE LENKER fra 25.09.2026. En brikke med null fører til en
+    side som viser null rader; den står som et `<span>` med
+    `aria-disabled`, så formen og skjermleseren sier det samme.
+    """
     html = _forside()
+    flat = " ".join(html.split())
+    # Slagene med rader er lenker.
     for slag in nettsted.ENDRINGSTYPER:
-        assert f'/endringer/2026-39/{slag["id"]}/' in html, slag["id"]
-    # De dempede er merket som dempet, ikke utelatt.
-    assert "typemerke--tom" in html
+        if slag["id"] == "trafikklys":
+            assert f'/endringer/2026-39/{slag["id"]}/' in html, slag["id"]
+        else:
+            assert f'/endringer/2026-39/{slag["id"]}/' not in html, slag["id"]
+        # Navnet står uansett.
+        assert slag["navn"] in flat, slag["id"]
+    assert 'class="typemerke typemerke--tom" aria-disabled="true"' in flat
 
 
 def test_typelenkene_er_stier_og_ikke_sporrestrenger():
