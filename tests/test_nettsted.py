@@ -42,8 +42,15 @@ def _visning(rader):
 
     Fjerde ledd er «sist observert» — `observed_at` fra changeloggen.
     Tom her, som den er for et felt som ikke har endret seg i loggen.
+
+    Femte ledd er fargeklassen, som gjør ::before-ruta synlig. Den
+    regnes ut av `nettsted` selv, av samme grunn som de andre leddene:
+    en fikstur som stavet «lys-gul» for hånd ville sagt grønt om
+    utledningen endret seg.
     """
-    return [(f, visningsord.felt(f), visningsord.verdi(f, v), "")
+    return [(f, visningsord.felt(f), visningsord.verdi(f, v), "",
+             nettsted.FARGE_KLASSE.get(
+                 nettsted._fargekode(str(v).strip().lower()), ""))
             for f, v in rader]
 
 
@@ -236,7 +243,11 @@ def _side(**overstyr) -> str:
         "fylke": "TROMS", "po_kode": "10", "po_navn": "Andøya til Senja",
         "breddegrad": "68.9288", "lengdegrad": "16.701367",
         "akva_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
-        "register": [("navn", "OTERNESET"), ("kapasitet", "8000.0")],
+        "register": [("navn", "OTERNESET"), ("kapasitet", "8000.0"),
+                     # Fargefeltet er med fordi ruta foran verdien har
+                     # sin egen regel — se
+                     # `test_fargeruta_i_registertabellen_har_fyll`.
+                     ("prodomraade_status", "gul")],
         # `_visning()` under gjør de to leddene til fire: feltnavn,
         # etikett, oversatt verdi og «sist observert».
         "tillatelser": [{
@@ -2028,6 +2039,23 @@ def test_verken_tar_eller_og_ikke_og():
     """«Verken A, B og C» er ikke norsk."""
     assert visningsord.liste(["A", "B", "C"], "eller") == "A, B eller C"
     assert visningsord.liste(["A", "B", "C"]) == "A, B og C"
+
+
+def test_fargeruta_i_registertabellen_har_fyll():
+    """`data-felt` gir ::before-ruta; `lys-*` gir fyllet. Uten klassen
+    sto ruta TOM i begge moduser, ved siden av ordet «gul» — og en tom
+    rute ved siden av et fargeord leses som at fargen mangler."""
+    html = _side()
+    m = re.search(r'<td[^>]*data-felt="prodomraade_status"[^>]*>', html)
+    assert m, "fant ingen fargecelle"
+    assert "lys-gul" in m.group(0), m.group(0)
+    # Stilarket fyller den i BEGGE moduser: fyllet står på klassen, og
+    # bare RINGEN byttes i mørk modus.
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    assert "td.lys-gul::before   { background: var(--lys-gul); }" in css
+    assert ".mork td.lys-gul::before" not in css, (
+        "fyllet skal ikke overstyres i mørk modus")
 
 
 def test_forste_oyeblikksbilde_staar_kronologisk():

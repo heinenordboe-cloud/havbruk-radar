@@ -294,10 +294,10 @@
       </tr>
     </thead>
     <tbody>
-      {% for felt, etikett, vist, endret in sel.register %}
+      {% for felt, etikett, vist, endret, fargeklasse in sel.register %}
       <tr>
         <th scope="row">{{ etikett }}</th>
-        <td data-felt="{{ felt }}">{{ vist }}</td>
+        <td data-felt="{{ felt }}"{% if fargeklasse %} class="{{ fargeklasse }}"{% endif %}>{{ vist }}</td>
         <td data-felt="{{ feltmerke(endret, 'observed_at') }}">
           {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
           {%- else %}{{ VERDI_MANGLER }}{% endif %}

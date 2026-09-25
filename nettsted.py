@@ -3611,8 +3611,14 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # ikke «Sist endret» i malen — registeret sier ikke når det
         # gjorde endringen, og en kolonne som påsto det ville vært
         # nøyaktig den forvekslingen CLAUDE.md 1b handler om.
+        # FEMTE LEDD ER FARGEKLASSEN. Cella har `data-felt` og får
+        # derfor ::before-ruta fra stilarket, men fyllet kommer av
+        # `lys-*`-klassen — og uten den sto ruta tom i BEGGE moduser,
+        # ved siden av ordet «gul». En tom rute ved siden av et fargeord
+        # leses som at fargen mangler.
         "register": [(f, visningsord.felt(f), visningsord.verdi(f, v),
-                      sist_endret.get((loknr, f), ""))
+                      sist_endret.get((loknr, f), ""),
+                      FARGE_KLASSE.get(_fargekode(str(v).strip().lower()), ""))
                      for f, v in sorted(a.items())],
         # KJENTE og UGJORTE REDE FOR i SAMME tabell, i nummerrekkefølge.
         # Regelen og målingen står i docs/REGEL-UENIGE-KILDER.md: en
@@ -6154,8 +6160,13 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
     # feltnavn til `data-felt`, etiketten til øyet, verdien oversatt, og
     # da vi sist SÅ feltet endre seg. To registertabeller som viste
     # ulike kolonner ville vært to former for det samme.
+    # FEM LEDD, som på lokalitetssiden. Femte er fargeklassen, og den
+    # er tom for hvert felt her — selskapsregisteret har ingen farge.
+    # Samme form i begge tabellene er likevel riktig: to registertabeller
+    # med hver sin radform er to maler som må huske hver sin.
     register = [(f, visningsord.felt(f), visningsord.verdi(f, reg[f]),
-                 felles.sist_endret.get((orgnr, f), ""))
+                 felles.sist_endret.get((orgnr, f), ""),
+                 FARGE_KLASSE.get(_fargekode(str(reg[f]).strip().lower()), ""))
                 for f in SELSKAPSFELT if reg.get(f)]
 
     # Lokalitetene tillatelsene ligger på. En tillatelse kan ligge på

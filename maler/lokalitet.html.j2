@@ -634,10 +634,13 @@
         </tr>
       </thead>
       <tbody>
-        {% for felt, etikett, vist, endret in lok.register %}
+        {% for felt, etikett, vist, endret, fargeklasse in lok.register %}
         <tr>
           <th scope="row">{{ etikett }}</th>
-          <td data-felt="{{ felt }}">{{ vist }}</td>
+          {#- FARGEKLASSEN GJØR RUTA SYNLIG. `data-felt` gir ruta;
+              `lys-*` gir fyllet. Uten den sto ruta tom i begge moduser,
+              ved siden av ordet «gul». #}
+          <td data-felt="{{ felt }}"{% if fargeklasse %} class="{{ fargeklasse }}"{% endif %}>{{ vist }}</td>
           <td data-felt="{{ feltmerke(endret, 'observed_at') }}">
             {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
