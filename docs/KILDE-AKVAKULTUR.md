@@ -119,6 +119,68 @@ Kilden er fri for persondata av konstruksjon, ikke av filtrering: det
 finnes ingenting å filtrere. Innehaveridentitet ligger på `/licenses`,
 som er en egen kilde med en egen vurdering (CLAUDE.md regel 3).
 
+### 4.5 Artsbegrensningene falt fra 119 til 44 oppføringer 24.08.2026
+
+MÅLT 25.09.2026 i de arkiverte kroppene, antall elementer i
+`speciesLimitations` summert over alle lokaliteter:
+
+    2026-08-17   119     (fem kropper samme dag, alle 119)
+    2026-08-24    44     (fire kropper samme dag, alle 44)
+    2026-08-31    47
+    2026-09-07    44
+    2026-09-14    55
+    2026-09-21    55
+
+Fallet er de 118 `artsbegrensninger_antall`-radene i changeloggen for
+24.08.2026, og de var uka 96 % av all bevegelse fra kilden: 118 av 121
+rader. **76 lokaliteter mistet alle artsbegrensningene sine, 42 fikk
+sine første.** Retningen fordelt:
+
+    1 -> 0    60        0 -> 1    41
+    3 -> 0    11        0 -> 3     1
+    2 -> 0     3
+    9 -> 0     1
+   11 -> 0     1
+
+**Det var IKKE en omkoding.** Spørsmålet var om kilden hadde flyttet
+den samme opplysningen til et annet felt, og svaret er nei på hvert
+ledd som kan måles fra kroppene:
+
+* **Formen står stille.** Samme seks nøkler i hvert element, før og
+  etter. Ingen ny nøkkel, ingen fjernet, ingen typeendring, og feltet er
+  aldri fraværende — se punkt 6.
+* **`speciesTypes` tok ikke over.** 0 av de 118 lokalitetene endret
+  settet i `speciesTypes`. Seks endret rekkefølgen på det, og ikke noe
+  mer. Artene som forsvant fra begrensningene (Laks 24, Torsk 18,
+  Regnbueørret 16, Ørret 11 …) finnes ikke igjen noe annet sted i
+  kroppen.
+* **`connections` bærer ingen art.** Objektene har tretten nøkler, og
+  ingen av dem er artsrelatert (`licenseNr`, `siteNr`, `status`,
+  `validFrom` …). En begrensning kan altså ikke ha flyttet fra
+  lokalitetsnivå til tillatelsesnivå i det vi henter.
+* **Registeret meldte ingen versjon.** Bare 1 lokalitet fikk ny
+  `versjon_gyldig_fra` den uka. For 112 av de 118 var
+  `speciesLimitations` det ENESTE feltet som flyttet seg.
+
+**Og det gikk ikke tilbake.** Av de 76 som mistet alt har 0 fått de
+samme begrensningene igjen per 21.09.2026; av de 42 som fikk noe har
+42 det fortsatt. Det utelukker et ustabilt felt som flagrer mellom
+hentinger — dette er ett trinn, i én retning, som har holdt i fem uker.
+
+Hva som da står igjen som forklaring, kan ikke avgjøres av kroppene
+alene: det er en endring hos Fiskeridirektoratet, enten i dataene eller
+i hvordan tjenesten fyller feltet, og den er ikke annonsert noe vi har
+lest. CLAUDE.md regel 4 gjelder — vi har SETT trinnet, vi har ikke sett
+begrunnelsen.
+
+**En sidebemerkning om dekningstabellen i punkt 3.** Der står `arter,
+artsbegrensninger_antall` med 100 % dekning, og det er sant om at
+tallet KOMMER. Det sier ikke at det sier noe: 1 737 av 1 779
+lokaliteter har 0, altså 97,6 %. Det er formen F10 handler om (CLAUDE.md
+1b-4) — en full kolonne som er stille — og forskjellen fra F10 er bare
+at kolonnen her ikke er død: 42 lokaliteter har en verdi, og verdien
+flyttet seg fem ganger i fem uker.
+
 ## 5. Frekvens
 
 Ukentlig, `min_dager_mellom = 7`. **Ingen etterslep** — registeret sier
@@ -133,10 +195,32 @@ Det skiller kilden fra `lusetall` og `sjotemperatur`, som begge ligger
 * **Historikk før 17.08.2026.** Registeret har ingen tidsakse, og
   snapshotet fra en gitt dato lar seg ikke hente i etterkant.
   CLAUDE.md regel 5.
-* **`obsoleteConnections` som egen akse.** Feltet finnes i kroppen og
-  leses inn som `tillatelser_trukket` (et antall), ikke som en liste med
-  datoer. Kroppen er arkivert; det er en re-parse.
-* **`speciesLimitations` i sin helhet.** Bare antallet emitteres.
+* **`obsoleteConnections` med datoer.** Feltet leses inn som
+  `tillatelser_trukket`, og det er lisensNUMRENE — samme semikolonliste
+  som `tillatelser`, RETTET her 25.09.2026 (notatet sa «et antall», som
+  var feil: `FELTER` bruker `_lisensnumre`, ikke `_antall`). Det som ikke
+  er bygget, er `status`, `validFrom` og `registeredTime` per trukket
+  kobling. Kroppen er arkivert; det er en re-parse.
+* **`speciesLimitations` i sin helhet.** Bare antallet emitteres, som
+  `artsbegrensninger_antall`. Formen er MÅLT 25.09.2026 i alle 13
+  arkiverte kropper og er uendret gjennom hele serien:
+
+      speciesLimitations   liste, alltid til stede, aldri noe annet
+      hvert element        objekt med seks nøkler, alle alltid satt
+                           code, faoAlpha3Code, latinName,
+                           nbNoName, nnNoName, enGbName
+
+  Et element ser slik ut, og en re-parse ville altså hatt både
+  artskoden og navnet:
+
+      {"code": "071101", "faoAlpha3Code": "SAL",
+       "latinName": "Salmo salar", "nbNoName": "Laks",
+       "nnNoName": "Laks", "enGbName": "Atlantic salmon"}
+
+  Tallet er derfor ikke en telling vi kan slå sammen med noe — det er
+  det ENESTE sporet vi har av artsbegrensningene, og det er grunnen til
+  at `artsbegrensninger_antall` ikke kan erklæres avledet slik
+  `tillatelser_antall` er. Se punkt 4.5.
 
 ## 7. Lisens og attribusjon
 

@@ -1341,6 +1341,30 @@ def test_akvakultur_tillatelser_sorteres():
     assert tillatelser(("B", "A", "C")) == tillatelser(("C", "B", "A"))
 
 
+def test_akvakultur_avledningen_peker_paa_felt_kilden_skriver():
+    """En erklæring om et feltnavn som ikke finnes treffer ingen rad.
+
+    `avledet_av` slår sammen to rader til én hendelse, og nøkkelen er
+    feltnavnene. Døpes ett av dem om, slutter sammenslåingen å treffe —
+    stille, og i den retningen som bare gir flere hendelser enn det
+    skulle. Prøven er at begge navnene er felt kilden faktisk skriver,
+    lest av `parse()` og ikke av `FELTER`: det er radene som telles.
+    """
+    from core.contract import erklaert_avledning
+    from sources.akvakultur import Akvakulturregisteret
+
+    kilde = Akvakulturregisteret()
+    rad = _akva_rad(tillatelser=("A", "B"))
+    skrevne = {o.field for o in kilde.parse([rad], "2026-08-17")}
+
+    avledning = erklaert_avledning(kilde)
+    assert avledning, "kilden erklærer en avledning — prøven er tom uten"
+    for (navn, avledet), grunn in avledning.items():
+        assert navn == kilde.name
+        assert avledet in skrevne, avledet
+        assert grunn in skrevne, grunn
+
+
 def test_akvakultur_lagrer_ingen_persondata():
     """connections skal kun gi tillatelsesnumre — aldri innehaver."""
     from sources.akvakultur import Akvakulturregisteret

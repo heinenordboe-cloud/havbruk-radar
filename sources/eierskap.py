@@ -416,6 +416,21 @@ class Eierskap(Source):
     # gjort hvert eierskifte upresist datert med opptil en måned.
     min_dager_mellom = 7
 
+    # `lokaliteter_antall` ER `lokaliteter` TALT. Begge kommer av samme
+    # `_lokaliteter(l)`-kall i `parse()` — numrene der, lengden her.
+    #
+    # MÅLT 25.09.2026 over hele changeloggen (1 015 754 rader): 21 rader
+    # for `lokaliteter_antall` og 21 for `lokaliteter`, og de gjelder
+    # NØYAKTIG de samme 21 (tillatelse, par). 0 i hver retning.
+    #
+    # Erklæringen gjelder BEGGE navnene kilden skriver under, og
+    # `eierskap_historikk` skriver ingen av de to feltene — se
+    # `erklaert_avledning()`. Det er harmløst og ikke et slingringsmonn:
+    # en erklæring om et felt en serie ikke har, treffer ingen rad. Å
+    # skille dem ville krevd en erklæring per navn, og den formen finnes
+    # bare der den trengs (`partisjonering` over).
+    avledet_av = {"lokaliteter_antall": "lokaliteter"}
+
     def __init__(self) -> None:
         self.enabled = bool(get("kilder.eierskap.aktiv", False))
 

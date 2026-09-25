@@ -203,6 +203,58 @@ class Akvakulturregisteret(Source):
     # avvik mellom observed_at og fetched_at i alle 5 snapshots.
     partisjonering = "henting"
 
+    # `tillatelser_antall` ER `tillatelser` TALT. Begge leses av samme
+    # `connections`-liste i samme rad — lisensnumrene der, lengden her.
+    #
+    # MÅLT 25.09.2026 over hele changeloggen (1 015 754 rader): 24 rader
+    # for `tillatelser_antall` og 24 for `tillatelser`, og de gjelder
+    # NØYAKTIG de samme 24 (lokalitet, par). 0 i hver retning — tallet har
+    # aldri flyttet seg uten lista, og lista aldri uten tallet.
+    #
+    # Endrer tallet seg ALENE, teller det. Det ville betydd at en
+    # tillatelse kom eller gikk uten at numrene endret seg, altså at
+    # `connections` bar en oppføring uten `licenseNr`, og det er noe
+    # kilden sier som ingenting annet sier. Regelen er «i samme par».
+    #
+    # ## `tillatelser_trukket` er MÅLT og IKKE deklarert
+    #
+    # Ikke fordi målingen er svakere: alle 13 radene faller i samme par
+    # som `tillatelser`, og også i samme par som `tillatelser_antall`.
+    # 13/13, mot 66/66 for det feltet som ble deklarert 24.09.
+    #
+    # Forskjellen er hva raden SIER. At T-T-0035 forsvant fra lokalitet
+    # 10560 står i `tillatelser` (der forsvant feltet helt: den var
+    # lokalitetens eneste). At den forsvant
+    # fordi den ble TRUKKET, og ikke flyttet til en annen lokalitet, står
+    # bare i `tillatelser_trukket` — registeret flytter oppføringen fra
+    # `connections` til `obsoleteConnections`, og ingen av de to
+    # gjenstående feltene bærer statusen. For lokalitet 12235 07.09.2026
+    # er hele opplysningen der: `tillatelser` mistet M-VN-0024, -0025 og
+    # -0026 og fikk -0027 og -0028, og bare `tillatelser_trukket` svarer
+    # hvilke tre av de fem som ble trukket.
+    #
+    # Et tall som kan regnes ut av grunnfeltet er en FØLGE. Et ord om
+    # hvorfor grunnfeltet flyttet seg er en OPPLYSNING, og den kan ikke
+    # slås sammen bort uten at leseren må regne baklengs på noe som ikke
+    # står noe sted. Samme skille som holdt `antall_ansatte` tellende
+    # 24.09, bare fra den andre siden: der var samvariasjonen 46 %, her
+    # er den 100 %, og prosenten avgjorde ingen av dem.
+    #
+    # ## `artsbegrensninger_antall` KAN ikke deklareres
+    #
+    # Den ser ut som en telling, og den er det — men lista den teller
+    # (`speciesLimitations`) lagres ikke, så det finnes ingen grunnfelt å
+    # slå den sammen med. Tallet er det ENESTE sporet vi har av
+    # artsbegrensningene. MÅLT 25.09.2026 i de arkiverte kroppene:
+    # formen er uendret gjennom alle 13 kropper (liste av objekt med
+    # `code`, `faoAlpha3Code`, `latinName`, `nbNoName`, `nnNoName`,
+    # `enGbName`; aldri fraværende, aldri noe annet enn en liste), mens
+    # INNHOLDET falt fra 119 til 44 oppføringer mellom 17.08 og 24.08 og
+    # har ligget der siden — 118 lokaliteter flyttet seg på én dato, og
+    # det var ikke en omkoding. Hele målingen står i
+    # docs/KILDE-AKVAKULTUR.md punkt 4.5, formen i punkt 6.
+    avledet_av = {"tillatelser_antall": "tillatelser"}
+
     def __init__(self) -> None:
         self.enabled = bool(get("kilder.akvakultur.aktiv", False))
 

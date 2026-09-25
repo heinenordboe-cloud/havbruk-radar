@@ -256,6 +256,31 @@ def test_kjeden_kommer_ut():
     assert felt["organisasjonsform"] == "AS"
 
 
+def test_avledningen_peker_paa_felt_kilden_skriver():
+    """Samme vakt som i test_pipeline for akvakultur, og samme grunn.
+
+    `lokaliteter_antall` og `lokaliteter` skrives i samme ledd av
+    `parse()`. Erklæringen navngir dem som strenger, og en omdøping ville
+    stoppet sammenslåingen uten å feile.
+
+    Merk hva prøven IKKE krever: at `eierskap_historikk` skriver dem.
+    Erklæringen gjelder begge navnene kilden skriver under, og en
+    erklæring om et felt en serie ikke har treffer ingen rad.
+    """
+    from core.contract import erklaert_avledning
+
+    kilde = Eierskap()
+    raa = {"enheter": [ENHET_AS],
+           "tillatelser": [_lisens("A-A-0001", "AAA", "969159570")]}
+    skrevne = {o.field for o in kilde.parse(raa, "2026-09-02")}
+
+    avledning = erklaert_avledning(kilde)
+    assert avledning, "kilden erklærer en avledning — prøven er tom uten"
+    for (_navn, avledet), grunn in avledning.items():
+        assert avledet in skrevne, avledet
+        assert grunn in skrevne, grunn
+
+
 def test_utgatte_koblinger_telles_ikke():
     l = _lisens("A-A-0001", "AAA", "969159570")
     l["connections"].append({"siteNr": "99999", "active": False})
