@@ -1042,8 +1042,20 @@ def uferdig_tekst(tekst: str, fil: str = "") -> list[Funn]:
 REPOSTI = re.compile(r"\bdocs/[\w./-]+|\b[\w./-]+\.md\b")
 
 
+# SKRIPT OG STILARK BÆRER SINE EGNE KOMMENTARER UT, og en kommentar er
+# ikke noe en leser ser. `kystloggen.js` forklarer en avgjørelse med
+# «se docs/VISNING.md», og det er riktig sted for den forklaringen.
+#
+# At kommentarene i det hele tatt sendes med er et annet spørsmål — det
+# handler om filstørrelse og om hva vi utleverer, ikke om hva leseren
+# møter. Det er ikke avgjort her.
+UTEN_REPOSTIPROVE = {".js", ".css", ".map"}
+
+
 def repostier(tekst: str, fil: str = "") -> list[Funn]:
     """Stier inn i repoet, i synlig tekst. Tom liste = rent."""
+    if any(fil.lower().endswith(e) for e in UTEN_REPOSTIPROVE):
+        return []
     synlig = TAGG.sub(" ", MASKINELEMENTER.sub(" ", tekst))
     treff = REPOSTI.findall(synlig)
     if not treff:
