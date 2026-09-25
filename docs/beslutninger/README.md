@@ -10,6 +10,13 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 Nyeste øverst.
 
 - **2026-09-24** — [Changelogdøra leser kildens tillegg — en dør som frikjente på feil felt](2026-09-24-changelogdora-leser-kildens-tillegg.md) — utkast
+- **2026-09-23** — [Designet fra overleveringen implementert, med sju avvik](2026-09-23-design-implementert.md) — utkast
+- **2026-09-23** — [eier_type inn i personhooken — premisset for å la den stå ute sviktet](2026-09-23-eier-type-inn-i-hooken.md) — utkast
+- **2026-09-23** — [En hendelse er ikke en rad — uke 39 var 812 og er 440](2026-09-23-en-hendelse-er-ikke-en-rad.md) — utkast
+- **2026-09-23** — [Fargeleggingen er et eget belegg — de 19 tomme cellene var ikke en mangel](2026-09-23-fargeleggingen-er-et-eget-belegg.md) — utkast
+- **2026-09-23** — [Hvert snapshot bærer koden som skrev det](2026-09-23-kodeproveniens-per-snapshot.md) — utkast
+- **2026-09-23** — [Selskapsdata står for seg — 402 av 440 var registervedlikehold](2026-09-23-selskapsdata-star-for-seg.md) — utkast
+- **2026-09-22** — [Grensen mellom fri gjenbruk og avtalt uttrekk](2026-09-22-gratis-mot-betalt-grense.md) — utkast
 - **2026-09-21** — [Identiteten er hav og papir — og papiret er valgt på verdi, ikke på tone](2026-09-21-identiteten-hav-og-papir.md) — besluttet
 - **2026-09-19** — [CSS er fritt, markup er en kontrakt — og kontrakten har en test](2026-09-19-markup-er-en-kontrakt.md) — besluttet
 - **2026-09-19** — [Vi ligger på pub-aquas pagineringstak — og ArcGIS sier «for bredt» med 200 OK](2026-09-19-vi-ligger-paa-pagineringstaket.md) — besluttet

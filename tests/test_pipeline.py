@@ -223,6 +223,84 @@ def test_hver_kilde_erklaerer_attribusjon_eller_er_ubelagt():
         erklaert_attribusjon(kilde)      # kaster på feil form
 
 
+# ======================================= beslutningsindeksen
+#
+# `docs/beslutninger/README.md` er inngangen til beslutningene, og den
+# har ett krav: den skal nevne dem alle. MÅLT 24.09.2026 manglet sju
+# linjer — hele 22. og 23. september — mens indeksen leste som komplett.
+#
+# Det er samme feilform som hygieneregelen i APNE-SPORSMAL advarer mot,
+# og som ingresstallet der hadde: et dokument som ikke stemmer med
+# innholdet sender arbeid feil vei. Forskjellen er at DENNE kan måles,
+# fordi begge sider av påstanden ligger på disk.
+
+BESLUTNINGER = Path(__file__).resolve().parents[1] / "docs" / "beslutninger"
+
+
+def _indekslenker() -> set[str]:
+    """Filnavnene indeksen lenker til."""
+    import re
+
+    tekst = (BESLUTNINGER / "README.md").read_text(encoding="utf-8")
+    return set(re.findall(r"\]\((\d{4}-\d{2}-\d{2}-[^)]+\.md)\)", tekst))
+
+
+def test_hver_beslutning_staar_i_indeksen():
+    """En beslutning ingen kan finne er en beslutning ingen leser.
+
+    Går begge veier med vilje. Mangler en fil sin linje, er den usynlig;
+    peker en linje på en fil som ikke finnes, sender den leseren til
+    ingenting. Det andre kan skje ved en omdøping, og da er det her man
+    møter det.
+    """
+    filer = {p.name for p in BESLUTNINGER.glob("*.md")} - {"README.md"}
+    lenker = _indekslenker()
+
+    assert not (filer - lenker), (
+        f"{len(filer - lenker)} beslutning(er) uten linje i README.md: "
+        f"{sorted(filer - lenker)}")
+    assert not (lenker - filer), (
+        f"{len(lenker - filer)} lenke(r) i README.md uten fil: "
+        f"{sorted(lenker - filer)}")
+
+
+def test_indeksen_daterer_hver_beslutning_som_fila_selv_gjor():
+    """Datoen står tre steder: i filnavnet, i frontmatteren og i indeksen.
+
+    Tre steder som KAN si ulike ting er formen F6 og F7 hadde, og her er
+    prisen at en beslutning sorteres et annet sted enn den hører.
+
+    STATUSEN sammenlignes IKKE. Indeksen sier med vilje mer enn
+    frontmatteren — «besluttet 16.09», «utkast, ingen beslutning tatt»,
+    «erstattet av <fil>» — og en prøve som krevde likhet ville tvunget
+    fram en forkortelse av opplysninger som står der fordi de er nyttige.
+    MÅLT 24.09.2026: 79 linjer, 0 datoavvik.
+    """
+    import re
+
+    tekst = (BESLUTNINGER / "README.md").read_text(encoding="utf-8")
+    par = re.findall(
+        r"- \*\*(\d{4}-\d{2}-\d{2})\*\* — \[[^\]]+\]"
+        r"\((\d{4}-\d{2}-\d{2}-[^)]+\.md)\)", tekst)
+    assert par, "fant ingen indekslinjer — er formatet endret?"
+
+    avvik = []
+    for dato_i_linja, fil in par:
+        sti = BESLUTNINGER / fil
+        if not sti.exists():
+            continue                      # dekkes av prøven over
+        hode = sti.read_text(encoding="utf-8").split("---")[1]
+        funn = re.search(r"^dato:\s*(\S+)", hode, re.M)
+        i_fila = funn.group(1) if funn else "(ingen dato i frontmatteren)"
+        if i_fila != dato_i_linja:
+            avvik.append(f"{fil}: indeksen sier {dato_i_linja}, "
+                         f"fila {i_fila}")
+        if not fil.startswith(i_fila):
+            avvik.append(f"{fil}: filnavnet og frontmatterens dato "
+                         f"{i_fila} spriker")
+    assert not avvik, avvik
+
+
 def test_bare_ekspertgruppen_er_ubelagt():
     """Lista over UBELAGTE kilder er en påstand i docs/LISENSKJEDE.md.
     Blir den lengre uten at noen la merke til det, er det her man møter
