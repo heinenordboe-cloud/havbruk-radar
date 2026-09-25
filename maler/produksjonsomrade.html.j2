@@ -247,6 +247,12 @@
     <figcaption>
       <span class="tegn"><span class="tegn-rute tegn-soyle"></span>beholdning,
         tusen tonn</span>
+      {#- SERIENS ENDER I ORD. Årstallene står på x-aksen, men første og
+          siste MÅNED står ikke noe sted en leser ser — bare i `<desc>`,
+          som bare en skjermleser får. Begge kommer av serien ved
+          bygging. #}
+      <span class="tegn"><time datetime="{{ b.fra }}">{{ b.fra|maaned }}</time>
+        til <time datetime="{{ b.til }}">{{ b.til|maaned }}</time></span>
       <span class="tegn">{{ b.maaneder_med_tall }} av
         {{ antall(b.maaneder, "måned", "måneder") }} har tall</span>
     </figcaption>

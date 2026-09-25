@@ -4146,6 +4146,7 @@ def _miljo() -> Environment:
     miljo.filters["uke"] = visningsord.uke
     miljo.filters["isouke"] = visningsord.isouke
     miljo.filters["ukespenn"] = visningsord.ukespenn
+    miljo.filters["maaned"] = visningsord.maaned
     miljo.filters["tidspunkt"] = visningsord.tidspunkt
     miljo.filters["tall"] = visningsord.tall
     # `feltmerke` er en GLOBAL og ikke et filter: den tar to argumenter

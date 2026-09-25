@@ -681,6 +681,26 @@ def dato(iso: object) -> str:
     return f"{d.day}. {MAANEDER[d.month - 1]} {d.year}"
 
 
+def maaned(iso: object) -> str:
+    """«2017-10» -> «oktober 2017». For LØPENDE TEKST.
+
+    Månedsserier — biomasse er den ene i dag — er datert med år og måned
+    og ingen dag. `dato()` ville latt «2017-10» falle igjennom uendret,
+    fordi det ikke er en ISO-dato: kildens eget format ville stått på
+    siden, som er nøyaktig det denne modulen finnes for å hindre.
+
+    En hel ISO-dato tåles og kuttes til måneden. Det som ikke er en
+    måned kommer uendret ut, som ellers her.
+    """
+    tekst = "" if iso is None else str(iso).strip()
+    aar, _, resten = tekst.partition("-")
+    nr = resten[:2]
+    if not (len(aar) == 4 and aar.isdigit() and nr.isdigit()
+            and 1 <= int(nr) <= 12):
+        return tekst
+    return f"{MAANEDER[int(nr) - 1]} {aar}"
+
+
 def uke(iso: object) -> str:
     """«2026-09-16» -> «uke 38, 2026». ISO-uke og ISO-år.
 

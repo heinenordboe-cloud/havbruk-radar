@@ -247,9 +247,16 @@
       {{ "ukentlig øyeblikksbilde" if f.snapshots == 1
          else "ukentlige øyeblikksbilder" }}
       siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
+    {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
+        lar leseren regne seg til at serien går til i dag, og det gjør den
+        ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
+        har er uke 35. Begge datoene kommer fra `felles.lusetall_snapshots`
+        ved bygging. #}
     <span><strong>{{ f.luke_uker|tall }}</strong>
-      {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall siden
-      <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time></span>
+      {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall, fra
+      <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time>
+      til og med
+      <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></span>
   </p>
   <p class="arkivnote">
     Siste øyeblikksbilde:
