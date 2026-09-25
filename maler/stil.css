@@ -931,9 +931,14 @@ code {
 .mangler { color: var(--ink-dempet); }
 
 /* ET UTKAST SKAL SE UT SOM ET UTKAST. Merket står på seksjoner der
-   teksten ikke er vedtatt — i dag «Gjenbruk» på /om/. En setning om
-   hva andre har lov til, som ingen har gått god for, skal ikke se
-   ferdig ut. */
+   teksten ikke er vedtatt.
+
+   INGEN SEKSJON BRUKER DEN I DAG. «Gjenbruk» på /om/ gjorde det fram til
+   24.09.2026, og den seksjonen er tatt ut framfor å stå uvedtatt — se
+   maler/om.html.j2. Regelen blir stående fordi mekanismen er den samme
+   neste gang, og fordi porten fra 24.09 nekter uferdige markører i
+   utputtet: et merke er da for teksten som ER vedtatt å være foreløpig,
+   ikke for tekst som venter på å bli skrevet. */
 .utkast-merke {
   padding: var(--rom-10) var(--rom-14);
   background: var(--papir2);
