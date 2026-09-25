@@ -366,6 +366,31 @@ class Biomasselag(Source):
     # hentes er borte, og det er asymmetrien som setter kadensen.
     min_dager_mellom = 7
 
+    # `siste_rapport` SIER NÅR DE RAPPORTERTE, ikke at noe skjedde.
+    #
+    # Feltet ligger på hver rad med vilje — `har_fisk = "Nei"` betyr «ikke
+    # meldt fisk siden `siste_rapport`», og uten datoen ved siden av kan
+    # ingen lese hva «Nei» er verdt (se modulens egen docstring). Det som
+    # ikke følger av det, er at hver ny rapporteringsdato er en hendelse.
+    #
+    # MÅLT 24.09.2026 for paret 2026-09-10 → 2026-09-15: 383 rader endret
+    # `siste_rapport`, og 321 av dem gjaldt lokaliteter der `har_fisk` sto
+    # stille. Tre av fire «hendelser» i uka var at noen sendte inn
+    # skjemaet sitt.
+    #
+    # Radene blir liggende i changeloggen. Filteret er en lesedør.
+    bokforing = ("siste_rapport",)
+
+    # `antall_arter` ER `arter_tilstede` TALT. Den endrer seg fordi
+    # `har_fisk` endret seg: en lokalitet som får fisk går samtidig fra 0
+    # til 1 art, og MÅLT 24.09.2026 gjaldt 66 av 66 `antall_arter`-
+    # endringer nøyaktig de samme lokalitetene som `har_fisk`.
+    #
+    # Endrer tallet seg ALENE — fra én art til to, uten at fisken kom
+    # eller gikk — er det noe kilden sier som ingenting annet sier, og da
+    # teller det. Regelen er «i samme par», ikke «aldri».
+    avledet_av = {"antall_arter": "har_fisk"}
+
     def __init__(self) -> None:
         self.enabled = bool(get("kilder.biomasselag.aktiv", False))
 
