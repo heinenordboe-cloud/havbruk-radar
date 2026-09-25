@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-09-24** — [Bokføring og avledede felt teller ikke som bevegelse](2026-09-24-bokforing-og-avledede-felt.md) — utkast
 - **2026-09-24** — [Changelogdøra leser kildens tillegg — en dør som frikjente på feil felt](2026-09-24-changelogdora-leser-kildens-tillegg.md) — utkast
 - **2026-09-23** — [Designet fra overleveringen implementert, med sju avvik](2026-09-23-design-implementert.md) — utkast
 - **2026-09-23** — [eier_type inn i personhooken — premisset for å la den stå ute sviktet](2026-09-23-eier-type-inn-i-hooken.md) — utkast
