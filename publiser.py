@@ -508,7 +508,12 @@ def main() -> int:
     print(f"\n[{PORTSTEG}/6] publiseringsvakten")
     import publiseringsvakt
 
-    funn = publiseringsvakt.gransk(UT)
+    # PRODUKSJONSFLAGGET FØLGER MED. Én prøve gjelder bare produksjon:
+    # et bygg uten kontaktadresse sier på hver side at det ikke finnes
+    # en vei inn, og ber om rettelser i samme avsnitt. På en
+    # forhåndsvisning ses det av den som ba om den — samme skille som
+    # `krev_sokeindeks()` gjør.
+    funn = publiseringsvakt.gransk(UT, produksjon=args.produksjon)
     igjen = publiseringsvakt.ukvittert(funn)
     kvitterte = [f for f in funn if f.kvittert]
     for f in publiseringsvakt.kodeproveniens_ukjente():

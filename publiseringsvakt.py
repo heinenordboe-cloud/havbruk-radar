@@ -406,7 +406,8 @@ class Funn:
     fil: str
     slag: str        # ukjent_orgnr | personform | ukjent_navn | ugranska
                      # | ukjent_partisjon | feilerklaert_partisjon
-                     # | uferdig | raatt_tidsstempel
+                     # | uferdig | raatt_tidsstempel | reposti
+                     # | uten_kontakt
     utdrag: str
     antall: int = 1
 
@@ -1026,6 +1027,33 @@ def uferdig_tekst(tekst: str, fil: str = "") -> list[Funn]:
     return funn
 
 
+# ------------------------------------------- repo-stier i utputtet
+#
+# EN LESER KAN IKKE ÅPNE EN FIL I REPOET.
+#
+# `Se docs/APNE-SPORSMAL.md` sto som `<code>` på hver av 1 782
+# lokalitetssider. Stien peker på noe bare vi har, og den som følger den
+# får ingenting. Det er samme klasse som et rått tidsstempel: kildens
+# eller vårt eget arbeidsformat, sluppet ut i teksten.
+#
+# Prøven leser SYNLIG tekst, som `raa_tidsstempler()`, så en `href` til
+# en ekte adresse ikke felles. Mønstrene er de to som faktisk lekker:
+# en sti under `docs/`, og et filnavn som slutter på `.md`.
+REPOSTI = re.compile(r"\bdocs/[\w./-]+|\b[\w./-]+\.md\b")
+
+
+def repostier(tekst: str, fil: str = "") -> list[Funn]:
+    """Stier inn i repoet, i synlig tekst. Tom liste = rent."""
+    synlig = TAGG.sub(" ", MASKINELEMENTER.sub(" ", tekst))
+    treff = REPOSTI.findall(synlig)
+    if not treff:
+        return []
+    return [Funn(fil, "reposti",
+                 f"«{treff[0]}»" + (f" og {len(treff) - 1} til"
+                                    if len(treff) > 1 else ""),
+                 len(treff))]
+
+
 # ------------------------------------------- rå tidsstempler
 #
 # KILDENS TIDSSTEMPEL ER IKKE EN DATO EN LESER SKAL SE.
@@ -1642,7 +1670,20 @@ def utdrag_dekker_indeksen(katalog: Path) -> tuple[int, int]:
     return sider, utdrag
 
 
-def gransk(mappe: Path) -> list[Funn]:
+# SETNINGEN BUNNTEKSTEN SKRIVER NÅR `HAVBRUK_KONTAKT` IKKE ER SATT.
+#
+# En påfunnet adresse ville vært verre enn ingen, så bygget sier det
+# heller høyt — og på en forhåndsvisning er det riktig. I PRODUKSJON er
+# det ikke: da står det på hver av 2 348 sider at det ikke finnes en vei
+# inn, og «feil i dataene? skriv» rett under. En side som ber om
+# rettelser uten å oppgi hvor, er verre enn en som ikke ber.
+#
+# Prøven leser setningen fra malen og ikke en egen kopi: to steder som
+# skal si det samme er formen F6 og F7 hadde.
+UTEN_KONTAKT = "Ingen kontaktadresse er satt i denne"
+
+
+def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
 
     Grunnlagsfunnene er med i samme liste fordi de har samme følge: en
@@ -1662,6 +1703,19 @@ def gransk(mappe: Path) -> list[Funn]:
             f"søkeindeksen oppgir {sider} sider, men det finnes "
             f"{utdrag} tekstutdrag — ordtabellene kan da være bygget av "
             f"noe som ikke er gransket"))
+
+    # KONTAKTADRESSEN, bare for et produksjonsbygg. Se `UTEN_KONTAKT`.
+    if produksjon:
+        forside = mappe / "index.html"
+        tekst = _tekst(forside) if forside.exists() else None
+        if tekst is None:
+            funn.append(Funn("index.html", "uten_kontakt",
+                             "forsiden kan ikke leses"))
+        elif UTEN_KONTAKT in tekst:
+            funn.append(Funn(
+                "index.html", "uten_kontakt",
+                "bygget oppgir ingen kontaktadresse, og ber samtidig om "
+                "rettelser. Sett HAVBRUK_KONTAKT"))
 
     orgnr_ok, navn_ok = hviteliste()
     tvetydige = tvetydige_koder(_snapshotrammer())
@@ -1693,6 +1747,8 @@ def gransk(mappe: Path) -> list[Funn]:
         funn.extend(uferdig_tekst(tekst, fil=rel))
         # RÅ TIDSSTEMPLER i synlig tekst. Se `raa_tidsstempler()`.
         funn.extend(raa_tidsstempler(tekst, fil=rel))
+        # REPO-STIER i synlig tekst. Se `repostier()`.
+        funn.extend(repostier(tekst, fil=rel))
         if sti.suffix.lower() in KOLONNETYPER:
             funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
                                    avgrenser=KOLONNETYPER[sti.suffix.lower()]))

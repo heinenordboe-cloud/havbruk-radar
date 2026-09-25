@@ -532,6 +532,61 @@ def test_stemplet_meldes_en_gang_per_fil_med_antallet():
     assert funn[0].antall == 2
 
 
+# ---- repo-stier og kontaktadresse -------------------------------------
+
+def test_porten_feller_en_reposti_i_synlig_tekst(tmp_path, snapshotmappe):
+    """«Se docs/APNE-SPORSMAL.md» sto som `<code>` på 1 782 sider. Stien
+    peker på noe bare vi har, og den som følger den får ingenting."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title>"
+        "<p>Se <code>docs/APNE-SPORSMAL.md</code>.</p>", encoding="utf-8")
+    funn = vakt.gransk(ut)
+    assert [f.slag for f in funn] == ["reposti"]
+
+
+def test_en_ekte_adresse_er_ikke_en_reposti():
+    """Prøven leser SYNLIG tekst. En `href` til /om/ er en adresse som
+    svarer, og et filnavn i en attributt er ikke noe leseren ser."""
+    assert vakt.repostier(
+        '<a href="/om/#hva-vi-ikke-gjor">hva som bevisst ikke hentes</a>',
+        "x.html") == []
+    assert vakt.repostier("<p>Les mer om dekningen.</p>", "x") == []
+
+
+def test_produksjon_uten_kontaktadresse_feller_porten(tmp_path,
+                                                      snapshotmappe):
+    """En side som ber om rettelser uten å oppgi hvor, er verre enn en
+    som ikke ber. På en forhåndsvisning ses det av den som ba om den."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title><p>" + vakt.UTEN_KONTAKT
+        + " byggingen.</p>", encoding="utf-8")
+
+    assert [f.slag for f in vakt.gransk(ut)] == []
+    assert [f.slag for f in vakt.gransk(ut, produksjon=True)] == ["uten_kontakt"]
+
+
+def test_produksjon_med_kontaktadresse_er_rent(tmp_path, snapshotmappe):
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title>"
+        '<p><a href="mailto:noen@eksempel.no">noen@eksempel.no</a></p>',
+        encoding="utf-8")
+    assert vakt.gransk(ut, produksjon=True) == []
+
+
+def test_publiser_sender_produksjonsflagget_til_porten():
+    """Prøven som binder de to filene: uten flagget ville
+    produksjonsprøven aldri kjørt der den gjelder."""
+    kode = (pathlib.Path(vakt.__file__).parent / "publiser.py"
+            ).read_text(encoding="utf-8")
+    assert "gransk(UT, produksjon=args.produksjon)" in kode
+
+
 # ---- filer vakten ikke kan lese ---------------------------------------
 
 def test_ulesbar_fil_rapporteres_ikke_antas_trygg(tmp_path,
