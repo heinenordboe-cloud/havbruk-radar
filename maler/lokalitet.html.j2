@@ -24,6 +24,7 @@
    publiseringsvaktens `FELTMERKE` fanger teksten fram til første `<`,
    som er `<a`. Cellen får merkingen for kontrakten, lenka for porten. #}
 {% extends "base.html.j2" %}
+{% from "verdiendring.html.j2" import verdiendring %}
 
 {# ---------------------------------------------------------------- 1
    HEADEREN. Mørk flate: brødsmule, navn, fakta og posisjonskart. #}
@@ -256,9 +257,7 @@
            tankestrek i en celle merket `eier_navn` er ikke et ukjent
            selskap — den er fraværet av et, og porten stoppet fire
            sider på nettopp det. Se `feltmerke()`. #}
-        <span class="verdi-fra" data-felt="{{ post.fra_felt }}">{{ post.fra or VERDI_MANGLER }}</span>
-        <span class="pil" aria-label="ble til">→</span>
-        <span class="verdi-til" data-felt="{{ post.til_felt }}">{{ post.til or VERDI_MANGLER }}</span>
+        {{ verdiendring(post, "verdi-fra", "verdi-til") }}
       </p>
       {% endif %}
     </li>

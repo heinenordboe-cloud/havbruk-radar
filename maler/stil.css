@@ -2198,6 +2198,38 @@ td[data-felt="farge_mangler"]::before {
 .verdi-til { font-weight: 500; }
 .pil { color: var(--ink-dempet); }
 
+/* ---- forskjellen på to lister ----
+ *
+ * `+ T-T-0040 − T-T-0035 (trukket)` i stedet for fjorten numre, en pil
+ * og tretten numre. Se maler/verdiendring.html.j2.
+ *
+ * FORTEGNET BÆRER MENINGEN, IKKE FARGEN. Et grønt pluss og et rødt
+ * minus ville kollidert med trafikklyset, som er den ene fargekoden
+ * nettstedet har og som betyr noe helt annet. Tegnet er stort nok til
+ * å leses, og vekten skiller det som kom fra det som gikk — samme
+ * grep som `.verdi-fra` og `.verdi-til` over.
+ */
+.differanse {
+  display: inline flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.25em;
+}
+
+.differanse-tegn {
+  font-family: var(--skrift-tall);
+  font-weight: 600;
+  color: var(--ink-dempet);
+}
+
+.differanse--fjernet { color: var(--ink-dempet); }
+.differanse--lagt-til { font-weight: 500; }
+
+/* Vårt eget ord om en verdi, ikke verdien. Brukes av «(trukket)» og av
+ * «(i dag: X)» i overføringstabellen — den siste sto uten regel fram
+ * til 25.09.2026 og rendret som brødtekst. */
+.dempet { color: var(--ink-dempet); font-weight: 400; }
+
 .tidsakse-forste .tidsakse-verdi {
   font-size: var(--fs-14);
   color: var(--ink-dempet);

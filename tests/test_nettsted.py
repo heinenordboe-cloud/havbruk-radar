@@ -1669,6 +1669,10 @@ def _forside(**overstyr) -> str:
         "lokalitet_url": "/lokalitet/31397/", "kommune": "HARSTAD",
         "po": "4", "po_navn": "Nordhordland til Stadt",
         "fra_felt": "prodomraade_status", "til_felt": "prodomraade_status",
+        # TOM FORSKJELL = pil-formen. `prodomraade_status` er ikke et
+        # listefelt, og stubben speiler det `_hendelse()` faktisk
+        # skriver — se `nettsted._differanse()`.
+        "differanse": [],
         "anonym": False,
     }
     uke = {

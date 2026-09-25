@@ -12,6 +12,7 @@
    data-felt på hver verdicelle, <time datetime> på hver dato.
    Se docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md. #}
 {% extends "base.html.j2" %}
+{% from "verdiendring.html.j2" import verdiendring %}
 
 {# ---------------------------------------------------------------- 1
    HEROEN. Overstyrer HELE `topp`-blokka, fordi menyen her ligger oppå
@@ -187,9 +188,7 @@
            `::before` som bare finnes i CSS-en; slås stilarket av, står
            ordet igjen alene og cellen er like sann. #}
         <td class="endring {{ r.til_klasse }}" data-felt="endringstekst">{{ r.etikett }}:
-          <span data-felt="{{ r.fra_felt }}">{{ r.fra }}</span>
-          <span class="pil" aria-label="ble til">→</span>
-          <span data-felt="{{ r.til_felt }}">{{ r.til }}</span></td>
+          {{ verdiendring(r) }}</td>
       </tr>
       {% endfor %}
       {% if not f.rader %}

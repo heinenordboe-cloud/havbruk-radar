@@ -1,0 +1,44 @@
+{# HVORDAN EN ENDRET VERDI SER UT. Ett sted, fire maler.
+
+   Forsiden, ukessiden, områdesiden og lokalitetssidens tidslinje
+   skrev de samme tre spennene hver for seg. Fire steder som skal si
+   det samme om den samme raden er formen F6 og F7 hadde — og
+   forskjellen på et listefelt måtte ellers legges inn fire ganger.
+
+   TO FORMER, OG RADEN VELGER SELV:
+
+     pil          `fra → til`. Standarden, og riktig for alt som er én
+                  verdi: en kapasitet, en farge, et navn.
+     forskjell    `+ det som kom` og `− det som gikk`. Bare for
+                  listefelt, og bare når lista faktisk endret seg. Se
+                  `nettsted._differanse()`.
+
+   MERKINGEN FØLGER VERDIEN, ikke cella. Hvert nummer står i sitt eget
+   `data-felt`-merkede spenn: «T-T-0040, T-T-0041» bak én merking ville
+   vært to verdier bak ett navn, og porten leser merkede verdier som
+   én. Ordet «(trukket)» står UTENFOR merkingen — det er vårt ord om
+   verdien, ikke en verdi fra kilden.
+
+   FORTEGNET ER SKJULT FOR SKJERMLESERE og erstattet av et ord. «+» og
+   «−» leses ulikt av ulike skjermlesere, og noen leser dem ikke i det
+   hele tatt. #}
+
+{% macro verdiendring(r, fra_klasse="", til_klasse="") -%}
+{%- if r.differanse -%}
+{%- for del in r.differanse %}
+<span class="differanse differanse--{{ del.retning }}">
+  <span class="differanse-tegn" aria-hidden="true">{{ del.tegn }}</span>
+  <span class="visuelt-skjult">{{ del.ord }}:</span>
+  {%- for l in del.ledd %}
+  <span data-felt="{{ l.felt }}">{{ l.verdi }}</span>
+  {%- if l.note %} <span class="dempet">({{ l.note }})</span>{% endif %}
+  {%- if not loop.last %}, {% endif %}
+  {%- endfor %}
+</span>
+{%- endfor %}
+{%- else %}
+<span class="{{ fra_klasse }}" data-felt="{{ r.fra_felt }}">{{ r.fra or VERDI_MANGLER }}</span>
+<span class="pil" aria-label="ble til">→</span>
+<span class="{{ til_klasse }}" data-felt="{{ r.til_felt }}">{{ r.til or VERDI_MANGLER }}</span>
+{%- endif %}
+{%- endmacro %}

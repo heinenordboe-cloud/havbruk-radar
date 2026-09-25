@@ -208,9 +208,28 @@ KODET: dict[str, dict[str, str]] = {
     "registrert_i_mvaregisteret": JANEI,
 }
 
-# `arter` kommer som en liste: «OTHER_FISH; SALMON». Hvert ledd slås opp
-# for seg, og skilletegnet er kildens eget.
-LISTEFELT = {"arter": "; "}
+# FELTENE DER VERDIEN ER EN LISTE, med skilletegnet kilden bruker.
+#
+# «OTHER_FISH; SALMON» er to koder, ikke én: hvert ledd slås opp for
+# seg, ellers faller hele strengen ut av tabellen og telles som ukjent.
+#
+# Fra 25.09.2026 bærer tabellen også de feltene som ikke KODES, men som
+# er lister — `tillatelser`, `tillatelser_trukket` og `lokaliteter`.
+# Oppslaget er en no-op for dem (de står ikke i `KODET`), og det er ikke
+# derfor de står her: `listeendring()` spør denne tabellen om hva som er
+# en liste, og en liste over lister som ikke er DENNE ville vært to
+# steder å glemme et felt.
+#
+# Skilletegnet er kildens: `akvakultur` og `eierskap` skriver «; »,
+# `biomasselag` skriver «;». Splittingen tåler begge (den strippes),
+# sammenføyningen bruker kildens eget.
+LISTEFELT = {
+    "arter": "; ",
+    "arter_tilstede": ";",
+    "tillatelser": "; ",
+    "tillatelser_trukket": "; ",
+    "lokaliteter": "; ",
+}
 
 # Feltene der verdien er en MENGDE og skal ha tusenskille. OPT-IN, og det
 # er regel 3 i modulens docstring: `kommunenummer` 5503 er ikke 5 503,
@@ -433,6 +452,49 @@ def verdi(navn: str, raa: object) -> str:
         return tall(tekst)
 
     return _kode(navn, tekst)
+
+
+def listeledd(navn: str, raa: object) -> list[str]:
+    """Verdien som LEDD, hvert oversatt for seg. Tom verdi gir tom liste.
+
+    Er feltet ikke et listefelt, er svaret hele verdien som ett ledd —
+    det er den sanne lesningen, og den som ikke later som om et
+    enkeltfelt er en liste.
+    """
+    tekst = "" if raa is None else str(raa).strip()
+    if not tekst:
+        return []
+    if navn not in LISTEFELT:
+        return [verdi(navn, tekst)]
+    skille = LISTEFELT[navn].strip()
+    return [_kode(navn, d) for d in tekst.split(skille) if d.strip()]
+
+
+def listeendring(navn: str, fra: object, til: object) -> dict | None:
+    """Hva som kom til og hva som falt bort. `None` for et ikke-listefelt.
+
+    ## Hvorfor forskjellen og ikke begge listene
+
+    En lokalitet med fjorten tillatelser som mister én, viste fjorten
+    numre, en pil og tretten numre. Leseren måtte lese to lister og
+    finne det ene som ikke står i begge — og det er nøyaktig det en
+    maskin skal gjøre framfor et menneske.
+
+    REKKEFØLGEN ER KILDENS, ikke sortert på nytt. `akvakultur` sorterer
+    `connections` selv (se `_lisensnumre`), og en ny sortering her ville
+    vært et andre sted rekkefølgen bestemmes.
+
+    Et ledd som står i BEGGE er uendret og nevnes ikke. Er ingenting
+    endret, er begge listene tomme — det svarer ærlig på «hva er
+    forskjellen», og den som kaller avgjør hva en tom forskjell betyr.
+    """
+    if navn not in LISTEFELT:
+        return None
+    for_ = listeledd(navn, fra)
+    etter = listeledd(navn, til)
+    fra_sett, til_sett = set(for_), set(etter)
+    return {"lagt_til": [d for d in etter if d not in fra_sett],
+            "fjernet": [d for d in for_ if d not in til_sett]}
 
 
 def _kode(navn: str, raa: str) -> str:

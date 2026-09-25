@@ -23,6 +23,7 @@
    Ankernavnene er `<kilde>-<hva>`, som ellers — se
    2026-09-16-url-struktur.md. Markupkontrakten gjelder. #}
 {% extends "base.html.j2" %}
+{% from "verdiendring.html.j2" import verdiendring %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -480,9 +481,7 @@
         </td>
         <td data-felt="endringstype">{{ h.type_navn }}</td>
         <td class="endring {{ h.til_klasse }}" data-felt="endringstekst">{{ h.etikett }}:
-          <span data-felt="{{ h.fra_felt }}">{{ h.fra }}</span>
-          <span class="pil" aria-label="ble til">→</span>
-          <span data-felt="{{ h.til_felt }}">{{ h.til }}</span></td>
+          {{ verdiendring(h) }}</td>
       </tr>
       {% endfor %}
       {% if not po.i_omraadet %}

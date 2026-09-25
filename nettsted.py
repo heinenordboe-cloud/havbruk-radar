@@ -1275,6 +1275,12 @@ def _endringsrad(r: dict, loknr: str) -> dict:
         "gjelder": ("lokaliteten" if str(r["entity_id"]) == loknr
                     else f"tillatelse {r['entity_id']}"),
         "kilde": kilde,
+        # ENTITETEN OG PARET følger raden. De brukes ikke i visningen,
+        # men `slaa_sammen_trukne()` nøkler på dem — og en nøkkel som må
+        # bygges av noe annet på hver side, er to steder å ta feil.
+        "entity_id": str(r["entity_id"]),
+        "forrige_dato": str(r.get("forrige_observed_at") or ""),
+        "kildefelt": str(r["field"]),
         "felt": str(r["field"]),
         # `felt` er kildens navn og blir i `data-felt`. `etikett` er det
         # som står i Felt-kolonnen, og `fra`/`til` er oversatt: cellene
@@ -1285,6 +1291,7 @@ def _endringsrad(r: dict, loknr: str) -> dict:
                                  r["old_value"] if r["old_value"] is not None else ""),
         "til": visningsord.verdi(str(r["field"]),
                                  r["new_value"] if r["new_value"] is not None else ""),
+        "differanse": _differanse(str(r["field"]), r["old_value"], r["new_value"]),
     }
 
 
@@ -1571,6 +1578,124 @@ EGEN_DEL = frozenset(k["id"] for k in ENDRINGSTYPER if k.get("egen_del"))
 SAMLES_PER_OMRAADE = frozenset({("akvakultur", "prodomraade_status")})
 
 
+# ------------------------------------------- LISTEFELT SOM FORSKJELL
+#
+# En lokalitet med fjorten tillatelser som mister én, viste fjorten
+# numre, en pil og tretten numre. Leseren måtte lese to lister og finne
+# det ene nummeret som ikke står i begge — og det er nøyaktig det
+# en maskin skal gjøre framfor et menneske.
+#
+# Hva som ER en liste, spørres `visningsord.LISTEFELT` om. En liste her
+# ville vært et andre sted å glemme et felt.
+
+# {(kilde, felt): grunnfelt} — raden som SLÅS INN i grunnfeltets rad når
+# begge gjelder samme entitet i samme par.
+#
+# ## Hva `tillatelser_trukket` ER, målt før ordet ble rørt
+#
+# Feltet er `obsoleteConnections` fra Akvakulturregisteret, lest som
+# LISENSNUMRE og ikke som et antall (`_lisensnumre`, ikke `_antall` —
+# docs/KILDE-AKVAKULTUR.md punkt 6, rettet 25.09.2026). Registeret
+# flytter en oppføring fra `connections` til `obsoleteConnections` når
+# tillatelsen trekkes fra lokaliteten, og MÅLT over hele changeloggen
+# faller alle 13 radene i samme par som `tillatelser`: 13 av 13.
+#
+# De to radene sier hver sin halvdel av én hendelse. `tillatelser` sier
+# AT nummeret forsvant; `tillatelser_trukket` sier at det forsvant fordi
+# det ble trukket, og ikke fordi det ble flyttet til en annen lokalitet.
+# Derfor slås de sammen til én rad der det ene ordet står ved det ene
+# nummeret — ikke to rader der leseren må se at de handler om det samme.
+#
+# DETTE ER VISNING, IKKE TELLING. Erklæringen som ville endret tallet er
+# `Source.avledet_av`, og `tillatelser_trukket` er MÅLT og bevisst IKKE
+# erklært der — se sources/akvakultur.py. Ukas tall regnes derfor før
+# denne sammenslåingen og er uendret av den.
+SLAAS_INN_I = {("akvakultur", "tillatelser_trukket"): "tillatelser"}
+
+# Radtypene der raden handler om ET FELT og ikke om oppføringen. De tre
+# deler etikett og merking; `ny` og `borte` gjelder hele oppføringen.
+ENDRET_ELLER_FELT = frozenset({"endret", "felt_ny", "felt_borte"})
+
+
+def _differanse(felt: str, fra_raa: object, til_raa: object) -> list[dict]:
+    """Forskjellen på to listeverdier, som ledd med fortegn.
+
+    Tom liste for et felt som ikke er en liste — da står pil-formen, som
+    før. Tom liste OGSÅ når listen ikke endret seg: da har raden
+    ingenting å vise som en forskjell, og den faller tilbake på pila.
+    """
+    endring = visningsord.listeendring(felt, fra_raa, til_raa)
+    if not endring:
+        return []
+    ut = []
+    for retning, tegn, ord_ in (("lagt_til", "+", "lagt til"),
+                                ("fjernet", "−", "borte")):
+        if endring[retning]:
+            ut.append({
+                "retning": retning.replace("_", "-"),
+                "tegn": tegn,
+                "ord": ord_,
+                # ETT MERKET LEDD PER VERDI, ikke én merket streng.
+                # «T-T-0040, T-T-0041» merket `tillatelser` er to verdier
+                # bak én merking, og en merking skal peke på ÉN verdi fra
+                # kilden — samme regel som endringscellen ellers følger.
+                "ledd": [{"verdi": v, "felt": felt, "note": ""}
+                         for v in endring[retning]],
+            })
+    return ut
+
+
+def slaa_sammen_trukne(rader: list[dict]) -> list[dict]:
+    """Radene der ett felt sier HVORFOR et annet flyttet seg, som én rad.
+
+    Nøkkelen er (kilde, entitet, par) — `forrige_observed_at ->
+    observed_at`, ikke datoen alene. To uker der først den ene og så den
+    andre flyttet seg, er to ting som skjedde.
+
+    Finnes grunnraden ikke i samme par, blir tilleggsraden STÅENDE som
+    sin egen. Den sier fortsatt noe sant, og en rad som forsvant fordi
+    partneren manglet ville vært en stille utelatelse.
+
+    TELLINGEN RØRES IKKE. Den som kaller teller før, ikke etter — se
+    `SLAAS_INN_I`.
+    """
+    if not any((r.get("kilde"), r.get("kildefelt")) in SLAAS_INN_I
+               for r in rader):
+        return rader
+
+    def nokkel(r: dict) -> tuple:
+        return (str(r.get("kilde", "")), str(r.get("entity_id", "")),
+                str(r.get("dato", "")), str(r.get("forrige_dato", "")))
+
+    grunnrad: dict[tuple, dict] = {}
+    for r in rader:
+        par = (str(r.get("kilde", "")), str(r.get("kildefelt", "")))
+        if par in SLAAS_INN_I or par[1] not in {g for g in SLAAS_INN_I.values()}:
+            continue
+        grunnrad[nokkel(r) + (par[1],)] = r
+
+    ut = []
+    for r in rader:
+        par = (str(r.get("kilde", "")), str(r.get("kildefelt", "")))
+        grunn = SLAAS_INN_I.get(par)
+        mot = grunnrad.get(nokkel(r) + (grunn,)) if grunn else None
+        if mot is None:
+            ut.append(r)
+            continue
+        # NUMRENE SOM KOM INN I `tillatelser_trukket` er de som ble
+        # trukket. De står allerede som `fjernet` i grunnraden — her får
+        # de ordet som sier hvorfor.
+        trukne = {l["verdi"] for d in r.get("differanse", ())
+                  if d["retning"] == "lagt-til" for l in d["ledd"]}
+        for d in mot.get("differanse", ()):
+            if d["retning"] != "fjernet":
+                continue
+            for l in d["ledd"]:
+                if l["verdi"] in trukne:
+                    l["note"] = "trukket"
+    return ut
+
+
 # KILDENE SOM HELT OG HOLDENT HØRER TIL EN EGEN DEL.
 #
 # Utledet av `ENDRINGSTYPE_REGLER`, ikke listet: en kilde hvis `*`-regel
@@ -1809,12 +1934,16 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
             # `NI_SIFFER` finnes for. Feed-iden bygges av dato, kilde og
             # feltantall, som er stabilt uten å bære identiteten.
             "entity_id": "",
+            "kildefelt": felt,
             "felt": "change_type",
             "etikett": "Borte fra registeret",
             "fra": f"{antall_felt} felt",
             "til": IKKE_I_REGISTERET,
             "fra_felt": VERDI_MANGLER_FELT,
             "til_felt": VERDI_MANGLER_FELT,
+            # EN BORTE-RAD HAR INGEN FORSKJELL Å VISE. Den er alt slått
+            # sammen per entitet, og «N felt» er ikke en liste.
+            "differanse": [],
             "fra_klasse": "", "til_klasse": "", "er_farge": False,
             "gjelder": f"{navn_av_kilde.get(kilde, 'En oppføring')} "
                        f"ute av {kilde}",
@@ -1937,8 +2066,19 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         "type_navn": next(x["navn"] for x in ENDRINGSTYPER if x["id"] == slag),
         "kilde": kilde,
         "entity_id": eid,
-        "felt": felt if endring == "endret" else "change_type",
-        "etikett": (visningsord.felt(felt) if endring == "endret"
+        # KILDENS FELTNAVN, uansett radtype. `felt` under er det raden
+        # HANDLER om for en leser, og den er «change_type» når hele
+        # oppføringen kom eller gikk. `slaa_sammen_trukne()` trenger
+        # feltet, og en nøkkel bygget av den andre ville tapt nettopp de
+        # radene der kilden begynte eller sluttet å oppgi feltet.
+        "kildefelt": felt,
+        # `felt_ny` og `felt_borte` HANDLER OM ET FELT, ikke om
+        # oppføringen. Fram til 25.09.2026 falt de i samme gren som
+        # `borte` og fikk etiketten «Borte fra registeret» — også når
+        # raden sa at kilden BEGYNTE å oppgi feltet. Typekolonnen ved
+        # siden av sa «Felt oppgitt første gang» i den samme raden.
+        "felt": felt if endring in ENDRET_ELLER_FELT else "change_type",
+        "etikett": (visningsord.felt(felt) if endring in ENDRET_ELLER_FELT
                     else ("Ny oppføring" if endring == "ny"
                           else "Borte fra registeret")),
         "fra": fra,
@@ -1957,6 +2097,13 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         # `_oppgitt_historikk()` gjør med navnet.
         "fra_felt": feltmerke(fra, felt if endring == "endret" else ""),
         "til_felt": feltmerke(til, felt if endring == "endret" else ""),
+        # FORSKJELLEN, for de feltene som er lister. Tom for alle andre,
+        # og da står pil-formen — se `_differanse()`.
+        #
+        # `ny` og `borte` er unntatt: de er alt slått sammen per entitet,
+        # og «14 felt registrert» er ikke en liste med ledd.
+        "differanse": (_differanse(felt, raa_fra, raa_til)
+                       if endring not in ("ny", "borte") else []),
         # FARGEKLASSEN ER EN PRESENTASJONSKROK, som i fargetabellen: CSS
         # kan ikke velge på celletekst, så «hvilken av de tre» må stå
         # som en klasse for at ruta foran ordet skal kunne få farge.
@@ -2775,8 +2922,9 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
 
     mine = {l["loknr"] for l in lokaliteter}
     uker = [u for u in les_endringsuker(felles)][:PO_ENDRINGSUKER]
-    i_omraadet = [h for u in uker for h in u["hendelser"]
-                  if h["entity_id"] in mine or h["po"] == po]
+    i_omraadet = slaa_sammen_trukne(
+        [h for u in uker for h in u["hendelser"]
+         if h["entity_id"] in mine or h["po"] == po])
 
     serie = felles.biomasse.get(po, [])
     return {
@@ -3249,10 +3397,18 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
         # `feltmerke()` og målingen der.
         "fra_felt": feltmerke(e["fra"], e["felt"]),
         "til_felt": feltmerke(e["til"], e["felt"]),
+        "differanse": e.get("differanse", []),
+        "kildefelt": e.get("kildefelt", ""),
+        "entity_id": e.get("entity_id", ""),
+        "forrige_dato": e.get("forrige_dato", ""),
         "gjelder": e["gjelder"],
         "kilde": e["kilde"],
         "forste": False,
     } for e in endringer]
+    # SAMME SAMMENSLÅING SOM PÅ ENDRINGSSIDENE, fra det samme ene
+    # stedet: tidslinja og ukestabellen skal ikke svare ulikt på hva som
+    # skjedde med den samme tillatelsen.
+    poster = slaa_sammen_trukne(poster)
 
     fra = min((d["fra"] for d in dekning_fra), default="")
     if fra:
@@ -3269,6 +3425,10 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
             "til": "",
             "fra_felt": VERDI_MANGLER_FELT,
             "til_felt": VERDI_MANGLER_FELT,
+            "differanse": [],
+            "kildefelt": "",
+            "entity_id": "",
+            "forrige_dato": "",
             "gjelder": "lokaliteten",
             "kilde": "",
             "forste": True,
@@ -4439,6 +4599,11 @@ def skriv_endringssider(rot: Path, felles: Felles,
             else:
                 ledet = [h for h in hendelser if h["type"] not in EGEN_DEL]
                 egen = [h for h in hendelser if h["type"] in EGEN_DEL]
+            # SAMMENSLÅINGEN STÅR HER og ikke i `les_endringsuker()`, og
+            # det er grensa mellom visning og data: `uke["hendelser"]`
+            # går til CSV-en, JSON-en, feeden og JSON-LD-en, og de skal
+            # ha hver rad kilden ga oss. Det er tabellen som slår sammen.
+            ledet, egen = slaa_sammen_trukne(ledet), slaa_sammen_trukne(egen)
             skriv_html(sti, uke_mal.render(
                 u=uke, rader=ledet, egen=egen, valgt=valgt, url=url,
                 nyere=nyere, eldre=eldre, uker_totalt=len(uker),
@@ -6067,7 +6232,10 @@ def bygg_forside(felles: Felles) -> dict:
         "forskriftslinje": _forskriftslinje(felles, uke),
         # FORSIDENS KORTE TABELL viser bare det som er LEDET. De 402
         # selskapsdataradene står på ukessiden, i sin egen del.
-        "rader": (uke["ledet"][:FORSIDERADER] if uke else []),
+        # Samme sammenslåing som ukessiden, samme grunn — se
+        # `slaa_sammen_trukne()`.
+        "rader": (slaa_sammen_trukne(uke["ledet"])[:FORSIDERADER]
+                  if uke else []),
         "flere_rader": (max(len(uke["ledet"]) - FORSIDERADER, 0)
                         if uke else 0),
         "forrige_uke": (uker[1]["slug"] if len(uker) > 1 else ""),
