@@ -73,7 +73,29 @@ bare at vi prøvde (CLAUDE.md 1b-2).
 Binæren er 15,6 MB og plattformspesifikk, og ligger derfor ikke i
 repoet. Se `docs/design/PAGEFIND.md`.
 
-## Chrome (headless) — skjermbildene
+## playwright 1.63.0 + chromium — skjermbildene i serie
+
+    pip install playwright
+    python -m playwright install chromium
+
+Brukes av gjennomgangsbildene i `docs/design/implementert/<dato>/`, der
+hver sidetype tas i to bredder og deles i biter. Kom inn 24.09.2026, og
+den står her framfor bare i `.venv` av samme grunn som pypdf og Jinja2 i
+`requirements.txt`: en ad hoc-installasjon ingen har skrevet ned, er
+nøyaktig det disse filene finnes for å hindre.
+
+**Ikke i `requirements.txt`**, og skillet er det samme som for pagefind:
+ingen kodelinje importerer den. Bygget og innsamlingen kjører uten den;
+det er bildene som ikke kan tas.
+
+Chromium-bygget lastes ned av `playwright install` til
+`~/Library/Caches/ms-playwright/` (94 MB), ikke til repoet.
+
+Hvorfor den og ikke Chrome under: helsidesbilder med `clip`, så en høy
+side kan deles i biter uten at helsidesfila skrives — og to bredder i
+samme kjøring, med `deviceScaleFactor` satt.
+
+## Chrome (headless) — enkeltbilder
 
 Brukes bare til å ta bilder av det ferdige nettstedet til
 `docs/design/implementert/`. Ingenting i bygget avhenger av den.
