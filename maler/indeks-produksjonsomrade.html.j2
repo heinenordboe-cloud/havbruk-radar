@@ -44,7 +44,7 @@
     <tr>
       <th scope="row"><a href="/produksjonsomrade/{{ r.nr }}/">{{ r.nr }}</a></th>
       <td class="eier" data-felt="prodomraade_navn">{{ r.navn }}</td>
-      <td class="tall" data-felt="lokaliteter_antall">{{ r.lokaliteter }}</td>
+      <td class="tall" data-felt="lokaliteter_antall">{{ tall(r.lokaliteter) }}</td>
       <td data-felt="runde"><time datetime="{{ r.siste_runde }}">{{ r.siste_runde }}</time></td>
       <td{% if r.farge_klasse %} class="{{ r.farge_klasse }}"{% endif %} data-felt="{{ r.farge_felt }}">{{ r.farge }}</td>
       <td data-felt="farge__lesemaate">{{ r.lesemaate }}</td>

@@ -3980,6 +3980,13 @@ def _miljo() -> Environment:
     # «1 tillatelser» sto på lokalitetssiden fra den ble bygget. Én
     # hjelper, brukt overalt — se visningsord.antall()/alle().
     miljo.globals["antall"] = visningsord.antall
+    # TALL OG PROSENT SOM GLOBALER, ikke bare som filtre. Et filter
+    # leses bakfra i en `{% if %}`-kjede, og et tall skrevet uten dem
+    # står med tusenskille noen steder og uten andre — MÅLT 24.09.2026
+    # sto «1717 av 1 782 lokaliteter (96.35 %)» på /om/, med tre
+    # skrivemåter i én setning.
+    miljo.globals["tall"] = visningsord.tall
+    miljo.globals["prosent"] = visningsord.prosent
     miljo.globals["alle"] = visningsord.alle
     miljo.globals["feltmerke"] = feltmerke
     miljo.globals["personformnavn"] = personformnavn
@@ -5932,6 +5939,38 @@ def _historietekst(runder: list[dict]) -> str:
 
 FORSIDEKILDER = ("akvakultur", "eierskap", "lusetall", "trafikklysvedtak")
 
+# TEGNFORKLARINGEN, I DEN REKKEFØLGEN FARGENE HØRER.
+#
+# Rekkefølgen er kildens egen alvorsgrad, ikke alfabetisk: rød, gul,
+# grønn. «Ikke oppgitt» står sist, fordi den ikke er en farge men et
+# fravær.
+TEGNFORKLARING = (
+    ("lys-rod", "rød"),
+    ("lys-gul", "gul"),
+    ("lys-gronn", "grønn"),
+    ("rute--skravert", "ikke oppgitt"),
+)
+
+
+def _tegnforklaring(omraader: list[dict]) -> list[dict]:
+    """Bare de tegnene tabellen FAKTISK bruker, i fast rekkefølge.
+
+    Fram til 24.09.2026 sto alle fire fast i malen, med en kommentar om
+    at den skraverte ruta ble stående selv om ingen celle brukte den.
+    Begrunnelsen — «en runde som ikke er lest ennå skal se ut som det»
+    — gjelder ruta i STRIPA, og den forklarer nettopp hvorfor tegnet
+    skal vises NÅR det brukes. En forklaring på et tegn som ikke står
+    noe sted, er en forklaring leseren leter etter og ikke finner.
+    """
+    i_bruk = set()
+    for o in omraader:
+        if o.get("farge_klasse"):
+            i_bruk.add(o["farge_klasse"])
+        for s in o.get("stripe") or ():
+            i_bruk.add(s.get("klasse") or "rute--skravert")
+    return [{"klasse": k, "ord": ord_} for k, ord_ in TEGNFORKLARING
+            if k in i_bruk]
+
 
 def bygg_forside(felles: Felles) -> dict:
     """Alt forsiden viser: heroen, uka, arkivtallene, kysten og feedene.
@@ -5984,6 +6023,8 @@ def bygg_forside(felles: Felles) -> dict:
 
         # ---- kysten ----
         "omraader": omraader,
+        # BARE TEGNENE TABELLEN BRUKER. Se `_tegnforklaring()`.
+        "tegnforklaring": _tegnforklaring(omraader),
         "kart": kart.kystkart(omraader),
         "i_omraade": sum(len(v) for v in felles.lokaliteter_per_po.values()),
         "runder": [d[:4] for d in felles.runder],

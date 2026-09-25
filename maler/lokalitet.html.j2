@@ -31,7 +31,7 @@
 <div data-pagefind-body class="ark sidehode sidehode--lokalitet">
   <nav class="sti" aria-label="Du er her">
     <ol>
-      <li><a href="/">Kystloggen</a></li>
+      <li><a href="/">Forside</a></li>
       <li><a href="/lokalitet/">Lokaliteter</a></li>
 {% if lok.po_kode %}
       <li><a href="/produksjonsomrade/{{ lok.po_kode }}/">{{ lok.po_navn }}</a></li>
@@ -271,7 +271,7 @@
     Måleseriene telles ikke som endringer her. Lusetall og sjøtemperatur
     leverer et nytt tall hver uke, og hvert nye tall er en rad i
     changeloggen vår — for denne lokaliteten
-    {{ lok.maaleserie_rader }} slike rader mot
+    {{ tall(lok.maaleserie_rader) }} slike rader mot
     {{ lok.endringer|length }} registerendringer. Tas de med, drukner
     det som faktisk er en hendelse i noe som bare er neste måling.
     Lusetallene står som en serie under.
@@ -367,7 +367,7 @@
 
     <p class="tabellnote">
       Høyeste målte verdi {{ g.maks }}.
-      {{ g.uker_med_tall }} av {{ antall(g.uker, "uke", "uker") }} har tall, og
+      {{ tall(g.uker_med_tall) }} av {{ antall(g.uker, "uke", "uker") }} har tall, og
       {{ g.nuller }} av dem er null.
       {% if g.uten_tall %}
       {{ antall(g.uten_tall, "uke", "uker") }} har ingen søyle fordi kilden ikke oppgir
@@ -489,7 +489,7 @@
         {% endfor %}
       </ol>
       <figcaption>
-        {{ b.med_fisk }} av {{ b.observerte_uker }} observerte uker med
+        {{ b.med_fisk }} av {{ tall(b.observerte_uker) }} observerte uker med
         fisk til stede.
         <strong>Bare uker vi faktisk har hentet</strong> — stripa har
         ingen ruter for uker vi ikke spurte i, fordi en tom rute ville

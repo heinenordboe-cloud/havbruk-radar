@@ -75,7 +75,7 @@
    Se docs/REGEL-UENIGE-KILDER.md. #}
 <h2 id="uten-koordinater">Lokaliteter uten koordinater</h2>
 <p>
-  {{ d.uten_koordinater_antall }} av {{ antall(d.antall, "lokalitet", "lokaliteter") }} mangler
+  {{ tall(d.uten_koordinater_antall) }} av {{ antall(d.antall, "lokalitet", "lokaliteter") }} mangler
   breddegrad eller lengdegrad i Akvakulturregisteret og kan derfor ikke
   tegnes på et kart.
   {% if d.uten_koordinater %}

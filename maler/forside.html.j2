@@ -138,7 +138,7 @@
     <li>
       <a class="typemerke{% if not t.antall %} typemerke--tom{% endif %}"
          href="/endringer/{{ f.uke.slug }}/{{ t.id }}/" title="{{ t.hva }}">
-        {{ t.navn }} <span class="typemerke-tall">{{ t.antall }}</span>
+        {{ t.navn }} <span class="typemerke-tall">{{ tall(t.antall) }}</span>
       </a>
     </li>
     {% endfor %}
@@ -328,14 +328,19 @@
         Fargen er den Akvakulturregisteret oppgir nå, ikke den
         forskriften sist navnga — de to er ikke alltid de samme, og
         stripa i tabellen viser forskjellen.
-        {# ET PUNKT SOM MANGLER SKAL IKKE BARE FORSVINNE. Tallet står
-           her, lista står på lokalitetsindeksen. Skrives ALLTID, også
-           når det er null: et tall man bare ser når det er galt, er et
-           tall ingen kjenner normalverdien til. #}
-        {{ f.uten_koordinater_antall }} av {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }}
+        {# VED NULL SKRIVES DEN IKKE. Regelen om at et tall skal stå
+           også når det er null, gjelder et tall man kan følge over tid
+           — som brikkene på ukesiden. Dette er en SETNING om en mangel,
+           og «0 av 1 782 mangler koordinater; de står oppført på
+           lokalitetslista» peker på en liste som da er tom. Tallet står
+           uansett i byggeloggen, hver kjøring. #}
+        {% if f.uten_koordinater_antall %}
+        {{ tall(f.uten_koordinater_antall) }} av
+        {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }}
         mangler koordinater i registeret;
         <a href="/lokalitet/#akvakultur-uten-koordinater">de står oppført
         på lokalitetslista</a>.
+        {% endif %}
       </figcaption>
       </figure>
 
@@ -374,7 +379,7 @@
                   {% endfor %}
                 </span>
               </td>
-              <td class="tall" data-felt="lokaliteter_antall">{{ o.lokaliteter }}</td>
+              <td class="tall" data-felt="lokaliteter_antall">{{ tall(o.lokaliteter) }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -383,14 +388,14 @@
 
         {# TEGNFORKLARINGEN. Ordet står ved hver farge — farge bærer
            aldri mening alene. #}
+        {#- BARE TEGNENE TABELLEN BRUKER. Utledet av cellene og stripa
+            ved bygging — se `_tegnforklaring()`. En forklaring på et
+            tegn som ikke står noe sted, er en forklaring leseren leter
+            etter og ikke finner. #}
         <ul class="tegnforklaring" aria-label="Fargeforklaring">
-          <li><span class="rute lys-rod"></span>rød</li>
-          <li><span class="rute lys-gul"></span>gul</li>
-          <li><span class="rute lys-gronn"></span>grønn</li>
-          {# RUTA BLIR STÅENDE selv om ingen celle bruker den nå:
-             MÅLT 23.09.2026 har alle 65 cellene en farge. En runde som
-             ikke er lest ennå skal fortsatt se ut som det. #}
-          <li><span class="rute rute--skravert"></span>ikke oppgitt</li>
+          {% for t in f.tegnforklaring %}
+          <li><span class="rute {{ t.klasse }}"></span>{{ t.ord }}</li>
+          {% endfor %}
         </ul>
 
         <p class="dekningsnote">

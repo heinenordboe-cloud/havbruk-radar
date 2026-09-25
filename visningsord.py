@@ -417,6 +417,34 @@ def tall(raa: object) -> str:
     return f"{heltall},{desimal}" if desimal else heltall
 
 
+def prosent(raa: object, desimaler: int = 1) -> str:
+    """«96.35» -> «96,3 %». Norsk desimaltegn, hardt mellomrom.
+
+    KOMMA OG IKKE PUNKTUM: punktum er tusenskille i norsk, og «96.35 %»
+    leses av en norsk leser som nittiseks tusen. Mellomrommet foran
+    prosenttegnet er hardt, av samme grunn som tusenskillet er det —
+    tegnet skal ikke havne alene på neste linje.
+
+    ÉN desimal er standarden: to desimaler på en dekningsgrad er en
+    presisjon tallet ikke har, siden teller og nevner begge er
+    ukeferske. Det som ikke er et tall kommer uendret ut, som ellers i
+    modulen.
+    """
+    tekst = "" if raa is None else str(raa).strip()
+    if not tekst:
+        return tekst
+    try:
+        verdi = float(tekst.replace("\u00a0", "").replace(",", "."))
+    except ValueError:
+        return tekst
+    ut = f"{verdi:.{desimaler}f}".replace(".", ",")
+    # «96,0 %» skrives «96 %»: en desimal som alltid er null er ikke en
+    # presisjon, den er støy.
+    if ut.endswith(",0"):
+        ut = ut[:-2]
+    return f"{ut}\u00a0%"
+
+
 def maalt(mengde: object, enhet: object) -> str:
     """«4680.0», «TN» -> «4 680 tonn». Enheten står ALLTID ved tallet.
 

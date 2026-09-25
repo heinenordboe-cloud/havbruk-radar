@@ -28,7 +28,7 @@
 <div data-pagefind-body class="ark sidehode">
   <nav class="sti" aria-label="Du er her">
     <ol>
-      <li><a href="/">Kystloggen</a></li>
+      <li><a href="/">Forside</a></li>
       <li><a href="/produksjonsomrade/">Produksjonsområder</a></li>
       <li aria-current="page">Område {{ po.nr }}</li>
     </ol>
@@ -341,8 +341,8 @@
 
   <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">Lokalitetene i området, øyeblikksbilde
       <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
-      <span data-teller="Viser alle {{ po.lokaliteter_antall }}">Viser
-        alle {{ po.lokaliteter_antall }}</span>.</p>
+      <span data-teller="Viser alle {{ tall(po.lokaliteter_antall) }}">Viser
+        alle {{ tall(po.lokaliteter_antall) }}</span>.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
   <table id="akvakultur-lokaliteter" aria-labelledby="akvakultur-lokaliteter-tittel">
@@ -503,7 +503,7 @@
   <p class="tabellnote">
     Måleseriene telles ikke som endringer her. Biomasse leverer nye
     beholdningstall hver måned, og for dette området er det
-    {{ po.maaleserie_rader }} slike rader mot {{ po.endringer|length }}
+    {{ tall(po.maaleserie_rader) }} slike rader mot {{ po.endringer|length }}
     vedtaksendringer. Tas de med, drukner vedtaket i serien.
     {% if po.ubelagte_rader %}
     {{ antall(po.ubelagte_rader, "endring", "endringer") }} er dessuten holdt utenfor fordi

@@ -1123,7 +1123,9 @@ def test_maaleserier_telles_ikke_som_registerendringer():
 def test_siden_sier_hvor_mange_maaleserierader_som_er_holdt_utenfor():
     """Et utvalg som ikke sier at det er et utvalg, lyver ved
     utelatelse."""
-    assert "1284" in _side()
+    # Tusenskille fra 24.09.2026: hvert tall på siden går gjennom
+    # `visningsord.tall()`.
+    assert "1\u00a0284" in _side()
 
 
 # ---- når kildene er uenige --------------------------------------------
@@ -1710,6 +1712,10 @@ def _forside(**overstyr) -> str:
         "sjekksum": "efe1c0884c4e39d20b7d775a363dfe1fc55b21ce0bcda9a9c2e2",
 
         "omraader": [omraade],
+        # Utledet av `_tegnforklaring()` i bygget, av samme grunn som de
+        # andre avledede leddene i fiksturen: en håndskrevet liste ville
+        # sagt grønt om utledningen endret seg.
+        "tegnforklaring": nettsted._tegnforklaring([omraade]),
         "kart": {"bredde": 760, "hoyde": 870.4,
                  "omraader": [{"nr": "4", "navn": "Nordhordland til Stadt",
                                "farge_klasse": "lys-gul", "farge": "gul",
@@ -1839,18 +1845,16 @@ def test_omradene_er_lenker_i_kartet_ogsaa_uten_js():
     assert 'aria-label="Produksjonsområde 4 Nordhordland til Stadt, gul' in html
 
 
-def test_antallet_uten_koordinater_staar_ogsaa_naar_det_er_null():
+def test_setningen_om_koordinater_skrives_ikke_ved_null():
     """Et tall man bare ser når det er galt, er et tall ingen kjenner
     normalverdien til."""
     flat = " ".join(_forside().split())
-    # `visningsord.tall()` setter hardt mellomrom som tusenskille, som
-    # ellers på siden. Tallet formateres nå av `antall()`, som velger
-    # entall/flertall — se visningsord.antall().
-    # `visningsord.tall()` setter hardt mellomrom som tusenskille, og
-    # `split()` over lin.js flater det ut til et vanlig et. Tallet
-    # formateres nå av `antall()`, som også velger entall/flertall.
-    assert "0 av 1 782 lokaliteter mangler koordinater" in flat
-    assert 'href="/lokalitet/#akvakultur-uten-koordinater"' in flat
+    # VED NULL SKRIVES SETNINGEN IKKE, fra 24.09.2026. Regelen om at et
+    # tall skal stå også når det er null gjelder et tall man kan følge
+    # over tid; dette er en SETNING om en mangel, og den pekte på en
+    # liste som ved null er tom. Tallet står i byggeloggen hver kjøring.
+    assert "mangler koordinater" not in flat
+    assert 'href="/lokalitet/#akvakultur-uten-koordinater"' not in flat
 
 
 def test_arkivtallet_skjuler_ikke_at_det_er_lite():
@@ -2000,7 +2004,17 @@ def _om(**overstyr) -> str:
 def test_om_siden_oppgir_dekning_og_hvem_som_er_utelatt():
     flat = " ".join(_om().split())
     # Tallet formateres nå av `antall()`, med hardt tusenskille.
-    assert "1717 av 1 782 lokaliteter (96.35 %)" in flat
+    # NORSK FORMATERING: tusenskille i begge tallene, komma som
+    # desimaltegn, og én desimal. «96.35 %» leses av en norsk leser som
+    # nittiseks tusen.
+    #
+    # Leses av RÅ html og ikke av `flat`: `str.split()` regner hardt
+    # mellomrom som mellomrom, så normaliseringen over ville flatet ut
+    # nettopp det tegnet prøven handler om.
+    raa = _om()
+    for bit in ("1\u00a0717 av", "1\u00a0782 lokaliteter",
+                "(96,3\u00a0%)"):
+        assert bit in raa, bit
     assert "sektor 8200" in flat and "2300" in flat
     assert "personregister" in flat
     # Skjevheten skal stå, ikke bare tallet.
@@ -2044,6 +2058,48 @@ def test_verken_tar_eller_og_ikke_og():
     """«Verken A, B og C» er ikke norsk."""
     assert visningsord.liste(["A", "B", "C"], "eller") == "A, B eller C"
     assert visningsord.liste(["A", "B", "C"]) == "A, B og C"
+
+
+def test_tegnforklaringen_viser_bare_farger_som_brukes():
+    """En forklaring på et tegn som ikke står noe sted, er en forklaring
+    leseren leter etter og ikke finner."""
+    bare_gul = [{"farge_klasse": "lys-gul",
+                 "stripe": [{"klasse": "lys-gul"}]}]
+    assert [t["ord"] for t in nettsted._tegnforklaring(bare_gul)] == ["gul"]
+
+    med_hull = [{"farge_klasse": "lys-rod",
+                 "stripe": [{"klasse": ""}, {"klasse": "lys-gronn"}]}]
+    assert [t["ord"] for t in nettsted._tegnforklaring(med_hull)] == [
+        "rød", "grønn", "ikke oppgitt"], "rekkefølgen er alvorsgrad, sist fravær"
+
+
+def test_brodsmulen_starter_med_forside_overalt():
+    """Åtte maler sa «Kystloggen», tre sa «Forside». Første ledd i en
+    brødsmulesti er stedet du kom fra, ikke navnet på nettstedet — det
+    står i ordmerket rett over."""
+    maler = Path(__file__).resolve().parents[1] / "maler"
+    for sti in sorted(maler.glob("*.html.j2")):
+        t = sti.read_text(encoding="utf-8")
+        if '<ol>' in t and 'class="sti"' in t:
+            assert '<li><a href="/">Kystloggen</a></li>' not in t, sti.name
+
+
+def test_besokte_lenker_har_samme_farge_som_andre():
+    """Nesten hver lenke her er NAVIGASJON. En leser som har vært på 40
+    av 1 782 lokalitetssider fikk et lilla mønster som ikke betyr noe om
+    dataene — fargen bar hennes egen historikk, ikke innholdet."""
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    assert "a:visited { color: var(--rust); }" in css
+    assert "a:visited { color: var(--besokt); }" not in css
+
+
+def test_innholdslista_paa_om_ser_ut_som_lenker():
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    blokk = re.search(r"\.om-innhold a \{([^}]*)\}", css).group(1)
+    assert "var(--rust)" in blokk
+    assert "text-decoration-line: underline" in blokk
 
 
 def test_rammen_sitter_paa_de_klikkbare_brikkene():

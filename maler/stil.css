@@ -956,7 +956,19 @@ a {
   text-underline-offset: 0.16em;
 }
 
-a:visited { color: var(--besokt); }
+/* :VISITED HAR SAMME FARGE SOM ANDRE LENKER.
+ *
+ * En egen besøkt-farge er nyttig i en artikkel man leser gjennom én
+ * gang. Her er nesten hver lenke en NAVIGASJON — til en lokalitet, en
+ * uke, et selskap — og en leser som har vært på 40 av 1 782
+ * lokalitetssider fikk et tilfeldig lilla mønster i lista som ikke
+ * betyr noe om dataene. Fargen bar informasjon om leserens egen
+ * historikk, ikke om det hun ser på.
+ *
+ * `--besokt` og `--farge-lenke-besokt` står igjen i paletten, ubrukt
+ * av lenkene: de er dokumentert i fargeoversikten, og en verdi som
+ * fjernes fra paletten fjernes i en egen runde. */
+a:visited { color: var(--rust); }
 
 a:hover {
   color: var(--rust-moerk);
@@ -1215,7 +1227,7 @@ a:hover {
 
 .mork h2 { color: var(--hav-tittel); }
 .mork a { color: var(--hav-tegn); }
-.mork a:visited { color: var(--hav-tegn); }
+.mork a:visited { color: var(--rust-lys); }
 .mork a:hover { color: var(--rust-lys); }
 .mork .tabellnote, .mork figcaption, .mork p { color: var(--hav-sekundaer); }
 
@@ -2823,7 +2835,16 @@ figcaption {
 }
 
 .om-innhold li { margin-block-end: var(--rom-8); }
-.om-innhold a { color: var(--ink); text-decoration: none; }
+/* EN LENKE SKAL SE UT SOM EN LENKE. Innholdslista var `--ink` uten
+   understreking, altså brødtekst i en `<ol>` — og en leser som ikke
+   prøver å klikke, finner ikke ut at hun kan. Samme farge og
+   understreking som alle andre lenker. */
+.om-innhold a {
+  color: var(--rust);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
 .om-innhold a:visited { color: var(--ink); }
 .om-innhold a:hover { color: var(--rust); text-decoration: underline; }
 
@@ -2891,7 +2912,7 @@ figcaption {
   color: var(--ink);
 }
 
-.sokeliste > li > a:visited { color: var(--besokt); }
+.sokeliste > li > a:visited { color: var(--rust); }
 .sokeliste > li > a:hover { color: var(--rust); text-decoration: underline; }
 
 .sok-utdrag {

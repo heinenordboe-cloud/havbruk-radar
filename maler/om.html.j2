@@ -20,7 +20,7 @@
 <div data-pagefind-body class="ark sidehode">
   <nav class="sti" aria-label="Du er her">
     <ol>
-      <li><a href="/">Kystloggen</a></li>
+      <li><a href="/">Forside</a></li>
       <li aria-current="page">Om</li>
     </ol>
   </nav>
@@ -123,20 +123,21 @@
 
 <h2 id="dekning">Hva dekningen er</h2>
 <p>
-  {{ om.med_eier }} av {{ antall(om.lokaliteter, "lokalitet", "lokaliteter") }}
-  ({{ om.dekning }} %) har minst én tillatelse vi kan knytte til et
-  navngitt selskap. De øvrige {{ om.uten_eier }} har det ikke,
+  {{ tall(om.med_eier) }} av
+  {{ antall(om.lokaliteter, "lokalitet", "lokaliteter") }}
+  ({{ prosent(om.dekning) }}) har minst én tillatelse vi kan knytte til et
+  navngitt selskap. De øvrige {{ tall(om.uten_eier) }} har det ikke,
   og de fordeler seg slik:
 </p>
 <ul>
-  <li>{{ om.uten_eier_med_tillatelse }} har tillatelser
+  <li>{{ tall(om.uten_eier_med_tillatelse) }} har tillatelser
       i Akvakulturregisteret som vi ikke kan navngi eieren av.
       Fiskeridirektoratet oppgir ikke organisasjonsnummer for eiere som
       er privatpersoner, og en eier vi ikke kan klassifisere slipper
       ikke gjennom personvernfilteret vårt. Tillatelsene står på
       lokalitetssidene med «ikke oppgitt av kilden» — ikke som tom
       celle.</li>
-  <li>{{ om.uten_tillatelse_noe_sted }} har ingen aktiv
+  <li>{{ tall(om.uten_tillatelse_noe_sted) }} har ingen aktiv
       tillatelse i registeret i det hele tatt.</li>
 </ul>
 <p>

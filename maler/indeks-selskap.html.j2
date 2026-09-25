@@ -55,7 +55,7 @@
       <th scope="row"><a href="/selskap/{{ r.orgnr }}/">{{ r.orgnr }}</a></th>
       <td class="eier" data-felt="eier_navn">{{ r.navn }}</td>
       <td class="tall" data-felt="tillatelser_antall">{{ r.tillatelser }}</td>
-      <td class="tall" data-felt="lokaliteter_antall">{{ r.lokaliteter }}</td>
+      <td class="tall" data-felt="lokaliteter_antall">{{ tall(r.lokaliteter) }}</td>
       <td data-felt="har_registerdata">{{ "ja" if r.har_registerdata else "nei" }}</td>
     </tr>
     {% endfor %}
