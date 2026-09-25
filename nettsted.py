@@ -1731,6 +1731,7 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         # måtte forkastes som usant: 20 av 29 sto fortsatt i registeret.
         return {
             "dato": str(rad["observed_at"]),
+            "forrige_dato": str(rad.get("forrige_observed_at") or ""),
             "uke": _ukeslug(str(rad["observed_at"])),
             "type": slag,
             "type_navn": next(x["navn"] for x in ENDRINGSTYPER
@@ -1865,6 +1866,7 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
     return {
         "dato": str(rad["observed_at"]),
         "uke": _ukeslug(str(rad["observed_at"])),
+        "forrige_dato": str(rad.get("forrige_observed_at") or ""),
         "type": slag,
         "type_navn": next(x["navn"] for x in ENDRINGSTYPER if x["id"] == slag),
         "kilde": kilde,
@@ -1938,6 +1940,56 @@ _FARGEKODER = {"rod": "rod", "rød": "rod", "gul": "gul",
 
 def _fargekode(raa: str) -> str:
     return _FARGEKODER.get(raa, "")
+
+
+def _datoord(datoer: list[str], med_aar: bool = True) -> str:
+    """«21. september 2026», «14.–15. september» eller «14. og 20. mars».
+
+    To datoer i samme måned skrives med tankestrek, som `ukespenn()`
+    gjør. Flere enn to, eller på tvers av måneder, skrives ut med «og»:
+    en tankestrek mellom 14. og 20. ville påstått at vi observerte noe
+    hver dag i mellom, og det gjorde vi ikke.
+    """
+    if not datoer:
+        return ""
+    vist = [visningsord.dato(d) for d in datoer]
+    if len(datoer) == 1:
+        ut = vist[0]
+    else:
+        maaneder = {d[:7] for d in datoer}
+        if len(datoer) == 2 and len(maaneder) == 1:
+            ut = f"{datoer[0][8:].lstrip('0')}.–{vist[1]}"
+        else:
+            ut = visningsord.liste(vist)
+    return ut if med_aar else ut.rsplit(" ", 1)[0]
+
+
+def _ukemerke(datoer: list[str], forrige: list[str]) -> str:
+    """«Observert 21. september 2026, endringer siden 14.–15. september».
+
+    ## Hvorfor ikke kalenderuka
+
+    Ukesiden sa «Observert i øyeblikksbildene 21.–27. september», og det
+    er usant på to måter: vi observerte ÉN dag, og de seks andre dagene
+    har vi ikke sett på. Uka er en ETIKETT på når vi så noe, ikke en
+    periode vi dekker.
+
+    ## Hvorfor «siden» og ikke «uka før»
+
+    Fordi «uka før» ikke er ett svar. Kildene har ulikt etterslep, og
+    for uke 39 sammenlignes det mot både 14. og 15. september. Datoene
+    leses av radenes `forrige_observed_at` — ett oppslag, i dataene.
+
+    Året står bare én gang når begge endene ligger i samme år.
+    """
+    if not datoer:
+        return ""
+    observert = _datoord(datoer)
+    if not forrige:
+        return f"Observert {observert}"
+    samme_aar = {d[:4] for d in datoer} == {d[:4] for d in forrige}
+    return (f"Observert {observert}, endringer siden "
+            f"{_datoord(forrige, med_aar=not samme_aar)}")
 
 
 def les_endringsuker(felles: Felles) -> list[dict]:
@@ -2052,6 +2104,13 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             key=lambda h: (_omvendt(h["dato"]), rang.get(h["type"], 99),
                            h["gjelder"]))
         datoer = sorted({h["dato"] for h in hendelser})
+        # DATOENE VI SAMMENLIGNET MOT, lest av radene og ikke regnet ut
+        # av kalenderen. `forrige_observed_at` står på hver rad nettopp
+        # fordi «uka før» ikke er ett svar: uke 39 sammenlignes mot både
+        # 14. og 15. september.
+        forrige_datoer = sorted({d for d in
+                                 (h.get("forrige_dato") or "" for h in hendelser)
+                                 if d})
         antall = Counter(h["type"] for h in hendelser)
         # UKAS TALL TELLER BARE DET SOM SKJEDDE I VERDEN. En rad med
         # `teller: False` står i tabellen og i feeden, men ikke i
@@ -2082,7 +2141,22 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "aar": slug[:4],
             "ukenr": slug[5:],
             "vist": f"uke {int(slug[5:])}, {slug[:4]}",
+            # KALENDERUKA, og den er IKKE når vi observerte noe. Den
+            # står igjen fordi den svarer på «hvilken uke er dette», og
+            # brukes der spørsmålet er det. Se `merke` under.
             "spenn": visningsord.ukespenn(datoer[0]),
+            # HVA SOM FAKTISK SKJEDDE, i ord: hvilke dager vi observerte,
+            # og hvilke dager vi sammenlignet mot.
+            #
+            # «Observert i øyeblikksbildene 21.–27. september» var usant
+            # på to måter: vi observerte ÉN dag (21.), og de seks andre
+            # dagene i spennet har vi ikke sett på. Sammenligningen går
+            # dessuten mot 14. og 15. september, ikke mot «uka før» som
+            # en ubestemt størrelse — kildene har ulikt etterslep, og for
+            # uke 39 er det to ulike datoer.
+            "merke": _ukemerke(datoer, forrige_datoer),
+            "observert_datoer": datoer,
+            "forrige_datoer": forrige_datoer,
             "datoer": datoer,
             "forste_dato": datoer[0],
             "siste_dato": datoer[-1],
@@ -4154,7 +4228,9 @@ def _ukens_csv(uke: dict) -> str:
     buffer = io.StringIO()
     for linje in (
             f"# Kystloggen — endringer observert i {uke['vist']}",
-            f"# {uke['spenn']}",
+            # MERKET OG IKKE KALENDERUKA: «21.–27. september» påsto at
+            # vi så på syv dager. Se `_ukemerke()`.
+            f"# {uke['merke']}",
             f"# {uke['antall']} hendelser, "
             f"observasjonsdatoer {', '.join(uke['datoer'])}",
             "#",
@@ -4192,8 +4268,10 @@ def _ukens_json(uke: dict) -> str:
     return json.dumps({
         "uke": uke["slug"],
         "vist": uke["vist"],
-        "spenn": uke["spenn"],
+        "kalenderuke": uke["spenn"],
+        "merke": uke["merke"],
         "observasjonsdatoer": uke["datoer"],
+        "sammenlignet_mot": uke["forrige_datoer"],
         "antall": uke["antall"],
         "typer": {k["id"]: k["antall"] for k in uke["typer"]},
         "merknad": ("«observert» er datoen vi så endringen i "
@@ -4261,7 +4339,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
                 nyere=nyere, eldre=eldre, uker_totalt=len(uker),
                 siter={"url": _basisurl() + url,
                        "uke": uke["vist"], "aar": uke["aar"],
-                       "spenn": uke["spenn"],
+                       "spenn": uke["merke"],
                        "sjekksum": felles.sjekksum},
                 **_grunnkontekst(
                     felles, rot, sti, kilder=ENDRINGSKILDER,

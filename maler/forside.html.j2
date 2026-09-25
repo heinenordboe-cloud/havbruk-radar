@@ -79,8 +79,8 @@
     <h2 class="etikett" id="uka-tittel">Denne uka i registrene</h2>
     {% if f.uke %}
     <p class="uke-datoer">
-      <time datetime="{{ f.uke.aar }}-W{{ f.uke.ukenr }}">{{ f.uke.vist }}</time>,
-      {{ f.uke.spenn }}
+      <time datetime="{{ f.uke.aar }}-W{{ f.uke.ukenr }}">{{ f.uke.vist }}</time>.
+      {{ f.uke.merke }}
       {% if f.forrige_uke %}
       · <a href="/endringer/{{ f.forrige_uke }}/">forrige uke</a>
       {% endif %}

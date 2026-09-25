@@ -1659,6 +1659,10 @@ def _forside(**overstyr) -> str:
         # selskapsdata for seg, 13 felt som kom eller gikk.
         "antall": 38, "antall_rader": 453, "antall_egen_del": 402,
         "antall_med_egen_del": 440,
+        "merke": ("Observert 21. september 2026, endringer siden "
+                  "14.–15. september"),
+        "observert_datoer": ["2026-09-21"],
+        "forrige_datoer": ["2026-09-14", "2026-09-15"],
         "utenfor_tellingen": 13,
         "ledet_slag": "trafikklys og tillatelser",
         "typer": [dict(k, antall=(4 if k["id"] == "trafikklys" else 0))
@@ -2922,6 +2926,29 @@ def test_radtallet_kalles_rader_og_aldri_endringer():
         for linje in mal.splitlines():
             if "antall_rader" in linje:
                 assert "endring" not in linje, f"{navn}: {linje.strip()}"
+
+
+def test_ukemerket_sier_naar_vi_saa_og_hva_vi_sammenlignet_mot():
+    """«Observert i øyeblikksbildene 21.–27. september» var usant på to
+    måter: vi observerte ÉN dag, og de seks andre har vi ikke sett på.
+
+    Og «uka før» er ikke ett svar — kildene har ulikt etterslep, så uke
+    39 sammenlignes mot både 14. og 15. september.
+    """
+    assert nettsted._ukemerke(["2026-09-21"], ["2026-09-14", "2026-09-15"]) \
+        == "Observert 21. september 2026, endringer siden 14.–15. september"
+    # Over et årsskifte står året på begge.
+    assert nettsted._ukemerke(["2026-01-05"], ["2025-12-29"]) \
+        == "Observert 5. januar 2026, endringer siden 29. desember 2025"
+    # Uten forrige dato påstås ingen sammenligning.
+    assert nettsted._ukemerke(["2026-09-21"], []) == "Observert 21. september 2026"
+
+
+def test_tre_datoer_skrives_med_og_og_ikke_med_tankestrek():
+    """En tankestrek mellom 14. og 20. ville påstått at vi observerte
+    noe hver dag i mellom."""
+    ut = nettsted._datoord(["2026-03-14", "2026-03-17", "2026-03-20"])
+    assert "–" not in ut and " og " in ut
 
 
 def test_borte_paastar_ikke_at_noe_forsvant_fra_registeret():

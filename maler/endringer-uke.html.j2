@@ -53,8 +53,7 @@
     {% else %}Endringer i {{ u.vist }}{% endif %}
   </h1>
   <p class="lok-undertittel">
-    Observert i øyeblikksbildene {{ u.spenn }}, sammenlignet med uka
-    før. Permalenke:
+    {{ u.merke }}. Permalenke:
     {# VERTSNAVNET KOMMER FRA KONFIGURASJONEN, ikke fra malen: en
        forhåndsvisning skal ikke oppgi en permalenke som ikke serverer
        innholdet. `kanonisk` er siden selv. #}
@@ -272,7 +271,7 @@
     </div>
     <p class="siterbar" id="siterbar">Kystloggen ({{ siter.aar }}).
       <i>Endringer i norske akvakulturregistre, {{ siter.uke }}.</i>
-      Øyeblikksbilder {{ siter.spenn }},
+      {{ siter.spenn }},
       sjekksum {{ siter.sjekksum[:8] }}…{{ siter.sjekksum[-4:] }}.
       {{ siter.url }}</p>
     <p class="siterboks-note">
