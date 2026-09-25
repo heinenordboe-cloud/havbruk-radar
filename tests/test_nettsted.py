@@ -2651,17 +2651,24 @@ def test_ulik_overgang_i_samme_omrade_er_to_hendelser():
 
 def test_felt_som_kom_telles_ikke_som_ukas_endring():
     """«Felt oppgitt første gang» står i tabellen og ikke i tallet. At
-    et selskap begynner å oppgi antall ansatte, er en opplysning om
-    rapporteringen — ikke en hendelse i havbruket."""
-    rad = {"entity_id": "912345678", "entity_type": "selskap",
-           "entity_name": "Testlaks AS", "field": "antall_ansatte",
-           "old_value": None, "new_value": "12",
-           "change_type": nettsted.diff.FELT_NY, "source": "enhetsregisteret",
+    en kilde begynner å oppgi et felt, er en opplysning om
+    rapporteringen — ikke en hendelse i havbruket.
+
+    KILDEN ER `akvakultur` og ikke `enhetsregisteret`, og det er ikke
+    tilfeldig: fra 24.09.2026 er hele Enhetsregisteret selskapsdata i en
+    egen del, og en prøve på den kilden ville målt DEN regelen i stedet
+    for denne. Se `EGEN_DEL_KILDER`.
+    """
+    rad = {"entity_id": "31397", "entity_type": "lokalitet",
+           "entity_name": "OTERNESET", "field": "kapasitet",
+           "old_value": None, "new_value": "3120",
+           "change_type": nettsted.diff.FELT_NY, "source": "akvakultur",
            "observed_at": "2026-09-21", "forrige_observed_at": "2026-09-14",
            "forrige_fetched_at": "", "published_at": "",
            "forrige_published_at": ""}
     felles = _felles_stubb(
-        enhet={"912345678": {"navn": "Testlaks AS", "kommune": "BODØ"}},
+        akva={"31397": {"navn": "OTERNESET", "kommune": "HARSTAD",
+                        "prodomraade_kode": ""}},
         bevegelse=pl.DataFrame([rad]))
 
     [uke] = nettsted.les_endringsuker(felles)
@@ -2823,6 +2830,37 @@ def test_avledet_i_ULIKE_par_er_to_hendelser(monkeypatch):
     uker = nettsted.les_endringsuker(_falsk_felles(beveg))
 
     assert sum(u["antall"] for u in uker) == 2
+
+
+def test_hele_kilden_i_egen_del_teller_som_egen_del(monkeypatch):
+    """`ny`/`borte` slo kildens egen regel, også når HELE kilden hører
+    hjemme i den egne delen. MÅLT uke 39: 22 av 24 «Ute av vårt utvalg»
+    var selskaper som byttet næringskode ut av søket vårt."""
+    assert nettsted.EGEN_DEL_KILDER, "ingen kilde er i en egen del"
+    kilde = sorted(nettsted.EGEN_DEL_KILDER)[0]
+    for endring in ("ny", "borte", "endret", nettsted.diff.FELT_NY,
+                    nettsted.diff.FELT_BORTE):
+        assert nettsted.endringstype(kilde, "navn", endring) in nettsted.EGEN_DEL
+    # En kilde som IKKE er det, er urørt.
+    assert nettsted.endringstype("eierskap", "eier_navn", "borte") == "borte"
+
+
+def test_borte_raden_henter_etiketten_fra_endringstyper():
+    """Ett sted. Fram til 24.09 sto «Ute av registeret» i raden mens
+    tabellen sa «Ute av vårt utvalg» — og det var raden som bar den
+    påstanden 23.09-målingen hadde forkastet."""
+    kilde = (Path(__file__).resolve().parents[1] / "nettsted.py"
+             ).read_text(encoding="utf-8")
+    assert '"type_navn": "Ute av registeret"' not in kilde
+    rad = {"entity_id": "1", "entity_type": "tillatelse",
+           "entity_name": "T-G-0008", "field": "eier_navn",
+           "old_value": "A", "new_value": None, "change_type": "borte",
+           "source": "eierskap", "observed_at": "2026-09-21",
+           "forrige_observed_at": "2026-09-14", "forrige_fetched_at": "",
+           "published_at": "", "forrige_published_at": ""}
+    h = nettsted._hendelse(rad, _felles_stubb())
+    assert h["type_navn"] == "Ute av vårt utvalg"
+    assert h["anonym"] is True, "en borte-rad navngis fortsatt ikke"
 
 
 def test_borte_paastar_ikke_at_noe_forsvant_fra_registeret():

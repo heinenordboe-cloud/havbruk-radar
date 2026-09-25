@@ -1505,16 +1505,46 @@ EGEN_DEL = frozenset(k["id"] for k in ENDRINGSTYPER if k.get("egen_del"))
 SAMLES_PER_OMRAADE = frozenset({("akvakultur", "prodomraade_status")})
 
 
+# KILDENE SOM HELT OG HOLDENT HØRER TIL EN EGEN DEL.
+#
+# Utledet av `ENDRINGSTYPE_REGLER`, ikke listet: en kilde hvis `*`-regel
+# peker på et slag i `EGEN_DEL`, har ingen rader som hører hjemme i ukas
+# hovedtall. To lister som skal si det samme er formen F6 og F7 hadde.
+#
+# ## Hvorfor dette trengs, MÅLT uke 39
+#
+# «Ute av vårt utvalg» viste 24 hendelser. 22 av dem var selskaper som
+# gikk ut av næringskodesøket vårt — altså selskapsdata, samme klasse som
+# de 402 radene som allerede står for seg. De havnet i hovedtallet bare
+# fordi `ny`/`borte` slår kildens egen regel, og et selskap som bytter
+# næringskode er ikke mer «hendelse i havbruket» enn at det bytter
+# adresse.
+EGEN_DEL_KILDER = frozenset(
+    kilde for (kilde, felt), slag in ENDRINGSTYPE_REGLER.items()
+    if felt == "*" and slag in EGEN_DEL)
+
+
 def endringstype(source: str, field: str, change_type: str) -> str:
     """Hvilken av `ENDRINGSTYPER` en changelog-rad hører til.
 
-    ## `ny` og `borte` slår alt annet
+    ## Kilden i en egen del slår ALT
+
+    Hører hele kilden hjemme i en egen del — se `EGEN_DEL_KILDER` — er
+    hver av radene dens det slaget, uansett om den er `ny`, `borte`,
+    `endret` eller et felt som kom eller gikk. En oppføring som går ut
+    av vårt næringskodesøk er en opplysning om registeret, ikke en
+    hendelse i havbruket, og den skal telles der resten av kildens rader
+    telles.
+
+    ## Ellers slår `ny` og `borte` alt annet
 
     En oppføring som kommer eller går er ÉN hendelse, ikke tjue. At det
     er `organisasjonsform` og `kommune` og nitten felt til som dukket
     opp samtidig, er hvordan `diff.compare()` skriver det — ikke hva som
-    skjedde. Se `_ukens_hendelser()`, som slår dem sammen per entitet.
+    skjedde. Se `les_endringsuker()`, som slår dem sammen per entitet.
     """
+    if source in EGEN_DEL_KILDER:
+        return ENDRINGSTYPE_REGLER[(source, "*")]
     if change_type in ("ny", "borte", diff.FELT_NY, diff.FELT_BORTE):
         return change_type
     nøkkel = (source, field)
@@ -1688,11 +1718,23 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
             "eierskap": "En tillatelse",
             "enhetsregisteret": "Et selskap",
         }
+        # SLAGET ER `endringstype()`s, ikke «borte» fast. Hører hele
+        # kilden hjemme i en egen del, er også forsvinningen dens
+        # selskapsdata — se `EGEN_DEL_KILDER`. MÅLT uke 39: 22 av de 24
+        # «ute av vårt utvalg» var selskaper som byttet næringskode ut av
+        # søket vårt.
+        #
+        # ETIKETTEN SLÅS OPP I `ENDRINGSTYPER` og skrives ikke her. Fram
+        # til 24.09.2026 sto «Ute av registeret» i denne ordboka mens
+        # tabellen over den sa «Ute av vårt utvalg» — to steder om samme
+        # rad, og det stedet som ble vist på raden var det som 23.09
+        # måtte forkastes som usant: 20 av 29 sto fortsatt i registeret.
         return {
             "dato": str(rad["observed_at"]),
             "uke": _ukeslug(str(rad["observed_at"])),
-            "type": "borte",
-            "type_navn": "Ute av registeret",
+            "type": slag,
+            "type_navn": next(x["navn"] for x in ENDRINGSTYPER
+                              if x["id"] == slag),
             "kilde": kilde,
             # `entity_id` BEHOLDES IKKE. Den er et
             # organisasjonsnummer for `enhetsregisteret`, og et

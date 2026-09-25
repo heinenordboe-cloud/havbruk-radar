@@ -94,3 +94,59 @@ lokalitetsrad den dagen den kommer.
 ## Hva som ville snudd det
 
 [Heine skriver.]
+
+## Utvidet 24.09
+
+Regelen gjaldt bare `endret`-radene. `ny`, `borte`, `felt_ny` og
+`felt_borte` slo kildens egen regel i `endringstype()` og havnet i
+hovedtallet — også når HELE kilden hører hjemme i den egne delen.
+
+Avsnittet rett over sa at «slaget ikke er knyttet til én kilde». Det
+stemmer for slaget, og det var nettopp derfor kilden måtte spørres i
+stedet: `EGEN_DEL_KILDER` utledes av at en kildes `*`-regel peker på et
+slag med `egen_del`, ikke av en liste.
+
+Samme sted lå en andre feil: den tidlige returen for `borte` skrev
+`type_navn = "Ute av registeret"` for hånd, mens tabellen over den sa
+«Ute av vårt utvalg». Etiketten slås nå opp i `ENDRINGSTYPER`, og
+raden sier det samme som oppsummeringen.
+
+MÅLT 24.09.2026, ukas tall:
+
+    uke        før    etter
+    2026-39     38       16
+    2026-38    112      109
+    2026-37     50       48
+    2026-36     28       26
+    2026-35    123      121
+    SUM        351      320
+
+Per type, der noe flyttet seg:
+
+    uke        type                        før   etter
+    2026-39    Ute av vårt utvalg           24       2
+    2026-39    Felt oppgitt første gang      6       0
+    2026-39    Felt ikke lenger oppgitt      7       0
+    2026-39    Selskapsdata                402     437
+    2026-38    Ute av vårt utvalg           10       8
+    2026-38    Ny i vårt utvalg             14      13
+    2026-38    Felt oppgitt første gang     46      42
+    2026-38    Felt ikke lenger oppgitt     26      23
+    2026-38    Selskapsdata                 36      46
+    2026-37    Ute av vårt utvalg            2       0
+    2026-37    Felt oppgitt første gang      1       0
+    2026-37    Felt ikke lenger oppgitt      2       0
+    2026-37    Selskapsdata                 37      42
+    2026-36    Ute av vårt utvalg            2       1
+    2026-36    Ny i vårt utvalg              2       1
+    2026-36    Felt oppgitt første gang      4       3
+    2026-36    Felt ikke lenger oppgitt      2       1
+    2026-36    Selskapsdata                 36      40
+    2026-35    Ute av vårt utvalg            2       0
+    2026-35    Felt oppgitt første gang      4       0
+    2026-35    Selskapsdata                 59      65
+
+De 22 som forsvant fra uke 39s «Ute av vårt utvalg» er selskapene
+23.09-målingen allerede hadde slått opp: 20 av 29 sto fortsatt i
+Enhetsregisteret og hadde byttet næringskode ut av søket vårt. De to som
+står igjen er tillatelser fra `eierskap`, og de er ikke selskapsdata.
