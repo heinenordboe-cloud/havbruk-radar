@@ -173,6 +173,35 @@ def test_en_brikke_med_null_er_ikke_klikkbar(side, tjener, sti):
     assert not feil, f"{sti}: {feil}"
 
 
+# ---- brikka «Alle N rader» --------------------------------------------
+
+
+@pytest.mark.parametrize("uke", ("2026-36", "2026-37", "2026-39"))
+def test_brikka_teller_radene_siden_faktisk_viser(side, tjener, uke):
+    """«Alle N rader» skal være radene på SIDEN, ikke i changeloggen.
+
+    `tillatelser` og `tillatelser_trukket` er to halvdeler av én
+    hendelse og vises som én rad. Fram til 25.09.2026 telte brikka
+    changelogg-radene, og uke 36 sa «Alle 61 rader» over en side som
+    viste 54.
+
+    Målt på rendret side og ikke i ramma: tallet er én ting, radene i
+    to tabeller er noe annet, og bare nettleseren kan telle det siste.
+    """
+    side.goto(f"{tjener}/endringer/{uke}/", wait_until="load")
+    tall = side.evaluate(r"""() => {
+      const brikke = document.querySelector(".typemerke--valgt .typemerke-tall");
+      const rader = document.querySelectorAll(
+          "#endringer-uke tbody tr:not([data-tom]), "
+          + "#endringer-selskapsdata tbody tr").length;
+      return {brikke: brikke ? brikke.textContent.replace(/\D/g, "") : null,
+              rader};
+    }""")
+    assert tall["brikke"] is not None, "fant ikke den valgte brikka"
+    assert int(tall["brikke"]) == tall["rader"], (
+        f"uke {uke}: brikka sier {tall['brikke']}, siden viser {tall['rader']}")
+
+
 # ---- søket -----------------------------------------------------------
 #
 # MÅLT MOT DEN EKTE INDEKSEN. Pagefind bygges av en binær over den

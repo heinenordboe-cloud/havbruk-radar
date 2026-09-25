@@ -2376,8 +2376,20 @@ def les_endringsuker(felles: Felles) -> list[dict]:
         # spørsmålet forsiden stiller. Se `selskap` i `ENDRINGSTYPER`.
         telt = sum(n for t, n in antall.items()
                    if TELLER.get(t, True) and t not in EGEN_DEL)
-        egen = [h for h in hendelser if h["type"] in EGEN_DEL]
-        ledet = [h for h in hendelser if h["type"] not in EGEN_DEL]
+        # DE VISTE RADENE ER SAMMENSLÅTTE, RADENE I FILA ER DET IKKE.
+        #
+        # `slaa_sammen_trukne()` er en VISNING: `tillatelser` og
+        # `tillatelser_trukket` er to halvdeler av én hendelse og står
+        # som én rad i tabellen. `hendelser` er urørt og går til CSV,
+        # JSON, feed og JSON-LD — de skal ha hver rad kilden ga oss.
+        #
+        # Brikka «Alle N rader» teller derfor DISSE, ikke `hendelser`.
+        # Fram til 25.09.2026 gjorde den det motsatte, og uke 36 sa
+        # «Alle 61 rader» over en side som viste 54.
+        egen = slaa_sammen_trukne([h for h in hendelser
+                                   if h["type"] in EGEN_DEL])
+        ledet = slaa_sammen_trukne([h for h in hendelser
+                                    if h["type"] not in EGEN_DEL])
         ikke_telt = sum(n for t, n in antall.items()
                         if not TELLER.get(t, True) and t not in EGEN_DEL)
         # HVA TALLET TELLER, skrevet av slagene som faktisk er der.
@@ -2416,7 +2428,14 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "antall": telt,
             "antall_egen_del": len(egen),
             "ledet_slag": visningsord.liste(navn_i_ledet),
-            "antall_rader": len(hendelser),
+            # RADENE SIDEN VISER, etter sammenslåingen.
+            "antall_rader": len(ledet) + len(egen),
+            # RADENE FILENE HAR. CSV-en og JSON-en er bygget av
+            # `hendelser`, og nedlastingsnoten lover nettopp det: «alle
+            # N radene i uka, ikke bare de som vises her». Er de to
+            # tallene det samme, er løftet tomt; er de ulike, sier noten
+            # sant. De er ulike fordi sammenslåingen er en visning.
+            "antall_i_fila": len(hendelser),
             # TALLET LENKA TIL UKESIDEN SKAL BRUKE: det oppsummeringen
             # teller, pluss selskapsdataene som står for seg. Ikke
             # `antall_rader`, som også rommer radene som med vilje ikke

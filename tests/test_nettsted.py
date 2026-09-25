@@ -1695,7 +1695,8 @@ def _forside(**overstyr) -> str:
         "ledet": [hendelse], "egen_del": [],
         # TRE TALL SOM IKKE ER DET SAMME: 38 i overskriften, 402
         # selskapsdata for seg, 13 felt som kom eller gikk.
-        "antall": 38, "antall_rader": 453, "antall_egen_del": 402,
+        "antall": 38, "antall_rader": 453, "antall_i_fila": 455,
+        "antall_egen_del": 402,
         "antall_med_egen_del": 440,
         "merke": ("Observert 21. september 2026, endringer siden "
                   "14.–15. september"),
