@@ -206,9 +206,12 @@
   <div class="ark bunn-proveniens">
     <p>{{ proveniens }}</p>
     <p>
+      {#- FRASKRIVELSEN ER UTLEDET av kildenes egne attribusjonssetninger
+          — se `nettsted.fraskrivelse()`. Fram til 24.09.2026 sto fire
+          navn her som fast tekst, og Lovdata og regjeringen.no manglet
+          på sidene som bruker dem. #}
       Tallene er gjengitt uendret fra kildene; sammenstillingen er vår,
-      og verken Fiskeridirektoratet, Brønnøysundregistrene, BarentsWatch
-      eller Mattilsynet går god for den.
+      og verken {{ fraskrivelse }} går god for den.
       Siden er bygget <time datetime="{{ bygget }}">{{ bygget_vist }}</time>.
     </p>
   </div>

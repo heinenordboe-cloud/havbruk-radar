@@ -690,19 +690,22 @@ def tittelform(navn: object) -> str:
     return "".join(ut)
 
 
-def liste(ord_: list[str]) -> str:
+def liste(ord_: list[str], bindeord: str = "og") -> str:
     """«a», «a og b», «a, b og c». Norsk, uten Oxford-komma.
 
     Finnes fordi forsidens setning om HVA tallet teller bygges av
     slagene som faktisk er der — en fast setning ville stått og løyet
     den uka et slag mangler.
+
+    `bindeord` er «eller» der setningen er en nektelse: «verken A, B
+    eller C». «Verken A, B og C» er ikke norsk.
     """
     rene = [o for o in ord_ if o]
     if not rene:
         return ""
     if len(rene) == 1:
         return rene[0]
-    return ", ".join(rene[:-1]) + " og " + rene[-1]
+    return ", ".join(rene[:-1]) + f" {bindeord} " + rene[-1]
 
 
 # ---------------------------------------------------------------- tall + ord

@@ -159,6 +159,65 @@ LISENS_URL = {
     "enhetsregisteret": "https://data.norge.no/nlod/no/2.0",
 }
 
+# HVEM SOM STÅR BAK HVER ATTRIBUSJONSSETNING.
+#
+# Bunnteksten sa «verken Fiskeridirektoratet, Brønnøysundregistrene,
+# BarentsWatch eller Mattilsynet går god for den» som fast tekst — fire
+# navn skrevet inn for hånd. `trafikklysvedtak` siterer Lovdata, og
+# produksjonsområdesiden siterer departementets egne ord fra
+# regjeringen.no; ingen av dem var med, og ingenting sa fra.
+#
+# Nøkkelen er SETNINGEN og ikke kildenavnet, fordi setningen er det
+# kilden faktisk har gått god for (`Source.attribusjon`). Kommer en ny
+# setning til uten et navn her, kaster `fraskrivelse()` — en fraskrivelse
+# som stilltiende utelater en rettighetshaver er verre enn ingen.
+ANSVARLIG_FOR = {
+    "Kilde: Fiskeridirektoratet": ("Fiskeridirektoratet",),
+    "Inneholder data under Norsk lisens for offentlige data (NLOD) "
+    "tilgjengeliggjort av Brønnøysundregistrene": ("Brønnøysundregistrene",),
+    "Data levert av BarentsWatch": ("BarentsWatch",),
+    "Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra "
+    "Mattilsynet.": ("Mattilsynet",),
+    "Kilde: Lovdata. Inneholder data under Norsk lisens for offentlige "
+    "data (NLOD) 2.0": ("Lovdata",),
+    # Ikke vist på noen side i dag — `reguleringsomraader` står i
+    # lisenstabellen og ikke i `viste_kilder()`. Navnet står her likevel,
+    # så den dagen et kart tar den i bruk, felles ikke bygget for en
+    # setning ingen svarer for.
+    "Havforskningsinstituttet, «Smittekontakt (lakselus) mellom "
+    "oppdrettsanlegg og oppholdsområder for villfisk», CC BY 4.0":
+        ("Havforskningsinstituttet",),
+}
+
+
+def fraskrivelse(kilder, vilkaar=None, i_tillegg=()) -> list[str]:
+    """Organene en side skal si at IKKE går god for sammenstillingen.
+
+    Utledet av `attribusjon()` — altså av setningene kildene selv krever
+    — så fraskrivelsen og navngivingen ikke kan svare ulikt.
+
+    `i_tillegg` er organ siden SITERER uten å ha en kilde for det.
+    Produksjonsområdesiden gjengir departementets begrunnelse med lenke
+    til regjeringen.no: det står i markupen, ikke i en
+    `Source.attribusjon`, og en fraskrivelse som utelot det ville
+    utelatt den ene parten hvis EGNE ORD står på siden.
+    """
+    ut: list[str] = []
+    for setning in attribusjon(kilder, vilkaar):
+        if setning not in ANSVARLIG_FOR:
+            raise UbelagtKilde(
+                f"ingen i ANSVARLIG_FOR svarer for attribusjonssetningen "
+                f"{setning!r}. Bunntekstens fraskrivelse ville utelatt "
+                f"rettighetshaveren i stillhet.")
+        for organ in ANSVARLIG_FOR[setning]:
+            if organ not in ut:
+                ut.append(organ)
+    for organ in i_tillegg:
+        if organ not in ut:
+            ut.append(organ)
+    return ut
+
+
 UTGIVER = {
     "akvakultur": "Fiskeridirektoratet",
     "eierskap": "Fiskeridirektoratet",
@@ -269,7 +328,7 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
                    kilder, proveniens_tekst: str,
                    meny_aktiv: str = "", feed: str = "",
                    feed_tittel: str = "", main_klasse: str = "",
-                   side_skript: str = "") -> dict:
+                   side_skript: str = "", siterte_organ=()) -> dict:
     """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
     # DEN KANONISKE ADRESSEN, regnet ut av filstien og vertsnavnet.
     #
@@ -283,6 +342,10 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
     return {
         "tittel": tittel,
         "beskrivelse": beskrivelse,
+        # HVEM SOM IKKE GÅR GOD FOR DEN, utledet av kildenes egne
+        # attribusjonssetninger. Se `fraskrivelse()`.
+        "fraskrivelse": visningsord.liste(
+            fraskrivelse(kilder, i_tillegg=siterte_organ), "eller"),
         "kanonisk": kanonisk_url(sti, rot),
         "jsonld": jsonld,
         "attribusjon": attribusjon(kilder,
@@ -6375,6 +6438,11 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
         **_grunnkontekst(
             felles, rot, rot / "produksjonsomrade" / po / "index.html",
             kilder=PO_KILDER,       # kaster på UBELAGT
+            # DEPARTEMENTETS EGNE ORD står på denne siden, med lenke til
+            # regjeringen.no. Ingen `Source.attribusjon` bærer det, og en
+            # fraskrivelse som utelot parten hvis ord er sitert, ville
+            # utelatt den ene som betyr mest her.
+            siterte_organ=("regjeringen.no",),
             tittel=f"Produksjonsområde {d['nr']} {d['navn']} — Kystloggen",
             beskrivelse=(
                 f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "

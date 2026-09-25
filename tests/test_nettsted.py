@@ -95,6 +95,9 @@ def _grunn(undermappe: str = "", **over) -> dict:
         # filstien. Se `nettsted.kanonisk_url()`.
         "kanonisk": "https://kystloggen.no/" + undermappe,
         "attribusjon": ["Kilde: Fiskeridirektoratet"],
+        # Fraskrivelsen `_grunnkontekst()` utleder av attribusjonene.
+        # Se `nettsted.fraskrivelse()`.
+        "fraskrivelse": "Fiskeridirektoratet",
         "stilark": _stilark(undermappe),
         "bygget": "2026-09-20",
         "bygget_vist": "20. september 2026",
@@ -1985,6 +1988,45 @@ def test_om_siden_oppgir_dekning_og_hvem_som_er_utelatt():
     assert "personregister" in flat
     # Skjevheten skal stå, ikke bare tallet.
     assert "små, personeide anlegg" in flat
+
+
+def test_fraskrivelsen_utledes_av_kildenes_attribusjoner():
+    """Bunnteksten sa fire navn som fast tekst. Lovdata og
+    regjeringen.no manglet på sidene som bruker dem."""
+    assert nettsted.fraskrivelse(("akvakultur",)) == ["Fiskeridirektoratet"]
+    assert nettsted.fraskrivelse(("lusetall",)) == ["BarentsWatch",
+                                                    "Mattilsynet"]
+    # Trafikklysvedtaket siterer Lovdata, og PO-siden departementet.
+    assert nettsted.fraskrivelse(nettsted.PO_KILDER) == [
+        "Fiskeridirektoratet", "Lovdata"]
+    assert nettsted.fraskrivelse(
+        nettsted.PO_KILDER, i_tillegg=("regjeringen.no",)) == [
+        "Fiskeridirektoratet", "Lovdata", "regjeringen.no"]
+    # Deduplisert: to kilder med samme setning gir ett navn.
+    assert nettsted.fraskrivelse(("eierskap", "eierskap_historikk")) == [
+        "Fiskeridirektoratet", "Brønnøysundregistrene"]
+
+
+def test_en_attribusjonssetning_uten_ansvarlig_kaster():
+    """En fraskrivelse som stilltiende utelater en rettighetshaver er
+    verre enn ingen. Kommer en ny setning til, skal bygget si fra."""
+    with pytest.raises(nettsted.UbelagtKilde):
+        nettsted.fraskrivelse(("falsk",),
+                              vilkaar={"falsk": ("Ny setning ingen svarer for",)})
+
+
+def test_hver_attribusjonssetning_i_registeret_har_en_ansvarlig():
+    """Ikke bare de kildene som vises i dag: en kilde som tas i bruk på
+    en ny side skal ikke felle bygget med en gang."""
+    for navn, setninger in nettsted.kildevilkaar().items():
+        for setning in (setninger or ()):
+            assert setning in nettsted.ANSVARLIG_FOR, f"{navn}: {setning!r}"
+
+
+def test_verken_tar_eller_og_ikke_og():
+    """«Verken A, B og C» er ikke norsk."""
+    assert visningsord.liste(["A", "B", "C"], "eller") == "A, B eller C"
+    assert visningsord.liste(["A", "B", "C"]) == "A, B og C"
 
 
 def test_ingen_vist_kilde_staar_som_nei():
