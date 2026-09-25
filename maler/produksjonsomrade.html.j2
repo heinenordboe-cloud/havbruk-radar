@@ -272,13 +272,11 @@
   <details class="tallboks">
     <summary>Tallene i tabell — siste
       {{ antall(po.biomasse_rader|length, "måned", "måneder") }}</summary>
+    <p class="tabelltittel" id="biomasse-maaned-tittel">Beholdning og bevegelse per måned, nyeste først. Tallene er
+        kildens egne, i kilo og stykk.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="biomasse-maaned-tittel" tabindex="0">
-    <table id="biomasse-maaned-tabell">
-      <caption id="biomasse-maaned-tittel">
-        Beholdning og bevegelse per måned, nyeste først. Tallene er
-        kildens egne, i kilo og stykk.
-      </caption>
+    <table id="biomasse-maaned-tabell" aria-labelledby="biomasse-maaned-tittel">
       <thead>
         <tr>
           <th scope="col">Måned</th>
@@ -341,15 +339,13 @@
     </form>
   </div>
 
-  <div class="tabellramme" role="region"
-       aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
-  <table id="akvakultur-lokaliteter">
-    <caption id="akvakultur-lokaliteter-tittel">
-      Lokalitetene i området, øyeblikksbilde
+  <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">Lokalitetene i området, øyeblikksbilde
       <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
       <span data-teller="Viser alle {{ po.lokaliteter_antall }}">Viser
-        alle {{ po.lokaliteter_antall }}</span>.
-    </caption>
+        alle {{ po.lokaliteter_antall }}</span>.</p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
+  <table id="akvakultur-lokaliteter" aria-labelledby="akvakultur-lokaliteter-tittel">
     <thead>
       <tr>
         <th scope="col">Nr.</th>
@@ -430,13 +426,11 @@
     belagt. Datoen er runden vedtaket gjelder for, ikke dagen vi hentet
     det — <code>trafikklysvedtak</code> dateres til vedtaksåret.
   </p>
+  <p class="tabelltittel" id="trafikklysvedtak-endringer-tittel">Registerendringer om området, nyest først.
+      {{ antall(po.endringer|length, "endring", "endringer") }}.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="trafikklysvedtak-endringer-tittel" tabindex="0">
-  <table id="trafikklysvedtak-endringer">
-    <caption id="trafikklysvedtak-endringer-tittel">
-      Registerendringer om området, nyest først.
-      {{ antall(po.endringer|length, "endring", "endringer") }}.
-    </caption>
+  <table id="trafikklysvedtak-endringer" aria-labelledby="trafikklysvedtak-endringer-tittel">
     <thead>
       <tr>
         <th scope="col">Runde</th>
@@ -468,13 +462,11 @@
     De siste {{ antall(po.endringsuker, "uka", "ukene") }} vi har observert. Datoen er når
     VI så endringen.
   </p>
+  <p class="tabelltittel" id="endringer-omraade-tittel">{{ antall(po.i_omraadet|length, "endring", "endringer") }} i lokalitetene i området, de
+      siste {{ antall(po.endringsuker, "uka", "ukene") }}.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-omraade-tittel" tabindex="0">
-  <table id="endringer-omraade">
-    <caption id="endringer-omraade-tittel">
-      {{ antall(po.i_omraadet|length, "endring", "endringer") }} i lokalitetene i området, de
-      siste {{ antall(po.endringsuker, "uka", "ukene") }}.
-    </caption>
+  <table id="endringer-omraade" aria-labelledby="endringer-omraade-tittel">
     <thead>
       <tr>
         <th scope="col">Observert</th>

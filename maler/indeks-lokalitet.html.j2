@@ -28,10 +28,10 @@
   PO-kolonnen fordi registeret ikke oppgir noen.
 </p>
 
+<p class="tabelltittel" id="akvakultur-alle-tittel">Alle lokaliteter, sortert på lokalitetsnummer.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="akvakultur-alle-tittel" tabindex="0">
-<table id="akvakultur-alle">
-  <caption id="akvakultur-alle-tittel">Alle lokaliteter, sortert på lokalitetsnummer.</caption>
+<table id="akvakultur-alle" aria-labelledby="akvakultur-alle-tittel">
   <thead>
     <tr>
       <th scope="col">Lokalitet</th>
@@ -87,13 +87,11 @@
   {% endif %}
 </p>
 {% if d.uten_koordinater %}
+<p class="tabelltittel" id="akvakultur-uten-koordinater-tittel">Lokaliteter uten breddegrad eller lengdegrad, snapshot
+    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="akvakultur-uten-koordinater-tittel" tabindex="0">
-<table id="akvakultur-uten-koordinater">
-  <caption id="akvakultur-uten-koordinater-tittel">
-    Lokaliteter uten breddegrad eller lengdegrad, snapshot
-    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
-  </caption>
+<table id="akvakultur-uten-koordinater" aria-labelledby="akvakultur-uten-koordinater-tittel">
   <thead>
     <tr>
       <th scope="col">Lokalitet</th>

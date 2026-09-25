@@ -133,14 +133,12 @@
     {% endfor %}
   </ul>
 
+  <p class="tabelltittel" id="endringer-uke-tittel"><span data-teller>Viser {{ rader|length }} av {{ rader|length }}</span>
+      {% if valgt %}rader{% else %}endringer utenom selskapsdata{% endif %}
+      i {{ u.vist }}.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-uke-tittel" tabindex="0">
-  <table id="endringer-uke">
-    <caption id="endringer-uke-tittel">
-      <span data-teller>Viser {{ rader|length }} av {{ rader|length }}</span>
-      {% if valgt %}rader{% else %}endringer utenom selskapsdata{% endif %}
-      i {{ u.vist }}.
-    </caption>
+  <table id="endringer-uke" aria-labelledby="endringer-uke-tittel">
     <thead>
       <tr>
         <th scope="col">Observert</th>
@@ -204,12 +202,10 @@
       over. MÅLT uke 39: 369 av 402 var antall ansatte, som oppdateres
       månedlig for alle selskaper samtidig.
     </p>
+    <p class="tabelltittel" id="endringer-selskapsdata-tittel">{{ alle(egen|length, "selskapsdataendringen", "selskapsdataendringene") }} i {{ u.vist }}.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="endringer-selskapsdata-tittel" tabindex="0">
-    <table id="endringer-selskapsdata">
-      <caption id="endringer-selskapsdata-tittel">
-        {{ alle(egen|length, "selskapsdataendringen", "selskapsdataendringene") }} i {{ u.vist }}.
-      </caption>
+    <table id="endringer-selskapsdata" aria-labelledby="endringer-selskapsdata-tittel">
       <thead>
         <tr>
           <th scope="col">Observert</th>

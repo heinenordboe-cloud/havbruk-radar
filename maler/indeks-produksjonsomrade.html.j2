@@ -24,13 +24,11 @@
   <a href="/lokalitet/">lokalitetslisten</a>.
 </p>
 
+<p class="tabelltittel" id="trafikklysvedtak-alle-tittel">Produksjonsområdene med nyeste trafikklysfarge, snapshot
+    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="trafikklysvedtak-alle-tittel" tabindex="0">
-<table id="trafikklysvedtak-alle">
-  <caption id="trafikklysvedtak-alle-tittel">
-    Produksjonsområdene med nyeste trafikklysfarge, snapshot
-    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
-  </caption>
+<table id="trafikklysvedtak-alle" aria-labelledby="trafikklysvedtak-alle-tittel">
   <thead>
     <tr>
       <th scope="col">Område</th>

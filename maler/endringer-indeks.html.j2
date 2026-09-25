@@ -43,13 +43,11 @@
     {% endif %}
   </p>
 
+  <p class="tabelltittel" id="endringer-uker-tittel">{{ alle(uker|length, "uka", "ukene") }}, nyeste først. Tallene per type
+      lenker rett til uka filtrert på den typen.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-uker-tittel" tabindex="0">
-  <table id="endringer-uker">
-    <caption id="endringer-uker-tittel">
-      {{ alle(uker|length, "uka", "ukene") }}, nyeste først. Tallene per type
-      lenker rett til uka filtrert på den typen.
-    </caption>
+  <table id="endringer-uker" aria-labelledby="endringer-uker-tittel">
     <thead>
       <tr>
         <th scope="col">Uke</th>

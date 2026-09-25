@@ -94,7 +94,19 @@ def markupbrudd(mappe: Path) -> list[str]:
             hvem = navn.group(1) if navn else "(uten id)"
             if not navn:
                 brudd.append(f"{sti.name}: <table> uten id — ankeret er en URL")
-            for krav, hva in (("<caption", "caption"), ("<thead", "thead"),
+            # NAVNET KAN KOMME TO VEIER. En `<caption>` ligger inne i
+            # tabellen, og dermed inne i ramma med `overflow-x: auto`:
+            # MÅLT ved 390px rullet forbeholdet ut av skjermen sammen med
+            # tabellen. Fra 24.09.2026 står teksten i en `<p>` FØR ramma,
+            # og tabellen peker på den med `aria-labelledby`.
+            #
+            # Kravet er uendret: en tabell skal ha et navn. Det er
+            # MÅTEN som har fått et alternativ, og
+            # `test_tabell_uten_navn_i_det_hele_tatt` holder at
+            # alternativet ikke er «ingen av delene».
+            if "<caption" not in kropp and "aria-labelledby" not in attributter:
+                brudd.append(f"{sti.name}: tabell {hvem} uten navn")
+            for krav, hva in (("<thead", "thead"),
                               ("scope=", "th scope")):
                 if krav not in kropp:
                     brudd.append(f"{sti.name}: tabell {hvem} mangler {hva}")
@@ -165,7 +177,7 @@ def test_radnøkkel_i_th_krever_ingen_merking(tmp_path):
 
 
 @pytest.mark.parametrize("fjern,ventet", [
-    ('<caption>Tekst.</caption>\n', "caption"),
+
     ('<thead><tr><th scope="col">Felt</th></tr></thead>\n', "thead"),
 ])
 def test_tabell_uten_semantikk_felles(tmp_path, fjern, ventet):
@@ -231,3 +243,23 @@ def test_en_umerket_verdi_ved_siden_av_en_merket_er_fortsatt_brudd(tmp_path):
         '<td><span data-felt="tildelt_orgnr">{{ o.orgnr }}</span>'
         "{{ o.navn }}</td></tr></tbody></table>"))
     assert len(markupbrudd(mappe)) == 1
+
+
+def test_tabell_navngitt_av_aria_labelledby_er_ikke_brudd(tmp_path):
+    """Bildeteksten ligger utenfor scrollramma fra 24.09.2026 — inne i
+    tabellen rullet den ut av skjermen sammen med den."""
+    mappe = _mal(tmp_path, (
+        '<p class="tabelltittel" id="t-tittel">Tekst.</p>\n'
+        '<table id="selskap-tillatelser" aria-labelledby="t-tittel">\n'
+        '  <thead><tr><th scope="col">Felt</th></tr></thead>\n'
+        "  <tbody><tr><td>x</td></tr></tbody></table>"))
+    assert markupbrudd(mappe) == []
+
+
+def test_tabell_uten_navn_i_det_hele_tatt_er_brudd(tmp_path):
+    """Alternativet er `aria-labelledby`, ikke «ingen av delene»."""
+    mappe = _mal(tmp_path, (
+        '<table id="selskap-tillatelser">\n'
+        '  <thead><tr><th scope="col">Felt</th></tr></thead>\n'
+        "  <tbody><tr><td>x</td></tr></tbody></table>"))
+    assert any("uten navn" in b for b in markupbrudd(mappe))

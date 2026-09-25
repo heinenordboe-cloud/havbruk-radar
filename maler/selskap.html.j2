@@ -88,14 +88,12 @@
 <div class="ark seksjon to-spalter">
   <section class="blokk" aria-labelledby="lok-tittel">
     <h2 id="lok-tittel">Lokaliteter</h2>
+    <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">De {{ antall(sel.lokaliteter_antall, "lokaliteten", "lokalitetene") }} selskapets
+        tillatelser ligger på, øyeblikksbilde
+        <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
-    <table id="akvakultur-lokaliteter">
-      <caption id="akvakultur-lokaliteter-tittel">
-        De {{ antall(sel.lokaliteter_antall, "lokaliteten", "lokalitetene") }} selskapets
-        tillatelser ligger på, øyeblikksbilde
-        <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.
-      </caption>
+    <table id="akvakultur-lokaliteter" aria-labelledby="akvakultur-lokaliteter-tittel">
       <thead>
         <tr>
           <th scope="col">Nr.</th>
@@ -142,14 +140,12 @@
 
   <section class="blokk" aria-labelledby="till-tittel">
     <h2 id="till-tittel">Tillatelser</h2>
+    <p class="tabelltittel" id="eierskap-tillatelser-tittel">De {{ antall(sel.tillatelser_antall, "tillatelsen", "tillatelsene") }} selskapet eier,
+        øyeblikksbilde
+        <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
-    <table id="eierskap-tillatelser">
-      <caption id="eierskap-tillatelser-tittel">
-        De {{ antall(sel.tillatelser_antall, "tillatelsen", "tillatelsene") }} selskapet eier,
-        øyeblikksbilde
-        <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.
-      </caption>
+    <table id="eierskap-tillatelser" aria-labelledby="eierskap-tillatelser-tittel">
       <thead>
         <tr>
           <th scope="col">Tillatelse</th>
@@ -214,13 +210,11 @@
   </p>
 
   {% if sel.eierskapslinje %}
+  <p class="tabelltittel" id="eierskapslinje-tittel">{{ antall(sel.kom_til, "tillatelse", "tillatelser") }} kommet til og {{ sel.gikk_ut }} gått
+      ut, nyeste først.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="eierskapslinje-tittel" tabindex="0">
-  <table id="eierskapslinje">
-    <caption id="eierskapslinje-tittel">
-      {{ antall(sel.kom_til, "tillatelse", "tillatelser") }} kommet til og {{ sel.gikk_ut }} gått
-      ut, nyeste først.
-    </caption>
+  <table id="eierskapslinje" aria-labelledby="eierskapslinje-tittel">
     <thead>
       <tr>
         <th scope="col">Dato</th>
@@ -276,13 +270,11 @@
       <h2 id="reg-tittel">Hva Enhetsregisteret sier</h2>
     </div>
   </div>
+  <p class="tabelltittel" id="enhetsregisteret-selskap-tittel">Registerfeltene om selskapet, øyeblikksbilde
+      <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="enhetsregisteret-selskap-tittel" tabindex="0">
-  <table id="enhetsregisteret-selskap">
-    <caption id="enhetsregisteret-selskap-tittel">
-      Registerfeltene om selskapet, øyeblikksbilde
-      <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.
-    </caption>
+  <table id="enhetsregisteret-selskap" aria-labelledby="enhetsregisteret-selskap-tittel">
     <thead>
       <tr>
         <th scope="col">Felt</th>

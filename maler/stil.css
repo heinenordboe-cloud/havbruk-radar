@@ -1193,7 +1193,7 @@ a:hover {
 /* TABELLEN PÅ MØRK FLATE. Captionen er det viktigste på siden når man
    ikke vet hva man ser på, og en caption i blekkfarge på havbåndet er
    1,2:1 — altså borte. */
-.mork caption { color: var(--hav-tegn); border-inline-start-color: var(--rust-lys); }
+.mork .tabelltittel { color: var(--hav-tegn); border-inline-start-color: var(--rust-lys); }
 .mork thead th { color: var(--hav3); border-block-end-color: rgba(231,219,208,.45); }
 .mork tbody th, .mork tbody td { border-block-end-color: rgba(231,219,208,.13); }
 .mork tbody tr:hover { background: rgba(231, 219, 208, 0.05); }
@@ -1663,20 +1663,20 @@ table {
    `.tabellnote` under tabellen. Det er ikke småskrift i betydningen
    «det vi håper ingen leser»: noten har egen strek, egen plass og full
    bredde på målebåndet. Den er bare ikke i veien for tallene. */
-caption {
-  caption-side: top;
+.tabelltittel {
+  /* BILDETEKSTEN LIGGER UTENFOR SCROLLRAMMA fra 24.09.2026.
+     En `<caption>` ligger inne i tabellen og dermed inne i ramma med
+     `overflow-x: auto`. En tabell som er bredere enn skjermen dro den
+     med seg, og da var forbeholdet — det viktigste på siden — det
+     første som havnet utenfor kanten. MÅLT ved 390px: halve setningen
+     sto utenfor, og `max-width` var en lapp som gjorde den smal uten å
+     få den ut.
+
+     Nå er den en `<p>` FØR ramma, og tabellen navngis av den med
+     `aria-labelledby`. Den ruller ikke, fordi den ikke er i noe som
+     ruller. */
   text-align: left;
-
-  /* Captionen ligger INNE i tabellen og dermed inne i scrollramma. En
-     tabell som er bredere enn skjermen drar den med seg, og da er
-     forbeholdet — som er det viktigste på siden — det første som
-     havner utenfor kanten. MÅLT ved 390px: 29em er 464px, og halve
-     setningen sto utenfor.
-
-     `min()` lar målebåndet gjelde der det er plass, og skjermen
-     gjelde der det ikke er. `vw` og ikke `%`, fordi prosenten her
-     ville vært av TABELLEN, som er nettopp den som er for bred. */
-  max-width: min(var(--maal-tekst), calc(100vw - 2 * var(--rom-16)));
+  max-width: var(--maal-tekst);
   color: var(--farge-tekst);
   font-size: var(--fs-15);
   line-height: var(--lh-normal);
@@ -1708,7 +1708,15 @@ thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--farge-hode);
+
+  /* UGJENNOMSIKTIG, og det er hele poenget med et klebrig hode.
+     `--farge-hode` var ALDRI DEFINERT — `var()` uten reserve faller til
+     ingenting, og bakgrunnen ble gjennomsiktig. Radene rullet da under
+     overskriftene og sto oppå dem, i begge moduser. Et navn som ikke
+     finnes feiler ikke i CSS; det blir bare borte.
+     `--farge-ark` er flata tabellen står på, og den er definert i begge
+     moduser. */
+  background: var(--farge-ark);
   text-align: left;
   vertical-align: bottom;
   font-size: var(--fs-13);

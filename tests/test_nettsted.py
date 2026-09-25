@@ -421,13 +421,18 @@ def test_ingen_tabell_har_et_posisjonsanker():
 def test_semantisk_tabell():
     html = _side()
     for tabell in re.findall(r"<table id=.*?</table>", html, re.S):
-        # `<caption` og ikke `<caption>`: fra 20.09.2026 bærer hver
-        # caption en `id`, som scrollramma peker på med
-        # `aria-labelledby`. Prøven skal si at tabellen HAR en caption,
-        # ikke hvilke attributter den har.
-        assert "<caption" in tabell
+        # NAVNET KAN KOMME TO VEIER. Fra 24.09.2026 står bildeteksten i
+        # en `<p>` FØR scrollramma, og tabellen peker på den med
+        # `aria-labelledby` — inne i tabellen rullet teksten ut av
+        # skjermen sammen med tabellen ved 390px. Kravet er at tabellen
+        # HAR et navn.
+        assert "<caption" in tabell or "aria-labelledby" in tabell
         assert "<thead>" in tabell and "<tbody>" in tabell
         assert 'scope="col"' in tabell
+
+    # Og navnet skal peke på noe som finnes.
+    for pekt in re.findall(r'<table id="[^"]+" aria-labelledby="([^"]+)"', html):
+        assert f'id="{pekt}"' in html, pekt
 
 
 def test_datoer_er_time_elementer():
@@ -916,7 +921,7 @@ def test_lokalitet_uten_lusetall_gir_ingen_tom_datetime(datamappe, tmp_path):
     assert "Ingen lusetall for denne lokaliteten." in html
     assert "siste 0 uker" not in html
     # ...og ankeret står, så en lenke til tabellen ikke dør av at den er tom
-    assert '<table id="lusetall-uke">' in html
+    assert '<table id="lusetall-uke"' in html
 
 
 def test_csv_uten_uker_paastaar_ikke_et_spenn(datamappe, tmp_path):
@@ -2039,6 +2044,38 @@ def test_verken_tar_eller_og_ikke_og():
     """«Verken A, B og C» er ikke norsk."""
     assert visningsord.liste(["A", "B", "C"], "eller") == "A, B eller C"
     assert visningsord.liste(["A", "B", "C"]) == "A, B og C"
+
+
+def test_ingen_bildetekst_inne_i_scrollramma():
+    """MÅLT ved 390px: en `<caption>` ligger inne i tabellen og dermed
+    inne i ramma med `overflow-x: auto`. En tabell bredere enn skjermen
+    dro forbeholdet med seg ut av kanten — og forbeholdet er det
+    viktigste på siden.
+    """
+    for html in (_side(), _om()):
+        for ramme in re.findall(
+                r'<div class="tabellramme".*?</div>', html, re.S):
+            assert "<caption" not in ramme, ramme[:120]
+            assert 'class="tabelltittel"' not in ramme, ramme[:120]
+        # Og teksten finnes fortsatt, utenfor ramma.
+        assert 'class="tabelltittel"' in html
+
+
+def test_det_klebrige_tabellhodet_er_ugjennomsiktig():
+    """`--farge-hode` var ALDRI DEFINERT. `var()` uten reserve faller
+    til ingenting, bakgrunnen ble gjennomsiktig, og radene rullet under
+    overskriftene. Et navn som ikke finnes feiler ikke i CSS."""
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    # REGELEN MED `position: sticky`, og ikke den første som heter
+    # `thead th` — mørk modus har sin egen.
+    blokker = [b for b in re.findall(r"thead th \{([^}]*)\}", css)
+               if "position: sticky" in b]
+    assert len(blokker) == 1, blokker
+    m = re.search(r"background:\s*var\((--[\w-]+)\)", blokker[0])
+    assert m, blokker[0]
+    token = m.group(1)
+    assert f"{token}:" in css, f"{token} er brukt uten å være definert"
 
 
 def test_fargeruta_i_registertabellen_har_fyll():

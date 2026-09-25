@@ -145,17 +145,15 @@
   </ul>
   {% endif %}
 
-  <div class="tabellramme" role="region"
-       aria-labelledby="endringer-uke-tittel" tabindex="0">
-  <table id="endringer-uke">
-    <caption id="endringer-uke-tittel">
-      {% if f.uke %}
+  <p class="tabelltittel" id="endringer-uke-tittel">{% if f.uke %}
       {{ "Den" if f.rader|length == 1 else "De" }} {{ f.rader|length }} nyeste av {{ antall(f.uke.antall, "endringen", "endringene") }} i
       {{ f.uke.vist }}, utenom selskapsdata.
       {% else %}
       Ingen uker med endringer ennå.
-      {% endif %}
-    </caption>
+      {% endif %}</p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="endringer-uke-tittel" tabindex="0">
+  <table id="endringer-uke" aria-labelledby="endringer-uke-tittel">
     <thead>
       <tr>
         <th scope="col">Observert</th>
@@ -342,14 +340,12 @@
       </figure>
 
       <div class="kyst-tabell">
+        <p class="tabelltittel" id="trafikklysvedtak-oversikt-tittel">{{ "Det ene produksjonsområdet" if f.produksjonsomraader == 1 else "De " ~ f.produksjonsomraader ~ " produksjonsområdene" }} med
+            fargen som gjelder nå{% if f.runder %}, og fargen i hver av
+            de {{ f.runder|length }} forskriftsrundene{% endif %}.</p>
         <div class="tabellramme" role="region"
              aria-labelledby="trafikklysvedtak-oversikt-tittel" tabindex="0">
-        <table id="trafikklysvedtak-oversikt">
-          <caption id="trafikklysvedtak-oversikt-tittel">
-            {{ "Det ene produksjonsområdet" if f.produksjonsomraader == 1 else "De " ~ f.produksjonsomraader ~ " produksjonsområdene" }} med
-            fargen som gjelder nå{% if f.runder %}, og fargen i hver av
-            de {{ f.runder|length }} forskriftsrundene{% endif %}.
-          </caption>
+        <table id="trafikklysvedtak-oversikt" aria-labelledby="trafikklysvedtak-oversikt-tittel">
           <thead>
             <tr>
               <th scope="col">Nr.</th>
@@ -430,11 +426,11 @@
     Ingen konto, ingen e-postadresse, ingen sporing — en feed er en fil
     du henter, og vi får aldri vite at du gjorde det.
   </p>
+  <p class="tabelltittel" id="feeder-tittel">Atom-feedene, bygget av
+      endringsloggen.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="feeder-tittel" tabindex="0">
-  <table id="feeder">
-    <caption id="feeder-tittel">Atom-feedene, bygget av
-      endringsloggen.</caption>
+  <table id="feeder" aria-labelledby="feeder-tittel">
     <thead>
       <tr>
         <th scope="col">Hva</th>
