@@ -85,11 +85,13 @@ import io
 import json
 import math
 import os
+import re
 import sys
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
+from html import escape
 from pathlib import Path
 
 import polars as pl
@@ -4204,6 +4206,140 @@ def stilsti(sti: Path, rot: Path) -> str:
     return "../" * dybde + STILARK
 
 
+# ------------------------------------------- KORT PÅ SMAL SKJERM
+#
+# EN TABELL PÅ 390 PIKSLER ER IKKE EN TABELL. Ni kolonner lusetall på en
+# telefon ble til en vannrett rulleboks der kolonneoverskriften forsvant
+# ut av syne før verdien kom inn i det — leseren måtte huske hva
+# kolonne sju het mens hun dro.
+#
+# Under 640px legges hver rad om til et KORT: første celle er tittelen,
+# og resten står som «etikett: verdi». Etiketten er kolonneoverskriften,
+# og den settes HER, ved bygging, som `data-label` på hver `<td>`.
+#
+# ## Hvorfor ved bygging og ikke i malen
+#
+# Fordi det er 26 tabeller i ni maler, og et `data-label` skrevet for
+# hånd er en andre kopi av `<th>`-teksten. De to ville kommet i utakt
+# første gang noen døpte om en kolonne, og utakten ville vært usynlig på
+# en bred skjerm. Her leses etiketten av tabellens eget hode, og kan
+# ikke bli uenig med det.
+#
+# ## Hvorfor ikke i CSS
+#
+# `content: attr()` kan bare lese et attributt på elementet selv. En
+# celle vet ikke hva kolonnen over den heter; det er tabellen som vet
+# det, og tabellen finnes bare som HTML.
+
+# TABELLENE SOM IKKE BLIR KORT, med id.
+#
+# `endringer-uker` på /endringer/ er en KRYSSTABELL: én rad per uke, én
+# kolonne per endringstype, og tallene leses BÅDE langs raden og ned
+# kolonnen. Som kort mister den den andre aksen helt — tretten
+# «Trafikklys: 4»-linjer under hverandre er ikke en tabell man kan
+# sammenligne uker i. Den beholder vannrett rulling, og første kolonne
+# (uka) låses med `position: sticky` så raden kan følges.
+UTEN_KORT = frozenset({"endringer-uker"})
+
+_TABELL = re.compile(r"(<table\b[^>]*>)(.*?)(</table>)", re.S)
+_TABELL_ID = re.compile(r'\bid="([^"]+)"')
+_RAD = re.compile(r"(<tr\b[^>]*>)(.*?)(</tr>)", re.S)
+_CELLE = re.compile(r"<(td|th)\b([^>]*)>", re.I)
+_TAGG = re.compile(r"<[^>]*>")
+
+
+def _kolonnenavn(kropp: str) -> list[str]:
+    """Kolonneoverskriftene, i rekkefølge. Tom liste uten `<thead>`."""
+    hode = re.search(r"<thead\b[^>]*>(.*?)</thead>", kropp, re.S)
+    if not hode:
+        return []
+    rad = re.search(r"<tr\b[^>]*>(.*?)</tr>", hode.group(1), re.S)
+    if not rad:
+        return []
+    return [" ".join(_TAGG.sub(" ", c).split())
+            for c in re.findall(r"<th\b[^>]*>(.*?)</th>", rad.group(1), re.S)]
+
+
+def med_datamerker(html: str) -> str:
+    """`data-label` på hver `<td>`, lest av tabellens egen `<thead>`.
+
+    Additivt og idempotent: en celle som alt har `data-label` røres
+    ikke, og en tabell uten `<thead>` eller uten id går uendret
+    igjennom. Kontrakten krever `<thead>` på hver tabell — dette legger
+    ikke til et krav, det bruker det som alt er der.
+
+    EN CELLE MED `colspan` FÅR INGEN ETIKETT. Den strekker seg over
+    flere kolonner, og «Observert: Ingen endringer i uke 39» ville vært
+    en etikett som lyver om hva cellen er. Tomradene er de eneste som
+    har det.
+    """
+    def per_tabell(m: re.Match) -> str:
+        aapning, kropp, slutt = m.group(1), m.group(2), m.group(3)
+        ident = _TABELL_ID.search(aapning)
+        if ident and ident.group(1) in UTEN_KORT:
+            return m.group(0)
+        navn = _kolonnenavn(kropp)
+        if not navn:
+            return m.group(0)
+
+        # KLASSEN SIER AT TABELLEN KAN BLI KORT, og den settes her av
+        # samme grunn som etiketten: unntakslista er i Python, og en
+        # id-liste i CSS-en ved siden av ville vært det andre stedet å
+        # glemme en tabell. Stilarket spør etter `.tabell--kort` og
+        # trenger ikke vite hvilke tabeller det er.
+        if "tabell--kort" not in aapning:
+            if 'class="' in aapning:
+                aapning = aapning.replace('class="', 'class="tabell--kort ', 1)
+            else:
+                aapning = aapning[:-1] + ' class="tabell--kort">'
+
+        def per_rad(r: re.Match) -> str:
+            celler = list(_CELLE.finditer(r.group(2)))
+            ut, forrige = [], 0
+            for i, c in enumerate(celler):
+                ut.append(r.group(2)[forrige:c.start()])
+                forrige = c.end()
+                merke = ""
+                if (c.group(1).lower() == "td" and i < len(navn)
+                        and navn[i] and "data-label" not in c.group(2)
+                        and "colspan" not in c.group(2).lower()):
+                    merke = f' data-label="{escape(navn[i], quote=True)}"'
+                ut.append(f"<{c.group(1)}{c.group(2)}{merke}>")
+            ut.append(r.group(2)[forrige:])
+            return r.group(1) + "".join(ut) + r.group(3)
+
+        # BARE `<tbody>`. Hoderaden har ingen verdier å merke, og en
+        # etikett på en kolonneoverskrift ville vært overskriften to
+        # ganger.
+        deler = re.split(r"(<tbody\b[^>]*>|</tbody>)", kropp)
+        i_kropp = False
+        ny = []
+        for del_ in deler:
+            if del_.startswith("<tbody"):
+                i_kropp = True
+            elif del_ == "</tbody>":
+                i_kropp = False
+            elif i_kropp:
+                del_ = _RAD.sub(per_rad, del_)
+            ny.append(del_)
+        return aapning + "".join(ny) + slutt
+
+    return _TABELL.sub(per_tabell, html)
+
+
+def skriv_side(sti: Path, html: str) -> Path:
+    """Én ferdig side til disk. ETT sted, for alle sidetyper.
+
+    Alt som skal gjelde HVER side, gjør det her. I dag ett: `data-label`
+    på hver verdicelle, så en tabell kan legges om til kort på smal
+    skjerm — se `med_datamerker()`. Ni skrivesteder ville vært ni steder
+    å glemme det neste.
+    """
+    sti.parent.mkdir(parents=True, exist_ok=True)
+    sti.write_text(med_datamerker(html), encoding="utf-8")
+    return sti
+
+
 def skriv_lokalitet(loknr: str, rot: Path = UT,
                     felles: Felles | None = None,
                     mal=None) -> list[Path]:
@@ -4248,9 +4384,9 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     )
 
     # Mappe + index.html, som er hva en avsluttende skråstrek BETYR.
+    # `skriv_side()` lager mappa; CSV-en under skrives i den samme.
     mappe = sti.parent
-    mappe.mkdir(parents=True, exist_ok=True)
-    sti.write_text(html, encoding="utf-8")
+    skriv_side(sti, html)
 
     # CSV-en bærer BARE lusetall, og derfor bare lusetallkildens
     # attribusjon. Å legge alle fire kildenes setninger i et hode over en
@@ -4581,9 +4717,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
     skrevet: list[Path] = []
 
     def skriv_html(sti: Path, html: str) -> None:
-        sti.parent.mkdir(parents=True, exist_ok=True)
-        sti.write_text(html, encoding="utf-8")
-        skrevet.append(sti)
+        skrevet.append(skriv_side(sti, html))
 
     for i, uke in enumerate(uker):
         # NYERE og ELDRE, ikke «neste» og «forrige». Lista er sortert
@@ -5044,9 +5178,7 @@ def skriv_sok(rot: Path, felles: Felles, uker: list[dict]) -> Path:
             }),
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
             meny_aktiv="sok", side_skript="/sok.js"))
-    sti.parent.mkdir(parents=True, exist_ok=True)
-    sti.write_text(html, encoding="utf-8")
-    return sti
+    return skriv_side(sti, html)
 
 
 # ------------------------------------------- sitemap, robots, llms
@@ -5357,8 +5489,7 @@ def skriv_404(rot: Path, felles: Felles) -> Path:
             beskrivelse="Adressen finnes ikke på Kystloggen. "
                         "Her er listene og søket.",
             jsonld="", proveniens_tekst="", meny_aktiv=""))
-    sti.write_text(html, encoding="utf-8")
-    return sti
+    return skriv_side(sti, html)
 
 
 def skriv_llms(rot: Path, felles: Felles) -> Path:
@@ -5617,11 +5748,7 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
             meny_aktiv="om"),
     )
-    mappe = rot / "om"
-    mappe.mkdir(parents=True, exist_ok=True)
-    sti = mappe / "index.html"
-    sti.write_text(html, encoding="utf-8")
-    return sti
+    return skriv_side(rot / "om" / "index.html", html)
 
 
 # ------------------------------------------------------ indeksene
@@ -5744,11 +5871,7 @@ def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
             meny_aktiv=sti),
     )
-    mappe = rot / sti
-    mappe.mkdir(parents=True, exist_ok=True)
-    ut_sti = mappe / "index.html"
-    ut_sti.write_text(html, encoding="utf-8")
-    return ut_sti
+    return skriv_side(rot / sti / "index.html", html)
 
 
 # INDEKSSIDENES KILDER. Navngitt og ikke inline, fordi `viste_kilder()`
@@ -6342,10 +6465,7 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
             feed_tittel="Kystloggen: alle endringer",
             main_klasse="fullbredde"),
     )
-    sti = rot / "index.html"
-    rot.mkdir(parents=True, exist_ok=True)
-    sti.write_text(html, encoding="utf-8")
-    return sti
+    return skriv_side(rot / "index.html", html)
 
 
 def jsonld_forside(f: dict, vilkaar: dict) -> Markup:
@@ -6718,11 +6838,7 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
             feed=f"/selskap/{orgnr}/feed.xml",
             feed_tittel=f"Kystloggen: endringer for {sel['navn'] or orgnr}"),
     )
-    mappe = rot / "selskap" / orgnr
-    mappe.mkdir(parents=True, exist_ok=True)
-    sti = mappe / "index.html"
-    sti.write_text(html, encoding="utf-8")
-    return sti
+    return skriv_side(rot / "selskap" / orgnr / "index.html", html)
 
 
 # Kildene en produksjonsområdeside bygger på. `ekspertgruppen` står
@@ -6803,11 +6919,7 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
             feed=f"/produksjonsomrade/{po}/feed.xml",
             feed_tittel=f"Kystloggen: endringer i produksjonsområde {po}"),
     )
-    mappe = rot / "produksjonsomrade" / po
-    mappe.mkdir(parents=True, exist_ok=True)
-    sti = mappe / "index.html"
-    sti.write_text(html, encoding="utf-8")
-    return sti
+    return skriv_side(rot / "produksjonsomrade" / po / "index.html", html)
 
 
 # ------------------------------------------------------------- batchen

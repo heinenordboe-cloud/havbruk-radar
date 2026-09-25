@@ -1831,6 +1831,108 @@ thead th.tall { text-align: right; }
    scroller — som er hele poenget med ramma. */
 tbody td, tbody th { overflow-wrap: break-word; }
 
+/* ---- HVER RAD BLIR ET KORT UNDER 640 PIKSLER ----
+ *
+ * EN TABELL PÅ 390 PIKSLER ER IKKE EN TABELL. Ni kolonner lusetall ble
+ * til en vannrett rulleboks der kolonneoverskriften forsvant ut av syne
+ * før verdien kom inn i det: leseren måtte huske hva kolonne sju het
+ * mens hun dro. Under 640px står raden derfor loddrett, med
+ * kolonneoverskriften som etikett foran hver verdi.
+ *
+ * ETIKETTEN ER `data-label`, SATT VED BYGGING av tabellens egen
+ * `<thead>` — se `nettsted.med_datamerker()`. `content: attr()` kan
+ * bare lese et attributt på elementet selv, og en celle vet ikke hva
+ * kolonnen over den heter.
+ *
+ * KLASSEN, IKKE EN ID-LISTE. `.tabell--kort` settes av den samme
+ * funksjonen som setter etikettene. En liste over unntak her ville vært
+ * det andre stedet å glemme en tabell.
+ *
+ * HODET BLIR IKKE BORTE. `<thead>` skjules visuelt og står igjen for en
+ * skjermleser, som leser tabellen som en tabell uansett. Det er derfor
+ * `display: none` er feil her: da forsvinner kolonnenavnene helt, også
+ * for den som ikke ser skjermen.
+ */
+@media (max-width: 39.99rem) {
+  /* Ramma ruller ikke når det ikke er noe å rulle. En scrollport rundt
+     et kort gir en tom vannrett akse og en fokusfelle. */
+  .tabellramme:has(.tabell--kort) { overflow-x: visible; }
+
+  .tabell--kort,
+  .tabell--kort thead,
+  .tabell--kort tbody,
+  .tabell--kort tr,
+  .tabell--kort th,
+  .tabell--kort td { display: block; }
+
+  .tabell--kort thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .tabell--kort tbody tr {
+    margin-block-end: var(--rom-12);
+    padding: var(--rom-12);
+    background: var(--farge-stripe);
+    border-inline-start: var(--rom-4) solid var(--farge-kant-svak);
+  }
+
+  /* Stripa er for en tabell man følger langs. Et kort har ingen rad å
+     følge, og annenhver bakgrunn på kort leses som to slags kort. */
+  .tabell--kort tbody tr:nth-child(even) { background: var(--farge-stripe); }
+
+  .tabell--kort tbody th,
+  .tabell--kort tbody td {
+    border-block-end: 0;
+    padding: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  /* FØRSTE CELLE ER TITTELEN. Den er `<th scope="row">` i hver eneste
+     tabell her — nøkkelen til raden — og som korttittel er den det
+     samme: det leseren kjenner raden igjen på. */
+  .tabell--kort tbody th[scope="row"] {
+    font-size: var(--fs-17);
+    font-weight: 600;
+    margin-block-end: var(--rom-8);
+  }
+
+  .tabell--kort tbody td { margin-block-start: var(--rom-8); }
+
+  .tabell--kort tbody td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--fs-12);
+    font-weight: 600;
+    letter-spacing: var(--knip-1);
+    color: var(--farge-tekst-svak);
+  }
+
+  /* Høyrestilte tall er en kolonnejustering. Uten kolonner er den bare
+     tekst som begynner et tilfeldig sted. */
+  .tabell--kort .tall { text-align: left; }
+
+  /* ---- UNNTAKET: krysstabellen på /endringer/ ----
+   *
+   * Én rad per uke, én kolonne per endringstype, og tallene leses BÅDE
+   * langs raden og ned kolonnen. Som kort mister den den andre aksen
+   * helt. Den ruller vannrett som før, og uka låses til venstre kant så
+   * raden kan følges. */
+  table:not(.tabell--kort) tbody th[scope="row"],
+  table:not(.tabell--kort) thead th:first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    background: var(--farge-ark);
+    z-index: 2;
+  }
+}
+
 /* Definisjonsliste: termen og forklaringen, der en punktliste ville
    gjort de tre gradene til likeverdige alternativer. De er ordinale. */
 .grader {
@@ -2631,8 +2733,21 @@ figcaption {
 
 .rundefakta-hvor { color: var(--hav-sekundaer); font-size: var(--fs-12); }
 
+/* AVVIKET TAR HELE BREDDEN og tvinger lista til å brekke.
+ *
+ * `.tegnforklaring li` er en flex-RAD, og en `display: block` inne i
+ * den blir et flex-element på samme linje — ikke en ny linje. MÅLT ved
+ * 390px stakk merknaden 74 piksler utenfor skjermen og ga områdesida
+ * den ENESTE vannrette rullingen på nettstedet. `flex-basis: 100%`
+ * gjør den til sin egen linje, og `min-inline-size: 0` lar den brekke
+ * inne i seg selv; uten den kan et flex-element ikke bli smalere enn
+ * sitt lengste ord. */
+.rundefakta-liste .tegnforklaring li { flex-wrap: wrap; }
+
 .rundefakta-avvik {
   display: block;
+  flex-basis: 100%;
+  min-inline-size: 0;
   margin-block-start: var(--rom-4);
   padding-inline-start: var(--rom-10);
   border-inline-start: 2px solid var(--rust-lys);
