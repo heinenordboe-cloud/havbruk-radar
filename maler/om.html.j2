@@ -234,10 +234,23 @@
   datert per kilde. Oppgi byggedatoen: innholdet endres når kildene
   endres, og en referanse uten dato viser til noe annet neste uke.
 </p>
-<p>
+<p class="siterbar">
   {{ om.forfatter }} ({{ om.bygget[:4] }}).
   <em>Kystloggen: sammenstilte registerdata om norsk akvakultur.</em>
-  Bygget {{ om.bygget }}. {{ om.repo }}
+  Bygget {{ om.bygget }}. {{ basisurl }}
+</p>
+{#- ADRESSEN ER NETTSTEDET, IKKE KODEREPOET. Den som siterer et tall,
+    siterer siden tallet står på — og repoet er der koden bor, ikke der
+    dataene vises. Lenken til repoet står i bunnteksten, der den hører.
+    `basisurl` kommer fra konfigurasjonen, ikke som bokstav i malen: en
+    forhåndsvisning skal ikke oppgi en adresse som ikke serverer
+    innholdet. Se `_basisurl()`. #}
+<p>
+  Dette er den GENERELLE referansen til nettstedet. Siterer du et
+  bestemt tall, bruk «Siter denne siden» på den siden tallet står på:
+  den bærer lokaliteten eller uka, øyeblikksbildets dato og sjekksummen
+  som identifiserer det. En referanse til forsiden kan ikke etterprøves
+  mot noe bestemt.
 </p>
 {# ------------------------------------------------------- GJENBRUK #}
 {# SEKSJONEN ER FJERNET, IKKE GLEMT. Den sto som utkast fram til

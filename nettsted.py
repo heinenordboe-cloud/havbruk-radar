@@ -342,6 +342,9 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
     return {
         "tittel": tittel,
         "beskrivelse": beskrivelse,
+        # NETTSTEDETS EGEN ADRESSE, fra konfigurasjonen og ikke som
+        # bokstav i en mal. Se `_basisurl()`.
+        "basisurl": _basisurl(),
         # HVEM SOM IKKE GÅR GOD FOR DEN, utledet av kildenes egne
         # attribusjonssetninger. Se `fraskrivelse()`.
         "fraskrivelse": visningsord.liste(

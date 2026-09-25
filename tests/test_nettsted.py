@@ -98,6 +98,7 @@ def _grunn(undermappe: str = "", **over) -> dict:
         # Fraskrivelsen `_grunnkontekst()` utleder av attribusjonene.
         # Se `nettsted.fraskrivelse()`.
         "fraskrivelse": "Fiskeridirektoratet",
+        "basisurl": "https://kystloggen.no",
         "stilark": _stilark(undermappe),
         "bygget": "2026-09-20",
         "bygget_vist": "20. september 2026",
@@ -2085,6 +2086,12 @@ def test_om_siden_har_ferdig_formatert_sitering():
     assert "Heine Valø Nordbøe (2026)" in flat
     assert "Kystloggen: sammenstilte registerdata om norsk akvakultur" in flat
     assert "Bygget 2026-09-20" in flat
+    # ADRESSEN ER NETTSTEDET, ikke koderepoet: den som siterer et tall,
+    # siterer siden tallet står på.
+    assert "https://kystloggen.no" in flat
+    assert "github.com" not in flat.split("Sitering")[1].split("Hva nettstedet")[0]
+    # Og den generelle referansen peker videre til den presise.
+    assert "«Siter denne siden»" in flat
     # Kildenes egen attribusjon er ikke valgfri, og det skal stå.
     assert "må kildenes egen attribusjon følge med" in flat
 
