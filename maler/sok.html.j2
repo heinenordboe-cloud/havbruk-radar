@@ -50,6 +50,19 @@
 
 {% block innhold %}
 <section class="ark seksjon">
+  {# FILTERET PÅ SIDETYPE. Tomt i markupen og tegnet av `/sok.js` når
+     Pagefind er lastet — altså ved første tastetrykk.
+
+     Det er den ENE tingen på nettstedet som bare finnes med JavaScript,
+     og det er greit her av samme grunn som søkefeltet selv: raden
+     filtrerer et resultat som ikke finnes uten skript. Uten skript
+     står veiviseren under, og der ER listene allerede delt på type.
+
+     Knappene bygges av indeksen og ikke av en liste, så en ny sidetype
+     dukker opp uten at noen redigerer skriptet. #}
+  <div id="sokefilter" class="typemerker sokefilter"
+       role="group" aria-label="Begrens til sidetype"></div>
+
   {# TREFFLISTA. Tom i markupen, fylt av `/sok.js`. `aria-live` gjør at
      en skjermleser får vite at den endret seg — uten det er et søk som
      svarer uten å si fra. #}

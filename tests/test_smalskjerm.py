@@ -173,6 +173,68 @@ def test_en_brikke_med_null_er_ikke_klikkbar(side, tjener, sti):
     assert not feil, f"{sti}: {feil}"
 
 
+# ---- søket -----------------------------------------------------------
+#
+# MÅLT MOT DEN EKTE INDEKSEN. Pagefind bygges av en binær over den
+# ferdige HTML-en, og rangeringen er dens — ikke vår. Om vekting,
+# `data-pagefind-ignore` og metafeltene virker sammen kan bare avgjøres
+# ved å spørre indeksen.
+
+
+def _sok(side, tjener, q, filter_=None):
+    side.goto(tjener + "/sok/", wait_until="load")
+    return side.evaluate("""async ({q, f}) => {
+      const pf = await import("/pagefind/pagefind.js");
+      await pf.init();
+      const r = await pf.search(q, f ? {filters: {type: f}} : undefined);
+      const d = await Promise.all(r.results.slice(0, 10).map(x => x.data()));
+      return d.map(x => ({url: x.url, meta: x.meta}));
+    }""", {"q": q, "f": filter_})
+
+
+def test_et_kommunenavn_gir_lokalitetene_i_kommunen_forst(side, tjener):
+    """«Bremanger» er en kommune med lokaliteter, og et ord som står i
+    en kolonne på mange andre sider.
+
+    Vektingen av tittel og kommune er det som avgjør: uten den vant
+    sider som bare NEVNER Bremanger i en tabellrad.
+    """
+    treff = _sok(side, tjener, "Bremanger")
+    assert treff, "ingen treff på Bremanger"
+    forste = treff[0]
+    assert forste["meta"]["sidetype"] == "Lokalitet", forste["url"]
+    assert "BREMANGER" in forste["meta"]["undertittel"].upper()
+    # De fem øverste er alle lokaliteter i kommunen.
+    for t in treff[:5]:
+        assert t["meta"]["sidetype"] == "Lokalitet", t["url"]
+        assert "BREMANGER" in t["meta"]["undertittel"].upper(), t["url"]
+
+
+def test_et_lokalitetsnavn_gir_lokaliteten_forst(side, tjener):
+    treff = _sok(side, tjener, "Oterneset")
+    assert treff, "ingen treff på Oterneset"
+    assert treff[0]["url"] == "/lokalitet/31397/", treff[0]["url"]
+
+
+def test_hver_side_bærer_sidetype_undertittel_og_beskrivelse(side, tjener):
+    """Metafeltene er det trefflista viser. Mangler ett av dem, faller
+    lista tilbake på en URL og et klipp fra et vilkårlig sted på sida.
+    """
+    for q, ventet in (("Oterneset", "Lokalitet"),
+                      ("Nordhordland til Stadt", "Produksjonsområde")):
+        [forste, *_] = _sok(side, tjener, q)
+        for felt in ("sidetype", "undertittel", "beskrivelse"):
+            assert forste["meta"].get(felt), f"{q}: {felt} mangler"
+        assert forste["meta"]["sidetype"] == ventet, q
+
+
+def test_filteret_begrenser_til_en_sidetype(side, tjener):
+    treff = _sok(side, tjener, "Bremanger", "Selskap")
+    assert treff, "ingen selskaper med Bremanger"
+    for t in treff:
+        assert t["meta"]["sidetype"] == "Selskap", t["url"]
+
+
 # ---- lokalitetssidens to spalter --------------------------------------
 
 

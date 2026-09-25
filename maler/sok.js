@@ -34,6 +34,8 @@
   var TAK = 30;           /* treff som vises */
   var pagefind = null;    /* lastes ved første søk, ikke ved sidelast */
   var siste = "";
+  var valgtType = "";     /* tom = alle sidetyper */
+  var filterrad = document.getElementById("sokefilter");
 
   function tekst(el, s) { el.textContent = s; }
 
@@ -53,6 +55,52 @@
     return import("/pagefind/pagefind.js").then(function (modul) {
       pagefind = modul;
       return modul.init().then(function () { return modul; });
+    });
+  }
+
+  /* FILTERET BYGGES AV INDEKSEN, ikke av en liste her.
+   *
+   * Pagefind vet hvilke sidetyper som finnes og hvor mange sider hver
+   * av dem har, fordi `data-pagefind-filter` står på hver side. En
+   * liste i dette skriptet ville vært en andre kopi av den samme
+   * opplysningen — og den ville stått og løyet den dagen en sidetype
+   * kom til. Raden tegnes først når modulen er lastet, altså ved
+   * første tastetrykk; før det er den tom, og søket virker uten den. */
+  function tegnFilter(m) {
+    if (!filterrad || filterrad.dataset.tegnet) return Promise.resolve();
+    return m.filters().then(function (alle) {
+      var typer = alle.type || {};
+      var navn = Object.keys(typer).sort();
+      if (!navn.length) return;
+      filterrad.dataset.tegnet = "ja";
+      navn.unshift("");
+      navn.forEach(function (t) {
+        var knapp = document.createElement("button");
+        knapp.type = "button";
+        knapp.className = "typemerke" + (t === valgtType ? " typemerke--valgt" : "");
+        knapp.dataset.type = t;
+        tekst(knapp, t || "Alle");
+        if (t) {
+          var n = document.createElement("span");
+          n.className = "typemerke-tall";
+          tekst(n, String(typer[t]));
+          knapp.appendChild(document.createTextNode(" "));
+          knapp.appendChild(n);
+        }
+        knapp.setAttribute("aria-pressed", t === valgtType ? "true" : "false");
+        knapp.addEventListener("click", function () {
+          valgtType = t;
+          Array.prototype.forEach.call(
+            filterrad.querySelectorAll("button"), function (b) {
+              var pa = b.dataset.type === valgtType;
+              b.classList.toggle("typemerke--valgt", pa);
+              b.setAttribute("aria-pressed", pa ? "true" : "false");
+            });
+          siste = "";          /* samme ord, nytt filter: søk på nytt */
+          sok();
+        });
+        filterrad.appendChild(knapp);
+      });
     });
   }
 
@@ -85,13 +133,35 @@
           tekst(a, (d.meta && d.meta.title
                     ? d.meta.title : d.url).replace(/ — Kystloggen$/, ""));
           li.appendChild(a);
+          /* UNDERTITTELEN: kommune · område · innehaver for en
+             lokalitet, organisasjonsnummer · antall lokaliteter for et
+             selskap. Den er sidas egen, satt ved bygging — se
+             `nettsted._grunnkontekst()`. */
+          if (d.meta && d.meta.undertittel) {
+            var u2 = document.createElement("p");
+            u2.className = "sok-undertittel";
+            tekst(u2, (d.meta.sidetype ? d.meta.sidetype + " · " : "")
+                      + d.meta.undertittel);
+            li.appendChild(u2);
+          }
           var p = document.createElement("p");
-          /* `excerpt` er HTML fra Pagefind, med `<mark>` rundt
-             treffet. Den settes som innerHTML fordi merkingen er hele
-             poenget — og den er bygget av VÅR egen statiske HTML ved
-             bygging, ikke av noe en bruker har skrevet. */
           p.className = "sok-utdrag";
-          p.innerHTML = d.excerpt;
+          /* UTDRAGET ER SIDAS EGEN BESKRIVELSE, ikke Pagefinds klipp
+             rundt treffet. Klippet er ord fra et vilkårlig sted på
+             sida — en kolonneoverskrift, halve en fotnote — og to
+             treff i samme tabell fikk det samme klippet. Beskrivelsen
+             sier hva sida ER.
+
+             `textContent` og ikke `innerHTML`: uten Pagefinds `<mark>`
+             er det ingen merking å bevare, og da skal strengen
+             behandles som tekst. Mangler beskrivelsen, faller vi
+             tilbake på klippet — det er HTML fra Pagefind, bygget av
+             vår egen statiske side. */
+          if (d.meta && d.meta.beskrivelse) {
+            tekst(p, d.meta.beskrivelse);
+          } else {
+            p.innerHTML = d.excerpt;
+          }
           li.appendChild(p);
           var u = document.createElement("p");
           u.className = "sok-url";
@@ -109,7 +179,12 @@
     if (q.length < 2) { ut.innerHTML = ""; return; }
     melding("Søker …");
     last()
-      .then(function (m) { return m.search(q); })
+      .then(function (m) {
+        return tegnFilter(m).then(function () {
+          return m.search(q, valgtType
+            ? {filters: {type: valgtType}} : undefined);
+        });
+      })
       .then(function (r) { if (felt.value.trim() === q) vis(r.results, q); })
       .catch(function () {
         melding("Søkeindeksen kunne ikke lastes. Listene under virker "

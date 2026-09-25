@@ -177,7 +177,7 @@
       {% endif %}</p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-uke-tittel" tabindex="0">
-  <table id="endringer-uke" aria-labelledby="endringer-uke-tittel">
+  <table id="endringer-uke" aria-labelledby="endringer-uke-tittel" data-pagefind-ignore>
     <thead>
       <tr>
         <th scope="col">Observert</th>
@@ -329,7 +329,7 @@
           <line x1="{{ l.x }}" y1="0" x2="{{ l.x }}" y2="{{ f.kart.hoyde }}"/>
           {% endfor %}
         </g>
-        <g class="kart-omraader">
+        <g class="kart-omraader" data-pagefind-ignore>
           {% for o in f.kart.omraader %}
           <a href="/produksjonsomrade/{{ o.nr }}/"
              aria-label="Produksjonsområde {{ o.nr }} {{ o.navn }}, {{ o.farge }}, {{ antall(o.antall, "lokalitet", "lokaliteter") }}">
@@ -379,7 +379,7 @@
             de {{ f.runder|length }} forskriftsrundene{% endif %}.</p>
         <div class="tabellramme" role="region"
              aria-labelledby="trafikklysvedtak-oversikt-tittel" tabindex="0">
-        <table id="trafikklysvedtak-oversikt" aria-labelledby="trafikklysvedtak-oversikt-tittel">
+        <table id="trafikklysvedtak-oversikt" aria-labelledby="trafikklysvedtak-oversikt-tittel" data-pagefind-ignore>
           <thead>
             <tr>
               <th scope="col">Nr.</th>

@@ -327,7 +327,14 @@ PAKKEDE_TYPER = {".pf_fragment"}
 # Samme form som ikonene: PNG-ene er rastret av `favicon.svg`, som
 # vakten leser som tekst, og kan derfor ikke inneholde noe SVG-en ikke
 # inneholder.
-AVLEDEDE_TYPER = {".pf_index", ".pf_meta"}
+#
+# `.pf_filter` kom 25.09.2026, med `data-pagefind-filter` på hver side.
+# Den er den SAMME konstruksjonen: en CBOR-tabell over hvilke sider som
+# har hvilken filterverdi, bygget av den samme utlesningen som skriver
+# `.pf_fragment`. Verdiene den inneholder er sidetypene våre —
+# «Lokalitet», «Selskap», «Liste» — og de står i utdragene vakten
+# leser. Derivasjonsargumentet og prøven over dekker den uten endring.
+AVLEDEDE_TYPER = {".pf_index", ".pf_meta", ".pf_filter"}
 
 # Felter der en verdi er et NAVN. Brukes til å bygge hvitelista.
 NAVNEFELT = ("navn", "entity_name", "eier_navn", "tildelt_navn",

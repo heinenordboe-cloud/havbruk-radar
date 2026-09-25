@@ -1506,11 +1506,16 @@ def test_ordtabellene_er_avledet_og_ikke_ugransket(tmp_path):
     De står som AVLEDET av tekstutdragene, som er gransket. Prøven
     under holder at de ikke meldes som `ugranska` — og
     `test_hvert_indeksert_sideutdrag_granskes` holder at derivasjonen
-    er sann."""
+    er sann.
+
+    `.pf_filter` kom 25.09.2026 med sidetypefilteret og er den samme
+    konstruksjonen: en CBOR-tabell over hvilke sider som har hvilken
+    filterverdi, bygget av den samme utlesningen."""
     (tmp_path / "nb_1.pf_index").write_bytes(b"\x1f\x8b vilkarlig cbor")
     (tmp_path / "nb_2.pf_meta").write_bytes(b"\x1f\x8b vilkarlig cbor")
+    (tmp_path / "nb_3.pf_filter").write_bytes(b"\x1f\x8b vilkarlig cbor")
     assert vakt.gransk(tmp_path) == []
-    assert vakt.AVLEDEDE_TYPER == {".pf_index", ".pf_meta"}
+    assert vakt.AVLEDEDE_TYPER == {".pf_index", ".pf_meta", ".pf_filter"}
 
 
 def test_hvert_indeksert_sideutdrag_granskes(tmp_path):

@@ -125,6 +125,11 @@ LUSEUKER = 52
 # Kildene en lokalitetsside bygger på. Rekkefølgen er lesningens.
 SIDENS_KILDER = ("akvakultur", "eierskap", "eierskap_historikk", "lusetall")
 
+# SKILLETEGNET I EN UNDERTITTEL. Samme tegn som undertitlene på sidene
+# selv bruker — «Lokalitet 31397 · permanent klarering · i sjø» — så en
+# trefflinje ser ut som linja den fører til.
+SKILLE = " · "
+
 # ---------------------------------------------------------------------
 # VILKÅRENE
 #
@@ -330,7 +335,9 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
                    kilder, proveniens_tekst: str,
                    meny_aktiv: str = "", feed: str = "",
                    feed_tittel: str = "", main_klasse: str = "",
-                   side_skript: str = "", siterte_organ=()) -> dict:
+                   side_skript: str = "", siterte_organ=(),
+                   sidetype: str = "", undertittel: str = "",
+                   soketekst: str = "") -> dict:
     """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
     # DEN KANONISKE ADRESSEN, regnet ut av filstien og vertsnavnet.
     #
@@ -371,6 +378,24 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
         # To lag sidemarg er dobbelt innrykk, og MÅLT ble forsidens
         # innhold stående 112 px inn der det skulle stått 56.
         "main_klasse": main_klasse,
+        # ---- det søkeindeksen trenger, og bare det ----
+        #
+        # Pagefind leser HTML-en etter at hver side er skrevet, og har
+        # ingen annen vei til å vite hva en side ER. `sidetype` blir et
+        # filter og et felt i trefflista; `undertittel` er linja under
+        # tittelen i trefflista, og `beskrivelse` er utdraget.
+        #
+        # ALLE TRE ER SIDENS EGNE, satt av sidetypen som bygger den. En
+        # utledning av URL-en ville vært et andre sted sidetypen
+        # bestemmes, og den ville tatt feil på /endringer/2026-39/ som er
+        # en uke og ikke en endringstype.
+        "sidetype": sidetype,
+        "undertittel": undertittel,
+        # ORD SOM SKAL VEIE TUNGT. Tittelen og kommunen — det en leser
+        # skriver inn når hun leter etter et sted. De står allerede i
+        # sidas tekst; her står de en gang til med vekt, og Pagefind
+        # summerer vektene for det samme ordet.
+        "soketekst": soketekst,
     }
 
 
@@ -4378,6 +4403,18 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
                 "Lusetallene er hentet fra BarentsWatch og gjelder uka "
                 "de er datert til."),
             meny_aktiv="lokalitet",
+            # UNDERTITTELEN I TREFFLISTA: kommune · område · innehaver.
+            # De tre er det en leser skiller to lokaliteter på når begge
+            # heter noe med «holmen». Innehaveren er den samme strengen
+            # siden viser — også når kilden klassifiserer den som en
+            # personform, og da er den «eieren er en personform».
+            sidetype="Lokalitet",
+            undertittel=SKILLE.join(
+                x for x in (lok["kommune"],
+                            (f"{lok['po_kode']} {lok['po_navn']}"
+                             if lok["po_kode"] else ""),
+                            lok["selskap"]["navn"]) if x),
+            soketekst=f"{lok['tittelnavn']} {lok['kommune']}",
             main_klasse="fullbredde",
             feed=f"/lokalitet/{loknr}/feed.xml",
             feed_tittel=f"Kystloggen: endringer for lokalitet {loknr}"),
@@ -4769,6 +4806,10 @@ def skriv_endringssider(rot: Path, felles: Felles,
                         f"Sammenligning av øyeblikksbildene for "
                         f"{uke['vist']} og uka før."),
                     meny_aktiv="endringer",
+                    sidetype="Endringsuke",
+                    undertittel=(f"{valgt['navn']}{SKILLE}{uke['merke']}"
+                                 if valgt else uke["merke"]),
+                    soketekst=uke["vist"],
                     main_klasse="fullbredde",
                     feed="/endringer/feed.xml",
                     feed_tittel="Kystloggen: alle endringer")))
@@ -4802,6 +4843,8 @@ def skriv_endringssider(rot: Path, felles: Felles,
             proveniens_tekst=proveniens(felles.akva_dato,
                                         felles.akva_hentet),
             meny_aktiv="endringer",
+            sidetype="Liste",
+            undertittel=f"{len(uker)} uker med observerte endringer",
             main_klasse="fullbredde",
             feed="/endringer/feed.xml",
             feed_tittel="Kystloggen: alle endringer")))
@@ -5177,7 +5220,8 @@ def skriv_sok(rot: Path, felles: Felles, uker: list[dict]) -> Path:
                 "inLanguage": "nb",
             }),
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
-            meny_aktiv="sok", side_skript="/sok.js"))
+            meny_aktiv="sok", side_skript="/sok.js",
+            sidetype="Søk", undertittel=f"{d['sider']} sider"))
     return skriv_side(sti, html)
 
 
@@ -5746,7 +5790,8 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
                 "codeRepository": om["repo"],
             }),
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
-            meny_aktiv="om"),
+            meny_aktiv="om", sidetype="Om",
+            undertittel="Kilder, metode, dekning og sitering"),
     )
     return skriv_side(rot / "om" / "index.html", html)
 
@@ -5869,7 +5914,8 @@ def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
                 "inLanguage": "nb",
             }),
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
-            meny_aktiv=sti),
+            meny_aktiv=sti, sidetype="Liste",
+            undertittel=f"{data['antall']} oppføringer"),
     )
     return skriv_side(rot / sti / "index.html", html)
 
@@ -6463,6 +6509,9 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
             feed="/endringer/feed.xml",
             feed_tittel="Kystloggen: alle endringer",
+            sidetype="Forside",
+            undertittel="Et uavhengig arkiv over offentlige data om "
+                        "norsk havbruk",
             main_klasse="fullbredde"),
     )
     return skriv_side(rot / "index.html", html)
@@ -6834,6 +6883,14 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
                 "Registerdataene om selskapet er fra "
                 "Enhetsregisteret."),
             meny_aktiv="selskap",
+            # ORGANISASJONSNUMMER · ANTALL LOKALITETER. Nummeret er
+            # identiteten — to selskaper kan hete nesten det samme — og
+            # antall lokaliteter er størrelsen. Nummeret grupperes
+            # ALDRI, se visningsord regel 3.
+            sidetype="Selskap",
+            undertittel=(f"{orgnr}{SKILLE}"
+                         f"{visningsord.antall(sel['lokaliteter_antall'], 'lokalitet', 'lokaliteter')}"),
+            soketekst=sel["navn"] or orgnr,
             main_klasse="fullbredde",
             feed=f"/selskap/{orgnr}/feed.xml",
             feed_tittel=f"Kystloggen: endringer for {sel['navn'] or orgnr}"),
@@ -6915,6 +6972,13 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
                 felles.akva_dato, felles.akva_hentet,
                 "Forskriftsrundene er lest fra Lovdata."),
             meny_aktiv="produksjonsomrade",
+            sidetype="Produksjonsområde",
+            undertittel=(
+                f"{visningsord.antall(d['lokaliteter_antall'], 'lokalitet', 'lokaliteter')}"
+                f"{SKILLE}"
+                f"{visningsord.antall(d['selskaper_antall'], 'selskap', 'selskaper')}"
+                f"{SKILLE}{d['naa']['farge']} nå"),
+            soketekst=d["navn"],
             main_klasse="fullbredde",
             feed=f"/produksjonsomrade/{po}/feed.xml",
             feed_tittel=f"Kystloggen: endringer i produksjonsområde {po}"),

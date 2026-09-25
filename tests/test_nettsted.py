@@ -117,6 +117,11 @@ def _grunn(undermappe: str = "", **over) -> dict:
         "feed_tittel": "",
         "main_klasse": "",
         "side_skript": "",
+        # Det søkeindeksen trenger. Tomme her, som for 404-sida: en
+        # prøve som rendrer én mal skal ikke måtte finne på en sidetype.
+        "sidetype": "",
+        "undertittel": "",
+        "soketekst": "",
     }
     grunn.update(over)
     return grunn

@@ -1388,6 +1388,13 @@ a:hover {
 .typemerke--tom:visited { color: var(--ink-dempet); }
 .typemerke--tom:hover { color: var(--ink-dempet); box-shadow: none; }
 
+/* FILTERRADEN PÅ /sok/. Samme brikker som endringssidene, men de er
+   `<button>` og ikke lenker: de filtrerer et resultat på stedet og
+   fører ikke til en adresse. Tom til Pagefind er lastet — en tom rad
+   skal ikke ta plass. */
+.sokefilter:empty { display: none; }
+.sokefilter button { font: inherit; cursor: pointer; border: 0; }
+
 /* ---- arkivlinja ---- */
 
 /* ARKIVLINJA er en INNFELT flate og går derfor helt ut i kanten, som
@@ -3179,6 +3186,17 @@ figcaption {
 
 .sokeliste > li > a:visited { color: var(--rust); }
 .sokeliste > li > a:hover { color: var(--rust); text-decoration: underline; }
+
+/* UNDERTITTELEN I TREFFLISTA. Sidetype og de tre tingene som skiller
+   to sider med nesten samme navn: kommune, område og innehaver for en
+   lokalitet. Den står MELLOM tittelen og utdraget, fordi det er den
+   som avgjør om treffet er riktig. */
+.sok-undertittel {
+  margin: var(--rom-4) 0 0;
+  max-width: none;
+  font-size: var(--fs-13);
+  color: var(--ink-dempet);
+}
 
 .sok-utdrag {
   margin: var(--rom-6) 0 var(--rom-4);

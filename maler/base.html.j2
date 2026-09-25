@@ -128,7 +128,28 @@
    merket `data-pagefind-body` hver for seg — se `sidehode` i
    malene. Pagefind slår sammen alle merkede områder på en side. #}
 <main id="innhold" class="{{ main_klasse }}" data-pagefind-body
+      {%- if sidetype %} data-pagefind-filter="type:{{ sidetype }}"{% endif %}
       tabindex="-1">
+{# HVA SØKET SKAL VITE OM SIDEN, og ingenting annet.
+
+   Pagefind leser den ferdige HTML-en og har ingen annen vei til å vite
+   hva en side ER. Verdiene står i ATTRIBUTTER og ikke som tekst, av to
+   grunner: en meta-verdi skrevet som `nøkkel:verdi` brekker på første
+   komma, og beskrivelsene er setninger med komma i — og teksten ville
+   ellers blitt indeksert to ganger og telt dobbelt i treffrangeringen.
+
+   `soketekst` er det ene unntaket: tittelen og kommunen står som TEKST
+   med vekt, fordi vekt gjelder ord som faktisk indekseres. Pagefind
+   summerer vekten for det samme ordet, så de veier tyngre her enn i
+   brødteksten uten å stå to steder i sidens synlige tekst. #}
+{% if sidetype %}
+<div class="visuelt-skjult">
+  <span data-pagefind-meta="sidetype[data-verdi]" data-verdi="{{ sidetype }}"></span>
+  <span data-pagefind-meta="undertittel[data-verdi]" data-verdi="{{ undertittel }}"></span>
+  <span data-pagefind-meta="beskrivelse[data-verdi]" data-verdi="{{ beskrivelse }}"></span>
+  {% if soketekst %}<span data-pagefind-weight="10">{{ soketekst }}</span>{% endif %}
+</div>
+{% endif %}
 {% block innhold %}{% endblock %}
 </main>
 
