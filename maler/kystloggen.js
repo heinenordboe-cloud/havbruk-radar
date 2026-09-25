@@ -16,8 +16,12 @@
  *                   gjør noe er verre enn ingen knapp.
  *   områdesøket     uten: hele tabellen vises, og skjemaet sender til
  *                   en side som svarer.
- *   endringsfilter  uten: hver type er sin egen STI, bygget som en
- *                   ekte side. Med skript slipper man rundturen.
+ *
+ * FILTERET PÅ ENDRINGSSIDEN ER BORTE fra 24.09.2026. Det var en rad
+ * avkrysningsbokser skriptet slo på, og som da SKJULTE brikkene under.
+ * Brikkene er lenker til sider som er bygget, og de virker overalt; to
+ * filtre for det samme er ett for mye, og det som forsvant uten skript
+ * var det som så ut som et skjema.
  *
  * ## Ingen avhengigheter, ingen bygging, ingen modulsyntaks
  *
@@ -115,57 +119,7 @@
     filtrer();
   }
 
-  /* -------------------------------------------------- endringsfilter
-   *
-   * Avkrysningsboksene på endringssiden. Uten skript er hver boks en
-   * LENKE til `/endringer/<uke>/<type>/`, som er en ekte side bygget
-   * ved bygging. Med skript filtreres tabellen på stedet, og flere
-   * typer kan velges samtidig — det er forbedringen.
-   */
-  function endringsfilter() {
-    var rot = document.querySelector("[data-filter-for]");
-    if (!rot) return;
-    var tabell = document.getElementById(rot.getAttribute("data-filter-for"));
-    if (!tabell) return;
-    var bokser = rot.querySelectorAll("input[type=checkbox][name=type]");
-    if (!bokser.length) return;
-    var teller = tabell.querySelector("caption [data-teller]");
-    var rader = tabell.querySelectorAll("tbody tr[data-type]");
-    var tomrad = tabell.querySelector("tbody tr[data-tom]");
-
-    rot.hidden = false;
-
-    /* LENKELISTA SKJULES når skjemaet tar over. Begge er filteret —
-       den ene virker uten skript, den andre med — og to filtre på
-       skjermen samtidig er ett for mye. Rekkefølgen er viktig: lista
-       skjules FØRST når skjemaet er slått på, aldri før. */
-    var utenJs = document.querySelectorAll("[data-uten-js]");
-    Array.prototype.forEach.call(utenJs, function (el) { el.hidden = true; });
-
-    function filtrer() {
-      var valgt = [];
-      Array.prototype.forEach.call(bokser, function (b) {
-        if (b.checked) valgt.push(b.value);
-      });
-      var synlige = 0;
-      Array.prototype.forEach.call(rader, function (rad) {
-        var treff = !valgt.length
-          || valgt.indexOf(rad.getAttribute("data-type")) >= 0;
-        rad.hidden = !treff;
-        if (treff) synlige++;
-      });
-      if (tomrad) tomrad.hidden = synlige > 0;
-      if (teller) {
-        teller.textContent = "Viser " + synlige + " av " + rader.length;
-      }
-    }
-    Array.prototype.forEach.call(bokser, function (b) {
-      b.addEventListener("change", filtrer);
-    });
-    filtrer();
-  }
-
-  /* --------------------------------------------- selskapsdata-delen
+    /* --------------------------------------------- selskapsdata-delen
    *
    * `<details open>` i markupen, lukket her. Rekkefølgen er hele
    * poenget: uten skript står delen ÅPEN, og alt innholdet er der.
@@ -178,7 +132,7 @@
     Array.prototype.forEach.call(deler, function (d) { d.open = false; });
   }
 
-  [kopier, omraadesok, endringsfilter, selskapsdel].forEach(function (del) {
+  [kopier, omraadesok, selskapsdel].forEach(function (del) {
     try {
       del();
     } catch (e) {

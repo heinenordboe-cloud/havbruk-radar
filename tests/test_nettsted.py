@@ -2046,6 +2046,30 @@ def test_verken_tar_eller_og_ikke_og():
     assert visningsord.liste(["A", "B", "C"]) == "A, B og C"
 
 
+def test_rammen_sitter_paa_de_klikkbare_brikkene():
+    """En ramme rundt alt sier ingenting om hva som fører et sted.
+    Brikker med rader har den; brikker med null har den ikke."""
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    assert "box-shadow: inset 0 0 0 1px rgba(11, 36, 48, 0.25);" in css
+    tom = re.search(r"\.typemerke--tom \{([^}]*)\}", css).group(1)
+    assert "box-shadow: none" in tom, tom
+
+
+def test_ukesiden_har_brikker_og_ingen_avkrysningsbokser():
+    """To filtre for det samme er ett for mye, og det ene som forsvant
+    uten JavaScript var det som så ut som et skjema."""
+    mal = (Path(__file__).resolve().parents[1] / "maler"
+           / "endringer-uke.html.j2").read_text(encoding="utf-8")
+    assert 'class="typemerker"' in mal, "brikkene skal stå"
+    assert "checkbox" not in mal
+    assert "typefilter" not in mal
+    js = (Path(__file__).resolve().parents[1] / "maler" / "kystloggen.js"
+          ).read_text(encoding="utf-8")
+    assert "endringsfilter" not in js
+    assert "data-uten-js" not in js, "markøren har ingenting å skjule lenger"
+
+
 def test_ingen_bildetekst_inne_i_scrollramma():
     """MÅLT ved 390px: en `<caption>` ligger inne i tabellen og dermed
     inne i ramma med `overflow-x: auto`. En tabell bredere enn skjermen

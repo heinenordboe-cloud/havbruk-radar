@@ -1331,9 +1331,15 @@ a:hover {
 .typemerke-tall { font-family: var(--skrift-tall); font-size: var(--fs-13); }
 
 /* TYPER MED NULL VISES ALLTID, dempet. Et tall man bare ser når det er
-   noe der, er et tall ingen kjenner normalverdien til. */
-.typemerke--tom { color: var(--ink-dempet); box-shadow: inset 0 0 0 1px var(--papir3); }
+   noe der, er et tall ingen kjenner normalverdien til.
+ *
+ * RAMMEN SITTER PÅ DE KLIKKBARE. Fram til 24.09.2026 hadde begge slag
+ * ramme — de tomme bare i en lysere tone — og en ramme rundt alt sier
+ * ingenting om hva som fører et sted. Nå bærer ramma nettopp det
+ * skillet: brikker med rader har den, brikker med null har den ikke. */
+.typemerke--tom { color: var(--ink-dempet); box-shadow: none; }
 .typemerke--tom:visited { color: var(--ink-dempet); }
+.typemerke--tom:hover { box-shadow: none; }
 
 /* ---- arkivlinja ---- */
 
@@ -2732,32 +2738,6 @@ figcaption {
  * EKTE side. En avkrysningsboks som ikke gjør noe er verre enn ingen
  * boks — samme regel som kopierknappen.
  */
-
-.typefilter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--rom-8) var(--rom-16);
-  margin-block: var(--rom-24) var(--rom-16);
-  padding: var(--rom-12) var(--rom-16);
-  background: var(--papir2);
-}
-
-.typefilter-etikett {
-  font-size: var(--fs-13);
-  font-weight: 500;
-  color: var(--ink-dempet);
-}
-
-.typefilter-boks {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.4em;
-  font-size: var(--fs-13);
-  cursor: pointer;
-}
-
-.typefilter-boks input { accent-color: var(--rust); }
 
 /* DEN VALGTE TYPEN er merket med aksenten som STREK, ikke som flate —
    regelen fra avsnitt 1 gjelder her som overalt. */

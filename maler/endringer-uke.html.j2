@@ -91,31 +91,16 @@
     {% endif %}
   </div>
 
-  {# FILTERET. Uten JavaScript er hver boks en LENKE til typesiden, som
-     er bygget. `data-filter-for` slår på JS-varianten, som filtrerer
-     tabellen på stedet og lar flere typer velges samtidig.
 
-     Skjemaet er `hidden` til JS har lastet, og LENKELISTA under er det
-     som vises uten. En avkrysningsboks som ikke gjør noe er verre enn
-     ingen. #}
-  <form class="typefilter" data-filter-for="endringer-uke"
-        action="/endringer/{{ u.slug }}/" method="get" hidden
-        aria-label="Filtrer på endringstype">
-    <span class="typefilter-etikett">Endringstype</span>
-    {% for k in u.typer %}
-    <label class="typefilter-boks{% if not k.antall %} typemerke--tom{% endif %}">
-      <input type="checkbox" name="type" value="{{ k.id }}"
-             {% if valgt and valgt.id == k.id %}checked{% endif %}>
-      {{ k.navn }} <span class="typemerke-tall">{{ k.antall }}</span>
-    </label>
-    {% endfor %}
-  </form>
+  {# BRIKKENE ER FILTERET, med og uten JavaScript. Hver brikke er en
+     lenke til `/endringer/<uke>/<type>/`, en ekte side bygget ved
+     bygging.
 
-  {# LENKELISTA er filteret UTEN JavaScript: hver lenke går til en ekte,
-     bygget side. Med JavaScript skjules den av skriptet og skjemaet
-     over tar over — to filtre på skjermen samtidig er ett for mye.
-     `data-uten-js` er markøren skriptet ser etter. #}
-  <ul class="typemerker" data-uten-js
+     Fram til 24.09.2026 sto det en RAD MED AVKRYSNINGSBOKSER over, som
+     skriptet slo på og som da skjulte brikkene. To filtre for det samme
+     er ett for mye, og det ene som forsvant uten JavaScript var det som
+     så ut som et skjema. Brikkene virker overalt. #}
+  <ul class="typemerker"
       aria-label="Endringstyper i {{ u.vist }}">
     <li>
       <a class="typemerke{% if not valgt %} typemerke--valgt{% endif %}"
@@ -133,8 +118,12 @@
     {% endfor %}
   </ul>
 
-  <p class="tabelltittel" id="endringer-uke-tittel"><span data-teller>Viser {{ rader|length }} av {{ rader|length }}</span>
-      {% if valgt %}rader{% else %}endringer utenom selskapsdata{% endif %}
+  {#- TALLET ER FAST. `data-teller` ble skrevet om av filterskriptet, som
+      er borte fra 24.09.2026 — brikkene er filteret, og hver brikke er
+      en egen bygget side. «Viser N av N» var da en omvei til N. #}
+  <p class="tabelltittel" id="endringer-uke-tittel">{{ antall(rader|length,
+      "rad", "rader") }}
+      {% if valgt %}{% else %}utenom selskapsdata{% endif %}
       i {{ u.vist }}.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-uke-tittel" tabindex="0">
@@ -169,16 +158,19 @@
           <span data-felt="{{ r.til_felt }}">{{ r.til }}</span></td>
       </tr>
       {% endfor %}
-      {# TOMRADEN er `hidden` når det er rader, og slås på av filteret
-         når et valg tømmer tabellen. Uten den ville en tom tabell sett
-         ut som en feil. #}
-      <tr data-tom{% if rader %} hidden{% endif %}>
+      {# TOMRADEN står når det ikke er rader. Den var `hidden` og ble
+         slått på av filterskriptet; nå finnes ikke skriptet, og raden
+         skrives bare når tabellen faktisk er tom. Uten den ville en tom
+         tabell sett ut som en feil. #}
+      {% if not rader %}
+      <tr data-tom>
         <td colspan="6" data-felt="tomtekst">
           {% if valgt %}Ingen {{ valgt.navn|lower }} i {{ u.vist }}.
           {% else %}Ingen endringer i {{ u.vist }}. Alle felt står som
           de sto forrige gang vi spurte.{% endif %}
         </td>
       </tr>
+      {% endif %}
     </tbody>
   </table>
   </div>
