@@ -406,6 +406,7 @@ class Funn:
     fil: str
     slag: str        # ukjent_orgnr | personform | ukjent_navn | ugranska
                      # | ukjent_partisjon | feilerklaert_partisjon
+                     # | uferdig
     utdrag: str
     antall: int = 1
 
@@ -941,6 +942,87 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
         if navn not in meldt:
             funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn), antall))
 
+    return funn
+
+
+# --------------------------------------------------- uferdig tekst
+#
+# MARKØRENE FOR TEKST SOM IKKE ER SKREVET FERDIG. Én liste, fordi de er
+# ett spørsmål: står det noe i utputtet som var ment for oss og ikke for
+# leseren?
+#
+# Grunnen til at dette er portens sak og ikke korrekturens: en uvedtatt
+# setning på nettstedet er en PÅSTAND vi ikke har gått god for, og
+# /om/-seksjonen som ble tatt ut 24.09.2026 var nettopp det — «Utkast.
+# [Heine skriver endelig tekst.]» sto synlig over en skisse av hva andre
+# har lov til med dataene. Merket gjorde den ærlig og ikke mindre
+# publisert. Det er samme klasse som `ugranska`: ikke et personvernbrudd,
+# men noe som forlot maskinen uten at noen tok stilling til det.
+#
+# Markørene er repoets egne konvensjoner, ikke gjetninger:
+#
+#   [Heine          plassholderen i beslutningsnotatene og i malene —
+#                   «[Heine]», «[Heine skriver endelig tekst.]»
+#   [fylles inn]    frontmatterens plassholder for en commit-sha
+#   Utkast.         merket `.utkast-merke` skriver, og overskriften
+#                   «**UTKAST.**» i notatene
+#   TODO / FIXME    de vanlige, som ingen skriver med vilje i prosa
+#   Lorem ipsum     fyllteksten fra en designfil
+#
+# HAKEPARENTES-NAVNET er med vilje bare «[Heine»: en generisk prøve på
+# «[ord]» ville truffet legitim tekst — kildehenvisninger og
+# tegnforklaringer bruker hakeparentes — og en prøve som feller det ekte
+# blir en prøve noen slår av.
+#
+# «Utkast.» søkes VERSALFØLSOMT, og det er målt hvorfor. Ordet står i
+# utputtet to steder: i `om/index.html`, som er funnet vi vil ha, og i
+# `stil.css` — stilarket bærer kommentarene sine ut, og en av dem sier
+# «ET UTKAST SKAL SE UT SOM ET UTKAST.» En versalblind prøve ville felt
+# porten på vår egen forklaring av mekanismen, hver kjøring.
+#
+# Formen som prøves er derfor badgens egen: `<strong>Utkast.</strong>`.
+# Ordgrensa foran gjør at «forskriftsutkast.» ikke treffer. Prisen er at
+# en plassholder skrevet «UTKAST.» i en HTML-side slipper gjennom; den
+# formen finnes i beslutningsnotatene, som ikke bygges, og et notat som
+# en dag legges ut er en ny prøve verdt — ikke en grunn til å felle
+# stilarket i dag.
+UFERDIGMARKORER = (
+    "[Heine",
+    "[fylles inn]",
+    "Utkast.",
+    "TODO",
+    "FIXME",
+    "Lorem ipsum",
+)
+
+# «Utkast.» skal ikke treffe inni et sammensatt ord. De andre er
+# entydige nok til å søkes som de står.
+_ORDGRENSE = ("Utkast.",)
+
+
+def uferdig_tekst(tekst: str, fil: str = "") -> list[Funn]:
+    """Markører for tekst som ikke er skrevet ferdig. Tom liste = rent.
+
+    Ett funn per markør, med antallet — ikke ett per treff. En side som
+    sier «TODO» fire ganger har ett problem, ikke fire.
+
+    Prøven kjøres på ALLE tekstfiler, også `.csv` og `.json`: en
+    plassholder i en nedlastbar fil er verre enn i HTML-en, fordi den
+    lever videre et annet sted. Samme begrunnelse som `gransk_csv`.
+
+    Funnet kan IKKE kvitteres ut. Det er et valg: en kvittering sier «vi
+    har sett dette og det er riktig», og en markør for uferdig tekst kan
+    ikke være riktig — enten er teksten skrevet, eller så skal den ut.
+    Se `maler/om.html.j2`.
+    """
+    funn: list[Funn] = []
+    for markor in UFERDIGMARKORER:
+        if markor in _ORDGRENSE:
+            antall = len(re.findall(rf"\b{re.escape(markor)}", tekst))
+        else:
+            antall = tekst.count(markor)
+        if antall:
+            funn.append(Funn(fil, "uferdig", f"«{markor}»", antall))
     return funn
 
 
@@ -1563,6 +1645,9 @@ def gransk(mappe: Path) -> list[Funn]:
                 continue
             funn.append(Funn(rel, "ugranska", sti.suffix or "(uten endelse)"))
             continue
+        # UFERDIG TEKST, på hver tekstfil uansett type. Se
+        # `UFERDIGMARKORER`.
+        funn.extend(uferdig_tekst(tekst, fil=rel))
         if sti.suffix.lower() in KOLONNETYPER:
             funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
                                    avgrenser=KOLONNETYPER[sti.suffix.lower()]))

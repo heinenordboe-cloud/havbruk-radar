@@ -416,6 +416,82 @@ def test_dobbeltmerket_celle_meldes_en_gang(lister):
     assert [f.slag for f in funn] == ["ukjent_navn"]
 
 
+# ---- uferdig tekst ----------------------------------------------------
+#
+# /om/ hadde en Gjenbruk-seksjon med «Utkast. [Heine skriver endelig
+# tekst.]» synlig over en skisse av hva andre har lov til med dataene.
+# Merket gjorde den ærlig og ikke mindre publisert.
+
+def test_porten_feller_en_side_med_uferdigmarkor(tmp_path, snapshotmappe):
+    """Gjennom `gransk()`, ikke bare gjennom prøvefunksjonen.
+
+    Det er porten som skal falle. En prøve på `uferdig_tekst()` alene
+    ville stått grønn den dagen kallet i `gransk()` forsvant — og det er
+    nøyaktig den formen `nettsted._siste()` hadde mot hooken.
+    """
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title>"
+        "<p><strong>Utkast.</strong> [Heine skriver endelig tekst.]</p>",
+        encoding="utf-8")
+
+    funn = vakt.gransk(ut)
+
+    assert [f.slag for f in funn] == ["uferdig", "uferdig"]
+    assert {f.utdrag for f in funn} == {"«Utkast.»", "«[Heine»"}
+    # Og porten faller: funnet kan ikke kvitteres ut.
+    assert vakt.ukvittert(funn) == funn
+
+
+def test_en_ferdig_side_gir_ingen_uferdigfunn(tmp_path, snapshotmappe):
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title><p>Ferdig tekst om et "
+        "forskriftsutkast. Ingenting gjenstår.</p>", encoding="utf-8")
+    assert vakt.gransk(ut) == []
+
+
+def test_markoren_meldes_en_gang_med_antallet():
+    """Fire «TODO» er ett problem, ikke fire funnrader."""
+    funn = vakt.uferdig_tekst("TODO a TODO b TODO c TODO", "x.html")
+    assert len(funn) == 1
+    assert funn[0].antall == 4
+
+
+def test_uferdigmarkor_i_csv_ogsaa():
+    """En plassholder i en nedlastbar fil lever videre et annet sted.
+    Samme begrunnelse som `gransk_csv`."""
+    funn = vakt.uferdig_tekst("kolonne,verdi\nnavn,Lorem ipsum\n", "ukas.csv")
+    assert [f.utdrag for f in funn] == ["«Lorem ipsum»"]
+
+
+def test_stilarkets_egen_forklaring_feller_ikke_porten():
+    """MÅLT 24.09.2026: ordet «utkast» står to steder i utputtet — i
+    om/index.html, som er funnet vi vil ha, og i stil.css, som bærer
+    kommentaren «ET UTKAST SKAL SE UT SOM ET UTKAST.» En versalblind
+    prøve ville felt porten på vår egen forklaring, hver kjøring."""
+    assert vakt.uferdig_tekst(
+        "/* ET UTKAST SKAL SE UT SOM ET UTKAST. */", "stil.css") == []
+    assert vakt.uferdig_tekst("et forskriftsutkast. her", "x") == []
+
+
+def test_hver_markor_har_en_grunn_skrevet_ned():
+    """Lista er ett sted, og den skal kunne leses uten å gjette.
+
+    En markør som kommer til uten en linje om hvorfor, er neste
+    generasjons «hvorfor feller porten på dette?» — og det spørsmålet
+    besvares med en kvittering eller med at prøven slås av.
+    """
+    kilde = pathlib.Path(vakt.__file__).read_text(encoding="utf-8")
+    hode = kilde.split("UFERDIGMARKORER = (")[0].rsplit(
+        "# --------------------------------------------------- uferdig tekst", 1)[1]
+    for markor in vakt.UFERDIGMARKORER:
+        nokkel = markor.strip("[").split()[0].rstrip(".")
+        assert nokkel in hode, f"{markor} står i lista uten en grunn over"
+
+
 # ---- filer vakten ikke kan lese ---------------------------------------
 
 def test_ulesbar_fil_rapporteres_ikke_antas_trygg(tmp_path,
