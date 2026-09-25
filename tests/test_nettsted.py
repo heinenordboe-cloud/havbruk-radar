@@ -1721,7 +1721,12 @@ def test_forsiden_svarer_paa_de_tre_tingene():
     """Hva er dette, hva har skjedd, kan jeg stole på det."""
     html = " ".join(_forside().split())
     assert "Registrene viser nå. Vi tar vare på før." in html
-    assert "Et uavhengig, åpent arkiv over offentlige data" in html
+    # «ÅPENT» ER FJERNET 24.09.2026. Ordet påsto noe om tilgangen som
+    # ikke er avgjort: grensen mellom fri gjenbruk og avtalt uttrekk står
+    # som utkast (2026-09-22-gratis-mot-betalt-grense.md), og
+    # Gjenbruk-seksjonen ble tatt av /om/ av samme grunn.
+    assert "Et uavhengig arkiv over offentlige data" in html
+    assert "åpent arkiv" not in html
     assert "Heine Valø Nordbøe" in html
     assert "github.com/heinenordboe-cloud/havbruk-radar" in html
     for lenke in ("/lokalitet/", "/produksjonsomrade/", "/selskap/",
