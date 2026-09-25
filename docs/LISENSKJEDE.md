@@ -148,8 +148,21 @@ Kartdataene finnes som statiske filer under
     N2000 landsdekkende GML-zip         4,9 MB
     N5000 landsdekkende GML-zip         1,3 MB
 
-Dybdedataene er ikke målt på størrelse her utover lisensen, som var det
-som ble bedt om.
+Dybdedataene, målt samme sted og samme dag:
+
+    Dybdedata – kurver generaliserte, landsdekkende
+        SOSI-zip   104,7 MB       S57-zip    91,7 MB
+        (ingen GML, ingen GeoJSON, ingen GeoPackage)
+
+    Dybdedata (fulle), per kommune/fylke i GML
+        427 filer, 18,4 GB til sammen
+
+Kildens egen beskrivelse av de generaliserte kurvene, ordrett:
+«Inneholder generaliserte dybdekurver for norske kyst- og havområder.
+Dybdekurvene er grove og har varierende kvalitet og nøyaktighet.»
+
+INGENTING ER BYGGET MED DEM. Dette er lisensen og størrelsen, som var
+det som ble bedt om.
 
 ### Merknad G — de to som ikke krever noe
 
