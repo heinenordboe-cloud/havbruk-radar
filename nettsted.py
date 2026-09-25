@@ -3266,7 +3266,21 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
             "gjelder": "lokaliteten",
             "kilde": "",
             "forste": True,
+            # HVILKE KILDER DATOEN GJELDER. Setningen på siden sier
+            # «registerfeltene», og her står navnene den bygger på, så
+            # de to ikke kan bli uenige.
+            "dekker": visningsord.liste(sorted(d["kilde"]
+                                               for d in dekning_fra)),
         })
+    # KRONOLOGISK, og ikke «sist i lista».
+    #
+    # Posten ble lagt til til slutt, og lista er nyest først — det er
+    # riktig så lenge ingen annen post er ELDRE. Sykdomsflaggene er
+    # datert til UKA de gjelder for (se APNE-SPORSMAL punkt 2), og en
+    # slik dato kan ligge før første øyeblikksbilde. Da sto «Første
+    # øyeblikksbilde» over poster som er eldre enn den, og påsto at
+    # ingenting før den finnes i loggen.
+    poster.sort(key=lambda r: _omvendt(r["dato"]))
     return poster
 
 

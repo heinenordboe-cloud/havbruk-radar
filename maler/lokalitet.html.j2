@@ -232,8 +232,16 @@
       </p>
       {% if post.forste %}
       <p class="tidsakse-verdi">
-        Første gang vi hentet registeret. Alt før dette står ikke i
-        loggen vår.
+        {#- HVA SETNINGEN GJELDER. «Alt før dette står ikke i loggen
+            vår» var for bredt: sykdomsflaggene er datert til UKA de
+            gjelder for, og en slik dato kan ligge FØR første
+            øyeblikksbilde og stå lenger ned på samme tidslinje. Da
+            motsier siden seg selv. Kildene står i `post.dekker`, utledet
+            av `_dekning_fra()`. #}
+        Første gang vi hentet {{ post.dekker }}. Endringer i
+        registerfeltene under er fra denne datoen og senere. Datoer
+        lenger ned kan være eldre: kilder som daterer en observasjon til
+        uka den gjelder for, oppgir sin egen dato.
       </p>
       {% else %}
       <p class="tidsakse-verdi">

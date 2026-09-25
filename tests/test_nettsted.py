@@ -2030,6 +2030,29 @@ def test_verken_tar_eller_og_ikke_og():
     assert visningsord.liste(["A", "B", "C"]) == "A, B og C"
 
 
+def test_forste_oyeblikksbilde_staar_kronologisk():
+    """Posten ble lagt til sist, og lista er nyest først — riktig helt
+    til en post er ELDRE. Sykdomsflagg dateres til UKA de gjelder for,
+    og en slik dato kan ligge før første øyeblikksbilde."""
+    endringer = [
+        {"dato": "2026-09-21", "datoslag": "henting", "datoord": "Observert",
+         "etikett": "Kapasitet", "felt": "kapasitet", "fra": "1", "til": "2",
+         "gjelder": "lokaliteten", "kilde": "akvakultur"},
+        # ELDRE enn første øyeblikksbilde, fordi kilden daterer til uka.
+        {"dato": "2026-07-06", "datoslag": "verden", "datoord": "Gjelder",
+         "etikett": "ILA", "felt": "har_ila", "fra": "Nei", "til": "Ja",
+         "gjelder": "lokaliteten", "kilde": "lusetall"},
+    ]
+    poster = nettsted._observert_historikk(
+        endringer, [{"kilde": "akvakultur", "fra": "2026-08-17"}], None)
+
+    datoer = [p["dato"] for p in poster]
+    assert datoer == sorted(datoer, reverse=True), datoer
+    forste = next(p for p in poster if p["forste"])
+    assert poster.index(forste) == 1, "mellom 21.09 og 06.07"
+    assert forste["dekker"] == "akvakultur"
+
+
 def test_ingen_vist_kilde_staar_som_nei():
     """«Vises her» utledes av hva byggene oppgir, ikke skrevet for hånd.
 
