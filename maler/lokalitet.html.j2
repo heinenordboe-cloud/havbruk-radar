@@ -41,8 +41,11 @@
     </ol>
   </nav>
 
-  <div class="sidehode-to">
-    <div>
+  {# HEADEREN ER ÉN SPALTE fra 25.09.2026. Faktalista og kartet lå her
+     og er flyttet til tilstandsspalta under — se `.lok-to`. Det som
+     blir igjen er det som IDENTIFISERER lokaliteten: navnet, nummeret,
+     og veiene ut av siden. #}
+  <div class="sidehode-en">
       {# NAVNET I TITTELFORM. Registerets versaler er en egenskap ved
          inntastingsfeltet, ikke en opplysning om navnet. Originalen
          står uendret i registerfelt-tabellen lenger nede, og DEN er
@@ -55,65 +58,6 @@
         {% if lok.arter %} · {{ lok.arter }}{% endif %}
       </p>
 
-      <dl class="fakta">
-        <div>
-          <dt>Kommune</dt>
-          <dd>{{ lok.kommune or "—" }}{% if lok.fylke %}, {{ lok.fylke }}{% endif %}</dd>
-        </div>
-        <div>
-          <dt>Produksjonsområde</dt>
-          <dd>
-            {% if lok.po_kode %}
-            <a href="/produksjonsomrade/{{ lok.po_kode }}/">{{ lok.po_kode }} {{ lok.po_navn }}</a>
-            <span class="fakta-bi rute-foran {{ lok.status_klasse }}">{{ lok.status }}</span>
-            {% else %}
-            <span class="mangler">utenfor inndelingen</span>
-            {% endif %}
-          </dd>
-        </div>
-        <div>
-          <dt>Innehaver</dt>
-          <dd>
-            {% if lok.selskap.personform %}
-            {# NAVNET VISES IKKE. Kilden klassifiserer innehaveren som
-               en personform, og et foretak som ER et menneske skal
-               ikke navngis her. Raden forsvinner ikke — samme tekst
-               som tabellen under bruker. Regel 3. #}
-            <span class="mangler">{{ lok.selskap.navn }}</span>
-            {% elif lok.selskap.navn %}
-              {% if lok.selskap.url %}
-              <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn }}</a>
-              {% else %}
-              <span class="eier">{{ lok.selskap.navn }}</span>
-              {% endif %}
-              {% if lok.selskap.siden %}
-              {#- HVA DATOEN ER, i tre ord istedenfor ett. «senest siden»
-                  sa at eierskapet BEGYNTE en gang før datoen, og det er
-                  en slutning; det kilden oppgir er at en overføring til
-                  dette organisasjonsnummeret ble journalført den dagen.
-                  Samme ord som kolonnen på selskapssiden — ett ord for
-                  én ting. #}
-              <span class="fakta-bi">eier ifølge overføring journalført
-                <time datetime="{{ lok.selskap.siden }}">{{ lok.selskap.siden|dato }}</time></span>
-              {% endif %}
-              {% if lok.selskap.flere %}
-              <span class="fakta-bi">og {{ lok.selskap.flere }}
-                innehaver til</span>
-              {% endif %}
-            {% else %}
-            <span class="mangler">{{ lok.eier_ukjent }}</span>
-            {% endif %}
-          </dd>
-        </div>
-        <div>
-          <dt>Kapasitet</dt>
-          {# REGISTERETS EGEN KAPASITET, ikke summen av tillatelsenes
-             MTB. De to er ulike størrelser — se `bygg_lokalitet`. #}
-          <dd>{{ lok.kapasitet or "—" }}
-            <span class="fakta-bi">{{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }}</span></dd>
-        </div>
-      </dl>
-
       <p class="knapperad">
         <a class="knapp knapp--tynn" href="feed.xml">Følg denne
           lokaliteten (feed)</a>
@@ -121,7 +65,95 @@
         <a class="knapp knapp--tynn" href="{{ lok.csv_filnavn }}">Lusetall
           som CSV</a>
       </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block innhold %}
+
+{# ---------------------------------------------------------------- 2
+   TO SPALTER FRA 1024 PIKSLER: tilstanden og tidslinja.
+
+   VENSTRE, omtrent 2/3, er TIDSLINJA — hva som har skjedd. HØYRE er
+   TILSTANDEN nå: nøkkeltallene, kartet, om det står fisk der, og
+   siteringen. Høyrespalta er klebrig, så tilstanden står stille mens
+   man leser seg nedover historikken.
+
+   DOM-REKKEFØLGEN ER TILSTAND FØRST, og det er ikke tilfeldig: under
+   1024px faller spaltene sammen til én, og da skal «hva er dette
+   stedet nå» komme før «hva har skjedd her». På brede skjermer bytter
+   `order` dem om. Rekkefølgen i markupen er den en skjermleser og en
+   telefon får, og den er den viktigste av de to.
+
+   Lusegrafen, tillatelsene, registerfeltene og historikken står under,
+   over hele bredden — de er tabeller og en graf, og de trenger
+   plassen. #}
+<div class="ark lok-to">
+
+<div class="lok-tilstand">
+  <section aria-labelledby="tilstand-tittel">
+    <h2 class="visuelt-skjult" id="tilstand-tittel">Tilstanden nå</h2>
+  <dl class="fakta">
+    <div>
+      <dt>Kommune</dt>
+      <dd>{{ lok.kommune or "—" }}{% if lok.fylke %}, {{ lok.fylke }}{% endif %}</dd>
     </div>
+    <div>
+      <dt>Produksjonsområde</dt>
+      <dd>
+        {% if lok.po_kode %}
+        <a href="/produksjonsomrade/{{ lok.po_kode }}/">{{ lok.po_kode }} {{ lok.po_navn }}</a>
+        <span class="fakta-bi rute-foran {{ lok.status_klasse }}">{{ lok.status }}</span>
+        {% else %}
+        <span class="mangler">utenfor inndelingen</span>
+        {% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>Innehaver</dt>
+      <dd>
+        {% if lok.selskap.personform %}
+        {# NAVNET VISES IKKE. Kilden klassifiserer innehaveren som
+           en personform, og et foretak som ER et menneske skal
+           ikke navngis her. Raden forsvinner ikke — samme tekst
+           som tabellen under bruker. Regel 3. #}
+        <span class="mangler">{{ lok.selskap.navn }}</span>
+        {% elif lok.selskap.navn %}
+          {% if lok.selskap.url %}
+          <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn }}</a>
+          {% else %}
+          <span class="eier">{{ lok.selskap.navn }}</span>
+          {% endif %}
+          {% if lok.selskap.siden %}
+          {#- HVA DATOEN ER, i tre ord istedenfor ett. «senest siden»
+              sa at eierskapet BEGYNTE en gang før datoen, og det er
+              en slutning; det kilden oppgir er at en overføring til
+              dette organisasjonsnummeret ble journalført den dagen.
+              Samme ord som kolonnen på selskapssiden — ett ord for
+              én ting. #}
+          <span class="fakta-bi">eier ifølge overføring journalført
+            <time datetime="{{ lok.selskap.siden }}">{{ lok.selskap.siden|dato }}</time></span>
+          {% endif %}
+          {% if lok.selskap.flere %}
+          <span class="fakta-bi">og {{ lok.selskap.flere }}
+            innehaver til</span>
+          {% endif %}
+        {% else %}
+        <span class="mangler">{{ lok.eier_ukjent }}</span>
+        {% endif %}
+      </dd>
+    </div>
+    <div>
+      <dt>Kapasitet</dt>
+      {# REGISTERETS EGEN KAPASITET, ikke summen av tillatelsenes
+         MTB. De to er ulike størrelser — se `bygg_lokalitet`. #}
+      <dd>{{ lok.kapasitet or "—" }}
+        <span class="fakta-bi">{{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }}</span></dd>
+    </div>
+  </dl>
+
+
+  </section>
 
     {# POSISJONSKARTET. Statisk SVG, tegnet ved bygging av Natural
        Earths kystlinje. Ingen flis, ingen karttjeneste, ingen
@@ -178,12 +210,123 @@
       <a href="/lokalitet/#akvakultur-uten-koordinater">lokalitetslista</a>.
     </p>
     {% endif %}
+
+  {# FISK TIL STEDE. Erstatter overleveringens biomassegraf, fordi
+     mengdetallene per lokalitet ikke er offentlige — se
+     `_biolagstripe()`. Mengden per produksjonsområde står på
+     områdesiden. #}
+  <section aria-labelledby="fisk-tittel">
+    <h2 id="fisk-tittel">Fisk til stede</h2>
+    {% if lok.biolag %}
+    {% set b = lok.biolag %}
+    <p class="blokk-ingress">
+      Om det står fisk på lokaliteten, uke for uke vi har observert.
+      Kilde: Fiskeridirektoratets biomasselag.
+    </p>
+    <figure class="graf">
+      <ol class="ukestripe" aria-label="Fisk til stede per observert uke">
+        {% for r in b.ruter %}
+        <li class="ukerute{% if r.ja %} ukerute--fisk{% endif %}"
+            title="{{ r.tittel }}">
+          <span class="ukerute-uke">{{ r.uke }}</span>
+          <span class="ukerute-svar">{{ r.har_fisk or "—" }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      <figcaption>
+        {{ b.med_fisk }} av {{ tall(b.observerte_uker) }} observerte uker med
+        fisk til stede.
+        <strong>Bare uker vi faktisk har hentet</strong> — stripa har
+        ingen ruter for uker vi ikke spurte i, fordi en tom rute ville
+        sett ut som «ingen fisk».
+      </figcaption>
+    </figure>
+    <p class="tabelltittel" id="biomasselag-uke-tittel">Biomasselaget, uke for uke. «Siste månedsrapport» er måneden
+        påstanden gjelder for — ikke uka vi hentet den.</p>
+    <div class="tabellramme" role="region"
+         aria-labelledby="biomasselag-uke-tittel" tabindex="0">
+    <table id="biomasselag-uke" aria-labelledby="biomasselag-uke-tittel">
+      <thead>
+        <tr>
+          <th scope="col">Observert</th>
+          <th scope="col">Fisk</th>
+          <th scope="col">Arter</th>
+          <th scope="col">Siste månedsrapport</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in b.ruter %}
+        <tr>
+          <th scope="row"><time datetime="{{ r.dato }}">{{ r.dato }}</time></th>
+          <td data-felt="{{ feltmerke(r.har_fisk, 'har_fisk') }}">{{ r.har_fisk or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(r.arter, 'arter_tilstede') }}">{{ r.arter or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(r.siste_rapport, 'siste_rapport') }}">
+            {%- if r.siste_rapport %}<time datetime="{{ r.siste_rapport }}" data-felt="siste_rapport">{{ r.siste_rapport }}</time>
+            {%- else %}{{ VERDI_MANGLER }}{% endif %}
+          </td>
+          <td data-felt="{{ feltmerke(r.status, 'lokalitet_status') }}">{{ r.status or VERDI_MANGLER }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      <strong>Laget oppgir ingen mengde</strong> — verken antall fisk
+      eller kilo biomasse. Biomassedatabasen etter
+      akvakulturdriftsforskriften § 44 er børssensitiv og ikke
+      offentlig, så dette er ja/nei og art, aldri hvor mye. De
+      offentlige mengdetallene finnes per produksjonsområde og står
+      {% if lok.po_kode %}
+      <a href="/produksjonsomrade/{{ lok.po_kode }}/#biomasse-maaned">på
+        områdesiden</a>.
+      {% else %}
+      på områdesidene.
+      {% endif %}
+      «Arter» er artene oppdretter meldte som til stede ved siste
+      månedsrapport, og er ikke det samme som artene lokaliteten har
+      tillatelse for.
+    </p>
+    {% else %}
+    <p class="tomt">
+      Lokaliteten står ikke i biomasselaget i noen av de
+      øyeblikksbildene vi har av det.
+      Laget dekker lokaliteter med innsendt månedsrapport; en lokalitet
+      uten fisk, eller uten rapportplikt, står ikke der.
+    </p>
+    {% endif %}
+  </section>
+
+<section id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      {# KNAPPEN SKJULES TIL JS HAR LASTET. Uten skript er teksten
+         markerbar og kan kopieres med tastaturet; en knapp som ikke
+         gjør noe er verre enn ingen knapp. Se `/kopier.js`. #}
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    {# URL-EN ER DEN FASTE ID-URL-EN. Uka, datoen og sjekksummen står i
+       TEKSTEN, ikke som en `?uke=`-parameter: en parameter gjør
+       identiteten til et argument på en side som ikke har noe som
+       leser den. Se 2026-09-16-url-struktur.md punkt 3. #}
+    <p class="siterbar" id="siterbar">Kystloggen ({{ lok.siter.aar }}).
+      <i>{{ lok.tittelnavn }}, lokalitet {{ lok.loknr }}.</i>
+      Øyeblikksbilde {{ lok.siter.uke }}, {{ lok.siter.dato }},
+      sjekksum {{ lok.siter.sjekksum[:8] }}…{{ lok.siter.sjekksum[-4:] }}.
+      {{ lok.siter.url }}</p>
+    <p class="siterboks-note">
+      Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss
+      den dagen. Den identifiserer øyeblikksbildet, og gjør at en
+      sitering kan etterprøves mot arkivet selv om siden er bygget om
+      siden.
+    </p>
   </div>
+</section>
 </div>
-{% endblock %}
 
-{% block innhold %}
-
+<div class="lok-tidslinje">
 {# ---------------------------------------------------------------- 2
    ENDRINGER VI HAR SETT. Den ene av de TO historikkene, og den som er
    vår egen. Se `_observert_historikk` for hvorfor de ikke flettes. #}
@@ -296,9 +439,15 @@
     <a href="/om/#hva-vi-ikke-gjor">hva som bevisst ikke hentes</a>.
   </p>
 </section>
+</div>
+
+</div>
 
 {# ---------------------------------------------------------------- 3
-   LAKSELUS OG FISK TIL STEDE, side om side. #}
+   LAKSELUS, over hele bredden. Fisk til stede sto her til 25.09.2026
+   og er flyttet til tilstandsspalta. Grafen blir da alene i
+   `to-spalter`, og regelen for en enslig blokk gir den hele bredden —
+   se `.to-spalter > .blokk:first-child:last-child`. #}
 <div class="ark seksjon to-spalter">
   <section class="blokk" aria-labelledby="lus-tittel">
     <h2 id="lus-tittel">Lakselus, voksne hunnlus per fisk</h2>
@@ -469,91 +618,6 @@
     </details>
   </section>
 
-  {# FISK TIL STEDE. Erstatter overleveringens biomassegraf, fordi
-     mengdetallene per lokalitet ikke er offentlige — se
-     `_biolagstripe()`. Mengden per produksjonsområde står på
-     områdesiden. #}
-  <section class="blokk" aria-labelledby="fisk-tittel">
-    <h2 id="fisk-tittel">Fisk til stede</h2>
-    {% if lok.biolag %}
-    {% set b = lok.biolag %}
-    <p class="blokk-ingress">
-      Om det står fisk på lokaliteten, uke for uke vi har observert.
-      Kilde: Fiskeridirektoratets biomasselag.
-    </p>
-    <figure class="graf">
-      <ol class="ukestripe" aria-label="Fisk til stede per observert uke">
-        {% for r in b.ruter %}
-        <li class="ukerute{% if r.ja %} ukerute--fisk{% endif %}"
-            title="{{ r.tittel }}">
-          <span class="ukerute-uke">{{ r.uke }}</span>
-          <span class="ukerute-svar">{{ r.har_fisk or "—" }}</span>
-        </li>
-        {% endfor %}
-      </ol>
-      <figcaption>
-        {{ b.med_fisk }} av {{ tall(b.observerte_uker) }} observerte uker med
-        fisk til stede.
-        <strong>Bare uker vi faktisk har hentet</strong> — stripa har
-        ingen ruter for uker vi ikke spurte i, fordi en tom rute ville
-        sett ut som «ingen fisk».
-      </figcaption>
-    </figure>
-    <p class="tabelltittel" id="biomasselag-uke-tittel">Biomasselaget, uke for uke. «Siste månedsrapport» er måneden
-        påstanden gjelder for — ikke uka vi hentet den.</p>
-    <div class="tabellramme" role="region"
-         aria-labelledby="biomasselag-uke-tittel" tabindex="0">
-    <table id="biomasselag-uke" aria-labelledby="biomasselag-uke-tittel">
-      <thead>
-        <tr>
-          <th scope="col">Observert</th>
-          <th scope="col">Fisk</th>
-          <th scope="col">Arter</th>
-          <th scope="col">Siste månedsrapport</th>
-          <th scope="col">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in b.ruter %}
-        <tr>
-          <th scope="row"><time datetime="{{ r.dato }}">{{ r.dato }}</time></th>
-          <td data-felt="{{ feltmerke(r.har_fisk, 'har_fisk') }}">{{ r.har_fisk or VERDI_MANGLER }}</td>
-          <td data-felt="{{ feltmerke(r.arter, 'arter_tilstede') }}">{{ r.arter or VERDI_MANGLER }}</td>
-          <td data-felt="{{ feltmerke(r.siste_rapport, 'siste_rapport') }}">
-            {%- if r.siste_rapport %}<time datetime="{{ r.siste_rapport }}" data-felt="siste_rapport">{{ r.siste_rapport }}</time>
-            {%- else %}{{ VERDI_MANGLER }}{% endif %}
-          </td>
-          <td data-felt="{{ feltmerke(r.status, 'lokalitet_status') }}">{{ r.status or VERDI_MANGLER }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    </div>
-    <p class="tabellnote">
-      <strong>Laget oppgir ingen mengde</strong> — verken antall fisk
-      eller kilo biomasse. Biomassedatabasen etter
-      akvakulturdriftsforskriften § 44 er børssensitiv og ikke
-      offentlig, så dette er ja/nei og art, aldri hvor mye. De
-      offentlige mengdetallene finnes per produksjonsområde og står
-      {% if lok.po_kode %}
-      <a href="/produksjonsomrade/{{ lok.po_kode }}/#biomasse-maaned">på
-        områdesiden</a>.
-      {% else %}
-      på områdesidene.
-      {% endif %}
-      «Arter» er artene oppdretter meldte som til stede ved siste
-      månedsrapport, og er ikke det samme som artene lokaliteten har
-      tillatelse for.
-    </p>
-    {% else %}
-    <p class="tomt">
-      Lokaliteten står ikke i biomasselaget i noen av de
-      øyeblikksbildene vi har av det.
-      Laget dekker lokaliteter med innsendt månedsrapport; en lokalitet
-      uten fisk, eller uten rapportplikt, står ikke der.
-    </p>
-    {% endif %}
-  </section>
 </div>
 
 {# ---------------------------------------------------------------- 4
@@ -762,31 +826,4 @@
 
 {# ---------------------------------------------------------------- 6
    SITER DENNE SIDEN. #}
-<section class="ark" id="siter" aria-labelledby="siter-tittel">
-  <div class="siterboks">
-    <div class="siterboks-hode">
-      <h2 id="siter-tittel">Siter denne siden</h2>
-      {# KNAPPEN SKJULES TIL JS HAR LASTET. Uten skript er teksten
-         markerbar og kan kopieres med tastaturet; en knapp som ikke
-         gjør noe er verre enn ingen knapp. Se `/kopier.js`. #}
-      <button class="knapp kopierknapp" type="button"
-              data-kopier="siterbar" hidden>Kopier</button>
-    </div>
-    {# URL-EN ER DEN FASTE ID-URL-EN. Uka, datoen og sjekksummen står i
-       TEKSTEN, ikke som en `?uke=`-parameter: en parameter gjør
-       identiteten til et argument på en side som ikke har noe som
-       leser den. Se 2026-09-16-url-struktur.md punkt 3. #}
-    <p class="siterbar" id="siterbar">Kystloggen ({{ lok.siter.aar }}).
-      <i>{{ lok.tittelnavn }}, lokalitet {{ lok.loknr }}.</i>
-      Øyeblikksbilde {{ lok.siter.uke }}, {{ lok.siter.dato }},
-      sjekksum {{ lok.siter.sjekksum[:8] }}…{{ lok.siter.sjekksum[-4:] }}.
-      {{ lok.siter.url }}</p>
-    <p class="siterboks-note">
-      Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss
-      den dagen. Den identifiserer øyeblikksbildet, og gjør at en
-      sitering kan etterprøves mot arkivet selv om siden er bygget om
-      siden.
-    </p>
-  </div>
-</section>
 {% endblock %}

@@ -2209,6 +2209,83 @@ td[data-felt="farge_mangler"]::before {
 
 .kart-markor .markor-prikk { fill: var(--rust-lys); }
 
+/* ---- LOKALITETSSIDENS TO SPALTER ----
+ *
+ * VENSTRE, omtrent 2/3: tidslinja — hva som har skjedd.
+ * HØYRE, klebrig: tilstanden nå — nøkkeltall, kart, fisk til stede og
+ * siteringen.
+ *
+ * DOM-REKKEFØLGEN ER TILSTAND FØRST. Under 1024px er det én spalte, og
+ * da skal «hva er dette stedet nå» komme før «hva har skjedd her». Det
+ * er `order` som bytter dem om på brede skjermer, ikke markupen — en
+ * skjermleser og en telefon leser markupen, og den rekkefølgen er den
+ * viktigste av de to.
+ */
+.lok-to {
+  display: grid;
+  gap: var(--rom-seksjon) clamp(32px, 4vw, 64px);
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .lok-to { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .lok-tidslinje { order: 1; min-inline-size: 0; }
+
+  /* KLEBRIG, MED TAK OG EGEN RULLING.
+   *
+   * En `position: sticky` uten høydetak fester seg med toppen i
+   * skjermkanten og lar bunnen henge utenfor — og det som ligger
+   * nederst (siteringen) blir da uleselig på en 900 piksler høy skjerm.
+   * Taket og `overflow-y: auto` gir spalta sin egen rulling i stedet.
+   * `overscroll-behavior: contain` hindrer at rullingen fortsetter i
+   * dokumentet når spalta er i bunn. */
+  .lok-tilstand {
+    order: 2;
+    position: sticky;
+    inset-block-start: var(--rom-24);
+    align-self: start;
+    max-block-size: calc(100dvh - var(--rom-48));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* TILSTANDSSPALTA STÅR PÅ PAPIR, ikke på den mørke headerflata.
+ *
+ * Faktalista og posisjonskartet er tegnet for mørk flate — `--hav3`,
+ * `--hav-tegn`, et kart med lyse landflater på mørkt hav. Flyttet ned
+ * i innholdet står de på `--papir`, og hver av de fargene ville vært
+ * nesten usynlig. Paletten snus her, ikke i grunnregelen: headeren på
+ * områdesida og selskapssida bruker fortsatt den mørke. */
+.lok-tilstand .fakta dt { color: var(--farge-tekst-svak); }
+.lok-tilstand .fakta dd { color: var(--farge-tekst); }
+.lok-tilstand .fakta a { color: var(--farge-lenke); }
+.lok-tilstand .fakta a:visited { color: var(--farge-lenke-besokt); }
+.lok-tilstand .fakta a:hover { color: var(--farge-lenke-aktiv); }
+.lok-tilstand .fakta-bi { color: var(--farge-tekst-svak); }
+.lok-tilstand .posisjon figcaption { color: var(--farge-tekst-svak); }
+
+.lok-tilstand .posisjonskart {
+  background: var(--papir2);
+  box-shadow: inset 0 0 0 1px var(--farge-kant-svak);
+  /* Ett kart i en smal spalte trenger ikke et 28rem-tak; det tar
+     halve spalta og skyver resten under bretten. */
+  max-block-size: 22rem;
+}
+
+.lok-tilstand .posisjonskart .kart-land path {
+  fill: rgba(11, 36, 48, 0.10);
+  stroke: rgba(11, 36, 48, 0.35);
+  stroke-opacity: 1;
+}
+
+.lok-tilstand .posisjonskart .kart-gitter line { stroke: rgba(11, 36, 48, 0.10); }
+
+/* Siteringsboksen står alt på `--papir2`; i en smal spalte trenger den
+   bare å slutte å ha seksjonsmarg under seg. */
+.lok-tilstand > section { margin-block-end: var(--rom-32); }
+.lok-tilstand > section:last-child { margin-block-end: 0; }
+
 /* ---- de to spaltene ---- */
 
 .to-spalter {

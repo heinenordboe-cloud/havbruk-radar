@@ -173,6 +173,54 @@ def test_en_brikke_med_null_er_ikke_klikkbar(side, tjener, sti):
     assert not feil, f"{sti}: {feil}"
 
 
+# ---- lokalitetssidens to spalter --------------------------------------
+
+
+def test_tilstanden_staar_foer_tidslinja_i_markupen(side, tjener):
+    """Rekkefølgen i DOM-en er den en telefon og en skjermleser får.
+
+    Under 1024px er det én spalte, og da skal «hva er dette stedet nå»
+    komme før «hva har skjedd her». På brede skjermer bytter `order`
+    dem om — men markupen er det som gjelder når CSS-en ikke gjør det.
+    """
+    side.goto(tjener + "/lokalitet/31397/", wait_until="load")
+    rekkefolge = side.evaluate("""() => {
+      const t = document.querySelector(".lok-tilstand");
+      const l = document.querySelector(".lok-tidslinje");
+      if (!t || !l) return "mangler";
+      return (t.compareDocumentPosition(l) & Node.DOCUMENT_POSITION_FOLLOWING)
+             ? "tilstand først" : "tidslinje først";
+    }""")
+    assert rekkefolge == "tilstand først"
+
+
+@pytest.mark.parametrize("bredde,ventet", ((390, "under"), (1440, "ved siden")))
+def test_spaltene_faller_sammen_under_1024(side, tjener, bredde, ventet):
+    """Over 1024: tidslinja til VENSTRE, tilstanden til høyre. Under:
+    én spalte.
+
+    Målt på plasseringen, ikke på mediespørringen: `order`, `grid` og
+    målebåndet virker sammen, og hver av dem kan være riktig mens
+    resultatet er to spalter på en telefon.
+    """
+    side.set_viewport_size({"width": bredde, "height": 900})
+    side.goto(tjener + "/lokalitet/31397/", wait_until="load")
+    boks = side.evaluate("""() => {
+      const r = (s) => document.querySelector(s).getBoundingClientRect();
+      const t = r(".lok-tilstand"), l = r(".lok-tidslinje");
+      return {tv: t.left, tb: t.bottom, lv: l.left, lt: l.top,
+              klebrig: getComputedStyle(document.querySelector(".lok-tilstand"))
+                         .position};
+    }""")
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    if ventet == "under":
+        assert boks["tb"] <= boks["lt"] + 1, "tilstanden ligger ikke over"
+        assert boks["tv"] == boks["lv"], "spaltene er ikke sammenfalt"
+    else:
+        assert boks["lv"] < boks["tv"], "tidslinja står ikke til venstre"
+        assert boks["klebrig"] == "sticky", "høyrespalta er ikke klebrig"
+
+
 @pytest.mark.parametrize("sti", SIDER)
 def test_ingen_celle_er_kuttet_paa_390(side, tjener, sti):
     side.goto(tjener + sti, wait_until="load")
