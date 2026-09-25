@@ -54,7 +54,7 @@
 <h2 id="hva">Hva dette er</h2>
 <p>
   Offentlige registerdata om norsk akvakultur, hentet én gang i uka og
-  lagret som daterte snapshots. Registrene selv viser
+  lagret som daterte øyeblikksbilder. Registrene selv viser
   <em>nåtilstanden</em>, og den skrives over: slår du opp en lokalitet i
   dag, får du dagens tall, og gårsdagens er borte. Det denne siden
   legger til er <strong>tidsaksen</strong> — hva registeret sa forrige
@@ -69,8 +69,8 @@
 
 <h2 id="innsamling">Hvordan det samles inn, og hvor ofte</h2>
 <p>
-  Én kjøring i uka. Hver kjøring henter hver kilde, skriver ett snapshot
-  per kilde og sammenligner med forrige — differansen blir en
+  Én kjøring i uka. Hver kjøring henter hver kilde, skriver ett
+  øyeblikksbilde per kilde og sammenligner med forrige — differansen blir en
   endringslogg som er den egentlige verdien. Snapshotene skrives
   <strong>én gang og aldri om</strong>: en fil for en gitt dato røres
   ikke igjen, og en ny henting av samme dato får løpenummer i stedet for
@@ -83,14 +83,14 @@
   denne siden er:
 </p>
 
-<p class="tabelltittel" id="om-ferskhet-tittel">Nyeste snapshot per kilde denne siden bygger på.</p>
+<p class="tabelltittel" id="om-ferskhet-tittel">Nyeste øyeblikksbilde per kilde denne siden bygger på.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="om-ferskhet-tittel" tabindex="0">
 <table id="om-ferskhet" aria-labelledby="om-ferskhet-tittel">
   <thead>
     <tr>
       <th scope="col">Kilde</th>
-      <th scope="col">Nyeste snapshot</th>
+      <th scope="col">Nyeste øyeblikksbilde</th>
       <th scope="col">Hva datoen er</th>
     </tr>
   </thead>
@@ -156,12 +156,14 @@
 
 <h2 id="kilder">Kildene, med lisens og attribusjon</h2>
 <p>
-  Regelen er at udokumentert lisens er UBELAGT, ikke antatt
-  greit. En UBELAGT kilde kan brukes i analyse, men bærer ingen
-  publisert visning her.
+  En kilde vi ikke har funnet lisensvilkåret for, vises ikke her. Den
+  kan brukes i analyse.
   {% if om.ubelagte %}
-  I dag gjelder det {{ om.ubelagte|join(", ") }} — vilkåret er lett etter
-  og ikke funnet.
+  I dag gjelder det
+  {% for u in om.ubelagte %}{% if not loop.first %}, {% endif %}
+  {%- if u.url %}<a href="{{ u.url }}">{{ u.vist }}</a>
+  {%- else %}{{ u.vist }}{% endif %}{% endfor %} — vilkåret er lett
+  etter og ikke funnet.
   {% endif %}
 </p>
 
@@ -187,7 +189,7 @@
       <td data-felt="hjemmel">{{ k.hjemmel }}</td>
       <td data-felt="vilkaar_lest">{{ k.lest }}</td>
       <td data-felt="attribusjon">
-        {% if k.attribusjon %}{{ k.attribusjon|join(" + ") }}{% else %}UBELAGT — ingen setning å gjengi{% endif %}
+        {% if k.attribusjon %}{{ k.attribusjon|join(" + ") }}{% else %}lisensen er ikke dokumentert{% endif %}
       </td>
       <td data-felt="publiseres">{{ "ja" if k.publiseres else "nei" }}</td>
     </tr>
@@ -197,9 +199,7 @@
 </div>
 <p class="tabellnote">
   Kilder merket «nei» i siste kolonne samles inn, men vises ikke på noen
-  publisert side. Datokolonnen er ikke pynt: et vilkår er en tredjeparts
-  påstand som kan endres uten at noe i dataene beveger seg, og datoen
-  sier når vi sist leste det.
+  publisert side. Datoen sier når vi sist leste vilkåret.
 </p>
 
 <h2 id="hva-vi-ikke-gjor">Hva som bevisst ikke hentes</h2>
@@ -231,7 +231,7 @@
 <h2 id="sitering">Sitering</h2>
 <p>
   Siden er bygget
-  <time datetime="{{ om.bygget }}">{{ om.bygget }}</time> av snapshots
+  <time datetime="{{ om.bygget }}">{{ om.bygget }}</time> av øyeblikksbilder
   datert per kilde. Oppgi byggedatoen: innholdet endres når kildene
   endres, og en referanse uten dato viser til noe annet neste uke.
 </p>

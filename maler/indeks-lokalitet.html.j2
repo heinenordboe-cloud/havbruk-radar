@@ -18,11 +18,9 @@
 <h1>Alle akvakulturlokaliteter</h1>
 
 <p>
-  {{ antall(d.antall, "lokalitet", "lokaliteter") }} i Akvakulturregisteret, snapshot
+  {{ antall(d.antall, "lokalitet", "lokaliteter") }} i Akvakulturregisteret, øyeblikksbilde
   <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
-  Hele lista står på denne siden — den er ikke paginert, og det er et
-  valg: en liste som er delt i sider er en liste der de siste sidene
-  ikke blir lest.
+  Hele lista står på denne siden.
   {{ tall(d.uten_po) }} av dem ligger utenfor
   produksjonsområdeinndelingen og har tom celle i PO-kolonnen, fordi
   registeret ikke oppgir noen. {{ d.uten_omraade }}
@@ -81,13 +79,11 @@
   {% if d.uten_koordinater %}
   De står her, slik at et punkt som mangler ikke bare forsvinner:
   {% else %}
-  Ingen mangler i dette snapshotet. Tallet står likevel, fordi et tall
-  man bare ser når det er galt er et tall ingen kjenner normalverdien
-  til.
+  Ingen mangler i dette øyeblikksbildet.
   {% endif %}
 </p>
 {% if d.uten_koordinater %}
-<p class="tabelltittel" id="akvakultur-uten-koordinater-tittel">Lokaliteter uten breddegrad eller lengdegrad, snapshot
+<p class="tabelltittel" id="akvakultur-uten-koordinater-tittel">Lokaliteter uten breddegrad eller lengdegrad, øyeblikksbilde
     <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="akvakultur-uten-koordinater-tittel" tabindex="0">

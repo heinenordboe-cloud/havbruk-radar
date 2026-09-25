@@ -274,11 +274,9 @@
 
   <p class="tabellnote">
     Måleseriene telles ikke som endringer her. Lusetall og sjøtemperatur
-    leverer et nytt tall hver uke, og hvert nye tall er en rad i
-    changeloggen vår — for denne lokaliteten
-    {{ tall(lok.maaleserie_rader) }} slike rader mot
-    {{ lok.endringer|length }} registerendringer. Tas de med, drukner
-    det som faktisk er en hendelse i noe som bare er neste måling.
+    leverer et nytt tall hver uke — for denne lokaliteten
+    {{ tall(lok.maaleserie_rader) }} slike tall mot
+    {{ lok.endringer|length }} registerendringer.
     Lusetallene står som en serie under.
   </p>
   <p class="tabellnote">
@@ -394,7 +392,7 @@
     {% else %}
     <p class="tomt">
       Ingen lusetall rapportert. Lokaliteten finnes ikke i noen av de
-      {{ antall(lok.lusetall_snapshots, "ukesnapshotet", "ukesnapshotene") }} vi har fra
+      {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
       BarentsWatch — ikke i én uke med tomt tall, men ikke i registeret
       i det hele tatt. Det er ventet for anlegg som ikke har laksefisk:
       lusetellingen gjelder laks og ørret i sjø.
@@ -681,9 +679,7 @@
   <p class="historikk-forklaring">
     Dette er <strong>ikke</strong> det samme som lista over. Der er
     datoen når VI så noe; her er datoen kildens egen påstand om når noe
-    skjedde. De to er holdt fra hverandre med vilje: en flettet
-    tidslinje ville latt en journalført overdragelse og en observasjon
-    av et endret felt se ut som samme slags hendelse.
+    skjedde.
   </p>
 
   {% if lok.oppgitt %}

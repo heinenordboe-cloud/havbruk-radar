@@ -261,7 +261,7 @@ def attribusjon(kilder, vilkaar=None) -> list[str]:
                 f"Skriver kilden under flere navn, se Source.skriver_ogsaa.")
         if indeks[kilde] is None:
             raise UbelagtKilde(
-                f"{kilde} er UBELAGT: vilkåret er lett etter og ikke funnet "
+                f"{kilde}: lisensvilkåret er lett etter og ikke funnet "
                 f"(se docs/LISENSKJEDE.md). Siden bygges ikke. Lukk luken "
                 f"med et spørsmål til utgiveren, ikke med mer kode.")
         for setning in indeks[kilde]:
@@ -3703,7 +3703,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         akva_dato, akva = felles.akva_dato, felles.akva
     if loknr not in akva:
         raise SystemExit(f"lokalitet {loknr} finnes ikke i "
-                         f"akvakultur-snapshotet {akva_dato}")
+                         f"akvakultur-øyeblikksbildet {akva_dato}")
     a = akva[loknr]
 
     if felles is None:
@@ -3942,9 +3942,8 @@ def csv_kommentar(lok: dict, setninger: list[str], bygget: str) -> list[str]:
     else:
         linjer += [
             f"INGEN UKER. Lokaliteten finnes ikke i noen av de "
-            f"{lok['lusetall_snapshots']} ukesnapshotene vi har.",
-            "Fila har hode og null rader med vilje: det er et svar, og "
-            "404 er det ikke.",
+            f"{lok['lusetall_snapshots']} ukene vi har.",
+            "Fila har hode og null rader.",
             "",
         ]
     linjer += setninger
@@ -3958,7 +3957,7 @@ def csv_kommentar(lok: dict, setninger: list[str], bygget: str) -> list[str]:
             "",
         ]
     linjer += [
-        f"Bygget {bygget} av Kystloggen fra snapshots. Tallene er "
+        f"Bygget {bygget} av Kystloggen fra øyeblikksbilder. Tallene er "
         f"gjengitt uendret fra kilden.",
         "Kommentarlinjer starter med #. Les f.eks. med "
         "polars.read_csv(..., comment_prefix=\"#\").",
@@ -4167,6 +4166,9 @@ def _miljo() -> Environment:
     # en verdi i en tabell og hører hjemme der raden skrives. Se
     # `visningsord.KILDENAVN`.
     miljo.globals["kilde"] = visningsord.kilde
+    # SAMME OPPSLAG SOM FILTER. `{{ liste|map("kildenavn") }}` krever et
+    # filter; `kilde()` som global kan ikke brukes av `map`.
+    miljo.filters["kildenavn"] = visningsord.kilde
     miljo.globals["feltmerke"] = feltmerke
     miljo.globals["personformnavn"] = personformnavn
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER
@@ -5202,7 +5204,7 @@ def skriv_robots(rot: Path) -> Path:
         "#",
         f"# Denne fila er ENESTE kilde til robotregler for "
         f"{basis or 'dette nettstedet'}.",
-        "# Cloudflares «Bot Preference Sync» er slått AV med vilje.",
+        "# Cloudflares «Bot Preference Sync» er slått AV.",
         "User-agent: *",
         "Allow: /",
         "",
@@ -5453,7 +5455,23 @@ LISENSRAD = {
                          "lovdata.no/info/brukeravtale", "12.09.2026"),
     "reguleringsomraader": ("CC BY 4.0", "doi.org/10.21335/NMDC-1923112433",
                             "14.09.2026"),
-    "ekspertgruppen": ("UBELAGT", "ingen funnet", "14.09.2026 (søkt)"),
+    # «ikke dokumentert», ikke «UBELAGT». Cellen leses av et menneske,
+    # og arbeidsordet vårt er ikke et ord en leser kjenner. Verdien
+    # betyr det samme: `ubelagte()` leser `vilkaar`, ikke denne strengen.
+    "ekspertgruppen": ("ikke dokumentert", "ingen funnet",
+                       "14.09.2026 (søkt)"),
+}
+
+# HVOR KILDEN SELV BOR. Bare der en leser trenger å komme videre, og
+# bare adresser som står i kildens eget notat — en URL vi ikke har lest,
+# er et gjett på en tredjeparts vegne (CLAUDE.md regel 4).
+#
+# I dag én: `ekspertgruppen` er den eneste kilden uten dokumentert
+# lisens, og /om/ navngir den. Adressen er publikasjonssiden notatet
+# viser til.
+KILDE_URL = {
+    "ekspertgruppen":
+        "https://trafikklyssystemet.no/Publikasjoner/Ekspertgrupperapporter",
 }
 
 OM_KILDER = ("akvakultur", "eierskap", "eierskap_historikk",
@@ -5497,7 +5515,13 @@ def bygg_om(felles: Felles) -> dict:
         "uten_eier_med_tillatelse": len(oppgitt_likevel),
         "uten_tillatelse_noe_sted": len(uten) - len(oppgitt_likevel),
         "kilder": kilder,
-        "ubelagte": [k["navn"] for k in kilder if k["ubelagt"]],
+        # NAVN OG LENKE, ikke det interne kildenavnet. «ekspertgruppen»
+        # er mappa i data/raw; en leser som ser det, ser vårt
+        # arbeidsnavn. Adressen står i `KILDE_URL`.
+        "ubelagte": [{"navn": k["navn"],
+                      "vist": visningsord.kilde(k["navn"]),
+                      "url": KILDE_URL.get(k["navn"], "")}
+                     for k in kilder if k["ubelagt"]],
         "akva_dato": felles.akva_dato,
         "eierskap_dato": felles.eierskap_dato,
         "enhet_dato": felles.enhet_dato,

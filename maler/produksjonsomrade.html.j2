@@ -502,15 +502,15 @@
   </div>
   <p class="tabellnote">
     Måleseriene telles ikke som endringer her. Biomasse leverer nye
-    beholdningstall hver måned, og for dette området er det
-    {{ tall(po.maaleserie_rader) }} slike rader mot {{ po.endringer|length }}
-    vedtaksendringer. Tas de med, drukner vedtaket i serien.
+    beholdningstall hver måned — for dette området
+    {{ tall(po.maaleserie_rader) }} slike tall mot {{ po.endringer|length }}
+    vedtaksendringer.
     {% if po.ubelagte_rader %}
     {{ antall(po.ubelagte_rader, "endring", "endringer") }} er dessuten holdt utenfor fordi
-    kilden er UBELAGT ({{ po.ubelagte_kilder|join(", ") }}): vilkåret
-    for å republisere er lett etter og ikke funnet, så tallene kan
-    brukes i analyse men ikke vises her. Antallet står slik at
-    utelatelsen ikke er stille. Se
+    lisensen ikke er dokumentert for
+    {{ po.ubelagte_kilder|map("kildenavn")|join(", ") }}: vilkåret for å
+    republisere er lett etter og ikke funnet, så tallene kan brukes i
+    analyse men ikke vises her. Se
     <a href="/om/#kilder">kildene, med lisens</a>.
     {% endif %}
   </p>

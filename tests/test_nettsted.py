@@ -1388,8 +1388,11 @@ def test_maaleserier_og_ubelagte_telles_paa_po_siden():
     # ordrett formulering fram til 20.09.2026 og falt da noten ble
     # skrevet om — den målte prosaen, ikke at utelatelsen var sagt.
     assert "941" in html, "måleserieraden er ikke telt"
-    assert "56" in html and "UBELAGT" in html, "utelatelsen er stille"
-    assert "ekspertgruppen" in html, "kilden er ikke navngitt"
+    assert "56" in html, "utelatelsen er stille"
+    assert "lisensen ikke er dokumentert" in html, "utelatelsen er stille"
+    # KILDENS EGET NAVN, ikke mappa i data/raw — se `visningsord.kilde()`.
+    assert "Ekspertgruppen for vurdering av lusepåvirkning" in html, \
+        "kilden er ikke navngitt"
 
 
 def test_po_siden_lenker_til_hver_lokalitet():
@@ -1489,13 +1492,17 @@ def _selskap(**overstyr) -> str:
 
 
 def test_selskap_uten_registerdata_SIER_det():
-    """121 av 481 (målt 22.09.2026). En tom registertabell ville latt
-    leseren tro at selskapet ikke finnes, når det er UTVALGET vårt som
-    ikke når det."""
+    """En tom registertabell ville latt leseren tro at selskapet ikke
+    finnes, når det er UTVALGET vårt som ikke når det.
+
+    TALLET STÅR IKKE LENGER HER. «121 av 481 eiere er i denne
+    situasjonen (målt 22.09.2026)» var skrevet inn i malen og gjaldt én
+    dag; det samme tallet står på /selskap/, regnet ved bygging.
+    """
     html = " ".join(_selskap(har_registerdata=False, register=[]).split())
     assert "Vi har ingen registerdata for dette selskapet" in html
     assert nettsted.UTEN_REGISTERDATA in html
-    assert "121 av 481" in html
+    assert "121 av 481" not in html
 
 
 def test_manglende_registerdata_merkes_som_eget_felt():
@@ -1995,11 +2002,14 @@ def _om(**overstyr) -> str:
              "hjemmel": "fiskeridir.no", "lest": "25.08.2026",
              "attribusjon": ["Kilde: Fiskeridirektoratet"],
              "ubelagt": False, "publiseres": True},
-            {"navn": "ekspertgruppen", "lisens": "UBELAGT",
+            {"navn": "ekspertgruppen", "lisens": "ikke dokumentert",
              "hjemmel": "ingen funnet", "lest": "14.09.2026 (søkt)",
              "attribusjon": [], "ubelagt": True, "publiseres": False},
         ],
-        "ubelagte": ["ekspertgruppen"],
+        "ubelagte": [{"navn": "ekspertgruppen",
+                      "vist": "Ekspertgruppen for vurdering av lusepåvirkning",
+                      "url": "https://trafikklyssystemet.no/Publikasjoner/"
+                             "Ekspertgrupperapporter"}],
         "akva_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
         "enhet_dato": "2026-09-14", "lusetall_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
@@ -2278,13 +2288,20 @@ def _om_kilderader():
             for navn in sorted(nettsted.LISENSRAD)]
 
 
-def test_om_siden_merker_UBELAGT_kilde_som_ikke_vist():
+def test_om_siden_sier_i_klartekst_at_lisensen_ikke_er_dokumentert():
+    """«UBELAGT» er vårt arbeidsord, ikke et ord en leser kjenner.
+
+    Ordet sto i to setninger og i en tabellcelle. Kilden skal dessuten
+    navngis med sitt EGET navn og lenkes til, ikke med mappenavnet i
+    data/raw — se `visningsord.KILDENAVN` og `KILDE_URL`.
+    """
     html = _om()
     flat = " ".join(html.split())
-    assert "UBELAGT — ingen setning å gjengi" in flat
-    assert "udokumentert lisens er UBELAGT, ikke antatt greit" in flat
-    # Og den står i tabellen med «nei» i «vises her».
-    assert "ekspertgruppen" in html
+    assert "UBELAGT" not in flat
+    assert "lisensen er ikke dokumentert" in flat
+    assert "En kilde vi ikke har funnet lisensvilkåret for" in flat
+    assert "Ekspertgruppen for vurdering av lusepåvirkning" in flat
+    assert "trafikklyssystemet.no/Publikasjoner/Ekspertgrupperapporter" in flat
 
 
 def test_om_siden_har_ferdig_formatert_sitering():
