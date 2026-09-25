@@ -5398,7 +5398,7 @@ personvernhensyn, og de som forsvinner er små, personeide anlegg.
   produksjonsområde.
 - [Alle produksjonsområder]({u('/produksjonsomrade/')}): de 13 områdene
   med nyeste trafikklysfarge.
-- [Alle selskaper]({u('/selskap/')}): selskapene som eier minst én
+- [Alle innehavere]({u('/selskap/')}): innehaverne av minst én
   akvakulturtillatelse.
 
 ## Om kilder, metode og sitering
@@ -5776,8 +5776,8 @@ def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
         _skriv_indeks(
             rot, "selskap", "indeks-selskap.html.j2",
             bygg_selskapsindeks(felles),
-            "Alle selskaper med akvakulturtillatelse — Kystloggen",
-            "Flat liste over selskaper som eier minst én "
+            "Alle innehavere av akvakulturtillatelse — Kystloggen",
+            "Flat liste over innehaverne av minst én "
             "akvakulturtillatelse, med antall tillatelser og lokaliteter.",
             INDEKS_SELSKAP_KILDER, felles),
     ]

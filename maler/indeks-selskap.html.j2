@@ -13,7 +13,12 @@
 {% endblock %}
 
 {% block innhold %}
-<h1>Alle selskaper med akvakulturtillatelse</h1>
+{# «INNEHAVERE», IKKE «SELSKAPER». Lista er bygget av hvem som EIER en
+   tillatelse i eierskapsregisteret, ikke av hvem som er et selskap: et
+   selskap i næringskodeuttrekket vårt uten tillatelse står ikke her.
+   Menyen sier fortsatt «Selskaper» — det er navnet på rommet, og en
+   meny som byttet ord ville flyttet en URL i leserens hode. #}
+<h1>Alle innehavere av akvakulturtillatelse</h1>
 
 <p>
   {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse i eierskapssnapshotet
