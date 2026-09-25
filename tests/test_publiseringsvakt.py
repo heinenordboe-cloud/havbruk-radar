@@ -492,6 +492,46 @@ def test_hver_markor_har_en_grunn_skrevet_ned():
         assert nokkel in hode, f"{markor} står i lista uten en grunn over"
 
 
+# ---- rå tidsstempler --------------------------------------------------
+
+def test_porten_feller_et_raatt_tidsstempel_i_synlig_tekst(tmp_path,
+                                                           snapshotmappe):
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title>"
+        "<table><tr><td>2010-11-10T23:00:00Z</td></tr></table>",
+        encoding="utf-8")
+    funn = vakt.gransk(ut)
+    assert [f.slag for f in funn] == ["raatt_tidsstempel"]
+    assert vakt.ukvittert(funn) == funn
+
+
+def test_maskinlesbare_tidspunkt_er_ikke_funn():
+    """Atom-feeden SKAL ha `<updated>`, og et `datetime`-attributt er
+    maskinlesbart av natur. Prøven leser bare det SYNLIGE."""
+    assert vakt.raa_tidsstempler(
+        "<updated>2026-09-21T00:00:00Z</updated>", "feed.xml") == []
+    assert vakt.raa_tidsstempler(
+        '<time datetime="2010-11-11T00:00:00+01:00">11. november</time>',
+        "x.html") == []
+
+
+def test_grensa_er_ikke_T22_eller_T23():
+    """En kilde som skriver T12:34:56Z skal felles like høyt. En prøve
+    som bare kjente dagens to kilder ville vært stille for den
+    tredje — CLAUDE.md 1b-2."""
+    funn = vakt.raa_tidsstempler("<p>2026-03-04T12:34:56Z</p>", "x.html")
+    assert [f.slag for f in funn] == ["raatt_tidsstempel"]
+
+
+def test_stemplet_meldes_en_gang_per_fil_med_antallet():
+    funn = vakt.raa_tidsstempler(
+        "<p>2010-11-10T23:00:00Z og 2011-01-01T23:00:00Z</p>", "x.html")
+    assert len(funn) == 1
+    assert funn[0].antall == 2
+
+
 # ---- filer vakten ikke kan lese ---------------------------------------
 
 def test_ulesbar_fil_rapporteres_ikke_antas_trygg(tmp_path,

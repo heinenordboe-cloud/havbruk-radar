@@ -2776,7 +2776,10 @@ def _eierrad(nr: str, d: dict) -> dict:
             "type": d.get("tillatelse_type", ""),
             "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
                                            d.get("kapasitet_enhet", "")),
-            "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
+            # DATOEN I OSLO, ikke datodelen av UTC-stempelet. Se
+            # `visningsord.oslodato()`: 2 854 av 2 943 `tildelt_tid`
+            # faller på en annen dato i norsk tid.
+            "tildelt_dato": visningsord.oslodato(d.get("tildelt_tid")),
             "tildelt_navn": "",
         }
     return {
@@ -2787,7 +2790,7 @@ def _eierrad(nr: str, d: dict) -> dict:
         "type": d.get("tillatelse_type", ""),
         "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
                                        d.get("kapasitet_enhet", "")),
-        "tildelt_dato": (d.get("tildelt_tid") or "")[:10],
+        "tildelt_dato": visningsord.oslodato(d.get("tildelt_tid")),
         "tildelt_navn": d.get("tildelt_navn", ""),
     }
 
@@ -3143,7 +3146,9 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
     # `navn` og `navn_felt` er derfor egne nøkler, og malen merker dem
     # med kildens eget feltnavn. Da ser porten verdien den skal se.
     poster = []
-    klarert = (a.get("forste_klarering") or "")[:10]
+    # 1 782 av 1 782 `forste_klarering` faller på en annen dato i
+    # Europe/Oslo enn i UTC. Se `visningsord.oslodato()`.
+    klarert = visningsord.oslodato(a.get("forste_klarering"))
     if klarert:
         poster.append({
             "dato": klarert, "slag": "Første klarering",

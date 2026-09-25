@@ -406,7 +406,7 @@ class Funn:
     fil: str
     slag: str        # ukjent_orgnr | personform | ukjent_navn | ugranska
                      # | ukjent_partisjon | feilerklaert_partisjon
-                     # | uferdig
+                     # | uferdig | raatt_tidsstempel
     utdrag: str
     antall: int = 1
 
@@ -1024,6 +1024,49 @@ def uferdig_tekst(tekst: str, fil: str = "") -> list[Funn]:
         if antall:
             funn.append(Funn(fil, "uferdig", f"«{markor}»", antall))
     return funn
+
+
+# ------------------------------------------- rå tidsstempler
+#
+# KILDENS TIDSSTEMPEL ER IKKE EN DATO EN LESER SKAL SE.
+#
+# Akvakulturregisteret og pub-aqua lagrer datoer som `2010-11-10T23:00:00Z`
+# — midnatt 11. november norsk tid. MÅLT 24.09.2026 sto 3 396 slike
+# stempler i det bygde nettstedet, på sider, i CSV og i feed-titler, og
+# 94 % av dem oppgir dessuten en dag FOR TIDLIG når datodelen leses som
+# den står. Se `visningsord.oslodato()`.
+#
+# ## Hva som IKKE er et funn
+#
+# Atom-feeden SKAL ha maskinlesbare tidspunkt i `<updated>` og
+# `<published>`, og et `datetime`-attributt er maskinlesbart av natur.
+# Prøven leser derfor bare det SYNLIGE: elementteksten i de
+# maskinelementene fjernes, og deretter fjernes alle tagger med
+# attributtene sine. Det som står igjen er det et menneske ser.
+#
+# Grensa er ikke «T22 eller T23». Den formen ville vært riktig for
+# dagens to kilder og stille for den tredje som skriver T12:34:56Z —
+# nøyaktig mønsteret CLAUDE.md 1b-2 handler om.
+MASKINELEMENTER = re.compile(
+    r"<(updated|published|lastBuildDate|pubDate)>[^<]*</\1>", re.I)
+TAGG = re.compile(r"<[^>]*>")
+RAATT_TIDSSTEMPEL = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+
+def raa_tidsstempler(tekst: str, fil: str = "") -> list[Funn]:
+    """Tidsstempler i SYNLIG tekst. Tom liste = rent.
+
+    Ett funn per fil med antallet, ikke ett per stempel: en side med 40
+    rå stempler har én feil i én mal, ikke førti.
+    """
+    synlig = TAGG.sub(" ", MASKINELEMENTER.sub(" ", tekst))
+    treff = RAATT_TIDSSTEMPEL.findall(synlig)
+    if not treff:
+        return []
+    return [Funn(fil, "raatt_tidsstempel",
+                 f"«{treff[0]}»" + (f" og {len(treff) - 1} til"
+                                    if len(treff) > 1 else ""),
+                 len(treff))]
 
 
 # --------------------------------------------------- CSV
@@ -1648,6 +1691,8 @@ def gransk(mappe: Path) -> list[Funn]:
         # UFERDIG TEKST, på hver tekstfil uansett type. Se
         # `UFERDIGMARKORER`.
         funn.extend(uferdig_tekst(tekst, fil=rel))
+        # RÅ TIDSSTEMPLER i synlig tekst. Se `raa_tidsstempler()`.
+        funn.extend(raa_tidsstempler(tekst, fil=rel))
         if sti.suffix.lower() in KOLONNETYPER:
             funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
                                    avgrenser=KOLONNETYPER[sti.suffix.lower()]))

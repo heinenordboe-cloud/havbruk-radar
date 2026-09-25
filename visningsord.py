@@ -57,6 +57,7 @@ from __future__ import annotations
 import collections
 import datetime as _dt
 import re as _re
+from zoneinfo import ZoneInfo as _ZoneInfo
 
 # Hver gang en kode faller ut av tabellen: {(felt, kode): antall}.
 # Bokføring for byggerapporten, ikke tilstand som påvirker utputtet —
@@ -362,6 +363,13 @@ def verdi(navn: str, raa: object) -> str:
     if not tekst:
         return tekst
 
+    # ET TIDSSTEMPEL ER EN DATO PÅ EN SIDE. Registeret lagrer
+    # `2023-12-31T23:00:00Z`; det er midnatt 1. januar norsk tid, og et
+    # rått tidsstempel i en tabellcelle er dessuten kildens format og
+    # ikke et lesbart svar. Se `oslodato()`.
+    if _TIDSSTEMPEL.match(tekst):
+        return oslodato(tekst)
+
     if navn in LISTEFELT:
         # «OTHER_FISH; SALMON» er to koder, ikke én. Slås hele strengen
         # opp, faller den ut av tabellen og telles som ukjent — og
@@ -451,6 +459,53 @@ MAANEDER = ("januar", "februar", "mars", "april", "mai", "juni", "juli",
             "august", "september", "oktober", "november", "desember")
 
 
+# SONEN REGISTERET SKRIVER MIDNATT I.
+#
+# Akvakulturregisteret og pub-aqua lagrer datoer som tidsstempler i UTC:
+# `2010-11-10T23:00:00Z` ER midnatt 11. november norsk tid. Leses
+# datodelen som den står, blir hver eneste slik dato en dag for tidlig.
+#
+# MÅLT 24.09.2026 i nyeste øyeblikksbilde per kilde: 6 094 av 6 507
+# verdier (94 %) faller på en annen dato i Europe/Oslo enn i UTC —
+# `akvakultur.forste_klarering` 1 782 av 1 782, `eierskap.tildelt_tid`
+# 2 854 av 2 943, `akvakultur.versjon_gyldig_fra` 1 458 av 1 782.
+#
+# SONEN OG IKKE ET FAST TIMETALL: om sommeren skriver registeret
+# `T22:00:00Z`, om vinteren `T23:00:00Z`. Et påslag på én time ville
+# vært riktig halve året — samme form som feilene i CLAUDE.md 1b.
+#
+# DE LAGREDE VERDIENE RØRES IKKE. Dette er visningslaget; `observed_at`
+# og `fetched_at` er og blir UTC — se `tidspunkt()`, som bevisst IKKE
+# regner om, fordi den viser VÅRT hentetidspunkt og skriver «UTC».
+OSLO = _ZoneInfo("Europe/Oslo")
+
+_TIDSSTEMPEL = _re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+
+def oslodato(iso: object) -> str:
+    """Datoen et tidsstempel faller på i Europe/Oslo, som «2010-11-11».
+
+    Det som ikke er et tidsstempel med klokkeslett kommer UENDRET ut —
+    en ren dato er allerede kildens dato, og en tom streng er fravær.
+    Samme regel som resten av modulen: det som ikke kjennes igjen,
+    røres ikke.
+
+    Et tidsstempel UTEN sone leses som UTC. Det er den eneste lesningen
+    som stemmer med hvordan `core/` skriver dem, og å gjette lokal tid
+    ville gjort svaret avhengig av hvilken maskin bygget kjørte på.
+    """
+    tekst = "" if iso is None else str(iso).strip()
+    if not _TIDSSTEMPEL.match(tekst):
+        return tekst
+    try:
+        naar = _dt.datetime.fromisoformat(tekst.replace("Z", "+00:00"))
+    except ValueError:
+        return tekst
+    if naar.tzinfo is None:
+        naar = naar.replace(tzinfo=_dt.timezone.utc)
+    return naar.astimezone(OSLO).date().isoformat()
+
+
 def _dagen(iso: object) -> tuple[str, _dt.date | None]:
     """(teksten uendret, datoen den er — eller None).
 
@@ -464,8 +519,12 @@ def _dagen(iso: object) -> tuple[str, _dt.date | None]:
     fordi datoen tilfeldigvis er ti tegn lang.
     """
     tekst = "" if iso is None else str(iso).strip()
+    # ET TIDSSTEMPEL MED KLOKKESLETT ER EN ANNEN DAG I OSLO enn i UTC,
+    # nesten alltid. Se `oslodato()`.
+    dagen = oslodato(tekst) if _TIDSSTEMPEL.match(tekst) else \
+        tekst.partition("T")[0]
     try:
-        return tekst, _dt.date.fromisoformat(tekst.partition("T")[0])
+        return tekst, _dt.date.fromisoformat(dagen)
     except ValueError:
         return tekst, None
 

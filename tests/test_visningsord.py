@@ -360,3 +360,46 @@ def test_ingen_mal_skriver_et_bart_tall_foran_et_substantiv():
             linje = tekst[:m.start()].count("\n") + 1
             funn.append(f"{mal.name}:{linje}  {{{{ {uttrykk} }}}} {ord_}")
     assert funn == [], "bart tall foran substantiv:\n  " + "\n  ".join(funn)
+
+
+# ============================ datoer fra tidsstempler er i Europe/Oslo
+#
+# MÅLT 24.09.2026 i nyeste øyeblikksbilde per kilde: 6 094 av 6 507
+# tidsstempelverdier faller på en annen dato i Oslo enn i UTC.
+# `forste_klarering` 1 782 av 1 782.
+
+def test_midnatt_norsk_tid_er_dagen_etter_utc_datoen():
+    """Registeret skriver midnatt norsk tid som T23:00:00Z om vinteren
+    og T22:00:00Z om sommeren. Begge er dagen ETTER i UTC-strengen."""
+    assert visningsord.oslodato("2010-11-10T23:00:00Z") == "2010-11-11"
+    assert visningsord.oslodato("2025-09-04T22:00:00Z") == "2025-09-05"
+    assert visningsord.dato("2010-11-10T23:00:00Z") == "11. november 2010"
+
+
+def test_sonen_og_ikke_et_fast_timetall():
+    """Sommertid er +2, vintertid +1. Et påslag på én time ville vært
+    riktig halve året — formen feilene i CLAUDE.md 1b har."""
+    # Vinter: 23:00Z er 00:00 neste dag. 22:00Z er 23:00 samme dag.
+    assert visningsord.oslodato("2010-11-10T22:00:00Z") == "2010-11-10"
+    # Sommer: 22:00Z er 00:00 neste dag.
+    assert visningsord.oslodato("2025-07-04T22:00:00Z") == "2025-07-05"
+
+
+def test_en_ren_dato_og_en_tom_verdi_roeres_ikke():
+    assert visningsord.oslodato("2026-09-21") == "2026-09-21"
+    assert visningsord.oslodato("") == ""
+    assert visningsord.oslodato(None) == ""
+    assert visningsord.oslodato("ikke en dato") == "ikke en dato"
+
+
+def test_verdi_viser_et_tidsstempel_som_dato():
+    """Et rått stempel i en tabellcelle er kildens format, ikke et svar."""
+    assert visningsord.verdi("versjon_gyldig_fra",
+                             "2023-12-31T23:00:00Z") == "2024-01-01"
+
+
+def test_tidspunkt_regner_IKKE_om():
+    """Vårt eget hentetidspunkt er UTC og sier det. Se docstringen —
+    å regne det om ville vært en andre påstand om når vi hentet."""
+    assert visningsord.tidspunkt("2026-09-21T10:29:00+00:00") == (
+        "21. september 2026 kl. 10.29 UTC")
