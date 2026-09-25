@@ -223,6 +223,94 @@ def test_hver_kilde_erklaerer_attribusjon_eller_er_ubelagt():
         erklaert_attribusjon(kilde)      # kaster på feil form
 
 
+# =========================== entitetstypen på det som ble BORTE
+#
+# MÅLT 24.09.2026 over hele changeloggen: `entity_type` er tom i
+# nøyaktig 65 575 `borte`-rader og 37 `felt_borte`-rader, og utfylt i
+# alle 62 881 `ny`, 858 810 `endret` og 61 `felt_ny`. Typen forsvinner
+# presis når entiteten gjør det.
+#
+# Grunnen er at `compare()` leser den av NYE ramma, og der finnes ikke
+# entiteten lenger. Det er samme form som feilene i CLAUDE.md 1b: et
+# oppslag i den ene av to kilder, som er riktig i alle tilfellene der de
+# to faller sammen — og stille i det ene der de ikke gjør det.
+#
+# NAVNET fylles IKKE inn. En oppføring som er borte navngis ikke, og det
+# er ikke en forglemmelse: hvitelista bygges av nyeste øyeblikksbilde, så
+# porten kan ikke gå god for navnet på noe som ikke står der. Se
+# `nettsted._hendelse()`.
+
+def test_borte_rader_baerer_typen_fra_rammen_der_entiteten_fantes(
+        tmp_path, monkeypatch):
+    """Typen står i det GAMLE snapshotet. Den skal hentes derfra."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    snapshot.write([_obs("1", "navn", "A", "2026-01-01"),
+                    _obs("2", "navn", "B", "2026-01-01")], "2026-01-01")
+    naa = pl.DataFrame([_obs("1", "navn", "A", "2026-01-08").as_dict()])
+
+    endringer = diff.compare(naa, "2026-01-08")
+
+    borte = endringer.filter(pl.col("change_type") == "borte")
+    assert borte.height == 1
+    assert borte["entity_type"].to_list() == ["selskap"]
+    # NAVNET skal fortsatt IKKE følge med.
+    assert borte["entity_name"].to_list() == [""]
+
+
+def test_les_alt_fyller_typen_paa_historiske_borte_rader(
+        tmp_path, monkeypatch):
+    """De skrevne filene kan ikke rettes — append-only. Typen fylles
+    inn ved LESING, som `merk_utvalgsutvidelse()` merker ved lesing.
+
+    Kilden svarer for sin egen type, og svaret hentes av kildens egne
+    rader: en kilde som skriver under to navn kan ha én type per navn
+    (`eierskap` skriver `tillatelse`, `eierskap_historikk` skriver
+    `overforing`), og `Source.entity_type` kjenner bare den ene.
+    """
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    (tmp_path / "changelog").mkdir(parents=True)
+    fil = tmp_path / "changelog" / "2026-01-08.parquet"
+    pl.DataFrame([
+        {"entity_id": "1", "entity_type": "lokalitet", "entity_name": "A",
+         "field": "navn", "old_value": "A", "new_value": "B",
+         "change_type": "endret", "source": "falsk",
+         "observed_at": "2026-01-08"},
+        {"entity_id": "2", "entity_type": "", "entity_name": "",
+         "field": "navn", "old_value": "B", "new_value": None,
+         "change_type": "borte", "source": "falsk",
+         "observed_at": "2026-01-08"},
+    ]).write_parquet(fil)
+    for_ = fil.read_bytes()
+
+    lest = changelog.les_alt()
+
+    assert sorted(lest["entity_type"].to_list()) == ["lokalitet", "lokalitet"]
+    assert fil.read_bytes() == for_, "fila skrives ikke om"
+
+
+def test_typen_fylles_ikke_inn_naar_kilden_ikke_har_sagt_noe(
+        tmp_path, monkeypatch):
+    """En tom type som ingen kan svare for, blir stående tom.
+
+    Å gjette ville vært verre enn å la den stå: en type er en påstand om
+    hva raden gjelder, og en oppdiktet påstand er usynlig i ettertid.
+    """
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", tmp_path / "changelog")
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    (tmp_path / "changelog").mkdir(parents=True)
+    pl.DataFrame([
+        {"entity_id": "2", "entity_type": "", "entity_name": "",
+         "field": "navn", "old_value": "B", "new_value": None,
+         "change_type": "borte", "source": "kilde-som-ikke-finnes",
+         "observed_at": "2026-01-08"},
+    ]).write_parquet(tmp_path / "changelog" / "2026-01-08.parquet")
+
+    assert changelog.les_alt()["entity_type"].to_list() == [""]
+
+
 # ======================================= beslutningsindeksen
 #
 # `docs/beslutninger/README.md` er inngangen til beslutningene, og den
