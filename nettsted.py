@@ -2093,6 +2093,13 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "antall_egen_del": len(egen),
             "ledet_slag": visningsord.liste(navn_i_ledet),
             "antall_rader": len(hendelser),
+            # TALLET LENKA TIL UKESIDEN SKAL BRUKE: det oppsummeringen
+            # teller, pluss selskapsdataene som står for seg. Ikke
+            # `antall_rader`, som også rommer radene som med vilje ikke
+            # telles (felt som kom eller gikk) — en lenke som sa «Alle
+            # 453 endringene» om et tall der 13 ikke er endringer,
+            # motsier tabellen den står under.
+            "antall_med_egen_del": telt + len(egen),
             "utenfor_tellingen": ikke_telt,
             "typer": [dict(k, antall=antall.get(k["id"], 0))
                       for k in ENDRINGSTYPER],

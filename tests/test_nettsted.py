@@ -1658,6 +1658,7 @@ def _forside(**overstyr) -> str:
         # TRE TALL SOM IKKE ER DET SAMME: 38 i overskriften, 402
         # selskapsdata for seg, 13 felt som kom eller gikk.
         "antall": 38, "antall_rader": 453, "antall_egen_del": 402,
+        "antall_med_egen_del": 440,
         "utenfor_tellingen": 13,
         "ledet_slag": "trafikklys og tillatelser",
         "typer": [dict(k, antall=(4 if k["id"] == "trafikklys" else 0))
@@ -1741,7 +1742,11 @@ def test_forsiden_leder_med_uka_og_ikke_med_seg_selv():
     # registervedlikehold — se `nettsted.EGEN_DEL`.
     assert ("38 endringer observert i uke 39, 2026: trafikklys og "
             "tillatelser." in flat)
-    assert "Alle 453 endringene i uke 39, 2026, selskapsdata medregnet" in flat
+    # 440, IKKE 453: lenka teller det oppsummeringen teller pluss
+    # selskapsdataene. De 13 radene som med vilje ikke telles, er ikke
+    # endringer, og en lenke som kalte dem det ville motsagt tabellen
+    # den står under.
+    assert "Alle 440 endringene i uke 39, 2026, selskapsdata medregnet" in flat
     assert "utenom selskapsdata" in flat
 
 
@@ -2861,6 +2866,62 @@ def test_borte_raden_henter_etiketten_fra_endringstyper():
     h = nettsted._hendelse(rad, _felles_stubb())
     assert h["type_navn"] == "Ute av vårt utvalg"
     assert h["anonym"] is True, "en borte-rad navngis fortsatt ikke"
+
+
+def test_lenka_teller_det_samme_som_oppsummeringen(monkeypatch):
+    """«Alle N endringene … selskapsdata medregnet» skal si det
+    oppsummeringen sier pluss selskapsdataene — ikke radtallet.
+
+    Radtallet rommer også de radene som med vilje ikke telles (felt som
+    kom eller gikk), og en lenke som kalte dem endringer ville motsagt
+    tabellen den står under.
+    """
+    rader = [
+        # Én ekte endring.
+        {"entity_id": "31397", "entity_type": "lokalitet",
+         "entity_name": "OTERNESET", "field": "kapasitet",
+         "old_value": "1", "new_value": "2", "change_type": "endret",
+         "source": "akvakultur", "observed_at": "2026-09-21",
+         "forrige_observed_at": "2026-09-14", "forrige_fetched_at": "",
+         "published_at": "", "forrige_published_at": ""},
+        # Ett felt som kom: står i tabellen, telles ikke.
+        {"entity_id": "31397", "entity_type": "lokalitet",
+         "entity_name": "OTERNESET", "field": "fylke",
+         "old_value": None, "new_value": "TROMS",
+         "change_type": nettsted.diff.FELT_NY, "source": "akvakultur",
+         "observed_at": "2026-09-21", "forrige_observed_at": "2026-09-14",
+         "forrige_fetched_at": "", "published_at": "",
+         "forrige_published_at": ""},
+        # Én selskapsdatarad: står for seg, medregnet i lenka.
+        {"entity_id": "912345678", "entity_type": "selskap",
+         "entity_name": "Testlaks AS", "field": "antall_ansatte",
+         "old_value": "10", "new_value": "12", "change_type": "endret",
+         "source": "enhetsregisteret", "observed_at": "2026-09-21",
+         "forrige_observed_at": "2026-09-14", "forrige_fetched_at": "",
+         "published_at": "", "forrige_published_at": ""},
+    ]
+    felles = _felles_stubb(
+        akva={"31397": {"navn": "OTERNESET", "prodomraade_kode": ""}},
+        enhet={"912345678": {"navn": "Testlaks AS", "kommune": "BODØ"}},
+        bevegelse=pl.DataFrame(rader))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    assert uke["antall"] == 1, "én endring telles"
+    assert uke["antall_egen_del"] == 1
+    assert uke["utenfor_tellingen"] == 1
+    assert uke["antall_rader"] == 3, "alle tre står i tabellene"
+    assert uke["antall_med_egen_del"] == 2, "1 + 1, ikke 3"
+
+
+def test_radtallet_kalles_rader_og_aldri_endringer():
+    """Ett tall, ett ord. `antall_rader` er rader."""
+    for navn in ("forside.html.j2", "endringer-uke.html.j2"):
+        mal = (Path(__file__).resolve().parents[1] / "maler" / navn
+               ).read_text(encoding="utf-8")
+        for linje in mal.splitlines():
+            if "antall_rader" in linje:
+                assert "endring" not in linje, f"{navn}: {linje.strip()}"
 
 
 def test_borte_paastar_ikke_at_noe_forsvant_fra_registeret():

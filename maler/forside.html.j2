@@ -207,7 +207,7 @@
   <p class="tabellnote">
     {% if f.uke %}
     <a class="videre" href="/endringer/{{ f.uke.slug }}/">Alle
-      {{ antall(f.uke.antall_rader, "endringen", "endringene") }} i {{ f.uke.vist }},
+      {{ antall(f.uke.antall_med_egen_del, "endringen", "endringene") }} i {{ f.uke.vist }},
       selskapsdata medregnet →</a>
     {% endif %}
     <strong>«Observert»</strong> er datoen vi så endringen i
