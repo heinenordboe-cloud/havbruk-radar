@@ -570,15 +570,70 @@ class Felles:
 
 
 @lru_cache(maxsize=1)
+def _bokforingsfelt() -> frozenset[tuple[str, str]]:
+    """{(kilde, felt)} kildene selv erklærer som bokføring.
+
+    UTLEDET, aldri listet her. En liste i nettsted.py ville vært et andre
+    sted sannheten kan bli stående gammel — samme grunn som
+    `ukentlige_kilder()` og `kildevilkaar()` gir, og samme regel som
+    CLAUDE.md 1: en ny kilde skal ikke kreve en endring her.
+    """
+    from core import registry
+    from core.contract import erklaert_bokforing
+
+    ut: set[tuple[str, str]] = set()
+    for kilde in registry.discover():
+        ut |= erklaert_bokforing(kilde)
+    return frozenset(ut)
+
+
+@lru_cache(maxsize=1)
+def _avledede_felt() -> dict[tuple[str, str], str]:
+    """{(kilde, avledet felt): grunnfelt}, kildenes egen erklæring."""
+    from core import registry
+    from core.contract import erklaert_avledning
+
+    ut: dict[tuple[str, str], str] = {}
+    for kilde in registry.discover():
+        ut.update(erklaert_avledning(kilde))
+    return ut
+
+
+def uten_bokforing(beveg: pl.DataFrame) -> pl.DataFrame:
+    """Radene om RAPPORTERINGEN ut av det nettstedet leser.
+
+    En lesedør, ikke en opprydding: radene blir liggende i changeloggen,
+    som `utvalgsutvidelse`-radene og persondataene gjør. Append-only
+    gjelder, og en avledet logg kan regnes ut på nytt.
+
+    Den står i `_les_beveg()` og ikke i `les_endringsuker()`, fordi
+    changeloggen leses ÉTT sted for nettstedet. Lå filteret bare i
+    ukesregnskapet, ville entitetens egen tidslinje fortsatt vist radene
+    — og to lesemåter av samme logg som svarer ulikt er formen F6 og F7
+    hadde.
+    """
+    felt = _bokforingsfelt()
+    if beveg.is_empty() or not felt:
+        return beveg
+    behold = [(str(k), str(f)) not in felt
+              for k, f in zip(beveg["source"].to_list(),
+                              beveg["field"].to_list())]
+    return beveg.filter(pl.Series(behold, dtype=pl.Boolean))
+
+
+@lru_cache(maxsize=1)
 def _les_beveg() -> pl.DataFrame:
     """Changeloggen slik NETTSTEDET skal lese den. Ett sted.
 
-    Tre merkinger og ett filter, i den rekkefølgen:
+    Tre merkinger og to filtre, i den rekkefølgen:
 
         merk_utvalgsutvidelse   entiteten kom fordi VI begynte å spørre
         merk_feltbevegelse      det var et FELT som kom eller gikk, ikke
                                 entiteten
         bevegelse()             fjerner det som ikke skjedde i verden
+        uten_bokforing()        fjerner det som er om RAPPORTERINGEN og
+                                ikke om entiteten — kildens egen
+                                erklæring, se Source.bokforing
 
     ## Hvorfor det er én funksjon og ikke to like kall
 
@@ -596,7 +651,7 @@ def _les_beveg() -> pl.DataFrame:
     """
     alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
     alle = changelog.merk_feltbevegelse(alle, kilder=ukentlige_kilder())
-    return diff.bevegelse(alle)
+    return uten_bokforing(diff.bevegelse(alle))
 
 
 def les_felles() -> Felles:
@@ -1881,28 +1936,54 @@ def les_endringsuker(felles: Felles) -> list[dict]:
     #   trafikklys    per (produksjonsområde, fra, til, dato). ÉN
     #                 fargebeslutning, skrevet én gang per lokalitet i
     #                 området — se `_po_av_endring()`.
+    #   avledet       per (kilde, entitet, GRUNNFELT, paret). Ett felt
+    #                 som endret seg fordi et annet gjorde det — se
+    #                 `Source.avledet_av`.
     #
     # `felt_ny`/`felt_borte` slås IKKE sammen: der er hvert felt sin
     # egen hendelse, og det er hele poenget med å skille dem ut.
+    #
+    # DEN AVLEDEDE NØKKELEN HAR PARET MED, og ikke bare datoen. To uker
+    # der først flagget og siden tallet flyttet seg, er to ting som
+    # skjedde — og et felt som endrer seg ALENE er ikke et duplikat av
+    # noe. Regelen er «i samme par», ikke «aldri».
+    avledede = _avledede_felt()
+    grunnfelt = {(k, grunn) for (k, _a), grunn in avledede.items()}
     samlet: dict[tuple, dict] = {}
     rader: list[dict] = []
     for r in mine.iter_rows(named=True):
         ct = str(r["change_type"])
+        kilde_felt = (str(r["source"]), str(r["field"]))
+        er_grunn = True
         if ct in ("ny", "borte"):
             nøkkel = ("entitet", str(r["source"]), str(r["entity_id"]),
                       ct, str(r["observed_at"]))
-        elif (str(r["source"]), str(r["field"])) in SAMLES_PER_OMRAADE:
+        elif kilde_felt in SAMLES_PER_OMRAADE:
             nøkkel = ("omraade", str(r["source"]), str(r["field"]),
                       _po_av_endring(r, felles), str(r["old_value"]),
                       str(r["new_value"]), str(r["observed_at"]))
+        elif kilde_felt in avledede or kilde_felt in grunnfelt:
+            er_grunn = kilde_felt not in avledede
+            nøkkel = ("avledet", str(r["source"]), str(r["entity_id"]),
+                      avledede.get(kilde_felt, str(r["field"])),
+                      str(r["observed_at"]),
+                      str(r["forrige_observed_at"]))
         else:
             rader.append(_hendelse(r, felles))
             continue
         post = samlet.get(nøkkel)
         if post is None:
-            samlet[nøkkel] = {"rad": r, "felt": 1}
+            samlet[nøkkel] = {"rad": r, "felt": 1, "grunn": er_grunn}
         else:
             post["felt"] += 1
+            # GRUNNFELTET STÅR I HENDELSEN. «har_fisk: Nei -> Ja» er hva
+            # som skjedde; «antall_arter: 0 -> 1» er følgen av det, og en
+            # hendelse som viste følgen ville krevd at leseren regnet
+            # baklengs. Rekkefølgen radene kommer i er changeloggens, så
+            # valget kan ikke hvile på hvilken som kom først.
+            if er_grunn and not post["grunn"]:
+                post["rad"] = r
+                post["grunn"] = True
     rader += [_hendelse(p["rad"], felles, p["felt"]) for p in samlet.values()]
 
     per_uke: dict[str, list[dict]] = defaultdict(list)

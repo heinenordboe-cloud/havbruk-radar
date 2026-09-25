@@ -2725,11 +2725,15 @@ def _gjennom_doren(monkeypatch, rader):
                         lambda r: r)
     monkeypatch.setattr(nettsted.changelog, "merk_feltbevegelse",
                         lambda r, kilder=(): r)
-    nettsted._les_beveg.cache_clear()
+    for buffer in (nettsted._les_beveg, nettsted._bokforingsfelt,
+                   nettsted._avledede_felt):
+        buffer.cache_clear()
     try:
         return nettsted._les_beveg()
     finally:
-        nettsted._les_beveg.cache_clear()
+        for buffer in (nettsted._les_beveg, nettsted._bokforingsfelt,
+                       nettsted._avledede_felt):
+            buffer.cache_clear()
 
 
 def _falsk_felles(beveg, **overstyr):
@@ -2781,7 +2785,11 @@ def test_et_avledet_felt_i_samme_par_er_en_hendelse(monkeypatch):
                         lambda: frozenset({KildeMedBokforing.name}))
     [uke] = nettsted.les_endringsuker(_falsk_felles(beveg))
 
-    assert uke["antall_rader"] == 2, "to rader"
+    # `antall_rader` er TABELLRADER etter sammenslåing, ikke
+    # changelog-rader — uke 39 var 812 rader og 453 tabellrader. To
+    # leste rader blir da én rad og én hendelse, som for et
+    # områdevedtak.
+    assert uke["antall_rader"] == 1
     assert uke["antall"] == 1, "én hendelse"
     # Og det er GRUNNFELTET som står, ikke det avledede: «har_ting:
     # Nei -> Ja» er hva som skjedde.

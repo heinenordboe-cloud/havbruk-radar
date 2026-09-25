@@ -376,6 +376,47 @@ class Source:
     # ikke. Se `publiseringsvakt.grunnlagsfunn()`.
     partisjonering: "str | dict[str, str]" = ""
 
+    # FELT SOM SIER NOE OM RAPPORTERINGEN, IKKE OM ENTITETEN.
+    #
+    # Et tidsstempel for «da rapporterte de sist» endrer seg hver gang
+    # kilden ser på oppføringen. Raden er sann, den er bare ikke om noe
+    # som skjedde: MÅLT 24.09.2026 ga `biomasselag` 383 slike rader i én
+    # uke, og 321 av dem gjaldt lokaliteter der ingenting annet flyttet
+    # seg. Et tall der 75 % er rapporteringsbokføring svarer ikke på «hva
+    # skjedde i havbruket denne uka».
+    #
+    # Samme klasse som `felt_ny`/`felt_borte` i `nettsted.ENDRINGSTYPER`
+    # og som `utvalgsutvidelse` i CLAUDE.md 1b-3 — men ett hakk sterkere:
+    # de MERKES og vises, dette VISES IKKE. Grunnen er at de to andre
+    # sier noe en leser kan lure på (fikk selskapet nye ansatte-tall?),
+    # mens et hentetidsstempel bare sier at vi spurte igjen.
+    #
+    # Radene blir liggende i changeloggen. Append-only gjelder, og
+    # filteret er en lesedør — som persondatafilteret og
+    # `utvalgsutvidelse`. Se `nettsted._les_beveg()`.
+    bokforing: "tuple[str, ...]" = ()
+
+    # FELT SOM ENDRER SEG FORDI ET ANNET FELT ENDRET SEG.
+    #
+    #     avledet_av = {"antall_arter": "har_fisk"}
+    #
+    # Leses «antall_arter er avledet av har_fisk». Endrer BEGGE seg i
+    # samme par av øyeblikksbilder for samme entitet, er det ÉN hendelse,
+    # og det er grunnfeltet som står i den. MÅLT 24.09.2026: 66 av 66
+    # `antall_arter`-endringer i `biomasselag` gjaldt nøyaktig de samme
+    # lokalitetene som `har_fisk` — en lokalitet som får fisk går
+    # samtidig fra 0 til 1 art.
+    #
+    # Endrer det avledede feltet seg ALENE, er det ikke et duplikat av
+    # noe, og da teller det. Regelen er «i samme par», ikke «aldri»:
+    # et artstall som flytter seg uten at fisken kom eller gikk, er noe
+    # kilden sier som ingenting annet sier.
+    #
+    # Dette er samme form som `nettsted.SAMLES_PER_OMRAADE` — én ting som
+    # skjedde, skrevet én gang per rad kilden har. Forskjellen er bare hva
+    # radene deles på: området der, feltet her.
+    avledet_av: "dict[str, str]" = {}
+
     def fjern_egne_personer(self, frame: Any) -> Any:
         """Rader KILDEN vet peker på en person, men som kjernen ikke ser.
 
@@ -614,6 +655,78 @@ def erklaert_partisjonering(kilde: "Source") -> dict[str, str]:
             f"{kilde.name}: partisjonering nevner {sorted(ukjente)}, som "
             f"kilden ikke skriver under. En erklæring om en annen kilde "
             f"ville sett riktig ut for alltid.")
+    return ut
+
+
+def erklaert_bokforing(kilde: "Source") -> frozenset[tuple[str, str]]:
+    """{(navn, felt)} kilden erklærer som bokføring, for HVERT navn den
+    skriver under.
+
+    Nøkkelen er (navn, felt) og ikke feltet alene, av samme grunn som i
+    `partisjonering_per_kilde()`: navnet er mappa i `data/raw/` og
+    `source`-kolonnen i changeloggen, og det er strengen den som leser har
+    i hånda. `siste_rapport` i én kilde skal ikke gjøre `siste_rapport` i
+    en annen usynlig.
+
+    Validerer framfor å stole på deklarasjonen, som
+    `erklaert_partisjonering()` gjør, og av samme grunn: feltet settes av
+    en kildeforfatter som skriver én fil og aldri leser denne. En streng
+    der en tuppel var ment — `bokforing = "siste_rapport"` — ville blitt
+    lest som femten enkeltbokstaver og filtrert ingenting.
+    """
+    erklaert = getattr(kilde, "bokforing", ())
+    if isinstance(erklaert, str) or not isinstance(erklaert, (tuple, list,
+                                                             frozenset, set)):
+        raise ValueError(
+            f"{kilde.name}: bokforing er {type(erklaert).__name__}, og skal "
+            f"være en tuppel av feltnavn. En streng ville blitt lest som "
+            f"ett tegn per felt og filtrert ingenting. Se Source.bokforing.")
+    felt = tuple(str(f) for f in erklaert)
+    tomme = [f for f in felt if not f.strip()]
+    if tomme:
+        raise ValueError(
+            f"{kilde.name}: bokforing har et tomt feltnavn. Se "
+            f"Source.bokforing.")
+    return frozenset((navn, f) for navn in navnene_kilden_skriver(kilde)
+                     for f in felt)
+
+
+def erklaert_avledning(kilde: "Source") -> dict[tuple[str, str], str]:
+    """{(navn, avledet felt): grunnfelt} for hvert navn kilden skriver.
+
+    Samme nøkkelform og samme validering som `erklaert_bokforing()`.
+
+    To feilformer stoppes utover formen, og begge ville vært stille:
+
+      * et felt avledet av SEG SELV. Nøkkelen og grunnfeltet ville falt
+        sammen, og sammenslåingen hadde blitt en no-op som ser riktig ut.
+      * et felt som er BÅDE bokføring og avledet. Da er det uavgjort om
+        raden skal forsvinne eller slås sammen, og to lesere kunne svart
+        ulikt. Erklæringen må velge.
+    """
+    erklaert = getattr(kilde, "avledet_av", {})
+    if not isinstance(erklaert, dict):
+        raise ValueError(
+            f"{kilde.name}: avledet_av er {type(erklaert).__name__}, og skal "
+            f"være en dict {{avledet felt: grunnfelt}}. Se "
+            f"Source.avledet_av.")
+    bokf = {f for _navn, f in erklaert_bokforing(kilde)}
+    ut: dict[tuple[str, str], str] = {}
+    for avledet, grunn in erklaert.items():
+        avledet, grunn = str(avledet), str(grunn)
+        if not avledet.strip() or not grunn.strip():
+            raise ValueError(f"{kilde.name}: avledet_av har et tomt feltnavn.")
+        if avledet == grunn:
+            raise ValueError(
+                f"{kilde.name}: avledet_av[{avledet!r}] peker på seg selv. "
+                f"Sammenslåingen ville blitt en no-op som ser riktig ut.")
+        if avledet in bokf:
+            raise ValueError(
+                f"{kilde.name}: {avledet!r} er både bokforing og avledet_av. "
+                f"Da er det uavgjort om raden skal forsvinne eller slås "
+                f"sammen — erklæringen må velge.")
+        for navn in navnene_kilden_skriver(kilde):
+            ut[(navn, avledet)] = grunn
     return ut
 
 
