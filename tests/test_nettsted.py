@@ -27,6 +27,7 @@ import pytest
 import beslutning
 import kart
 import nettsted
+from core.contract import Source
 import visningsord
 
 
@@ -2668,6 +2669,152 @@ def test_felt_som_kom_telles_ikke_som_ukas_endring():
     assert uke["antall_rader"] == 1, "raden står"
     assert uke["antall"] == 0, "men den telles ikke"
     assert uke["utenfor_tellingen"] == 1
+
+
+# ================================ bokføring og avledede felt
+#
+# Anvendelse av «en hendelse er ikke en rad», ikke en ny regel. To slags
+# felt som ser ut som bevegelse og ikke er det:
+#
+#   bokføring    sier noe om RAPPORTERINGEN, ikke om entiteten
+#   avledet av   endrer seg fordi et annet felt endret seg
+#
+# Kilden deklarerer begge. Prøvene navngir ingen ekte kilde: de bygger
+# en, nettopp for at mekanismen skal prøves og ikke dagens innhold.
+
+class KildeMedBokforing(Source):
+    """En ukentlig kilde med ett bokføringsfelt og ett avledet felt."""
+
+    name = "falsk_ukentlig"
+    entity_type = "lokalitet"
+    partisjonering = "henting"
+    attribusjon = ("Oppdiktet kilde i prøven.",)
+    bokforing = ("rapport_tid",)
+    avledet_av = {"antall_ting": "har_ting"}
+
+    def fetch(self, kjoredato):
+        return {}
+
+    def parse(self, raw, observed_at):
+        return []
+
+
+def _falsk_rad(felt, fra, til, loknr="1", dato="2026-09-15",
+               forrige="2026-09-10"):
+    return {"entity_id": loknr, "entity_type": "lokalitet",
+            "entity_name": f"LOK {loknr}", "field": felt,
+            "old_value": fra, "new_value": til, "change_type": "endret",
+            "source": KildeMedBokforing.name, "observed_at": dato,
+            "forrige_observed_at": forrige, "forrige_fetched_at": "",
+            "published_at": "", "forrige_published_at": ""}
+
+
+def _gjennom_doren(monkeypatch, rader):
+    """Radene slik NETTSTEDET leser dem — gjennom `_les_beveg()`.
+
+    Døra og ikke en direkte ramme: det er ett sted changeloggen leses,
+    og en prøve som gikk rundt den ville stått grønn den dagen filteret
+    havnet på feil side av den.
+    """
+    from core import registry
+
+    monkeypatch.setattr(registry, "discover", lambda: [KildeMedBokforing()])
+    monkeypatch.setattr(nettsted.changelog, "les_alt",
+                        lambda **k: pl.DataFrame(rader))
+    monkeypatch.setattr(nettsted.changelog, "merk_utvalgsutvidelse",
+                        lambda r: r)
+    monkeypatch.setattr(nettsted.changelog, "merk_feltbevegelse",
+                        lambda r, kilder=(): r)
+    nettsted._les_beveg.cache_clear()
+    try:
+        return nettsted._les_beveg()
+    finally:
+        nettsted._les_beveg.cache_clear()
+
+
+def _falsk_felles(beveg, **overstyr):
+    return _felles_stubb(
+        akva={"1": {"navn": "LOK 1", "prodomraade_kode": ""}},
+        bevegelse=beveg, **overstyr)
+
+
+def test_et_bokforingsfelt_teller_ikke_i_ukas_tall(monkeypatch):
+    """«Da rapporterte de sist» er en opplysning om rapporteringen.
+
+    Raden blir liggende i changeloggen — append-only — og forsvinner ved
+    LESING, som `utvalgsutvidelse` og persondata gjør.
+    """
+    rader = [_falsk_rad("rapport_tid", "2026-09-08", "2026-09-14")]
+    beveg = _gjennom_doren(monkeypatch, rader)
+
+    assert beveg.height == 0, "bokføringsraden skal være ute av lesingen"
+
+    monkeypatch.setattr(nettsted, "ukentlige_kilder",
+                        lambda: frozenset({KildeMedBokforing.name}))
+    assert nettsted.les_endringsuker(_falsk_felles(beveg)) == []
+
+
+def test_bokforingsfeltet_staar_fortsatt_i_changeloggen(monkeypatch):
+    """Filteret er en lesedør, ikke en opprydding."""
+    rader = [_falsk_rad("rapport_tid", "a", "b")]
+    from core import registry
+
+    monkeypatch.setattr(registry, "discover", lambda: [KildeMedBokforing()])
+    monkeypatch.setattr(nettsted.changelog, "les_alt",
+                        lambda **k: pl.DataFrame(rader))
+    assert nettsted.changelog.les_alt().height == 1
+
+
+def test_et_avledet_felt_i_samme_par_er_en_hendelse(monkeypatch):
+    """`antall_ting` endret seg FORDI `har_ting` gjorde det.
+
+    Samme lokalitet, samme par av øyeblikksbilder: én hendelse. Samme
+    form som `SAMLES_PER_OMRAADE` — én ting som skjedde, skrevet én gang
+    per rad kilden har.
+    """
+    rader = [_falsk_rad("har_ting", "Nei", "Ja"),
+             _falsk_rad("antall_ting", "0", "1")]
+    beveg = _gjennom_doren(monkeypatch, rader)
+    assert beveg.height == 2, "begge radene leses"
+
+    monkeypatch.setattr(nettsted, "ukentlige_kilder",
+                        lambda: frozenset({KildeMedBokforing.name}))
+    [uke] = nettsted.les_endringsuker(_falsk_felles(beveg))
+
+    assert uke["antall_rader"] == 2, "to rader"
+    assert uke["antall"] == 1, "én hendelse"
+    # Og det er GRUNNFELTET som står, ikke det avledede: «har_ting:
+    # Nei -> Ja» er hva som skjedde.
+    assert [h["felt"] for h in uke["hendelser"]] == ["har_ting"]
+
+
+def test_et_avledet_felt_alene_er_sin_egen_hendelse(monkeypatch):
+    """Endrer bare det avledede feltet seg, er det ikke et duplikat av
+    noe — og da skal det telles. Regelen er «i samme par», ikke «aldri»."""
+    rader = [_falsk_rad("antall_ting", "1", "2")]
+    beveg = _gjennom_doren(monkeypatch, rader)
+
+    monkeypatch.setattr(nettsted, "ukentlige_kilder",
+                        lambda: frozenset({KildeMedBokforing.name}))
+    [uke] = nettsted.les_endringsuker(_falsk_felles(beveg))
+
+    assert uke["antall"] == 1
+    assert [h["felt"] for h in uke["hendelser"]] == ["antall_ting"]
+
+
+def test_avledet_i_ULIKE_par_er_to_hendelser(monkeypatch):
+    """Nøkkelen har med paret av øyeblikksbilder. To uker der først
+    flagget og siden tallet endret seg, er to ting som skjedde."""
+    rader = [_falsk_rad("har_ting", "Nei", "Ja"),
+             _falsk_rad("antall_ting", "0", "1",
+                        dato="2026-09-22", forrige="2026-09-15")]
+    beveg = _gjennom_doren(monkeypatch, rader)
+
+    monkeypatch.setattr(nettsted, "ukentlige_kilder",
+                        lambda: frozenset({KildeMedBokforing.name}))
+    uker = nettsted.les_endringsuker(_falsk_felles(beveg))
+
+    assert sum(u["antall"] for u in uker) == 2
 
 
 def test_borte_paastar_ikke_at_noe_forsvant_fra_registeret():
