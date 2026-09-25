@@ -86,7 +86,13 @@
               <span class="eier">{{ lok.selskap.navn }}</span>
               {% endif %}
               {% if lok.selskap.siden %}
-              <span class="fakta-bi">senest siden
+              {#- HVA DATOEN ER, i tre ord istedenfor ett. «senest siden»
+                  sa at eierskapet BEGYNTE en gang før datoen, og det er
+                  en slutning; det kilden oppgir er at en overføring til
+                  dette organisasjonsnummeret ble journalført den dagen.
+                  Samme ord som kolonnen på selskapssiden — ett ord for
+                  én ting. #}
+              <span class="fakta-bi">eier ifølge overføring journalført
                 <time datetime="{{ lok.selskap.siden }}">{{ lok.selskap.siden|dato }}</time></span>
               {% endif %}
               {% if lok.selskap.flere %}
