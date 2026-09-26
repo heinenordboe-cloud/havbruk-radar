@@ -275,11 +275,22 @@
       </figcaption>
     </figure>
     {% else %}
+    {# INGEN POSISJON I REGISTERET.
+       
+       Setningen er den eneste andre tilstanden siden kan ha der kartet
+       står, og prøven `test_hver_lokalitetsside_har_kart_eller_setningen`
+       krever nettopp det: kart eller denne, aldri ingen av delene. En
+       side som bare hadde et tomt felt der kartet skulle vært, ville
+       sett ut som en byggefeil.
+
+       DATOEN HØRER MED. «Registeret oppgir ingen posisjon» uten et
+       tidspunkt er en påstand om registeret for all framtid; med
+       øyeblikksbildets dato er den en påstand om hva vi så, den dagen
+       vi så det. Samme skille som `observed_at` mot `fetched_at` i
+       CLAUDE.md 1b. #}
     <p class="mangler posisjon-mangler">
-      Akvakulturregisteret oppgir ikke koordinater for denne
-      lokaliteten, og den kan derfor ikke tegnes på et kart. Den står
-      likevel oppført på
-      <a href="/lokalitet/#akvakultur-uten-koordinater">lokalitetslista</a>.
+      Registeret oppgir ingen posisjon for denne lokaliteten per
+      <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato | dato }}</time>.
     </p>
     {% endif %}
 

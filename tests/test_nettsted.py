@@ -1914,6 +1914,34 @@ def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():
     assert '<desc id="kystbeskrivelse">' in html
 
 
+def test_lokalitet_uten_posisjon_far_setningen_og_ingen_kart():
+    """En lokalitet uten koordinater skal ikke felle noe. Siden sier
+    det, med datoen for øyeblikksbildet.
+
+    TILFELLET ER 12260 JUVIKA, slik Akvakulturregisteret viste den
+    24.08.2026 — 28 felt, produksjonsområde 5, Molde, 780 tonn. Den er
+    borte fra registeret i dag, og den HADDE posisjon den dagen: ingen
+    lokalitet i noen av de seks øyeblikksbildene våre mangler
+    koordinater. Tilfellet er derfor en ekte rad med de to
+    posisjonsfeltene tatt ut, ikke et oppdiktet nummer — verdiene
+    rundt er kildens egne, så sida rendres av noe som faktisk har
+    stått i registeret.
+
+    DATOEN HØRER MED I SETNINGEN. «Registeret oppgir ingen posisjon»
+    uten et tidspunkt er en påstand om registeret for all framtid; med
+    øyeblikksbildets dato er den en påstand om hva vi så, den dagen vi
+    så det.
+    """
+    html = _side(loknr="12260", tittelnavn="Juvika", navn="JUVIKA",
+                 kommune="MOLDE", akva_dato="2026-08-24",
+                 posisjonskart=None)
+    assert "data-kart" not in html, "kart tegnet uten posisjon"
+    assert re.search(
+        r"Registeret oppgir ingen posisjon for denne lokaliteten per\s*"
+        r'<time datetime="2026-08-24">24\. august 2026</time>\.', html), \
+        "setningen mangler, eller datoen står ikke i den"
+
+
 def test_lokaliteten_langt_fra_kysten_far_kart_som_alle_andre():
     """Sperren sto her 26.09.2026, én dag, og er borte.
 

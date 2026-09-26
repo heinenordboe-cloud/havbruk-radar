@@ -339,6 +339,24 @@ def ukas_tall() -> tuple[str, list[str]]:
     for kilde, n in collections.Counter(
             h["kilde"] for h in u["hendelser"]).most_common():
         linjer.append(f"    {n:>6}  {kilde}")
+
+    # LOKALITETER UTEN POSISJON, hver uke, også når tallet er null.
+    #
+    # En side uten koordinater får ikke kart; den får en setning om at
+    # registeret ikke oppgir posisjon. Det er riktig oppførsel og
+    # feller ingenting — og nettopp derfor kan tallet vokse uten at
+    # noen merker det. Et tall som bare vises når det er over null, er
+    # et tall ingen har sett gå fra 0 til 1.
+    #
+    # Numrene skrives ut når de er få nok til å slås opp. Er de mange,
+    # er det ikke lenger en enkeltsak, og lista hører hjemme på
+    # /lokalitet/#akvakultur-uten-koordinater.
+    _punkter, uten, _hoyde, _gitter = nettsted.kartpunkter(felles.akva)
+    linjer += ["", f"  {len(uten)} av {len(felles.akva)} lokaliteter uten "
+                   f"posisjon i registeret"]
+    if uten:
+        linjer.append("    " + (", ".join(uten) if len(uten) <= 10
+                                else ", ".join(uten[:10]) + " …"))
     return u["slug"], linjer
 
 

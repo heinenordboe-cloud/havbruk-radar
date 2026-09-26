@@ -9,6 +9,7 @@ at formlene står her og må PRØVES her.
 import gzip
 import json
 import math
+import re
 from pathlib import Path
 
 import pytest
@@ -279,27 +280,47 @@ def test_posisjonen_star_ogsaa_som_tall():
     assert not uten, f"kart uten koordinater i tekst: {uten[:5]}"
 
 
+UTEN_POSISJON = re.compile(
+    r"Registeret oppgir ingen posisjon for denne lokaliteten per\s*"
+    r'<time datetime="\d{4}-\d{2}-\d{2}">[^<]+</time>\.')
+
+
 @bygget
-def test_hver_lokalitetsside_har_et_kart():
-    """ALLE lokalitetssidene har kart, uten unntak.
+def test_hver_lokalitetsside_har_kart_eller_setningen():
+    """ENTEN et kart ELLER setningen om manglende posisjon. Aldri
+    ingen av delene.
 
-    Prøven het `..._med_koordinater_har_et_kart` og godtok to slags
-    unntak: sider uten koordinater, og — i ett døgn 26.09.2026 — sider
-    sperret av en kystbeltegrense. Begge unntakene er borte.
-    Akvakulturregisteret oppgir koordinater for hver eneste lokalitet,
-    og sperren er målt bort: se `verktoy/kartfasit.py` og
-    KARTGEOMETRI.md.
+    Prøven het `..._med_koordinater_har_et_kart` og godtok en side som
+    verken hadde kart eller forklaring så lenge den inneholdt en
+    bestemt ordlyd et sted. Den het deretter `..._har_et_kart` og
+    godtok ingen unntak i det hele tatt — og da ville en lokalitet uten
+    koordinater i registeret felt suiten i stedet for å bli forklart på
+    sida.
 
-    Blir en lokalitet uten koordinater ført inn i registeret igjen, er
-    dette prøven som sier fra — og da er svaret å ta unntaket tilbake
-    med vitende og vilje, ikke å utvide prøven til å godta det.
+    Begge deler var galt på samme måte: spørsmålet er ikke om kartet
+    finnes, men om siden SVARER på hvor lokaliteten ligger. To svar er
+    gyldige, og et tredje — en tom plass der kartet skulle vært — er
+    det ikke. Da ser en manglende posisjon ut som en byggefeil.
+
+    Ingen av de 1782 lokalitetene mangler posisjon i dag. Prøven er
+    skrevet for den dagen én gjør det.
     """
     sider = sorted(pathlib.Path(NETTSTED, "lokalitet").glob("*/index.html"))
     assert len(sider) > 1000, f"fant bare {len(sider)} lokalitetssider"
-    uten = [sti.parent.name for sti in sider
-            if "data-kart" not in sti.read_text(encoding="utf-8")]
-    assert not uten, (f"{len(uten)} av {len(sider)} sider mangler kart: "
-                      f"{uten[:5]}")
+    tomme, forklart = [], []
+    for sti in sider:
+        html = sti.read_text(encoding="utf-8")
+        if "data-kart" in html:
+            continue
+        if UTEN_POSISJON.search(html):
+            forklart.append(sti.parent.name)
+        else:
+            tomme.append(sti.parent.name)
+    assert not tomme, (
+        f"{len(tomme)} av {len(sider)} sider har verken kart eller "
+        f"setningen om manglende posisjon: {tomme[:5]}")
+    print(f"\n  {len(sider) - len(forklart)} med kart, "
+          f"{len(forklart)} uten posisjon")
 
 
 @bygget
