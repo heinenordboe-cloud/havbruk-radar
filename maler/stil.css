@@ -2253,11 +2253,21 @@ td[data-felt="farge_mangler"]::before {
  * KYSTLINJA ER EN EGEN STREK og ikke havflatas kant. Tegnes havflata
  * med strek, vises delelinjene mellom nabo-havflater som rette streker
  * tvers over sjøen — MÅLT på prøveklippene. */
+/* BAKGRUNNEN ER LAND på posisjonskartet, motsatt av områdekartet.
+ * Utsnittet er 36 km og ligger alltid innenfor Kartverkets dekning —
+ * MÅLT mot N500 Arealdekke på ni lokaliteter: ingen av dem har en
+ * eneste feilmalt piksel inne i en flate. Se KARTGEOMETRI.md. */
 .posisjonskart { background: var(--kart-land); }
 
+/* ØYENE. Havflatas interiørringer, malt tilbake som land. Samme farge
+   som landflata: de ER land, og et kart som ga dem sin egen farge
+   ville påstått en forskjell som ikke finnes. */
+.kart-oyer path { fill: var(--kart-land); stroke: none; }
+
+/* HAVFLATA, YTTERRINGENE. `fill-rule` trengs ikke lenger: øyene er et
+   eget lag oppå, ikke hull i dette. */
 .kart-hav path {
   fill: var(--kart-hav);
-  fill-rule: evenodd;
   stroke: none;
 }
 
@@ -2419,7 +2429,10 @@ td[data-felt="farge_mangler"]::before {
 .lok-tilstand .posisjon figcaption { color: var(--farge-tekst-svak); }
 
 .lok-tilstand .posisjonskart {
-  background: var(--papir2);
+  /* LANDFARGEN, ikke panelets papir. Øyene males nå som et eget lag i
+     `--kart-land`, og med `--papir2` i bakgrunnen ville fastlandet og
+     holmene fått hver sin nyanse — to slags land på samme kart. */
+  background: var(--kart-land);
   box-shadow: inset 0 0 0 1px var(--farge-kant-svak);
   /* Ett kart i en smal spalte trenger ikke et 28rem-tak; det tar
      halve spalta og skyver resten under bretten. */

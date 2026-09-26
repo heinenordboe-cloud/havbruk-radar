@@ -1321,7 +1321,8 @@ def _po(**overstyr) -> str:
         # her er den minste formen malen kan rendre.
         "kart": {"nr": "4", "bredde": 760, "hoyde": 780.0, "serie": "n500",
                  "land": ["M0 0L760 0L760 780L0 780Z"],
-                 "hav": ["M0 0L10 0L10 10Z"], "kyst": ["M0 0L10 10"],
+                 "hav": ["M0 0L10 0L10 10Z"], "oyer": ["M2 2L4 2L4 4Z"],
+                 "kyst": ["M0 0L10 10"],
                  "grense": ["M2 2L8 2L8 8Z"],
                  "lokaliteter": [{"loknr": "31397", "navn": "Oterneset",
                                   "x": 300.0, "y": 400.0}],

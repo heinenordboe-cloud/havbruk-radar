@@ -639,30 +639,58 @@ def _linjekant(linje, proj: Projeksjon):
     return ut
 
 
-def _kystlag(serie: str, proj: Projeksjon, toleranse: float) -> tuple[list, list]:
-    """(havflater som `d`, kystlinjer som `d`) for utsnittet."""
+def _kystlag(serie: str, proj: Projeksjon,
+             toleranse: float) -> tuple[list, list, list]:
+    """(havflater, øyer, kystlinjer) som `d`-strenger for utsnittet.
+
+    ØYENE KOMMER FOR SEG fra 26.09.2026, og det er ikke en detalj.
+    `Havflate` er havet som flate med øyene som interiørringer, og
+    fram til nå ble hele flata skrevet som én bane med
+    `fill-rule="evenodd"`: hullet viste det som lå UNDER, og under lå
+    bakgrunnen. Da måtte bakgrunnen bety land — og da måtte åpent hav
+    utenfor Kartverkets dekning også bli land.
+
+    Med øyene som et EGET LAG kan bakgrunnen bety hav: havet males der
+    Kartverket sier hav, og øyene males tilbake som land oppå. Ingen
+    flate henter da betydningen sin fra bakgrunnen.
+
+    Rekkefølgen som følger av det er hav FØR øyer, ikke omvendt.
+    Malerekkefølgen i oppdraget la øyene først og havet oppå med
+    `evenodd`; resultatet er det samme piksel for piksel, men da må
+    øyeringene stå i BEGGE banene, og de er 36 % av havgeometrien.
+    Målt: det ville lagt omtrent 18 % på hvert kart og brutt taket på
+    60 kB. Samme bilde, halve bytene.
+    """
     hav_i, kyst_i = _indeks(serie)
     ruter = _ruter((proj.ost_min, proj.nord_min, proj.ost_maks, proj.nord_maks))
     monn = (proj.ost_maks - proj.ost_min) * 0.02
 
-    hav, sett = [], set()
+    hav, oyer, sett = [], [], set()
     for rute in ruter:
         for flate in hav_i.get(rute, ()):
             if id(flate) in sett:
                 continue
             sett.add(id(flate))
             ledd = []
-            for ring in flate:
+            for i, ring in enumerate(flate):
                 klippet = _flatekant([list(p) for p in ring], proj, monn)
                 if len(klippet) < 3:
                     continue
                 px = forenkle([(proj.x(e), proj.y(n)) for e, n in klippet],
                               toleranse)
                 d = _bane(px, lukket=True)
-                if d:
+                if not d:
+                    continue
+                if i == 0:
+                    hav.append(d)
+                else:
                     ledd.append(d)
+            # ØYENE I ÉN FLATE BLIR ÉN BANE. Hver `<path>` koster
+            # tjue byte i tagg utenom selve dataene, og en skjærgård
+            # har hundrevis av holmer. Ringene overlapper ikke, så
+            # standard fyllregel gir samme bilde.
             if ledd:
-                hav.append("".join(ledd))
+                oyer.append("".join(ledd))
 
     kyst, sett = [], set()
     for rute in ruter:
@@ -676,7 +704,7 @@ def _kystlag(serie: str, proj: Projeksjon, toleranse: float) -> tuple[list, list
                 d = _bane(px)
                 if d:
                     kyst.append(d)
-    return hav, kyst
+    return hav, oyer, kyst
 
 
 # ------------------------------------------------------------ kystkart
@@ -875,7 +903,7 @@ def norgeskart(omraader: list[dict] | None = None,
     """
     proj, ringer, _geo = _norgeramme(bredde)
 
-    hav, kyst = _kystlag("n2000", proj, NORGE_TOLERANSE)
+    hav, oyer, kyst = _kystlag("n2000", proj, NORGE_TOLERANSE)
     naboland = _tegn([til_meter(r)
                       for r in _linjer(_les(LAND)["features"][0]["geometry"])],
                      proj, NORGE_TOLERANSE, lukket=True)
@@ -928,13 +956,15 @@ def norgeskart(omraader: list[dict] | None = None,
         f'<style>'
         f'.b{{fill:#0c222c}}'
         f'.nl{{fill:#22454f;stroke:none}}'
-        f'.hv{{fill:#0c222c;fill-rule:evenodd;stroke:none}}'
+        f'.hv{{fill:#0c222c;stroke:none}}'
+        f'.oy{{fill:#22454f;stroke:none}}'
         f'.ky{{fill:none;stroke:#63909f;stroke-width:0.9}}'
         f'.gr{{fill:none;stroke:#8d6440;stroke-width:0.9;stroke-opacity:0.7}}'
         f'.lk{{fill:#c4622a;fill-opacity:0.9}}'
         f'</style>'
         f'<rect class="b" width="{proj.bredde}" height="{proj.hoyde}"/>'
-        + g("nl", naboland) + g("hv", hav) + g("ky", kyst) + g("gr", grenser)
+        + g("nl", naboland) + g("hv", hav) + g("oy", oyer)
+        + g("ky", kyst) + g("gr", grenser)
         + (f'<g class="lk">{punkter}</g>' if punkter else "")
         + "</svg>")
 
@@ -1066,8 +1096,8 @@ def omraadekart(nr: str, lokaliteter: list | None = None,
     # Prikkene og gradnettet er de samme i begge seriene, men de er
     # med i regnestykket: taket gjelder kartet, ikke kystlinja.
     for serie in ("n500", "n2000"):
-        hav, kyst = _kystlag(serie, proj, OMRAADE_TOLERANSE)
-        byte = _svgbyte(naboland + hav + kyst + grense, prikker,
+        hav, oyer, kyst = _kystlag(serie, proj, OMRAADE_TOLERANSE)
+        byte = _svgbyte(naboland + hav + oyer + kyst + grense, prikker,
                         gitterlinjer)
         if byte <= OMRAADE_TAK or serie == "n2000":
             break
@@ -1079,6 +1109,7 @@ def omraadekart(nr: str, lokaliteter: list | None = None,
         "serie": serie,
         "land": naboland,
         "hav": hav,
+        "oyer": oyer,
         "kyst": kyst,
         "grense": grense,
         "lokaliteter": prikker,
@@ -1213,7 +1244,7 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
     proj = Projeksjon(ost - halv, nord - halv, ost + halv, nord + halv,
                       bredde=bredde, marg=0)
 
-    hav, kyst = _kystlag("n500", proj, POSISJON_TOLERANSE)
+    hav, oyer, kyst = _kystlag("n500", proj, POSISJON_TOLERANSE)
 
     # OMRÅDEGRENSA SOM LINJE, ikke som ring. Klippes ringen til
     # utsnittet og tegnes med strek, følger streken rammen der området
@@ -1260,6 +1291,7 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
         "grense": grense,
         "naboer": naboprikker,
         "utenfor_kystbeltet": False,
+        "oyer": oyer,
         "malestokk": _malestokk(proj),
         # Gradnettet er FINERE her, og etikettene er av: et utsnitt på
         # 36 km rommer en tredjedels breddegrad, og «69°N» tvers over

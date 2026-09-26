@@ -258,40 +258,84 @@ bygde sidene (907–1814 byte). Anslaget kan bli feil om malen endres, og
 prøven som HOLDER løftet leser derfor den ferdige sida:
 `test_ingen_omraadeside_har_et_kart_over_150_kb`.
 
-### Havflata slutter ved datakanten, og det er synlig
+### Havflata slutter ved datakanten — målt, og ikke der vi trodde
 
-`Havflate` dekker Norges sjøterritorium — et belte langs kysten — og
-ikke havet utenfor. Der beltet slutter, har vi ingen opplysning, og
-hvilken farge den flata får er et VALG om hva «ingen opplysning» skal
-se ut som. De to kartene svarer ulikt, og begge svarene er målt.
+`Havflate` dekker Norges sjøterritorium og ikke havet utenfor. Der
+beltet slutter har vi ingen opplysning, og hvilken farge den flata får
+er et VALG om hva «vet ikke» skal se ut som. De to kartene svarer
+ulikt, og begge svarene er nå målt mot fasiten.
 
-**Områdekartet: bakgrunnen er hav, og landet kommer fra Natural
-Earth.** Utsnittene er 120–330 km brede, og den vestlige fjerdedelen
-ligger utenfor beltet. MÅLT på PO 4: 150 av 760 piksler åpent hav malt
-i landfargen. Natural Earths grove land legges derfor under havflata.
-Den er aldri synlig der Kartverket har data, så 1 km oppløsning spiller
-ingen rolle; den svarer bare på om dette er havbunn eller åpent hav der
-Kartverket tier — og ved 300 meter per piksel er 1 km tre piksler.
+**Fasiten er N500 Arealdekke, den andre halvdelen av den samme kilden.**
+`Havflate` er sjøen; alt annet som er en flate er land — `ÅpentOmråde`,
+`Skog`, `Myr`, `SnøIsbre`, `Tettbebyggelse`, `Innsjø`, `Elv` og fire
+til. Verktøyet er `verktoy/kartfasit.py`: det rasteriserer utsnittet i
+en nettleser (ikke en Python-modell av malerekkefølgen — da måler man
+modellen) og legger det oppå fasiten, piksel for piksel.
 
-**Lokalitetskartet: bakgrunnen er land, og Natural Earth brukes
-ikke.** Samme grep der ville vært feil, og det er målt: ved 36 km i 560
-piksler er ett piksel 64 meter, så Natural Earths kystlinje er 15
-piksler unna. Målt på seks tilfeldige lokaliteter er **5–28 % av
-utsnittet verken NE-land eller havflate** — de prosentene ville blitt
-malt som sjø, og mye av dem er land.
+**Lokalitetskartet: bakgrunnen er LAND, og det er riktig.** Målt
+26.09.2026 på ni lokaliteter, 313 600 piksler hver:
 
-**Prisen, sagt rett ut:** et 36 km-utsnitt som når utenfor beltet,
-maler åpent hav i landfargen. Det gjelder de lokalitetene som ligger
-langt til havs. Målt 26.09.2026: tre lokaliteter har over 10 km til
-nærmeste kystkontur — 11899 (19,8 km, Nordsjøen utenfor Egersund),
-11851 (11,2) og 45275 (11,1) — og på deres sider er mesteparten av
-kartet feil farge. Det er ikke rettet, fordi rettingen krever å vite
-hvor Kartverkets DEKNING slutter, og den opplysningen finnes ikke i
-`Havflate`: flatas ytterring følger kysten på den ene siden og
-datakanten på den andre, uten å si hvilken som er hvilken.
-`Dataavgrensning` i N500 er linjer, ikke flater, og å sette dem sammen
-til en dekningsflate er en topologijobb. Åpent spørsmål, ikke en
-glemsel.
+    lokalitet   feilmalt   ved kysten   inne i flata   fasit: land
+        11899     0,05 %       0,05 %         0,00 %        99,7 %
+        11851     0,20 %       0,20 %         0,00 %        97,4 %
+        45275     0,37 %       0,37 %         0,00 %        95,4 %
+        13509     1,15 %       1,15 %         0,00 %        78,6 %
+        11682     1,81 %       1,81 %         0,00 %        68,8 %
+        15657     0,76 %       0,76 %         0,00 %        43,6 %
+        36197     0,92 %       0,92 %         0,00 %        40,7 %
+        10505     0,87 %       0,87 %         0,00 %        39,1 %
+        10837     0,97 %       0,97 %         0,00 %        44,1 %
+
+**Hver eneste feilmalte piksel ligger innenfor to piksler av en
+kystlinje. Ingen ligger inne i en flate.** Det er forenklingens egen
+oppløsning — Douglas-Peucker på 1,6 piksler og kantutjevningen i
+nettleseren — og ikke en påstand om at sjø er land. Datakanten slår
+altså ikke inn på lokalitetskartet i det hele tatt: et utsnitt på 36 km
+har 18 km ut fra anlegget, sjøterritoriet er 22 km fra grunnlinja, og
+norske anlegg ligger innenfor den.
+
+**Det som så ut som datakant var noe annet.** Påstanden 26.09.2026 om at
+11899 lå «19,8 km ut i Nordsjøen utenfor Egersund» var feil på to
+måter: avstanden var 22,8 km (det første søket hadde for lite vindu), og
+stedet er MJÅVATNET — et ferskvannsanlegg i innlandet i Rogaland.
+Fasiten sier 99,7 % land for det utsnittet, og kartet traff. Det samme
+gjelder 11851 (GYLAND) og 45275 (NYLAND).
+
+**Malerekkefølgen fra oppdraget ble prøvd og målt.** Forslaget var:
+bakgrunn hav, Natural Earth-land med 2 km strek i samme farge,
+havflatas øyer som land, havflatene med `evenodd`, kystkonturen øverst.
+Tanken er riktig — da betyr «ingen opplysning» hav — men den hviler på
+at Natural Earth kan bære landet der Kartverket tier. Målt på de samme
+ni:
+
+    feilmalt inne i flata:  0,37 %  2,10 %  0,94 %  1,70 % 20,11 %
+                            5,53 %  3,28 %  2,33 %  4,86 %
+
+Natural Earth 1:10 m er omtrent 1 km grov, og ved 36 km i 560 piksler
+er det 15 piksler. Streken på 2 km flytter kanten én kilometer utover
+og lukker noen hull, men fjordarmer og halvøyer datasettet ikke har,
+kan den ikke finne på. Rekkefølgen ble derfor ikke tatt i bruk: den
+gjør kartet tre til femten ganger mindre riktig enn det var.
+
+**Det som BLE beholdt fra den er øyene som eget lag.** Fram til nå ble
+havflata skrevet som én bane med `fill-rule="evenodd"`, så øyene var
+hull som viste bakgrunnen — og da MÅTTE bakgrunnen bety land. Nå males
+ytterringene som hav og interiørringene som land oppå. Bildet er det
+samme (målt: 1,81 % → 1,81 %), men ingen flate henter lenger
+betydningen sin fra bakgrunnen, og områdekartet og heroen — som har
+HAV i bakgrunnen — får øyene sine malt i stedet for å vise sjø gjennom
+hullene.
+
+Ringene ble lagt i ÉN bane per havflate og ikke én per holme: en
+`<path>`-tagg koster tjue byte utenom dataene, og en skjærgård har
+hundrevis av holmer. Målt: 59 369 → 56 902 byte på det verste kartet,
+mot et tak på 60 000.
+
+**Områdekartet: bakgrunnen er hav, og landet kommer fra Natural Earth.**
+Der er utsnittene 120–330 km brede, den vestlige fjerdedelen ligger
+utenfor beltet, og MÅLT på PO 4: 150 av 760 piksler åpent hav malt i
+landfargen. Ved 300 meter per piksel er Natural Earths kilometer tre
+piksler, og da bærer den landet godt nok.
 
 ### DYBDEDATA ER VURDERT OG VALGT BORT
 

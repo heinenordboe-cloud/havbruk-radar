@@ -217,8 +217,23 @@
           <path d="{{ l.d }}"/>
           {% endfor %}
         </g>
+        {# LAGDELINGEN ER REKKEFØLGEN, og hvert lag svarer på noe:
+
+             bakgrunn   land
+             kart-hav   Kartverkets havflate, ytterringene
+             kart-oyer  havflatas interiørringer, malt tilbake som land
+             kart-kyst  kystkonturen som strek, øverst
+
+           ØYENE ER ET EGET LAG fra 26.09.2026, ikke hull i havflata.
+           Bildet er det samme, men ingen flate henter lenger
+           betydningen sin fra bakgrunnen — se `kart._kystlag()`. #}
         <g class="kart-hav" aria-hidden="true">
           {% for d in pk.hav %}
+          <path d="{{ d }}"/>
+          {% endfor %}
+        </g>
+        <g class="kart-oyer" aria-hidden="true">
+          {% for d in pk.oyer %}
           <path d="{{ d }}"/>
           {% endfor %}
         </g>
