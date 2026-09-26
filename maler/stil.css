@@ -2208,6 +2208,11 @@ td[data-felt="farge_mangler"]::before {
 
 .posisjon-mangler { align-self: center; }
 
+/* KARTVERKETS NAVN UNDER KARTET. Egen linje, fordi det er et
+   lisensvilkår og ikke en del av bildeteksten — og fordi en kreditering
+   som er flettet inn i en setning er en kreditering ingen ser. */
+.kartkreditt { display: block; margin-block-end: var(--rom-4); }
+
 /* MARKØREN er en ring OG en prikk. Ringen alene er en sirkel på et
    kart; prikken alene forsvinner i en fjordarm. Sammen leses de som
    «her, nøyaktig». */

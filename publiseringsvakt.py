@@ -1073,6 +1073,37 @@ def repostier(tekst: str, fil: str = "") -> list[Funn]:
                  len(treff))]
 
 
+# ------------------------------------------- kart uten attribusjon
+#
+# KYSTLINJA ER KARTVERKETS, OG CC BY 4.0 KREVER NAVNET DER PRODUKTET
+# BRUKES. Vilkårssiden, ordrett: «Kartverkets namn skal visast i alle
+# samanhengar der produkta eller uttrekk av produkta blir brukt … på
+# følgjande måte: © Kartverket.» Se docs/LISENSKJEDE.md merknad J.
+#
+# Det er ikke en kolofon. Et kart uten navnet er et lisensbrudd, og
+# forskjellen på det og de andre funnene i denne fila er at dette er en
+# tredjeparts RETTIGHET og ikke vår egen hygiene.
+#
+# MERKET ER `data-kart` PÅ SVG-EN, satt av malen. En prøve på
+# `<svg class="kystkart"` ville måttet kjenne hver klasse hvert kart
+# har, og et nytt kart med en ny klasse ville sluppet gjennom stille.
+KARTMERKE = re.compile(r"<svg\b[^>]*\bdata-kart\b", re.I)
+KARTNAVN = "© Kartverket"
+
+
+def kart_uten_attribusjon(tekst: str, fil: str = "") -> list[Funn]:
+    """En side med kart som ikke navngir Kartverket. Tom liste = rent.
+
+    Funnet kan IKKE kvitteres ut, av samme grunn som `uferdig_tekst`:
+    en kvittering sier «vi har sett dette og det er riktig», og et kart
+    uten attribusjonen kan ikke være riktig.
+    """
+    if not KARTMERKE.search(tekst) or KARTNAVN in tekst:
+        return []
+    return [Funn(fil, "kart_uten_attribusjon",
+                 f"kart uten «{KARTNAVN}»", len(KARTMERKE.findall(tekst)))]
+
+
 # ------------------------------------------- rå tidsstempler
 #
 # KILDENS TIDSSTEMPEL ER IKKE EN DATO EN LESER SKAL SE.
@@ -1768,6 +1799,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
         funn.extend(raa_tidsstempler(tekst, fil=rel))
         # REPO-STIER i synlig tekst. Se `repostier()`.
         funn.extend(repostier(tekst, fil=rel))
+        # KART UTEN KARTVERKETS NAVN. Et lisensvilkår, ikke hygiene.
+        funn.extend(kart_uten_attribusjon(tekst, fil=rel))
         if sti.suffix.lower() in KOLONNETYPER:
             funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
                                    avgrenser=KOLONNETYPER[sti.suffix.lower()]))

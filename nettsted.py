@@ -244,6 +244,25 @@ class UbelagtKilde(Exception):
     """
 
 
+# ATTRIBUSJONEN FOR KARTGEOMETRIEN, som ikke kommer fra en `Source`.
+#
+# Kystlinja er Kartverkets, CC BY 4.0, og lisensen krever at navnet
+# vises «i alle samanhengar der produkta eller uttrekk av produkta blir
+# brukt … på følgjande måte: © Kartverket. Det skal også linkast til
+# nettsidene våre der det er mogleg.» Ordrett fra vilkårssiden — se
+# docs/LISENSKJEDE.md merknad J.
+#
+# Den bor HER og ikke på en kilde, fordi geometrien ikke er en kilde i
+# `sources/`: den hentes for hånd, avledes av `verktoy/kystlinje.py` og
+# tegnes inn i SVG-en ved bygging. `attribusjon()` kaster på et
+# kildenavn ingen `Source` skriver under, og det skal den fortsette med.
+#
+# EN SIDE MED KART MÅ BÆRE DEN. Porten håndhever det — se
+# `publiseringsvakt.kart_uten_attribusjon()`.
+KARTVERKET = "© Kartverket"
+KARTVERKET_URL = "https://www.kartverket.no"
+
+
 def attribusjon(kilder, vilkaar=None) -> list[str]:
     """Setningene som må stå synlig, for de kildene siden faktisk bruker.
 
@@ -337,7 +356,7 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
                    feed_tittel: str = "", main_klasse: str = "",
                    side_skript: str = "", siterte_organ=(),
                    sidetype: str = "", undertittel: str = "",
-                   soketekst: str = "") -> dict:
+                   soketekst: str = "", kart: bool = False) -> dict:
     """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
     # DEN KANONISKE ADRESSEN, regnet ut av filstien og vertsnavnet.
     #
@@ -360,8 +379,14 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
             fraskrivelse(kilder, i_tillegg=siterte_organ), "eller"),
         "kanonisk": kanonisk_url(sti, rot),
         "jsonld": jsonld,
-        "attribusjon": attribusjon(kilder,
-                                   felles.vilkaar if felles else None),
+        # BUNNTEKSTENS SETNINGER, og Kartverkets i tillegg når siden
+        # viser et kart. Lisensen krever navnet der produktet BRUKES,
+        # og en side uten kart bruker det ikke.
+        "attribusjon": (attribusjon(kilder,
+                                    felles.vilkaar if felles else None)
+                        + ([KARTVERKET] if kart else [])),
+        "kartverket": KARTVERKET if kart else "",
+        "kartverket_url": KARTVERKET_URL,
         "stilark": stilsti(sti, rot),
         "bygget": i_dag,
         "bygget_vist": visningsord.dato(i_dag),
@@ -4422,6 +4447,9 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
                 "Lusetallene er hentet fra BarentsWatch og gjelder uka "
                 "de er datert til."),
             meny_aktiv="lokalitet",
+            # KARTET ER PÅ SIDEN, og da må Kartverkets navn være det
+            # også — i bunnteksten og under kartet. Se `KARTVERKET`.
+            kart=lok["posisjonskart"] is not None,
             # UNDERTITTELEN I TREFFLISTA: kommune · område · innehaver.
             # De tre er det en leser skiller to lokaliteter på når begge
             # heter noe med «holmen». Innehaveren er den samme strengen
@@ -6528,6 +6556,7 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
             feed="/endringer/feed.xml",
             feed_tittel="Kystloggen: alle endringer",
+            kart=True,
             sidetype="Forside",
             undertittel="Et uavhengig arkiv over offentlige data om "
                         "norsk havbruk",

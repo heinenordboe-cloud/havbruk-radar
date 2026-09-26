@@ -122,6 +122,10 @@ def _grunn(undermappe: str = "", **over) -> dict:
         "sidetype": "",
         "undertittel": "",
         "soketekst": "",
+        # Kartverkets navn. Tom når siden ikke viser et kart — lisensen
+        # krever navnet der produktet BRUKES. Se `nettsted.KARTVERKET`.
+        "kartverket": nettsted.KARTVERKET,
+        "kartverket_url": nettsted.KARTVERKET_URL,
     }
     grunn.update(over)
     return grunn

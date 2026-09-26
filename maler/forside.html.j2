@@ -309,9 +309,17 @@
     <div class="kyst-to">
       <figure class="kartramme" role="region"
               aria-labelledby="kysttittel" tabindex="0">
-      <svg class="kystkart" viewBox="0 0 {{ f.kart.bredde }} {{ f.kart.hoyde }}"
+      {# `data-kart` ER MERKET PORTEN LETER ETTER. Ett attributt på hver
+         kart-SVG, og én regel: en side med et kart må bære «© Kartverket».
+         Se `publiseringsvakt.kart_uten_attribusjon()`. #}
+      <svg class="kystkart" data-kart viewBox="0 0 {{ f.kart.bredde }} {{ f.kart.hoyde }}"
            width="{{ f.kart.bredde }}" height="{{ f.kart.hoyde }}"
-           role="img" aria-labelledby="kysttittel kystbeskrivelse">
+           role="img"
+           aria-label="Kart over
+           {{ antall(f.produksjonsomraader, "produksjonsområde", "produksjonsområder") }},
+           fylt med trafikklysfargen
+           Akvakulturregisteret oppgir nå. Alle navn, farger og tall
+           står i tabellen ved siden av.">
         <title id="kysttittel">Kart over de
           {{ antall(f.produksjonsomraader, "produksjonsområdet", "produksjonsområdene") }}</title>
         <desc id="kystbeskrivelse">Fiskeridirektoratets offisielle
@@ -356,6 +364,11 @@
         </g>
       </svg>
       <figcaption>
+        {#- KARTVERKETS NAVN UNDER KARTET. CC BY 4.0 krever navnet der
+            produktet BRUKES, med lenke «der det er mogleg». Det står i
+            bunnteksten også; her står det der kartet er. #}
+        <span class="kartkreditt">Kystlinje:
+          <a href="{{ kartverket_url }}">{{ kartverket }}</a></span>
         Områdegrensene er Fiskeridirektoratets offisielle polygoner.
         Fargen er den Akvakulturregisteret oppgir nå, ikke den
         forskriften sist navnga — de to er ikke alltid de samme, og

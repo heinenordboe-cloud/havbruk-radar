@@ -1498,6 +1498,40 @@ def test_en_odelagt_pakke_er_ugransket_og_ikke_trygg(tmp_path):
         == ["ugranska"]
 
 
+# ---- kart uten attribusjon --------------------------------------------
+
+
+def test_kart_uten_kartverket_er_et_funn():
+    """CC BY 4.0 krever navnet der produktet BRUKES. Et kart uten det
+    er et lisensbrudd, ikke en glemt kolofon."""
+    med_kart = '<figure><svg data-kart viewBox="0 0 10 10"></svg></figure>'
+    [f] = vakt.kart_uten_attribusjon(med_kart, fil="forside.html")
+    assert f.slag == "kart_uten_attribusjon"
+
+
+def test_kart_med_kartverket_er_rent():
+    med = ('<figure><svg data-kart viewBox="0 0 10 10"></svg>'
+           '<figcaption>Kystlinje: <a href="x">© Kartverket</a></figcaption>'
+           '</figure>')
+    assert vakt.kart_uten_attribusjon(med) == []
+
+
+def test_en_side_uten_kart_krever_ingen_attribusjon():
+    """Lisensen gjelder der produktet brukes. En side uten kart bruker
+    det ikke, og skal ikke bære et navn den ikke skylder."""
+    assert vakt.kart_uten_attribusjon("<p>ingen kart her</p>") == []
+
+
+def test_merket_er_attributtet_og_ikke_klassen():
+    """En prøve på `class="kystkart"` måtte kjent hver klasse hvert
+    kart har, og et nytt kart med en ny klasse ville sluppet gjennom
+    stille. `data-kart` settes av malen og er det ene merket."""
+    nytt_kart = '<svg class="et-helt-nytt-kart" data-kart></svg>'
+    assert vakt.kart_uten_attribusjon(nytt_kart)
+    uten_merke = '<svg class="kystkart"></svg>'
+    assert vakt.kart_uten_attribusjon(uten_merke) == []
+
+
 def test_ordtabellene_er_avledet_og_ikke_ugransket(tmp_path):
     """`.pf_index` og `.pf_meta` er CBOR, ikke tekst. Gransket som tekst
     ga de 2 418 FALSKE funn 22.09.2026: rammen limer sammen nabotokener,
