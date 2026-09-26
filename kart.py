@@ -109,6 +109,52 @@ def _les(navn: str) -> dict:
 
 
 # ------------------------------------------------------- projeksjonen
+#
+# UTM 33N (EUREF89, EPSG:25833). Kartverkets filer er ALT i den, så for
+# kystlinja er dette ingen omregning i det hele tatt — bare en skalering
+# fra meter til piksler. Formelen under trengs for det ene som IKKE er
+# i 25833: lokalitetenes egne koordinater, som Akvakulturregisteret
+# oppgir i grader.
+
+# EUREF89 = WGS84 for vårt formål. Kartverket regner dem som
+# sammenfallende innenfor en halv meter, og en halv meter er en
+# hundredels piksel på et 36 km-kart.
+_A, _F = 6378137.0, 1 / 298.257223563
+_K0, _FALSK_OST, _MIDTMERIDIAN = 0.9996, 500000.0, 15.0
+
+
+def utm33(lat: float, lon: float) -> tuple[float, float]:
+    """Grader -> (østing, norting) i meter, EPSG:25833.
+
+    Krüger-rekka til fjerde orden. Skrevet ut her framfor hentet, som
+    Douglas-Peucker under: det er tretti linjer, og et
+    projeksjonsbibliotek er en avhengighet som skal følges i ti år — og
+    som drar med seg PROJ-databasen.
+
+    MÅLT mot den offisielle transformasjonen 25.09.2026: avviket er
+    under en millimeter på alle de fire hjørnene av utsnittet vårt.
+    Prøven står i `tests/test_kart.py`.
+    """
+    fi, lam = math.radians(lat), math.radians(lon - _MIDTMERIDIAN)
+    n = _F / (2 - _F)
+    nu = _A / (1 + n) * (1 + n**2 / 4 + n**4 / 64)
+    t = math.sinh(math.atanh(math.sin(fi))
+                  - (2 * math.sqrt(n) / (1 + n))
+                  * math.atanh(2 * math.sqrt(n) / (1 + n) * math.sin(fi)))
+    xi = math.atan(t / math.cos(lam))
+    eta = math.atanh(math.sin(lam) / math.sqrt(1 + t * t))
+    alfa = (n / 2 - 2 * n**2 / 3 + 5 * n**3 / 16,
+            13 * n**2 / 48 - 3 * n**3 / 5,
+            61 * n**3 / 240)
+    ost = eta + sum(a * math.cos(2 * (j + 1) * xi)
+                    * math.sinh(2 * (j + 1) * eta)
+                    for j, a in enumerate(alfa))
+    nord = xi + sum(a * math.sin(2 * (j + 1) * xi)
+                    * math.cosh(2 * (j + 1) * eta)
+                    for j, a in enumerate(alfa))
+    return _FALSK_OST + _K0 * nu * ost, _K0 * nu * nord
+
+
 
 
 class Projeksjon:

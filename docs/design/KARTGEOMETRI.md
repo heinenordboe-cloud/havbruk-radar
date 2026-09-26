@@ -117,6 +117,76 @@ Selve forenklingen til visningsoppløsning skjer ved bygging, i
 `kart.forenkle()` (Douglas-Peucker), og den måles i PIKSLER og ikke i
 grader — se modulens egen begrunnelse.
 
+## kystlinje.json.gz — Kartverkets kystkontur, avledet
+
+**Det AVLEDEDE utdraget.** Kildene lastes ned for hånd og ligger aldri i
+repoet; utdraget gjør. Skriptet er `verktoy/kystlinje.py`, og
+byggetrinnet leser bare utdraget og laster aldri ned noe.
+
+| | |
+|---|---|
+| Kilde | Kartverket, N500 og N2000 Kartdata, laget `Arealdekke` |
+| Lisens | **CC BY 4.0 — © Kartverket.** Se `docs/LISENSKJEDE.md` merknad J |
+| Hentet | 2026-09-25 |
+| Projeksjon | EPSG:25833 (EUREF89 UTM 33N), meter rundet til 10 m |
+| Størrelse | 2 508 702 byte komprimert, 8,63 MB ukomprimert |
+| sha256 | `d15bb418f3b65d86ec381a29851e6cca82b093fd6afb75bdf7a40c50ad24ba86` |
+
+### Kildene, med sha256
+
+    Basisdata_0000_Norge_25833_N500Kartdata_GML.zip    68 009 627 byte
+    ae9ba9c1fff4d3e99fccdf26f288e7db428f6e8f9f7cfe2ecd816687605f79dc
+
+    Basisdata_0000_Norge_25833_N2000Kartdata_GML.zip    4 939 454 byte
+    66cf10c6c0bffffbe2343ae8b4597a8d334604134882633462de7dfc34ef514a
+
+Begge fra `nedlasting.geonorge.no/geonorge/Basisdata/`, 25.09.2026.
+Summene er skriptets egne; det skriver dem ut hver kjøring.
+
+### Hva som er i fila
+
+    n500    lokalitetskartet, 36 km bredt
+            hav     516 flater, 222 140 punkter
+            kyst  12 357 linjer, 226 400 punkter
+    n2000   oversiktskartet, hele kysten
+            hav      87 flater,  29 640 punkter
+            kyst   2 362 linjer,  30 653 punkter
+
+**To lag, og de har hver sin rolle.** `Havflate` er havet som FLATE med
+øyer som interiørringer, og fylles UTEN strek. `Kystkontur` er kystlinja
+som LINJE og tegnes som strek oppå. Tegnes havflata med strek i stedet,
+vises delelinjene mellom nabo-havflater som rette streker tvers over
+sjøen — målt på prøveklippene 25.09.2026.
+
+**Prisen, sagt rett ut:** de to lagene bærer i praksis den SAMME
+geometrien to ganger, 222 140 og 226 400 punkter. Det er halve fila.
+Alternativet er å merke hvilke segmenter av havflatas ringer som er ekte
+kyst, og det er en topologijobb mot to datasett som kan være uenige om
+et punkt. Fila er 2,5 MB og taket er 3; det er ikke verdt den
+kompleksiteten før taket er nådd.
+
+### 20 km-regelen, og hva den faktisk kuttet
+
+N500 tas bare med der det ligger en lokalitet innenfor 20 km. Målt:
+
+    havflater   530 -> 516     kystlinjer  12 504 -> 12 357
+
+Regelen biter på KYSTLINJENE, som er korte, og nesten ikke på
+havflatene, som er få og store: en havflates omskrevne rektangel dekker
+et helt havområde, og da er det alltid en lokalitet i det. At tallet er
+så lite er i seg selv et funn — norsk kyst er tett dekket av
+akvakultur, og «nær en lokalitet» er nesten hele kysten.
+
+Grensa er 20 km mens lokalitetskartets halvdiagonal er 25,5 km. Hjørner
+av et utsnitt kan derfor mangle kystlinje der ingen lokalitet ligger
+innenfor 20 km — de hjørnene er åpent hav eller innland.
+
+### Oppdatering
+
+Last ned på nytt, kjør `verktoy/kystlinje.py`, og skriv om sha256 og
+tallene over. **Gjør det sjelden.** Fila ligger i git, og git glemmer
+ingenting: hver ny utgave legger seg oppå den forrige i historikken.
+
 ## Oppdatering
 
 Hent på nytt, sammenlign sha256, kjør klippingen på nytt, og skriv om
