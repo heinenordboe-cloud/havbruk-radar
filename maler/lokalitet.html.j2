@@ -164,18 +164,32 @@
     {% if lok.posisjonskart %}
     {% set pk = lok.posisjonskart %}
     <figure class="posisjon">
-      <svg class="posisjonskart" viewBox="0 0 {{ pk.bredde }} {{ pk.hoyde }}"
+      {# LAGDELINGEN ER REKKEFØLGEN. SVG har ingen z-indeks:
+         gradnett → hav → kystlinje → områdegrense → naboer → markør.
+         Havet fylles, kystlinja strekes; tegnes havflata med strek,
+         vises delelinjene mellom nabo-havflater som rette streker
+         tvers over sjøen. #}
+      <svg class="posisjonskart" data-kart viewBox="0 0 {{ pk.bredde }} {{ pk.hoyde }}"
            width="{{ pk.bredde }}" height="{{ pk.hoyde }}"
-           role="img" aria-labelledby="poskart-tittel poskart-tekst">
+           role="img" aria-label="Kart over hvor lokaliteten ligger:
+           utsnitt på {{ pk.km|round|int }} kilometer med
+           {{ lok.tittelnavn }} i midten,
+           {{ antall(pk.naboer|length, "nabolokalitet", "nabolokaliteter") }}
+           i utsnittet, og kystlinja fra Kartverket. Alt kartet viser
+           står også i tabellene på siden.">
+        {# `aria-labelledby` STO HER OG ER FJERNET. Den slår `aria-label`
+           i navneutregningen, så etiketten over ville vært ignorert.
+           `<title>` og `<desc>` blir stående: de er det en som åpner
+           SVG-en alene får, og de motsier ikke etiketten. #}
         <title id="poskart-tittel">Kart over hvor lokaliteten
           ligger</title>
-        <desc id="poskart-tekst">Utsnitt på omtrent {{ pk.km|round|int }}
-          kilometer, med lokaliteten i midten. Landflatene er Natural
-          Earth 1:10 millioner. Posisjonen er
-          {{ pk.koordinat }}, oppgitt av Akvakulturregisteret.</desc>
+        <desc id="poskart-tekst">Utsnitt på {{ pk.km|round|int }}
+          kilometer, med lokaliteten i midten. Kystlinja er Kartverkets
+          N500. Posisjonen er {{ pk.koordinat }}, oppgitt av
+          Akvakulturregisteret. Målestokkstreken er
+          {{ pk.malestokk.etikett }}.</desc>
         {# GRADNETTET ER POLYLINJER, ikke rette streker. I UTM krummer
-           en breddegrad, og en lengdegrad heller — to rette streker
-           ville sagt feil hvor 70 grader nord går. Se `kart.gradnett()`. #}
+           en breddegrad, og en lengdegrad heller. Se `kart.gradnett()`. #}
         <g class="kart-gitter" aria-hidden="true">
           {% for l in pk.gitter.bredde %}
           <path d="{{ l.d }}"/>
@@ -184,24 +198,64 @@
           <path d="{{ l.d }}"/>
           {% endfor %}
         </g>
-        <g class="kart-land" aria-hidden="true">
-          {% for d in pk.land %}
+        <g class="kart-hav" aria-hidden="true">
+          {% for d in pk.hav %}
           <path d="{{ d }}"/>
           {% endfor %}
         </g>
+        <g class="kart-kyst" aria-hidden="true">
+          {% for d in pk.kyst %}
+          <path d="{{ d }}"/>
+          {% endfor %}
+        </g>
+        {% if pk.grense %}
+        <g class="kart-grense" aria-hidden="true">
+          {% for d in pk.grense %}
+          <path d="{{ d }}"/>
+          {% endfor %}
+        </g>
+        {% endif %}
+        {# NABOENE. Lenker, så kartet virker uten JavaScript som alt
+           annet her, og `<title>` så navnet kommer fram ved peking og
+           for en skjermleser. Ingen av dem er den eneste veien til
+           lokaliteten: alle står i lokalitetslista og i områdets
+           tabell. #}
+        {% if pk.naboer %}
+        <g class="kart-naboer" data-pagefind-ignore>
+          {% for n in pk.naboer %}
+          <a href="/lokalitet/{{ n.loknr }}/">
+            <title>{{ n.navn }} — lokalitet {{ n.loknr }}</title>
+            <circle cx="{{ n.x }}" cy="{{ n.y }}" r="3.5"/>
+          </a>
+          {% endfor %}
+        </g>
+        {% endif %}
         <g class="kart-markor" aria-hidden="true">
           <circle cx="{{ pk.x }}" cy="{{ pk.y }}" r="11" class="markor-ring"/>
           <circle cx="{{ pk.x }}" cy="{{ pk.y }}" r="4" class="markor-prikk"/>
         </g>
+        {# MÅLESTOKKEN. Et kart uten den er et bilde: leseren kan ikke
+           vite om to holmer ligger 200 meter eller to kilometer fra
+           hverandre. #}
+        <g class="kart-malestokk" aria-hidden="true">
+          <line x1="12" y1="{{ pk.hoyde - 16 }}"
+                x2="{{ 12 + pk.malestokk.lengde }}" y2="{{ pk.hoyde - 16 }}"/>
+          <text x="12" y="{{ pk.hoyde - 22 }}">{{ pk.malestokk.etikett }}</text>
+        </g>
       </svg>
       <figcaption>
+        <span class="kartkreditt">Kystlinje:
+          <a href="{{ kartverket_url }}">{{ kartverket }}</a>,
+          N500 Kartdata</span>
         <span class="tall-mono">{{ pk.koordinat }}</span> · posisjon fra
         Akvakulturregisteret · utsnittet er
         {{ pk.km|round|int }} km bredt
-        {% if not pk.land %}
-        · <strong>ingen kystlinje i utsnittet</strong> — lokaliteten
-        ligger mer enn en halv rutebredde fra nærmeste land i
-        1:10-millioner-kartet
+        {% if pk.naboer %}
+        · {{ antall(pk.naboer|length, "annen lokalitet", "andre lokaliteter") }}
+        i utsnittet
+        {% endif %}
+        {% if not pk.hav %}
+        · <strong>ingen kystlinje i utsnittet</strong>
         {% endif %}
       </figcaption>
     </figure>

@@ -142,3 +142,62 @@ def test_hver_havflate_er_en_gruppe_ringer(utdrag):
             for ring in flate:
                 assert len(ring) >= 3
                 assert isinstance(ring[0], list) and len(ring[0]) == 2
+
+
+# ---- kartene i det bygde nettstedet ------------------------------------
+#
+# Krever et ferdig bygg, som `tests/test_smalskjerm.py`. Uten
+# `HAVBRUK_NETTSTED` hoppes de over og sier hvorfor.
+
+import os                                                  # noqa: E402
+import pathlib                                             # noqa: E402
+
+NETTSTED = os.environ.get("HAVBRUK_NETTSTED", "")
+
+bygget = pytest.mark.skipif(
+    not NETTSTED,
+    reason="HAVBRUK_NETTSTED peker ikke på et bygget nettsted — "
+           "bygg med `python nettsted.py --alle --ut <mappe>` først")
+
+KART_TAK = 60_000
+
+
+def _kart_i(html: str) -> str:
+    """SVG-en, fra `<svg … data-kart` til `</svg>`. Tom uten kart."""
+    i = html.find("data-kart")
+    if i < 0:
+        return ""
+    start = html.rindex("<svg", 0, i)
+    return html[start:html.index("</svg>", start) + 6]
+
+
+@bygget
+def test_ingen_lokalitetsside_har_et_kart_over_60_kb():
+    """Kartet er tegnet INN i sida, så hver byte er en byte leseren
+    laster. 1 782 sider ganger et kart som er dobbelt så stort som det
+    trenger, er en side som er treg uten at noe på den er blitt bedre.
+
+    Toleransen i `kart.POSISJON_TOLERANSE` er knappen som styrer det.
+    """
+    sider = sorted(pathlib.Path(NETTSTED, "lokalitet").glob("*/index.html"))
+    assert len(sider) > 1000, f"fant bare {len(sider)} lokalitetssider"
+    verst = []
+    for sti in sider:
+        kart_ = _kart_i(sti.read_text(encoding="utf-8"))
+        if len(kart_.encode()) > KART_TAK:
+            verst.append((len(kart_.encode()), sti.parent.name))
+    verst.sort(reverse=True)
+    assert not verst, f"kart over {KART_TAK} byte: {verst[:5]}"
+
+
+@bygget
+def test_hver_lokalitetsside_med_koordinater_har_et_kart():
+    """Et kart som stille uteble ville sett ut som en lokalitet uten
+    koordinater, og de to er ikke det samme — siden sier i klartekst
+    hvilken av dem det er."""
+    uten = []
+    for sti in sorted(pathlib.Path(NETTSTED, "lokalitet").glob("*/index.html")):
+        html = sti.read_text(encoding="utf-8")
+        if "data-kart" not in html and "oppgir ikke koordinater" not in html:
+            uten.append(sti.parent.name)
+    assert not uten, f"sider uten kart og uten forklaring: {uten[:5]}"

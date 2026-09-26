@@ -277,11 +277,28 @@ def forenkle(punkter: list[tuple[float, float]],
 
 
 def _bane(punkter: list[tuple[float, float]], lukket: bool = False) -> str:
-    """Punktlista som en SVG-`d`. Tom streng når det ikke er noe å tegne."""
+    """Punktlista som en SVG-`d`. Tom streng når det ikke er noe å tegne.
+
+    KOORDINATENE RUNDES TIL HELE PIKSLER. En desimal er en tidel av en
+    piksel — under det øyet kan se og under det en skjerm kan tegne —
+    og den koster to tegn per koordinat. MÅLT 26.09.2026 på
+    lokalitetskartene: 123 kB ble 92 kB, og bildet er det samme.
+
+    Punkter som faller sammen etter avrundingen fjernes. På et kart med
+    tusen punkter i en fjordarm er det titalls `L`-ledd som tegner det
+    samme punktet om igjen.
+    """
     if len(punkter) < 2:
         return ""
-    ledd = [f"M{punkter[0][0]} {punkter[0][1]}"]
-    ledd += [f"L{x} {y}" for x, y in punkter[1:]]
+    rundet: list[tuple[int, int]] = []
+    for x, y in punkter:
+        p = (round(x), round(y))
+        if not rundet or p != rundet[-1]:
+            rundet.append(p)
+    if len(rundet) < 2:
+        return ""
+    ledd = [f"M{rundet[0][0]} {rundet[0][1]}"]
+    ledd += [f"L{x} {y}" for x, y in rundet[1:]]
     if lukket:
         ledd.append("Z")
     return "".join(ledd)
@@ -473,6 +490,147 @@ def gradnett(proj: Projeksjon, geo: tuple[float, float, float, float],
             "etiketter": etikett}
 
 
+# ------------------------------------------- Kartverkets kystkontur
+#
+# `maler/geo/kystlinje.json.gz`, avledet av `verktoy/kystlinje.py`.
+# Byggetrinnet leser den og laster ALDRI ned noe.
+#
+# TO LAG, MED HVER SIN ROLLE:
+#
+#   hav    havet som FLATE, øyer som interiørringer. Fylles UTEN strek
+#          og med `fill-rule: evenodd`, så en øy blir et hull og hullet
+#          viser sida under — altså land.
+#   kyst   kystlinja som LINJE, tegnet som strek oppå.
+#
+# Tegnes havflata med strek i stedet, vises delelinjene mellom
+# nabo-havflater som rette streker tvers over sjøen. MÅLT på
+# prøveklippene 25.09.2026.
+
+KYSTFIL = "kystlinje.json.gz"
+
+# RUTENETTET SOM GJØR KLIPPINGEN RASK.
+#
+# Uten det klipper hver av de 1 782 lokalitetssidene alle 516
+# havflatene og alle 12 357 kystlinjene mot sitt eget utsnitt — MÅLT
+# 0,2 sekunder per kart, altså seks minutter for batchen. Med det
+# slår hver side opp de rutene utsnittet dekker og rører bare det som
+# ligger der.
+#
+# 20 km er samme rute som `verktoy/kystlinje.py` bruker. Ett tall, to
+# steder som må være enige om det — og de er det fordi det ene leser
+# det andre: fila bærer `naerhet_m`.
+RUTE_M = 20_000
+
+
+@lru_cache(maxsize=1)
+def _kyst() -> dict:
+    """Utdraget, lest én gang."""
+    sti = GEO / KYSTFIL
+    if not sti.exists():
+        raise FileNotFoundError(
+            f"{sti} mangler. Kystkonturen er avledet og versjonert — "
+            f"kjør verktoy/kystlinje.py, se docs/design/KARTGEOMETRI.md.")
+    import gzip
+    return json.loads(gzip.open(sti, "rt", encoding="utf-8").read())
+
+
+def _ruter(boks: tuple[float, float, float, float]) -> set[tuple[int, int]]:
+    x0, y0, x1, y1 = boks
+    return {(ix, iy)
+            for ix in range(int(x0 // RUTE_M), int(x1 // RUTE_M) + 1)
+            for iy in range(int(y0 // RUTE_M), int(y1 // RUTE_M) + 1)}
+
+
+def _boks(punkter) -> tuple[float, float, float, float]:
+    xs = [p[0] for p in punkter]
+    ys = [p[1] for p in punkter]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+@lru_cache(maxsize=4)
+def _indeks(serie: str) -> tuple[dict, dict]:
+    """({rute: [havflater]}, {rute: [kystlinjer]}) for `n500`/`n2000`.
+
+    En flate eller linje står i HVER rute dens omskrevne rektangel
+    berører. Det er grovt, og det er meningen: indeksen skal svare
+    «kanskje», og klippingen svarer «nøyaktig».
+    """
+    data = _kyst()[serie]
+    hav: dict[tuple[int, int], list] = {}
+    kyst: dict[tuple[int, int], list] = {}
+    for flate in data["hav"]:
+        for rute in _ruter(_boks([p for ring in flate for p in ring])):
+            hav.setdefault(rute, []).append(flate)
+    for linje in data["kyst"]:
+        for rute in _ruter(_boks(linje)):
+            kyst.setdefault(rute, []).append(linje)
+    return hav, kyst
+
+
+def _linjekant(linje, proj: Projeksjon):
+    """Polylinja klippet mot utsnittet, som en liste med biter.
+
+    EN LINJE KAN DELES, en ring kan ikke — se `_flatekant()`. Her er
+    forskjellen hele poenget: kystkonturen skal tegnes som strek, og en
+    bit som forsvinner ut av bildet skal slutte der og ikke lukkes mot
+    noe.
+
+    Ett punkt UTENFOR tas med i hver ende, så streken når helt ut til
+    kanten framfor å stoppe ved siste synlige punkt.
+    """
+    ut, bit = [], []
+    for p in linje:
+        if proj.synlig(p[0], p[1]):
+            bit.append(p)
+        elif bit:
+            bit.append(p)
+            ut.append(bit)
+            bit = []
+    if bit:
+        ut.append(bit)
+    return ut
+
+
+def _kystlag(serie: str, proj: Projeksjon, toleranse: float) -> tuple[list, list]:
+    """(havflater som `d`, kystlinjer som `d`) for utsnittet."""
+    hav_i, kyst_i = _indeks(serie)
+    ruter = _ruter((proj.ost_min, proj.nord_min, proj.ost_maks, proj.nord_maks))
+    monn = (proj.ost_maks - proj.ost_min) * 0.02
+
+    hav, sett = [], set()
+    for rute in ruter:
+        for flate in hav_i.get(rute, ()):
+            if id(flate) in sett:
+                continue
+            sett.add(id(flate))
+            ledd = []
+            for ring in flate:
+                klippet = _flatekant([list(p) for p in ring], proj, monn)
+                if len(klippet) < 3:
+                    continue
+                px = forenkle([(proj.x(e), proj.y(n)) for e, n in klippet],
+                              toleranse)
+                d = _bane(px, lukket=True)
+                if d:
+                    ledd.append(d)
+            if ledd:
+                hav.append("".join(ledd))
+
+    kyst, sett = [], set()
+    for rute in ruter:
+        for linje in kyst_i.get(rute, ()):
+            if id(linje) in sett:
+                continue
+            sett.add(id(linje))
+            for bit in _linjekant(linje, proj):
+                px = forenkle([(proj.x(e), proj.y(n)) for e, n in bit],
+                              toleranse)
+                d = _bane(px)
+                if d:
+                    kyst.append(d)
+    return hav, kyst
+
+
 # ------------------------------------------------------------ kystkart
 #
 # Forsidens kart: de tretten produksjonsområdene i trafikklysfarge, med
@@ -571,20 +729,84 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
 
 POSISJON_BREDDE = 560
 POSISJON_KM = 36.0          # utsnittets bredde
-POSISJON_TOLERANSE = 0.35   # piksler — finere enn oversikten, av samme
-                            # grunn som at utsnittet er mindre
+# TOLERANSEN, MÅLT OG IKKE VALGT.
+#
+# Ved 36 km i 560 piksler er ett piksel 64 meter. N500 er generalisert
+# til omtrent 100 meter, så en toleranse på én piksel kaster geometri
+# som er FINERE ENN KILDEN SELV ER — den er ikke en forenkling av
+# kysten, den er en forenkling av støy.
+#
+# 0,35 sto her til 26.09.2026, fra den gang kartet var Natural Earth
+# 1:10 millioner og hvert punkt var dyrebart. Med Kartverkets kontur ga
+# den 123 kB kart på de tetteste skjærgårdene. MÅLT på de seks verste:
+#
+# MÅLT på de seks tetteste skjærgårdene, hele SVG-en med naboprikker:
+#
+#     toleranse   piksler   meter   verste kart
+#     0,35         0,35       22    69 kB
+#     1,0          1,0        64    69 kB
+#     1,3          1,3        83    63 kB
+#     1,6          1,6       102    57 kB
+#
+# 1,6 piksler er 102 meter, altså PRESIS der N500 selv slutter. Under
+# det kaster vi kildens støy; over det ville vi kastet kysten. Taket på
+# 60 kB per side er nådd akkurat der kilden tar slutt, og det er ikke
+# et sammentreff — det er to grenser som møtes i den samme geometrien.
+POSISJON_TOLERANSE = 1.6    # piksler
 KM_PER_BREDDEGRAD = 111.32
+
+
+def _malestokk(proj: Projeksjon) -> dict:
+    """En målestokkstrek med et rundt kilometertall.
+
+    ET KART UTEN MÅLESTOKK ER ET BILDE. Utsnittet er like bredt i meter
+    for hver lokalitet, men leseren vet ikke det — og et kart der to
+    holmer ligger nær hverandre sier ingenting om de er 200 meter eller
+    to kilometer fra hverandre.
+
+    Tallet velges av det største runde tallet som får plass på en
+    fjerdedel av bredden. Runde tall og ikke «9,2 km»: en målestokk
+    leses med øyet, ikke med en kalkulator.
+    """
+    mal = (proj.ost_maks - proj.ost_min) / 4
+    for km in (500, 200, 100, 50, 20, 10, 5, 2, 1):
+        if km * 1000 <= mal:
+            break
+    else:
+        km = 1
+    lengde = round(km * 1000 * proj.skala, 1)
+    return {"km": km, "lengde": lengde,
+            "etikett": f"{visningstall(km)} km"}
+
+
+def visningstall(n: int) -> str:
+    """Tusenskille uten å dra inn visningsordmodulen i geometrien."""
+    return f"{n:,}".replace(",", "\u00a0")
 
 
 def posisjonskart(breddegrad: object, lengdegrad: object,
                   bredde: int = POSISJON_BREDDE,
-                  km: float = POSISJON_KM) -> dict | None:
+                  km: float = POSISJON_KM,
+                  naboer: list | None = None,
+                  omraade=None) -> dict | None:
     """Kartutsnittet rundt ett punkt, eller None uten koordinater.
 
     None og ikke et tomt kart: en ramme uten et punkt i er en ramme som
     later som om den har et innhold. Malen viser da ingenting, og siden
     sier i klartekst at koordinatene mangler — samme regel som
     `nettsted.lusegraf()`.
+
+    ## Hva kartet er bygget av fra 25.09.2026
+
+    Kartverkets kystkontur, N500, gjennom `maler/geo/kystlinje.json.gz`.
+    Natural Earth 1:10 millioner sto her før, og forskjellen er ikke
+    kosmetisk: ved 36 km i 560 piksler er ett piksel 64 meter, og en
+    kystlinje på 1 kilometers oppløsning er da 16 piksler grov. Fjorder
+    forsvant, og holmer fantes ikke.
+
+    `naboer` er `[(loknr, navn, lat, lon), …]` — de andre lokalitetene,
+    tegnet som prikker med lenke. `omraade` er produksjonsområdets
+    nummer; grensa tegnes som stiplet strek.
     """
     try:
         lat = float(str(breddegrad).strip())
@@ -594,7 +816,7 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return None
 
-    # UTSNITTET ER EN KVADRAT I METER, sentrert på punktet. Fram til
+    # UTSNITTET ER ET KVADRAT I METER, sentrert på punktet. Fram til
     # 25.09.2026 ble kilometerne regnet om til grader med en
     # breddekorreksjon; nå er meter det kartet TEGNES i, og
     # omregningen finnes ikke lenger.
@@ -603,9 +825,37 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
     proj = Projeksjon(ost - halv, nord - halv, ost + halv, nord + halv,
                       bredde=bredde, marg=0)
 
-    land = _tegn([til_meter(r)
-                  for r in _linjer(_les(LAND)["features"][0]["geometry"])],
-                 proj, POSISJON_TOLERANSE, lukket=True)
+    hav, kyst = _kystlag("n500", proj, POSISJON_TOLERANSE)
+
+    # OMRÅDEGRENSA SOM LINJE, ikke som ring. Klippes ringen til
+    # utsnittet og tegnes med strek, følger streken rammen der området
+    # går ut av bildet — en grense som ikke finnes.
+    grense = []
+    if omraade:
+        for f in _les(OMRAADER)["features"]:
+            if str(f["properties"]["id"]) != str(omraade):
+                continue
+            for ring in _linjer(f["geometry"]):
+                for bit in _linjekant(til_meter(ring), proj):
+                    d = _bane(forenkle([(proj.x(e), proj.y(n))
+                                        for e, n in bit],
+                                       POSISJON_TOLERANSE))
+                    if d:
+                        grense.append(d)
+
+    # NABOENE I UTSNITTET. Lokaliteten selv er ikke med — den har sin
+    # egen markør, og en prikk oppå den ville sett ut som to anlegg.
+    naboprikker = []
+    for loknr, navn, nlat, nlon in (naboer or ()):
+        try:
+            e, n = utm33(float(nlat), float(nlon))
+        except (TypeError, ValueError):
+            continue
+        if not proj.synlig(e, n):
+            continue
+        naboprikker.append({"loknr": loknr, "navn": navn,
+                            "x": proj.x(e), "y": proj.y(n)})
+    naboprikker.sort(key=lambda p: (p["y"], p["x"]))
 
     # Gradnettets utsnitt i GRADER, omtrentlig: det skal bare si hvor
     # linjene går, og en halv kilometer fra eller til på rammen flytter
@@ -617,7 +867,11 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
     return {
         "bredde": proj.bredde,
         "hoyde": proj.hoyde,
-        "land": land,
+        "hav": hav,
+        "kyst": kyst,
+        "grense": grense,
+        "naboer": naboprikker,
+        "malestokk": _malestokk(proj),
         # Gradnettet er FINERE her, og etikettene er av: et utsnitt på
         # 36 km rommer en tredjedels breddegrad, og «69°N» tvers over
         # bildet ville vært den eneste linja og dessuten i veien.

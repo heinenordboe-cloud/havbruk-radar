@@ -240,6 +240,11 @@
   --kart-gitter:  #7d7668;   /* 3,31:1 mot papir */
   --kart-land:    #ded1c4;   /* kystlinjas landflate på papir */
   --kart-kyst:    #756e60;   /* kystlinja som strek, 3,37:1 mot landflata */
+  /* HAVFLATA PÅ KARTVERKETS KYSTKONTUR. Kaldere og lysere enn landet,
+     som på et sjøkart: land er det man leter etter, havet er flata det
+     ligger i. `--hav-dis` duger ikke — den er havet i den MØRKE
+     headeren og er nesten svart på papir. */
+  --kart-hav:     #cfdde3;   /* 1,28:1 mot landflata — anes, ses ikke */
   --graf-linje:   #0b2e38;
   --graf-brakk:   #ddd0c1;   /* brakkleggingsbånd, 1,13:1 mot papir */
 
@@ -324,6 +329,7 @@
     --kart-gitter:  #7c898b;
     --kart-land:    #1c262a;
     --kart-kyst:    #6b7a7e;   /* 3,46:1 mot landflata i mørk modus */
+    --kart-hav:     #10303c;
     --graf-linje:   #9ec6d4;
     --graf-brakk:   #1e2a2f;
   }
@@ -2191,12 +2197,85 @@ td[data-felt="farge_mangler"]::before {
   box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.18);
 }
 
-/* PÅ POSISJONSKARTET er landet det man ser etter, og havet er
-   bakgrunnen. Kontrasten snus derfor her: fyllet er tydeligere enn på
-   oversiktskartet, der trafikklysfargene skal ha forrangen. */
-.posisjonskart .kart-land path {
-  fill: rgba(231, 219, 208, 0.13);
-  stroke-opacity: 0.8;
+/* ---- POSISJONSKARTET ER KARTVERKETS KYSTKONTUR fra 25.09.2026 ----
+ *
+ * HAVET FYLLES, LANDET ER BAKGRUNNEN. Kartverkets `Havflate` er havet
+ * som flate med øyer som interiørringer; `fill-rule: evenodd` gjør en
+ * øy til et hull, og hullet viser flata under — som er kartets egen
+ * bakgrunn, altså land. Én kilde, to roller, og de kan ikke bli
+ * uenige om hvor kysten går.
+ *
+ * KYSTLINJA ER EN EGEN STREK og ikke havflatas kant. Tegnes havflata
+ * med strek, vises delelinjene mellom nabo-havflater som rette streker
+ * tvers over sjøen — MÅLT på prøveklippene. */
+.posisjonskart { background: var(--kart-land); }
+
+.kart-hav path {
+  fill: var(--kart-hav);
+  fill-rule: evenodd;
+  stroke: none;
+}
+
+.kart-kyst path {
+  fill: none;
+  stroke: var(--kart-kyst);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+
+/* OMRÅDEGRENSA er stiplet, fordi den er en FORVALTNINGSGRENSE og ikke
+   noe man kan se i sjøen. Kystlinja er heltrukket; de to skal ikke
+   leses som samme slags strek. */
+.kart-grense path {
+  fill: none;
+  stroke: var(--rust);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  stroke-opacity: 0.75;
+}
+
+/* NABOLOKALITETENE. Små og dempet: de er kontekst, ikke sidens emne.
+   Under peker og ved tastaturfokus lyser de opp, så det er synlig at
+   de fører et sted. */
+.kart-naboer circle {
+  fill: var(--kart-kyst);
+  fill-opacity: 0.85;
+  stroke: var(--kart-land);
+  stroke-width: 1;
+}
+
+.kart-naboer a:hover circle,
+.kart-naboer a:focus circle { fill: var(--rust); fill-opacity: 1; }
+
+/* OMRÅDEKARTET. Samme lag som posisjonskartet, bare større ramme. */
+.omraadekart-ramme { margin: 0 0 var(--rom-32); }
+
+.omraadekart {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+  background: var(--kart-land);
+  box-shadow: inset 0 0 0 1px var(--farge-kant-svak);
+}
+
+.omraadekart-ramme figcaption {
+  margin-block-start: var(--rom-10);
+  max-width: var(--maal-tekst);
+  font-size: var(--fs-13);
+  color: var(--farge-tekst-svak);
+}
+
+.kart-malestokk line {
+  stroke: var(--farge-tekst);
+  stroke-width: 1.5;
+  stroke-opacity: 0.7;
+}
+
+.kart-malestokk text {
+  font-family: var(--skrift-tall);
+  font-size: 11px;
+  fill: var(--farge-tekst);
+  fill-opacity: 0.8;
 }
 
 .posisjon figcaption {
@@ -2288,13 +2367,14 @@ td[data-felt="farge_mangler"]::before {
   max-block-size: 22rem;
 }
 
-.lok-tilstand .posisjonskart .kart-land path {
-  fill: rgba(11, 36, 48, 0.10);
-  stroke: rgba(11, 36, 48, 0.35);
-  stroke-opacity: 1;
+/* KARTET STÅR PÅ PAPIR i tilstandsspalta, og fargene er satt for det
+   i kartreglene over — `--kart-land` og `--kart-kyst` er definert i
+   begge moduser. Det som står igjen her er gradnettet, som ellers er
+   tegnet for mørk flate. */
+.lok-tilstand .posisjonskart .kart-gitter path {
+  stroke: var(--kart-gitter);
+  stroke-opacity: 0.25;
 }
-
-.lok-tilstand .posisjonskart .kart-gitter path { stroke: rgba(11, 36, 48, 0.10); }
 
 /* Siteringsboksen står alt på `--papir2`; i en smal spalte trenger den
    bare å slutte å ha seksjonsmarg under seg. */

@@ -3756,6 +3756,36 @@ def _biolagstripe(serie: list[dict], alle_uker: list[str]) -> dict | None:
     }
 
 
+# NABOLISTA, bygget én gang per `Felles`.
+#
+# Den er den samme for alle 1 782 sidene, og et gjennomløp av hele
+# uttrekket per side er 1 782 gjennomløp av det samme. Nøkkelen er
+# `id()` fordi `Felles` ikke kan hashes — den bærer polars-rammer — og
+# i en batch finnes det én.
+_NABOER: dict[int, tuple] = {}
+
+
+def _naboer(loknr: str, akva: dict, nokkel: int) -> list[tuple]:
+    """Naboene kartet skal tegne: alle ANDRE lokaliteter med posisjon.
+
+    Selve lokaliteten er ikke med — den har sin egen markør, og en
+    prikk oppå den ville sett ut som to anlegg. Utsnittet filtreres i
+    `kart.posisjonskart()`, som er der rammen er kjent.
+
+    `akva` er det SAMME uttrekket siden ellers bygges av, enten det kom
+    fra `Felles` eller ble lest av enkeltveien. To veier til samme side
+    som kunne svare ulikt er formen F6 og F7 hadde, og her ville
+    følgen vært et kart med naboer i batch og uten dem alene.
+    """
+    if nokkel not in _NABOER:
+        _NABOER[nokkel] = tuple(
+            (nr, visningsord.tittelform(d.get("navn", "")),
+             d.get("breddegrad", ""), d.get("lengdegrad", ""))
+            for nr, d in akva.items()
+            if d.get("breddegrad") and d.get("lengdegrad"))
+    return [t for t in _NABOER[nokkel] if t[0] != loknr]
+
+
 def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     """Alle dataene én lokalitetsside trenger. Ingen HTML her.
 
@@ -3925,8 +3955,16 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "selskap": _lokalitetens_selskap(mine_till, overforingsrader, eierskap),
 
         # ---- kartet ----
-        "posisjonskart": kart.posisjonskart(a.get("breddegrad"),
-                                            a.get("lengdegrad")),
+        #
+        # NABOENE OG OMRÅDEGRENSA er med fra 25.09.2026. Kartet sa før
+        # bare «her ligger den»; nå sier det også hvem den ligger ved
+        # siden av, og hvor grensa går. Begge deler er ting som står i
+        # tabellene på siden — kartet er en annen vei til dem, aldri
+        # den eneste.
+        "posisjonskart": kart.posisjonskart(
+            a.get("breddegrad"), a.get("lengdegrad"),
+            naboer=_naboer(loknr, akva, id(felles) if felles else id(akva)),
+            omraade=a.get("prodomraade_kode", "")),
 
         # ---- de to historikkene ----
         "observert": _observert_historikk(endringer, dekning, felles),
