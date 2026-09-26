@@ -3015,6 +3015,15 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
                 or {"farge": FARGE_MANGLER, "klasse": "", "uenig": ""}),
         "akva_dato": felles.akva_dato,
         "akva_hentet": felles.akva_hentet,
+        # KARTET OVER OMRÅDET, med hver lokalitet som en prikk.
+        # Prikkene er en annen vei til tabellen under, aldri den
+        # eneste: hver lokalitet står der med navn, kommune og
+        # innehaver.
+        "kart": kart.omraadekart(po, [
+            (l["loknr"], l["navn"],
+             felles.akva[l["loknr"]].get("breddegrad", ""),
+             felles.akva[l["loknr"]].get("lengdegrad", ""))
+            for l in lokaliteter]),
         "runder": _po_fargerader(po, felles),
         # Beslutningsdato, dokumenttype og tegnforklaring PER RUNDE.
         # Står ved siden av rundene og ikke i dem: den gjelder alle
@@ -7058,6 +7067,7 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
                 felles.akva_dato, felles.akva_hentet,
                 "Forskriftsrundene er lest fra Lovdata."),
             meny_aktiv="produksjonsomrade",
+            kart=d["kart"] is not None,
             sidetype="Produksjonsområde",
             undertittel=(
                 f"{visningsord.antall(d['lokaliteter_antall'], 'lokalitet', 'lokaliteter')}"

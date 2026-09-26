@@ -331,6 +331,88 @@
    LOKALITETENE. Søkefeltet filtrerer tabellen med JS; uten JS vises
    hele tabellen og skjemaet sender til den flate lokalitetslista.
    Se avvik 5 i oppdraget. #}
+{# ---------------------------------------------------------------- 1b
+   KARTET OVER OMRÅDET. Står FØR lokalitetstabellen og ikke i stedet
+   for den: hver prikk er en lokalitet som står i tabellen under med
+   navn, kommune, innehaver og kapasitet. Kartet sier HVOR de er; det
+   er den ene tingen tabellen ikke kan si. #}
+{% if po.kart %}
+<section class="ark seksjon" aria-labelledby="kart-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Hvor de ligger</p>
+      <h2 id="kart-tittel">Kart over området</h2>
+    </div>
+  </div>
+  <figure class="omraadekart-ramme">
+    <svg class="omraadekart" data-kart
+         viewBox="0 0 {{ po.kart.bredde }} {{ po.kart.hoyde }}"
+         width="{{ po.kart.bredde }}" height="{{ po.kart.hoyde }}"
+         role="img"
+         aria-label="Kart over produksjonsområde {{ po.nr }} {{ po.navn }},
+         med områdegrensa og
+         {{ antall(po.kart.lokaliteter|length, "lokalitet", "lokaliteter") }}
+         tegnet som prikker. Alle står i tabellen under, med navn,
+         kommune og innehaver.">
+      <g class="kart-gitter" aria-hidden="true">
+        {% for l in po.kart.gitter.bredde %}
+        <path d="{{ l.d }}"/>
+        {% endfor %}
+        {% for l in po.kart.gitter.lengde %}
+        <path d="{{ l.d }}"/>
+        {% endfor %}
+      </g>
+      {# LAGDELINGEN ER REKKEFØLGEN: hav som bakgrunn, Natural Earths
+         grove land oppå, Kartverkets havflate oppå der igjen — den
+         skjærer fjordene ut i sin egen oppløsning — og kystlinja
+         som strek øverst. Se `kart.omraadekart()`. #}
+      <g class="kart-land" aria-hidden="true">
+        {% for d in po.kart.land %}
+        <path d="{{ d }}"/>
+        {% endfor %}
+      </g>
+      <g class="kart-hav" aria-hidden="true">
+        {% for d in po.kart.hav %}
+        <path d="{{ d }}"/>
+        {% endfor %}
+      </g>
+      <g class="kart-kyst" aria-hidden="true">
+        {% for d in po.kart.kyst %}
+        <path d="{{ d }}"/>
+        {% endfor %}
+      </g>
+      <g class="kart-grense" aria-hidden="true">
+        {% for d in po.kart.grense %}
+        <path d="{{ d }}"/>
+        {% endfor %}
+      </g>
+      <g class="kart-naboer" data-pagefind-ignore>
+        {% for l in po.kart.lokaliteter %}
+        <a href="/lokalitet/{{ l.loknr }}/">
+          <title>{{ l.navn }} — lokalitet {{ l.loknr }}</title>
+          <circle cx="{{ l.x }}" cy="{{ l.y }}" r="3.5"/>
+        </a>
+        {% endfor %}
+      </g>
+      <g class="kart-malestokk" aria-hidden="true">
+        <line x1="12" y1="{{ po.kart.hoyde - 16 }}"
+              x2="{{ 12 + po.kart.malestokk.lengde }}"
+              y2="{{ po.kart.hoyde - 16 }}"/>
+        <text x="12" y="{{ po.kart.hoyde - 22 }}">{{ po.kart.malestokk.etikett }}</text>
+      </g>
+    </svg>
+    <figcaption>
+      <span class="kartkreditt">Kystlinje:
+        <a href="{{ kartverket_url }}">{{ kartverket }}</a>,
+        {{ "N500" if po.kart.serie == "n500" else "N2000" }} Kartdata</span>
+      Områdegrensa er Fiskeridirektoratets offisielle polygon.
+      {{ antall(po.kart.lokaliteter|length, "lokalitet", "lokaliteter") }}
+      tegnet; alle står i tabellen under.
+    </figcaption>
+  </figure>
+</section>
+{% endif %}
+
 <section class="ark seksjon" aria-labelledby="lok-tittel">
   <div class="seksjonshode">
     <div>

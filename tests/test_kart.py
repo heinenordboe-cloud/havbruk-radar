@@ -190,6 +190,31 @@ def test_ingen_lokalitetsside_har_et_kart_over_60_kb():
     assert not verst, f"kart over {KART_TAK} byte: {verst[:5]}"
 
 
+OMRAADE_TAK = 150_000
+
+
+@bygget
+def test_ingen_omraadeside_har_et_kart_over_150_kb():
+    """Taket i `kart.OMRAADE_TAK` er et LØFTE, og dette er prøven som
+    holder det — på den ferdige sida, ikke på anslaget.
+
+    `kart._svgbyte()` regner ut hva malen kommer til å skrive, og
+    velger serie etter det. Et anslag kan bli feil: endrer malen
+    markupen rundt en prikk, flytter tallet seg uten at noen rører
+    `kart.py`. Da skal det si fra HER, og ikke i en nettleser.
+    """
+    sider = sorted(pathlib.Path(NETTSTED, "produksjonsomrade")
+                   .glob("*/index.html"))
+    assert len(sider) >= 13, f"fant bare {len(sider)} områdesider"
+    verst = []
+    for sti in sider:
+        kart_ = _kart_i(sti.read_text(encoding="utf-8"))
+        if len(kart_.encode()) > OMRAADE_TAK:
+            verst.append((len(kart_.encode()), sti.parent.name))
+    verst.sort(reverse=True)
+    assert not verst, f"områdekart over {OMRAADE_TAK} byte: {verst[:5]}"
+
+
 @bygget
 def test_hver_lokalitetsside_med_koordinater_har_et_kart():
     """Et kart som stille uteble ville sett ut som en lokalitet uten

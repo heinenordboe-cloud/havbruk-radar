@@ -715,6 +715,155 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
     }
 
 
+# ------------------------------------------------------ områdekart
+#
+# Ett produksjonsområde med alle lokalitetene i det. Samme kystkontur
+# som lokalitetskartet, men et utsnitt som er ti til tretti ganger så
+# bredt — og da er N500 mer detalj enn en piksel kan bære.
+
+OMRAADE_BREDDE = 760
+OMRAADE_TOLERANSE = 0.7     # piksler
+OMRAADE_TAK = 150_000       # byte kart før N2000 tas i bruk
+RAMME_BYTE = 2_000          # `<svg>`, gruppene og målestokken rundt
+OMRAADE_MONN = 0.06         # luft rundt området, andel av bredden
+
+
+def _svgbyte(baner, prikker, gitter) -> int:
+    """Hvor mange byte kartet legger på sida.
+
+    IKKE BARE BANEDATAENE. Første utkast målte `d`-strengene alene, og
+    det er stedfortrederen fra regel 1b-2: den er riktig helt til
+    prikkene blir mange. I PO 9 er lokalitetene 72 kB av et kart på
+    207 — over en tredjedel — og et tak som ikke ser dem, sier god for
+    et kart som er langt over det.
+
+    Tallet her er markupen slik malen faktisk skriver den, innrykk og
+    alt, pluss `RAMME_BYTE` for `<svg>`-taggen, gruppene og
+    målestokken. Rammen er MÅLT på de tretten bygde sidene: 907 til
+    1814 byte, og 2000 er satt over den største. Prøven som HOLDER
+    løftet måler likevel den ferdige sida — se
+    `test_ingen_omraadeside_har_et_kart_over_150_kb`.
+    """
+    n = sum(len(f'\n        <path d="{d}"/>'.encode()) for d in baner)
+    n += sum(len(f'\n        <path d="{l["d"]}"/>'.encode()) for l in gitter)
+    for p in prikker:
+        n += len((f'\n        <a href="/lokalitet/{p["loknr"]}/">'
+                  f'\n          <title>{p["navn"]} — lokalitet '
+                  f'{p["loknr"]}</title>'
+                  f'\n          <circle cx="{p["x"]}" cy="{p["y"]}" '
+                  f'r="3.5"/>\n        </a>').encode())
+    return n + RAMME_BYTE
+
+
+def omraadekart(nr: str, lokaliteter: list | None = None,
+                bredde: int = OMRAADE_BREDDE) -> dict | None:
+    """Ett produksjonsområde, eller None uten geometri for det.
+
+    ## Hvorfor to oppløsninger, og hvem som velger
+
+    Utsnittet er området selv, og de tretten er ulike: PO 1 er 120 km
+    bredt, PO 4 er 330. Ved 760 piksler er ett piksel da 160 til 430
+    meter, og N500 — som er generalisert til omtrent 100 — har mer
+    detalj enn pikselen kan bære i det store.
+
+    Funksjonen tegner derfor med N500 FØRST, måler hva kartet koster
+    i byte, og faller til N2000 om det er over `OMRAADE_TAK`. Valget
+    er MÅLT per område og ikke bestemt på forhånd: «de nordlige er
+    store» ville vært et gjett om geometri vi har liggende.
+
+    `serie` i svaret sier hvilken som ble brukt, så byggerapporten kan
+    skrive det.
+    """
+    po = _les(OMRAADER)
+    f = next((x for x in po["features"]
+              if str(x["properties"]["id"]) == str(nr)), None)
+    if f is None:
+        return None
+
+    ringer = [til_meter(r) for r in _linjer(f["geometry"])]
+    alle = [p for ring in ringer for p in ring]
+    if not alle:
+        return None
+    ost_min, nord_min, ost_maks, nord_maks = _boks(alle)
+    monn = max(ost_maks - ost_min, nord_maks - nord_min) * OMRAADE_MONN
+    proj = Projeksjon(ost_min - monn, nord_min - monn,
+                      ost_maks + monn, nord_maks + monn, bredde=bredde)
+
+    grense = []
+    for ring in ringer:
+        px = forenkle([(proj.x(e), proj.y(n)) for e, n in ring],
+                      OMRAADE_TOLERANSE)
+        d = _bane(px, lukket=True)
+        if d:
+            grense.append(d)
+
+    # LANDET UNDER HAVET, fra Natural Earth.
+    #
+    # Kartverkets `Havflate` dekker norsk sjøterritorium — et belte
+    # langs kysten — og ikke Atlanterhavet utenfor. Uten en landflate
+    # under blir alt utenfor det beltet tegnet i bakgrunnsfargen, og
+    # på et områdekart er den vestlige fjerdedelen nettopp der. MÅLT
+    # på PO 4: 150 av 760 piksler åpent hav malt som land.
+    #
+    # Rekkefølgen er bunn til topp: hav (bakgrunn) → Natural Earths
+    # grove land → Kartverkets havflate, som skjærer fjordene ut igjen
+    # i sin egen oppløsning → kystlinja som strek. Samme lagdeling som
+    # `norgeskart()`.
+    #
+    # Den grove flata er ALDRI synlig der Kartverket har data, så
+    # oppløsningen dens spiller ingen rolle. Den svarer bare på
+    # spørsmålet «er dette havbunn eller åpent hav» der Kartverket
+    # tier.
+    naboland = _tegn([til_meter(r)
+                      for r in _linjer(_les(LAND)["features"][0]["geometry"])],
+                     proj, OMRAADE_TOLERANSE, lukket=True)
+
+    prikker = []
+    for loknr, navn, lat, lon in (lokaliteter or ()):
+        try:
+            e, n = utm33(float(lat), float(lon))
+        except (TypeError, ValueError):
+            continue
+        if not proj.synlig(e, n):
+            continue
+        prikker.append({"loknr": loknr, "navn": navn,
+                        "x": proj.x(e), "y": proj.y(n)})
+    prikker.sort(key=lambda p: (p["y"], p["x"]))
+
+    # Gradnettet i grader: utsnittets hjørner, lest av POLYGONET og
+    # ikke av meterrammen — se `gradnett()`.
+    lons = [p[0] for ring in _linjer(f["geometry"]) for p in ring]
+    lats = [p[1] for ring in _linjer(f["geometry"]) for p in ring]
+    geo = (min(lons) - 0.5, min(lats) - 0.2, max(lons) + 0.5, max(lats) + 0.2)
+    gitter = gradnett(proj, geo, steg_lat=1, steg_lon=2, etikett=False)
+    gitterlinjer = gitter["bredde"] + gitter["lengde"]
+
+    # SERIEN VELGES SIST, fordi valget avhenger av alt det andre.
+    # Prikkene og gradnettet er de samme i begge seriene, men de er
+    # med i regnestykket: taket gjelder kartet, ikke kystlinja.
+    for serie in ("n500", "n2000"):
+        hav, kyst = _kystlag(serie, proj, OMRAADE_TOLERANSE)
+        byte = _svgbyte(naboland + hav + kyst + grense, prikker,
+                        gitterlinjer)
+        if byte <= OMRAADE_TAK or serie == "n2000":
+            break
+
+    return {
+        "nr": str(nr),
+        "bredde": proj.bredde,
+        "hoyde": proj.hoyde,
+        "serie": serie,
+        "land": naboland,
+        "hav": hav,
+        "kyst": kyst,
+        "grense": grense,
+        "lokaliteter": prikker,
+        "malestokk": _malestokk(proj),
+        "gitter": gitter,
+        "svgbyte": byte,
+    }
+
+
 # ------------------------------------------------------ posisjonskart
 #
 # Lokalitetssidens kart: ett punkt, kystlinja rundt det, og

@@ -2250,13 +2250,19 @@ td[data-felt="farge_mangler"]::before {
 /* OMRÅDEKARTET. Samme lag som posisjonskartet, bare større ramme. */
 .omraadekart-ramme { margin: 0 0 var(--rom-32); }
 
+/* BAKGRUNNEN ER HAV på områdekartet, motsatt av posisjonskartet.
+   Utsnittet er 120-330 km bredt og strekker seg utenfor Kartverkets
+   havflate; uten en landflate under ville det åpne havet blitt malt i
+   bakgrunnsfargen. Landet kommer derfor som et eget lag. */
 .omraadekart {
   display: block;
   inline-size: 100%;
   block-size: auto;
-  background: var(--kart-land);
+  background: var(--kart-hav);
   box-shadow: inset 0 0 0 1px var(--farge-kant-svak);
 }
+
+.omraadekart .kart-land path { fill: var(--kart-land); stroke: none; }
 
 .omraadekart-ramme figcaption {
   margin-block-start: var(--rom-10);
