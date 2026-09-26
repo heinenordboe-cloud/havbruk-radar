@@ -1913,6 +1913,24 @@ def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():
     assert '<desc id="kystbeskrivelse">' in html
 
 
+def test_lokaliteten_utenfor_kystbeltet_far_ingen_kart_men_beholder_posisjonen():
+    """Kartverkets havflate dekker sjøterritoriet og ikke havet
+    utenfor. Bakgrunnsfargen på lokalitetskartet betyr LAND, så et
+    kart her ville malt åpent hav som land.
+
+    Siden sier det i klartekst, og posisjonen — som er like sikker som
+    før — står igjen. De to tilstandene må ikke blandes: «ingen
+    koordinater» og «ingen kartdekning» har hver sin setning.
+    """
+    import kart
+    html = _side(posisjonskart=kart.posisjonskart("58.6317", "6.1633"))
+    assert "utenfor kystbeltet" in html
+    assert "data-kart" not in html
+    assert "oppgir ikke koordinater" not in html
+    assert "58°37,9′ N, 6°09,8′ Ø" in html
+    assert "posisjon fra" in html
+
+
 def test_hvert_kart_har_rolle_og_etikett():
     """Punkt 7: hvert kart sier hva det viser.
 

@@ -289,10 +289,17 @@ def test_posisjonen_star_ogsaa_som_tall():
 def test_hver_lokalitetsside_med_koordinater_har_et_kart():
     """Et kart som stille uteble ville sett ut som en lokalitet uten
     koordinater, og de to er ikke det samme — siden sier i klartekst
-    hvilken av dem det er."""
+    hvilken av dem det er.
+
+    Fra 26.09.2026 er det TRE tilstander, ikke to: kart, ingen
+    koordinater, eller koordinater utenfor kystbeltet Kartverket
+    dekker. Hver har sin egen setning.
+    """
     uten = []
     for sti in sorted(pathlib.Path(NETTSTED, "lokalitet").glob("*/index.html")):
         html = sti.read_text(encoding="utf-8")
-        if "data-kart" not in html and "oppgir ikke koordinater" not in html:
+        if ("data-kart" not in html
+                and "oppgir ikke koordinater" not in html
+                and "utenfor kystbeltet" not in html):
             uten.append(sti.parent.name)
     assert not uten, f"sider uten kart og uten forklaring: {uten[:5]}"

@@ -567,6 +567,54 @@ def _indeks(serie: str) -> tuple[dict, dict]:
     return hav, kyst
 
 
+# KYSTBELTET — hvor langt Kartverkets kart rekker
+#
+# `Havflate` dekker sjøterritoriet, et belte langs kysten, og ikke
+# havet utenfor. Et 36 km-utsnitt som når utenfor beltet, har ingen
+# opplysning der — og bakgrunnsfargen på lokalitetskartet betyr LAND.
+# Da maler kartet åpent hav som land, og det er ikke en unøyaktighet;
+# det er en påstand om verden som er usann.
+#
+# Sperren her er grov med vilje: ligger lokaliteten mer enn
+# `KYSTBELTE_M` fra nærmeste kystkontur, tegnes ikke kartet, og siden
+# sier hvorfor. Målt 26.09.2026 traff det tre av 1782 — 11899 (19,8 km
+# ut i Nordsjøen), 11851 (11,2) og 45275 (11,1).
+#
+# TERSKELEN REGNES, den listes ikke. En liste med tre numre ville vært
+# riktig akkurat 26.09.2026 og stille feil den dagen en lokalitet
+# flytter seg eller en ny kommer til.
+
+KYSTBELTE_M = 10_000
+
+
+def innenfor_kystbeltet(breddegrad: object, lengdegrad: object,
+                        grense: float = KYSTBELTE_M) -> bool:
+    """Er det kystkontur innenfor `grense` meter av punktet?
+
+    Spørsmålet er et JA/NEI og ikke en avstand: vi trenger å vite om
+    Kartverket har data her, ikke hvor langt det er til Norge. Derfor
+    ser den bare i rutene som kan nå fram, og stopper ved første treff.
+
+    Avstanden måles til nærmeste PUNKT på kystkonturen, ikke til
+    nærmeste linjestykke. N500s punkter ligger omtrent 100 meter fra
+    hverandre, så forskjellen er under 50 meter på en grense på 10 000.
+    """
+    try:
+        ost, nord = utm33(float(str(breddegrad).strip()),
+                          float(str(lengdegrad).strip()))
+    except (TypeError, ValueError):
+        return False
+    _hav, kyst_i = _indeks("n500")
+    g2 = grense * grense
+    for rute in _ruter((ost - grense, nord - grense,
+                        ost + grense, nord + grense)):
+        for linje in kyst_i.get(rute, ()):
+            for x, y in linje:
+                if (x - ost) ** 2 + (y - nord) ** 2 <= g2:
+                    return True
+    return False
+
+
 def _linjekant(linje, proj: Projeksjon):
     """Polylinja klippet mot utsnittet, som en liste med biter.
 
@@ -1141,6 +1189,21 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return None
 
+    # UTENFOR KYSTBELTET TEGNES INGENTING.
+    #
+    # Svaret er et kart-objekt og ikke `None`: `None` betyr allerede
+    # «ingen koordinater», og de to er ikke det samme. Her VET vi hvor
+    # lokaliteten er — vi mangler kartgrunnlaget rundt den, og siden
+    # skal si nettopp det. Koordinatene blir med, så posisjonslinja
+    # står som før.
+    if not innenfor_kystbeltet(lat, lon):
+        return {
+            "utenfor_kystbeltet": True,
+            "koordinat": f"{_grader(lat, 'N', 'S')}, {_grader(lon, 'Ø', 'V')}",
+            "lat": lat,
+            "lon": lon,
+        }
+
     # UTSNITTET ER ET KVADRAT I METER, sentrert på punktet. Fram til
     # 25.09.2026 ble kilometerne regnet om til grader med en
     # breddekorreksjon; nå er meter det kartet TEGNES i, og
@@ -1196,6 +1259,7 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
         "kyst": kyst,
         "grense": grense,
         "naboer": naboprikker,
+        "utenfor_kystbeltet": False,
         "malestokk": _malestokk(proj),
         # Gradnettet er FINERE her, og etikettene er av: et utsnitt på
         # 36 km rommer en tredjedels breddegrad, og «69°N» tvers over
