@@ -321,12 +321,15 @@
           femte grad. Alle navn, farger og tall står i tabellen ved
           siden av.</desc>
         {# Rekkefølgen er lagdelingen: SVG har ingen z-indeks. #}
+        {# GRADNETTET ER POLYLINJER, ikke rette streker. I UTM krummer
+           en breddegrad, og en lengdegrad heller — to rette streker
+           ville sagt feil hvor 70 grader nord går. Se `kart.gradnett()`. #}
         <g class="kart-gitter" aria-hidden="true">
           {% for l in f.kart.gitter.bredde %}
-          <line x1="0" y1="{{ l.y }}" x2="{{ f.kart.bredde }}" y2="{{ l.y }}"/>
+          <path d="{{ l.d }}"/>
           {% endfor %}
           {% for l in f.kart.gitter.lengde %}
-          <line x1="{{ l.x }}" y1="0" x2="{{ l.x }}" y2="{{ f.kart.hoyde }}"/>
+          <path d="{{ l.d }}"/>
           {% endfor %}
         </g>
         <g class="kart-omraader" data-pagefind-ignore>

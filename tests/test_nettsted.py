@@ -1747,11 +1747,13 @@ def _forside(**overstyr) -> str:
                                "antall": 137, "baner": ["M10 10L20 20Z"]}],
                  "mangler_geometri": [],
                  "land": ["M0 0L5 5L5 0Z"],
-                 "gitter": {"bredde": [{"y": 200.0, "grad": 65,
+                 # GRADNETTET ER POLYLINJER — `d`, ikke `x`/`y`. I UTM
+                 # krummer både breddegrader og lengdegrader.
+                 "gitter": {"bredde": [{"d": "M0 200L760 198", "grad": 65,
                                         "etikett": "65°N",
                                         "etikett_x": 754, "etikett_y": 195.0}],
-                            "lengde": [{"x": 300.0, "grad": 10,
-                                        "etikett": "10°Ø",
+                            "lengde": [{"d": "M300 0L305 870", "x": 300.0,
+                                        "grad": 10, "etikett": "10°Ø",
                                         "etikett_x": 306.0,
                                         "etikett_anker": "start"}],
                             "etikett_y_bunn": 862.4, "etiketter": True}},

@@ -173,12 +173,15 @@
           kilometer, med lokaliteten i midten. Landflatene er Natural
           Earth 1:10 millioner. Posisjonen er
           {{ pk.koordinat }}, oppgitt av Akvakulturregisteret.</desc>
+        {# GRADNETTET ER POLYLINJER, ikke rette streker. I UTM krummer
+           en breddegrad, og en lengdegrad heller — to rette streker
+           ville sagt feil hvor 70 grader nord går. Se `kart.gradnett()`. #}
         <g class="kart-gitter" aria-hidden="true">
           {% for l in pk.gitter.bredde %}
-          <line x1="0" y1="{{ l.y }}" x2="{{ pk.bredde }}" y2="{{ l.y }}"/>
+          <path d="{{ l.d }}"/>
           {% endfor %}
           {% for l in pk.gitter.lengde %}
-          <line x1="{{ l.x }}" y1="0" x2="{{ l.x }}" y2="{{ pk.hoyde }}"/>
+          <path d="{{ l.d }}"/>
           {% endfor %}
         </g>
         <g class="kart-land" aria-hidden="true">

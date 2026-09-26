@@ -1508,7 +1508,10 @@ a:hover {
   stroke-opacity: 0.55;
 }
 
-.kart-gitter line {
+/* GRADNETTET ER POLYLINJER fra 25.09.2026. I UTM krummer både
+   breddegrader og lengdegrader, og en `<line>` kan bare være rett. */
+.kart-gitter path {
+  fill: none;
   stroke: var(--hav3);
   stroke-width: 0.4;
   stroke-opacity: 0.35;
@@ -2286,7 +2289,7 @@ td[data-felt="farge_mangler"]::before {
   stroke-opacity: 1;
 }
 
-.lok-tilstand .posisjonskart .kart-gitter line { stroke: rgba(11, 36, 48, 0.10); }
+.lok-tilstand .posisjonskart .kart-gitter path { stroke: rgba(11, 36, 48, 0.10); }
 
 /* Siteringsboksen står alt på `--papir2`; i en smal spalte trenger den
    bare å slutte å ha seksjonsmarg under seg. */

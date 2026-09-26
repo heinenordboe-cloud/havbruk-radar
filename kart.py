@@ -158,36 +158,67 @@ def utm33(lat: float, lon: float) -> tuple[float, float]:
 
 
 class Projeksjon:
-    """Grader til piksler i en `viewBox`, og ingenting annet.
+    """Meter i EPSG:25833 til piksler i en `viewBox`, og ingenting annet.
 
-    Utsnittet oppgis i grader; bredden i piksler. Høyden FØLGER av
+    ## HVORFOR METER OG IKKE GRADER
+
+    Fram til 25.09.2026 var dette en ekvirektangulær projeksjon med en
+    `cos(midtbredde)`-korreksjon. Den var riktig i ett punkt og
+    gradvis feil bort fra det, og på oversiktskartet var feilen stor:
+
+        Lindesnes 58 °N     0,81x — en femtedel for smalt
+        Nordkapp  71 °N     1,33x — en tredjedel for bredt
+
+    Norge er 13 breddegrader langt, og én korreksjon for hele landet
+    kan ikke være riktig i mer enn ett snitt. UTM 33N (EUREF89,
+    EPSG:25833) holder hele landet innenfor 0,7 % — MÅLT, se
+    `tests/test_kart.py`.
+
+    ## OG DET GJØR PROJEKSJONEN TIL EN SKALERING
+
+    Kartverkets kystkontur ER i 25833. Det som skal tegnes er altså
+    allerede projisert, og denne klassen gjør ikke annet enn å flytte
+    origo og gange med et tall. Det som IKKE er i 25833 —
+    produksjonsområdene, Natural Earths naboland, lokalitetenes
+    koordinater — går gjennom `utm33()` én gang der det leses.
+
+    Utsnittet oppgis i meter; bredden i piksler. Høyden FØLGER av
     utsnittet framfor å oppgis, fordi et kart med en høyde noen har
     valgt er et kart med feil størrelsesforhold.
     """
 
-    def __init__(self, lon_min: float, lat_min: float,
-                 lon_maks: float, lat_maks: float,
+    def __init__(self, ost_min: float, nord_min: float,
+                 ost_maks: float, nord_maks: float,
                  bredde: int = 900, marg: int = 12):
-        self.lon_min, self.lat_min = lon_min, lat_min
-        self.lon_maks, self.lat_maks = lon_maks, lat_maks
+        self.ost_min, self.nord_min = ost_min, nord_min
+        self.ost_maks, self.nord_maks = ost_maks, nord_maks
         self.marg = marg
-        self.k = math.cos(math.radians((lat_min + lat_maks) / 2))
-        grader_b = (lon_maks - lon_min) * self.k or 1.0
-        grader_h = (lat_maks - lat_min) or 1.0
-        self.skala = (bredde - 2 * marg) / grader_b
+        self.skala = (bredde - 2 * marg) / ((ost_maks - ost_min) or 1.0)
         self.bredde = bredde
-        self.hoyde = round(grader_h * self.skala + 2 * marg, 1)
+        self.hoyde = round((nord_maks - nord_min) * self.skala + 2 * marg, 1)
 
-    def x(self, lon: float) -> float:
-        return round(self.marg + (lon - self.lon_min) * self.k * self.skala, 1)
+    def x(self, ost: float) -> float:
+        return round(self.marg + (ost - self.ost_min) * self.skala, 1)
 
-    def y(self, lat: float) -> float:
-        # y vokser nedover i SVG, breddegrad oppover.
-        return round(self.marg + (self.lat_maks - lat) * self.skala, 1)
+    def y(self, nord: float) -> float:
+        # y vokser nedover i SVG, norting oppover.
+        return round(self.marg + (self.nord_maks - nord) * self.skala, 1)
 
-    def synlig(self, lon: float, lat: float) -> bool:
-        return (self.lon_min <= lon <= self.lon_maks
-                and self.lat_min <= lat <= self.lat_maks)
+    def synlig(self, ost: float, nord: float) -> bool:
+        return (self.ost_min <= ost <= self.ost_maks
+                and self.nord_min <= nord <= self.nord_maks)
+
+    def meter_per_piksel(self) -> float:
+        return 1 / self.skala
+
+
+def til_meter(ring) -> list[tuple[float, float]]:
+    """En ring i grader (lon, lat) til meter i 25833.
+
+    Brukes på det som IKKE er i 25833 fra før: Fiskeridirektoratets
+    produksjonsområder og Natural Earths naboland.
+    """
+    return [utm33(p[1], p[0]) for p in ring]
 
 
 # --------------------------------------------------------- forenkling
@@ -293,8 +324,8 @@ def _flatekant(ring, proj: Projeksjon, monn: float):
     uten klippingen skriver hver av de 1 782 lokalitetssidene dem alle
     ut. Med klippingen er snittet noen hundre byte.
     """
-    kanter = (("v", proj.lon_min - monn), ("h", proj.lon_maks + monn),
-              ("n", proj.lat_min - monn), ("o", proj.lat_maks + monn))
+    kanter = (("v", proj.ost_min - monn), ("h", proj.ost_maks + monn),
+              ("n", proj.nord_min - monn), ("o", proj.nord_maks + monn))
     for kant, grense in kanter:
         if len(ring) < 3:
             return []
@@ -344,11 +375,11 @@ def _klipp_kant(ring, kant: str, grense: float):
 
 def _tegn(linjer, proj: Projeksjon, toleranse: float,
           lukket: bool = False, klipp: bool = True) -> list[str]:
-    """Grader til `d`-strenger, klippet til utsnittet og forenklet.
+    """Meter til `d`-strenger, klippet til utsnittet og forenklet.
 
-    FORENKLINGEN SKJER I PIKSELROMMET og ikke i grader: en toleranse i
-    grader forenkler Finnmark hardere enn Rogaland, mens en toleranse i
-    piksler forenkler like mye overalt på det ferdige bildet.
+    FORENKLINGEN SKJER I PIKSELROMMET og ikke i meter: en toleranse i
+    piksler forenkler like mye overalt på det ferdige bildet, uansett
+    hvor stort utsnittet er.
 
     ALT SOM TEGNES HER ER RINGER — landflater og produksjonsområder —
     og de klippes med Sutherland-Hodgman, ikke med en linjedeler. Se
@@ -358,7 +389,7 @@ def _tegn(linjer, proj: Projeksjon, toleranse: float,
     oversiktskartet er rammen områdenes egen utstrekning, og en
     klipping der er arbeid uten virkning.
     """
-    monn = (proj.lon_maks - proj.lon_min) * 0.05
+    monn = (proj.ost_maks - proj.ost_min) * 0.05
     ut = []
     for ring in linjer:
         bit = ring if not klipp else _flatekant(ring, proj, monn)
@@ -381,24 +412,62 @@ def _tegn(linjer, proj: Projeksjon, toleranse: float,
 # Et gradnett krever heller ingen lisens. Det er aritmetikk.
 
 
-def gradnett(proj: Projeksjon, steg_lat: int = 5, steg_lon: int = 5,
-             etikett: bool = True) -> dict:
-    """Linjene og etikettene. Tegnes bare der det faktisk er kart."""
+def gradnett(proj: Projeksjon, geo: tuple[float, float, float, float],
+             steg_lat: int = 5, steg_lon: int = 5,
+             etikett: bool = True, punkter: int = 24) -> dict:
+    """Gradnettet som POLYLINJER, ikke som rette streker.
+
+    ## Hvorfor det ble en polylinje 25.09.2026
+
+    I en ekvirektangulær projeksjon er en breddegrad en vannrett strek
+    og en lengdegrad en loddrett. I UTM er ingen av dem det: en
+    breddegrad krummer, og en lengdegrad heller — 16 grader fra
+    sentralmeridianen er meridiankonvergensen omtrent 15 grader. To
+    rette streker ville vært et gradnett som sa feil hvor 70 °N går.
+
+    Hver linje samples i `punkter` steg og projiseres punkt for punkt.
+    `geo` er utsnittet i GRADER, som den som kaller kjenner — å regne
+    det ut av meterrammen ville krevd en invers UTM, altså en formel
+    til som kan ta feil.
+    """
+    lon_min, lat_min, lon_maks, lat_maks = geo
+
     def trinn(fra: float, til: float, steg: int) -> list[int]:
         forste = int(math.ceil(fra / steg) * steg)
         return list(range(forste, int(til) + 1, steg))
 
-    bredde = [{"y": proj.y(g), "grad": g, "etikett": f"{g}°N",
-               "etikett_x": proj.bredde - 6,
-               "etikett_y": round(proj.y(g) - 5, 1)}
-              for g in trinn(proj.lat_min, proj.lat_maks, steg_lat)]
+    def bane(punktliste) -> str:
+        px = [(proj.x(e), proj.y(n)) for e, n in punktliste]
+        return _bane(px)
+
+    bredde = []
+    for g in trinn(lat_min, lat_maks, steg_lat):
+        pts = [utm33(g, lon_min + (lon_maks - lon_min) * i / (punkter - 1))
+               for i in range(punkter)]
+        d = bane(pts)
+        if not d:
+            continue
+        # Etiketten står ved HØYRE kant, der kartet er tomt: venstre
+        # halvdel er kysten, og «65°N» midt oppi klyngen i Rogaland var
+        # uleselig.
+        bredde.append({"d": d, "grad": g, "etikett": f"{g}°N",
+                       "etikett_x": proj.bredde - 6,
+                       "etikett_y": round(proj.y(pts[-1][1]) - 5, 1)})
+
     lengde = []
-    for g in trinn(proj.lon_min, proj.lon_maks, steg_lon):
-        x = proj.x(g)
+    for g in trinn(lon_min, lon_maks, steg_lon):
+        pts = [utm33(lat_min + (lat_maks - lat_min) * i / (punkter - 1), g)
+               for i in range(punkter)]
+        d = bane(pts)
+        if not d:
+            continue
+        x = proj.x(pts[0][0])
         sist = x > proj.bredde - 60
-        lengde.append({"x": x, "grad": g, "etikett": f"{g}°Ø",
+        lengde.append({"d": d, "grad": g, "etikett": f"{g}°Ø",
+                       "x": x,
                        "etikett_x": round(x - 6 if sist else x + 6, 1),
                        "etikett_anker": "end" if sist else "start"})
+
     return {"bredde": bredde, "lengde": lengde,
             "etikett_y_bunn": round(proj.hoyde - 8, 1),
             "etiketter": etikett}
@@ -428,17 +497,29 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
     """
     po = _les(OMRAADER)
     per_nr = {}
+    # UTSTREKNINGEN REGNES I BEGGE ROM: meter til rammen, grader til
+    # gradnettet. Å regne det ene av det andre ville krevd en invers
+    # UTM — en formel til som kan ta feil.
     lon_min = lat_min = 1e9
     lon_maks = lat_maks = -1e9
+    ost_min = nord_min = 1e18
+    ost_maks = nord_maks = -1e18
+    ringer_i_meter: dict[str, list] = {}
     for f in po["features"]:
         nr = str(f["properties"]["id"])
         per_nr[nr] = f
+        ringer_i_meter[nr] = []
         for ring in _linjer(f["geometry"]):
             for x, y in ring:
                 lon_min, lon_maks = min(lon_min, x), max(lon_maks, x)
                 lat_min, lat_maks = min(lat_min, y), max(lat_maks, y)
+            m = til_meter(ring)
+            ringer_i_meter[nr].append(m)
+            for e, n in m:
+                ost_min, ost_maks = min(ost_min, e), max(ost_maks, e)
+                nord_min, nord_maks = min(nord_min, n), max(nord_maks, n)
 
-    proj = Projeksjon(lon_min, lat_min, lon_maks, lat_maks, bredde=bredde)
+    proj = Projeksjon(ost_min, nord_min, ost_maks, nord_maks, bredde=bredde)
 
     flater = []
     for rad in omraader:
@@ -454,14 +535,15 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
             "farge_klasse": rad.get("farge_klasse", ""),
             "farge": rad.get("farge", ""),
             "antall": rad.get("lokaliteter", 0),
-            "baner": _tegn(_linjer(f["geometry"]), proj,
+            "baner": _tegn(ringer_i_meter[str(rad["nr"])], proj,
                            KYSTKART_TOLERANSE, lukket=True,
                            klipp=False),
         })
 
     # Landflatene dekker hele rammen her — rammen ER områdenes
     # utstrekning — så klippingen er arbeid uten virkning.
-    land = _tegn(_linjer(_les(LAND)["features"][0]["geometry"]),
+    land = _tegn([til_meter(r)
+                  for r in _linjer(_les(LAND)["features"][0]["geometry"])],
                  proj, KYSTKART_TOLERANSE, lukket=True, klipp=False)
 
     return {
@@ -471,7 +553,7 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
         "mangler_geometri": [r["nr"] for r in omraader
                              if str(r["nr"]) not in per_nr],
         "land": land,
-        "gitter": gradnett(proj),
+        "gitter": gradnett(proj, (lon_min, lat_min, lon_maks, lat_maks)),
     }
 
 
@@ -512,15 +594,25 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         return None
 
-    halv_lat = (km / 2) / KM_PER_BREDDEGRAD
-    k = math.cos(math.radians(lat)) or 1e-6
-    halv_lon = halv_lat / k
-    proj = Projeksjon(lon - halv_lon, lat - halv_lat,
-                      lon + halv_lon, lat + halv_lat,
+    # UTSNITTET ER EN KVADRAT I METER, sentrert på punktet. Fram til
+    # 25.09.2026 ble kilometerne regnet om til grader med en
+    # breddekorreksjon; nå er meter det kartet TEGNES i, og
+    # omregningen finnes ikke lenger.
+    ost, nord = utm33(lat, lon)
+    halv = km * 1000 / 2
+    proj = Projeksjon(ost - halv, nord - halv, ost + halv, nord + halv,
                       bredde=bredde, marg=0)
 
-    land = _tegn(_linjer(_les(LAND)["features"][0]["geometry"]),
+    land = _tegn([til_meter(r)
+                  for r in _linjer(_les(LAND)["features"][0]["geometry"])],
                  proj, POSISJON_TOLERANSE, lukket=True)
+
+    # Gradnettets utsnitt i GRADER, omtrentlig: det skal bare si hvor
+    # linjene går, og en halv kilometer fra eller til på rammen flytter
+    # ingen av dem.
+    halv_lat = (km / 2) / KM_PER_BREDDEGRAD
+    halv_lon = halv_lat / (math.cos(math.radians(lat)) or 1e-6)
+    geo = (lon - halv_lon, lat - halv_lat, lon + halv_lon, lat + halv_lat)
 
     return {
         "bredde": proj.bredde,
@@ -529,9 +621,11 @@ def posisjonskart(breddegrad: object, lengdegrad: object,
         # Gradnettet er FINERE her, og etikettene er av: et utsnitt på
         # 36 km rommer en tredjedels breddegrad, og «69°N» tvers over
         # bildet ville vært den eneste linja og dessuten i veien.
-        "gitter": gradnett(proj, steg_lat=1, steg_lon=1, etikett=False),
-        "x": proj.x(lon),
-        "y": proj.y(lat),
+        "gitter": gradnett(proj, geo, steg_lat=1, steg_lon=1, etikett=False),
+        "x": proj.x(ost),
+        "y": proj.y(nord),
+        "ost": ost,
+        "nord": nord,
         "km": km,
         # Koordinatene i grader og desimalminutter, som er formen
         # sjøkart og Akvakulturregisteret bruker.
