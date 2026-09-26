@@ -86,6 +86,7 @@ import json
 import math
 import os
 import re
+import shutil
 import sys
 import time
 from collections import Counter, defaultdict
@@ -4718,9 +4719,16 @@ def skriv_skript(rot: Path) -> list[Path]:
 
 
 def skriv_bilder(rot: Path) -> list[Path]:
-    """Herofotografiet til `/bilde/`, og kartlisensen til rota."""
-    (rot / BILDEMAPPE).mkdir(parents=True, exist_ok=True)
+    """Bildene til `/bilde/`, og geometrifilene til rota.
+
+    MAPPA LAGES BARE NÅR DET ER NOE Å LEGGE I DEN. `BILDEFILER` er tom
+    fra 26.09.2026 — heroen er et kart — og en `mkdir` som kjører
+    uansett, la igjen en tom `/bilde/` i utputtet: en mappe som viste
+    til noe som ikke finnes lenger.
+    """
     skrevet = []
+    if BILDEFILER:
+        (rot / BILDEMAPPE).mkdir(parents=True, exist_ok=True)
     for navn in BILDEFILER:
         kilde = MALER / BILDEMAPPE / navn
         if not kilde.exists():
@@ -7453,6 +7461,73 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
         print(f"      {linje}")
 
 
+# ---------------------------------------------- BYGGET BYTTES INN
+#
+# Fram til 26.09.2026 skrev bygget rett oppå målmappa. Da ble hver fil
+# det LAGER erstattet — og hver fil det ikke lenger lager, ble stående.
+#
+# MÅLT samme dag på `data/nettsted`: 119 filer ingen bygging fra main
+# lager lenger. Tre av dem var herofotografiene, som porten stoppet
+# publiseringen på; de 116 andre var pagefind-indeksfiler med
+# innholdsadresserte navn, som får nytt navn ved hver bygging og derfor
+# hadde hopet seg opp usett.
+#
+# Feilen er ikke bildene. Feilen er at en målmappe som skrives oppå,
+# er summen av ALLE byggingene som noen gang har truffet den — og en
+# slik mappe kan ingen prøve uttale seg om, fordi ingen vet hva som er
+# i den.
+#
+# Bygget skriver derfor i en TOM mappe og bytter den inn til slutt.
+# Feiler bygget, blir den gamle stående urørt, og den halvferdige
+# ligger igjen til ettersyn.
+
+ARBEIDSMAPPE = ".ny"
+
+
+def byggemappe(rot: Path) -> Path:
+    """En TOM mappe å bygge i, INNE i målmappa.
+
+    Inne i og ikke ved siden av, og det er ikke en smaksak:
+    `/data/nettsted/` er ignorert i datarepoet, mens en søstermappe
+    ikke ville vært det. En avbrutt bygging ville da etterlatt 300 MB
+    usporet innhold, og `publiser.py` steg 1 ville stoppet på «urent
+    arbeidstre» ved neste forsøk.
+    """
+    rot.mkdir(parents=True, exist_ok=True)
+    ny = rot / ARBEIDSMAPPE
+    if ny.exists():
+        shutil.rmtree(ny)
+    ny.mkdir()
+    return ny
+
+
+def bytt_inn(ny: Path, rot: Path) -> None:
+    """Bytter den ferdige byggemappa inn der målmappa sto.
+
+    TRE OMDØPINGER OG INGEN KOPIERING: mappene ligger på samme
+    filsystem, så byttet er metadata. Vinduet der målmappa ikke finnes
+    er de mikrosekundene den midterste omdøpingen tar, og feiler den
+    siste, legges den gamle tilbake.
+
+    Den gamle slettes FØRST når den nye står på plass. En rekkefølge
+    som slettet først ville vært et bygg som river ned siden før det
+    vet om det klarer å sette opp en ny.
+    """
+    midlertidig = rot.parent / f".{rot.name}.ny"
+    gammel = rot.parent / f".{rot.name}.gammel"
+    for sti in (midlertidig, gammel):
+        if sti.exists():
+            shutil.rmtree(sti)
+    ny.rename(midlertidig)
+    rot.rename(gammel)
+    try:
+        midlertidig.rename(rot)
+    except OSError:
+        gammel.rename(rot)
+        raise
+    shutil.rmtree(gammel)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--lokalitet", default="31397",
@@ -7478,10 +7553,15 @@ def main() -> int:
 
     rot = Path(args.ut)
     if args.alle:
-        logg, tider = skriv_alle(rot, args.grense)
-        _meld_bygg(logg, tider, rot)
+        bygg = byggemappe(rot)
+        logg, tider = skriv_alle(bygg, args.grense)
         if logg.feilet:
+            _meld_bygg(logg, tider, bygg)
+            print(f"\n  BYTTET IKKE INN: bygget feilet. {rot} står som "
+                  f"før, og det halvferdige ligger i {bygg}.")
             return 1
+        bytt_inn(bygg, rot)
+        _meld_bygg(logg, tider, rot)
     else:
         filer = (skriv_lokalitet(args.lokalitet, rot)
                  + [skriv_stil(rot)] + skriv_fonter(rot)

@@ -880,6 +880,78 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     assert [m.name for m in (ut / "produksjonsomrade").iterdir()] == ["index.html"]
 
 
+def test_bygget_bytter_inn_en_tom_mappe_og_etterlater_ingenting(
+        tmp_path, monkeypatch, capsys):
+    """En fil fra en TIDLIGERE bygging skal ikke overleve.
+
+    MÅLT 26.09.2026 på `data/nettsted`: 119 filer ingen bygging fra
+    main lager lenger. Tre var herofotografiene, som porten stoppet
+    publiseringen på; 116 var pagefind-indeksfiler med
+    innholdsadresserte navn, som får nytt navn ved hver bygging og
+    hadde hopet seg opp usett i ukevis.
+
+    Feilen var ikke filene. Feilen var at en målmappe som skrives oppå,
+    er summen av ALLE byggingene som noen gang har truffet den.
+
+    Prøven planter nettopp de tre filene og krever at de er borte.
+    `skriv_alle` byttes ut: spørsmålet her er om `main()` bygger i en
+    tom mappe og bytter den inn, ikke hva bygget legger i den, og et
+    ekte bygg tar seksti sekunder.
+    """
+    import sys
+
+    ut = tmp_path / "nettsted"
+    (ut / "bilde").mkdir(parents=True)
+    for bredde in (800, 1600, 2400):
+        (ut / "bilde" / f"hero-{bredde}.jpg").write_bytes(b"gammelt bilde")
+    (ut / "pagefind").mkdir()
+    (ut / "pagefind" / "nb_gammel.pf_index").write_bytes(b"gammel indeks")
+
+    def falskt_bygg(rot, grense=None):
+        (rot / "index.html").write_text("ny forside", encoding="utf-8")
+        (rot / "pagefind").mkdir()
+        (rot / "pagefind" / "nb_ny.pf_index").write_bytes(b"ny indeks")
+        return nettsted.Byggelogg(sider=1), {"alt": 0.1}
+
+    monkeypatch.setattr(nettsted, "skriv_alle", falskt_bygg)
+    monkeypatch.setattr(sys, "argv", ["nettsted.py", "--alle", "--uten-vakt",
+                                      "--ut", str(ut)])
+    assert nettsted.main() == 0
+
+    igjen = sorted(str(f.relative_to(ut)) for f in ut.rglob("*") if f.is_file())
+    assert igjen == ["index.html", "pagefind/nb_ny.pf_index"], igjen
+    assert not (ut / nettsted.ARBEIDSMAPPE).exists(), "byggemappa ble stående"
+    assert not list(tmp_path.glob(".nettsted.*")), \
+        "en midlertidig mappe ble liggende ved siden av målmappa"
+
+
+def test_et_feilet_bygg_lar_den_gamle_mappa_sta(tmp_path, monkeypatch):
+    """Byttet skjer bare når bygget gikk.
+
+    Et bygg som river ned siden før det vet om det klarer å sette opp
+    en ny, er verre enn et bygg som etterlater gamle filer: det første
+    er en side som er borte, det andre en side som er for stor.
+    """
+    import sys
+
+    ut = tmp_path / "nettsted"
+    ut.mkdir()
+    (ut / "index.html").write_text("forrige uke", encoding="utf-8")
+
+    def falskt_bygg(rot, grense=None):
+        (rot / "index.html").write_text("halvferdig", encoding="utf-8")
+        return nettsted.Byggelogg(sider=1, feilet=[("31397", "krasj")]), \
+            {"alt": 0.1}
+
+    monkeypatch.setattr(nettsted, "skriv_alle", falskt_bygg)
+    monkeypatch.setattr(sys, "argv", ["nettsted.py", "--alle", "--uten-vakt",
+                                      "--ut", str(ut)])
+    assert nettsted.main() == 1
+    assert (ut / "index.html").read_text(encoding="utf-8") == "forrige uke"
+    assert (ut / nettsted.ARBEIDSMAPPE / "index.html").read_text(
+        encoding="utf-8") == "halvferdig", "det halvferdige er ikke til ettersyn"
+
+
 def test_byggelogget_teller_det_som_ikke_gikk_rent(datamappe, tmp_path):
     """Et bygg som bare sier «ferdig» skjuler nøyaktig det man trenger å
     vite. Kategoriene skrives også når de er null — et tall man bare ser
