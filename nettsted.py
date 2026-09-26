@@ -4644,15 +4644,6 @@ FONTFILER = ("newsreader.woff2", "newsreader-OFL.txt",
 # si noe annet enn den.
 IKONFILER = ("favicon.svg", "favicon-32.png", "apple-touch-icon.png")
 
-# HEROFOTOGRAFIET, i tre bredder. Hostet av oss, aldri hentet fra
-# Unsplash i runtime: en `images.unsplash.com`-URL i markupen ville
-# fortalt dem hvem som leser siden, og en side som henter sitt eget
-# hovedbilde fra en tredjepart er en side som ser feil ut den dagen den
-# tjenesten gjør det.
-#
-# Ligger i `bilde/` og ikke i rota, fordi rota er for filer som må
-# ligge der (`/stil.css`, fontene, faviconene, `robots.txt`). Se
-# `docs/design/HEROFOTO.md` for proveniens, lisens og sha256.
 # SKRIPTET. Én fil, lastet med `defer`, og den legger ikke til én
 # verdi på noen side — se `maler/kystloggen.js`.
 # `kystloggen.js` lastes av hver side; `sok.js` bare av `/sok/`. Se
@@ -4660,7 +4651,22 @@ IKONFILER = ("favicon.svg", "favicon-32.png", "apple-touch-icon.png")
 SKRIPTFILER = ("kystloggen.js", "sok.js")
 
 BILDEMAPPE = "bilde"
-BILDEFILER = ("hero-800.jpg", "hero-1600.jpg", "hero-2400.jpg")
+
+# HEROFOTOGRAFIET ER BORTE fra 26.09.2026. Skybildet var en stemning og
+# ikke en opplysning; heroen viser nå kysten med hver eneste lokalitet
+# på den — se `skriv_norgeskart()`. Filene er slettet fra `maler/bilde/`
+# og pinningene deres fra publiseringsvakten. Raden i `VAART_LAAN` er
+# tatt ut samme sted: en rad om et lån vi ikke lenger tar, er en usann
+# opplysning på den ene siden som finnes for å svare på om man kan
+# stole på dette.
+BILDEFILER: tuple[str, ...] = ()
+
+# KARTET SOM EGEN FIL. `<img src="/kart/norge.svg">` i heroen: den er
+# den samme på hver visning og kan caches for seg, og et `<img>`
+# blokkerer ingenting. Et SVG i et `<img>` når ikke sidens stilark, så
+# fila bærer sin egen — se `kart.norgeskart()`.
+KARTMAPPE = "kart"
+NORGESKART = "norge.svg"
 
 # KARTGEOMETRIEN SENDES IKKE UT. Den er tegnet INN i SVG-en på hver
 # side, og en GeoJSON-fil ved siden av ville vært 365 kB ingen henter.
@@ -4732,6 +4738,22 @@ def skriv_bilder(rot: Path) -> list[Path]:
         ut.write_bytes(kilde.read_bytes())
         skrevet.append(ut)
     return skrevet
+
+
+def skriv_norgeskart(rot: Path, felles: Felles) -> Path:
+    """`/kart/norge.svg` — kysten med hver lokalitet, til heroen.
+
+    EN EGEN FIL og ikke tegnet inn i forsiden. Den er 350 kB, den er
+    den samme på hver visning, og en forside som bar den i HTML-en
+    ville sendt den på nytt hver gang noen kom innom.
+    """
+    ut = rot / KARTMAPPE / NORGESKART
+    ut.parent.mkdir(parents=True, exist_ok=True)
+    ut.write_text(kart.norgeskart(lokaliteter=[
+        (nr, d.get("navn", ""), d.get("breddegrad", ""),
+         d.get("lengdegrad", ""))
+        for nr, d in felles.akva.items()]), encoding="utf-8")
+    return ut
 
 
 # ------------------------------------------------- ENDRINGSSIDENE
@@ -5843,17 +5865,25 @@ VAART_LAAN = (
      "lisens": "SIL Open Font License 1.1",
      "opphav": "IBM, via google/fonts",
      "sti": "/ibmplex-OFL.txt"},
-    # DE TO SISTE KREVER INGENTING, og står her likevel. En side som
-    # ikke sier hvor et bilde eller en kystlinje kommer fra, kan ingen
-    # etterprøve — samme grunn som at datokolonnen i lisenskjeden
-    # finnes. Se docs/LISENSKJEDE.md merknad G.
-    {"hva": "Herofotografiet, av Wolfgang Hasselmann",
-     "rolle": "forsidens hero",
-     "lisens": "Unsplash-lisensen (navngiving er frivillig)",
-     "opphav": "unsplash.com/photos/cbaS3DXXCl4",
-     "sti": ""},
+    # HEROFOTOGRAFIET STO HER TIL 26.09.2026. Raden er fjernet fordi
+    # lånet er det: heroen er nå kartet, og skybildet ligger ikke i
+    # utputtet. En rad om et lån vi ikke lenger tar, ville vært en usann
+    # opplysning på den ene siden som finnes for å svare på om man kan
+    # stole på dette — samme grunn som at Digdir-raden gikk ut 22.09.
+    #
+    # NATURAL EARTH KREVER INGENTING og står her likevel: en side som
+    # ikke sier hvor en kystlinje kommer fra, kan ingen etterprøve. Se
+    # docs/LISENSKJEDE.md merknad G.
+    # KARTVERKET KREVER NOE, og er den eneste raden her som gjør det:
+    # CC BY 4.0 vil ha navnet der produktet brukes, og navnet står
+    # under hvert kart og i bunnteksten på hver side som viser ett.
+    {"hva": "Kystkontur, Kartverket N500 og N2000",
+     "rolle": "kystlinja i kartene",
+     "lisens": "CC BY 4.0 — © Kartverket",
+     "opphav": "kartverket.no",
+     "sti": "https://creativecommons.org/licenses/by/4.0/deed.no"},
     {"hva": "Kystlinje, Natural Earth 1:10 millioner",
-     "rolle": "kartene",
+     "rolle": "nabolandene i kartene",
      "lisens": "public domain",
      "opphav": "naturalearthdata.com",
      "sti": "/naturalearth-LICENSE.md"},
@@ -6520,7 +6550,15 @@ def bygg_forside(felles: Felles) -> dict:
     omraader = _omraaderader(felles)
     akva_datoer = snapshot.datoer("akvakultur")
 
+    hero_bredde, hero_hoyde = kart.norgeskart_storrelse()
     return {
+        # HEROENS BILDEMÅL. Hentet fra kartet selv og ikke skrevet av:
+        # `<img width height>` holder av plassen før SVG-en er lastet,
+        # og et tall som ikke stemmer med `viewBox` gir et hopp i
+        # sida når fila kommer.
+        "hero_bredde": hero_bredde,
+        "hero_hoyde": hero_hoyde,
+
         # ---- tallene ----
         "lokaliteter": len(felles.akva),
         "produksjonsomraader": len(felles.po_navn),
@@ -7259,6 +7297,7 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_fonter(rot),
                   lambda: skriv_ikoner(rot),
                   lambda: skriv_bilder(rot),
+                  lambda: skriv_norgeskart(rot, felles),
                   lambda: skriv_skript(rot),
                   lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),

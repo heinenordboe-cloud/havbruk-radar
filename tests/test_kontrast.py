@@ -340,17 +340,22 @@ def test_rapport(capsys):
     assert capsys.readouterr().out
 
 
-# ==================================== heroen over et bilde med snø
+# ==================================== heroen over kartet
 #
-# Flata under teksten i heroen er et FOTO, ikke en farge, og et foto kan
-# ikke leses av `palett()`. MÅLT 24.09.2026 med Chromium på
-# `maler/bilde/hero-1600.jpg`: bildet inneholder RENE HVITE piksler
-# (255,255,255), både i øverste fjerdedel der menyen står og i nederste
-# der tagline og løsen står.
+# Flata under teksten i heroen er et KART, ikke en farge, og et kart kan
+# ikke leses av `palett()`.
 #
-# `--papir` #e7dbd0 over hvitt er 1,36:1. Toningen er derfor ikke
-# stemning — den er det eneste som gjør teksten lesbar, og alfaen er
-# regnet ut her og ikke valgt.
+# Fram til 26.09.2026 var det et fotografi med RENE HVITE piksler
+# (255,255,255) i snøen, og `--papir` #e7dbd0 over hvitt er 1,36:1 —
+# toningen var det eneste som gjorde teksten lesbar. Kartet er mørkt
+# hele veien, og den lyseste flata i det er landmassen. Toningen står
+# likevel, og gulvet under er uendret: den dagen kartfargene justeres,
+# skal prøven fortsatt holde teksten lesbar uten at noen husker å måle
+# på nytt.
+#
+# DEN EKTE MÅLINGEN skjer på rendret side i
+# `tests/test_smalskjerm.py`, mot kartet slik det faktisk tegnes. Denne
+# prøven er gulvet i stilarket; den er billig og kjører hver gang.
 
 HERO_TONING = re.compile(r"\.hero-(?:meny|bunn)\s*\{([^}]*)\}", re.S)
 RGBA = re.compile(r"rgba\(\s*6,\s*22,\s*29,\s*([\d.]+)\s*\)")

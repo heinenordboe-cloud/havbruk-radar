@@ -194,6 +194,32 @@ OMRAADE_TAK = 150_000
 
 
 @bygget
+def test_heroens_bildemaal_er_kartets_egne():
+    """`<img width height>` skal være SVG-ens `viewBox`.
+
+    To tall skrevet to steder driver fra hverandre — og et bilde som
+    oppgir feil mål, hopper i sida når fila lander. Her leses begge
+    fra det bygde nettstedet, så prøven fanger både en endret ramme og
+    en mal som fortsatt skriver de gamle tallene.
+    """
+    import re
+    svg = pathlib.Path(NETTSTED, "kart", "norge.svg").read_text(encoding="utf-8")
+    vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg)
+    assert vb, "norge.svg har ingen viewBox"
+    html = pathlib.Path(NETTSTED, "index.html").read_text(encoding="utf-8")
+    img = re.search(r'<img class="hero-kart"[^>]*>', html)
+    assert img, "forsiden har ikke heroens kart"
+    assert f'width="{_tall(vb.group(1))}"' in img.group(0), img.group(0)
+    assert f'height="{_tall(vb.group(2))}"' in img.group(0), img.group(0)
+
+
+def _tall(s: str) -> str:
+    """«1800.0» og «1800» er samme tall; malen skriver det korteste."""
+    v = float(s)
+    return str(int(v)) if v == int(v) else str(v)
+
+
+@bygget
 def test_ingen_omraadeside_har_et_kart_over_150_kb():
     """Taket i `kart.OMRAADE_TAK` er et LØFTE, og dette er prøven som
     holder det — på den ferdige sida, ikke på anslaget.

@@ -1060,50 +1060,76 @@ a:hover {
   min-height: clamp(460px, 60vh, 560px);
 }
 
-.hero-bilde {
+/* KARTET SOM BAKTEPPE.
+ *
+ * Rammen har sideluft i VEST — se `kart.norgeskart()` — så kysten går
+ * gjennom høyre halvdel og Atlanterhavet er en rolig, mørk flate til
+ * venstre. Det er der teksten står, og det er ikke pynt: kontrasten
+ * mellom tekst og bakgrunn er MÅLT der teksten faktisk står, på
+ * rendret side. Se `tests/test_smalskjerm.test_heroteksten_har_nok_kontrast`.
+ */
+.hero-kart {
   position: absolute;
   inset: 0;
   inline-size: 100%;
   block-size: 100%;
   object-fit: cover;
-
-  /* IKKE FORHÅNDSBESKÅRET. Fila er portrett 2:3, som kilden leverte
-     den, og utsnittet velges her. 42 % legger horisonten der båndet er
-     høyest og fjellene under teksten. */
-  object-position: center 42%;
+  /* HØYRE KANT, ikke midten. Kartet er bygget med havet i vest og
+     landet mot høyre kant; på en smal skjerm klipper `cover` i
+     bredden, og en midtstilt klipping ville vist åpent hav og ingen
+     kyst. */
+  object-position: right center;
 }
 
+/* SLØRET ER MÅLT, ikke stemning. Teksten står i nedre venstre
+   fjerdedel, og kartet der er havflate og kystlinje — ikke jevnt
+   mørkt. Uten sløret målte kontrasten mellom `--papir` og de lyseste
+   kartpikslene under teksten under 4,5:1 i partier. Toningen gjør
+   flata under teksten jevn nok til at målingen holder overalt — se
+   `test_smalskjerm.test_heroteksten_har_nok_kontrast`.
+
+   PÅ SMAL SKJERM ligger teksten over hele bredden, og sløret må da
+   dekke hele flata. Det er den loddrette toningen under. */
 .hero-slor {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background: linear-gradient(180deg,
-      rgba(6, 22, 29, 0.45) 0%,
-      rgba(6, 22, 29, 0) 22%,
-      rgba(6, 22, 29, 0) 42%,
-      rgba(6, 22, 29, 0.82) 72%,
-      rgba(6, 22, 29, 0.96) 100%);
+      rgba(6, 22, 29, 0.35) 0%,
+      rgba(6, 22, 29, 0.15) 25%,
+      rgba(6, 22, 29, 0.55) 52%,
+      rgba(6, 22, 29, 0.88) 74%,
+      rgba(6, 22, 29, 0.97) 100%);
 }
 
-.hero-lys {
-  position: absolute;
-  inset-inline: -20%;
-  top: 40%;
-  block-size: 30%;
-  pointer-events: none;
-  background: radial-gradient(60% 50% at 50% 50%,
-      rgba(231, 219, 208, 0.1), transparent 70%);
-  animation: skimmer 34s ease-in-out infinite;
+/* PÅ BRED SKJERM står teksten i venstre halvdel og kartet har kysten
+   i høyre. En loddrett toning som er sterk nok for teksten, dekker da
+   til nettopp det kartet er der for å vise. Toningen legges derfor på
+   tvers: mørk der teksten står, gjennomsiktig der kysten er. Den
+   loddrette blir liggende under, svakere, så bunnkanten mot arket
+   under ikke blir en strek. */
+@media (min-width: 64rem) {
+  .hero-slor {
+    background:
+      linear-gradient(90deg,
+        rgba(6, 22, 29, 0.97) 0%,
+        rgba(6, 22, 29, 0.95) 42%,
+        rgba(6, 22, 29, 0.72) 58%,
+        rgba(6, 22, 29, 0.25) 74%,
+        rgba(6, 22, 29, 0.12) 100%),
+      linear-gradient(180deg,
+        rgba(6, 22, 29, 0.30) 0%,
+        rgba(6, 22, 29, 0.10) 30%,
+        rgba(6, 22, 29, 0.10) 70%,
+        rgba(6, 22, 29, 0.45) 100%);
+  }
 }
 
-@keyframes skimmer {
-  0%, 100% { transform: translate3d(-8%, 0, 0); }
-  50%      { transform: translate3d(8%, 0, 0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-lys { animation: none; }
-}
+/* `.hero-lys` STO HER TIL 26.09.2026 — en langsomt vandrende lysflekk
+   over fotografiet. Den er borte med fotografiet: et kart er en
+   opplysning, og en animasjon som glir over en opplysning er støy som
+   trekker øyet bort fra den. En bevegelse ingen ba om er dessuten en
+   bevegelse `prefers-reduced-motion` måtte slå av. */
 
 .hero-meny, .hero-bunn { position: relative; z-index: 2; }
 
@@ -1176,16 +1202,35 @@ a:hover {
   background-repeat: repeat-x;
 }
 
+/* MOTTOET ER H1 fra 26.09.2026. Navnet står i menyen over — ordmerket
+   er en lenke til forsiden på hver eneste side — og en H1 som bare
+   gjentok det ville brukt sidens viktigste overskrift på noe leseren
+   allerede ser. Størrelsen er hero-skalaens, ikke mottoets gamle. */
 .hero-losen {
-  margin: clamp(20px, 2.4vw, 30px) 0 0;
+  margin: 0 0 var(--rom-14);
   font-family: var(--skrift-tittel);
   font-style: italic;
   font-weight: 300;
-  font-size: clamp(21px, 2.2vw, 30px);
-  line-height: 1.2;
+  font-size: clamp(32px, 4.4vw, 62px);
+  line-height: 1.04;
+  letter-spacing: var(--knip-2);
   color: var(--papir);
+  max-width: 16em;
+}
+
+/* KARTVERKETS NAVN I HEROEN. Lisensvilkår, og derfor synlig — men
+   dempet, fordi det er en kreditering og ikke en opplysning om
+   havbruket. */
+.hero-kreditt {
+  margin: var(--rom-16) 0 0;
+  font-size: var(--fs-12);
+  color: var(--hav-sekundaer);
   max-width: none;
 }
+
+.hero-kreditt a { color: var(--hav-sekundaer); }
+.hero-kreditt a:visited { color: var(--hav-sekundaer); }
+.hero-kreditt a:hover { color: var(--papir); }
 
 /* SØKESKJEMAET. Ett felt og én knapp, på papirflate midt i det mørke.
    Etiketten er skjult visuelt og ikke fjernet: en `placeholder` er

@@ -173,6 +173,150 @@ def test_en_brikke_med_null_er_ikke_klikkbar(side, tjener, sti):
     assert not feil, f"{sti}: {feil}"
 
 
+# ---- heroen over kartet -----------------------------------------------
+#
+# FLATA UNDER TEKSTEN ER ET KART, ikke en farge, og et kart kan ikke
+# leses av stilarket. `tests/test_kontrast.py` måler gulvet i CSS-en —
+# at toningen er sterk nok mot hvitt. DETTE måler det som faktisk
+# havner på skjermen: kartets egne piksler under hver tekstblokk, med
+# toningen oppå.
+#
+# METODEN: skjul teksten, fotografer nøyaktig det rektangelet teksten
+# sto i, og finn den LYSESTE pikselen der. Kontrasten mot `--papir`
+# regnes med WCAG-formelen. Lyseste og ikke gjennomsnittet: en tekst er
+# uleselig der den er uleselig, ikke i snitt.
+
+PAPIR = (0xE7, 0xDB, 0xD0)      # --papir, heroens tekstfarge
+AA_TEKST = 4.5
+AA_STOR = 3.0                   # >= 24 px, WCAG 1.4.3
+
+
+def _png_piksler(data: bytes):
+    """(bredde, høyde, rader med (r,g,b)) fra en PNG.
+
+    Bare det Chromium skriver: 8 bit per kanal, RGB eller RGBA, ingen
+    interlacing. Hvilken av de to den velger avhenger av om utsnittet
+    har gjennomsiktige piksler, og den velger begge — derfor leses
+    kanaltallet av `IHDR` og ikke antas.
+
+    Skrevet ut her framfor hentet. Et bildebibliotek for å lese fem
+    skjermbilder er en avhengighet til i en prøve som allerede krever
+    en nettleser.
+    """
+    import struct
+    import zlib
+
+    assert data[:8] == b"\x89PNG\r\n\x1a\n", "ikke en PNG"
+    i, idat, bredde, hoyde, dybde, farge = 8, b"", 0, 0, 0, 0
+    while i < len(data):
+        lengde, merke = struct.unpack(">I4s", data[i:i + 8])
+        kropp = data[i + 8:i + 8 + lengde]
+        if merke == b"IHDR":
+            bredde, hoyde, dybde, farge = struct.unpack(">IIBB", kropp[:10])
+        elif merke == b"IDAT":
+            idat += kropp
+        elif merke == b"IEND":
+            break
+        i += 12 + lengde
+    assert dybde == 8 and farge in (2, 6), \
+        f"uventet PNG: dybde {dybde}, fargetype {farge}"
+
+    raa = zlib.decompress(idat)
+    kanaler = 3 if farge == 2 else 4
+    linje = bredde * kanaler
+    ut, forrige = [], bytearray(linje)
+    p = 0
+    for _ in range(hoyde):
+        filter_ = raa[p]
+        rad = bytearray(raa[p + 1:p + 1 + linje])
+        p += 1 + linje
+        for x in range(linje):
+            a = rad[x - kanaler] if x >= kanaler else 0
+            b = forrige[x]
+            c = forrige[x - kanaler] if x >= kanaler else 0
+            if filter_ == 1:
+                rad[x] = (rad[x] + a) & 0xFF
+            elif filter_ == 2:
+                rad[x] = (rad[x] + b) & 0xFF
+            elif filter_ == 3:
+                rad[x] = (rad[x] + (a + b) // 2) & 0xFF
+            elif filter_ == 4:
+                p_ = a + b - c
+                pa, pb, pc = abs(p_ - a), abs(p_ - b), abs(p_ - c)
+                pred = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                rad[x] = (rad[x] + pred) & 0xFF
+        ut.append([(rad[x], rad[x + 1], rad[x + 2])
+                   for x in range(0, linje, kanaler)])
+        forrige = rad
+    return bredde, hoyde, ut
+
+
+def _lum(farge) -> float:
+    def kanal(c):
+        c /= 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (kanal(x) for x in farge)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _kontrast(a, b) -> float:
+    la, lb = _lum(a), _lum(b)
+    lys, morkt = max(la, lb), min(la, lb)
+    return (lys + 0.05) / (morkt + 0.05)
+
+
+@pytest.mark.parametrize("velger,terskel,hva", [
+    (".hero-losen", AA_STOR, "mottoet, 32-62 px"),
+    (".hero-tagline", AA_TEKST, "beskrivelsen"),
+    (".hero-kreditt", AA_TEKST, "Kartverket-krediteringen"),
+    (".hovedmeny a", AA_TEKST, "menyen"),
+])
+@pytest.mark.parametrize("bredde", (390, 1440))
+def test_heroteksten_har_nok_kontrast(side, tjener, velger, terskel, hva,
+                                      bredde):
+    """Teksten i heroen står over KARTET, og kartet er ikke én farge.
+
+    Målt på rendret side: teksten skjules, rektangelet den sto i
+    fotograferes, og den LYSESTE pikselen der måles mot `--papir`.
+    """
+    side.set_viewport_size({"width": bredde, "height": 900})
+    side.goto(tjener + "/", wait_until="load")
+    side.wait_for_timeout(250)
+
+    boks = side.evaluate("""(v) => {
+      const el = document.querySelector(v);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {x: r.x, y: r.y, width: r.width, height: r.height};
+    }""", velger)
+    assert boks and boks["width"] > 4 and boks["height"] > 4, \
+        f"{hva}: fant ikke {velger}"
+
+    # ALL TEKST I HEROEN BORT, ikke bare den vi måler.
+    #
+    # Første utkast skjulte bare velgerens egne elementer, og da var den
+    # lyseste pikselen i taglinens rektangel nøyaktig `--papir`: H1-ens
+    # underlengder henger ned i boksen under, og søkefeltet er en
+    # papirflate. Målingen leste altså tekst som bakgrunn.
+    side.evaluate("""() => {
+      const hero = document.querySelector(".hero");
+      for (const el of hero.querySelectorAll(
+              "h1, p, a, form, label, input, button, .merke")) {
+        el.style.visibility = "hidden";
+      }
+    }""")
+    side.wait_for_timeout(80)
+    bilde = side.screenshot(clip=boks)
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+
+    _b, _h, rader = _png_piksler(bilde)
+    lysest = max((p for rad in rader for p in rad), key=_lum)
+    k = _kontrast(PAPIR, lysest)
+    assert k >= terskel, (
+        f"{hva} @ {bredde}px: {k:.2f}:1 mot lyseste piksel "
+        f"{lysest} — terskelen er {terskel}")
+
+
 # ---- brikka «Alle N rader» --------------------------------------------
 
 

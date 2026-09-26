@@ -28,45 +28,58 @@
    sekund. Motsatt av alle andre bilder. #}
 {% block topp %}
 <header class="hero">
-  <img class="hero-bilde" alt=""
-       src="/bilde/hero-1600.jpg"
-       srcset="/bilde/hero-800.jpg 800w,
-               /bilde/hero-1600.jpg 1600w,
-               /bilde/hero-2400.jpg 2400w"
-       sizes="100vw" width="1600" height="2400"
+  {# KARTET ER HEROEN fra 26.09.2026. Skybildet sto her før, og det var
+     en stemning: et fotografi av skyer over hav, uten en eneste
+     opplysning i seg. Kartet er kysten med hver eneste lokalitet
+     tegnet inn, og det sier på ett blikk hva dette nettstedet handler
+     om.
+
+     `<img>` OG IKKE INNTEGNET SVG. Fila er ~350 kB, den er den samme
+     på hver visning, og en forside som bar den i HTML-en ville sendt
+     den på nytt hver gang noen kom innom. Den lastes fra vårt eget
+     domene, som alt annet her — ingen CDN, ingen karttjeneste.
+
+     `alt=""` OG IKKE EN BESKRIVELSE: kartet er et bakteppe, og hver
+     ting det viser står som tall og tabell lenger ned på siden. En
+     alt-tekst her ville lest opp «kart over norskekysten» foran
+     innholdet uten å gi noe. SVG-fila bærer selv `<title>` og `<desc>`
+     for den som åpner den alene. #}
+  <img class="hero-kart" alt=""
+       src="/kart/norge.svg"
+       width="{{ f.hero_bredde }}" height="{{ f.hero_hoyde }}"
        loading="eager" fetchpriority="high" decoding="async">
   {# Gradienten ligger i CSS-en og ikke her: den er en flate og ikke
-     innhold. Uten stilark står teksten rett på bildet — lesbart nok,
+     innhold. Uten stilark står teksten rett på kartet — lesbart nok,
      og siden er hel. #}
   <div class="hero-slor" aria-hidden="true"></div>
-  <div class="hero-lys" aria-hidden="true"></div>
 
   <div class="ark hero-meny">
     {% include "meny.html.j2" %}
   </div>
 
   <div class="ark hero-bunn">
+    {# MOTTOET ER H1. Navnet står i menyen over — ordmerket er en lenke
+       til forsiden og står på hver eneste side — og en H1 som bare
+       gjentok det ville brukt sidens viktigste overskrift på noe
+       leseren allerede ser. Mottoet sier hva stedet GJØR. #}
+    <h1 class="hero-losen">Registrene viser nå. Vi tar vare på før.</h1>
     <p class="hero-tagline">Et uavhengig arkiv over offentlige
       data om norsk havbruk</p>
-    <div class="hero-ordmerke">
-      <h1>Kystloggen</h1>
-      {# LINJALEN. Ornament, og derfor i markupen som et tomt element og
-         ikke som tekst: en skjermleser skal lese «Kystloggen», ikke
-         «Kystloggen understrek». #}
-      <div class="linjal" aria-hidden="true"></div>
-    </div>
-    <p class="hero-losen">Registrene viser nå. Vi tar vare på før.</p>
 
     {# SØKET. Uten JavaScript peker skjemaet på den flate
-       lokalitetsindeksen, som er hele lista på én side — se avviket i
-       oppdraget, punkt 5. Med Pagefind lastet svarer /sok/ i stedet.
-       Skjemaet er det samme; det er svarsiden som blir bedre. #}
+       lokalitetsindeksen, som er hele lista på én side. Med Pagefind
+       lastet svarer /sok/ i stedet. Skjemaet er det samme; det er
+       svarsiden som blir bedre. #}
     <form class="sok" action="/sok/" method="get" role="search">
       <label for="q">Søk etter lokalitet, selskap eller kommune</label>
       <input id="q" name="q" type="search"
              placeholder="Søk i lokaliteter og selskaper">
       <button class="knapp" type="submit">Søk</button>
     </form>
+
+    <p class="hero-kreditt">Kystlinje:
+      <a href="{{ kartverket_url }}">{{ kartverket }}</a>, N2000 Kartdata
+      · {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} tegnet inn</p>
   </div>
 </header>
 {% endblock %}

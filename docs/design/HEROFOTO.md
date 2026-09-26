@@ -1,9 +1,24 @@
-# Herofotografiet — hvor fila kommer fra, og hva som står i den
+# Herofotografiet — HISTORIKK, ute av bruk 26.09.2026
 
-`maler/bilde/hero-{800,1600,2400}.jpg` er de tre siste binærfilene
-nettstedet sender ut. De er hostet av oss og hentes aldri fra Unsplash i
-runtime. Dette er proveniensen — samme krav som til fontene, og samme
-mønster som `NEWSREADER.md` og `IBM-PLEX.md`.
+**FILENE ER SLETTET.** `maler/bilde/hero-{800,1600,2400}.jpg` lå her
+fram til 26.09.2026 og er borte: heroen er nå et kart — Kartverkets
+kystkontur med hver av de 1 782 lokalitetene tegnet inn, se
+`KARTGEOMETRI.md`. Skybildet var en stemning uten en eneste opplysning
+i seg.
+
+Notatet står igjen som historikk over hva som en gang lå der, og fordi
+proveniensen til en fil som HAR vært publisert ikke slettes med fila.
+Pinningene i `publiseringsvakt.BINAERFILER` og raden i tabell 2 i
+`LISENSKJEDE.md` er derimot fjernet: en kvittering for noe som ikke
+finnes er støy som skjuler at den ekte fila er ukvittert, og en rad om
+et lån vi ikke lenger tar er en usann opplysning.
+
+Alt under er slik det sto.
+
+---
+
+Dette var proveniensen — samme krav som til fontene, og samme mønster
+som `NEWSREADER.md` og `IBM-PLEX.md`.
 
 ## Kilde og lisens
 

@@ -52,8 +52,8 @@ som faktisk står på /om/.
 | Newsreader | overskrifter, ordmerke, nøkkeltall | SIL OFL 1.1 | lisensteksten følger fila | `/newsreader-OFL.txt` | `docs/design/NEWSREADER.md` |
 | IBM Plex Sans | brødtekst, etiketter, tabeller | SIL OFL 1.1 | lisensteksten følger fila | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
 | IBM Plex Mono | tallverdier i tabellkolonner | SIL OFL 1.1 | samme fil som Sans | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
-| Herofotografiet | forsidens hero | Unsplash-lisensen | **ingenting** — navngiving er frivillig | — | `docs/design/HEROFOTO.md` |
-| Kystlinje, Natural Earth 1:10 m | kartene | public domain | **ingenting** | `/naturalearth-LICENSE.md` | `docs/design/KARTGEOMETRI.md` |
+| Kystkontur, Kartverket N500/N2000 | kystlinja i alle kart | **CC BY 4.0** | **«© Kartverket»** med lenke, der kartet vises | dekkes av krediteringen under hvert kart og i bunnteksten | `docs/design/KARTGEOMETRI.md`, merknad J |
+| Kystlinje, Natural Earth 1:10 m | nabolandene i kartene | public domain | **ingenting** | `/naturalearth-LICENSE.md` | `docs/design/KARTGEOMETRI.md` |
 | Produksjonsområdepolygoner | kartene | NLOD (Fiskeridirektoratet) | «Kilde: Fiskeridirektoratet» | dekkes av kildeattribusjonen | `docs/design/KARTGEOMETRI.md` |
 | Pagefind 1.4.0 | søket på `/sok/` | MIT | **ingenting** | — | `docs/design/PAGEFIND.md` |
 
@@ -163,6 +163,18 @@ Dybdekurvene er grove og har varierende kvalitet og nøyaktighet.»
 
 INGENTING ER BYGGET MED DEM. Dette er lisensen og størrelsen, som var
 det som ble bedt om.
+
+### Merknad K — herofotografiet er tatt ut
+
+Raden sto i tabell 2 til 26.09.2026: et Unsplash-fotografi av skyer
+over hav, forsidens hero, uten krav til navngiving. Heroen er nå
+kartet — Kartverkets kystkontur med hver lokalitet tegnet inn — og
+fotografiet ligger ikke lenger i `maler/` eller i utputtet.
+
+Raden er FJERNET og ikke merket «ute av bruk»: en rad om et lån vi ikke
+lenger tar, er en usann opplysning på den ene siden som finnes for å
+svare på om man kan stole på dette. `docs/design/HEROFOTO.md` står
+igjen som historikk over hva som en gang lå der.
 
 ### Merknad G — de to som ikke krever noe
 

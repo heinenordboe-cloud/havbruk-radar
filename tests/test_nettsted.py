@@ -1733,6 +1733,7 @@ def _forside(**overstyr) -> str:
         "utenfor_uka": 32979,
     }
     f = {
+        "hero_bredde": 1800, "hero_hoyde": 702.2,
         "lokaliteter": 1782, "produksjonsomraader": 13, "selskaper": 481,
         "tillatelser": 2945, "luke_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
@@ -1879,14 +1880,22 @@ def test_kartet_er_statisk_uten_tjeneste_og_uten_js():
         assert forbudt not in html.lower(), forbudt
 
 
-def test_herobildet_hostes_av_oss_og_aldri_av_unsplash():
-    """En `images.unsplash.com`-URL i markupen ville fortalt dem hvem
-    som leser siden, og gjort forsidens hovedbilde avhengig av at en
-    tredjepart svarer."""
+def test_heroen_er_kartet_og_hentes_fra_oss_selv():
+    """HEROFOTOGRAFIET ER BORTE fra 26.09.2026.
+
+    Regelen er den samme som før: ingenting i heroen hentes fra en
+    tredjepart. Den gjaldt et Unsplash-fotografi; nå gjelder den et
+    kart, og kravet er det samme — en absolutt adresse på vårt eget
+    domene, ingen CDN og ingen karttjeneste.
+    """
     html = _forside()
     assert "unsplash" not in html.lower()
-    for bredde in (800, 1600, 2400):
-        assert f"/bilde/hero-{bredde}.jpg" in html
+    assert "hero-800.jpg" not in html
+    assert 'src="/kart/norge.svg"' in html
+    # Ingen ekstern vert i heroen i det hele tatt.
+    hero = html[html.index("<header"):html.index("</header>")]
+    assert "//" not in hero.replace("https://www.kartverket.no", "") \
+        or "http" not in hero.replace("https://www.kartverket.no", "")
 
 
 def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():
@@ -2768,7 +2777,23 @@ def test_laanelista_peker_paa_filer_som_faktisk_skrives(tmp_path):
         # prøven skal ikke kreve en fil som ikke skal finnes.
         if not l["sti"]:
             continue
+        # EN ABSOLUTT ADRESSE ER IKKE VÅR FIL. CC BY-teksten ligger hos
+        # Creative Commons, og lisensen krever en LENKE til den, ikke en
+        # kopi. Prøven gjelder det vi selv skriver ut.
+        if l["sti"].startswith("http"):
+            continue
         assert (tmp_path / l["sti"].lstrip("/")).exists(), l["sti"]
+
+
+def test_laanelista_lenker_bare_til_egne_filer_eller_ekte_adresser(tmp_path):
+    """En `sti` er enten vår egen fil eller en absolutt adresse.
+
+    En relativ sti som ikke finnes gir 404, og en 404 sier at teksten
+    finnes. Prøven over dekker den ene halvdelen; denne dekker at det
+    ikke finnes en tredje form.
+    """
+    for l in nettsted.VAART_LAAN:
+        assert l["sti"] == "" or l["sti"].startswith(("/", "http")), l
 
 
 # ---- eiere kilden kaller personer -------------------------------------
