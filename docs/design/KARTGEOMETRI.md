@@ -294,6 +294,14 @@ altså ikke inn på lokalitetskartet i det hele tatt: et utsnitt på 36 km
 har 18 km ut fra anlegget, sjøterritoriet er 22 km fra grunnlinja, og
 norske anlegg ligger innenfor den.
 
+**Sperren som fulgte av den feilen sto ett døgn.** 26.09.2026 ble
+lokaliteter mer enn 10 km fra nærmeste kystkontur nektet kart, med en
+setning om at de lå utenfor kystbeltet. Målingen over fjernet
+grunnlaget: de tre sidene sperren traff hadde 0,05, 0,20 og 0,37 %
+feilmalte piksler, alle ved kystlinja. Sperren er tatt ut igjen, alle
+1782 lokalitetssider har kart, og `test_hver_lokalitetsside_har_et_kart`
+holder det slik — uten unntak, heller ikke for manglende koordinater.
+
 **Det som så ut som datakant var noe annet.** Påstanden 26.09.2026 om at
 11899 lå «19,8 km ut i Nordsjøen utenfor Egersund» var feil på to
 måter: avstanden var 22,8 km (det første søket hadde for lite vindu), og

@@ -2336,13 +2336,6 @@ td[data-felt="farge_mangler"]::before {
 
 .posisjon-mangler { align-self: center; }
 
-/* POSISJONSLINJA UTEN KART. Samme form som bildeteksten under kartet,
-   så den leses som den samme opplysningen — for den er det. */
-.posisjon-tekst {
-  margin-block-start: var(--rom-10);
-  font-size: var(--fs-13);
-  color: var(--farge-tekst-svak);
-}
 
 /* KARTVERKETS NAVN UNDER KARTET. Egen linje, fordi det er et
    lisensvilkår og ikke en del av bildeteksten — og fordi en kreditering

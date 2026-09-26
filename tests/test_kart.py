@@ -280,20 +280,37 @@ def test_posisjonen_star_ogsaa_som_tall():
 
 
 @bygget
-def test_hver_lokalitetsside_med_koordinater_har_et_kart():
-    """Et kart som stille uteble ville sett ut som en lokalitet uten
-    koordinater, og de to er ikke det samme — siden sier i klartekst
-    hvilken av dem det er.
+def test_hver_lokalitetsside_har_et_kart():
+    """ALLE lokalitetssidene har kart, uten unntak.
 
-    Fra 26.09.2026 er det TRE tilstander, ikke to: kart, ingen
-    koordinater, eller koordinater utenfor kystbeltet Kartverket
-    dekker. Hver har sin egen setning.
+    Prøven het `..._med_koordinater_har_et_kart` og godtok to slags
+    unntak: sider uten koordinater, og — i ett døgn 26.09.2026 — sider
+    sperret av en kystbeltegrense. Begge unntakene er borte.
+    Akvakulturregisteret oppgir koordinater for hver eneste lokalitet,
+    og sperren er målt bort: se `verktoy/kartfasit.py` og
+    KARTGEOMETRI.md.
+
+    Blir en lokalitet uten koordinater ført inn i registeret igjen, er
+    dette prøven som sier fra — og da er svaret å ta unntaket tilbake
+    med vitende og vilje, ikke å utvide prøven til å godta det.
     """
-    uten = []
-    for sti in sorted(pathlib.Path(NETTSTED, "lokalitet").glob("*/index.html")):
-        html = sti.read_text(encoding="utf-8")
-        if ("data-kart" not in html
-                and "oppgir ikke koordinater" not in html
-                and "utenfor kystbeltet" not in html):
-            uten.append(sti.parent.name)
-    assert not uten, f"sider uten kart og uten forklaring: {uten[:5]}"
+    sider = sorted(pathlib.Path(NETTSTED, "lokalitet").glob("*/index.html"))
+    assert len(sider) > 1000, f"fant bare {len(sider)} lokalitetssider"
+    uten = [sti.parent.name for sti in sider
+            if "data-kart" not in sti.read_text(encoding="utf-8")]
+    assert not uten, (f"{len(uten)} av {len(sider)} sider mangler kart: "
+                      f"{uten[:5]}")
+
+
+@bygget
+def test_setningen_om_kystbeltet_star_null_steder():
+    """Sperren fra 26.09.2026 er tatt ut, og setningen med den.
+
+    En setning som blir stående etter at årsaken er borte, er en side
+    som forklarer noe som ikke skjer. Prøven leser hele det bygde
+    nettstedet, ikke bare lokalitetssidene.
+    """
+    funn = [str(sti.relative_to(NETTSTED))
+            for sti in pathlib.Path(NETTSTED).rglob("*.html")
+            if "utenfor kystbeltet" in sti.read_text(encoding="utf-8")]
+    assert not funn, f"setningen står fortsatt på: {funn[:5]}"

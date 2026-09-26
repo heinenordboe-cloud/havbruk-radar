@@ -161,26 +161,7 @@
 
        RENDRES IKKE uten koordinater: en ramme uten et punkt i er en
        ramme som later som om den har et innhold. #}
-    {% if lok.posisjonskart and lok.posisjonskart.utenfor_kystbeltet %}
-    {# UTENFOR KYSTBELTET. Kartverkets havflate dekker sjøterritoriet,
-       og utenfor det har vi ingen opplysning om hva som er sjø og hva
-       som er land. Bakgrunnsfargen på dette kartet betyr LAND, så et
-       kart her ville malt åpent hav som land — en påstand om verden
-       som er usann. Da er det bedre å la være og si hvorfor.
-
-       POSISJONEN STÅR LIKEVEL: den kommer fra Akvakulturregisteret og
-       er like sikker som før. Det er kartgrunnlaget som mangler, ikke
-       koordinatene. #}
-    {% set pk = lok.posisjonskart %}
-    <p class="mangler posisjon-mangler">
-      Kartet vises ikke: lokaliteten ligger utenfor kystbeltet
-      Kartverkets kart dekker.
-    </p>
-    <p class="posisjon-tekst">
-      <span class="tall-mono">{{ pk.koordinat }}</span> · posisjon fra
-      Akvakulturregisteret
-    </p>
-    {% elif lok.posisjonskart %}
+    {% if lok.posisjonskart %}
     {% set pk = lok.posisjonskart %}
     <figure class="posisjon">
       {# LAGDELINGEN ER REKKEFØLGEN. SVG har ingen z-indeks:
