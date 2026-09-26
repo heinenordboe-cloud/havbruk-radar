@@ -28,36 +28,24 @@
    sekund. Motsatt av alle andre bilder. #}
 {% block topp %}
 <header class="hero">
-  {# KARTET ER HEROEN fra 26.09.2026. Skybildet sto her før, og det var
-     en stemning: et fotografi av skyer over hav, uten en eneste
-     opplysning i seg. Kartet er kysten med hver eneste lokalitet
-     tegnet inn, og det sier på ett blikk hva dette nettstedet handler
-     om.
-
-     `<img>` OG IKKE INNTEGNET SVG. Fila er ~350 kB, den er den samme
-     på hver visning, og en forside som bar den i HTML-en ville sendt
-     den på nytt hver gang noen kom innom. Den lastes fra vårt eget
-     domene, som alt annet her — ingen CDN, ingen karttjeneste.
-
-     `alt=""` OG IKKE EN BESKRIVELSE: kartet er et bakteppe, og hver
-     ting det viser står som tall og tabell lenger ned på siden. En
-     alt-tekst her ville lest opp «kart over norskekysten» foran
-     innholdet uten å gi noe. SVG-fila bærer selv `<title>` og `<desc>`
-     for den som åpner den alene. #}
-  <img class="hero-kart" alt=""
-       src="/kart/norge.svg"
-       width="{{ f.hero_bredde }}" height="{{ f.hero_hoyde }}"
-       loading="eager" fetchpriority="high" decoding="async">
-  {# Gradienten ligger i CSS-en og ikke her: den er en flate og ikke
-     innhold. Uten stilark står teksten rett på kartet — lesbart nok,
-     og siden er hel. #}
-  <div class="hero-slor" aria-hidden="true"></div>
-
   <div class="ark hero-meny">
     {% include "meny.html.j2" %}
   </div>
 
-  <div class="ark hero-bunn">
+  {# TO SPALTER FRA 1024 PIKSLER: teksten til venstre, kartet til
+     høyre. Under det ligger teksten først og kartet under, i full
+     bredde.
+
+     KARTET STÅR I SIN EGEN SPALTE og ikke bak teksten. Det var et
+     bakteppe fram til 26.09.2026, og et bakteppe må tones ned for at
+     teksten over det skal være lesbar — altså må det nedtones nettopp
+     der det er noe å se. Nå tones ingenting: teksten står på heroens
+     egen mørke flate, og kartet står ved siden av, ubeskåret.
+
+     RAMMEN ER STÅENDE, fordi landet er det. En liggende ramme rundt
+     Norge er to tredjedeler tomt hav. #}
+  <div class="ark hero-rute">
+  <div class="hero-bunn">
     {# MOTTOET ER H1. Navnet står i menyen over — ordmerket er en lenke
        til forsiden og står på hver eneste side — og en H1 som bare
        gjentok det ville brukt sidens viktigste overskrift på noe
@@ -80,6 +68,25 @@
     <p class="hero-kreditt">Kystlinje:
       <a href="{{ kartverket_url }}">{{ kartverket }}</a>, N2000 Kartdata
       · {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} tegnet inn</p>
+  </div>
+
+  {# `<img>` OG IKKE INNTEGNET SVG. Fila er ~230 kB, den er den samme
+     på hver visning, og en forside som bar den i HTML-en ville sendt
+     den på nytt hver gang noen kom innom. Den lastes fra vårt eget
+     domene, som alt annet her — ingen CDN, ingen karttjeneste.
+
+     `alt=""` OG IKKE EN BESKRIVELSE: alt kartet viser står som tall og
+     tabell lenger ned på siden, og lokalitetene står i lista. En
+     alt-tekst her ville lest opp «kart over norskekysten» foran
+     innholdet uten å gi noe. SVG-fila bærer selv `<title>` og `<desc>`
+     for den som åpner den alene.
+
+     `loading="eager"` og `fetchpriority="high"`: dette er det første
+     leseren ser. #}
+  <img class="hero-kart" alt=""
+       src="/kart/norge.svg"
+       width="{{ f.hero_bredde }}" height="{{ f.hero_hoyde }}"
+       loading="eager" fetchpriority="high" decoding="async">
   </div>
 </header>
 {% endblock %}

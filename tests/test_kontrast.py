@@ -361,28 +361,37 @@ HERO_TONING = re.compile(r"\.hero-(?:meny|bunn)\s*\{([^}]*)\}", re.S)
 RGBA = re.compile(r"rgba\(\s*6,\s*22,\s*29,\s*([\d.]+)\s*\)")
 
 
-def test_toningen_bak_heroteksten_holder_45_mot_hvitt():
-    """Gulvet er målt, ikke valgt: 0,65 gir 4,24:1 og 0,70 gir 5,07:1.
+def test_heroflata_bak_teksten_holder_45():
+    """Heroteksten står på heroens EGEN flate fra 26.09.2026.
 
-    Prøven leser alfaene ut av stilarket og krever at hver av dem som
-    IKKE er en utfasing (0) holder 4,5:1 mot hvitt. Faller den, er det
-    fordi noen dempet toningen — og da er teksten uleselig over snøen
-    uten at noe annet endrer seg.
+    Toningene sto her til da, og de fantes fordi teksten lå oppå et
+    fotografi og siden oppå et kart: en toning sterk nok til 4,5:1
+    måtte dekke til nettopp det bildet var der for å vise. Med kartet i
+    sin egen spalte er flata under teksten én farge, og prøven er
+    tilsvarende enkel — men den må stå, for fargen kan endres.
+
+    `test_smalskjerm.test_heroteksten_har_nok_kontrast` måler det samme
+    på den rendrede sida i begge bredder. Denne leser tokenene, så en
+    endring i stilarket felles uten at noen bygger nettstedet.
     """
     css = STIL.read_text(encoding="utf-8")
-    # `.hero-meny, .hero-bunn { position: relative }` treffer også, og
-    # den har ingen toning. Vi vil ha blokkene som HAR en.
-    blokker = [b for b in HERO_TONING.findall(css) if "rgba" in b]
-    assert len(blokker) == 2, "fant ikke begge toningene"
+    assert ".hero-slor" not in css, \
+        "sløret er fjernet — en toning over kartet skjuler det kartet viser"
+    for bunn, tekst, hva in ((farge(css, "--hav9"), farge(css, "--papir"),
+                              "heroteksten"),
+                             (farge(css, "--hav9"),
+                              farge(css, "--hav-sekundaer"),
+                              "taglinen og krediteringen")):
+        k = kontrast(tekst, bunn)
+        assert k >= 4.5, f"{hva}: {k:.2f}:1 mot heroflata"
 
-    alfaer = [float(a) for b in blokker for a in RGBA.findall(b)]
-    assert alfaer, "ingen rgba-stopp i toningen"
-    for alfa in alfaer:
-        if alfa == 0:
-            continue                     # utfasingen mot bildet
-        flate = over("#06161d", "#ffffff", alfa)
-        assert kontrast("#e7dbd0", flate) >= 4.5, (
-            f"alfa {alfa} gir {kontrast('#e7dbd0', flate):.2f}:1 mot hvitt")
+
+def farge(css: str, token: str) -> str:
+    """Tokenets verdi i LYS modus — den første forekomsten."""
+    import re
+    m = re.search(rf"{token}:\s*(#[0-9a-fA-F]{{3,8}})", css)
+    assert m, f"fant ikke {token}"
+    return m.group(1)
 
 
 def test_soekefeltet_har_egen_ugjennomsiktig_bunn():

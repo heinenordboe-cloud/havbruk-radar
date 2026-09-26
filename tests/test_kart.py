@@ -209,14 +209,8 @@ def test_heroens_bildemaal_er_kartets_egne():
     html = pathlib.Path(NETTSTED, "index.html").read_text(encoding="utf-8")
     img = re.search(r'<img class="hero-kart"[^>]*>', html)
     assert img, "forsiden har ikke heroens kart"
-    assert f'width="{_tall(vb.group(1))}"' in img.group(0), img.group(0)
-    assert f'height="{_tall(vb.group(2))}"' in img.group(0), img.group(0)
-
-
-def _tall(s: str) -> str:
-    """«1800.0» og «1800» er samme tall; malen skriver det korteste."""
-    v = float(s)
-    return str(int(v)) if v == int(v) else str(v)
+    assert f'width="{round(float(vb.group(1)))}"' in img.group(0), img.group(0)
+    assert f'height="{round(float(vb.group(2)))}"' in img.group(0), img.group(0)
 
 
 @bygget

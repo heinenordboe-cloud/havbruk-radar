@@ -1734,7 +1734,7 @@ def _forside(**overstyr) -> str:
         "utenfor_uka": 32979,
     }
     f = {
-        "hero_bredde": 1800, "hero_hoyde": 702.2,
+        "hero_bredde": 900, "hero_hoyde": 1056,
         "lokaliteter": 1782, "produksjonsomraader": 13, "selskaper": 481,
         "tillatelser": 2945, "luke_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",

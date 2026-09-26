@@ -803,9 +803,9 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
 # riktig her: heroen er et bakteppe, og hver eneste ting den viser står
 # som tekst og tabell lenger ned på siden. Se punkt 7 i oppdraget.
 
-NORGE_BREDDE = 1800
+NORGE_BREDDE = 900
 NORGE_TOLERANSE = 0.8
-NORGE_FORHOLD = 2.6         # bredde delt på høyde i rammen
+NORGE_FORHOLD = 0.85        # bredde delt på høyde i rammen
 
 
 def _norgeramme(bredde: int) -> tuple[Projeksjon, list, tuple]:
@@ -834,24 +834,15 @@ def _norgeramme(bredde: int) -> tuple[Projeksjon, list, tuple]:
                 ost_min, ost_maks = min(ost_min, e), max(ost_maks, e)
                 nord_min, nord_maks = min(nord_min, n), max(nord_maks, n)
 
-    # SIDELUFT, så heroen ikke må beskjære bort landet.
+    # RAMMEN ER STÅENDE, og det er landets egen form.
     #
-    # Norge er en lang diagonal: utstrekningen er 1,1 millioner meter
-    # bred og 1,5 millioner høy. Et herobånd er tre ganger så bredt som
-    # høyt, og `object-fit: cover` på et stående kart viser da en
-    # tredjedel av landet.
+    # Norge er 1,1 millioner meter bredt og 1,5 millioner høyt. Et
+    # liggende herobånd tvang fram en ramme på 2,6 i bredde—høyde, og
+    # da lå landet som en smal stripe i høyre tredjedel mens to
+    # tredjedeler var tomt hav. Fra 26.09.2026 står kartet i sin egen
+    # spalte, og rammen får følge landet: `NORGE_FORHOLD` er 0,85, så
+    # vidt bredere enn utstrekningens 0,80.
     #
-    # Havet utvides derfor i øst og vest til rammen er `NORGE_FORHOLD`
-    # ganger så bred som høy. Det er ikke pynt: det er den ene
-    # justeringen som gjør at hele kysten får plass i båndet, og luften
-    # er ekte hav — ikke en strukket projeksjon.
-    #
-    # TALLET ER BÅNDETS EGET FORHOLD, ikke et valgt uttrykk. Heroen er
-    # omtrent 1440 x 550 piksler på skjerm, altså 2,6. Er kartet
-    # smalere enn båndet, klipper `object-fit: cover` toppen og bunnen
-    # bort — og toppen og bunnen er Nordkapp og Lindesnes. MÅLT på
-    # første utkast med 2,1: 22 % av landets nord-sør-utstrekning
-    # forsvant. Er kartet bredere, blir det bare mer hav.
     # LUFTEN LEGGES I VEST, ikke jevnt på begge sider.
     #
     # Natural Earth-utdraget er klippet til 3-33 °Ø (se
@@ -860,9 +851,7 @@ def _norgeramme(bredde: int) -> tuple[Projeksjon, list, tuple]:
     # Finnmark — en «kyst» som bare er datasettets egen grense. MÅLT på
     # første utkast.
     #
-    # I vest er det ekte Atlanterhav helt ut, og det er dessuten der
-    # teksten står: en rolig, mørk flate er nettopp det en hero-tekst
-    # trenger bak seg.
+    # I vest er det ekte Atlanterhav helt ut.
     nabo_boks = _boks([p for r in _linjer(_les(LAND)["features"][0]["geometry"])
                        for p in til_meter(r)])
     hoyde_m = nord_maks - nord_min
@@ -876,7 +865,7 @@ def _norgeramme(bredde: int) -> tuple[Projeksjon, list, tuple]:
             (lon_min - 0.5, lat_min - 0.2, lon_maks + 0.5, lat_maks + 0.2))
 
 
-def norgeskart_storrelse(bredde: int = NORGE_BREDDE) -> tuple[int, float]:
+def norgeskart_storrelse(bredde: int = NORGE_BREDDE) -> tuple[int, int]:
     """(bredde, høyde) i piksler, uten å tegne kartet.
 
     Malen setter `width` og `height` på `<img>` så nettleseren holder
@@ -885,7 +874,11 @@ def norgeskart_storrelse(bredde: int = NORGE_BREDDE) -> tuple[int, float]:
     `test_heroens_bildemaal_er_kartets_egne`.
     """
     proj, _ringer, _geo = _norgeramme(bredde)
-    return proj.bredde, proj.hoyde
+    # HELE TALL. `width` og `height` på `<img>` er ikke-negative
+    # heltall i HTML; «1056.0» er ikke gyldig, og nettleseren kan
+    # forkaste hele paret og dermed plassen som skulle holdes av.
+    # Avrundingen flytter forholdet med under en promille.
+    return int(proj.bredde), round(proj.hoyde)
 
 
 def norgeskart(omraader: list[dict] | None = None,

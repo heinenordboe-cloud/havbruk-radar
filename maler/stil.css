@@ -1060,6 +1060,35 @@ a:hover {
   min-height: clamp(460px, 60vh, 560px);
 }
 
+/* TO SPALTER FRA 1024 PIKSLER. Teksten til venstre, kartet til høyre i
+ * en stående ramme. Under 1024 er det én spalte, og kilderekkefølgen
+ * — tekst, så kart — er da leserekkefølgen.
+ *
+ * `minmax(0, …)` på begge: uten den får en grid-spalte `min-width:
+ * auto`, og et bilde med sitt eget bredde-attributt nekter da å krympe
+ * under sin egen bredde. */
+.hero-rute {
+  display: grid;
+  gap: clamp(20px, 3vw, 44px);
+  align-items: center;
+  inline-size: 100%;
+  margin-block-start: auto;
+  padding-block-end: clamp(22px, 2.6vw, 32px);
+}
+
+@media (min-width: 64rem) {
+  .hero-rute {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
+  }
+
+  /* HEROEN ER HØYST LIKE HØY SOM SKJERMEN. `svh` og ikke `vh`: på en
+     telefon er `vh` den høyden siden har NÅR adresselinja er skjult,
+     og et kart målt mot den stikker ut under bretten så lenge linja er
+     framme. Her gjelder taket bare fra 1024, men enheten er den samme
+     overalt av samme grunn. */
+  .hero { max-block-size: 100svh; }
+}
+
 /* KARTET SOM BAKTEPPE.
  *
  * Rammen har sideluft i VEST — se `kart.norgeskart()` — så kysten går
@@ -1068,62 +1097,40 @@ a:hover {
  * mellom tekst og bakgrunn er MÅLT der teksten faktisk står, på
  * rendret side. Se `tests/test_smalskjerm.test_heroteksten_har_nok_kontrast`.
  */
+/* KARTET I SIN EGEN SPALTE. Stående, ubeskåret, uten toning over.
+ *
+ * Ingen `object-fit`: rammen har kartets eget forhold, så det er
+ * ingenting å beskjære. Taket på høyden holder heroen innenfor
+ * skjermen på brede skjermer; på smale er bildet så bredt som spalta
+ * og like høyt som landet krever. */
 .hero-kart {
-  position: absolute;
-  inset: 0;
+  display: block;
   inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
-  /* HØYRE KANT, ikke midten. Kartet er bygget med havet i vest og
-     landet mot høyre kant; på en smal skjerm klipper `cover` i
-     bredden, og en midtstilt klipping ville vist åpent hav og ingen
-     kyst. */
-  object-position: right center;
+  block-size: auto;
+  /* Under 1024 fyller kartet spalta. Taket er der for mellomstore
+     skjermer: et stående kart i 700 pikslers bredde blir 820 høyt og
+     skyver alt annet under bretten. */
+  max-inline-size: 36rem;
+  margin-inline: auto;
 }
 
-/* SLØRET ER MÅLT, ikke stemning. Teksten står i nedre venstre
-   fjerdedel, og kartet der er havflate og kystlinje — ikke jevnt
-   mørkt. Uten sløret målte kontrasten mellom `--papir` og de lyseste
-   kartpikslene under teksten under 4,5:1 i partier. Toningen gjør
-   flata under teksten jevn nok til at målingen holder overalt — se
-   `test_smalskjerm.test_heroteksten_har_nok_kontrast`.
-
-   PÅ SMAL SKJERM ligger teksten over hele bredden, og sløret må da
-   dekke hele flata. Det er den loddrette toningen under. */
-.hero-slor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg,
-      rgba(6, 22, 29, 0.35) 0%,
-      rgba(6, 22, 29, 0.15) 25%,
-      rgba(6, 22, 29, 0.55) 52%,
-      rgba(6, 22, 29, 0.88) 74%,
-      rgba(6, 22, 29, 0.97) 100%);
-}
-
-/* PÅ BRED SKJERM står teksten i venstre halvdel og kartet har kysten
-   i høyre. En loddrett toning som er sterk nok for teksten, dekker da
-   til nettopp det kartet er der for å vise. Toningen legges derfor på
-   tvers: mørk der teksten står, gjennomsiktig der kysten er. Den
-   loddrette blir liggende under, svakere, så bunnkanten mot arket
-   under ikke blir en strek. */
 @media (min-width: 64rem) {
-  .hero-slor {
-    background:
-      linear-gradient(90deg,
-        rgba(6, 22, 29, 0.97) 0%,
-        rgba(6, 22, 29, 0.95) 42%,
-        rgba(6, 22, 29, 0.72) 58%,
-        rgba(6, 22, 29, 0.25) 74%,
-        rgba(6, 22, 29, 0.12) 100%),
-      linear-gradient(180deg,
-        rgba(6, 22, 29, 0.30) 0%,
-        rgba(6, 22, 29, 0.10) 30%,
-        rgba(6, 22, 29, 0.10) 70%,
-        rgba(6, 22, 29, 0.45) 100%);
+  .hero-kart {
+    max-block-size: calc(100svh - 11rem);
+    inline-size: auto;
+    max-inline-size: 100%;
+    margin-inline: 0 auto;
   }
 }
+
+/* SLØRET STO HER TIL 26.09.2026 og er borte.
+ *
+ * Det fantes fordi teksten sto OPPÅ kartet: en toning som var sterk
+ * nok til 4,5:1 måtte nødvendigvis dekke til det kartet var der for å
+ * vise. Med kartet i sin egen spalte står teksten på heroens egen
+ * mørke flate, og da er det ingenting å tone ned. Kontrasten måles
+ * fortsatt på den rendrede sida i begge bredder — se
+ * `test_smalskjerm.test_heroteksten_har_nok_kontrast`. */
 
 /* `.hero-lys` STO HER TIL 26.09.2026 — en langsomt vandrende lysflekk
    over fotografiet. Den er borte med fotografiet: et kart er en
@@ -1133,42 +1140,23 @@ a:hover {
 
 .hero-meny, .hero-bunn { position: relative; z-index: 2; }
 
-/* MØRK TONING BAK TEKSTEN, og den er MÅLT og ikke stemning.
- *
- * Bildet er snødekte fjell, og MÅLT 24.09.2026 inneholder det RENE
- * HVITE piksler (255,255,255) — både i øverste fjerdedel, der menyen
- * står, og i nederste, der tagline og søkefeltet står. Teksten er
- * `--papir` #e7dbd0, og over hvitt gir den 1,36:1. Det er ikke lesbart,
- * og det er ikke et spørsmål om skjerm eller smak.
- *
- * `hero-slor` var en gradient for STEMNING: 0,45 øverst, 0 fra 22 % til
- * 42 %, og 0,82 først ved 72 %. Menyen sto altså i 0,25–0,45, og
- * taglinen kunne stå i 0,55.
- *
- * Toningen ligger derfor på TEKSTBLOKKENE, ikke på hele flata: da
- * beholder bildet lyset i midten, og hvert sted det står tekst har sin
- * egen bunn. MÅLT alfa mot hvitt: 0,65 gir 4,24:1 og 0,70 gir 5,07:1,
- * så gulvet er 0,74 med margin. `test_heroen_har_kontrast_bak_teksten`
- * måler det på den RENDREDE siden, i begge bredder, ved å skjule
- * teksten og lese den lyseste piksel bak den. */
-.hero-meny {
-  background: linear-gradient(180deg,
-      rgba(6, 22, 29, 0.88) 0%,
-      rgba(6, 22, 29, 0.80) 70%,
-      rgba(6, 22, 29, 0) 100%);
-}
+/* MENYEN OG TEKSTBLOKKA hadde hver sin gradient så lenge de lå oppå
+   et fotografi. Flata under dem er nå heroens egen farge, og en
+   gradient fra den til den samme er ingenting. Borte. */
 
 .hero-bunn {
-  margin-block-start: auto;
-  padding-block-end: clamp(22px, 2.6vw, 32px);
-  background: linear-gradient(180deg,
-      rgba(6, 22, 29, 0) 0%,
-      rgba(6, 22, 29, 0.80) 10%,
-      rgba(6, 22, 29, 0.92) 100%);
+  max-inline-size: 34rem;
+}
+
+@media (min-width: 64rem) {
+  .hero-bunn { max-inline-size: none; }
 }
 
 .hero-tagline {
-  margin: 0 0 var(--rom-14);
+  /* Luft over, ikke bare under: mottoet er satt i en stor kursiv med
+     lange underlengder, og på smal skjerm møter «g» i «uavhengig»
+     halen på «før» uten den. */
+  margin: var(--rom-10) 0 var(--rom-14);
   font-size: var(--fs-13);
   line-height: var(--lh-tett);
   color: var(--hav-sekundaer);

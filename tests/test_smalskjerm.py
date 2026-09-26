@@ -274,10 +274,17 @@ def _kontrast(a, b) -> float:
 @pytest.mark.parametrize("bredde", (390, 1440))
 def test_heroteksten_har_nok_kontrast(side, tjener, velger, terskel, hva,
                                       bredde):
-    """Teksten i heroen står over KARTET, og kartet er ikke én farge.
+    """Kontrasten måles på den RENDREDE sida, ikke på tokener.
 
-    Målt på rendret side: teksten skjules, rektangelet den sto i
-    fotograferes, og den LYSESTE pikselen der måles mot `--papir`.
+    Teksten sto over kartet fram til 26.09.2026, og da var dette den
+    eneste prøven som kunne fange at en toning var for svak et sted.
+    Nå står den på heroens egen flate, og prøven er billigere å holde
+    grønn — men den blir stående: den måler det ØYET ser, og den ville
+    fanget at kartet kom tilbake bak teksten, at en flate ble lysnet,
+    eller at en tekstfarge ble byttet.
+
+    Teksten skjules, rektangelet den sto i fotograferes, og den LYSESTE
+    pikselen der måles mot `--papir`.
     """
     side.set_viewport_size({"width": bredde, "height": 900})
     side.goto(tjener + "/", wait_until="load")
