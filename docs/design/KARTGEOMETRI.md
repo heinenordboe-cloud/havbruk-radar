@@ -1,8 +1,45 @@
 # Kartgeometrien — hvor filene kommer fra
 
-`maler/geo/` har to hentede filer. Begge tegnes INN i SVG-en ved
-bygging og sendes ikke ut som filer; det er bare Natural Earths
-lisenstekst som følger med til nettstedets rot.
+`maler/geo/` har tre filer: to hentede og ett AVLEDET utdrag.
+
+    produksjonsomrader.geojson   Fiskeridirektoratets polygoner, NLOD
+    land-norge.geojson           Natural Earth 1:10 m, public domain
+    kystlinje.json.gz            Kartverket N500 + N2000, CC BY 4.0,
+                                 avledet av verktoy/kystlinje.py
+
+Alle tre tegnes INN i SVG-en ved bygging. Det ene unntaket er
+forsidens hero: den er en egen fil, `/kart/norge.svg`, fordi den er den
+samme på hver visning og kan caches for seg — se `skriv_norgeskart()`.
+
+Av lisenstekstene følger bare Natural Earths med til nettstedets rot.
+Kartverkets krav er en KREDITERING og ikke en tekstfil: «© Kartverket»
+med lenke, under hvert kart og i bunnteksten på hver side som viser
+ett. Porten håndhever det — se
+`publiseringsvakt.kart_uten_attribusjon()`.
+
+## PROJEKSJONEN ER UTM 33N (EPSG:25833)
+
+Fra 25.09.2026. Før det var kartene ekvirektangulære med en
+`cos(midtbredde)`-korreksjon, og den er riktig i ETT snitt og gradvis
+feil bort fra det. Norge er tretten breddegrader langt. MÅLT på
+oversiktskartets utsnitt:
+
+    Lindesnes    58 °N    0,81x   en femtedel for smalt
+    Nordhordland 64 °N    0,98x
+    Nordkapp     71 °N    1,33x   en tredjedel for bredt
+
+UTM 33N holder hele landet innenfor 0,7 % — målt mot Kartverkets egen
+transformasjonstjeneste, se `tests/test_kart.py`.
+
+**Og det gjør projeksjonen til en skalering.** Kartverkets kystkontur
+ER i 25833, så `kart.Projeksjon` flytter origo og ganger med et tall.
+Det som ikke er i 25833 — produksjonsområdene, Natural Earths
+naboland, lokalitetenes koordinater — går gjennom `kart.utm33()` én
+gang der det leses.
+
+Gradnettet måtte bli POLYLINJER av samme grunn: i UTM krummer både
+breddegrader og lengdegrader, og 16 grader fra sentralmeridianen er
+meridiankonvergensen omtrent 15 grader.
 
 ## produksjonsomrader.geojson — Fiskeridirektoratets offisielle polygoner
 
@@ -76,12 +113,17 @@ OpenStreetMap-avledet kystlinje (ODbL — attribusjon og
 del-på-samme-vilkår, en tyngre lisens å ta inn i et arkiv som skal stå
 i ti år). Public domain og én fil vant.
 
-**Grensa, sagt rett ut:** 1:10 m er omtrent 1 km oppløsning. På
-forsidens oversiktskart er det mer enn nok. På et posisjonskart som
-dekker 36 km er en fjordarm gjengitt med noen få punkter, og små holmer
-finnes ikke. Kartet sier hvor lokaliteten ligger i forhold til kysten;
-det sier ikke hvordan bunnen eller sundet ser ut. Det står i
-bildeteksten på hver side.
+**ROLLEN ER ENDRET 26.09.2026: Natural Earth tegner NABOLANDENE.**
+
+Fram til da var den kystlinja på hvert kart. Grensa var kjent og stod
+her: 1:10 m er omtrent 1 km oppløsning, og på et utsnitt på 36 km i 560
+piksler er ett piksel 64 meter — kystlinja var altså 16 piksler grov.
+Fjorder forsvant og holmer fantes ikke.
+
+Kartverkets N500 har tatt over for Norge. Natural Earth blir værende
+for Sverige, Finland og Danmark, som Kartverket ikke kartlegger, og som
+landmassen under Kartverkets havflate på heroen. En kyst som stoppet
+ved riksgrensa ville vært et Norge som svever i ingenting.
 
 ### Klippingen
 
@@ -180,6 +222,99 @@ akvakultur, og «nær en lokalitet» er nesten hele kysten.
 Grensa er 20 km mens lokalitetskartets halvdiagonal er 25,5 km. Hjørner
 av et utsnitt kan derfor mangle kystlinje der ingen lokalitet ligger
 innenfor 20 km — de hjørnene er åpent hav eller innland.
+
+### Hvor utdraget brukes, og med hvilken toleranse
+
+    lokalitetskart   n500    36 km, 560 px, toleranse 1,6 px
+    områdekart       n500    området selv, 760 px, toleranse 0,7 px
+                     n2000   der n500 gir et kart over 150 kB
+    /kart/norge.svg  n2000   hele kysten, 1800 px, toleranse 0,8 px
+
+**Toleransen på lokalitetskartet er 1,6 piksler, og det er ikke en
+smakssak.** Ved 36 km i 560 piksler er ett piksel 64 meter, så 1,6
+piksler er 102 meter — PRESIS der N500 selv slutter. Under det kaster
+vi kildens egen støy; over det ville vi kastet kysten. Taket på 60 kB
+per side er nådd akkurat der kilden tar slutt. MÅLT på de seks tetteste
+skjærgårdene: 0,35 px ga 69 kB, 1,6 px gir 57 kB, og bildet er det
+samme.
+
+**Områdekartet velger serie per område, og valget er målt.** De tretten
+er ulike: PO 1 er 120 km bredt, PO 4 er 330. `omraadekart()` tegner med
+N500 først, måler hva kartet koster, og faller til N2000 over 150 kB.
+Målt på det bygde nettstedet 26.09.2026:
+
+    N500     PO 2, 5, 7, 10, 11, 12, 13      43-149 kB
+    N2000    PO 1, 3, 4, 6, 8, 9             64-111 kB
+
+«De nordlige er store» ville vært et gjett om geometri vi har liggende.
+
+**Taket måler HELE kartet, ikke banedataene.** Første utkast talte bare
+`d`-strengene, og det er stedfortrederen fra CLAUDE.md regel 1b-2: den
+er riktig helt til prikkene blir mange. I PO 9 er lokalitetsprikkene
+72 kB av et kart på 207 — over en tredjedel. `kart._svgbyte()` regner
+markupen slik malen skriver den, pluss `RAMME_BYTE` = 2000 for
+`<svg>`-taggen, gruppene og målestokken; rammen er målt på de tretten
+bygde sidene (907–1814 byte). Anslaget kan bli feil om malen endres, og
+prøven som HOLDER løftet leser derfor den ferdige sida:
+`test_ingen_omraadeside_har_et_kart_over_150_kb`.
+
+### Havflata slutter ved datakanten, og det er synlig
+
+`Havflate` dekker Norges sjøterritorium — et belte langs kysten — og
+ikke havet utenfor. Der beltet slutter, har vi ingen opplysning, og
+hvilken farge den flata får er et VALG om hva «ingen opplysning» skal
+se ut som. De to kartene svarer ulikt, og begge svarene er målt.
+
+**Områdekartet: bakgrunnen er hav, og landet kommer fra Natural
+Earth.** Utsnittene er 120–330 km brede, og den vestlige fjerdedelen
+ligger utenfor beltet. MÅLT på PO 4: 150 av 760 piksler åpent hav malt
+i landfargen. Natural Earths grove land legges derfor under havflata.
+Den er aldri synlig der Kartverket har data, så 1 km oppløsning spiller
+ingen rolle; den svarer bare på om dette er havbunn eller åpent hav der
+Kartverket tier — og ved 300 meter per piksel er 1 km tre piksler.
+
+**Lokalitetskartet: bakgrunnen er land, og Natural Earth brukes
+ikke.** Samme grep der ville vært feil, og det er målt: ved 36 km i 560
+piksler er ett piksel 64 meter, så Natural Earths kystlinje er 15
+piksler unna. Målt på seks tilfeldige lokaliteter er **5–28 % av
+utsnittet verken NE-land eller havflate** — de prosentene ville blitt
+malt som sjø, og mye av dem er land.
+
+**Prisen, sagt rett ut:** et 36 km-utsnitt som når utenfor beltet,
+maler åpent hav i landfargen. Det gjelder de lokalitetene som ligger
+langt til havs. Målt 26.09.2026: tre lokaliteter har over 10 km til
+nærmeste kystkontur — 11899 (19,8 km, Nordsjøen utenfor Egersund),
+11851 (11,2) og 45275 (11,1) — og på deres sider er mesteparten av
+kartet feil farge. Det er ikke rettet, fordi rettingen krever å vite
+hvor Kartverkets DEKNING slutter, og den opplysningen finnes ikke i
+`Havflate`: flatas ytterring følger kysten på den ene siden og
+datakanten på den andre, uten å si hvilken som er hvilken.
+`Dataavgrensning` i N500 er linjer, ikke flater, og å sette dem sammen
+til en dekningsflate er en topologijobb. Åpent spørsmål, ikke en
+glemsel.
+
+### DYBDEDATA ER VURDERT OG VALGT BORT
+
+Kartverket gir ut dybdekurver under den samme lisensen — CC BY 4.0,
+åpne data. Lisensen er lest og står ordrett i `docs/LISENSKJEDE.md`
+merknad J. To ting avgjorde:
+
+1. **Forbeholdet.** «Sjøkart – Dybdedata» bærer et vilkår de andre
+   datasettene ikke har: *«Dataene er ikke godkjent for navigasjon. De
+   er ikke egnet for nøyaktige masseberegninger.»* Det er ikke en
+   formalitet på et nettsted som viser oppdrettsanlegg i sjøen — en
+   dybdekurve ved siden av en lokalitet SER UT som et sjøkart, og det
+   er nettopp den lesningen Kartverket fraskriver seg. Kildens egen
+   beskrivelse av de generaliserte kurvene sier dessuten at de er
+   «grove og har varierende kvalitet og nøyaktighet».
+2. **Størrelsen.** De generaliserte kurvene er 104,7 MB (SOSI) eller
+   91,7 MB (S57) landsdekkende; de fulle dybdedataene er 18,4 GB
+   fordelt på 427 filer. Ingen av dem finnes som GeoJSON eller
+   GeoPackage.
+
+Blir de tatt i bruk en dag, må forbeholdet stå ved VISNINGEN og ikke
+bare i lisensfila. Og da hører de hjemme på en egen side om bunnen —
+ikke som et lag under et kart som svarer på hvor et anlegg ligger.
 
 ### Oppdatering
 
