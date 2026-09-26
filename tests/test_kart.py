@@ -242,6 +242,50 @@ def test_ingen_omraadeside_har_et_kart_over_150_kb():
 
 
 @bygget
+def test_kartet_er_aldri_eneste_vei_til_opplysningen():
+    """Punkt 7, andre ledd: alt kartet viser står også som tekst.
+
+    Et kart er utilgjengelig for den som ikke ser det, og upålitelig
+    for den som ikke kan peke. Prikkene på områdekartet er derfor en
+    ANNEN vei til tabellen under — og prøven her går den veien motsatt:
+    hver lokalitet kartet lenker til, skal stå i tabellen på samme
+    side. Er den ikke det, er kartet den eneste veien dit.
+
+    Lokalitetssidas eget kart prøves på samme måte i
+    `test_posisjonen_star_ogsaa_som_tall`: punktet er tegnet, og
+    koordinatene står i bildeteksten.
+    """
+    import re
+    mangler = []
+    for sti in sorted(pathlib.Path(NETTSTED, "produksjonsomrade")
+                      .glob("*/index.html")):
+        html = sti.read_text(encoding="utf-8")
+        kart_ = _kart_i(html)
+        tabell = html[html.index('id="akvakultur-lokaliteter"'):]
+        for nr in set(re.findall(r'href="/lokalitet/(\d+)/"', kart_)):
+            if f'href="/lokalitet/{nr}/"' not in tabell:
+                mangler.append((sti.parent.name, nr))
+    assert not mangler, f"kartprikker uten rad i tabellen: {mangler[:5]}"
+
+
+@bygget
+def test_posisjonen_star_ogsaa_som_tall():
+    """Kartet viser HVOR; bildeteksten sier det samme i grader.
+
+    Prøven leser sidene som HAR et kart, og krever at den samme sida
+    oppgir koordinatene som tekst. Merkelappen er ordene «posisjon
+    fra» i bildeteksten, som står rett etter gradtallene.
+    """
+    uten = []
+    for sti in sorted(pathlib.Path(NETTSTED, "lokalitet")
+                      .glob("*/index.html"))[:400]:
+        html = sti.read_text(encoding="utf-8")
+        if "data-kart" in html and "posisjon fra" not in html:
+            uten.append(sti.parent.name)
+    assert not uten, f"kart uten koordinater i tekst: {uten[:5]}"
+
+
+@bygget
 def test_hver_lokalitetsside_med_koordinater_har_et_kart():
     """Et kart som stille uteble ville sett ut som en lokalitet uten
     koordinater, og de to er ikke det samme — siden sier i klartekst

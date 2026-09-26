@@ -1899,10 +1899,34 @@ def test_heroen_er_kartet_og_hentes_fra_oss_selv():
 
 
 def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():
+    """`role="img"` og en ETIKETT som sier hva kartet viser.
+
+    `aria-labelledby` sto her til 26.09.2026 og er byttet mot
+    `aria-label`: den første slår den andre i navneutregningen, og en
+    side med begge har én av dem som ikke gjør noe. `<title>` og
+    `<desc>` blir stående — de er det en som åpner SVG-en alene får.
+    """
     html = _forside()
     assert 'role="img"' in html
+    assert 'aria-label="Kart over' in html
     assert '<title id="kysttittel">' in html
     assert '<desc id="kystbeskrivelse">' in html
+
+
+def test_hvert_kart_har_rolle_og_etikett():
+    """Punkt 7: hvert kart sier hva det viser.
+
+    Merket er `data-kart`, som porten også leser — ett attributt, to
+    krav, og ingen liste over hvilke klasser et kart kan ha.
+    """
+    import re
+    for navn, html in (("forside", _forside()),
+                       ("lokalitet", _side()),
+                       ("omraade", _po())):
+        for m in re.finditer(r"<svg\b[^>]*\bdata-kart\b[^>]*>", html):
+            tagg = m.group(0)
+            assert 'role="img"' in tagg, f"{navn}: kart uten role"
+            assert "aria-label=" in tagg, f"{navn}: kart uten aria-label"
 
 
 def test_omradene_er_lenker_i_kartet_ogsaa_uten_js():
