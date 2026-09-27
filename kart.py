@@ -765,176 +765,28 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
         "gitter": gradnett(proj, (lon_min, lat_min, lon_maks, lat_maks)),
     }
 
-
-# --------------------------------------------------- Norge som fil
+# ------------------------------------------ Norge som fil: BORTE
 #
-# Forsidens hero. EN EGEN FIL og ikke tegnet inn i HTML-en, av to
-# grunner: den er den samme på hver visning og kan caches for seg, og
-# heroen skal ha et BILDE — et `<img>` som ikke blokkerer noe og som
-# har en alt-tekst.
+# `norgeskart()` sto her til 27.09.2026 og tegnet hele kysten til én
+# SVG-fil, `/kart/norge.svg`, som forsidens hero.
 #
-# Et `<img>` med SVG i kan ikke nå sidens stilark, så fila bærer sin
-# egen `<style>`. Den kan heller ikke ha klikkbare lenker, og det er
-# riktig her: heroen er et bakteppe, og hver eneste ting den viser står
-# som tekst og tabell lenger ned på siden. Se punkt 7 i oppdraget.
-
-NORGE_BREDDE = 900
-NORGE_TOLERANSE = 0.8
-NORGE_FORHOLD = 0.85        # bredde delt på høyde i rammen
-
-
-def _norgeramme(bredde: int) -> tuple[Projeksjon, list, tuple]:
-    """(projeksjon, områderinger i meter, gradutstrekning) for heroen.
-
-    Egen funksjon fordi MALEN OGSÅ TRENGER MÅLENE: `<img>` skal ha
-    `width` og `height` for å holde av plassen før fila er lastet, og
-    de må stemme med SVG-ens `viewBox`. Skrevet to steder ville de
-    driftet fra hverandre uten at noe sa fra — se
-    `norgeskart_storrelse()` og prøven som holder dem like.
-    """
-    po = _les(OMRAADER)
-    ost_min = nord_min = 1e18
-    ost_maks = nord_maks = -1e18
-    lon_min = lat_min = 1e9
-    lon_maks = lat_maks = -1e9
-    ringer: list[list] = []
-    for f in po["features"]:
-        for ring in _linjer(f["geometry"]):
-            for x, y in ring:
-                lon_min, lon_maks = min(lon_min, x), max(lon_maks, x)
-                lat_min, lat_maks = min(lat_min, y), max(lat_maks, y)
-            m = til_meter(ring)
-            ringer.append(m)
-            for e, n in m:
-                ost_min, ost_maks = min(ost_min, e), max(ost_maks, e)
-                nord_min, nord_maks = min(nord_min, n), max(nord_maks, n)
-
-    # RAMMEN ER STÅENDE, og det er landets egen form.
-    #
-    # Norge er 1,1 millioner meter bredt og 1,5 millioner høyt. Et
-    # liggende herobånd tvang fram en ramme på 2,6 i bredde—høyde, og
-    # da lå landet som en smal stripe i høyre tredjedel mens to
-    # tredjedeler var tomt hav. Fra 26.09.2026 står kartet i sin egen
-    # spalte, og rammen får følge landet: `NORGE_FORHOLD` er 0,85, så
-    # vidt bredere enn utstrekningens 0,80.
-    #
-    # LUFTEN LEGGES I VEST, ikke jevnt på begge sider.
-    #
-    # Natural Earth-utdraget er klippet til 3-33 °Ø (se
-    # KARTGEOMETRI.md), og strekker rammen seg lenger øst enn det,
-    # kommer klippekanten fram som en rett diagonal tvers over
-    # Finnmark — en «kyst» som bare er datasettets egen grense. MÅLT på
-    # første utkast.
-    #
-    # I vest er det ekte Atlanterhav helt ut.
-    nabo_boks = _boks([p for r in _linjer(_les(LAND)["features"][0]["geometry"])
-                       for p in til_meter(r)])
-    hoyde_m = nord_maks - nord_min
-    mangler = max(0.0, hoyde_m * NORGE_FORHOLD - (ost_maks - ost_min))
-    ost_maks = min(ost_maks + mangler * 0.12, nabo_boks[2])
-    ost_min = ost_maks - max(hoyde_m * NORGE_FORHOLD, ost_maks - ost_min)
-
-    proj = Projeksjon(ost_min, nord_min, ost_maks, nord_maks,
-                      bredde=bredde, marg=8)
-    return (proj, ringer,
-            (lon_min - 0.5, lat_min - 0.2, lon_maks + 0.5, lat_maks + 0.2))
-
-
-def norgeskart_storrelse(bredde: int = NORGE_BREDDE) -> tuple[int, int]:
-    """(bredde, høyde) i piksler, uten å tegne kartet.
-
-    Malen setter `width` og `height` på `<img>` så nettleseren holder
-    av plassen før SVG-en er lastet. Tallene skal være SVG-ens egne, og
-    de hentes derfor fra samme ramme — ikke skrevet av. Se
-    `test_heroens_bildemaal_er_kartets_egne`.
-    """
-    proj, _ringer, _geo = _norgeramme(bredde)
-    # HELE TALL. `width` og `height` på `<img>` er ikke-negative
-    # heltall i HTML; «1056.0» er ikke gyldig, og nettleseren kan
-    # forkaste hele paret og dermed plassen som skulle holdes av.
-    # Avrundingen flytter forholdet med under en promille.
-    return int(proj.bredde), round(proj.hoyde)
-
-
-def norgeskart(omraader: list[dict] | None = None,
-               lokaliteter: list | None = None,
-               bredde: int = NORGE_BREDDE) -> str:
-    """Hele kysten som én ferdig SVG-streng.
-
-    N2000 til kystlinja, Natural Earth til nabolandene, de tretten
-    områdegrensene og hver lokalitet som en prikk.
-
-    NABOLANDENE BLIR VÆRENDE NATURAL EARTH. Kartverket kartlegger
-    Norge; Sverige, Finland og Danmark står ikke i N2000. En kyst som
-    stoppet ved riksgrensa ville vært et Norge som svever i ingenting —
-    samme begrunnelse som KARTGEOMETRI.md ga for den opprinnelige ruta.
-    """
-    proj, ringer, _geo = _norgeramme(bredde)
-
-    hav, oyer, kyst = _kystlag("n2000", proj, NORGE_TOLERANSE)
-    naboland = _tegn([til_meter(r)
-                      for r in _linjer(_les(LAND)["features"][0]["geometry"])],
-                     proj, NORGE_TOLERANSE, lukket=True)
-    grenser = [_bane(forenkle([(proj.x(e), proj.y(n)) for e, n in ring],
-                              NORGE_TOLERANSE), lukket=True)
-               for ring in ringer]
-
-    prikker = []
-    for _loknr, _navn, lat, lon in (lokaliteter or ()):
-        try:
-            e, n = utm33(float(lat), float(lon))
-        except (TypeError, ValueError):
-            continue
-        if proj.synlig(e, n):
-            prikker.append((proj.x(e), proj.y(n)))
-
-    def g(klasse: str, baner, lukket_tag="path") -> str:
-        rene = [d for d in baner if d]
-        if not rene:
-            return ""
-        return (f'<g class="{klasse}">'
-                + "".join(f'<{lukket_tag} d="{d}"/>' for d in rene) + "</g>")
-
-    punkter = "".join(f'<circle cx="{x}" cy="{y}" r="2.4"/>' for x, y in prikker)
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" '
-        f'viewBox="0 0 {proj.bredde} {proj.hoyde}" '
-        f'width="{proj.bredde}" height="{proj.hoyde}" '
-        f'role="img" aria-labelledby="t d">'
-        f'<title id="t">Norskekysten med akvakulturlokalitetene</title>'
-        f'<desc id="d">Kystlinja fra Kartverkets N2000, de tretten '
-        f'produksjonsområdene tegnet som grenser, og '
-        f'{len(prikker)} akvakulturlokaliteter som prikker. Alt kartet '
-        f'viser står som tall og tabeller på sidene: lokalitetene på '
-        f'lokalitetslista, områdene på områdelista. Kystlinje: '
-        f'© Kartverket, CC BY 4.0.</desc>'
-        # LAGDELINGEN ER REKKEFØLGEN, og den er ikke åpenbar:
-        #
-        #   1  havet som bunnflate
-        #   2  Natural Earths LAND, hele Skandinavia, grovt
-        #   3  Kartverkets HAVFLATE oppå landet — den skjærer fjordene
-        #      og sundene ut igjen av den grove flata, i N2000s
-        #      oppløsning
-        #   4  kystlinja som strek
-        #
-        # Uten lag 2 er Norge like mørkt som åpent hav: Kartverkets
-        # `Havflate` dekker bare kartlagt norsk sjø, altså et belte
-        # langs kysten, og ikke havet utenfor. Da fyller man sjø på sjø
-        # og får ingen landmasse. MÅLT på første utkast.
-        f'<style>'
-        f'.b{{fill:#0c222c}}'
-        f'.nl{{fill:#22454f;stroke:none}}'
-        f'.hv{{fill:#0c222c;stroke:none}}'
-        f'.oy{{fill:#22454f;stroke:none}}'
-        f'.ky{{fill:none;stroke:#63909f;stroke-width:0.9}}'
-        f'.gr{{fill:none;stroke:#8d6440;stroke-width:0.9;stroke-opacity:0.7}}'
-        f'.lk{{fill:#c4622a;fill-opacity:0.9}}'
-        f'</style>'
-        f'<rect class="b" width="{proj.bredde}" height="{proj.hoyde}"/>'
-        + g("nl", naboland) + g("hv", hav) + g("oy", oyer)
-        + g("ky", kyst) + g("gr", grenser)
-        + (f'<g class="lk">{punkter}</g>' if punkter else "")
-        + "</svg>")
+# Den er fjernet SAMMEN med heroen, og det er målt at den kunne det:
+# fila hadde nøyaktig én bruker, `<img class="hero-kart">` på forsiden.
+# Kystseksjonen lenger ned tegner sitt eget kart INN i sida av
+# `f.kart` og har aldri hentet fila. `omraadekart()` og
+# `lokalitetskart()` er uberørte — de deler bare de generelle
+# hjelperne (`_les`, `_kystlag`, `Projeksjon`), ikke `_norgeramme`.
+#
+# Grunnen til at heroen sluttet å være et kart: den gjentok kartet
+# lenger ned på siden. En forside som åpner med det samme kartet to
+# ganger sier mindre enn en som åpner med kysten og deretter viser den
+# oppdelt. Se docs/design/HEROFOTO.md.
+#
+# Koden står ikke igjen som død kode bak et flagg. Den ligger i git,
+# på `27ee1bc` og bakover, og det er der den hører hjemme — samme
+# regel som for pinningene i publiseringsvakten og radene i
+# `VAART_LAAN`: en ting som ikke er i bruk, skal ikke stå og se ut som
+# om den er det.
 
 
 # ------------------------------------------------------ områdekart

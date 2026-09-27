@@ -1029,22 +1029,41 @@ a:hover {
 /* ---------------------------------------------------------------- *
  * 5. FORSIDEN
  *
- * ## Heroen er et FOTOGRAFI, ikke en fargeflate
+ * ## Heroen er et FOTOGRAFI igjen
  *
- * Fram til 22.09.2026 var heroen `--hav` som flate, og begrunnelsen var
- * at havet skulle være den eneste mettede flaten på nettstedet. Den
- * regelen står — havet er fortsatt den eneste — men flata er nå et
- * bilde av det: snødekte fjell over mørkt hav (Wolfgang Hasselmann,
- * Unsplash-lisens, hostet av oss i tre bredder).
+ * 22.09.2026 ble heroen et fotografi, 26.09 et kart, og 27.09 et
+ * fotografi igjen — et annet. Hvorfor kartet gikk ut: det gjentok
+ * kartet lenger ned på siden. Se docs/design/HEROFOTO.md.
  *
- * Gradienten er bare NEDERST, og den er der for lesbarhet og ikke for
- * stemning: teksten står i bunnen, og uten den ville ordmerket ligget
- * oppå en fjellside. Verdiene er overleveringens, ordrett.
+ * Bildet er skjærgård på Bømlo med et oppdrettsanlegg ute ved
+ * horisonten. Motivet er dempet hele veien; den lyseste flata i det er
+ * himmelen i øverste tredjedel, og det er der menyen står.
  *
- * ## Lysskimmeret respekterer `prefers-reduced-motion`
+ * ## HVA TONINGEN ER FOR
  *
- * 34 sekunder er lenge nok til at bevegelsen ikke leses som bevegelse,
- * men noen blir kvalme av den likevel. Den slås av, ikke dempes.
+ * Teksten står på bildet, og et bilde er ikke en farge. Toningen er
+ * derfor ikke stemning — den er det eneste som gjør teksten lesbar, og
+ * alfaene er regnet ut og ikke valgt. `tests/test_kontrast.py` leser
+ * dem ut av denne fila og krever 4,5:1 mot HVITT, som er det verst
+ * tenkelige bildet. `tests/test_smalskjerm.py` måler det som faktisk
+ * havner på skjermen: den lyseste pikselen under hver tekstblokk, i
+ * begge bredder og BEGGE MODUSER.
+ *
+ * ## HEROEN ER MØRK I BEGGE MODUSER, og tokenene må si det
+ *
+ * Fram til 27.09.2026 sto heroteksten i `var(--papir)`. Det er
+ * PAPIRFARGEN, som i mørk modus snur fra #e7dbd0 til #121a1d — og da
+ * sto h1 i nesten svart på en mørk flate. MÅLT på bygget side:
+ * **1,34:1 i mørk modus**, i alle tre breddene, mot 13,54:1 i lys.
+ * Feilen var eldre enn fotografiet og fantes også over kartet.
+ *
+ * Flata under teksten her er ikke papir og blir det aldri: den er et
+ * fotografi med en mørk toning over, og toningen er en LITERAL
+ * rgba(6, 22, 29, a) som ikke snur med modus. Teksten bruker derfor
+ * `--hav-tittel`, `--hav-tegn` og `--hav-sekundaer` — tokenene som
+ * betyr «tekst på mørk flate», og som er lyse i begge moduser. Det er
+ * samme regel som `.hovedmeny` allerede fulgte, og grunnen til at
+ * menyen var lesbar mens overskriften over den ikke var det.
  * ---------------------------------------------------------------- */
 
 .hero {
@@ -1053,104 +1072,149 @@ a:hover {
   flex-direction: column;
   overflow: hidden;
   background: var(--hav9);
-  color: var(--papir);
+  color: var(--hav-tegn);
 
-  /* Høyden er valgt slik at «Denne uka» starter over bretten på
-     1440x900. Overleveringens verdi. */
-  min-height: clamp(460px, 60vh, 560px);
+  /* HØYDEN ER ETT UTTRYKK og ikke et min/max-par.
+   *
+   * `min-block-size: 70svh` med `max-block-size: 760px` ved siden av
+   * gjør det motsatte av det man tror på en høy skjerm: når min er
+   * større enn max, vinner min i CSS, og heroen ble 840 px på et
+   * 1200 px høyt vindu. `min(...)` velger den minste av de to, som er
+   * det taket faktisk betyr.
+   *
+   * `svh` OG IKKE `vh`: på en telefon er `vh` høyden siden har NÅR
+   * adresselinja er skjult, og en hero målt mot den stikker under
+   * bretten så lenge linja er framme.
+   *
+   *   390 x 844    min(591, 760) = 591
+   *   1440 x 900   min(630, 760) = 630
+   *   1440 x 1200  min(840, 760) = 760
+   *
+   * `min` og ikke `block-size`: teksten skal kunne vokse forbi taket
+   * heller enn å bli klippet. Ved 200 % skriftstørrelse gjør den det. */
+  min-block-size: min(70svh, 760px);
 }
 
-/* TO SPALTER FRA 1024 PIKSLER. Teksten til venstre, kartet til høyre i
- * en stående ramme. Under 1024 er det én spalte, og kilderekkefølgen
- * — tekst, så kart — er da leserekkefølgen.
+/* BILDET FYLLER HEROEN.
  *
- * `minmax(0, …)` på begge: uten den får en grid-spalte `min-width:
- * auto`, og et bilde med sitt eget bredde-attributt nekter da å krympe
- * under sin egen bredde. */
-.hero-rute {
-  display: grid;
-  gap: clamp(20px, 3vw, 44px);
-  align-items: center;
+ * `object-position: left center` — og venstre er ikke en smakssak.
+ *
+ * På 390 piksler er heroen 390 x 591, altså stående, mens fila er
+ * liggende 3:2. `cover` fyller da HØYDEN og beskjærer BREDDEN: av
+ * originalens 5460 piksler er 2402 synlige. Anlegget ligger ved
+ * original-x 0–2300. Ved `left` er hele raden med merder inne; ved
+ * `center` er 3 av 4 merder ute av bildet. MÅLT ved å rendre
+ * utsnittene fire steder mellom venstre og midten før fila ble hentet.
+ *
+ * På 1440 er det omvendt: vinduet er 1,89 i bredde—høyde mot fotoets
+ * 1,50, så BREDDEN fyller og høyden beskjæres. Da er venstre et
+ * nullvalg, og det er `center` i andre akse som gjelder — himmelen
+ * over og sjøen under i samme monn. */
+.hero-bilde {
+  position: absolute;
+  inset: 0;
   inline-size: 100%;
-  margin-block-start: auto;
-  padding-block-end: clamp(22px, 2.6vw, 32px);
+  block-size: 100%;
+  object-fit: cover;
+  object-position: left center;
 }
 
-@media (min-width: 64rem) {
-  .hero-rute {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 34%);
-  }
-
-  /* HEROEN ER HØYST LIKE HØY SOM SKJERMEN. `svh` og ikke `vh`: på en
-     telefon er `vh` den høyden siden har NÅR adresselinja er skjult,
-     og et kart målt mot den stikker ut under bretten så lenge linja er
-     framme. Her gjelder taket bare fra 1024, men enheten er den samme
-     overalt av samme grunn. */
-  .hero { max-block-size: 100svh; }
-}
-
-/* KARTET SOM BAKTEPPE.
+/* TONINGEN. STOPPENE ER MÅLT, IKKE VALGT.
  *
- * Rammen har sideluft i VEST — se `kart.norgeskart()` — så kysten går
- * gjennom høyre halvdel og Atlanterhavet er en rolig, mørk flate til
- * venstre. Det er der teksten står, og det er ikke pynt: kontrasten
- * mellom tekst og bakgrunn er MÅLT der teksten faktisk står, på
- * rendret side. Se `tests/test_smalskjerm.test_heroteksten_har_nok_kontrast`.
- */
-/* KARTET I SIN EGEN SPALTE. Stående, ubeskåret, uten toning over.
+ * Framgangsmåten, 27.09.2026: slå av toningen, skjul all tekst i
+ * heroen, fotografer nøyaktig det rektangelet hver tekstblokk står i,
+ * finn den LYSESTE pikselen der, og regn ut hvilken alfa som skal til
+ * for at blokkens egen tekstfarge holder terskelen sin over den.
+ * Gjort i 390 og 1440, i lys og mørk modus. Dette er tallene:
  *
- * Ingen `object-fit`: rammen har kartets eget forhold, så det er
- * ingenting å beskjære. Taket på høyden holder heroen innenfor
- * skjermen på brede skjermer; på smale er bildet så bredt som spalta
- * og like høyt som landet krever. */
-.hero-kart {
-  display: block;
-  inline-size: 100%;
-  block-size: auto;
-  /* Under 1024 fyller kartet spalta. Taket er der for mellomstore
-     skjermer: et stående kart i 700 pikslers bredde blir 820 høyt og
-     skyver alt annet under bretten. */
-  max-inline-size: 36rem;
-  margin-inline: auto;
-}
-
-@media (min-width: 64rem) {
-  .hero-kart {
-    max-block-size: calc(100svh - 11rem);
-    inline-size: auto;
-    max-inline-size: 100%;
-    margin-inline: 0 auto;
-  }
-}
-
-/* SLØRET STO HER TIL 26.09.2026 og er borte.
+ *   blokk              av heroen   lysest piksel    krever alfa
+ *   .hovedmeny a         0–26 %    (219,211,209)       0,74
+ *   .hero-losen         44–73 %    (237,222,198)       0,40
+ *   .hero-tagline       69–77 %    (151,193,235)       0,70
+ *   .sok                78–90 %    (170,198,212)       —
+ *   .hero-bildetekst    90–100 %   (185,202,238)       0,72
  *
- * Det fantes fordi teksten sto OPPÅ kartet: en toning som var sterk
- * nok til 4,5:1 måtte nødvendigvis dekke til det kartet var der for å
- * vise. Med kartet i sin egen spalte står teksten på heroens egen
- * mørke flate, og da er det ingenting å tone ned. Kontrasten måles
- * fortsatt på den rendrede sida i begge bredder — se
- * `test_smalskjerm.test_heroteksten_har_nok_kontrast`. */
-
-/* `.hero-lys` STO HER TIL 26.09.2026 — en langsomt vandrende lysflekk
-   over fotografiet. Den er borte med fotografiet: et kart er en
-   opplysning, og en animasjon som glir over en opplysning er støy som
-   trekker øyet bort fra den. En bevegelse ingen ba om er dessuten en
-   bevegelse `prefers-reduced-motion` måtte slå av. */
-
-.hero-meny, .hero-bunn { position: relative; z-index: 2; }
-
-/* MENYEN OG TEKSTBLOKKA hadde hver sin gradient så lenge de lå oppå
-   et fotografi. Flata under dem er nå heroens egen farge, og en
-   gradient fra den til den samme er ingenting. Borte. */
-
-.hero-bunn {
-  max-inline-size: 34rem;
+ * Verst av de to breddene og de to modusene i hver rad. Søkefeltet har
+ * ingen rad: det er en ugjennomsiktig papirflate med mørk tekst, og
+ * bildet når den ikke.
+ *
+ * H1 SLIPPER BILLIGST fordi den er stor: WCAG 1.4.3 gir 3:1 fra 24 px,
+ * og mottoet er 32–62. Bildeteksten er 12 px og betaler mest.
+ *
+ * TO FLATER, IKKE ÉN. Menyen har sin egen — se `.hero-menyflate`. Den
+ * måles i PROSENT her, og menyen er 67 px på 1440 mot 124 px på 390,
+ * der den brytes i to linjer. Første utkast dekket menyen herfra, og
+ * målingen viste **1,60:1 på den andre menylinja på 390**: den lå
+ * under 14 %-stoppet, i vinduet. En prosentandel som dekket begge
+ * bredder ville dekket en tredjedel av bildet på den brede skjermen.
+ *
+ * VINDUET FRA 0 TIL 32 % ER IKKE PYNT. Uten det ligger toningen over
+ * hele flata, og da er fotografiet en grå plate — 331 kB vi ikke har
+ * noen grunn til å sende. Mellom menyen og mottoet står det ingen
+ * tekst, og der skal bildet stå åpent. Det er der anlegget er.
+ *
+ * MARGINEN ER MINST 0,04 i hver sone, og stoppene er lagt slik at
+ * INTERPOLASJONEN mellom dem aldri faller under kravet inne i en sone.
+ * Det er ikke nok at stoppene selv holder: en tekstblokk dekker et
+ * intervall, ikke et punkt. Det var feilen i første utkast — 0,46 ved
+ * 66 % og 0,78 ved 76 % gir 0,556 ved 69 %, der taglinen krever 0,70.
+ *
+ * `tests/test_smalskjerm.py::test_heroteksten_har_nok_kontrast` gjør
+ * hele målingen på nytt ved hver kjøring, over UNIONEN av alle
+ * elementene en velger treffer, og er det som faktisk holder dette
+ * sant når bildet eller skriftstørrelsene endrer seg. */
+.hero-slor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+      rgba(6, 22, 29, 0) 0%,
+      rgba(6, 22, 29, 0) 32%,
+      rgba(6, 22, 29, 0.46) 44%,
+      rgba(6, 22, 29, 0.48) 62%,
+      rgba(6, 22, 29, 0.76) 68%,
+      rgba(6, 22, 29, 0.92) 100%);
 }
 
-@media (min-width: 64rem) {
-  .hero-bunn { max-inline-size: none; }
+/* MENYENS FLATE. Full bredde, menyens egen høyde, og en utfasing på
+   64 px under den.
+ *
+ * `padding-block-end` gir utfasingen noe å falle over;
+ * `margin-block-end` med samme tall trekker den inn igjen, så flata
+ * ikke skyver tekstblokka nedover. Uten det andre ville heroen blitt
+ * 64 px høyere enn taket sier.
+ *
+ * 0,84 og ikke 0,74 som målingen krever: marginen er her fordi menyen
+ * ligger over den lyseste delen av bildet i begge bredder, og fordi
+ * antallet menylinjer endrer seg med bredden. */
+.hero-menyflate {
+  position: relative;
+  z-index: 2;
+  padding-block-end: 64px;
+  margin-block-end: -64px;
+  background: linear-gradient(180deg,
+      rgba(6, 22, 29, 0.84) 0,
+      rgba(6, 22, 29, 0.84) calc(100% - 64px),
+      rgba(6, 22, 29, 0) 100%);
 }
+
+.hero-meny, .hero-bunn, .hero-bildetekst {
+  position: relative;
+  z-index: 2;
+}
+
+/* TEKSTBLOKKA. `margin-block-start: auto` skyver den ned i en
+   flex-kolonne; bildeteksten under har sin egen `0`, ellers deler de
+   to auto-margene plassen mellom seg og blokka flyter opp fra bunnen.
+
+   INGEN EGEN `max-inline-size` HER. Den hadde 34rem/42rem til
+   27.09.2026, og `.ark` sentrerer det den får: på 1440 sto mottoet på
+   x=440 mens menyen og bildeteksten sto på x=20. Blokka arver nå
+   `.ark`s egen bredde og venstrekant, og det er BARNA som har hvert
+   sitt målebånd — mottoet 16em, søkefeltet 700px. Det er der
+   begrensningen hører hjemme: en linjelengde er en egenskap ved
+   teksten, ikke ved beholderen. */
+.hero-bunn { margin-block-start: auto; }
 
 .hero-tagline {
   /* Luft over, ikke bare under: mottoet er satt i en stor kursiv med
@@ -1171,7 +1235,7 @@ a:hover {
   line-height: 0.86;
   font-weight: 300;
   letter-spacing: var(--knip-4);
-  color: var(--papir);
+  color: var(--hav-tittel);
   max-width: none;
 }
 
@@ -1202,27 +1266,39 @@ a:hover {
   font-size: clamp(32px, 4.4vw, 62px);
   line-height: 1.04;
   letter-spacing: var(--knip-2);
-  color: var(--papir);
+  color: var(--hav-tittel);
   max-width: 16em;
 }
 
-/* KARTVERKETS NAVN I HEROEN. Lisensvilkår, og derfor synlig — men
-   dempet, fordi det er en kreditering og ikke en opplysning om
-   havbruket. */
-.hero-kreditt {
-  margin: var(--rom-16) 0 0;
+/* BILDETEKSTEN. Nederst i heroen, dempet — den er en kreditering og
+   ikke en opplysning om havbruket. Stedet er en lenke til
+   produksjonsområdet det ligger i, når registeret svarer entydig.
+
+   `margin-block-start: 0` og ikke `auto`: `.hero-bunn` har allerede
+   `auto` og har skjøvet seg ned. To `auto` i samme flex-kolonne deler
+   plassen mellom seg, og da flyter tekstblokka opp fra bunnen. */
+.hero-bildetekst {
+  /* INGEN `max-width: none`. `.ark` setter `max-width: var(--maal-side)`
+     og `margin-inline: auto`; en overstyring her ville gjort
+     bildeteksten full bredde mens alt annet i heroen står i
+     tekstspalta. MÅLT på 1440: 1440 px bred mot heroteksten på 672. */
+  margin: var(--rom-16) auto 0;
+  padding-block-end: clamp(18px, 2.2vw, 26px);
   font-size: var(--fs-12);
   color: var(--hav-sekundaer);
-  max-width: none;
 }
 
-.hero-kreditt a { color: var(--hav-sekundaer); }
-.hero-kreditt a:visited { color: var(--hav-sekundaer); }
-.hero-kreditt a:hover { color: var(--papir); }
+.hero-bildetekst a { color: var(--hav-tegn); }
+.hero-bildetekst a:visited { color: var(--hav-tegn); }
+.hero-bildetekst a:hover { color: var(--hav-tittel); }
 
 /* SØKESKJEMAET. Ett felt og én knapp, på papirflate midt i det mørke.
    Etiketten er skjult visuelt og ikke fjernet: en `placeholder` er
-   ikke en etikett — den forsvinner i det noen begynner å skrive. */
+   ikke en etikett — den forsvinner i det noen begynner å skrive.
+
+   BUNNEN ER UGJENNOMSIKTIG. Ble den gjennomsiktig, skinte bildet
+   gjennom, og da måtte toningen båret kontrasten for den mørke teksten
+   i feltet også. Se `test_soekefeltet_har_egen_ugjennomsiktig_bunn`. */
 .sok {
   display: flex;
   margin-block-start: clamp(18px, 2vw, 26px);

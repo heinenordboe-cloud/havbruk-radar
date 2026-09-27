@@ -1806,7 +1806,11 @@ def _forside(**overstyr) -> str:
         "utenfor_uka": 32979,
     }
     f = {
-        "hero_bredde": 900, "hero_hoyde": 1056,
+        "herofoto": {"sted": "Bømlo", "kommune": "BØMLO",
+                     "fotograf": "Endre Stedje",
+                     "tjeneste": "Unsplash",
+                     "po": "3", "po_navn": "Karmøy til Sotra",
+                     "koder": []},
         "lokaliteter": 1782, "produksjonsomraader": 13, "selskaper": 481,
         "tillatelser": 2945, "luke_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
@@ -1953,22 +1957,44 @@ def test_kartet_er_statisk_uten_tjeneste_og_uten_js():
         assert forbudt not in html.lower(), forbudt
 
 
-def test_heroen_er_kartet_og_hentes_fra_oss_selv():
-    """HEROFOTOGRAFIET ER BORTE fra 26.09.2026.
+def test_heroen_er_et_foto_vi_hoster_selv():
+    """Regelen har stått gjennom tre heroer: INGENTING I HEROEN HENTES
+    FRA EN TREDJEPART.
 
-    Regelen er den samme som før: ingenting i heroen hentes fra en
-    tredjepart. Den gjaldt et Unsplash-fotografi; nå gjelder den et
-    kart, og kravet er det samme — en absolutt adresse på vårt eget
-    domene, ingen CDN og ingen karttjeneste.
+    Den gjaldt et Unsplash-fotografi 22.09.2026, et kart 26.09, og et
+    annet Unsplash-fotografi 27.09. Kravet er det samme hver gang — en
+    absolutt adresse på vårt eget domene, ingen CDN, ingen karttjeneste.
+
+    ORDET «unsplash» SKAL IKKE STÅ I MARKUPEN som en adresse, men det
+    står som TEKST i bildeteksten: «Foto: Endre Stedje / Unsplash». De
+    to er ikke det samme, og prøven skiller dem — den ser etter verten,
+    ikke etter navnet.
     """
     html = _forside()
-    assert "unsplash" not in html.lower()
-    assert "hero-800.jpg" not in html
-    assert 'src="/kart/norge.svg"' in html
-    # Ingen ekstern vert i heroen i det hele tatt.
     hero = html[html.index("<header"):html.index("</header>")]
+    assert "images.unsplash.com" not in hero
+    assert "unsplash.com/" not in hero
+    assert "/kart/norge.svg" not in html, "kartheroen er borte"
+    # De tre breddene, alle fra vår egen rot.
+    for bredde in (800, 1600, 2400):
+        assert f'/bilde/hero-{bredde}.jpg' in hero, bredde
+    # Navngivingen står som tekst.
+    assert "Foto: Endre Stedje / Unsplash" in hero
+    # Ingen ekstern vert i heroen i det hele tatt.
     assert "//" not in hero.replace("https://www.kartverket.no", "") \
         or "http" not in hero.replace("https://www.kartverket.no", "")
+
+
+def test_stedet_i_bildeteksten_lenker_til_omraadet_registeret_oppgir():
+    """Bømlo lenker til produksjonsområdet KOMMUNEN LIGGER I, og koden
+    er slått opp i registeret — ikke skrevet i malen.
+
+    Målt 27.09.2026: Bømlo har 41 lokaliteter, 16 i PO 3 og 25 uten
+    kode. Ett område, altså entydig, altså en lenke.
+    """
+    html = _forside()
+    hero = html[html.index("<header"):html.index("</header>")]
+    assert '<a href="/produksjonsomrade/3/">Bømlo</a>' in hero, hero[-800:]
 
 
 def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():

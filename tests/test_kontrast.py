@@ -340,50 +340,133 @@ def test_rapport(capsys):
     assert capsys.readouterr().out
 
 
-# ==================================== heroen over kartet
+# ==================================== heroen over et fotografi
 #
-# Flata under teksten i heroen er et KART, ikke en farge, og et kart kan
-# ikke leses av `palett()`.
+# Flata under teksten i heroen er et FOTO, ikke en farge, og et foto kan
+# ikke leses av `palett()`. Toningen i `.hero-slor` er derfor ikke
+# stemning — den er det eneste som gjør teksten lesbar.
 #
-# Fram til 26.09.2026 var det et fotografi med RENE HVITE piksler
-# (255,255,255) i snøen, og `--papir` #e7dbd0 over hvitt er 1,36:1 —
-# toningen var det eneste som gjorde teksten lesbar. Kartet er mørkt
-# hele veien, og den lyseste flata i det er landmassen. Toningen står
-# likevel, og gulvet under er uendret: den dagen kartfargene justeres,
-# skal prøven fortsatt holde teksten lesbar uten at noen husker å måle
-# på nytt.
+# GULVET REGNES MOT HVITT, ikke mot fila som ligger der nå. Bildet kan
+# byttes — det er byttet to ganger på fem dager — og en prøve som var
+# kalibrert mot akkurat disse pikslene ville vært grønn og blind dagen
+# etter. Hvitt er det verst tenkelige bildet, og en toning som holder
+# mot hvitt holder mot alt.
 #
 # DEN EKTE MÅLINGEN skjer på rendret side i
-# `tests/test_smalskjerm.py`, mot kartet slik det faktisk tegnes. Denne
-# prøven er gulvet i stilarket; den er billig og kjører hver gang.
+# `tests/test_smalskjerm.py::test_heroteksten_har_nok_kontrast`, mot
+# bildets egne piksler under hver tekstblokk, i begge bredder og begge
+# moduser. Denne er gulvet i stilarket; den er billig og kjører hver
+# gang.
 
-HERO_TONING = re.compile(r"\.hero-(?:meny|bunn)\s*\{([^}]*)\}", re.S)
+HERO_TONING = re.compile(r"\.hero-slor\s*\{([^}]*)\}", re.S)
+MENY_TONING = re.compile(r"\.hero-menyflate\s*\{([^}]*)\}", re.S)
 RGBA = re.compile(r"rgba\(\s*6,\s*22,\s*29,\s*([\d.]+)\s*\)")
 
 
-def test_heroflata_bak_teksten_holder_45():
-    """Heroteksten står på heroens EGEN flate fra 26.09.2026.
+def test_toningens_tetteste_stopp_holder_45_mot_hvitt():
+    """Gulvet i stilarket, og GRENSA DEN HAR STÅR HER.
 
-    Toningene sto her til da, og de fantes fordi teksten lå oppå et
-    fotografi og siden oppå et kart: en toning sterk nok til 4,5:1
-    måtte dekke til nettopp det bildet var der for å vise. Med kartet i
-    sin egen spalte er flata under teksten én farge, og prøven er
-    tilsvarende enkel — men den må stå, for fargen kan endres.
+    Toningen er en gradient, og hvilken alfa som gjelder for en
+    tekstblokk avhenger av hvor på heroen blokken lander. Det vet bare
+    en rendret side — `test_smalskjerm.test_heroteksten_har_nok_kontrast`
+    måler hver blokk mot bildets egne piksler, i to bredder og to
+    moduser, og det er DEN prøven som holder heroen lesbar.
 
-    `test_smalskjerm.test_heroteksten_har_nok_kontrast` måler det samme
-    på den rendrede sida i begge bredder. Denne leser tokenene, så en
-    endring i stilarket felles uten at noen bygger nettstedet.
+    Denne prøven er billig og kjører uten nettleser, og den vokter det
+    to tingene som kan avgjøres av stilarket alene:
+
+    1. **Det tetteste stoppet holder 4,5:1 mot hvitt.** Det er stoppet
+       nederst, der bildeteksten står — den minste skriften på flata.
+       Hvitt er det verst tenkelige bildet, så en toning som holder der,
+       holder for et hvilket som helst fotografi. Bildet er byttet to
+       ganger på fem dager; en prøve kalibrert mot akkurat disse
+       pikslene ville vært grønn og blind dagen etter.
+
+    2. **Det finnes et stopp under 0,35.** Uten et vindu ligger toningen
+       over hele flata, og da er fotografiet en grå plate — 331 kB vi
+       ikke har noen grunn til å sende. Mellom menyen og mottoet står
+       det ingen tekst, og der skal bildet stå åpent.
     """
     css = STIL.read_text(encoding="utf-8")
-    assert ".hero-slor" not in css, \
-        "sløret er fjernet — en toning over kartet skjuler det kartet viser"
-    for bunn, tekst, hva in ((farge(css, "--hav9"), farge(css, "--papir"),
-                              "heroteksten"),
-                             (farge(css, "--hav9"),
-                              farge(css, "--hav-sekundaer"),
-                              "taglinen og krediteringen")):
-        k = kontrast(tekst, bunn)
-        assert k >= 4.5, f"{hva}: {k:.2f}:1 mot heroflata"
+    blokk = HERO_TONING.search(css)
+    assert blokk, "fant ikke `.hero-slor` — toningen er heroens lesbarhet"
+
+    alfaer = [float(a) for a in RGBA.findall(blokk.group(1))]
+    assert len(alfaer) >= 3, "en toning med under tre stopp er en flate"
+
+    tettest = over("#06161d", "#ffffff", max(alfaer))
+    k = kontrast(farge(css, "--hav-sekundaer"), tettest)
+    assert k >= 4.5, (
+        f"tetteste stopp {max(alfaer)} gir {k:.2f}:1 mot hvitt — "
+        f"bildeteksten står der")
+
+    assert min(alfaer) < 0.35, (
+        f"tynneste stopp er {min(alfaer)}: toningen dekker hele "
+        f"fotografiet, og da er det ingen grunn til å sende det")
+
+
+def test_menyflata_holder_45_mot_hvitt():
+    """Menyen har sin EGEN flate, og den må stå for seg.
+
+    Toningen i `.hero-slor` måles i prosent av heroen. Menyen er 67 px
+    høy på 1440 og 124 på 390, der den brytes i to linjer — en
+    prosentandel som dekket begge, ville dekket en tredjedel av bildet
+    på den brede skjermen.
+
+    MÅLT 27.09.2026 med menyen dekket herfra: **1,60:1 på den andre
+    menylinja på 390.** Den lå under 14 %-stoppet, i vinduet, og
+    prøven fanget det bare fordi den fra samme dag måler UNIONEN av
+    alle lenkene og ikke den første.
+    """
+    css = STIL.read_text(encoding="utf-8")
+    blokk = MENY_TONING.search(css)
+    assert blokk, "fant ikke `.hero-menyflate` — menyen står da på bildet"
+    alfaer = [float(a) for a in RGBA.findall(blokk.group(1))]
+    assert alfaer, "ingen rgba-stopp i menyflata"
+    # UTFASINGEN NEDERST TELLER IKKE. Den ligger under menyen, ikke bak
+    # den; det er stoppene over utfasingen som bærer lenkene.
+    baerende = [a for a in alfaer if a > 0]
+    assert baerende, "bare utfasing: menyen har ingen flate"
+    for alfa in baerende:
+        flate = over("#06161d", "#ffffff", alfa)
+        k = kontrast(farge(css, "--hav-sekundaer"), flate)
+        assert k >= 4.5, f"alfa {alfa} gir {k:.2f}:1 mot hvitt"
+
+
+def test_heroteksten_bruker_tokener_som_er_lyse_i_BEGGE_moduser():
+    """Heroen er mørk uansett modus, og tokenene må si det.
+
+    FEILEN SOM BLE FUNNET 27.09.2026: heroteksten sto i `var(--papir)`,
+    altså PAPIRFARGEN, som i mørk modus snur fra #e7dbd0 til #121a1d.
+    Målt på bygget side ga det **1,34:1** for h1 i mørk modus, i alle
+    tre breddene — mot 13,54:1 i lys. Feilen var eldre enn fotografiet;
+    den fantes også over kartet, og over det forrige fotografiet.
+
+    Flata under teksten her BLIR ALDRI PAPIR: den er et bilde med en
+    literal `rgba(6, 22, 29, a)` over, og den literalen snur ikke med
+    modus. Teksten må derfor bruke tokenene som betyr «tekst på mørk
+    flate» — `--hav-tittel`, `--hav-tegn`, `--hav-sekundaer` — som er
+    lyse i begge.
+
+    Prøven leser BEGGE verdiene av hvert token og krever at begge
+    holder mot toningens mørkeste punkt. `--papir` ville falt på den
+    andre.
+    """
+    css = STIL.read_text(encoding="utf-8")
+    # Toningens tetteste stopp: den mørkeste flata teksten står på.
+    flate = over("#06161d", "#ffffff", max(
+        float(a) for a in RGBA.findall(HERO_TONING.search(css).group(1))))
+    for token, terskel, hva in (("--hav-tittel", 4.5, "h1 og lenkehover"),
+                                ("--hav-tegn", 4.5, "bildetekstens lenke"),
+                                ("--hav-sekundaer", 4.5,
+                                 "taglinen og bildeteksten")):
+        lys, mork = _blokker(css)
+        for modus, kilde in (("lys", lys), ("mørk", mork)):
+            m = re.search(rf"{token}:\s*(#[0-9a-fA-F]{{3,8}})", kilde)
+            assert m, f"{token} mangler i {modus} modus"
+            k = kontrast(m.group(1), flate)
+            assert k >= terskel, (
+                f"{hva} ({token}) i {modus} modus: {k:.2f}:1 mot heroflata")
 
 
 def farge(css: str, token: str) -> str:

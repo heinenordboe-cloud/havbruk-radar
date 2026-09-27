@@ -173,20 +173,24 @@ def test_en_brikke_med_null_er_ikke_klikkbar(side, tjener, sti):
     assert not feil, f"{sti}: {feil}"
 
 
-# ---- heroen over kartet -----------------------------------------------
+# ---- heroen over fotografiet ------------------------------------------
 #
-# FLATA UNDER TEKSTEN ER ET KART, ikke en farge, og et kart kan ikke
+# FLATA UNDER TEKSTEN ER ET FOTO, ikke en farge, og et foto kan ikke
 # leses av stilarket. `tests/test_kontrast.py` måler gulvet i CSS-en —
-# at toningen er sterk nok mot hvitt. DETTE måler det som faktisk
-# havner på skjermen: kartets egne piksler under hver tekstblokk, med
-# toningen oppå.
+# at toningen er sterk nok mot HVITT, altså mot det verst tenkelige
+# bildet. DETTE måler det som faktisk havner på skjermen: bildets egne
+# piksler under hver tekstblokk, med toningen oppå.
 #
 # METODEN: skjul teksten, fotografer nøyaktig det rektangelet teksten
-# sto i, og finn den LYSESTE pikselen der. Kontrasten mot `--papir`
-# regnes med WCAG-formelen. Lyseste og ikke gjennomsnittet: en tekst er
-# uleselig der den er uleselig, ikke i snitt.
+# sto i, og finn den LYSESTE pikselen der. Kontrasten mot elementets
+# egen tekstfarge regnes med WCAG-formelen. Lyseste og ikke
+# gjennomsnittet: en tekst er uleselig der den er uleselig, ikke i
+# snitt.
 
-PAPIR = (0xE7, 0xDB, 0xD0)      # --papir, heroens tekstfarge
+# `PAPIR = (0xE7, 0xDB, 0xD0)` STO HER som heroens tekstfarge. Den er
+# borte: fargen leses nå av den rendrede sida, fordi konstanten var
+# usann i mørk modus og prøven ikke kunne se det. Se
+# `test_heroteksten_har_nok_kontrast`.
 AA_TEKST = 4.5
 AA_STOR = 3.0                   # >= 24 px, WCAG 1.4.3
 
@@ -268,33 +272,59 @@ def _kontrast(a, b) -> float:
 @pytest.mark.parametrize("velger,terskel,hva", [
     (".hero-losen", AA_STOR, "mottoet, 32-62 px"),
     (".hero-tagline", AA_TEKST, "beskrivelsen"),
-    (".hero-kreditt", AA_TEKST, "Kartverket-krediteringen"),
-    (".hovedmeny a", AA_TEKST, "menyen"),
+    (".hero-bildetekst", AA_TEKST, "bildeteksten"),
+    (".hovedmeny a", AA_TEKST, "menyen, alle seks lenkene"),
 ])
+@pytest.mark.parametrize("modus", ("light", "dark"))
 @pytest.mark.parametrize("bredde", (390, 1440))
 def test_heroteksten_har_nok_kontrast(side, tjener, velger, terskel, hva,
-                                      bredde):
+                                      bredde, modus):
     """Kontrasten måles på den RENDREDE sida, ikke på tokener.
 
-    Teksten sto over kartet fram til 26.09.2026, og da var dette den
-    eneste prøven som kunne fange at en toning var for svak et sted.
-    Nå står den på heroens egen flate, og prøven er billigere å holde
-    grønn — men den blir stående: den måler det ØYET ser, og den ville
-    fanget at kartet kom tilbake bak teksten, at en flate ble lysnet,
-    eller at en tekstfarge ble byttet.
+    Heroen har vært et foto, et kart og et foto igjen på fem dager.
+    Denne prøven er den eneste som kan si om toningen er sterk nok der
+    teksten FAKTISK står, over de pikslene som FAKTISK ligger der.
+
+    ## TO TING BLE LAGT TIL 27.09.2026, og begge fordi prøven bommet
+
+    **MODUS.** Prøven kjørte bare i lys. Heroteksten sto i
+    `var(--papir)`, som snur til #121a1d i mørk modus, og h1 målte
+    **1,34:1** der — i alle tre breddene. Prøven var grønn hele tiden,
+    fordi den aldri spurte. Feilen var eldre enn fotografiet.
+
+    **TEKSTFARGEN LESES, den antas ikke.** Fram til da var den hardkodet
+    til papirfargen. Det er stedfortrederen fra CLAUDE.md 1b-2: konstanten
+    var lik den ekte fargen helt til den ikke var det, og da målte
+    prøven kontrasten til en farge som ikke sto på sida. Nå leses
+    `getComputedStyle(el).color` — det ØYET ser, som resten av prøven.
 
     Teksten skjules, rektangelet den sto i fotograferes, og den LYSESTE
-    pikselen der måles mot `--papir`.
+    pikselen der måles mot elementets egen farge.
     """
+    side.emulate_media(color_scheme=modus)
     side.set_viewport_size({"width": bredde, "height": 900})
     side.goto(tjener + "/", wait_until="load")
     side.wait_for_timeout(250)
 
-    boks = side.evaluate("""(v) => {
-      const el = document.querySelector(v);
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return {x: r.x, y: r.y, width: r.width, height: r.height};
+    # ALLE ELEMENTENE VELGEREN TREFFER, ikke det første.
+    #
+    # `querySelector(".hovedmeny a")` gir «Lokaliteter» alene. På 390
+    # brytes menyen i TO linjer, og den andre — «Endringer», «Om»,
+    # «Følg med» — ligger lenger ned, over en lysere del av himmelen.
+    # Den var aldri målt. Boksen er nå UNIONEN av alle treffene, og
+    # fargen er den første, som de deler.
+    boks = side.evaluate(r"""(v) => {
+      const alle = [...document.querySelectorAll(v)];
+      if (!alle.length) return null;
+      const r = alle.map(e => e.getBoundingClientRect());
+      const x = Math.min(...r.map(q => q.left));
+      const y = Math.min(...r.map(q => q.top));
+      const c = getComputedStyle(alle[0]).color
+          .replace(/^rgba?\(/, "").replace(/\)$/, "").split(",");
+      return {x, y, antall: alle.length,
+              width: Math.max(...r.map(q => q.right)) - x,
+              height: Math.max(...r.map(q => q.bottom)) - y,
+              farge: [+c[0], +c[1], +c[2]]};
     }""", velger)
     assert boks and boks["width"] > 4 and boks["height"] > 4, \
         f"{hva}: fant ikke {velger}"
@@ -313,15 +343,22 @@ def test_heroteksten_har_nok_kontrast(side, tjener, velger, terskel, hva,
       }
     }""")
     side.wait_for_timeout(80)
-    bilde = side.screenshot(clip=boks)
+    klipp = {"x": max(boks["x"], 0), "y": max(boks["y"], 0),
+             "width": boks["width"], "height": boks["height"]}
+    bilde = side.screenshot(clip=klipp)
+    # SIDA ER MODULSCOPET. Både bredden og modusen settes tilbake, ellers
+    # arver neste prøve i fila en mørk 1440-skjerm uten å be om den.
     side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.emulate_media(color_scheme="light")
 
     _b, _h, rader = _png_piksler(bilde)
     lysest = max((p for rad in rader for p in rad), key=_lum)
-    k = _kontrast(PAPIR, lysest)
+    k = _kontrast(tuple(boks["farge"]), lysest)
     assert k >= terskel, (
-        f"{hva} @ {bredde}px: {k:.2f}:1 mot lyseste piksel "
-        f"{lysest} — terskelen er {terskel}")
+        f"{hva} @ {bredde}px, {modus} ({boks['antall']} element): "
+        f"{k:.2f}:1 — teksten er "
+        f"{tuple(boks['farge'])}, lyseste piksel under den {lysest}, "
+        f"terskelen {terskel}")
 
 
 # ---- brikka «Alle N rader» --------------------------------------------

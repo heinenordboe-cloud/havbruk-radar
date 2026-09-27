@@ -195,23 +195,27 @@ OMRAADE_TAK = 150_000
 
 
 @bygget
-def test_heroens_bildemaal_er_kartets_egne():
-    """`<img width height>` skal være SVG-ens `viewBox`.
+def test_norgeskartet_er_borte_og_lar_ingenting_ligge_igjen():
+    """`/kart/norge.svg` var forsidens hero 26.–27.09.2026 og er
+    slettet sammen med den.
 
-    To tall skrevet to steder driver fra hverandre — og et bilde som
-    oppgir feil mål, hopper i sida når fila lander. Her leses begge
-    fra det bygde nettstedet, så prøven fanger både en endret ramme og
-    en mal som fortsatt skriver de gamle tallene.
+    Prøven står der den gamle `test_heroens_bildemaal_er_kartets_egne`
+    sto, og den vokter det motsatte: at generatoren OG fila forsvant
+    samtidig. Halvveis — en `kart.norgeskart()` uten noen som kaller
+    den, eller en fil ingen skriver — er nettopp det som blir stående
+    og se ut som om det er i bruk.
+
+    `kart/`-mappa kan finnes; det er `norge.svg` som ikke skal det.
     """
-    import re
-    svg = pathlib.Path(NETTSTED, "kart", "norge.svg").read_text(encoding="utf-8")
-    vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg)
-    assert vb, "norge.svg har ingen viewBox"
+    assert not hasattr(kart, "norgeskart"), \
+        "generatoren står igjen uten en bruker"
+    assert not hasattr(kart, "norgeskart_storrelse")
+    assert not pathlib.Path(NETTSTED, "kart", "norge.svg").exists(), \
+        "fila skrives fortsatt"
     html = pathlib.Path(NETTSTED, "index.html").read_text(encoding="utf-8")
-    img = re.search(r'<img class="hero-kart"[^>]*>', html)
-    assert img, "forsiden har ikke heroens kart"
-    assert f'width="{round(float(vb.group(1)))}"' in img.group(0), img.group(0)
-    assert f'height="{round(float(vb.group(2)))}"' in img.group(0), img.group(0)
+    assert "norge.svg" not in html
+    # Områdekartene er uberørte — de delte aldri `_norgeramme`.
+    assert hasattr(kart, "omraadekart")
 
 
 @bygget

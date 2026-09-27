@@ -4668,12 +4668,26 @@ BILDEMAPPE = "bilde"
 
 BILDEFILER = ("hero-800.jpg", "hero-1600.jpg", "hero-2400.jpg")
 
-# KARTET SOM EGEN FIL. `<img src="/kart/norge.svg">` i heroen: den er
-# den samme på hver visning og kan caches for seg, og et `<img>`
-# blokkerer ingenting. Et SVG i et `<img>` når ikke sidens stilark, så
-# fila bærer sin egen — se `kart.norgeskart()`.
-KARTMAPPE = "kart"
-NORGESKART = "norge.svg"
+# HEROENS BILDETEKST. Stedet og fotografen er EGENSKAPER VED FILA og
+# hører derfor her, ved siden av filnavnene — ikke i malen. Malen
+# skriver ingen navn; den er den samme uansett hvilket bilde som ligger
+# der. Se kommentaren øverst i `maler/forside.html.j2`.
+#
+# `kommune` er ikke det samme som `sted`: den er NØKKELEN vi slår opp
+# produksjonsområdet med, og den skrives slik registeret skriver den.
+# `sted` er det leseren ser. For dette bildet er de like; for et bilde
+# tatt på en navngitt holme ville de ikke vært det.
+#
+# PRODUKSJONSOMRÅDET STÅR IKKE HER. Det slås opp i registeret ved hver
+# bygging — se `_herofoto()`. En kode skrevet av her ville vært et tall
+# om VERDEN, hentet fra hukommelsen i stedet for fra kilden, og den
+# ville blitt stående den dagen området endrer seg.
+HEROFOTO = {
+    "sted": "Bømlo",
+    "kommune": "BØMLO",
+    "fotograf": "Endre Stedje",
+    "tjeneste": "Unsplash",
+}
 
 # KARTGEOMETRIEN SENDES IKKE UT. Den er tegnet INN i SVG-en på hver
 # side, og en GeoJSON-fil ved siden av ville vært 365 kB ingen henter.
@@ -4755,20 +4769,13 @@ def skriv_bilder(rot: Path) -> list[Path]:
     return skrevet
 
 
-def skriv_norgeskart(rot: Path, felles: Felles) -> Path:
-    """`/kart/norge.svg` — kysten med hver lokalitet, til heroen.
-
-    EN EGEN FIL og ikke tegnet inn i forsiden. Den er 350 kB, den er
-    den samme på hver visning, og en forside som bar den i HTML-en
-    ville sendt den på nytt hver gang noen kom innom.
-    """
-    ut = rot / KARTMAPPE / NORGESKART
-    ut.parent.mkdir(parents=True, exist_ok=True)
-    ut.write_text(kart.norgeskart(lokaliteter=[
-        (nr, d.get("navn", ""), d.get("breddegrad", ""),
-         d.get("lengdegrad", ""))
-        for nr, d in felles.akva.items()]), encoding="utf-8")
-    return ut
+# `skriv_norgeskart()` STO HER TIL 27.09.2026. Den skrev
+# `/kart/norge.svg`, kysten med hver lokalitet, til forsidens hero.
+#
+# Heroen er et fotografi igjen, og fila er slettet — ikke bare tatt ut
+# av malen. Målt før den ble det: `/kart/norge.svg` hadde nøyaktig én
+# bruker, `<img class="hero-kart">`. Kystseksjonen tegner sitt eget kart
+# inn i sida av `f.kart`. Se `kart.py`, der generatoren lå.
 
 
 # ------------------------------------------------- ENDRINGSSIDENE
@@ -6562,6 +6569,48 @@ def _tegnforklaring(omraader: list[dict]) -> list[dict]:
             if k in i_bruk]
 
 
+def _herofoto(felles: Felles) -> dict:
+    """Heroens bildetekst: sted, produksjonsområde og fotograf.
+
+    STEDET LENKER TIL ET PRODUKSJONSOMRÅDE, og koden SLÅS OPP I
+    REGISTERET — den er ikke skrevet av. Kommunen er nøkkelen, og
+    svaret er området hver lokalitet i den kommunen ligger i.
+
+    ENTYDIG ELLER INGEN LENKE. Finner oppslaget to ulike koder, er det
+    ikke ett område kommunen «ligger i», og en lenke ville valgt det
+    ene på leserens vegne. Da står stedet uten lenke — og byggeloggen
+    sier hvorfor, framfor at en lenke stille blir borte.
+
+    LOKALITETER UTEN OMRÅDE TELLER IKKE SOM UENIGHET. `null` er ikke en
+    annen kode; det er fraværet av en. Målt for Bømlo 27.09.2026: 41
+    lokaliteter, 16 i PO 3 «Karmøy til Sotra», 25 uten kode — 18
+    sjølokaliteter for skjell og andre arter, og 7 på land eller i
+    ferskvann. Trafikklysordningen omfatter dem ikke, og at de mangler
+    kode sier ingenting om hvor kommunen ligger.
+
+    Samme skille som ellers i repoet: å telle en tom verdi som en
+    motstridende verdi, er regel 1b-2s feilform.
+    """
+    kommune = HEROFOTO["kommune"]
+    koder = {d.get("prodomraade_kode") or ""
+             for d in felles.akva.values()
+             if (d.get("kommune") or "").upper() == kommune}
+    koder.discard("")
+    ut = dict(HEROFOTO)
+    ut["po"] = koder.pop() if len(koder) == 1 else ""
+    ut["po_navn"] = felles.po_navn.get(ut["po"], "")
+    ut["koder"] = sorted(koder) if len(koder) > 1 else []
+    if not ut["po"]:
+        # STILLE BORTFALL ER DET ENESTE UAKSEPTABLE UTFALLET. En lenke
+        # som forsvinner uten at noe sier fra, ser ut som et designvalg.
+        print(f"  heroens bildetekst: {kommune} gir "
+              f"{len(ut['koder']) or 'ingen'} produksjonsområde"
+              f"{'r' if len(ut['koder']) != 1 else ''}"
+              f"{' ' + ', '.join(ut['koder']) if ut['koder'] else ''}"
+              f" — stedet står uten lenke")
+    return ut
+
+
 def bygg_forside(felles: Felles) -> dict:
     """Alt forsiden viser: heroen, uka, arkivtallene, kysten og feedene.
 
@@ -6574,14 +6623,10 @@ def bygg_forside(felles: Felles) -> dict:
     omraader = _omraaderader(felles)
     akva_datoer = snapshot.datoer("akvakultur")
 
-    hero_bredde, hero_hoyde = kart.norgeskart_storrelse()
     return {
-        # HEROENS BILDEMÅL. Hentet fra kartet selv og ikke skrevet av:
-        # `<img width height>` holder av plassen før SVG-en er lastet,
-        # og et tall som ikke stemmer med `viewBox` gir et hopp i
-        # sida når fila kommer.
-        "hero_bredde": hero_bredde,
-        "hero_hoyde": hero_hoyde,
+        # HEROENS BILDETEKST. Stedet, fotografen, og produksjonsområdet
+        # slått opp i registeret — se `_herofoto()`.
+        "herofoto": _herofoto(felles),
 
         # ---- tallene ----
         "lokaliteter": len(felles.akva),
@@ -7321,7 +7366,6 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_fonter(rot),
                   lambda: skriv_ikoner(rot),
                   lambda: skriv_bilder(rot),
-                  lambda: skriv_norgeskart(rot, felles),
                   lambda: skriv_skript(rot),
                   lambda: skriv_sitemap(rot, felles),
                   lambda: skriv_robots(rot),

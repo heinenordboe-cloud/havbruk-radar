@@ -7,9 +7,11 @@
     kystlinje.json.gz            Kartverket N500 + N2000, CC BY 4.0,
                                  avledet av verktoy/kystlinje.py
 
-Alle tre tegnes INN i SVG-en ved bygging. Det ene unntaket er
-forsidens hero: den er en egen fil, `/kart/norge.svg`, fordi den er den
-samme på hver visning og kan caches for seg — se `skriv_norgeskart()`.
+Alle tre tegnes INN i SVG-en ved bygging, på hver side som har et
+kart. Det var ett unntak, `/kart/norge.svg` — forsidens hero, en egen
+fil fordi den var den samme på hver visning. Heroen ble et fotografi
+igjen 27.09.2026, og fila er slettet sammen med `kart.norgeskart()`.
+Den hadde nøyaktig én bruker. Se docs/design/HEROFOTO.md.
 
 Av lisenstekstene følger bare Natural Earths med til nettstedets rot.
 Kartverkets krav er en KREDITERING og ikke en tekstfil: «© Kartverket»
@@ -228,7 +230,10 @@ innenfor 20 km — de hjørnene er åpent hav eller innland.
     lokalitetskart   n500    36 km, 560 px, toleranse 1,6 px
     områdekart       n500    området selv, 760 px, toleranse 0,7 px
                      n2000   der n500 gir et kart over 150 kB
-    /kart/norge.svg  n2000   hele kysten, 1800 px, toleranse 0,8 px
+    forsidens kyst   n500    de tretten områdene, tegnet inn i sida
+
+`/kart/norge.svg` sto i denne lista og brukte n2000 over hele kysten i
+1800 px med toleranse 0,8 px. Den er borte fra 27.09.2026.
 
 **Toleransen på lokalitetskartet er 1,6 piksler, og det er ikke en
 smakssak.** Ved 36 km i 560 piksler er ett piksel 64 meter, så 1,6

@@ -19,33 +19,57 @@
    et fotografi og ikke i det mørke båndet.
 
    BILDET ER HOSTET AV OSS, i tre bredder. `srcset` lar nettleseren
-   velge: en telefon henter 106 kB der en 1440-skjerm henter 375. Ingen
+   velge: en telefon henter 93 kB der en 1440-skjerm henter 331. Ingen
    CDN, av samme grunn som fontene — og en Unsplash-URL i markupen ville
    dessuten fortalt dem hvem som leser siden.
+
+   INGEN NAVN ER SKREVET HER, heller ikke fotografens. Bildeteksten
+   kommer fra `f.herofoto`, som `nettsted._herofoto()` bygger: stedet og
+   fotografen er egenskaper ved FILA, og produksjonsområdet er slått opp
+   i registeret ved bygging. Malen er den samme uansett hvilket bilde
+   som ligger der.
 
    `loading="eager"` og `fetchpriority="high"`: dette er det første
    leseren ser, og et lat-lastet herobilde er en grå flate i et halvt
    sekund. Motsatt av alle andre bilder. #}
 {% block topp %}
 <header class="hero">
-  <div class="ark hero-meny">
-    {% include "meny.html.j2" %}
+  {# `alt=""` OG IKKE EN BESKRIVELSE. Bildet er en flate, ikke en
+     opplysning: ingenting i det står noe annet sted på siden, og
+     ingenting i det er noe leseren skal handle på. En alt-tekst her
+     ville lest opp «skjærgård i vinterlys» foran sidens egen
+     overskrift. Stedet og fotografen står som SYNLIG tekst i
+     bildeteksten under, der de er like tilgjengelige for en skjermleser
+     som for et øye — og det er riktigere sted enn et attributt. #}
+  <img class="hero-bilde" alt=""
+       src="/bilde/hero-1600.jpg"
+       srcset="/bilde/hero-800.jpg 800w,
+               /bilde/hero-1600.jpg 1600w,
+               /bilde/hero-2400.jpg 2400w"
+       sizes="100vw" width="2400" height="1600"
+       loading="eager" fetchpriority="high" decoding="async">
+
+  {# TONINGEN LIGGER I CSS-EN og ikke her: den er en flate og ikke
+     innhold. Uten stilark står teksten rett på bildet — lesbart nok i
+     toppen, og siden er hel. #}
+  <div class="hero-slor" aria-hidden="true"></div>
+
+  {# MENYENS EGEN FLATE, i full bredde og med menyens egen høyde.
+     Toningen under kan ikke dekke menyen: den måles i PROSENT av
+     heroen, og menyen er 67 px på 1440 og 124 px på 390 — der brytes
+     den i to linjer. En prosentandel som dekket begge, ville dekket
+     en tredjedel av bildet på den brede skjermen.
+
+     Flata er et eget element rundt `.ark` og ikke en bakgrunn PÅ den,
+     fordi `.ark` er 1400 px bred og midtstilt: på en skjerm bredere
+     enn det ville båndet stoppet før skjermkanten. #}
+  <div class="hero-menyflate">
+    <div class="ark hero-meny">
+      {% include "meny.html.j2" %}
+    </div>
   </div>
 
-  {# TO SPALTER FRA 1024 PIKSLER: teksten til venstre, kartet til
-     høyre. Under det ligger teksten først og kartet under, i full
-     bredde.
-
-     KARTET STÅR I SIN EGEN SPALTE og ikke bak teksten. Det var et
-     bakteppe fram til 26.09.2026, og et bakteppe må tones ned for at
-     teksten over det skal være lesbar — altså må det nedtones nettopp
-     der det er noe å se. Nå tones ingenting: teksten står på heroens
-     egen mørke flate, og kartet står ved siden av, ubeskåret.
-
-     RAMMEN ER STÅENDE, fordi landet er det. En liggende ramme rundt
-     Norge er to tredjedeler tomt hav. #}
-  <div class="ark hero-rute">
-  <div class="hero-bunn">
+  <div class="ark hero-bunn">
     {# MOTTOET ER H1. Navnet står i menyen over — ordmerket er en lenke
        til forsiden og står på hver eneste side — og en H1 som bare
        gjentok det ville brukt sidens viktigste overskrift på noe
@@ -57,37 +81,32 @@
     {# SØKET. Uten JavaScript peker skjemaet på den flate
        lokalitetsindeksen, som er hele lista på én side. Med Pagefind
        lastet svarer /sok/ i stedet. Skjemaet er det samme; det er
-       svarsiden som blir bedre. #}
+       svarsiden som blir bedre.
+
+       ETIKETTEN ER EKTE og bare visuelt skjult. En `placeholder` er
+       ikke en etikett — den forsvinner i det noen begynner å skrive. #}
     <form class="sok" action="/sok/" method="get" role="search">
       <label for="q">Søk etter lokalitet, selskap eller kommune</label>
       <input id="q" name="q" type="search"
              placeholder="Søk i lokaliteter og selskaper">
       <button class="knapp" type="submit">Søk</button>
     </form>
-
-    <p class="hero-kreditt">Kystlinje:
-      <a href="{{ kartverket_url }}">{{ kartverket }}</a>, N2000 Kartdata
-      · {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} tegnet inn</p>
   </div>
 
-  {# `<img>` OG IKKE INNTEGNET SVG. Fila er ~230 kB, den er den samme
-     på hver visning, og en forside som bar den i HTML-en ville sendt
-     den på nytt hver gang noen kom innom. Den lastes fra vårt eget
-     domene, som alt annet her — ingen CDN, ingen karttjeneste.
+  {# BILDETEKSTEN. Unsplash-lisensen krever ingen navngiving; den står
+     her likevel, av samme grunn som kildene står i bunnteksten — en
+     side som ikke sier hvor noe kommer fra, kan ingen etterprøve.
 
-     `alt=""` OG IKKE EN BESKRIVELSE: alt kartet viser står som tall og
-     tabell lenger ned på siden, og lokalitetene står i lista. En
-     alt-tekst her ville lest opp «kart over norskekysten» foran
-     innholdet uten å gi noe. SVG-fila bærer selv `<title>` og `<desc>`
-     for den som åpner den alene.
-
-     `loading="eager"` og `fetchpriority="high"`: dette er det første
-     leseren ser. #}
-  <img class="hero-kart" alt=""
-       src="/kart/norge.svg"
-       width="{{ f.hero_bredde }}" height="{{ f.hero_hoyde }}"
-       loading="eager" fetchpriority="high" decoding="async">
-  </div>
+     STEDET ER EN LENKE bare når registeret svarer ENTYDIG på hvilket
+     produksjonsområde kommunen ligger i. Gjør det ikke det, står
+     stedet som tekst og byggeloggen sier hvorfor. En lenke som valgte
+     det ene av to områder, ville vært et svar vi ikke har. #}
+  <p class="ark hero-bildetekst">
+    {%- if f.herofoto.po %}
+    <a href="/produksjonsomrade/{{ f.herofoto.po }}/">{{ f.herofoto.sted }}</a>
+    {%- else %}{{ f.herofoto.sted }}{% endif %}
+    · Foto: {{ f.herofoto.fotograf }} / {{ f.herofoto.tjeneste }}
+  </p>
 </header>
 {% endblock %}
 
