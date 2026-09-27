@@ -361,6 +361,33 @@ def test_heroteksten_har_nok_kontrast(side, tjener, velger, terskel, hva,
         f"terskelen {terskel}")
 
 
+@pytest.mark.parametrize("bredde", (360, 390, 1440))
+def test_menyflata_naar_heroens_kant(side, tjener, bredde):
+    """Båndet bak menyen skal nå skjermkanten i alle bredder.
+
+    Under 48rem har `.hero` sin egen `padding-inline` — luft fra den
+    gang heroen var et bånd med en kant — og et barn av den arver
+    innrykket. MÅLT 27.09.2026 på 390: flata sto x=16 med bredde 358,
+    altså et mørkt rektangel med fotografi rundt tre av fire sider.
+
+    Prøven måler flata mot HEROEN og ikke mot vindusbredden: det er
+    heroens kant båndet skal nå, og de to er ikke alltid det samme.
+    """
+    side.set_viewport_size({"width": bredde, "height": 844})
+    side.goto(tjener + "/", wait_until="load")
+    side.wait_for_timeout(150)
+    maal = side.evaluate("""() => {
+      const f = document.querySelector('.hero-menyflate').getBoundingClientRect();
+      const h = document.querySelector('.hero').getBoundingClientRect();
+      return {fx: f.x, fh: f.right, fy: f.y,
+              hx: h.x, hh: h.right, hy: h.y};
+    }""")
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert abs(maal["fx"] - maal["hx"]) < 1, f"venstre kant: {maal}"
+    assert abs(maal["fh"] - maal["hh"]) < 1, f"høyre kant: {maal}"
+    assert abs(maal["fy"] - maal["hy"]) < 1, f"overkant: {maal}"
+
+
 # ---- brikka «Alle N rader» --------------------------------------------
 
 

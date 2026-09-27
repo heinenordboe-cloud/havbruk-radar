@@ -1198,6 +1198,31 @@ a:hover {
       rgba(6, 22, 29, 0) 100%);
 }
 
+/* FLATA MÅ BRYTE UT AV HEROENS EGEN SIDELUFT.
+ *
+ * Under 48rem får `.hero` `padding-inline: var(--rom-16)` og
+ * `padding-block-start: var(--rom-32)` — se seksjon 8. Den luften er
+ * fra den gang heroen var et bånd med en kant, og den gjelder
+ * fortsatt: heroteksten står da på samme gutter som resten av siden.
+ *
+ * Men et BÅND skal nå kanten. MÅLT på 390: flata sto x=16 og y=32 med
+ * bredde 358, altså et mørkt rektangel med synlig fotografi rundt tre
+ * av fire sider. Negativ marg tar den ut til kanten, og like stor
+ * padding setter menyen tilbake der den sto.
+ *
+ * Tallene gjentas her og leses ikke av heroen — CSS kan ikke spørre
+ * om sin egen forelders padding. Endres seksjon 8, må dette følge, og
+ * det er `test_menyflata_naar_heroens_kant` som fanger at det ikke
+ * gjorde det. */
+@media (max-width: 48rem) {
+  .hero-menyflate {
+    margin-inline: calc(var(--rom-16) * -1);
+    padding-inline: var(--rom-16);
+    margin-block-start: calc(var(--rom-32) * -1);
+    padding-block-start: var(--rom-32);
+  }
+}
+
 .hero-meny, .hero-bunn, .hero-bildetekst {
   position: relative;
   z-index: 2;
