@@ -199,8 +199,16 @@
   --rust:           #aa3e04;   /* 4,54:1 mot papir, 5,01 mot papir2 */
   --rust-moerk:     #8f390d;   /* under peker */
   --rust-lys:       #d9804a;   /* samme rolle, på mørk flate */
-  --besokt:         #6b4a8c;
+  /* `--besokt` (#6b4a8c lys, #c0a5db mørk) STO HER TIL 27.09.2026,
+     sammen med aliaset `--farge-lenke-besokt`. Begge er borte — se
+     kommentaren over `a:visited`.
 
+     ET TOKENNAVN ETTERFULGT AV KOLON SKRIVES IKKE I EN KOMMENTAR HER.
+     `test_kontrast._deklarasjoner` leser paletten med et regulært
+     uttrykk som tar alt fram til neste semikolon som verdien. Første
+     utkast av denne kommentaren gjenga den slettede deklarasjonen
+     ordrett, og verdien løp da gjennom `--fokus`, som forsvant fra
+     paletten og felte åtte prøver med `KeyError`. MÅLT. */
   /* Fokusmarkøren er overleveringens: `2px solid #aa3e04`, offset 2. */
   --fokus:          var(--rust);
 
@@ -275,7 +283,6 @@
   --farge-tekst-svak:   var(--ink-dempet);
   --farge-lenke:        var(--rust);
   --farge-lenke-aktiv:  var(--rust-moerk);
-  --farge-lenke-besokt: var(--besokt);
   --farge-merke:        var(--ink);
   --farge-fokus:        var(--fokus);
   --farge-kart-punkt:   var(--kart-punkt);
@@ -314,7 +321,6 @@
     --rust:           #f0955a;
     --rust-moerk:     #f5ae7d;
     --rust-lys:       #f0955a;
-    --besokt:         #c0a5db;
 
     --soyle-tekst:    #10191c;
 
@@ -971,9 +977,21 @@ a {
  * betyr noe om dataene. Fargen bar informasjon om leserens egen
  * historikk, ikke om det hun ser på.
  *
- * `--besokt` og `--farge-lenke-besokt` står igjen i paletten, ubrukt
- * av lenkene: de er dokumentert i fargeoversikten, og en verdi som
- * fjernes fra paletten fjernes i en egen runde. */
+ * TOKENENE ER BORTE fra 27.09.2026. `--besokt` (#6b4a8c lys, #c0a5db
+ * mørk) og aliaset `--farge-lenke-besokt` sto igjen i paletten etter
+ * at regelen ble skrevet, med den begrunnelsen at de var «ubrukt av
+ * lenkene» og skulle ryddes i en egen runde.
+ *
+ * DEN BEGRUNNELSEN VAR USANN. `.lok-tilstand .fakta a:visited` brukte
+ * aliaset — én regel, på lokalitetssida, der en besøkt lenke til et
+ * produksjonsområde eller et selskap ble lilla. Kommentaren her sa at
+ * ingen lenke brukte den, og prøven som skulle håndheve det leste bare
+ * den GLOBALE `a:visited`. Det er formen fra CLAUDE.md 1b-2: en
+ * kontroll som måler noe som LIGNER det den skal måle, og som er
+ * riktig helt til den ikke er det.
+ *
+ * `test_ingen_visited_regel_endrer_farge` stiller nå spørsmålet
+ * direkte, over ALLE `:visited`-regler i fila. */
 a:visited { color: var(--rust); }
 
 a:hover {
@@ -2505,7 +2523,12 @@ td[data-felt="farge_mangler"]::before {
 .lok-tilstand .fakta dt { color: var(--farge-tekst-svak); }
 .lok-tilstand .fakta dd { color: var(--farge-tekst); }
 .lok-tilstand .fakta a { color: var(--farge-lenke); }
-.lok-tilstand .fakta a:visited { color: var(--farge-lenke-besokt); }
+/* INGEN `:visited`-REGEL HER. Det sto én, og den satte
+   `--farge-lenke-besokt` — det ENESTE stedet i hele stilarket der en
+   besøkt lenke fikk en annen farge enn en ubesøkt. Regelen over gjelder
+   nå begge tilstandene: den har høyere spesifisitet (0,2,1) enn den
+   globale `a:visited` (0,1,1), så en besøkt lenke her er rust som alle
+   andre. Se `test_ingen_visited_regel_endrer_farge`. */
 .lok-tilstand .fakta a:hover { color: var(--farge-lenke-aktiv); }
 .lok-tilstand .fakta-bi { color: var(--farge-tekst-svak); }
 .lok-tilstand .posisjon figcaption { color: var(--farge-tekst-svak); }

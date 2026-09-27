@@ -167,7 +167,9 @@ PAR = [
     # Lenker, i alle tre tilstandene og på begge papirflater.
     ("--farge-lenke", "--papir", AA_TEKST, "lenke på papir", 1.0),
     ("--farge-lenke", "--papir2", AA_TEKST, "lenke i innfelt boks", 1.0),
-    ("--farge-lenke-besokt", "--papir", AA_TEKST, "besøkt lenke", 1.0),
+    # «besøkt lenke» STO HER med `--farge-lenke-besokt`. Tokenet er
+    # borte fra 27.09.2026 — en besøkt lenke har samme farge som en
+    # ubesøkt, og paret over dekker den.
     ("--farge-lenke-aktiv", "--papir", AA_TEKST, "lenke under peker", 1.0),
 
     # Grafikk og kanter: 3:1. Ringen rundt trafikklysruta står på to

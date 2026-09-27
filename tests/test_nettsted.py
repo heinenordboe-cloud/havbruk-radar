@@ -2396,6 +2396,124 @@ def test_besokte_lenker_har_samme_farge_som_andre():
     assert "a:visited { color: var(--besokt); }" not in css
 
 
+def _fargeregler(css: str) -> dict[tuple[str, str], str]:
+    """{(kontekst, velger): farge} for hver regel som setter `color`.
+
+    KONTEKSTEN ER MED, og det er ikke pynt: `@media print` setter
+    `a { color: #000 }`, og en flat oppslagstabell lot den overskrive
+    grunnregelens `a`. Da sammenlignet prøven en skjermregel med en
+    papirregel og meldte brudd på noe som ikke var ett.
+
+    Kommentarer fjernes først: en `/* ... */` med `{` i ville ellers
+    telt som en blokk.
+    """
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    ut: dict[tuple[str, str], str] = {}
+    stabel: list[str] = []
+    i = 0
+    while i < len(css):
+        j, k = css.find("{", i), css.find("}", i)
+        if j < 0 and k < 0:
+            break
+        if k >= 0 and (j < 0 or k < j):
+            if stabel:
+                stabel.pop()
+            i = k + 1
+            continue
+        hode = css[i:j].strip()
+        if hode.startswith("@"):
+            stabel.append(hode)
+            i = j + 1
+            continue
+        slutt_ = css.find("}", j)
+        farge = re.search(r"(?<![-\w])color:\s*([^;}]+)", css[j + 1:slutt_])
+        if farge:
+            kontekst = " ".join(stabel)
+            for velger in hode.split(","):
+                ut[(kontekst, velger.strip())] = farge.group(1).strip()
+        i = slutt_ + 1
+    return ut
+
+
+# `:visited`-REGLER SOM AVVIKER MED VITENDE OG VILJE.
+#
+# Alle tre ble funnet 27.09.2026, av prøven under, i samme runde som
+# `--besokt` ble ryddet bort. De bruker ikke `--besokt` og lå derfor
+# utenfor den oppryddingen — og hver av dem er et SYNLIG valg for en
+# leser med historikk, ikke en opprydding. De står oppført her framfor
+# å bli rettet i forbifarten.
+#
+#   .mork a                  hav-tegn -> rust-lys. Kystseksjonen på
+#                            forsiden: tretten områdelenker, der de
+#                            besøkte blir oransje. Samme farge som
+#                            `:hover`, så en besøkt lenke ser ut som en
+#                            lenke under peker.
+#   .om-innhold a            rust -> ink. Innholdslista på /om/.
+#                            Grunnregelen ble rettet til `--rust` med
+#                            begrunnelsen «en lenke skal se ut som en
+#                            lenke»; `:visited` ble stående på `--ink`,
+#                            altså brødtekst.
+#   .sokeliste > li > a      ink -> rust. Treffliste-titlene.
+#
+# Lista er en PRIS, ikke en løsning: CLAUDE.md sier at en regel med
+# unntak er en regel noen må huske. Den er her fordi alternativet var å
+# endre tre design stille i en commit som skulle fjerne én variabel.
+VISITED_UNNTAK = {
+    ".mork a:visited",
+    ".om-innhold a:visited",
+    ".sokeliste > li > a:visited",
+}
+
+
+def test_ingen_visited_regel_endrer_farge():
+    """Spørsmålet stilles over ALLE `:visited`-regler, ikke bare den ene.
+
+    `test_besokte_lenker_har_samme_farge_som_andre` leser den GLOBALE
+    `a:visited` og sier god for stilarket på det grunnlaget. Den var
+    grønn 27.09.2026 mens FIRE regler ga en besøkt lenke en annen farge
+    enn en ubesøkt. Den ene av dem brukte `--farge-lenke-besokt` og er
+    rettet; de tre andre står i `VISITED_UNNTAK` med hver sin grunn.
+
+    Det er formen fra CLAUDE.md 1b-2: en kontroll som måler noe som
+    LIGNER det den skal måle — én regel der spørsmålet gjelder sytten.
+
+    HVORFOR STATISK OG IKKE I NETTLESEREN: `:visited` kan ikke leses
+    tilbake. `getComputedStyle` returnerer den ubesøkte fargen av
+    personvernhensyn, og `element.matches(":visited")` er alltid usann.
+    MÅLT 27.09.2026: en kontroll med en knallgrønn `:visited`-regel
+    injisert i headless Chromium ga fortsatt rust i pikslene — altså
+    kan nettleseren her ikke svare på spørsmålet i det hele tatt.
+    Kaskaden er derimot bestemt, og den kan leses.
+    """
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    regler = _fargeregler(css)
+    besokte = {n: f for n, f in regler.items() if n[1].endswith(":visited")}
+    assert len(besokte) >= 15, f"fant bare {len(besokte)} :visited-regler"
+
+    avvik = []
+    for (kontekst, velger), farge in sorted(besokte.items()):
+        grunn = velger[: -len(":visited")]
+        # Grunnregelen kan stå i samme kontekst eller på toppnivå.
+        ventet = regler.get((kontekst, grunn), regler.get(("", grunn)))
+        assert ventet is not None, (
+            f"`{velger}` har ingen tilsvarende `{grunn}` å sammenligne med")
+        if ventet != farge and velger not in VISITED_UNNTAK:
+            avvik.append(f"`{velger}` gir {farge}, `{grunn}` gir {ventet}")
+    assert not avvik, "besøkte lenker med egen farge:\n  " + "\n  ".join(avvik)
+
+    # UNNTAKENE MÅ FORTSATT AVVIKE. En som er rettet skal ut av lista,
+    # ellers vokser lista til et sted der ingen sjekker om den stemmer.
+    for velger in VISITED_UNNTAK:
+        treff = [(n, f) for n, f in besokte.items() if n[1] == velger]
+        assert treff, f"`{velger}` finnes ikke lenger — ta den ut av lista"
+        (kontekst, _), farge = treff[0]
+        grunn = velger[: -len(":visited")]
+        ventet = regler.get((kontekst, grunn), regler.get(("", grunn)))
+        assert ventet != farge, (
+            f"`{velger}` er rettet — ta den ut av `VISITED_UNNTAK`")
+
+
 def test_innholdslista_paa_om_ser_ut_som_lenker():
     css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
            ).read_text(encoding="utf-8")
