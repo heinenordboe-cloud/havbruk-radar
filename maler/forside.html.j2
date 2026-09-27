@@ -174,47 +174,6 @@
 </section>
 
 {# ---------------------------------------------------------------- 3
-   ARKIVTALLENE. Én innfelt linje.
-
-   TALLET ER LITE, OG DET SKJULES IKKE. Seks øyeblikksbilder er seks
-   uker, og et arkiv som later som det er eldre enn det er, er verdiløst
-   den dagen noen sjekker. Se avviket i oppdraget, punkt 9. #}
-<section class="arkivlinje-flate" aria-labelledby="arkiv-tittel">
-<div class="ark arkivlinje">
-  <h2 class="visuelt-skjult" id="arkiv-tittel">Arkivet</h2>
-  <p class="arkivtall">
-    {# TALLET STÅR I <strong>, SUBSTANTIVET UTENFOR — derfor ikke
-       `antall()`, som gir begge som én streng. Formen velges på samme
-       måte, og `|tall` gir samme tusenskille som resten av siden. #}
-    <span><strong>{{ f.lokaliteter|tall }}</strong>
-      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</span>
-    <span><strong>{{ f.selskaper|tall }}</strong>
-      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</span>
-    <span><strong>{{ f.snapshots|tall }}</strong>
-      {{ "ukentlig øyeblikksbilde" if f.snapshots == 1
-         else "ukentlige øyeblikksbilder" }}
-      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
-    {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
-        lar leseren regne seg til at serien går til i dag, og det gjør den
-        ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
-        har er uke 35. Begge datoene kommer fra `felles.lusetall_snapshots`
-        ved bygging. #}
-    <span><strong>{{ f.luke_uker|tall }}</strong>
-      {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall, fra
-      <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time>
-      til og med
-      <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></span>
-  </p>
-  <p class="arkivnote">
-    Siste øyeblikksbilde:
-    <time datetime="{{ f.siste_snapshot }}">{{ f.siste_snapshot|dato }}</time>
-    · sjekksum <code>{{ f.sjekksum[:8] }}…{{ f.sjekksum[-4:] }}</code>
-    · <a href="/om/#innsamling">Slik samler vi inn</a>
-  </p>
-</div>
-</section>
-
-{# ---------------------------------------------------------------- 4
    KYSTEN. Mørk seksjon: kart til venstre, de tretten til høyre.
 
    KARTET ER STATISK SVG, tegnet ved bygging av Fiskeridirektoratets
@@ -395,8 +354,20 @@
   </div>
 </section>
 
-{# ---------------------------------------------------------------- 5
+{# ---------------------------------------------------------------- 4
    FØLG MED. Feeds, og bare feeds.
+
+   ETT AVSNITT OG ÉN LENKE. Adressene til de tre andre feedtypene er
+   mønstre — `/lokalitet/<nr>/feed.xml` — og et mønster er ikke noe
+   man klikker på. De sto som en tabell på forsiden, og en tabell med
+   fire rader der tre er maler, leses som fire tilbud der ett virker.
+   Tabellen står nå i en `<details>` som er LUKKET i utgangspunktet.
+
+   LUKKET OG IKKE FJERNET: mønstrene er svaret på «hvordan finner jeg
+   feeden for MIN lokalitet», og det spørsmålet har ingen annen side.
+   `<details>` uten `open` virker uten JavaScript i alle nettlesere —
+   motsatt av `.egen-del` på ukessiden, som står ÅPEN og lukkes av
+   skriptet fordi innholdet der er rader og ikke en oppskrift.
 
    UKESBREVET ER IKKE BYGGET, og skjemaet står derfor ikke her — se
    avviket i oppdraget, punkt 6. Et skjema som poster til en adresse
@@ -410,45 +381,98 @@
   </div>
   <p>
     Hver lokalitet, hvert produksjonsområde og hvert selskap har sin
-    egen feed, og det finnes én for alt. Legg den inn i en feedleser.
-    Ingen konto, ingen e-postadresse, ingen sporing — en feed er en fil
-    du henter, og vi får aldri vite at du gjorde det.
+    egen feed, og <a href="/endringer/feed.xml">én feed dekker alt</a>.
+    Legg den inn i en feedleser. Ingen konto, ingen e-postadresse,
+    ingen sporing — en feed er en fil du henter, og vi får aldri vite
+    at du gjorde det.
   </p>
-  <p class="tabelltittel" id="feeder-tittel">Atom-feedene, bygget av
-      endringsloggen.</p>
-  <div class="tabellramme" role="region"
-       aria-labelledby="feeder-tittel" tabindex="0">
-  <table id="feeder" aria-labelledby="feeder-tittel">
-    <thead>
-      <tr>
-        <th scope="col">Hva</th>
-        <th scope="col">Adresse</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <th scope="row">Alle endringer</th>
-        <td data-felt="feed"><a href="/endringer/feed.xml" data-felt="feed">/endringer/feed.xml</a></td>
-      </tr>
-      <tr>
-        <th scope="row">Én lokalitet</th>
-        <td data-felt="feed"><code>/lokalitet/&lt;nr&gt;/feed.xml</code></td>
-      </tr>
-      <tr>
-        <th scope="row">Ett produksjonsområde</th>
-        <td data-felt="feed"><code>/produksjonsomrade/&lt;nr&gt;/feed.xml</code></td>
-      </tr>
-      <tr>
-        <th scope="row">Ett selskap</th>
-        <td data-felt="feed"><code>/selskap/&lt;orgnr&gt;/feed.xml</code></td>
-      </tr>
-    </tbody>
-  </table>
-  </div>
-  <p class="tabellnote">
-    Feeden for en lokalitet ligger i lokalitetens egen mappe, ved siden
-    av siden og CSV-en. Kopierer du mappa, følger alt tre med — se
-    <a href="/om/#sitering">Slik siterer du</a>.
-  </p>
+  <details class="feedmonstre">
+    <summary>Adressene til feedene for én lokalitet, ett område eller
+      ett selskap</summary>
+    <p class="tabelltittel" id="feeder-tittel">Atom-feedene, bygget av
+        endringsloggen.</p>
+    <div class="tabellramme" role="region"
+         aria-labelledby="feeder-tittel" tabindex="0">
+    <table id="feeder" aria-labelledby="feeder-tittel">
+      <thead>
+        <tr>
+          <th scope="col">Hva</th>
+          <th scope="col">Adresse</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Alle endringer</th>
+          <td data-felt="feed"><a href="/endringer/feed.xml" data-felt="feed">/endringer/feed.xml</a></td>
+        </tr>
+        <tr>
+          <th scope="row">Én lokalitet</th>
+          <td data-felt="feed"><code>/lokalitet/&lt;nr&gt;/feed.xml</code></td>
+        </tr>
+        <tr>
+          <th scope="row">Ett produksjonsområde</th>
+          <td data-felt="feed"><code>/produksjonsomrade/&lt;nr&gt;/feed.xml</code></td>
+        </tr>
+        <tr>
+          <th scope="row">Ett selskap</th>
+          <td data-felt="feed"><code>/selskap/&lt;orgnr&gt;/feed.xml</code></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="tabellnote">
+      Feeden for en lokalitet ligger i lokalitetens egen mappe, ved siden
+      av siden og CSV-en. Kopierer du mappa, følger alt tre med — se
+      <a href="/om/#sitering">Slik siterer du</a>.
+    </p>
+  </details>
 </section>
+
+{# ---------------------------------------------------------------- 5
+   ARKIVTALLENE. Én innfelt linje, og sidens siste ord.
+
+   LÅ MELLOM UKA OG KYSTEN til 27.09.2026. Der avbrøt den lesingen
+   med et tall om OSS — hvor mange øyeblikksbilder vi har — midt
+   mellom to avsnitt om havbruket. Den hører hjemme til slutt: det
+   er svaret på «kan jeg stole på dette», og det spørsmålet stilles
+   etter at man har sett hva som står her, ikke før.
+
+   TALLET ER LITE, OG DET SKJULES IKKE. Seks øyeblikksbilder er seks
+   uker, og et arkiv som later som det er eldre enn det er, er verdiløst
+   den dagen noen sjekker. Se avviket i oppdraget, punkt 9. #}
+<section class="arkivlinje-flate" aria-labelledby="arkiv-tittel">
+<div class="ark arkivlinje">
+  <h2 class="visuelt-skjult" id="arkiv-tittel">Arkivet</h2>
+  <p class="arkivtall">
+    {# TALLET STÅR I <strong>, SUBSTANTIVET UTENFOR — derfor ikke
+       `antall()`, som gir begge som én streng. Formen velges på samme
+       måte, og `|tall` gir samme tusenskille som resten av siden. #}
+    <span><strong>{{ f.lokaliteter|tall }}</strong>
+      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</span>
+    <span><strong>{{ f.selskaper|tall }}</strong>
+      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</span>
+    <span><strong>{{ f.snapshots|tall }}</strong>
+      {{ "ukentlig øyeblikksbilde" if f.snapshots == 1
+         else "ukentlige øyeblikksbilder" }}
+      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
+    {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
+        lar leseren regne seg til at serien går til i dag, og det gjør den
+        ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
+        har er uke 35. Begge datoene kommer fra `felles.lusetall_snapshots`
+        ved bygging. #}
+    <span><strong>{{ f.luke_uker|tall }}</strong>
+      {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall, fra
+      <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time>
+      til og med
+      <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></span>
+  </p>
+  <p class="arkivnote">
+    Siste øyeblikksbilde:
+    <time datetime="{{ f.siste_snapshot }}">{{ f.siste_snapshot|dato }}</time>
+    · sjekksum <code>{{ f.sjekksum[:8] }}…{{ f.sjekksum[-4:] }}</code>
+    · <a href="/om/#innsamling">Slik samler vi inn</a>
+  </p>
+</div>
+</section>
+
 {% endblock %}

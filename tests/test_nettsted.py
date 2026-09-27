@@ -1887,12 +1887,19 @@ def test_forsiden_svarer_paa_de_tre_tingene():
         assert f'href="{lenke}"' in html
 
 
-def test_forsiden_leder_med_uka_og_ikke_med_seg_selv():
+def test_forsiden_leder_med_uka_og_ender_med_arkivtallene():
     """Bevegelsen er produktet. «Denne uka» skal stå FØR alt annet
-    innhold, over bretten på 1440x900."""
+    innhold, over bretten på 1440x900.
+
+    REKKEFØLGEN ER ENDRET 27.09.2026: arkivlinja lå mellom uka og
+    kysten og sto da midt i lesingen med et tall om OSS. Nå er
+    rekkefølgen hero → uka → kysten → følg med → arkivtallene, og
+    tallene er det siste ordet framfor et avbrudd.
+    """
     html = _forside()
     assert html.index('id="uka"') < html.index('id="kysten"')
-    assert html.index('id="uka"') < html.index('arkivlinje')
+    assert html.index('id="kysten"') < html.index('id="folg"')
+    assert html.index('id="folg"') < html.index('arkivlinje')
     flat = " ".join(html.split())
     # TRE TALL, OG DE ER IKKE DET SAMME. `antall` er overskriftstallet
     # UTENOM selskapsdata; `antall_rader` er alle radene i uka. De
