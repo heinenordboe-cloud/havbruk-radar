@@ -52,6 +52,7 @@ som faktisk står på /om/.
 | Newsreader | overskrifter, ordmerke, nøkkeltall | SIL OFL 1.1 | lisensteksten følger fila | `/newsreader-OFL.txt` | `docs/design/NEWSREADER.md` |
 | IBM Plex Sans | brødtekst, etiketter, tabeller | SIL OFL 1.1 | lisensteksten følger fila | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
 | IBM Plex Mono | tallverdier i tabellkolonner | SIL OFL 1.1 | samme fil som Sans | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
+| Herofotografiet, «skjærgård på Bømlo» | forsidens hero, tre bredder | Unsplash-lisensen | **ingenting** | `/bilde/hero-*.jpg` | `docs/design/HEROFOTO.md`, merknad K |
 | Kystkontur, Kartverket N500/N2000 | kystlinja i alle kart | **CC BY 4.0** | **«© Kartverket»** med lenke, der kartet vises | dekkes av krediteringen under hvert kart og i bunnteksten | `docs/design/KARTGEOMETRI.md`, merknad J |
 | Kystlinje, Natural Earth 1:10 m | nabolandene i kartene | public domain | **ingenting** | `/naturalearth-LICENSE.md` | `docs/design/KARTGEOMETRI.md` |
 | Produksjonsområdepolygoner | kartene | NLOD (Fiskeridirektoratet) | «Kilde: Fiskeridirektoratet» | dekkes av kildeattribusjonen | `docs/design/KARTGEOMETRI.md` |
@@ -164,23 +165,42 @@ Dybdekurvene er grove og har varierende kvalitet og nøyaktighet.»
 INGENTING ER BYGGET MED DEM. Dette er lisensen og størrelsen, som var
 det som ble bedt om.
 
-### Merknad K — herofotografiet er tatt ut
+### Merknad K — herofotografiet, og at raden følger fila
 
-Raden sto i tabell 2 til 26.09.2026: et Unsplash-fotografi av skyer
-over hav, forsidens hero, uten krav til navngiving. Heroen er nå
-kartet — Kartverkets kystkontur med hver lokalitet tegnet inn — og
-fotografiet ligger ikke lenger i `maler/` eller i utputtet.
+Raden i tabell 2 har vært ute og inne igjen på fem dager, og det er
+verdt å skrive ned hvorfor framfor å la tabellen se stabil ut:
 
-Raden er FJERNET og ikke merket «ute av bruk»: en rad om et lån vi ikke
-lenger tar, er en usann opplysning på den ene siden som finnes for å
-svare på om man kan stole på dette. `docs/design/HEROFOTO.md` står
-igjen som historikk over hva som en gang lå der.
+    22.09.2026   inn    foto av skyer over hav, Wolfgang Hasselmann
+    26.09.2026   UT     heroen ble et kart; fotografiet ut av `maler/`
+    27.09.2026   inn    nytt foto, skjærgård på Bømlo, Endre Stedje
 
-### Merknad G — de to som ikke krever noe
+Raden ble FJERNET 26.09 og ikke merket «ute av bruk»: en rad om et lån
+vi ikke lenger tar, er en usann opplysning på den ene siden som finnes
+for å svare på om man kan stole på dette. Den som kom inn igjen 27.09 er
+en NY rad om en annen fil av et annet motiv av en annen fotograf — ikke
+den gamle gjenopprettet. **Lisensen er den samme (Unsplash), og det er
+nettopp derfor det måtte kontrolleres:** to bilder under samme vilkår er
+ikke samme lån, og en rad som bare oppga lisensen ville ikke skilt dem.
+
+Vilkåret er lest på nytt 27.09.2026 på <https://unsplash.com/license> og
+ikke gjenbrukt fra 22.09. Innholdet var uendret: fri bruk, også
+kommersielt, ingen tillatelse og ingen navngiving nødvendig; ikke lov å
+selge bildet uendret eller bygge en konkurrerende bildetjeneste.
+
+**Unsplash+ er et annet lisensnivå** med andre vilkår, og et bilde
+derfra kunne ikke ligget her. Kontrollert i Unsplashs eget API-svar for
+bildet: `premium: false`, `plus: false`.
+
+`docs/design/HEROFOTO.md` bærer proveniensen for alle tre heroene i
+rekkefølge — begge fotografiene og kartet imellom — fordi en arkivert
+kopi av forsiden fra en gitt uke ellers ikke kan etterprøves.
+
+### Merknad G — de som ikke krever noe
 
 Unsplash-lisensen og Natural Earths vilkår krever ingen navngiving.
-Begge er likevel navngitt, på /om/ og i proveniensfilene, og det er
-ikke en misforståelse av lisensen: en side som ikke sier hvor et bilde
+Begge er likevel navngitt — på /om/, i proveniensfilene, og for
+fotografiet også i bildeteksten i heroen — og det er ikke en
+misforståelse av lisensen: en side som ikke sier hvor et bilde
 eller en kystlinje kommer fra, kan ingen etterprøve. Det er samme
 grunn som at datokolonnen i tabellen over finnes.
 

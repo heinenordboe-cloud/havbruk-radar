@@ -225,15 +225,29 @@ BINAERFILER = {
         "maler/favicon.svg 21.09.2026",
     "20b6fc8bf832023ffd1d09df2220fb66eaa6189f34e3ede5e5f6154e66be3365":
         "apple-touch-icon.png — samme ikon, 180x180",
-    # HEROFOTOGRAFIET STO HER TIL 26.09.2026, tre bredder av det samme
-    # motivet. Heroen er nå et kart — `/kart/norge.svg`, skrevet av
-    # `nettsted.skriv_norgeskart()` — og en SVG er tekst: den granskes
-    # som all annen tekst og trenger ingen pinning.
+    # HEROFOTOGRAFIET, tre bredder av det samme motivet. Skjærgård på
+    # Bømlo, av Endre Stedje, Unsplash-lisensen — hentet 27.09.2026.
     #
-    # Pinningene er fjernet SAMMEN med filene.
-    # `test_hver_pinnet_sum_finnes_som_fil_i_maler` er en driftvakt mot
-    # det motsatte: en kvittering for noe som ikke finnes er støy som
-    # skjuler at den ekte fila er ukvittert.
+    # Pinningene gikk UT 26.09.2026, da heroen ble et kart, og kom inn
+    # igjen 27.09 med et nytt bilde. Summene er derfor ikke de samme som
+    # de som sto her før; det er andre filer av et annet motiv.
+    # `test_hver_pinnet_sum_finnes_som_fil_i_maler` er driftvakten mot at
+    # en pinning blir stående uten fil — en kvittering for noe som ikke
+    # finnes er støy som skjuler at den ekte fila er ukvittert.
+    #
+    # HVA SOM ER INSPISERT: alle tre filene er lest segment for segment.
+    # APP0 (JFIF) og APP2 (ICC, sRGB) og ikke noe mer — ingen APP1, altså
+    # ingen EXIF, XMP eller GPS, og ingen APP13/IPTC. Det samme gjelder
+    # Unsplashs utransformerte original, som er kontrollert særskilt.
+    # Eneste lesbare strenger er ICC-profilens egne. Se
+    # docs/design/HEROFOTO.md.
+    "6224f61202565528906461f2ecfc484a88cf935a7ad86a76a200557aaa35677b":
+        "bilde/hero-800.jpg — herofotografiet, 800x533, segmentene lest "
+        "27.09.2026, se docs/design/HEROFOTO.md",
+    "3dac4870d4895a111da2154461f661e6990db5dd9ba6797c557cd639335e906e":
+        "bilde/hero-1600.jpg — samme motiv, 1600x1067",
+    "5104b250b2fbf42a9c3c5114491908e58f3b2bb817aaa0420ce2ed694c0e11f5":
+        "bilde/hero-2400.jpg — samme motiv, 2400x1600",
 }
 
 # BINÆRFILER ET VERKTØY LEGGER IGJEN, ikke filer vi sender fra `maler/`.

@@ -284,8 +284,14 @@
    ingen finner. Lenken her er veien dit. #}
 <h2 id="hva-nettstedet-laaner">Hva nettstedet selv låner</h2>
 <p>
-  Tabellen over gjelder dataene. Selve siden låner fem ting til, og de
-  ligger alle i det som publiseres:
+  {#- TALLET KOMMER FRA LISTA. Det sto «fem» her fram til 27.09.2026,
+      skrevet ut, og raden om herofotografiet gikk inn og ut av
+      `VAART_LAAN` to ganger på fem dager uten at setningen fulgte med.
+      Et tall i en mal som teller noe malen selv løkker over, skal
+      telles av malen. #}
+  Tabellen over gjelder dataene. Selve siden låner
+  {{ antall(laan|length, "ting", "ting") }} til, og de ligger alle i det
+  som publiseres:
 </p>
 <p class="tabelltittel" id="om-laan-tittel">Tredjepartsmateriale i nettstedet, med lisens og hvor teksten står.</p>
 <div class="tabellramme" role="region"
@@ -325,9 +331,18 @@
   inn i sidene ved bygging — en side som henter en fil fra en CDN
   slutter å se riktig ut den dagen den tjenesten gjør det, og forteller
   dem hvem som leser den så lenge den virker.
-  De to siste radene krever ingen navngiving, og står likevel: en side
-  som ikke sier hvor et bilde eller en kystlinje kommer fra, kan ingen
-  etterprøve.
+  {#- IKKE «DE TO SISTE». Setningen pekte på rader ved posisjon, og
+      posisjonene flyttet seg da herofotografiet gikk inn igjen
+      27.09.2026: «de to siste» var da Kartverket, som KREVER
+      navngiving, og Natural Earth, som ikke gjør det. En setning som
+      peker på en plass i en tabell, er usann fra den dagen tabellen
+      endrer seg. Nå navngis radene. #}
+  Bare én av dem krever noe: Kartverkets CC BY 4.0 vil ha «© Kartverket»
+  der kartet vises, og det står under hvert kart og i bunnteksten.
+  Herofotografiet og Natural Earth krever ingen navngiving, og er
+  navngitt likevel — en side som ikke sier hvor et bilde eller en
+  kystlinje kommer fra, kan ingen etterprøve. Fontenes OFL krever at
+  lisensteksten følger fila, og den ligger på adressen raden lenker til.
 </p>
 
 <p>

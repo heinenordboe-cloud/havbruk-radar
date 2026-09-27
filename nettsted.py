@@ -4651,16 +4651,22 @@ IKONFILER = ("favicon.svg", "favicon-32.png", "apple-touch-icon.png")
 # modulkommentaren i sok.js for hvorfor de er to filer og ikke én.
 SKRIPTFILER = ("kystloggen.js", "sok.js")
 
+# HEROFOTOGRAFIET, i tre bredder. Hostet av oss, aldri hentet fra
+# Unsplash i runtime: en `images.unsplash.com`-URL i markupen ville
+# fortalt dem hvem som leser siden, og en side som henter sitt eget
+# hovedbilde fra en tredjepart er en side som ser feil ut den dagen den
+# tjenesten gjør det.
+#
+# Ligger i `bilde/` og ikke i rota, fordi rota er for filer som MÅ ligge
+# der (`/stil.css`, fontene, faviconene, `robots.txt`).
+#
+# Motivet er skjærgård på Bømlo med et oppdrettsanlegg ved horisonten,
+# av Endre Stedje. Det sto et annet herofotografi her 22.–26.09.2026 og
+# et kart 26.–27.09; begge er ført i docs/design/HEROFOTO.md, som er
+# proveniensen for alle tre.
 BILDEMAPPE = "bilde"
 
-# HEROFOTOGRAFIET ER BORTE fra 26.09.2026. Skybildet var en stemning og
-# ikke en opplysning; heroen viser nå kysten med hver eneste lokalitet
-# på den — se `skriv_norgeskart()`. Filene er slettet fra `maler/bilde/`
-# og pinningene deres fra publiseringsvakten. Raden i `VAART_LAAN` er
-# tatt ut samme sted: en rad om et lån vi ikke lenger tar, er en usann
-# opplysning på den ene siden som finnes for å svare på om man kan
-# stole på dette.
-BILDEFILER: tuple[str, ...] = ()
+BILDEFILER = ("hero-800.jpg", "hero-1600.jpg", "hero-2400.jpg")
 
 # KARTET SOM EGEN FIL. `<img src="/kart/norge.svg">` i heroen: den er
 # den samme på hver visning og kan caches for seg, og et `<img>`
@@ -4721,10 +4727,11 @@ def skriv_skript(rot: Path) -> list[Path]:
 def skriv_bilder(rot: Path) -> list[Path]:
     """Bildene til `/bilde/`, og geometrifilene til rota.
 
-    MAPPA LAGES BARE NÅR DET ER NOE Å LEGGE I DEN. `BILDEFILER` er tom
-    fra 26.09.2026 — heroen er et kart — og en `mkdir` som kjører
-    uansett, la igjen en tom `/bilde/` i utputtet: en mappe som viste
-    til noe som ikke finnes lenger.
+    MAPPA LAGES BARE NÅR DET ER NOE Å LEGGE I DEN. `BILDEFILER` sto tom
+    et døgn fra 26.09.2026 — heroen var et kart — og en `mkdir` som
+    kjørte uansett, la igjen en tom `/bilde/` i utputtet: en mappe som
+    viste til noe som ikke fantes lenger. Vakten blir stående selv om
+    lista er full igjen; den koster én `if` og fanger neste gang.
     """
     skrevet = []
     if BILDEFILER:
@@ -5873,12 +5880,21 @@ VAART_LAAN = (
      "lisens": "SIL Open Font License 1.1",
      "opphav": "IBM, via google/fonts",
      "sti": "/ibmplex-OFL.txt"},
-    # HEROFOTOGRAFIET STO HER TIL 26.09.2026. Raden er fjernet fordi
-    # lånet er det: heroen er nå kartet, og skybildet ligger ikke i
-    # utputtet. En rad om et lån vi ikke lenger tar, ville vært en usann
-    # opplysning på den ene siden som finnes for å svare på om man kan
-    # stole på dette — samme grunn som at Digdir-raden gikk ut 22.09.
+    # HEROFOTOGRAFIET. Raden gikk ut 26.09.2026, da heroen ble et kart,
+    # og kom inn igjen 27.09 med et nytt bilde og en ny fotograf. En rad
+    # om et lån vi ikke lenger tar, ville vært en usann opplysning på den
+    # ene siden som finnes for å svare på om man kan stole på dette — og
+    # en rad som navnga FEIL fotograf ville vært verre.
     #
+    # UNSPLASH KREVER INGEN NAVNGIVING. Fotografen står her, i heroens
+    # bildetekst og i docs/design/HEROFOTO.md likevel, av samme grunn som
+    # datokolonnen i lisenskjeden finnes: en side som ikke sier hvor et
+    # bilde kommer fra, kan ingen etterprøve.
+    {"hva": "Herofotografiet, av Endre Stedje",
+     "rolle": "forsidens hero",
+     "lisens": "Unsplash-lisensen (navngiving er frivillig)",
+     "opphav": "unsplash.com/photos/nTRAnQQ3E18",
+     "sti": "https://unsplash.com/license"},
     # NATURAL EARTH KREVER INGENTING og står her likevel: en side som
     # ikke sier hvor en kystlinje kommer fra, kan ingen etterprøve. Se
     # docs/LISENSKJEDE.md merknad G.
