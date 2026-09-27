@@ -113,172 +113,64 @@
 {% block innhold %}
 
 {# ---------------------------------------------------------------- 2
-   DENNE UKA. Sidens hovedsak. #}
+   DENNE UKA. Sidens hovedsak, og fra 27.09.2026 bare det:
+   ukenummeret, høyst tre setninger, og én lenke videre.
+
+   TRE TING GIKK UT HERFRA, og de gikk ut til tre ulike steder:
+
+     typemerkene     fantes fra før på `/endringer/<uke>/` og på
+                     `/sok/`. Ingenting å flytte.
+     tabellen        `#endringer-uke` finnes fra før på ukessiden med
+                     ALLE radene. Forsiden viste åtte av 440 over en
+                     lenke til alle 440, og det er en omvei til den
+                     lenka. Ingenting å flytte.
+     tidslinja       fantes BARE her. FLYTTET til `endringer-uke.html.j2`
+                     og ikke slettet — den er det eneste stedet på
+                     nettstedet som viser at KILDEN utga forskriften på
+                     én dato og VI observerte den på en annen.
+
+   MARKUPKONTRAKTEN ER SJEKKET FØR TABELLEN BLE FJERNET, slik
+   docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md krever: `id`
+   på hver tabell er et STABILT ANKER, og `#endringer-uke` er bundet
+   til ukessiden — ikke til forsiden. Den står fortsatt der, med hele
+   uka under seg. Ingen prøve, ingen stil og ingen lenke pekte på
+   forsidens kopi. #}
 <section class="ark seksjon" id="uka" aria-labelledby="uka-tittel">
   <div class="seksjonshode">
-    <h2 class="etikett" id="uka-tittel">Denne uka i registrene</h2>
+    <div>
+      <p class="etikett">Denne uka</p>
+      {# UKENUMMERET ER OVERSKRIFTEN. «Denne uka i registrene» var sant
+         hver uke og sa derfor ingenting om DENNE. #}
+      <h2 id="uka-tittel">{% if f.uke %}Endringer i {{ f.uke.vist }}
+        {%- else %}Ingen uker med endringer ennå{% endif %}</h2>
+    </div>
     {% if f.uke %}
     <p class="uke-datoer">
       <time datetime="{{ f.uke.aar }}-W{{ f.uke.ukenr }}">{{ f.uke.vist }}</time>.
       {{ f.uke.merke }}
-      {% if f.forrige_uke %}
-      · <a href="/endringer/{{ f.forrige_uke }}/">forrige uke</a>
-      {% endif %}
     </p>
     {% endif %}
   </div>
 
-  <div class="uke-topp">
-    <div class="uke-sammendrag">
-      {#- SETNINGEN OM SELSKAPSDATA ER BRØDTEKST. Den sier hvor noe
-          IKKE er, og satt i den samme 29-pikslers overskriftsskriften
-          som ukas sak leste den som ukas sak. Hvilken setning det er,
-          vet `_sammendrag()` — ikke malen. #}
-      {% for setning in f.sammendrag %}
-      <p{% if setning.brod %} class="sammendrag-bi"{% endif %}>{{ setning.tekst }}</p>
-      {% endfor %}
-    </div>
-
-    {# TIDSLINJA. To punkter og ikke tre: «fastsatt» er ikke samlet inn,
-       og en dato vi ikke har hentet skal ikke stå på siden. Se
-       `_forskriftslinje()`. #}
-    {% if f.forskriftslinje %}
-    {% set fl = f.forskriftslinje %}
-    <figure class="tidslinje">
-      <div class="tidslinje-spor" aria-hidden="true">
-        <span class="tidslinje-punkt tidslinje-punkt--kilde"></span>
-        <span class="tidslinje-strek"></span>
-        <span class="tidslinje-punkt tidslinje-punkt--oss"></span>
-      </div>
-      <ol class="tidslinje-poster">
-        <li>
-          <span class="tidslinje-etikett">Forskriften utgitt</span>
-          <time datetime="{{ fl.utgitt }}">{{ fl.utgitt_vist }}</time>
-        </li>
-        <li class="tidslinje-gap">{{ antall(fl.dager, "dag", "dager") }}</li>
-        <li>
-          <span class="tidslinje-etikett">Observert her</span>
-          <time datetime="{{ fl.observert }}">{{ fl.observert_vist }}</time>
-        </li>
-      </ol>
-      <figcaption>
-        {{ antall(fl.antall, "produksjonsområde", "produksjonsområder") }} fikk ny trafikklysfarge i
-        Akvakulturregisteret, ført på hver av de
-        {{ antall(fl.lokaliteter, "lokaliteten", "lokalitetene") }} i dem. Utgivelsen er
-        <strong>kildens</strong> tidspunkt, observasjonen er
-        <strong>vårt</strong>. {{ fl.note }}
-      </figcaption>
-    </figure>
-    {% endif %}
-  </div>
-
-  {# ENDRINGSTYPENE. Alle vises alltid, også de med null: et tall man
-     bare ser når det er noe der, er et tall ingen kjenner
-     normalverdien til. Lenkene er STIER og ikke spørrestrenger — se
-     avviket i oppdraget, punkt 5, og 2026-09-16-url-struktur.md. #}
-  {% if f.uke %}
-  <ul class="typemerker" aria-label="Endringstyper denne uka">
-    {# EN BRIKKE MED NULL ER IKKE EN LENKE. Den fører til en side som
-       viser null rader, og en lenke som lover et sted å gå er en lenke
-       leseren bruker et klikk på for ingenting. Den står likevel —
-       tallet skal kunne følges over tid — som et `<span>` med
-       `aria-disabled`, så en skjermleser sier det samme som formen. #}
-    {% for t in f.uke.typer %}
-    <li>
-      {% if t.antall %}
-      <a class="typemerke"
-         href="/endringer/{{ f.uke.slug }}/{{ t.id }}/" title="{{ t.hva }}">
-        {{ t.navn }} <span class="typemerke-tall">{{ tall(t.antall) }}</span>
-      </a>
-      {% else %}
-      <span class="typemerke typemerke--tom" aria-disabled="true"
-            title="{{ t.hva }}">
-        {{ t.navn }} <span class="typemerke-tall">{{ tall(t.antall) }}</span>
-      </span>
-      {% endif %}
-    </li>
+  {# HØYST TRE SETNINGER, og kuttet skjer i `bygg_forside()` — se
+     `FORSIDESETNINGER`. Et `[:3]` her ville vært et tall ingen kan
+     teste. #}
+  <div class="uke-sammendrag uke-sammendrag--bred">
+    {#- SETNINGEN OM SELSKAPSDATA ER BRØDTEKST. Den sier hvor noe IKKE
+        er, og satt i den samme 29-pikslers overskriftsskriften som ukas
+        sak leste den som ukas sak. Hvilken setning det er, vet
+        `_sammendrag()` — ikke malen. #}
+    {% for setning in f.sammendrag %}
+    <p{% if setning.brod %} class="sammendrag-bi"{% endif %}>{{ setning.tekst }}</p>
     {% endfor %}
-  </ul>
-  {% endif %}
-
-  <p class="tabelltittel" id="endringer-uke-tittel">{% if f.uke %}
-      {#- «ØVERSTE», IKKE «NYESTE». Radene er sortert på dato FØRST, men
-          en uke har som regel én observasjonsdato — og da er det type og
-          navn som avgjør hvilke åtte som står her. «De 8 nyeste» sa at
-          utvalget var en tidsakse; det er det bare på den første
-          nøkkelen. Ordene kommer fra `les_endringsuker()`, der
-          sorteringen skjer. #}
-      {{ "Den" if f.rader|length == 1 else "De" }} {{ f.rader|length }} øverste av {{ antall(f.uke.antall, "endringen", "endringene") }} i
-      {{ f.uke.vist }}, utenom selskapsdata — sortert på
-      {{ f.uke.sortert_etter }}.
-      {% else %}
-      Ingen uker med endringer ennå.
-      {% endif %}</p>
-  <div class="tabellramme" role="region"
-       aria-labelledby="endringer-uke-tittel" tabindex="0">
-  <table id="endringer-uke" aria-labelledby="endringer-uke-tittel" data-pagefind-ignore>
-    <thead>
-      <tr>
-        <th scope="col">Observert</th>
-        <th scope="col">Gjelder</th>
-        <th scope="col">Kommune</th>
-        <th scope="col">Produksjonsområde</th>
-        <th scope="col">Endring</th>
-      </tr>
-    </thead>
-    {# DOBBELTMERKINGEN PÅ EN LENKET VERDI er med vilje, og den er ikke
-       pynt: markupkontrakten krever `data-felt` på `<td>`, mens
-       publiseringsvaktens `FELTMERKE` fanger teksten fra `>` fram til
-       første `<` — og det er `<a` når verdien er en lenke. Cellen får
-       derfor merkingen for KONTRAKTEN, og lenka får den for PORTEN.
-       Uten den andre er vakten blind for hvert navn som er en lenke.
-       Se `test_et_lenket_navn_er_synlig_for_porten`. #}
-    <tbody>
-      {% for r in f.rader %}
-      <tr>
-        <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
-        <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
-          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
-          {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
-        </td>
-        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
-        <td data-felt="{{ feltmerke(r.po, 'prodomraade_kode') }}">
-          {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
-          {%- else %}{{ VERDI_MANGLER }}{% endif %}
-        </td>
-        {# ORDET ER BÆREREN. Firkanten foran en trafikklysverdi er en
-           `::before` som bare finnes i CSS-en; slås stilarket av, står
-           ordet igjen alene og cellen er like sann. #}
-        <td class="endring {{ r.til_klasse }}" data-felt="endringstekst">{{ r.etikett }}:
-          {{ verdiendring(r) }}</td>
-      </tr>
-      {% endfor %}
-      {% if not f.rader %}
-      <tr>
-        <td colspan="5">Ingen rader. Alle felt står som de sto forrige
-          gang vi spurte.</td>
-      </tr>
-      {% endif %}
-    </tbody>
-  </table>
   </div>
 
+  {% if f.uke %}
   <p class="tabellnote">
-    {% if f.uke %}
-    <a class="videre" href="/endringer/{{ f.uke.slug }}/">Alle
-      {{ antall(f.uke.antall_med_egen_del, "endringen", "endringene") }} i {{ f.uke.vist }},
-      selskapsdata medregnet →</a>
-    {% endif %}
-    <strong>«Observert»</strong> er datoen vi så endringen i
-    øyeblikksbildet, ikke datoen registeret gjorde den. Registeret
-    oppgir ikke det siste.
-    {% if f.uke and f.uke.utenfor_uka %}
-    {{ antall(f.uke.utenfor_uka, "endring", "endringer") }} står utenfor ukesregnskapet fordi
-    kilden daterer dem til perioden de HANDLER OM og ikke til dagen vi
-    hentet dem — forskriftsrunder, journalførte overføringer og
-    månedlige beholdningstall. De står på entitetenes egne sider.
-    {% endif %}
+    <a class="videre" href="/endringer/{{ f.uke.slug }}/">Se alle
+      endringer i {{ f.uke.vist }} →</a>
   </p>
+  {% endif %}
 </section>
 
 {# ---------------------------------------------------------------- 3

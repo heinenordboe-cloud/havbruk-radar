@@ -4927,6 +4927,20 @@ def skriv_endringssider(rot: Path, felles: Felles,
             skriv_html(sti, uke_mal.render(
                 u=uke, rader=ledet, egen=egen, valgt=valgt, url=url,
                 nyere=nyere, eldre=eldre, uker_totalt=len(uker),
+                # TIDSLINJA FLYTTET HIT 27.09.2026. Den sto på forsiden
+                # og bare der, og forsiden viser nå ukas sak i tre
+                # setninger og én lenke. Den er ikke slettet: den sier
+                # noe ingen annen komponent sier — at KILDEN utga
+                # forskriften på én dato og VI observerte den i
+                # registeret på en annen. CLAUDE.md 1b-7.
+                #
+                # Den regnes PER UKE. På forsiden gjaldt den alltid
+                # nyeste uke; her får hver uke sin egen, og
+                # `_forskriftslinje()` gir `None` for de ukene som ikke
+                # har en trafikklysendring å knytte den til — og for
+                # dem som ligger FØR utgivelsen, der koblingen ville
+                # vært usann.
+                forskriftslinje=_forskriftslinje(felles, uke),
                 siter={"url": _basisurl() + url,
                        "uke": uke["vist"], "aar": uke["aar"],
                        "spenn": uke["merke"],
@@ -6271,14 +6285,32 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
             round(hoyde, 1), gitter)
 
 
-# HVOR MANGE RADER FORSIDENS ENDRINGSTABELL VISER. Overleveringen sier
-# åtte, og deretter «Alle N endringer i uke W →». Tallet står her og
-# ikke i malen: et tall i en mal er et tall ingen kan teste.
-FORSIDERADER = 8
+# FORSIDENS ENDRINGSTABELL STO HER TIL 27.09.2026, åtte rader og
+# «Alle N endringer i uke W →». Tabellen er borte fra forsiden; hele
+# uka står på `/endringer/<uke>/`, som er sida som finnes for den.
+#
+# `FORSIDERADER` er derfor FJERNET, ikke satt til 0. En konstant som
+# styrer noe som ikke finnes, er neste persons feilsøking.
+
+# HVOR MANGE SETNINGER AV SAMMENDRAGET FORSIDEN VISER.
+#
+# `_sammendrag()` kan returnere fire: ledesetningen, selskapsdata,
+# størst og nest størst. Forsiden tar de tre første — den skal si hva
+# som skjedde, ikke være ukessiden. Den fjerde («Deretter <type> med
+# N») er den som faller, og den er den minst bærende av dem.
+#
+# Tallet står her og ikke som `[:3]` i malen: et tall i en mal er et
+# tall ingen kan teste.
+FORSIDESETNINGER = 3
 
 
 def _sammendrag(uke: dict | None) -> list[dict]:
-    """Én til tre setninger om uka, generert av tallene.
+    """Én til fire setninger om uka, generert av tallene.
+
+    DOCSTRINGEN SA «én til tre» til 27.09.2026 og var usann: med både
+    selskapsdata og to talltyper blir det fire. Forsiden tar de tre
+    første — se `FORSIDESETNINGER` — og det er DEN begrensningen som er
+    et valg. Denne funksjonen lager alle setningene det er belegg for.
 
     Hver setning er `{"tekst": ..., "brod": bool}`. `brod` er sant for
     den ene setningen som ikke er ukas sak: selskapsdataene som står for
@@ -6645,16 +6677,13 @@ def bygg_forside(felles: Felles) -> dict:
 
         # ---- denne uka ----
         "uke": uke,
-        "sammendrag": _sammendrag(uke),
-        "forskriftslinje": _forskriftslinje(felles, uke),
-        # FORSIDENS KORTE TABELL viser bare det som er LEDET. De 402
-        # selskapsdataradene står på ukessiden, i sin egen del.
-        # Samme sammenslåing som ukessiden, samme grunn — se
-        # `slaa_sammen_trukne()`.
-        "rader": (slaa_sammen_trukne(uke["ledet"])[:FORSIDERADER]
-                  if uke else []),
-        "flere_rader": (max(len(uke["ledet"]) - FORSIDERADER, 0)
-                        if uke else 0),
+        "sammendrag": _sammendrag(uke)[:FORSIDESETNINGER],
+        # `forskriftslinje` OG `rader` STO HER TIL 27.09.2026.
+        #
+        # Tidslinja er FLYTTET til ukessiden og ikke slettet — den sier
+        # noe ingen annen komponent sier. Tabellen er borte helt: hele
+        # uka står på `/endringer/<uke>/`, og åtte av 440 rader over en
+        # lenke til alle 440 er en omvei til den lenka.
         "forrige_uke": (uker[1]["slug"] if len(uker) > 1 else ""),
         "forrige_uke_vist": (uker[1]["vist"] if len(uker) > 1 else ""),
         "uker_totalt": len(uker),

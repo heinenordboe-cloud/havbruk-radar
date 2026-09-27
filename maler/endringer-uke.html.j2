@@ -66,6 +66,12 @@
 {% block innhold %}
 
 <section class="ark seksjon">
+  {# SAMMENDRAGET OG TIDSLINJA I SAMME RUTE. `.uke-topp` er en grid som
+     legger dem side om side fra 420 px per spalte og under hverandre
+     under det. Ruta sto på forsiden til 27.09.2026 og fulgte med
+     tidslinja hit; uten den ville `.uke-topp` vært en regel i
+     stilarket uten et element. #}
+  <div class="uke-topp">
   <div class="uke-sammendrag uke-sammendrag--bred">
     {% if valgt %}
     <p>{{ rader|length }} av {{ antall(u.antall_rader, "rad", "rader") }} i {{ u.vist }} er
@@ -92,6 +98,54 @@
     {% endif %}
   </div>
 
+
+  {# TIDSLINJA. FLYTTET HIT FRA FORSIDEN 27.09.2026.
+
+     Den sto der og bare der, og forsiden viser nå ukas sak i tre
+     setninger og én lenke. Den er ikke slettet: den er det eneste
+     stedet på nettstedet som viser at KILDEN utga forskriften på én
+     dato og VI observerte den i registeret på en annen — CLAUDE.md
+     1b-7, de tre partene et tidspunkt kan tilhøre.
+
+     HER ER DEN DESSUTEN RIKTIGERE PLASSERT. På forsiden gjaldt den
+     alltid NYESTE uke; her regnes den per uke, av `_forskriftslinje()`,
+     og uke 34 får sin egen.
+
+     TO PUNKTER OG IKKE TRE: «fastsatt» er ikke samlet inn, og en dato
+     vi ikke har hentet skal ikke stå på siden.
+
+     BARE PÅ DEN UFILTRERTE UKESIDA. På en typeside er valget allerede
+     gjort, og tidslinja over en tabell med bare rømminger i ville vært
+     en overskrift som ikke gjaldt det under. #}
+  {% if forskriftslinje and not valgt %}
+  {% set fl = forskriftslinje %}
+  <figure class="tidslinje">
+    <div class="tidslinje-spor" aria-hidden="true">
+      <span class="tidslinje-punkt tidslinje-punkt--kilde"></span>
+      <span class="tidslinje-strek"></span>
+      <span class="tidslinje-punkt tidslinje-punkt--oss"></span>
+    </div>
+    <ol class="tidslinje-poster">
+      <li>
+        <span class="tidslinje-etikett">Forskriften utgitt</span>
+        <time datetime="{{ fl.utgitt }}">{{ fl.utgitt_vist }}</time>
+      </li>
+      <li class="tidslinje-gap">{{ antall(fl.dager, "dag", "dager") }}</li>
+      <li>
+        <span class="tidslinje-etikett">Observert her</span>
+        <time datetime="{{ fl.observert }}">{{ fl.observert_vist }}</time>
+      </li>
+    </ol>
+    <figcaption>
+      {{ antall(fl.antall, "produksjonsområde", "produksjonsområder") }} fikk ny trafikklysfarge i
+      Akvakulturregisteret, ført på hver av de
+      {{ antall(fl.lokaliteter, "lokaliteten", "lokalitetene") }} i dem. Utgivelsen er
+      <strong>kildens</strong> tidspunkt, observasjonen er
+      <strong>vårt</strong>. {{ fl.note }}
+    </figcaption>
+  </figure>
+  {% endif %}
+  </div>
 
   {# BRIKKENE ER FILTERET, med og uten JavaScript. Hver brikke er en
      lenke til `/endringer/<uke>/<type>/`, en ekte side bygget ved

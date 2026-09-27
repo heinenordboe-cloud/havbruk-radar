@@ -1894,43 +1894,70 @@ def test_forsiden_leder_med_uka_og_ikke_med_seg_selv():
     assert html.index('id="uka"') < html.index('id="kysten"')
     assert html.index('id="uka"') < html.index('arkivlinje')
     flat = " ".join(html.split())
-    # TO TALL, OG DE ER IKKE DET SAMME. `antall` er det som SKJEDDE;
-    # `antall_rader` er hvor mange rader tabellen har. De skilles fra
-    # 23.09.2026, fordi «felt oppgitt første gang» står i tabellen uten
-    # å være en hendelse i havbruket — se `nettsted.TELLER`.
     # TRE TALL, OG DE ER IKKE DET SAMME. `antall` er overskriftstallet
     # UTENOM selskapsdata; `antall_rader` er alle radene i uka. De
     # skilles fra 23.09.2026, fordi 402 av 440 var løpende
     # registervedlikehold — se `nettsted.EGEN_DEL`.
     assert ("38 endringer observert i uke 39, 2026: trafikklys og "
             "tillatelser." in flat)
-    # 440, IKKE 453: lenka teller det oppsummeringen teller pluss
-    # selskapsdataene. De 13 radene som med vilje ikke telles, er ikke
-    # endringer, og en lenke som kalte dem det ville motsagt tabellen
-    # den står under.
-    assert "Alle 440 endringene i uke 39, 2026, selskapsdata medregnet" in flat
-    assert "utenom selskapsdata" in flat
+    # ÉN LENKE VIDERE, og den bærer ukenummeret.
+    assert "Se alle endringer i uke 39, 2026" in flat
 
 
-def test_alle_endringstyper_vises_ogsaa_de_med_null():
+def test_uka_paa_forsiden_er_tre_setninger_og_en_lenke():
+    """Tabellen, brikkene og tidslinja er ute av forsiden.
+
+    HVER AV DE TRE GIKK TIL SITT STED, og prøven sier hvilket:
+
+      typemerkene  fantes fra før på ukessiden og på /sok/
+      tabellen     `#endringer-uke` finnes fra før på ukessiden, med
+                   ALLE radene og ikke åtte av dem
+      tidslinja    fantes BARE på forsiden, og er FLYTTET til
+                   ukessiden — ikke slettet
+
+    Markupkontrakten er sjekket før tabellen ble fjernet: `id` på hver
+    tabell er et stabilt anker, og `#endringer-uke` er bundet til
+    ukessiden. Se 2026-09-19-markup-er-en-kontrakt.md.
+    """
+    html = _forside()
+    assert 'id="endringer-uke"' not in html, "tabellen står igjen"
+    assert 'class="typemerker"' not in html, "brikkene står igjen"
+    assert 'class="tidslinje"' not in html, "tidslinja står igjen"
+
+    uke_mal = (Path(__file__).resolve().parents[1] / "maler"
+               / "endringer-uke.html.j2").read_text(encoding="utf-8")
+    assert 'id="endringer-uke"' in uke_mal, "ankeret er borte fra begge"
+    assert 'class="tidslinje"' in uke_mal, "tidslinja ble slettet, ikke flyttet"
+
+    # HØYST TRE SETNINGER. Kuttet skjer i `bygg_forside`, ikke i malen.
+    assert nettsted.FORSIDESETNINGER == 3
+    fire = [{"tekst": f"Setning {i}.", "brod": False} for i in range(4)]
+    assert len(fire[:nettsted.FORSIDESETNINGER]) == 3
+
+
+def test_alle_endringstyper_vises_paa_ukesiden_ogsaa_de_med_null():
     """Et tall man bare ser når det er noe der, er et tall ingen
     kjenner normalverdien til. Typer med 0 er dempet, men vises alltid.
 
     OG DE ER IKKE LENKER fra 25.09.2026. En brikke med null fører til en
     side som viser null rader; den står som et `<span>` med
     `aria-disabled`, så formen og skjermleseren sier det samme.
+
+    PRØVEN LESTE FORSIDEN til 27.09.2026. Brikkene er ikke der lenger —
+    de var en kopi av ukessidens, og ukessiden er der de hører hjemme.
+    Malen granskes her; `test_brikka_teller_radene_siden_faktisk_viser`
+    i test_smalskjerm måler dem på den rendrede sida.
     """
-    html = _forside()
-    flat = " ".join(html.split())
-    # Slagene med rader er lenker.
+    mal = (Path(__file__).resolve().parents[1] / "maler"
+           / "endringer-uke.html.j2").read_text(encoding="utf-8")
+    assert 'class="typemerker"' in mal
+    # Med rader: en lenke til typens egen side.
+    assert '/endringer/{{ u.slug }}/{{ k.id }}/' in mal
+    # Uten rader: et span med aria-disabled, ikke en lenke.
+    assert 'class="typemerke typemerke--tom" aria-disabled="true"' in mal
+    # Hver type i tabellen har et navn å vise.
     for slag in nettsted.ENDRINGSTYPER:
-        if slag["id"] == "trafikklys":
-            assert f'/endringer/2026-39/{slag["id"]}/' in html, slag["id"]
-        else:
-            assert f'/endringer/2026-39/{slag["id"]}/' not in html, slag["id"]
-        # Navnet står uansett.
-        assert slag["navn"] in flat, slag["id"]
-    assert 'class="typemerke typemerke--tom" aria-disabled="true"' in flat
+        assert slag["navn"], slag["id"]
 
 
 def test_typelenkene_er_stier_og_ikke_sporrestrenger():
