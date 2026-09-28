@@ -273,7 +273,7 @@ def _kontrast(a, b) -> float:
     (".hero-losen", AA_STOR, "mottoet, 32-62 px"),
     (".hero-tagline", AA_TEKST, "beskrivelsen"),
     (".hero-bildetekst", AA_TEKST, "bildeteksten"),
-    (".hovedmeny a", AA_TEKST, "menyen, alle seks lenkene"),
+    (".hovedmeny a", AA_TEKST, "menyen, alle fem lenkene"),
 ])
 @pytest.mark.parametrize("modus", ("light", "dark"))
 @pytest.mark.parametrize("bredde", (390, 1440))
@@ -308,11 +308,13 @@ def test_heroteksten_har_nok_kontrast(side, tjener, velger, terskel, hva,
 
     # ALLE ELEMENTENE VELGEREN TREFFER, ikke det første.
     #
-    # `querySelector(".hovedmeny a")` gir «Lokaliteter» alene. På 390
-    # brytes menyen i TO linjer, og den andre — «Endringer», «Om»,
-    # «Følg med» — ligger lenger ned, over en lysere del av himmelen.
-    # Den var aldri målt. Boksen er nå UNIONEN av alle treffene, og
-    # fargen er den første, som de deler.
+    # `querySelector(".hovedmeny a")` gir «Lokaliteter» alene. Da
+    # menyen brøt til to linjer på 390, lå den andre — «Endringer»,
+    # «Om», «Følg med» — lenger ned, over en lysere del av himmelen, og
+    # ble aldri målt: 1,60:1. Menyen står på ÉN linje fra 27.09.2026,
+    # men unionen blir stående. Den er det som gjør prøven riktig
+    # uansett hvor mange linjer menyen tar, og hvor mange punkter den
+    # har.
     boks = side.evaluate(r"""(v) => {
       const alle = [...document.querySelectorAll(v)];
       if (!alle.length) return null;
@@ -386,6 +388,84 @@ def test_menyflata_naar_heroens_kant(side, tjener, bredde):
     assert abs(maal["fx"] - maal["hx"]) < 1, f"venstre kant: {maal}"
     assert abs(maal["fh"] - maal["hh"]) < 1, f"høyre kant: {maal}"
     assert abs(maal["fy"] - maal["hy"]) < 1, f"overkant: {maal}"
+
+
+# ---- hovedmenyen ------------------------------------------------------
+
+
+MENYSIDER = ("/", "/lokalitet/31397/", "/sok/")
+
+
+@pytest.mark.parametrize("sti", MENYSIDER)
+@pytest.mark.parametrize("bredde", (360, 390, 639, 640, 1440))
+def test_menypunktene_star_paa_en_linje(side, tjener, sti, bredde):
+    """Fem punkter, én linje, i hver bredde — og ordmerket over eller
+    ved siden av.
+
+    Fram til 27.09.2026 brøt menyen til to linjer under 640 px. Den
+    andre linja havnet over en lysere del av herofotografiet, og det
+    var der `test_heroteksten_har_nok_kontrast` fant 1,60:1.
+
+    LØSNINGEN ER IKKE EN HAMBURGER. Får punktene ikke plass, ruller
+    lista vannrett inne i seg selv — se `test_menyen_ruller_framfor_aa_bryte`.
+    Alle fem er der, i samme rekkefølge, for øyet og for tabulatoren.
+    """
+    side.set_viewport_size({"width": bredde, "height": 844})
+    side.goto(tjener + sti, wait_until="load")
+    side.wait_for_timeout(120)
+    m = side.evaluate("""() => {
+      const nav = document.querySelector('.hovedmeny');
+      const punkter = [...nav.querySelectorAll('ul a')];
+      const merke = nav.querySelector('.merke').getBoundingClientRect();
+      return {
+        antall: punkter.length,
+        topper: [...new Set(punkter.map(
+            e => Math.round(e.getBoundingClientRect().top)))],
+        merkeTopp: Math.round(merke.top),
+        punktTopp: Math.round(punkter[0].getBoundingClientRect().top),
+      };
+    }""")
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert m["antall"] == 5, f"{sti}: {m['antall']} punkter"
+    assert len(m["topper"]) == 1, (
+        f"{sti} @ {bredde}: punktene står på {len(m['topper'])} linjer "
+        f"({m['topper']})")
+    if bredde >= 640:
+        assert m["merkeTopp"] == m["punktTopp"], "ordmerket skal stå på linja"
+    else:
+        assert m["merkeTopp"] < m["punktTopp"], "ordmerket skal stå over"
+
+
+@pytest.mark.parametrize("bredde", (360, 390))
+def test_menyen_ruller_framfor_aa_bryte(side, tjener, bredde):
+    """Når fem punkter ikke får plass, skal lista RULLE — ikke bryte,
+    ikke krympe teksten, ikke gjemme noe bak en knapp.
+
+    Prøven krever ikke at den RULLER ved en gitt bredde; den krever at
+    lista er en rulleboks, og at ingenting er klippet bort: siste punkt
+    skal være nåbart. Om 341 piksler med lenker får plass i 318 eller
+    350 avhenger av fonten, og det er ikke det prøven handler om.
+    """
+    side.set_viewport_size({"width": bredde, "height": 844})
+    side.goto(tjener + "/", wait_until="load")
+    side.wait_for_timeout(120)
+    m = side.evaluate("""() => {
+      const ul = document.querySelector('.hovedmeny ul');
+      const cs = getComputedStyle(ul);
+      const siste = ul.querySelector('li:last-child a');
+      ul.scrollLeft = ul.scrollWidth;
+      const r = siste.getBoundingClientRect();
+      const u = ul.getBoundingClientRect();
+      return {wrap: cs.flexWrap, overflow: cs.overflowX,
+              sisteSynlig: r.right <= u.right + 1 && r.left >= u.left - 1,
+              sideRuller: document.documentElement.scrollWidth
+                          > window.innerWidth};
+    }""")
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert m["wrap"] == "nowrap", "lista bryter"
+    assert m["overflow"] == "auto", "lista er ingen rulleboks"
+    assert m["sisteSynlig"], "siste punkt er ikke nåbart ved å rulle"
+    assert not m["sideRuller"], "menyen dro SIDA ut i bredden"
 
 
 # ---- brikka «Alle N rader» --------------------------------------------

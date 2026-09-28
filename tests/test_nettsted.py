@@ -2386,6 +2386,63 @@ def test_brodsmulen_starter_med_forside_overalt():
             assert '<li><a href="/">Kystloggen</a></li>' not in t, sti.name
 
 
+def test_menyen_har_fem_punkter_og_om_og_folg_staar_i_bunnteksten():
+    """«Om» og «Følg med» flyttet fra menyen til bunnteksten
+    27.09.2026, og skal stå ETT sted — ikke to, og ikke null.
+
+    En lenke som står begge steder er to veier til det samme i samme
+    synsfelt; en som står ingen steder er en side ingen finner.
+
+    `/om/` MÅ SJEKKES SOM HEL LENKE. Bunnteksten har fra før tre ankre
+    inn i den sida — `/om/#innsamling` og to til — og en telling på
+    delstrengen `/om/` ville sagt fire der svaret er én.
+    """
+    meny = (Path(__file__).resolve().parents[1] / "maler"
+            / "meny.html.j2").read_text(encoding="utf-8")
+    base = (Path(__file__).resolve().parents[1] / "maler"
+            / "base.html.j2").read_text(encoding="utf-8")
+
+    assert meny.count("<li>") == 5, "menyen skal ha fem punkter"
+    for maal in ('href="/lokalitet/"', 'href="/produksjonsomrade/"',
+                 'href="/selskap/"', 'href="/endringer/"', 'href="/sok/"'):
+        assert meny.count(maal) == 1, maal
+    for borte in ('href="/om/"', 'href="/#folg"'):
+        assert borte not in meny, f"{borte} står fortsatt i menyen"
+
+    # Bunnteksten, nøyaktig én gang hver.
+    assert base.count('href="/om/"') == 1, "«Om» mangler eller står to ganger"
+    assert base.count('href="/#folg"') == 1, "«Følg med» — samme"
+
+
+def test_omraader_er_menytekst_og_ikke_et_navnebytte():
+    """Bare ORDET i menyen er kortet ned. Lenkemålet, `meny_aktiv` og
+    sidetittelen er uendret — et navnebytte ville vært en annen
+    beslutning, og den er ikke tatt."""
+    meny = (Path(__file__).resolve().parents[1] / "maler"
+            / "meny.html.j2").read_text(encoding="utf-8")
+    assert ">Områder</a>" in meny
+    assert 'href="/produksjonsomrade/"' in meny
+    assert 'meny_aktiv == "produksjonsomrade"' in meny
+    # Sidetittelen står i nettsted.py og er ikke rørt.
+    kode = (Path(__file__).resolve().parents[1]
+            / "nettsted.py").read_text(encoding="utf-8")
+    assert 'meny_aktiv="produksjonsomrade"' in kode
+
+
+def test_sok_er_naabar_fra_menyen_og_markerer_seg_selv():
+    """`/sok/` var bare nåbar fra søkefeltet i heroen, altså fra
+    forsiden. Fra en lokalitetsside fantes det ingen vei dit.
+
+    `meny_aktiv="sok"` ble satt av `skriv_sok()` fra før — det var
+    menypunktet som manglet, ikke verdien."""
+    meny = (Path(__file__).resolve().parents[1] / "maler"
+            / "meny.html.j2").read_text(encoding="utf-8")
+    assert 'href="/sok/"' in meny and 'meny_aktiv == "sok"' in meny
+    kode = (Path(__file__).resolve().parents[1]
+            / "nettsted.py").read_text(encoding="utf-8")
+    assert 'meny_aktiv="sok"' in kode
+
+
 def test_besokte_lenker_har_samme_farge_som_andre():
     """Nesten hver lenke her er NAVIGASJON. En leser som har vært på 40
     av 1 782 lokalitetssider fikk et lilla mønster som ikke betyr noe om

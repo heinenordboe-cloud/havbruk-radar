@@ -18,15 +18,38 @@
    sender inn. Den er ikke pynt: uten den kan en skjermleser ikke si
    hvor i menyen leseren står, og markeringen i CSS-en henger på
    nettopp det attributtet framfor på en klasse — attributtet BETYR
-   noe, klassen ville bare sett slik ut. #}
+   noe, klassen ville bare sett slik ut.
+
+   ## FEM PUNKTER FRA 27.09.2026, og hva som er borte
+
+   «Om» og «Følg med» er flyttet til BUNNTEKSTEN. De to er ikke
+   navigasjon i dataene: den ene forteller hvem som står bak, den andre
+   hvordan man abonnerer. Begge er ting man leter etter ETTER å ha sett
+   innholdet, og bunnteksten er der man leter. Med dem i menyen var
+   seks punkter for mange til å få plass på én linje på en telefon.
+
+   «Søk» er nytt i menyen og gikk ikke ut av noe: `/sok/` var bare
+   nåbar fra søkefeltet i heroen, altså fra forsiden. Fra en
+   lokalitetsside fantes det ingen vei dit.
+
+   ## «OMRÅDER» ER MENYTEKST, IKKE ET NAVNEBYTTE
+
+   Lenka går fortsatt til `/produksjonsomrade/`, sidetittelen er
+   fortsatt «Produksjonsområder», og `meny_aktiv` heter fortsatt
+   `produksjonsomrade`. Bare ordet i menyen er kortet ned — det er 18
+   tegn av en linje som skal romme fem punkter på 360 piksler, og
+   ordet står i sin helhet på sida det fører til. #}
 <nav class="hovedmeny" aria-label="Hovedmeny">
   {% include "merke.html.j2" %}
+  {# ÉN LINJE, OG DEN RULLER HELLER ENN Å BRYTE. Se `.hovedmeny ul` i
+     stilarket: `flex-wrap: nowrap` og `overflow-x: auto`. Rekkefølgen
+     her er lesrekkefølgen og tab-rekkefølgen, og den er den samme i
+     begge oppsettene. #}
   <ul>
     <li><a href="/lokalitet/"{% if meny_aktiv == "lokalitet" %} aria-current="page"{% endif %}>Lokaliteter</a></li>
-    <li><a href="/produksjonsomrade/"{% if meny_aktiv == "produksjonsomrade" %} aria-current="page"{% endif %}>Produksjonsområder</a></li>
+    <li><a href="/produksjonsomrade/"{% if meny_aktiv == "produksjonsomrade" %} aria-current="page"{% endif %}>Områder</a></li>
     <li><a href="/selskap/"{% if meny_aktiv == "selskap" %} aria-current="page"{% endif %}>Selskaper</a></li>
     <li><a href="/endringer/"{% if meny_aktiv == "endringer" %} aria-current="page"{% endif %}>Endringer</a></li>
-    <li><a href="/om/"{% if meny_aktiv == "om" %} aria-current="page"{% endif %}>Om</a></li>
-    <li><a href="/#folg"{% if meny_aktiv == "folg" %} aria-current="page"{% endif %}>Følg med</a></li>
+    <li><a href="/sok/"{% if meny_aktiv == "sok" %} aria-current="page"{% endif %}>Søk</a></li>
   </ul>
 </nav>

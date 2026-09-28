@@ -571,30 +571,88 @@ main:focus { outline: none; }
   color: var(--hav-tegn);
 }
 
-/* MENYEN. Ordmerket til venstre, lenkene til høyre, og de brytes til
-   ny linje under 640px framfor å scrolle. */
+/* MENYEN. FEM PUNKTER PÅ ÉN LINJE, i begge oppsettene.
+ *
+ *   fra 640 px    ordmerket til venstre, punktene på én linje til høyre
+ *   under 640 px  ordmerket på egen linje, punktene på én linje under
+ *
+ * INGEN LINJEBRYTNING OG INGEN HAMBURGER. Menyen brøt til to linjer
+ * under 640 fram til 27.09.2026, og den andre linja havnet da over en
+ * lysere del av herofotografiet — det var der kontrastmålingen fant
+ * 1,60:1. En hamburger ville løst plassen ved å skjule fem lenker bak
+ * et trykk og en knapp som må virke uten JavaScript.
+ *
+ * Får punktene ikke plass, RULLER lista vannrett inne i seg selv. Det
+ * er den ene løsningen som verken skjuler noe eller flytter noe: alle
+ * fem er der, i samme rekkefølge, for øyet og for tabulatortasten.
+ */
 .hovedmeny {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--rom-10) var(--rom-24);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rom-10);
   padding-block: var(--rom-24) var(--rom-20);
 }
 
-.hovedmeny > .merke { margin-inline-end: auto; }
+@media (min-width: 40rem) {
+  .hovedmeny {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--rom-10) var(--rom-24);
+  }
 
+  /* Ordmerket skyver punktene ut til høyre kant. Bare i radoppsettet:
+     i en kolonne virker `margin-inline-end` på tverraksen og ville
+     strukket ordmerket over hele bredden. */
+  .hovedmeny > .merke { margin-inline-end: auto; }
+}
+
+/* LISTA ER EN RULLEBOKS. `nowrap` er kravet; `overflow-x` er det som
+ * gjør kravet mulig å holde uten å kutte tekst.
+ *
+ * `flex: none` på punktene: uten den krymper flexboksen dem til de
+ * bryter INNE i et punkt, og «Produksjons-\nområder» er ikke én linje.
+ *
+ * PADDING OG NEGATIV MARG PÅ 4 PIKSLER. En `overflow`-boks klipper alt
+ * som tegnes utenfor, og fokusmarkøren er `outline: 2px` med
+ * `outline-offset: 2px` — altså nøyaktig 4 piksler utenfor lenka. Uten
+ * luften ville en tabulerende leser sett halve ringen. Margen tar
+ * plassen tilbake, så menyen står der den sto.
+ *
+ * RULLEFELTET SKJULES. Det er en meny på fem ord, ikke et dokument, og
+ * en stripe under lenkene på en flate som ellers er et fotografi ser ut
+ * som en strek noen har tegnet. Rullingen virker uten den — med
+ * sveip, med shift+hjul, og med tabulator, som scroller det fokuserte
+ * punktet inn i syne av seg selv. */
 .hovedmeny ul {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--rom-6) var(--rom-24);
+  flex-wrap: nowrap;
+  gap: var(--rom-16);
   list-style: none;
   margin: 0;
   padding: 0;
   max-width: none;
   font-size: var(--fs-14);
+  inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  padding: 4px;
+  margin: -4px;
 }
 
-.hovedmeny li { margin: 0; }
+.hovedmeny ul::-webkit-scrollbar { display: none; }
+
+@media (min-width: 40rem) {
+  .hovedmeny ul {
+    inline-size: auto;
+    gap: var(--rom-24);
+  }
+}
+
+.hovedmeny a { white-space: nowrap; }
+
+.hovedmeny li { margin: 0; flex: none; }
 
 .hovedmeny a {
   color: var(--hav-sekundaer);
