@@ -591,6 +591,25 @@ def main() -> int:
     # spørsmål r.ok svarer på direkte. Å lese det ut av teksten igjen
     # ville vært nok et mål som LIGNER det vi vil vite (CLAUDE.md 1b-2).
     feilende = [r.source for r in resultater if not r.ok]
+
+    # Navnene ut til workflowen, i sin egen kanal — samme grunn som
+    # `tilsyn`: exit-koden er ett bit og er lovet bort til «uka mangler
+    # data», og den kan ikke bære HVILKE kilder det gjelder.
+    #
+    # Uten dette måtte samle.yml påstå noe den ikke vet. Den sa «Denne uka
+    # har ikke noe fullstendig snapshot» også når én av elleve kilder
+    # feilet — og da er de ti andre skrevet, uka er delvis og ikke tom, og
+    # den som leser meldingen får et verre bilde enn det som er sant.
+    #
+    # TOM STRENG er ikke «ingen kilder feilet». Den er «vi vet ikke»:
+    # dør kjøringen før denne linja, eller feiler checkout av kodrepoet
+    # slik at run.py aldri starter, settes utfallet aldri, og
+    # `${{ steps.samle.outputs.mangler }}` blir tom. De to tilfellene må
+    # skilles av LESEREN, og samle.yml gjør det på `outcome` ved siden av.
+    # Samme skille som `utvalg` og `published_at`: fraværet av en verdi er
+    # ikke en verdi (CLAUDE.md 1b-3, 1b-7).
+    _actions_output("mangler", ",".join(feilende))
+
     if feilende:
         print(f"\n::error::Innsamlingen feilet for {', '.join(feilende)}. "
               f"Denne uka mangler kilden(e) over, og uka kan ikke hentes "

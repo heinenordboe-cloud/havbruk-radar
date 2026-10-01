@@ -164,7 +164,7 @@ def test_regresjon_oppdages(tmp_path, monkeypatch):
     feilet = [runner.Result("falsk", False, 0, "RuntimeError: nede")]
     _, nede = health.oppdater(feilet, "2026-01-08")
 
-    assert nede == ["falsk (nede, uke 1)"]
+    assert nede == ["falsk (nede, kjøring 1)"]
 
 
 def test_knekt_kildefil_stopper_ikke_de_andre(tmp_path, monkeypatch):
@@ -846,7 +846,7 @@ def test_nede_og_aldri_levert_skilles_i_meldingen(tmp_path, monkeypatch):
         "2026-01-08",
     )
 
-    assert nede[0].startswith("fungert (nede, uke 1)")
+    assert nede[0].startswith("fungert (nede, kjøring 1)")
     assert nede[1].startswith("aldri (har ALDRI levert")
 
 
@@ -1857,7 +1857,7 @@ def test_health_beholder_kilder_som_ikke_kjorte(tmp_path, monkeypatch):
 
     # Og når "falsk" senere feiler, skal alarmen fortsatt gå.
     _, nede = health.oppdater([runner.Result("falsk", False, 0, "nede")], "2026-01-08")
-    assert nede == ["falsk (nede, uke 1)"]
+    assert nede == ["falsk (nede, kjøring 1)"]
 
 
 def _helse(tmp_path, monkeypatch):
@@ -1880,7 +1880,7 @@ def test_volumfall_utloser_rodt(tmp_path, monkeypatch):
     assert nede == []   # første kjøring etablerer nivået
 
     _, nede = health.oppdater([runner.Result("falsk", True, 500)], "2026-01-08")
-    assert nede == ["falsk (volum 50% av referanse 1000: 500 observasjoner, uke 1)"]
+    assert nede == ["falsk (volum 50% av referanse 1000: 500 observasjoner, kjøring 1)"]
 
 
 def test_volumvakt_forste_kjoring_varsler_ikke(tmp_path, monkeypatch):
@@ -1909,7 +1909,7 @@ def test_volumokning_varsler_ikke_og_hever_referansen(tmp_path, monkeypatch):
     # Tilbake til 100 er nå et fall på 90 %, ikke en normal verdi.
     # Strekken er 1: de to foregående ukene var friske og nullstilte den.
     _, nede = health.oppdater([runner.Result("falsk", True, 100)], "2026-01-15")
-    assert nede == ["falsk (volum 10% av referanse 1000: 100 observasjoner, uke 1)"]
+    assert nede == ["falsk (volum 10% av referanse 1000: 100 observasjoner, kjøring 1)"]
 
 
 def test_volumalarm_holder_seg_rod_i_fem_uker(tmp_path, monkeypatch):
@@ -1925,14 +1925,19 @@ def test_volumalarm_holder_seg_rod_i_fem_uker(tmp_path, monkeypatch):
     tilstand, _ = health.oppdater([runner.Result("falsk", True, 1000)], "2026-01-01")
     health.skriv(tilstand)
 
-    for uke, dato in enumerate(
+    # Én kjøring per uke her, så strekket og ukenummeret er tilfeldigvis
+    # det samme tallet. Det er nettopp sammenfallet varselteksten ikke
+    # lenger påstår: `feil_paa_rad` teller kjøringer, og en uke med både
+    # mandag og tirsdagens gjenkjøring gir to.
+    for kjoring, dato in enumerate(
         ["2026-01-08", "2026-01-15", "2026-01-22", "2026-01-29", "2026-02-05"], start=1
     ):
         tilstand, nede = health.oppdater([runner.Result("falsk", True, 250)], dato)
         health.skriv(tilstand)
         assert nede == [
-            f"falsk (volum 25% av referanse 1000: 250 observasjoner, uke {uke})"
-        ], f"stille i uke {uke} — bruddet varer fortsatt"
+            f"falsk (volum 25% av referanse 1000: 250 observasjoner, "
+            f"kjøring {kjoring})"
+        ], f"stille i kjøring {kjoring} — bruddet varer fortsatt"
 
     # Referansen skal IKKE ha flyttet seg nedover underveis.
     assert tilstand["falsk"]["volum_referanse"] == 1000
@@ -1961,7 +1966,7 @@ def test_referansen_driver_ikke_nedover_ved_gradvise_fall(tmp_path, monkeypatch)
     # Uke to måles mot 1000, ikke mot 920. 846/1000 = 85 % -> alarm.
     tilstand, nede = health.oppdater([runner.Result("falsk", True, 846)], "2026-01-15")
     health.skriv(tilstand)
-    assert nede == ["falsk (volum 85% av referanse 1000: 846 observasjoner, uke 1)"]
+    assert nede == ["falsk (volum 85% av referanse 1000: 846 observasjoner, kjøring 1)"]
 
     # Og driften stanser ikke opp av seg selv: nivået står til noen tar tak.
     for uke, antall in enumerate([778, 716, 659], start=2):
@@ -1994,7 +1999,7 @@ def test_godta_volum_stopper_alarmen(tmp_path, monkeypatch):
 
     # Men et NYTT fall under det godtatte nivået varsler igjen.
     _, nede = health.oppdater([runner.Result("falsk", True, 100)], "2026-01-22")
-    assert nede == ["falsk (volum 25% av referanse 400: 100 observasjoner, uke 1)"]
+    assert nede == ["falsk (volum 25% av referanse 400: 100 observasjoner, kjøring 1)"]
 
 
 def _felt_frame(felter, n=100, kilde="akvakultur"):
@@ -2147,7 +2152,7 @@ def test_null_observasjoner_uten_exception_varsler(tmp_path, monkeypatch):
     tilstand, nede = health.oppdater([runner.Result("falsk", True, 0)], "2026-01-08")
     health.skriv(tilstand)
 
-    assert nede == ["falsk (volum 0% av referanse 1000: 0 observasjoner, uke 1)"]
+    assert nede == ["falsk (volum 0% av referanse 1000: 0 observasjoner, kjøring 1)"]
     # 0 skal ikke bli den nye normalen — da ville alt vært "friskt" igjen.
     assert tilstand["falsk"]["volum_referanse"] == 1000
 
@@ -2197,7 +2202,7 @@ def test_godta_volum_uten_levert_volum_dreper_ikke_vakten(tmp_path, monkeypatch)
     tilstand, _ = health.oppdater([runner.Result("tom", True, 1000)], "2026-01-08")
     health.skriv(tilstand)
     _, nede = health.oppdater([runner.Result("tom", True, 100)], "2026-01-15")
-    assert nede == ["tom (volum 10% av referanse 1000: 100 observasjoner, uke 1)"]
+    assert nede == ["tom (volum 10% av referanse 1000: 100 observasjoner, kjøring 1)"]
 
 
 def test_nede_kilde_odelegger_ikke_referansen(tmp_path, monkeypatch):
@@ -2217,7 +2222,7 @@ def test_nede_kilde_odelegger_ikke_referansen(tmp_path, monkeypatch):
 
     # Oppe igjen, men bare 20 % av dataene: fortsatt et volumvarsel.
     _, nede = health.oppdater([runner.Result("falsk", True, 200)], "2026-01-15")
-    assert nede == ["falsk (volum 20% av referanse 1000: 200 observasjoner, uke 1)"]
+    assert nede == ["falsk (volum 20% av referanse 1000: 200 observasjoner, kjøring 1)"]
 
 
 def test_dager_siden_observasjon_leser_siste_snapshot(tmp_path, monkeypatch):
@@ -2424,6 +2429,40 @@ def test_unntak_i_fetch_feller_jobben_fortsatt(tmp_path, monkeypatch, capsys):
 
     assert kode == 1
     assert "::error::Innsamlingen feilet for knust" in ut
+
+
+def test_mangler_utfallet_navngir_kildene(tmp_path, monkeypatch):
+    """samle.yml skal kunne NAVNGI kildene som mangler.
+
+    Før dette sa workflowen «Denne uka har ikke noe fullstendig snapshot»
+    uansett hvor mange kilder som feilet. Med én feilende av elleve er de
+    ti andre skrevet, uka er delvis og ikke tom, og meldingen ga et verre
+    bilde enn det som var sant.
+
+    Egen kanal og ikke exit-koden: ett bit kan ikke bære hvilke kilder det
+    gjelder. Samme grunn som `tilsyn` fikk sin.
+    """
+    kode, output = _kjor_main(tmp_path, monkeypatch,
+                              [FalskKilde(), KnustKilde()], ["run.py"])
+
+    assert kode == 1
+    assert "mangler=knust" in output
+    assert "tilsyn=true" in output     # knust har aldri levert
+
+
+def test_mangler_er_tom_nar_alt_gikk_bra(tmp_path, monkeypatch):
+    """Tom streng når ingen kilde feilet.
+
+    Den er IKKE det samme som «vet ikke»: dør kjøringen før linja, eller
+    feiler checkout av kodrepoet slik at run.py aldri starter, settes
+    utfallet aldri og variabelen blir tom på samme måte. Skillet må gjøres
+    av leseren, og samle.yml gjør det på `outcome` ved siden av — derfor
+    står denne testen sammen med den over og ikke alene.
+    """
+    kode, output = _kjor_main(tmp_path, monkeypatch, [FalskKilde()], ["run.py"])
+
+    assert kode == 0
+    assert "mangler=\n" in output or output.rstrip().endswith("mangler=")
 
 
 def test_en_feilende_kilde_feller_jobben_selv_om_andre_leverte(

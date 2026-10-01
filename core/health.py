@@ -127,9 +127,18 @@ def _vurder_volum(kilde: str, antall: int, gammel: dict) -> tuple[int, int, str 
     andel = antall / referanse
     if andel < _min_andel(kilde):
         strekk += 1
+        # «kjøring», ikke «uke». Strekket telles opp én gang per KJØRING
+        # som ser et lavt volum, og det er ikke én kjøring per uke:
+        # mandagens innsamling og tirsdagens gjenkjøring er to, og en
+        # manuell kjøring er en tredje. «uke 3» om tre kjøringer samme uke
+        # sier at bruddet har stått i tre uker, og den som leser varselet
+        # gjør et helt annet anslag av hvor gammelt problemet er.
+        #
+        # Samme form som F4 og F8: en enhet som LIGNER den vi målte, og
+        # som stemmer i akkurat de ukene der det bare ble kjørt én gang.
         return referanse, strekk, (
             f"{kilde} (volum {andel:.0%} av referanse {referanse}: "
-            f"{antall} observasjoner, uke {strekk})"
+            f"{antall} observasjoner, kjøring {strekk})"
         )
 
     # Friskt. Referansen er et HØYVANNSMERKE: den følger med opp, men
@@ -682,7 +691,9 @@ def oppdater(
         # den i det uendelige med exit 0, og ingen får vite det.
         if not r.ok:
             if gammel.get("sist_ok"):
-                nede.append(f"{r.source} (nede, uke {strekk})")
+                # `feil_paa_rad` teller KJØRINGER som feilet, ikke uker.
+                # Se kommentaren i _vurder_volum.
+                nede.append(f"{r.source} (nede, kjøring {strekk})")
             else:
                 nede.append(
                     f"{r.source} (har ALDRI levert — feilet {strekk} "
