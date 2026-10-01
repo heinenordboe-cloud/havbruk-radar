@@ -382,15 +382,34 @@ def main() -> int:
     #
     # --tving overstyrer. Det er hele poenget med flagget, og løpenummeret
     # finnes nettopp for det tilfellet der du vet hva du gjør.
+    # Kilder denne kjøringen hoppet over MED VILJE, med grunnen. Settes bare
+    # av steg 2b. Tilsynet i datarepoet kan ellers ikke skille «uka lå
+    # skrevet fra før» fra «kilden ble aldri forsøkt», og de to ser like ut
+    # i health.json. Se health._stemple_hopp for hvorfor de tre ANDRE
+    # stedene en kilde faller ut ikke kvitteres ut her.
+    hoppet: dict[str, str] = {}
+
     if not args.torrkjor and not args.tving:
         ferdige = [k for k in kilder
                    if k.name in snapshot.finnes_allerede(k.gjelder_for(kjoredato))]
         for kilde in ferdige:
-            print(f"  [har]  {kilde.name:<20} {kilde.gjelder_for(kjoredato)} "
+            gjelder = kilde.gjelder_for(kjoredato)
+            print(f"  [har]  {kilde.name:<20} {gjelder} "
                   f"ligger skrevet fra før")
+            hoppet[kilde.name] = f"{gjelder} ligger skrevet fra før"
         kilder = [k for k in kilder if k not in ferdige]
 
         if not kilder:
+            # Kvitteringen skrives FØR returen. Hoppet står ellers bare i
+            # Actions-loggen, og den utløper mens snapshotene blir liggende
+            # — da ville tilsynet onsdag ikke kunne se at hoppet var med
+            # vilje. Smal gren (den krever at hver forfalte kilde ble
+            # 2b-hoppet), men den er den ene der kvitteringen går tapt.
+            health.skriv(health.oppdater(
+                [], kjoredato, None,
+                kadens={k.name: k.min_dager_mellom for k in alle_kilder},
+                hoppet=hoppet,
+            )[0])
             if args.planlagt:
                 print("\n::error::Planlagt kjøring samlet ingenting — alle kilder "
                       "hadde allerede skrevet snapshotet sitt. Undersøk om "
@@ -463,6 +482,7 @@ def main() -> int:
     tilstand, nede = health.oppdater(
         resultater, kjoredato, naa,
         kadens={k.name: k.min_dager_mellom for k in alle_kilder},
+        hoppet=hoppet,
     )
     health.skriv(tilstand)
 

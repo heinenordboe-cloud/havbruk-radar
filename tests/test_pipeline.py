@@ -1798,6 +1798,53 @@ def test_kadens_overlever_at_posten_bygges_pa_nytt(tmp_path, monkeypatch):
     assert tilstand["falsk"]["sist_ok"] == "2026-09-28"
 
 
+def test_hopp_i_steg_2b_kvitteres_ut(tmp_path, monkeypatch):
+    """Et 2b-hopp skal stå i health.json, ikke bare i Actions-loggen.
+
+    Tilsynet onsdag kan ellers ikke skille «uka lå skrevet fra før» fra
+    «kilden ble aldri forsøkt», og de to ser helt like ut i fila: begge har
+    en gammel `sist_ok` og `feil_paa_rad = 0`.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    tilstand, _ = health.oppdater(
+        [runner.Result("daglig", True, 3)], "2026-10-05",
+        kadens={"falsk": 7, "daglig": 1},
+        hoppet={"falsk": "2026-06-29 ligger skrevet fra før"},
+    )
+
+    assert tilstand["falsk"]["sist_hoppet_over"] == "2026-10-05"
+    assert tilstand["falsk"]["hopp_grunn"] == "2026-06-29 ligger skrevet fra før"
+    # Kjøredatoen, ikke gyldighetsdatoen: feltet sier noe om OSS.
+    assert tilstand["falsk"].get("sist_ok") is None
+
+
+def test_hopp_stemples_ikke_naar_kilden_feilet(tmp_path, monkeypatch):
+    """En kilde som ble FORSØKT og feilet skal ikke se hoppet ut.
+
+    Og den gamle kvitteringen skal ikke overleve forsøket: hoppet vi over
+    kilden i uke 40 og den feilet i uke 41, er uke 41 en tapt uke, og et
+    stempel fra uke 40 ville gjort tilsynet stille om den.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    health.skriv({"falsk": {"sist_ok": "2026-09-22",
+                            "sist_hoppet_over": "2026-09-28",
+                            "hopp_grunn": "lå skrevet fra før"}})
+
+    tilstand, _ = health.oppdater(
+        [runner.Result("falsk", False, 0, error="RuntimeError: 500")],
+        "2026-10-05", kadens={"falsk": 7}, hoppet={},
+    )
+
+    assert "sist_hoppet_over" not in tilstand["falsk"]
+    assert "hopp_grunn" not in tilstand["falsk"]
+    assert tilstand["falsk"]["feil_paa_rad"] == 1
+
+
 def test_historisk_kjoring_stempler_ikke_kadens(tmp_path, monkeypatch):
     """--historisk rører ikke health.json, og det gjelder kadensen også.
 
@@ -2429,6 +2476,74 @@ def test_unntak_i_fetch_feller_jobben_fortsatt(tmp_path, monkeypatch, capsys):
 
     assert kode == 1
     assert "::error::Innsamlingen feilet for knust" in ut
+
+
+class FastdatoKilde(FalskKilde):
+    """Kilde med en gyldighetsdato som IKKE flytter seg med kjøredatoen.
+
+    `reguleringsomraader` i miniatyr: `gjelder_for()` returnerer datoen
+    rådet ble avgitt, så steg 2b hopper over kilden hver uke så lenge den
+    datoen ligger skrevet.
+    """
+
+    name = "fastdato"
+
+    def gjelder_for(self, kjoredato):
+        return "2026-06-29"
+
+
+def test_steg_2b_skriver_kvitteringen_gjennom_main(tmp_path, monkeypatch):
+    """Rørføringen hele veien: run.main() -> health.json på disk.
+
+    Uten dette er `sist_hoppet_over` bare noe health.oppdater KAN skrive.
+    Testen beviser at steg 2b faktisk sender det, og at kvitteringen havner i
+    fila ved siden av kadensen tilsynet leser.
+
+    Oppsettet er tilstanden `reguleringsomraader` sto i 01.10.2026: kilden er
+    forfalt (sist_ok i en gammel ISO-uke), men gyldighetsdatoen ligger
+    skrevet fra før, så 2b hopper over den uten å hente.
+    """
+    # Gyldighetsdatoen ligger skrevet. finnes_allerede() ser bare på om
+    # fila finnes, så innholdet er uten betydning her.
+    ferdig = tmp_path / "raw" / "fastdato" / "2026-06-29.parquet"
+    ferdig.parent.mkdir(parents=True)
+    ferdig.touch()
+
+    # Begge kildene er forfalte: sist_ok ligger i en ISO-uke langt bak.
+    kode, _ = _kjor_main(
+        tmp_path, monkeypatch, [FalskKilde(), FastdatoKilde()], ["run.py"],
+        health_start={
+            "falsk": {"sist_ok": "2020-01-06", "sist_forsok": "2020-01-06",
+                      "feil_paa_rad": 0},
+            "fastdato": {"sist_ok": "2020-01-06", "sist_forsok": "2020-01-06",
+                         "feil_paa_rad": 0},
+        },
+    )
+    assert kode == 0
+
+    tilstand = json.loads((tmp_path / "health.json").read_text(encoding="utf-8"))
+
+    # fastdato ble hoppet over med vilje, og sier det selv.
+    assert tilstand["fastdato"]["sist_hoppet_over"] == _i_dag_utc()
+    assert tilstand["fastdato"]["hopp_grunn"] == \
+        "2026-06-29 ligger skrevet fra før"
+    # Kvitteringen er ikke en henting: sist_ok står urørt.
+    assert tilstand["fastdato"]["sist_ok"] == "2020-01-06"
+
+    # falsk ble faktisk hentet, og har ingen kvittering.
+    assert tilstand["falsk"]["sist_ok"] == _i_dag_utc()
+    assert "sist_hoppet_over" not in tilstand["falsk"]
+
+    # Kadensen står på begge — det er den tilsynet leser først.
+    assert tilstand["falsk"]["min_dager_mellom"] == 7
+    assert tilstand["fastdato"]["min_dager_mellom"] == 7
+
+
+def _i_dag_utc() -> str:
+    """Kjøredatoen run.py slår opp. Samme oppslag, samme sted (CLAUDE.md 1b)."""
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).date().isoformat()
 
 
 def test_mangler_utfallet_navngir_kildene(tmp_path, monkeypatch):

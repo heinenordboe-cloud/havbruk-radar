@@ -562,9 +562,60 @@ def _stemple_kadens(ny: dict, kadens: dict[str, int] | None) -> None:
         ny.setdefault(navn, {})["min_dager_mellom"] = dager
 
 
+def _stemple_hopp(ny: dict, hoppet: dict[str, str] | None,
+                  observed_at: str) -> None:
+    """Kvitterer ut at kjøringen hoppet over kilden MED VILJE.
+
+    Tilsynet skal feile når en ukentlig kilde mangler ukas snapshot. Uten
+    dette feltet kan det ikke skille de to tilfellene som ser like ut i
+    health.json:
+
+      - kilden ble ikke forsøkt fordi uka alt lå skrevet (helt i orden), og
+      - kilden ble ikke forsøkt i det hele tatt (uka er tapt).
+
+    `reguleringsomraader` er det første tilfellet i drift. `gjelder_for()`
+    returnerer datoen rådet ble avgitt — en FAST dato — så steg 2b i run.py
+    hopper over kilden hver uke så lenge den datoen ligger skrevet. Dens
+    `sist_ok` sto derfor frosset på 2026-09-14 med `feil_paa_rad = 0`, og en
+    ukekontroll som bare leste `sist_ok` ville gjort tilsynet rødt hver
+    onsdag for alltid. En alarm som alltid står rød blir mutet, og en mutet
+    dead man's switch er verre enn ingen.
+
+    `feil_paa_rad > 0` ble vurdert som skille og forkastet: det ser bare
+    kilder som BLE FORSØKT, og tilfellet B2 finnes for er nettopp kilden
+    som IKKE ble forsøkt. biomasselag uke 40 hadde aldri blitt sett.
+
+    KJØREDATOEN, som `sist_ok` og `sist_forsok`. Feltet sier «denne
+    kjøringen hoppet over kilden», og det er en opplysning om OSS — ikke om
+    hvilken periode dataene gjelder for (CLAUDE.md 1b-7).
+
+    Stemples BARE for steg 2b. De tre andre stedene en kilde kan falle ut
+    av kjøringen skal ikke kvitteres ut her:
+
+      - `--bare` utelater de ti andre kildene. Kvitterte vi dem ut, ville
+        én manuell kjøring gjort tilsynet blindt for en uke de faktisk
+        manglet. En manuell avgrensning er ikke en påstand om at de andre
+        er i orden.
+      - Frekvensvakten (steg 2) holder igjen en ukentlig kilde bare når
+        `sist_ok` ALT ligger i denne ISO-uka. Da svarer `sist_ok` på
+        tilsynets spørsmål direkte, og et ekstra felt ville vært et andre
+        svar på samme spørsmål.
+      - En kilde med `enabled = False` kommer aldri ut av
+        `registry.discover()`, så run.py kan ikke kvittere for den. Står
+        den fra før i health.json, vil tilsynet fyre på den hver uke.
+        Ingen kilde er i den tilstanden i dag (health.json har 9 poster,
+        alle registrerte), så hullet er latent og ikke åpent.
+    """
+    for navn, grunn in (hoppet or {}).items():
+        post = ny.setdefault(navn, {})
+        post["sist_hoppet_over"] = observed_at
+        post["hopp_grunn"] = grunn
+
+
 def oppdater(
     resultater: list[Result], observed_at: str, observasjoner=None,
     historisk: bool = False, kadens: dict[str, int] | None = None,
+    hoppet: dict[str, str] | None = None,
 ) -> tuple[dict, list[str]]:
     """Returnerer ny helsetilstand og liste over kilder som trenger tilsyn.
 
@@ -586,6 +637,9 @@ def oppdater(
     `kadens` er {kilde: min_dager_mellom} for ALLE registrerte kilder, og
     stemples på hver post. Se `_stemple_kadens` for hvorfor den må dekke
     alle og ikke bare dagens resultater.
+
+    `hoppet` er {kilde: grunn} for kilder kjøringen hoppet over MED VILJE.
+    Se `_stemple_hopp`.
 
     `historisk=True` for backfill: tilstanden røres ikke i det hele tatt.
     Volum- og feltreferansen er høyvannsmerker mot FORRIGE KJØRING, og
@@ -716,6 +770,7 @@ def oppdater(
     # ETTER løkka, ikke inni: `ny[r.source] = {...}` over bygger posten på
     # nytt fra grunnen og ville slettet stempelet igjen.
     _stemple_kadens(ny, kadens)
+    _stemple_hopp(ny, hoppet, observed_at)
 
     return ny, nede
 
