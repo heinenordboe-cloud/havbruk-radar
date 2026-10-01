@@ -2,7 +2,7 @@
 dato: 2026-10-01
 tittel: Forfall måles i ISO-uker for ukentlige kilder, ikke i dager
 status: utkast
-commit: [fylles inn]
+commit: ef4392d, 210ebc4, 4df65cb, 8e81746 (kode) / 10135dd, d28ce9b (data)
 ---
 
 # Forfall per ISO-uke
@@ -113,7 +113,52 @@ kjørte er nettopp den tilsynet skal se. Kadensen er en ERKLÆRING fra
 kilden, ikke en måling av kjøringen, så den er like sann for en kilde som
 ikke kjørte. `--historisk` rører fortsatt ikke health.json.
 
-## Bestemt 5: et manglende kadensfelt er en feil med navn
+## Bestemt 5: et bevisst hopp kvitteres ut, og det er DET tilsynet leser
+
+`run.py` skriver `sist_hoppet_over` og `hopp_grunn` på kilder steg 2b
+hopper over. Tilsynet regner en ukentlig kilde som i orden hvis ENTEN
+`sist_ok` ELLER `sist_hoppet_over` ligger i inneværende ISO-uke.
+
+Uten dette kan tilsynet ikke skille to tilstander som ser helt like ut i
+health.json, og bare den ene er en tapt uke:
+
+    kilden ble ikke forsøkt fordi uka alt lå skrevet   -> helt i orden
+    kilden ble ikke forsøkt i det hele tatt            -> uka er tapt
+
+`reguleringsomraader` er det første tilfellet i drift. `gjelder_for()`
+returnerer datoen rådet ble avgitt — en FAST dato (2026-06-29) — og
+kildens egen docstring sier at steg 2b derfor hopper over den hver uke.
+Dens `sist_ok` sto frosset på 2026-09-14 med `feil_paa_rad = 0`. En
+ukekontroll som bare leste `sist_ok` ville gjort tilsynet rødt hver onsdag
+for alltid på en kilde der ingenting er galt, og en alarm som alltid står
+rød blir mutet.
+
+**`feil_paa_rad > 0` ble vurdert som skille og forkastet.** Det ville
+skilt reguleringsomraader fra biomasselag i dag, men det ser bare kilder
+som BLE FORSØKT — og tilfellet kontrollen finnes for er nettopp kilden som
+IKKE ble forsøkt. biomasselag ble ikke hentet mandag 28.09, og uke 40 gikk
+tapt på det. En regel bygget på `feil_paa_rad` ville vært stille i akkurat
+det tilfellet den ble laget for.
+
+Bare steg 2b stempler. De tre andre stedene en kilde kan falle ut av
+kjøringen gjør det ikke, og hver har sin grunn:
+
+| sted | stempler | hvorfor |
+| --- | --- | --- |
+| `--bare` (run.py:284) | nei | kvitterte vi de ti andre ut, ville én manuell kjøring gjort tilsynet blindt for en uke de faktisk manglet |
+| frekvensvakten, steg 2 | nei | holder en ukentlig kilde igjen bare når `sist_ok` ALT ligger i denne ISO-uka; `sist_ok` svarer da direkte |
+| `enabled = False` | kan ikke | kilden kommer aldri ut av `registry.discover()`, så run.py har ingenting å kvittere for |
+
+Den siste er et **latent hull**: blir en kilde med en post i health.json
+satt inaktiv, fyrer tilsynet på den hver uke. Ingen kilde er i den
+tilstanden i dag — health.json har 9 poster, alle registrerte — så hullet
+er ikke åpent, men det lukkes ikke av denne beslutningen.
+
+Den tidlige returen i steg 2b skriver kvitteringen før den returnerer.
+Hoppet sto ellers bare i Actions-loggen, og den utløper mens snapshotene
+blir liggende.
+
+## Bestemt 6: et manglende kadensfelt er en feil med navn
 
 I `.github/tilsyn.py` behandles en kilde uten `min_dager_mellom` som en
 feil som navngir kilden — samme retning som `sist_ok: None` gir forfalt.
@@ -121,7 +166,7 @@ Alternativet er at kontrollen tier om nøyaktig de kildene den ikke kan
 lese, og en vakt som blir stille av manglende data er den feilmodusen
 `tilsyn.py` finnes for å hindre.
 
-## Bestemt 6: varseltekstene sier «kjøring» der de teller kjøringer
+## Bestemt 7: varseltekstene sier «kjøring» der de teller kjøringer
 
 `feil_paa_rad` og `volum_lavt_paa_rad` går opp én gang per KJØRING som
 ser problemet, og det er ikke én per uke: mandag og tirsdag er to, en
