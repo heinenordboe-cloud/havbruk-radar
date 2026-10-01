@@ -6,7 +6,7 @@ Med den mister du én kilde én uke, og resten kjører videre.
 
 import traceback
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from core import health
 from core import domene as domene_modul
@@ -101,6 +101,47 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     ]
 
 
+# Kadensen som måles i ISO-UKER og ikke i dager. Tallet er fortsatt
+# `min_dager_mellom` på kilden — det er ikke et nytt felt å holde i takt,
+# bare en annen lesning av det som står der. Se velg_forfalte.
+UKENTLIG = 7
+
+
+def _isouke(dato: str) -> tuple[int, int] | None:
+    """(ISO-år, ISO-uke) for en datostreng. None når den ikke er lesbar.
+
+    ISO-ÅRET og ikke kalenderåret: 29.12.2026 er uke 53 i ISO-år 2026, og
+    04.01.2027 er uke 1 i ISO-år 2027. Tuppelet kan derfor sammenlignes
+    rett over et årsskifte, mens (kalenderår, uke) ville sagt at uke 53
+    kom ETTER uke 1 i samme år.
+    """
+    try:
+        return date.fromisoformat(dato).isocalendar()[:2]
+    except (TypeError, ValueError):
+        return None
+
+
+def _uke_er_eldre(sist_ok: str | None, observed_at: str) -> bool:
+    """Ligger `sist_ok` i en tidligere ISO-uke enn kjøredatoen?
+
+    True betyr forfalt. `None` eller en ulesbar dato gir True: vet vi
+    ikke når kilden sist lyktes, kjører vi. Fallback-oppførselen skal
+    være å kjøre — en uke som ikke hentes kan ikke hentes igjen, mens en
+    henting for mye er en fil med løpenummer.
+
+    Er kjøredatoen selv ulesbar, er svaret False. Da vet vi ingenting om
+    hvilken uke vi er i, og «hent alt» på det grunnlaget ville vært å
+    skrive snapshots på en dato vi ikke kan tolke.
+    """
+    naa = _isouke(observed_at)
+    if naa is None:
+        return False
+    da = _isouke(sist_ok) if sist_ok else None
+    if da is None:
+        return True
+    return da < naa
+
+
 def velg_forfalte(
     sources: list[Source], observed_at: str
 ) -> tuple[list[Source], list[tuple[Source, int]]]:
@@ -114,9 +155,53 @@ def velg_forfalte(
     kunne aktiveres midt i uka uten å overskrive dagens snapshot for de
     andre. Nå hoppes bare den hentede kilden over.
 
-    Merk konsekvensen: kjører du manuelt på en søndag, er den ukentlige
-    kilden ikke forfalt mandag, og ukas snapshot ligger på søndagen i
-    stedet. Ingen data går tapt, og neste uke er den forfalt igjen.
+    ## Ukentlige kilder måles i ISO-UKER, ikke i dager
+
+    En kilde med `min_dager_mellom == UKENTLIG` er forfalt hvis den ikke
+    har et `sist_ok` i DENNE ISO-uka. Andre kadenser teller dager som før.
+
+    Dagtellingen drev kilden framover i uka, én dag per redning. F16,
+    målt i datarepoet: `biomasselag` fikk sin første `sist_ok` tirsdag
+    15.09.2026, fordi kilden ble commitet 14.09 kl. 10:22 — to minutter
+    før mandagskjøringen, som derfor kjørte uten den (samme familie som
+    F15: pushet kode er det som kjører). Mandag 21.09 var det 6 dager
+    siden, under 7, og kilden var ikke forfalt. Tirsdagens gjenkjøring
+    tok den: `sist_ok` ble 22.09, også en tirsdag. Mandag 28.09: 6 dager
+    igjen. Tirsdag 29.09 var kilden forfalt, og DA feilet endepunktet.
+
+    Konsekvensen er at gjenkjøringen sluttet å være en reserve. Den var
+    den ENESTE kjøringen som hentet kilden, og en kilde med bare ett
+    forsøk i uka har ingen reserve igjen når det forsøket feiler. Uke 40
+    gikk tapt på det, og en tapt uke kan ikke hentes (regel 5).
+
+    ISO-uka fjerner driften ved å spørre om det vi faktisk vil vite:
+    har vi ukas snapshot. Mandag henter da alltid alt, og tirsdag blir
+    en ekte reserve igjen — en kilde som lyktes mandag er ikke forfalt
+    tirsdag, og en som uteble er det.
+
+    Den fanger også årsskiftet, som dagtellingen ikke kunne se: tirsdag
+    29.12.2026 (2026-W53) til mandag 04.01.2027 (2027-W01) er 6 dager.
+    To ulike uker, og uke 1 skal hentes.
+
+    Merk konsekvensen for en manuell søndagskjøring: søndag og mandag
+    ligger i ULIKE ISO-uker (søndag er uke N, mandag er uke N+1), så en
+    kilde hentet på søndag ER forfalt mandag. Det er motsatt av hva
+    dagtellingen gjorde, og det er med vilje — mandagen er den planlagte
+    innsamlingen, og den skal ikke kunne stå over fordi noen prøvde noe
+    i helgen.
+
+    Sammenligningen er «sist_ok ligger i en TIDLIGERE uke», ikke «ulik
+    uke». Forskjellen gjelder bare når `sist_ok` ligger i FRAMTIDA, og
+    der skal vakten fortsatt holde igjen: en health.json med klokkerot
+    er ikke et argument for å hente på nytt. Se
+    test_kjoretidspunkt_fram_i_tid_gir_ikke_ny_kjoring.
+
+    Uka leses av `observed_at`, som kalleren sender inn. Ingen klokke og
+    ingen tidssone slås opp her — kjøredatoen slås opp nøyaktig ett sted
+    (run.py, CLAUDE.md 1b), og hvilken sone den stedet bruker er dets
+    sak. Et andre oppslag i en annen sone er F6/F7 om igjen: to svar som
+    kan være uenige rundt midnatt, og da får fila navn etter én uke og
+    innhold fra en annen.
 
     Målingen går mot SISTE VELLYKKEDE INNSAMLING i health.json — ikke
     mot datoen på nyeste snapshotfil (F4), og ikke mot siste forsøk
@@ -132,6 +217,18 @@ def velg_forfalte(
 
     for source in sources:
         dager = health.dager_siden_ok(source.name, observed_at, tilstand)
+
+        if source.min_dager_mellom == UKENTLIG:
+            sist = (tilstand.get(source.name) or {}).get("sist_ok")
+            if _uke_er_eldre(sist, observed_at):
+                forfalt.append(source)
+            else:
+                # `dager` kan være None her bare hvis datoen er ulesbar,
+                # og da svarte _uke_er_eldre allerede «forfalt». Står vi
+                # her, har kilden en lesbar dato i denne uka eller senere.
+                venter.append((source, dager if dager is not None else 0))
+            continue
+
         if dager is None or dager >= source.min_dager_mellom:
             forfalt.append(source)
         else:

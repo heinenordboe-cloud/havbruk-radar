@@ -42,7 +42,7 @@ docs/beslutninger/2026-08-31-tilsyn-feiler-ikke-jobben.md.
 import argparse
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import polars as pl
@@ -337,8 +337,18 @@ def main() -> int:
         kilder, venter = runner.velg_forfalte(kilder, kjoredato)
         for kilde, dager in venter:
             nar = "i dag" if dager == 0 else f"for {dager} dag(er) siden"
-            print(f"  [vent] {kilde.name:<20} hentet {nar}, "
-                  f"går hver {kilde.min_dager_mellom}. dag")
+            # Kadensen sies med DEN ENHETEN vakten målte i. En ukentlig
+            # kilde holdes igjen fordi uka er hentet, ikke fordi det er
+            # under sju dager siden, og «går hver 7. dag» om en kilde
+            # hentet for 1 dag siden ville sendt leseren til å vente seks
+            # dager på noe som frigis ved ukeskiftet. Samme krav som
+            # resten av vaktutskriftene: si det du målte.
+            if kilde.min_dager_mellom == runner.UKENTLIG:
+                aar, uke = date.fromisoformat(kjoredato).isocalendar()[:2]
+                kadens = f"går én gang per ISO-uke (nå {aar}-W{uke:02d})"
+            else:
+                kadens = f"går hver {kilde.min_dager_mellom}. dag"
+            print(f"  [vent] {kilde.name:<20} hentet {nar}, {kadens}")
 
         if not kilder:
             if args.planlagt:

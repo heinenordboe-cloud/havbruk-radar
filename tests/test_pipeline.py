@@ -1452,9 +1452,16 @@ def test_kilde_kjort_i_dag_er_ikke_forfalt(tmp_path, monkeypatch):
 
 
 def test_forfalt_igjen_etter_full_periode(tmp_path, monkeypatch):
+    """Fortsatt forfalt — men nå fordi uka er ny, ikke fordi dagene er 7.
+
+    01.01.2026 er 2026-W01 og 08.01.2026 er 2026-W02. Begge reglene sier
+    forfalt her; det er nettopp derfor denne testen ikke måtte endres da
+    ukeregelen kom, og derfor den ikke alene kan vise at den virker. Se
+    testene under for parene der de to reglene er UENIGE.
+    """
     _kjort(tmp_path, monkeypatch, falsk="2026-01-01")
 
-    forfalt, _ = runner.velg_forfalte([FalskKilde()], "2026-01-08")   # nøyaktig 7
+    forfalt, _ = runner.velg_forfalte([FalskKilde()], "2026-01-08")
     assert [k.name for k in forfalt] == ["falsk"]
 
 
@@ -1631,6 +1638,100 @@ def test_alle_kilder_ferske_gir_tom_liste(tmp_path, monkeypatch):
     assert forfalt == []
     assert not forfalt          # dette er uttrykket run.py tester på
     assert sorted(k.name for k, _ in venter) == ["daglig", "falsk"]
+
+
+def test_ukentlig_kilde_hentet_forrige_tirsdag_er_forfalt_mandag(
+        tmp_path, monkeypatch):
+    """F16, det ekte paret: biomasselag 22.09 -> mandag 28.09.
+
+    Seks dager. Dagtellingen sa «ikke forfalt» og lot mandagen gå, så
+    tirsdagens gjenkjøring ble kildens eneste forsøk i uka — og da den
+    feilet 29.09, fantes ingen reserve. Ukeregelen ser at 2026-W39 ikke
+    er 2026-W40 og henter mandag.
+    """
+    _kjort(tmp_path, monkeypatch, falsk="2026-09-22")      # tirsdag, W39
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-09-28")
+    assert [k.name for k in forfalt] == ["falsk"]
+    assert venter == []
+
+
+def test_ukentlig_kilde_hentet_mandag_er_ikke_forfalt_tirsdag(
+        tmp_path, monkeypatch):
+    """Den andre halvdelen: tirsdag skal være en RESERVE, ikke en ny runde.
+
+    Gikk mandagen bra, har uka sitt snapshot, og tirsdagens gjenkjøring
+    skal finne ingenting å gjøre. Uten dette ville ukeregelen gjort
+    gjenkjøringen til en andre innsamling hver uke — en .2-fil uten nytt
+    innhold, hver tirsdag, for hver kilde.
+    """
+    _kjort(tmp_path, monkeypatch, falsk="2026-09-28")      # mandag, W40
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-09-29")
+    assert forfalt == []
+    assert [(k.name, d) for k, d in venter] == [("falsk", 1)]
+
+
+def test_ukentlig_kilde_uten_sist_ok_er_forfalt(tmp_path, monkeypatch):
+    """`sist_ok: None` gir forfalt, også under ukeregelen.
+
+    Fallback-oppførselen skal være å kjøre. Ukeregelen leser `sist_ok`
+    direkte og ikke dagtallet, så den måtte arve F8-oppførselen på nytt
+    — en post som finnes med `sist_forsok` satt og `sist_ok` null er
+    nøyaktig tilstanden lusetall sto i 24.08, og den skal hentes.
+    """
+    health = _kjort(tmp_path, monkeypatch, falsk=None)
+    assert health.les()["falsk"]["sist_ok"] is None
+
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2026-09-28")
+    assert [k.name for k in forfalt] == ["falsk"]
+    assert venter == []
+
+
+def test_ukentlig_kilde_over_arsskiftet(tmp_path, monkeypatch):
+    """Uke 53 til uke 1: seks dager, to uker.
+
+    Dagtellingen kunne ikke se dette i det hele tatt — tirsdag 29.12.2026
+    til mandag 04.01.2027 er 6 dager, og kilden ville ventet til tirsdag
+    05.01 akkurat som ellers i året. Tuppelet er (ISO-år, uke), ikke
+    (kalenderår, uke): ville vi sammenlignet kalenderåret, ville
+    (2026, 53) < (2027, 1) fortsatt vært sant, men 03.01.2027 — som ER
+    uke 53 i ISO-år 2026 — ville blitt lest som uke 53 i 2027 og stilt
+    kilden i karantene resten av det året.
+    """
+    # Samme ISO-uke, nytt kalenderår: 28.12.2026 (man) og 03.01.2027 (søn)
+    # er BEGGE 2026-W53. Uka er hentet, og kilden skal vente.
+    _kjort(tmp_path, monkeypatch, falsk="2026-12-28")
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2027-01-03")
+    assert forfalt == [], "28.12 og 03.01 er samme ISO-uke (2026-W53)"
+    assert [(k.name, d) for k, d in venter] == [("falsk", 6)]
+
+    # Ny ISO-uke: 29.12.2026 er 2026-W53, 04.01.2027 er 2027-W01.
+    _kjort(tmp_path, monkeypatch, falsk="2026-12-29")
+    forfalt, venter = runner.velg_forfalte([FalskKilde()], "2027-01-04")
+    assert [k.name for k in forfalt] == ["falsk"], "W53 -> W01 er ny uke"
+    assert venter == []
+
+
+def test_daglig_kadens_er_urort_av_ukeregelen(tmp_path, monkeypatch):
+    """Ukeregelen gjelder BARE min_dager_mellom == 7.
+
+    En daglig kilde hentet i dag skal fortsatt vente, og en hentet i går
+    skal fortsatt være forfalt — selv om begge dagene ligger i samme
+    ISO-uke. Uten denne grensen ville ukeregelen gjort hver kilde
+    ukentlig, og en daglig kilde ville kjørt én gang i uka.
+    """
+    _kjort(tmp_path, monkeypatch, daglig="2026-09-29")     # tirsdag, W40
+
+    # Onsdag samme uke: 1 dag >= 1, forfalt. Ukeregelen ville sagt vent.
+    forfalt, venter = runner.velg_forfalte([DagligKilde()], "2026-09-30")
+    assert [k.name for k in forfalt] == ["daglig"]
+    assert venter == []
+
+    # Samme dag: 0 < 1, venter.
+    forfalt, venter = runner.velg_forfalte([DagligKilde()], "2026-09-29")
+    assert forfalt == []
+    assert [(k.name, d) for k, d in venter] == [("daglig", 0)]
 
 
 def test_health_beholder_kilder_som_ikke_kjorte(tmp_path, monkeypatch):
