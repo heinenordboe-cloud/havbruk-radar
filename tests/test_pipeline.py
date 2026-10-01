@@ -1734,6 +1734,108 @@ def test_daglig_kadens_er_urort_av_ukeregelen(tmp_path, monkeypatch):
     assert [(k.name, d) for k, d in venter] == [("daglig", 0)]
 
 
+def test_kadens_stemples_for_kilde_som_ikke_var_forfalt(tmp_path, monkeypatch):
+    """Kravet fra tilsynet: kadensen skal stå der ÅRSAKEN til at den
+    trengs, nemlig at kilden ikke kjørte.
+
+    En kilde som ikke var forfalt står ikke i `resultater`. Stemplet vi
+    bare dem som leverte, ville feltet manglet i ukevis for nettopp de
+    kildene tilsynet skal se — og tilsynet måtte valgt mellom å tie om
+    dem eller å fyre falskt.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    # Bare "daglig" kjørte. "falsk" var ikke forfalt og er ikke i resultatene.
+    tilstand, _ = health.oppdater(
+        [runner.Result("daglig", True, 3)], "2026-09-28",
+        kadens={"falsk": 7, "daglig": 1},
+    )
+
+    assert tilstand["falsk"]["min_dager_mellom"] == 7
+    assert tilstand["daglig"]["min_dager_mellom"] == 1
+
+
+def test_kadens_stemples_for_kilde_som_feilet(tmp_path, monkeypatch):
+    """Og for en kilde som feilet. Den er like ukentlig som før.
+
+    Dette er biomasselag 29.09 og 01.10: to feilende kjøringer på rad.
+    Nettopp da må tilsynet kunne se at kilden er ukentlig — det er hele
+    tilfellet alarmen finnes for.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    tilstand, nede = health.oppdater(
+        [runner.Result("falsk", False, 0, error="RuntimeError: 500")],
+        "2026-10-01", kadens={"falsk": 7},
+    )
+
+    assert tilstand["falsk"]["min_dager_mellom"] == 7
+    assert tilstand["falsk"]["sist_ok"] is None
+    assert nede, "en kilde som aldri har levert skal rapporteres"
+
+
+def test_kadens_overlever_at_posten_bygges_pa_nytt(tmp_path, monkeypatch):
+    """Stemplingen må skje ETTER løkka som bygger postene.
+
+    `ny[r.source] = {...}` i oppdater() lager posten fra grunnen. Sto
+    stemplingen inni løkka, ville en vellykket kilde fått kadensen slettet
+    igjen av sin egen post — og feltet ville vært der for alle kilder
+    UNNTATT dem som kjørte.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    tilstand, _ = health.oppdater(
+        [runner.Result("falsk", True, 5)], "2026-09-28", kadens={"falsk": 7},
+    )
+
+    assert tilstand["falsk"]["min_dager_mellom"] == 7
+    assert tilstand["falsk"]["sist_ok"] == "2026-09-28"
+
+
+def test_historisk_kjoring_stempler_ikke_kadens(tmp_path, monkeypatch):
+    """--historisk rører ikke health.json, og det gjelder kadensen også.
+
+    Backfill skriver hundrevis av historiske uker etter hverandre.
+    Helsetilstanden handler om om innsamlingen virker NÅ, og en
+    backfill-kjøring skal ikke kunne skrive noe inn i den — heller ikke et
+    felt som ser harmløst ut, for da er `historisk=True` ikke lenger den
+    garantien resten av fila hviler på.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    health.skriv({"falsk": {"sist_ok": "2026-09-28"}})
+
+    tilstand, nede = health.oppdater(
+        [runner.Result("falsk", True, 5)], "2014-01-06",
+        historisk=True, kadens={"falsk": 7},
+    )
+
+    assert "min_dager_mellom" not in tilstand["falsk"]
+    assert tilstand["falsk"]["sist_ok"] == "2026-09-28"   # urørt
+    assert nede == []
+
+
+def test_kadens_uten_argument_endrer_ingenting(tmp_path, monkeypatch):
+    """`kadens=None` skal ikke skrive feltet og ikke kaste.
+
+    Kallere utenfor run.py finnes ikke i dag, men signaturen skal ikke
+    kreve et argument for å oppføre seg som før.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    tilstand, _ = health.oppdater([runner.Result("falsk", True, 5)], "2026-09-28")
+    assert "min_dager_mellom" not in tilstand["falsk"]
+
+
 def test_health_beholder_kilder_som_ikke_kjorte(tmp_path, monkeypatch):
     """En kilde som hoppes over skal ikke miste sin sist_ok-historikk.
 

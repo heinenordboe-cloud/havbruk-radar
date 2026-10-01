@@ -271,6 +271,16 @@ def main() -> int:
 
     # 1. Finn kilder
     kilder = registry.discover()
+
+    # Hele registeret, tatt vare på FØR --bare filtrerer og før
+    # velg_forfalte binder `kilder` om til bare de forfalte. Kadensen til
+    # hver kilde stemples i health.json for alle sammen, slik at tilsynet
+    # i datarepoet kan se hvilke som er ukentlige uten å kjenne koden.
+    # Se health._stemple_kadens: en kilde som ikke var forfalt i dag er
+    # like ukentlig som en som var det, og en --bare-kjøring skal ikke
+    # gjøre de andre usynlige for vakten.
+    alle_kilder = list(kilder)
+
     if args.bare:
         kilder = [k for k in kilder if k.name == args.bare]
     if not kilder:
@@ -450,7 +460,10 @@ def main() -> int:
     #
     # `naa` sendes med: feltvakten teller rader per (kilde, felt) og ser
     # et felt forsvinne som volumvakten er for grovkornet til å merke.
-    tilstand, nede = health.oppdater(resultater, kjoredato, naa)
+    tilstand, nede = health.oppdater(
+        resultater, kjoredato, naa,
+        kadens={k.name: k.min_dager_mellom for k in alle_kilder},
+    )
     health.skriv(tilstand)
 
     # 9. Avgjør prediksjoner hvis vinduet er ute

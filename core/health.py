@@ -510,9 +510,52 @@ def _felt_per_kilde(observasjoner) -> dict[str, dict[str, int]]:
     return telling
 
 
+def _stemple_kadens(ny: dict, kadens: dict[str, int] | None) -> None:
+    """Skriver `min_dager_mellom` på hver kilde kalleren oppgir.
+
+    Tilsynet i datarepoet skal kunne feile onsdag når en UKENTLIG kilde
+    mangler ukas snapshot. For å gjøre det må det vite hvilke kilder som
+    er ukentlige, og kadensen er erklært på kilden — altså i kodrepoet.
+
+    Tre veier dit, og dette er den tredje:
+
+      1. Tilsynet henter kodrepoet og leser kildene. Det gir vakten to
+         nye feilmåter den ikke har i dag — utløpt token og feilende pip
+         — og en dead man's switch som kan bli rød av noe annet enn det
+         den vakter, blir mutet. Se tilsyn.yml, som med vilje leser ÉN
+         fil og ikke har checkout.
+      2. Lista hardkodes i tilsynet. Det er en andre sannhet om kadensen,
+         og den driver stille: en ny ukentlig kilde blir ikke vaktet, en
+         kilde som bytter kadens blir feilvaktet. CLAUDE.md 1b-2 — et mål
+         som LIGNER det det skal måle.
+      3. Kadensen stemples i health.json, som kodrepoet allerede skriver
+         og datarepoet allerede eier. Ingen ny avhengighet mellom
+         repoene, og kilden er fortsatt eneste eier av tallet.
+
+    Dette er CLAUDE.md 1b-3: verdien som avgjør om en manglende uke er en
+    FEIL eller helt normalt, lagres sammen med dataene. Et health.json
+    alene kunne fortelle når vi sist lyktes, men ikke om det var for
+    lenge siden — og da kan ingen vakt utenfor kodrepoet svare på det.
+
+    ALLE registrerte kilder, ikke bare dagens resultater. En kilde som
+    ikke var forfalt i dag står ikke i `resultater`, og en kilde som
+    feilet gjør det med `ok=False`. Stemplet vi bare dem som leverte,
+    ville feltet manglet i ukevis for nettopp de kildene tilsynet finnes
+    for å se — og tilsynet måtte valgt mellom å tie om dem eller å fyre
+    falskt. Kadensen er en ERKLÆRING fra kilden, ikke en måling av
+    kjøringen, så den er like sann for en kilde som ikke kjørte.
+
+    Kilder som ikke finnes i `ny` fra før får en post med bare kadensen i
+    seg. Det er med vilje: en nylagt kilde blir da synlig for tilsynet
+    med én gang, i stedet for først den uka den lykkes.
+    """
+    for navn, dager in (kadens or {}).items():
+        ny.setdefault(navn, {})["min_dager_mellom"] = dager
+
+
 def oppdater(
     resultater: list[Result], observed_at: str, observasjoner=None,
-    historisk: bool = False,
+    historisk: bool = False, kadens: dict[str, int] | None = None,
 ) -> tuple[dict, list[str]]:
     """Returnerer ny helsetilstand og liste over kilder som trenger tilsyn.
 
@@ -530,6 +573,10 @@ def oppdater(
     noe som virket har sluttet å virke; "har aldri levert" betyr at
     kilden aldri har vært i drift. Det er to helt ulike oppgaver for den
     som leser meldingen, og de skal ikke se like ut.
+
+    `kadens` er {kilde: min_dager_mellom} for ALLE registrerte kilder, og
+    stemples på hver post. Se `_stemple_kadens` for hvorfor den må dekke
+    alle og ikke bare dagens resultater.
 
     `historisk=True` for backfill: tilstanden røres ikke i det hele tatt.
     Volum- og feltreferansen er høyvannsmerker mot FORRIGE KJØRING, og
@@ -654,6 +701,10 @@ def oppdater(
 
         # Et felt som kom, men sluttet å si noe, er en tredje sak.
         nede.extend(innhold_varsler)
+
+    # ETTER løkka, ikke inni: `ny[r.source] = {...}` over bygger posten på
+    # nytt fra grunnen og ville slettet stempelet igjen.
+    _stemple_kadens(ny, kadens)
 
     return ny, nede
 
