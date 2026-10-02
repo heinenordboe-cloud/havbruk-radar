@@ -687,6 +687,15 @@ def oppdater(
             "siste_feil": "" if r.ok else r.error.strip().splitlines()[-1][:300],
             "volum_referanse": referanse,
             "volum_lavt_paa_rad": volum_strekk,
+            # Endepunktet som svarte DENNE kjøringen. Tom streng = kilden
+            # oppga ikke noe, eller ingen svarte. Se Source.endepunkt.
+            "endepunkt": r.endepunkt,
+            # Kildens egne advarsler fra DENNE kjøringen, ordrett. Før
+            # 02.10.2026 sto de bare i jobbloggen, og en kilde som hentet
+            # fra et reserve-endepunkt var da usynlig for den som leser
+            # health.json. Overskrives hver kjøring: lista sier hva som
+            # gjaldt sist, ikke hva som har gjeldt noen gang.
+            "advarsler_sist": list(r.advarsler),
         }
 
         # Feltvakt: kun når kilden faktisk leverte. En nede kilde har

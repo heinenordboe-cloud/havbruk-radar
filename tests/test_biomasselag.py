@@ -381,3 +381,34 @@ def test_lokalitet_med_to_artsrader_er_EN_entitet_i_sammenligningen(snapshots):
         "antall_arter": ("2", "1", "endret"),
         "siste_rapport": ("2026-07-31", "2026-08-31", "endret"),
     }
+
+
+# ------------------------------------------- skjemakontroll per endepunkt
+
+RESERVE_FELTER_MAALT = (  # fiskeridirWMS_akva/MapServer/6, 02.10.2026
+    "aktuell_kapasitet", "produksjonsomraade", "objectid", "loknr", "navn",
+    "lokalitet", "status_lokalitet", "siste_rapport", "har_fisk", "art",
+    "symbol1", "symbol2", "kapasitet_lok", "plassering", "vannmiljo_kode",
+    "vannmiljo", "fylkeskode", "fylke", "kommunenr", "kommune", "lat", "lon",
+    "shape")
+
+
+def test_reservens_23_felt_gir_ingen_advarsel_mot_reservens_liste():
+    assert len(RESERVE_FELTER_MAALT) == 23
+    felter = [{"name": n} for n in RESERVE_FELTER_MAALT]
+    assert biomasselag._ukjente_felter(
+        felter, biomasselag.KJENTE_UTELATTE_RESERVE) == []
+
+
+def test_reservens_ekstra_felt_er_UKJENTE_for_primaeren():
+    """Per endepunkt, ikke felles: får Yggdrasil `lat` i morgen, skal det
+    fortsatt varsles."""
+    felter = [{"name": n} for n in RESERVE_FELTER_MAALT]
+    assert biomasselag._ukjente_felter(felter, biomasselag.KJENTE_UTELATTE) == [
+        "fylkeskode", "kommunenr", "lat", "lokalitet", "lon", "symbol2",
+        "vannmiljo_kode"]
+
+
+def test_kortnavn_for_advarselen():
+    assert biomasselag._kortnavn(RESERVE) == "fiskeridirWMS_akva/6"
+    assert biomasselag._kortnavn(PRIMAER) == "Biomasse/0"

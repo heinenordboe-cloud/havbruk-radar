@@ -253,6 +253,17 @@ KJENTE_UTELATTE = ("symbol1", "kapasitet_lok", "aktuell_kapasitet",
                    "plassering", "vannmiljo", "fylke", "kommune",
                    "produksjonsomraade", "shape")
 
+# Reservelaget har 23 felt (22 + `shape`), målt 02.10.2026: de 16 over og
+# sju til. Ingen av de sju er persondata — lest som verdier, ikke bare som
+# navn. Begrunnelsen per felt står i docs/KILDE-BIOMASSELAG.md.
+#
+# Skjemakontrollen er PER ENDEPUNKT. En felles liste ville enten latt
+# primæren tie om et nytt `lat` den dagen Yggdrasil fikk det, eller gitt
+# reserven en advarsel hver gang den brukes.
+KJENTE_UTELATTE_RESERVE = KJENTE_UTELATTE + (
+    "lokalitet", "symbol2", "vannmiljo_kode", "fylkeskode", "kommunenr",
+    "lat", "lon")
+
 # Verdiene som fantes 10.09.2026. En SKREVET kvittering, ikke en
 # referanse utledet av forrige kjøring (CLAUDE.md 1b-4). Brukes bare til
 # å varsle om noe nytt — aldri til å filtrere, og aldri til å oversette.
@@ -309,13 +320,15 @@ def _tekst(v: object) -> str:
     return "" if v is None else str(v).strip()
 
 
-def _ukjente_felter(felter: object) -> list[str]:
+def _ukjente_felter(felter: object,
+                    utelatte: tuple[str, ...] = KJENTE_UTELATTE) -> list[str]:
     """Felter tjenesten har som vi verken henter eller har valgt bort.
 
     Låsen i `FELTER` gjør at et nytt felt aldri havner i arkivet. Denne
-    gjør at det heller ikke blir usynlig.
+    gjør at det heller ikke blir usynlig. `utelatte` er endepunktets egen
+    liste — se KJENTE_UTELATTE_RESERVE.
     """
-    kjent = set(FELTER) | set(KJENTE_UTELATTE)
+    kjent = set(FELTER) | set(utelatte)
     if not isinstance(felter, list):
         return []
     navn = {f.get("name") for f in felter if isinstance(f, dict)}
@@ -439,6 +452,12 @@ class Biomasselag(Source):
         et utvalg FELTER. Et snapshot skal alene kunne svare på hva vi
         ba om (1b-3), og «vi utelot ni felter» er en del av det svaret.
         """
+        # LIK for begge endepunkter, med vilje. Vi ber om de samme FELTER
+        # med samme `HVOR` uansett hvem som svarer, og det er det `utvalg`
+        # beskriver. Reservens lengre liste (KJENTE_UTELATTE_RESERVE) her
+        # ville fått `utvalg.er_utvidet()` til å lese byttet som et bredere
+        # søk og merke ukas nye lokaliteter som utvalgsutvidelse. HVILKET
+        # endepunkt som svarte står i `self.endepunkt`.
         self.utvalg = {"utelatte_felter": sorted(KJENTE_UTELATTE)}
 
         primaer = get("kilder.biomasselag.base_url", STANDARD_BASE).rstrip("/")
@@ -452,21 +471,28 @@ class Biomasselag(Source):
 
         c = httpx.Client(timeout=120.0, follow_redirects=True)
         try:
+            varsel: list[str] = []
             try:
-                rader, ukjente, svar = _hent_lag(c, primaer)
+                rader, ukjente, svar = _hent_lag(c, primaer, KJENTE_UTELATTE)
                 self.endepunkt = primaer
             except Exception as e:
                 if not _er_primaerfeil(e):
                     raise
                 self.primaerfeil = _grunn(e)
                 try:
-                    rader, ukjente, svar = _hent_lag(c, reserve)
+                    rader, ukjente, svar = _hent_lag(
+                        c, reserve, KJENTE_UTELATTE_RESERVE)
                 except Exception as e2:
                     raise RuntimeError(
                         f"biomasselag: primæren feilet ({self.primaerfeil}) "
                         f"og reserven feilet ({_grunn(e2)}). Primær: "
                         f"{primaer}  Reserve: {reserve}") from e2
                 self.endepunkt = reserve
+                # En ADVARSEL, ikke en logglinje: kjøringen lyktes, men en
+                # primær som er nede i flere uker skal rope. Teksten er
+                # det health.json og jobboppsummeringen viser.
+                varsel = [f"biomasselag: reserve {_kortnavn(reserve)} "
+                          f"(primær: {self.primaerfeil})"]
 
             # LESES, utledes ikke (1b-7). Verten sendte ingen
             # `Last-Modified` 10.09.2026, og da blir dette tom streng —
@@ -475,7 +501,7 @@ class Biomasselag(Source):
         finally:
             c.close()
 
-        self.advarsler = _vurder(rader, ukjente)
+        self.advarsler = varsel + _vurder(rader, ukjente)
         return rader
 
     def gjelder_for(self, kjoredato: str) -> str:
@@ -564,6 +590,14 @@ def _er_primaerfeil(e: BaseException) -> bool:
     return isinstance(e, (httpx.HTTPError, Feilsvar))
 
 
+def _kortnavn(url: str) -> str:
+    """`…/services/fiskeridirWMS_akva/MapServer/6` -> `fiskeridirWMS_akva/6`."""
+    deler = url.rstrip("/").split("/")
+    if len(deler) >= 3 and deler[-2] in ("MapServer", "FeatureServer"):
+        return f"{deler[-3]}/{deler[-1]}"
+    return url
+
+
 def _grunn(e: BaseException) -> str:
     """Kort, lesbar grunn: «code 500», «HTTP 503», «ConnectTimeout»."""
     if isinstance(e, Feilsvar):
@@ -576,7 +610,7 @@ def _grunn(e: BaseException) -> str:
     return f"{type(e).__name__}: {e}"[:200]
 
 
-def _hent_lag(c: httpx.Client, base: str
+def _hent_lag(c: httpx.Client, base: str, utelatte: tuple[str, ...]
               ) -> tuple[list[dict], list[str], httpx.Response]:
     """Alle rader fra ETT endepunkt, med fullstendighetssjekken.
 
@@ -593,7 +627,7 @@ def _hent_lag(c: httpx.Client, base: str
     # nytt felt vi ikke ber om.
     meta = _json(_http.get(c, base, hva="biomasselag metadata",
                            params={"f": "json"}), "biomasselag metadata")
-    ukjente = _ukjente_felter(meta.get("fields"))
+    ukjente = _ukjente_felter(meta.get("fields"), utelatte)
 
     telling = _json(_http.get(
         c, f"{base}/query", hva="biomasselag antall",

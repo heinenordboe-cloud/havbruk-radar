@@ -28,11 +28,15 @@ class Result:
     # regne den ut selv uten å kjenne kildens etterslepsregel.
     # Se Source.gjelder_for.
     gjelder_for: str = ""
+    # Endepunktet som FAKTISK svarte. Se Source.endepunkt. Bæres hit så
+    # health.json kan si det uten å lese snapshotet.
+    endepunkt: str = ""
 
 
 def stempl(observasjoner, source_version: str, raw_hash: str,
            fetched_at: str | None = None, utvalg: dict | None = None,
-           published_at: str = "", *, kilde) -> list[Observation]:
+           published_at: str = "", endepunkt: str = "", *,
+           kilde) -> list[Observation]:
     """Setter proveniensfeltene på hver observasjon.
 
     Ligger her og ikke i hver kaller fordi stemplingen er kjernens
@@ -96,7 +100,7 @@ def stempl(observasjoner, source_version: str, raw_hash: str,
     return [
         replace(obs, fetched_at=naa, source_version=source_version,
                 raw_hash=raw_hash, utvalg=merket, published_at=published_at,
-                domene=domene_merket)
+                domene=domene_merket, endepunkt=endepunkt)
         for obs in batch
     ]
 
@@ -289,13 +293,15 @@ def run_all(
                 # LESES ETTER fetch(), som utvalget og av samme grunn:
                 # verdien skal beskrive det kallet som nettopp ble gjort.
                 published_at=getattr(source, "published_at", "") or "",
+                endepunkt=getattr(source, "endepunkt", "") or "",
                 kilde=source,
             )
             observations.extend(batch)
             results.append(
                 Result(source.name, True, len(batch),
                        advarsler=list(getattr(source, "advarsler", [])),
-                       gjelder_for=gjelder)
+                       gjelder_for=gjelder,
+                       endepunkt=getattr(source, "endepunkt", "") or "")
             )
         except Exception:
             results.append(

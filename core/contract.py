@@ -103,6 +103,28 @@ class Observation:
     # `Source.domene`, og bare der den har LEST hva kroppen omtaler.
     domene: str = ""
 
+    # HVILKET ENDEPUNKT som faktisk svarte — full URL. Tom streng betyr
+    # «kilden sa ingenting», og det er standarden: snapshots skrevet før
+    # 02.10.2026 har feltet tomt, og de leses som ukjent, ikke som
+    # «standardendepunktet». Fylles ikke inn i ettertid (regel 2).
+    #
+    # Innført da `biomasselag` fikk et reserve-endepunkt. To endepunkter
+    # kan levere samme lag med ulike interne nøkler (`objectid` var
+    # tildelt på nytt for 720 av 1108 lokaliteter), ulikt feltsett og ulik
+    # ferskhet. Et snapshot som ikke sier hvilket det kom fra, kan ikke
+    # svare på om en forskjell mot forrige uke er kilden eller byttet —
+    # samme prøve som 1b-3, og samme svar: verdien stemples på raden.
+    #
+    # Ikke en del av `utvalg`, selv om det ville spart et felt. `utvalg`
+    # leses som et sett av kriterier, og `utvalg.er_utvidet()` ville lest
+    # en ny nøkkel som en BREDERE spørring — og merket uka sine nye
+    # lokaliteter som utvalgsutvidelse. Et byttet endepunkt er ikke et
+    # bredere søk.
+    #
+    # Stemples av kjernen som de andre. Kilden oppgir den i
+    # `Source.endepunkt`, satt av `fetch()` i kallet som henter.
+    endepunkt: str = ""
+
     def as_dict(self) -> dict:
         return asdict(self)
 
@@ -279,6 +301,19 @@ class Source:
     # mangler i erklæringen — men den kan ikke oppdage det motsatte, og
     # derfor står regelen her.
     domene: object = None
+
+    # Full URL til endepunktet som FAKTISK svarte. Tom streng = «vet ikke».
+    #
+    # SETTES av `fetch()` i kallet som henter, leses av kjernen etterpå —
+    # samme mekanikk og samme begrunnelse som `utvalg` og `published_at`.
+    # Har kilden en reserve, er dette nettopp opplysningen om HVILKEN av
+    # dem som ble brukt; se Observation.endepunkt og sources/biomasselag.py.
+    #
+    # Standarden er tom og ikke kildens konfigurerte URL. En kilde som
+    # aldri har tenkt på spørsmålet skal ikke automatisk påstå hvilket
+    # endepunkt den brukte — den påstanden ville vært usann i nøyaktig det
+    # tilfellet feltet finnes for.
+    endepunkt: str = ""
 
     # Feltet som bærer entitetens EGEN startdato i verden — datoen den ble
     # til, ikke datoen vi først så den. For Enhetsregisteret er det

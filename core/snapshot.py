@@ -40,6 +40,9 @@ SCHEMA = [
     # målt 1,04x filstørrelse mot 24x for en full parliste. Se
     # core/domene.py.
     "domene",
+    # Endepunktet som FAKTISK svarte. Tom streng = vet ikke. Se
+    # Observation.endepunkt.
+    "endepunkt",
     # HVILKEN KODE SOM SKREV RADEN. Stemples av `write()`, ikke av
     # kilden: en verdi som gjelder hele kjøringen skal ikke være noe
     # tolv kildeforfattere må huske.
@@ -389,6 +392,13 @@ def _les_med_tall(
     if "domene" not in frame.columns:
         frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias("domene"))
 
+    # Og snapshots skrevet før 02.10.2026 har ingen `endepunkt`. De leses
+    # som «vet ikke» — IKKE som kildens standardendepunkt, som ville vært
+    # en påstand om et kall ingen skrev ned.
+    if "endepunkt" not in frame.columns:
+        frame = frame.with_columns(
+            pl.lit("", dtype=pl.Utf8).alias("endepunkt"))
+
     # Og snapshots skrevet før 23.09.2026 har ingen kodeproveniens. De
     # leses som UKJENT, ikke som «rent» og ikke som en påstand om noen
     # commit. Filene blir stående — append-only, og en fil som fikk
@@ -438,6 +448,13 @@ def published_at_i(frame: pl.DataFrame) -> str | None:
     på.
     """
     return _en_verdi(frame, "published_at") or None
+
+
+def endepunkt_i(frame: pl.DataFrame) -> str | None:
+    """Endepunktet snapshotet ble hentet fra. None = radene spriker,
+    feltet mangler, eller kilden sa ingenting — samme kollaps som
+    `published_at_i()`, og av samme grunn."""
+    return _en_verdi(frame, "endepunkt") or None
 
 
 def publisert(frame: pl.DataFrame) -> str:

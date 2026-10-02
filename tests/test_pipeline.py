@@ -4745,3 +4745,70 @@ def test_git_kalles_med_safe_directory_og_uten_passordspoersmaal():
     assert '"-c", f"safe.directory={ROT}"' in kode
     assert kp.GIT_MILJO["GIT_TERMINAL_PROMPT"] == "0"
     assert "BatchMode=yes" in kp.GIT_MILJO["GIT_SSH_COMMAND"]
+
+
+# ------------------------------------------------------------- endepunkt
+#
+# Observation.endepunkt: hvilket endepunkt som FAKTISK svarte. Innført
+# 02.10.2026 da biomasselag fikk en reserve. Tom streng = «vet ikke».
+
+
+def test_endepunkt_stemples_fra_kilden_etter_fetch():
+    from core.contract import Observation
+
+    class K:
+        domene = None
+
+    obs = [Observation("1", "lokalitet", "A", "f", "v", "k", "2026-10-05")]
+    [ut] = runner.stempl(obs, "1", "", endepunkt="https://x/MapServer/6", kilde=K())
+    assert ut.endepunkt == "https://x/MapServer/6"
+
+    [uten] = runner.stempl(obs, "1", "", kilde=K())
+    assert uten.endepunkt == "", "standarden er «vet ikke», ikke en URL"
+
+
+def test_endepunkt_overlever_skriving_og_lesing(tmp_path, monkeypatch):
+    from core.contract import Observation
+
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    obs = Observation("1", "lokalitet", "A", "f", "v", "k", "2026-10-05",
+                      endepunkt="https://x/MapServer/6")
+    snapshot.write([obs], "2026-10-05")
+    forrige = snapshot.previous("k", before="2026-10-12")
+    assert snapshot.endepunkt_i(forrige) == "https://x/MapServer/6"
+
+
+def test_snapshot_uten_endepunkt_leses_som_ukjent(tmp_path, monkeypatch):
+    """Filene fra før 02.10.2026 har ikke kolonnen. De skal lese som «vet
+    ikke» — ikke som kildens standardendepunkt."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    katalog = tmp_path / "raw" / "k"
+    katalog.mkdir(parents=True)
+    kol = [k for k in snapshot.SCHEMA if k != "endepunkt"]
+    pl.DataFrame({k: ["x"] for k in kol}).with_columns(
+        pl.lit("2026-09-28").alias("observed_at"),
+        pl.lit("k").alias("source"),
+    ).write_parquet(katalog / "2026-09-28.parquet")
+
+    forrige = snapshot.previous("k", before="2026-10-05")
+    assert "endepunkt" in forrige.columns
+    assert snapshot.endepunkt_i(forrige) is None
+
+
+def test_health_baerer_endepunkt_og_kildens_advarsler(tmp_path, monkeypatch):
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    varsel = "biomasselag: reserve fiskeridirWMS_akva/6 (primær: code 500)"
+    r = runner.Result("falsk", True, 5, advarsler=[varsel],
+                      endepunkt="https://x/fiskeridirWMS_akva/MapServer/6")
+    tilstand, tilsyn = health.oppdater([r], "2026-10-05")
+
+    assert tilstand["falsk"]["endepunkt"] == "https://x/fiskeridirWMS_akva/MapServer/6"
+    assert tilstand["falsk"]["advarsler_sist"] == [varsel]
+
+    # Neste kjøring uten advarsel: lista sier hva som gjaldt SIST.
+    health.skriv(tilstand)
+    etter, _ = health.oppdater([runner.Result("falsk", True, 5)], "2026-10-12")
+    assert etter["falsk"]["advarsler_sist"] == []
+    assert etter["falsk"]["endepunkt"] == ""
