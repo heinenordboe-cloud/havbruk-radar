@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-10-02** — [Biomasselag får et reserve-endepunkt, og hvert snapshot sier hvilket som svarte](2026-10-02-biomasselag-reserve.md) — utkast
 - **2026-10-01** — [Forfall måles i ISO-uker for ukentlige kilder, ikke i dager](2026-10-01-forfall-per-iso-uke.md) — utkast
 - **2026-09-24** — [Bokføring og avledede felt teller ikke som bevegelse](2026-09-24-bokforing-og-avledede-felt.md) — utkast
 - **2026-09-24** — [Changelogdøra leser kildens tillegg — en dør som frikjente på feil felt](2026-09-24-changelogdora-leser-kildens-tillegg.md) — utkast
