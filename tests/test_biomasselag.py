@@ -309,3 +309,75 @@ def test_flere_sider_settes_sammen_og_stemmer_med_count(nett, monkeypatch):
     nett[PRIMAER] = Lag(_rader(5))
     rader = Biomasselag().fetch("2026-10-05")
     assert [r["loknr"] for r in rader] == [10000 + i for i in range(5)]
+
+
+# ------------------------------------------------ ukesammenligningen: nøkkel
+#
+# `diff.compare()` sammenligner på (entity_id, field) innen kilden
+# (core/diff.py, `key = ["entity_id", "field"]`; snapshot.NOKKEL i
+# core/snapshot.py). For biomasselag er entity_id `loknr`, og artene er
+# samlet til VERDIEN `arter_tilstede` — de er ikke en del av nøkkelen.
+# `objectid` hentes og arkiveres, men emitteres aldri som felt.
+#
+# MÅLT 02.10.2026: objectid er tildelt på nytt for 720 av 1108
+# lokaliteter mellom Yggdrasil/Biomasse/0 og fiskeridirWMS_akva/6. Testene
+# under er kvitteringen på at et bytte av endepunkt ikke blir 720 hendelser.
+
+from core import diff, snapshot
+
+
+@pytest.fixture
+def snapshots(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    return tmp_path
+
+
+def _endringer(forrige_raw, denne_raw, forrige="2026-09-22", denne="2026-10-05"):
+    snapshot.write(list(Biomasselag().parse(forrige_raw, forrige)), forrige)
+    naa = list(Biomasselag().parse(denne_raw, denne))
+    return diff.compare(snapshot.to_frame(naa), denne)
+
+
+def test_samme_innhold_med_nye_objectid_gir_null_endringer(snapshots):
+    """Bare objectid skiller de to hentingene — også rekkefølgen den gir.
+
+    Med `orderByFields=objectid` avgjør objectid hvilken rad som kommer
+    først for en lokalitet med to arter, og parse() tar navn, har_fisk og
+    siste_rapport fra den første. Her snus rekkefølgen for 12839, slik et
+    nytt objectid-sett kan gjøre det."""
+    for_ = [_rad(objectid=1637655, loknr=28676),
+            _rad(objectid=1636001, loknr=12839, navn="VINDSNES", art="Laks"),
+            _rad(objectid=1636002, loknr=12839, navn="VINDSNES", art="Regnbueørret"),
+            _rad(objectid=1636976, loknr=12298, har_fisk="Nei", art=None,
+                 siste_rapport=JAN_2010)]
+    etter = [dict(r) for r in for_]
+    for r, ny in zip(etter, (1642964, 1642102, 1642101, 1642296)):
+        r["objectid"] = ny
+    etter.sort(key=lambda r: r["objectid"])
+
+    endr = _endringer(for_, etter)
+    assert endr.height == 0, endr.to_dicts()
+
+
+def test_lokalitet_med_to_artsrader_er_EN_entitet_i_sammenligningen(snapshots):
+    """12839 VINDSNES, målt: to rader (Laks, Regnbueørret, siste_rapport
+    2026-07-31) i arkivet 22.09, én rad (Laks, 2026-08-31) i reserven
+    02.10. Det er én lokalitet som endret tre felt — ikke én art som
+    forsvant og en lokalitet som ble endret."""
+    JUL_2026 = 1785456000000
+    for_ = [_rad(objectid=1, loknr=12839, navn="VINDSNES", art="Laks",
+                 siste_rapport=JUL_2026),
+            _rad(objectid=2, loknr=12839, navn="VINDSNES", art="Regnbueørret",
+                 siste_rapport=JUL_2026)]
+    etter = [_rad(objectid=9, loknr=12839, navn="VINDSNES", art="Laks",
+                  siste_rapport=AUG_2026)]
+
+    endr = _endringer(for_, etter)
+    assert set(endr["entity_id"].to_list()) == {"12839"}
+    per_felt = {r["field"]: (r["old_value"], r["new_value"], r["change_type"])
+                for r in endr.to_dicts()}
+    assert per_felt == {
+        "arter_tilstede": ("Laks;Regnbueørret", "Laks", "endret"),
+        "antall_arter": ("2", "1", "endret"),
+        "siste_rapport": ("2026-07-31", "2026-08-31", "endret"),
+    }
