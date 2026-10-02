@@ -2,6 +2,10 @@
 
 Endepunkt: gis.fiskeridir.no/server/rest/services/Yggdrasil/Biomasse/
            MapServer/0/query
+Reserve:   gis.fiskeridir.no/server/rest/services/fiskeridirWMS_akva/
+           MapServer/6/query — bare ved HTTP-feil eller error-objekt fra
+           primæren. Se RESERVE_BASE og docs/beslutninger/
+           2026-10-02-biomasselag-reserve.md.
 
 Verifisert mot levende tjeneste 10.09.2026. Ingen nøkkel, ingen
 registrering, ingen autentisering. `copyrightText` på tjenesten er
@@ -202,6 +206,29 @@ from sources import _arcgis, _http
 
 STANDARD_BASE = ("https://gis.fiskeridir.no/server/rest/services/"
                  "Yggdrasil/Biomasse/MapServer/0")
+
+# RESERVEN: samme lag, publisert i Fiskeridirektoratets WMS-katalog for
+# akvakultur. MÅLT 02.10.2026 03:52 UTC, da primæren svarte 200 OK med
+# `{"error":{"code":500,"message":"Error performing query operation"}}`
+# på /query (metadata svarte fortsatt):
+#
+#   - samme beskrivelse ordrett, samme copyrightText, maxRecordCount 2000
+#   - alle sju FELTER finnes med samme navn; 1127 rader
+#   - mot arkivet 2026-09-22 (1128 rader): 1118 felles loknr, 0 bare i
+#     den ene eller den andre. 4 har_fisk og 14 siste_rapport ulike — alle
+#     forklart av nyere månedsrapporter, ingen siste_rapport > 2026-08-31
+#   - `objectid` er TILDELT PÅ NYTT for 720 av 1108 lokaliteter. Den er
+#     derfor ingen nøkkel på tvers av hentinger, og er det heller ikke i
+#     dag: entiteten er `loknr` (se parse()).
+#
+# Brukes BARE når primæren feiler med HTTP-feil eller et error-objekt i
+# svaret — se `_er_primaerfeil()`. Et svar som er komplett men annerledes
+# er ikke en feil, og det skal ikke byttes bort.
+RESERVE_BASE = ("https://gis.fiskeridir.no/server/rest/services/"
+                "fiskeridirWMS_akva/MapServer/6")
+
+# Samme where-uttrykk mot begge. Står ett sted, så de ikke kan skilles.
+HVOR = "1=1"
 
 # Tjenestens `maxRecordCount` er 2000, og laget hadde 1127 rader
 # 10.09.2026 — ett kall holdt, `exceededTransferLimit` var ikke satt.
@@ -414,43 +441,32 @@ class Biomasselag(Source):
         """
         self.utvalg = {"utelatte_felter": sorted(KJENTE_UTELATTE)}
 
-        base = get("kilder.biomasselag.base_url", STANDARD_BASE).rstrip("/")
-        c = httpx.Client(timeout=120.0, follow_redirects=True)
-        rader: list[dict] = []
-        ukjente: list[str] = []
-        try:
-            # Feltlista FØRST: den er billig, og den er det eneste som
-            # ser et nytt felt vi ikke ber om.
-            meta = _http.get(c, base, hva="biomasselag metadata",
-                             params={"f": "json"}).json()
-            if "error" in meta:
-                raise RuntimeError(f"biomasselag metadata: {meta['error']}")
-            ukjente = _ukjente_felter(meta.get("fields"))
+        primaer = get("kilder.biomasselag.base_url", STANDARD_BASE).rstrip("/")
+        reserve = get("kilder.biomasselag.reserve_url", RESERVE_BASE).rstrip("/")
 
-            for i in range(MAKS_SIDER):
-                svar = _http.get(
-                    c, f"{base}/query", hva=f"biomasselag side {i}",
-                    params={"where": "1=1", "outFields": ",".join(FELTER),
-                            "returnGeometry": "false", "f": "json",
-                            "orderByFields": "objectid",
-                            "resultOffset": i * SPENN,
-                            "resultRecordCount": SPENN})
-                d = svar.json()
-                if "error" in d:
-                    raise RuntimeError(f"biomasselag: {d['error']}")
-                trekk = d.get("features") or []
-                rader += [_rens(x.get("attributes") or {}) for x in trekk]
-                # Tjenesten kan avkorte til sitt eget tak med 200 OK og
-                # si det i `exceededTransferLimit`. Da er «kort side =
-                # siste side» usant. Se sources/_arcgis.py.
-                _arcgis.sjekk_avkorting(d, len(trekk), SPENN,
-                                        "biomasselag", i)
-                if len(trekk) < SPENN:
-                    break
-            else:
-                raise RuntimeError(
-                    f"biomasselag: over {MAKS_SIDER} sider. Pagineringen "
-                    f"teller ikke ned — er tjenesten endret?")
+        # Hvilket endepunkt som FAKTISK svarte, og hvorfor primæren ikke
+        # gjorde det. Settes her, i kallet som henter, og leses etterpå —
+        # samme mekanikk som `utvalg` og `published_at`.
+        self.endepunkt = ""
+        self.primaerfeil = ""
+
+        c = httpx.Client(timeout=120.0, follow_redirects=True)
+        try:
+            try:
+                rader, ukjente, svar = _hent_lag(c, primaer)
+                self.endepunkt = primaer
+            except Exception as e:
+                if not _er_primaerfeil(e):
+                    raise
+                self.primaerfeil = _grunn(e)
+                try:
+                    rader, ukjente, svar = _hent_lag(c, reserve)
+                except Exception as e2:
+                    raise RuntimeError(
+                        f"biomasselag: primæren feilet ({self.primaerfeil}) "
+                        f"og reserven feilet ({_grunn(e2)}). Primær: "
+                        f"{primaer}  Reserve: {reserve}") from e2
+                self.endepunkt = reserve
 
             # LESES, utledes ikke (1b-7). Verten sendte ingen
             # `Last-Modified` 10.09.2026, og da blir dette tom streng —
@@ -458,12 +474,6 @@ class Biomasselag(Source):
             self.published_at = _utgitt(svar.headers)
         finally:
             c.close()
-
-        if not rader:
-            raise RuntimeError(
-                "biomasselag: null rader. Laget hadde 1127 rader "
-                "10.09.2026, og et tomt svar er ikke en tom uke — det er "
-                "en tjeneste som har endret seg.")
 
         self.advarsler = _vurder(rader, ukjente)
         return rader
@@ -517,6 +527,118 @@ class Biomasselag(Source):
 def _rens(rad: dict) -> dict:
     """Beholder bare `FELTER`. Kjøres i `fetch()`, FØR arkivering."""
     return {k: v for k, v in rad.items() if k in FELTER}
+
+
+class Feilsvar(RuntimeError):
+    """ArcGIS svarte med et error-objekt i kroppen — ofte med 200 OK.
+
+    Egen klasse fordi den er en av de to tingene som utløser reserven, og
+    `fetch()` må kunne skille den fra en fullstendighetsfeil, som IKKE
+    gjør det.
+    """
+
+    def __init__(self, hva: str, feil: object) -> None:
+        self.feil = feil
+        super().__init__(f"{hva}: {feil}")
+
+
+def _json(svar: httpx.Response, hva: str) -> dict:
+    d = svar.json()
+    if isinstance(d, dict) and "error" in d:
+        raise Feilsvar(hva, d["error"])
+    return d
+
+
+def _er_primaerfeil(e: BaseException) -> bool:
+    """Feiler primæren på en måte som gjør reserven riktig?
+
+    BARE to ting: HTTP-feil (status, tidsavbrudd, tilkobling — alt
+    `httpx` kaster, og `_http.get` har da allerede prøvd fire ganger) og
+    et error-objekt i svaret. Begge betyr at primæren ikke svarte.
+
+    Fullstendighetsfeilene — `count` som ikke stemmer, avkorting,
+    null rader — utløser den IKKE. Da svarte primæren, men med noe som
+    ikke henger sammen, og å bytte til et annet endepunkt ville gjemt
+    det i stedet for å vise det.
+    """
+    return isinstance(e, (httpx.HTTPError, Feilsvar))
+
+
+def _grunn(e: BaseException) -> str:
+    """Kort, lesbar grunn: «code 500», «HTTP 503», «ConnectTimeout»."""
+    if isinstance(e, Feilsvar):
+        kode = e.feil.get("code") if isinstance(e.feil, dict) else None
+        return f"code {kode}" if kode is not None else str(e.feil)[:120]
+    if isinstance(e, httpx.HTTPStatusError):
+        return f"HTTP {e.response.status_code}"
+    if isinstance(e, httpx.HTTPError):
+        return type(e).__name__
+    return f"{type(e).__name__}: {e}"[:200]
+
+
+def _hent_lag(c: httpx.Client, base: str
+              ) -> tuple[list[dict], list[str], httpx.Response]:
+    """Alle rader fra ETT endepunkt, med fullstendighetssjekken.
+
+    Lik for primær og reserve: samme FELTER, samme `HVOR`, samme
+    paginering, samme to prøver på at vi fikk alt.
+
+    1. `exceededTransferLimit` per side — se sources/_arcgis.py.
+    2. `returnCountOnly` FØR pagineringen, mot antall rader etter. Det er
+       tjenestens eget svar på hvor mange rader `HVOR` treffer, og det
+       eneste som ser at pagineringen hoppet over noe uten at noen side
+       så kort ut.
+    """
+    # Feltlista FØRST: den er billig, og den er det eneste som ser et
+    # nytt felt vi ikke ber om.
+    meta = _json(_http.get(c, base, hva="biomasselag metadata",
+                           params={"f": "json"}), "biomasselag metadata")
+    ukjente = _ukjente_felter(meta.get("fields"))
+
+    telling = _json(_http.get(
+        c, f"{base}/query", hva="biomasselag antall",
+        params={"where": HVOR, "returnCountOnly": "true", "f": "json"}),
+        "biomasselag antall")
+    antall = telling.get("count")
+    if not isinstance(antall, int):
+        raise RuntimeError(f"biomasselag: returnCountOnly ga ikke et tall: "
+                           f"{telling!r}"[:300])
+
+    rader: list[dict] = []
+    for i in range(MAKS_SIDER):
+        svar = _http.get(
+            c, f"{base}/query", hva=f"biomasselag side {i}",
+            params={"where": HVOR, "outFields": ",".join(FELTER),
+                    "returnGeometry": "false", "f": "json",
+                    "orderByFields": "objectid",
+                    "resultOffset": i * SPENN,
+                    "resultRecordCount": SPENN})
+        d = _json(svar, f"biomasselag side {i}")
+        trekk = d.get("features") or []
+        rader += [_rens(x.get("attributes") or {}) for x in trekk]
+        # Tjenesten kan avkorte til sitt eget tak med 200 OK og si det i
+        # `exceededTransferLimit`. Da er «kort side = siste side» usant.
+        _arcgis.sjekk_avkorting(d, len(trekk), SPENN, "biomasselag", i)
+        if len(trekk) < SPENN:
+            break
+    else:
+        raise RuntimeError(
+            f"biomasselag: over {MAKS_SIDER} sider. Pagineringen teller "
+            f"ikke ned — er tjenesten endret?")
+
+    if not rader:
+        raise RuntimeError(
+            "biomasselag: null rader. Laget hadde 1127 rader 10.09.2026, "
+            "og et tomt svar er ikke en tom uke — det er en tjeneste som "
+            "har endret seg.")
+
+    if len(rader) != antall:
+        raise RuntimeError(
+            f"biomasselag: tjenesten sa {antall} rader for where={HVOR}, "
+            f"pagineringen ga {len(rader)}. Snapshotet ville vært "
+            f"ufullstendig uten at noen side så kort ut. Endepunkt: {base}")
+
+    return rader, ukjente, svar
 
 
 def _samle(rader: list[dict]) -> dict[str, list[dict]]:

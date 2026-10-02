@@ -138,6 +138,10 @@ kilder:
     # og ikke sjeldnere.
     aktiv: true
     base_url: "https://gis.fiskeridir.no/server/rest/services/Yggdrasil/Biomasse/MapServer/0"
+    # Brukes bare når base_url feiler med HTTP-feil eller error-objekt.
+    # Samme lag i WMS-katalogen for akvakultur, målt 02.10.2026 — se
+    # RESERVE_BASE i sources/biomasselag.py.
+    reserve_url: "https://gis.fiskeridir.no/server/rest/services/fiskeridirWMS_akva/MapServer/6"
 
   biomasse:
     # Fiskeridirektoratets biomassestatistikk etter produksjonsområde.

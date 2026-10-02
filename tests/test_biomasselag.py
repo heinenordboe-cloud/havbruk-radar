@@ -218,3 +218,94 @@ def test_entity_type_er_lokalitet_som_i_akvakultur():
     obs = list(Biomasselag().parse([_rad()], "2026-09-10"))
     assert {o.entity_type for o in obs} == {"lokalitet"}
     assert {o.entity_id for o in obs} == {"13143"}
+
+
+# ------------------------------------------------- henting: to endepunkter
+#
+# En falsk ArcGIS-tjeneste per endepunkt, bak httpx.MockTransport. Ingen
+# test går mot nettet, og ingen venter på `_http`s backoff.
+
+import time
+
+import httpx
+
+PRIMAER = biomasselag.STANDARD_BASE
+RESERVE = biomasselag.RESERVE_BASE
+FEIL_500 = {"error": {"code": 500, "message": "Error performing query operation",
+                      "details": []}}
+
+
+class Lag:
+    """Ett ArcGIS-lag. `kall` teller forespørslene, så en test kan bevise
+    at reserven IKKE ble spurt."""
+
+    def __init__(self, rader, *, antall=None, feilsvar=False, status=200,
+                 felter=None):
+        self.rader = rader
+        self.antall = len(rader) if antall is None else antall
+        self.feilsvar = feilsvar
+        self.status = status
+        self.felter = felter or (biomasselag.FELTER + biomasselag.KJENTE_UTELATTE)
+        self.kall = 0
+
+    def __call__(self, req):
+        self.kall += 1
+        if self.status != 200:
+            return httpx.Response(self.status)
+        q = dict(req.url.params)
+        if not req.url.path.endswith("/query"):
+            return httpx.Response(200, json={"fields": [{"name": f} for f in self.felter]})
+        if self.feilsvar:
+            return httpx.Response(200, json=FEIL_500)
+        if q.get("returnCountOnly") == "true":
+            return httpx.Response(200, json={"count": self.antall})
+        fra, n = int(q["resultOffset"]), int(q["resultRecordCount"])
+        return httpx.Response(200, json={
+            "features": [{"attributes": r} for r in self.rader[fra:fra + n]]})
+
+
+@pytest.fixture
+def nett(monkeypatch):
+    """{base: Lag}. Alt annet svarer 404."""
+    lag: dict = {}
+
+    def ruter(req):
+        url = str(req.url).split("?")[0]
+        for base, h in lag.items():
+            if url == base or url.startswith(base + "/"):
+                return h(req)
+        return httpx.Response(404)
+
+    ekte = httpx.Client
+    monkeypatch.setattr(biomasselag.httpx, "Client",
+                        lambda **kw: ekte(transport=httpx.MockTransport(ruter), **kw))
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    return lag
+
+
+def _rader(n):
+    return [_rad(objectid=i, loknr=10000 + i) for i in range(n)]
+
+
+def test_count_som_ikke_stemmer_feller_primaeren_UTEN_reserve(nett):
+    """En fullstendighetsfeil er ikke en primærfeil. Primæren svarte, men
+    med noe som ikke henger sammen — å bytte endepunkt ville gjemt det."""
+    nett[PRIMAER] = Lag(_rader(3), antall=4)
+    nett[RESERVE] = reserve = Lag(_rader(3))
+    with pytest.raises(RuntimeError, match="sa 4 rader"):
+        Biomasselag().fetch("2026-10-05")
+    assert reserve.kall == 0
+
+
+def test_fullstendighetssjekken_gjelder_ogsa_reserven(nett):
+    nett[PRIMAER] = Lag([], feilsvar=True)
+    nett[RESERVE] = Lag(_rader(3), antall=5)
+    with pytest.raises(RuntimeError, match="reserven feilet"):
+        Biomasselag().fetch("2026-10-05")
+
+
+def test_flere_sider_settes_sammen_og_stemmer_med_count(nett, monkeypatch):
+    monkeypatch.setattr(biomasselag, "SPENN", 2)
+    nett[PRIMAER] = Lag(_rader(5))
+    rader = Biomasselag().fetch("2026-10-05")
+    assert [r["loknr"] for r in rader] == [10000 + i for i in range(5)]
