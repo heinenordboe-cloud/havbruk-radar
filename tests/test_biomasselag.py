@@ -412,3 +412,79 @@ def test_reservens_ekstra_felt_er_UKJENTE_for_primaeren():
 def test_kortnavn_for_advarselen():
     assert biomasselag._kortnavn(RESERVE) == "fiskeridirWMS_akva/6"
     assert biomasselag._kortnavn(PRIMAER) == "Biomasse/0"
+
+
+# ------------------------------------------- primær, reserve, begge nede
+#
+# De tre utfallene gjennom runner og health, slik samle.yml ser dem.
+
+from core import health, runner
+
+
+@pytest.fixture
+def helse(tmp_path, monkeypatch):
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    return tmp_path
+
+
+def _kjor(dato="2026-10-05"):
+    obs, [res] = runner.run_all([Biomasselag()], dato, arkiver=False)
+    tilstand, tilsyn = health.oppdater([res], dato)
+    return obs, res, tilstand["biomasselag"]
+
+
+def test_primaer_ok_gir_primaer_brukt(nett, helse):
+    nett[PRIMAER] = Lag(_rader(3))
+    nett[RESERVE] = reserve = Lag(_rader(3))
+
+    obs, res, post = _kjor()
+
+    assert res.ok
+    assert reserve.kall == 0, "reserven skal ikke spørres når primæren svarer"
+    assert {o.endepunkt for o in obs} == {PRIMAER}
+    assert post["endepunkt"] == PRIMAER
+    assert not any("reserve" in a for a in post["advarsler_sist"])
+
+
+def test_primaer_code_500_gir_reserve_og_proveniensen_sier_det(nett, helse):
+    """Formen målt 02.10.2026: 200 OK med error-objekt på /query, mens
+    metadata fortsatt svarer."""
+    nett[PRIMAER] = Lag([], feilsvar=True)
+    nett[RESERVE] = Lag(_rader(3), felter=RESERVE_FELTER_MAALT)
+
+    obs, res, post = _kjor()
+
+    assert res.ok and res.count > 0
+    assert {o.endepunkt for o in obs} == {RESERVE}
+    assert post["endepunkt"] == RESERVE
+    assert post["advarsler_sist"] == [
+        "biomasselag: reserve fiskeridirWMS_akva/6 (primær: code 500)"]
+    assert res.advarsler == post["advarsler_sist"], "samme tekst i jobben"
+
+
+def test_primaer_http_feil_gir_ogsa_reserve(nett, helse):
+    nett[PRIMAER] = Lag([], status=503)
+    nett[RESERVE] = Lag(_rader(3), felter=RESERVE_FELTER_MAALT)
+
+    obs, res, post = _kjor()
+
+    assert res.ok
+    assert post["endepunkt"] == RESERVE
+    assert post["advarsler_sist"] == [
+        "biomasselag: reserve fiskeridirWMS_akva/6 (primær: HTTP 503)"]
+
+
+def test_begge_feiler_feller_kilden_og_oker_feil_paa_rad(nett, helse):
+    """Som i dag: kilden feiler, sist_ok står, feil_paa_rad øker."""
+    health.skriv({"biomasselag": {"sist_ok": "2026-09-22", "feil_paa_rad": 1}})
+    nett[PRIMAER] = Lag([], feilsvar=True)
+    nett[RESERVE] = Lag([], status=503)
+
+    obs, res, post = _kjor()
+
+    assert not res.ok and obs == []
+    assert post["feil_paa_rad"] == 2
+    assert post["sist_ok"] == "2026-09-22"
+    assert post["endepunkt"] == ""
+    assert "primæren feilet (code 500)" in post["siste_feil"]
+    assert "reserven feilet (HTTP 503)" in post["siste_feil"]
