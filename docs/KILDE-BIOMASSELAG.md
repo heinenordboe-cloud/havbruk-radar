@@ -184,3 +184,29 @@ Det som KAN sies, uten å være en måling:
 
 Forslag til hvordan det kan måles neste gang:
 docs/FORSLAG-endepunkt-i-endringsloggen.md.
+
+### Primæren 04.10.2026: vedvarende, ikke flakkende
+
+Seks kall mot `Yggdrasil/Biomasse/MapServer/0/query?where=1=1&returnCountOnly=true&f=json`,
+fra en maskin utenfor GitHub Actions, rett etter kjøringen:
+
+| UTC | HTTP | tid | kropp |
+|---|---|---|---|
+| 21:06:03 | 200 | 1,20 s | `{"error":{"code":500,"message":"Error performing query operation","details":[]}}` |
+| 21:06:08 | 200 | 0,57 s | samme |
+| 21:07:28 | 200 | 0,54 s | samme |
+| 21:08:49 | 200 | 0,55 s | samme |
+| 21:10:09 | 200 | 0,54 s | samme |
+| 21:11:30 | 200 | 0,77 s | samme |
+
+Kroppen er 80 byte, sha256 `a84421cb…`, lik i alle seks. 6 av 6 feilet.
+
+Med jobbens egne forsøk: `code 500` på `/query` 29.09 og 01.10 (health),
+02.10 03:52 (målingen over), 04.10 21:03 (kjøringen) og 21:06–21:11. Ikke
+ett vellykket svar siden 22.09 21:52. **Feilen er vedvarende** så langt
+vi har målt — fem dager, fra to nettverk. At den er det mellom
+målingene, er ikke vist.
+
+Raske, like svar med 200 OK tyder på at tjenesten lever og at feilen
+sitter i spørringen mot laget bak den, ikke i nettverket. Det er en
+tolkning, ikke målt.
