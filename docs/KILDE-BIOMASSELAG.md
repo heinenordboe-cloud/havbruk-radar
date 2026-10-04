@@ -93,3 +93,56 @@ vært en DÅRLIGERE kopi.
   `<app:biomasse>`) kunne vært en tredje vei. Målt 02.10.2026: den har
   `har_fisk` som true/false og samme tilstand som reserven, men mangler
   `siste_rapport`, den faktiske arten og 44 lokaliteter. Ikke bygget.
+
+## 5. Uke 40 (04.10.2026): første snapshot fra reserven
+
+Kjøringen 04.10.2026 21:03 UTC (datarepoet `8b80cb8`, merket DELVIS
+fordi en vakt ba om tilsyn) skrev `raw/biomasselag/2026-10-04.parquet`
+fra reserven: 1127 rader, 1118 lokaliteter, 7358 observasjoner,
+`raw_hash` `6351f631…` (sha256 av den dekomprimerte kroppen i
+`arkiv/biomasselag/2026-10-04.json.gz`).
+
+Siste snapshot fra primæren er `2026-09-22` (`raw_hash` `069abea8…`). Den
+kolonnen `endepunkt` fantes ikke da; at det var primæren er utledet av at
+reserven ikke fantes i koden før 02.10, ikke lest av raden.
+`2026-09-15` og `2026-09-22` har BYTE-LIK kropp — primæren sto stille den
+uka.
+
+### 10726 og 10747 felt for felt
+
+Fra arkivkroppene. Radhash er sha256 av raden som JSON med sorterte
+nøkler, avkortet til 12 tegn.
+
+| loknr | kropp | endepunkt | siste_rapport | objectid | radhash |
+|---|---|---|---|---|---|
+| 10726 | 2026-09-10 | primær | 2026-07-31 | 1636256 | `b2e8e9e0d601` |
+| 10726 | 2026-09-15 | primær | 2026-08-31 | 1637008 | `bc5a0c87f87f` |
+| 10726 | 2026-09-22 | primær | 2026-08-31 | 1637008 | `bc5a0c87f87f` |
+| 10726 | 2026-10-04 | reserve | **2026-07-31** | 1641538 | `14e51163bccb` |
+| 10747 | 2026-09-10 | primær | 2026-08-31 | 1635633 | `318aa98296e2` |
+| 10747 | 2026-09-15 | primær | 2026-08-31 | 1637384 | `396249d3c474` |
+| 10747 | 2026-09-22 | primær | 2026-08-31 | 1637384 | `396249d3c474` |
+| 10747 | 2026-10-04 | reserve | **2026-07-31** | 1642025 | `e195579dfe35` |
+
+Alle andre felt er like i alle fire: `art` Laks, `har_fisk` Ja,
+`status_lokalitet` AKTIV, `navn` ULØYBUKT / FUTNES. Bare `siste_rapport`
+(og `objectid`, som ikke er en nøkkel) skiller.
+
+**Henger reserven etter? Ikke som lag.** Mot primæren 22.09, alle 1118
+felles lokaliteter: 1103 lik `siste_rapport`, 13 FRAMOVER i reserven, 2
+bakover (de to over). Nyeste `siste_rapport` er 2026-08-31 i begge, og
+august har 672 lokaliteter i primæren mot 683 i reserven. Et lag som
+hang etter som helhet ville vist det motsatte.
+
+For de to lokalitetene ligger reserven én rapportmåned bak. I veggtid:
+primæren hadde 2026-08-31 for 10747 senest 10.09 20:28 UTC og for 10726
+senest 15.09 21:58 UTC; reserven har det ikke 04.10 21:03 — minst 24 og
+19 dager. **Hvorfor er ikke avgjort**, og kan ikke avgjøres uten et
+samtidig svar fra primæren. To forklaringer passer dataene:
+
+- reserven har en eldre kopi av akkurat disse radene, eller
+- augustrapporten er trukket eller rettet etter 22.09, og reserven er
+  den FERSKESTE av de to.
+
+At 13 rader gikk framover taler mot en generelt utdatert kopi, men
+utelukker ikke at enkeltrader er det.
