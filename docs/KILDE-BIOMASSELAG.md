@@ -146,3 +146,41 @@ samtidig svar fra primæren. To forklaringer passer dataene:
 
 At 13 rader gikk framover taler mot en generelt utdatert kopi, men
 utelukker ikke at enkeltrader er det.
+
+### Endringene mot 22.09: endepunkt eller ekte?
+
+`changelog/biomasselag/2026-10-04.parquet`: 29 rader på 15 lokaliteter.
+
+| felt | rader | |
+|---|---|---|
+| `siste_rapport` | 15 | 13 framover, 2 bakover (10726, 10747) |
+| `antall_arter` | 5 | |
+| `arter_tilstede` | 5 | 2 ny, 2 borte, 1 endret |
+| `har_fisk` | 4 | 21495, 32397 Nei→Ja; 45072, 10821 Ja→Nei |
+
+Det er samme 29 rader på samme 15 lokaliteter som ble målt live mot
+reserven 02.10 (docs/beslutninger/2026-10-02-biomasselag-reserve.md
+punkt 5). Reserven har ikke endret seg i disse lokalitetene mellom 02.10
+og 04.10.
+
+**Hvor mange skyldes byttet, kan ikke måles.** Det krever primær og
+reserve på samme tidspunkt, og primærens `/query` har ikke svart på noe
+tidspunkt reserven er hentet: feil 29.09, 01.10, 02.10 og 04.10
+(se under). Vi har primær 22.09 og reserve 02.10/04.10 — ti til tolv
+dager fra hverandre, og forskjellen er byttet og tida blandet.
+
+Det som KAN sies, uten å være en måling:
+
+- **2 rader er mistenkelige**: `siste_rapport` bakover kan ikke være en
+  ny rapport. De er enten byttet eller en trukket rapport (over).
+- **27 rader er forenlige med ekte endring**: datoer framover til
+  2026-08-31, og `har_fisk`/`arter_tilstede`/`antall_arter` endrer seg
+  bare på lokaliteter der `siste_rapport` også gikk framover. Forenlig er
+  ikke bekreftet — en reserve som var FERSKERE enn primæren ville gitt
+  nøyaktig samme mønster.
+- Primæren sto stille 15.09 → 22.09 (byte-lik kropp). 13 sene
+  augustrapporter mellom 22.09 og 02.10 er derfor ikke det man ville
+  forventet av primærens egen takt, men heller ikke utelukket.
+
+Forslag til hvordan det kan måles neste gang:
+docs/FORSLAG-endepunkt-i-endringsloggen.md.
