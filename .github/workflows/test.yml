@@ -12,7 +12,7 @@ on:
 
 jobs:
   pytest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     # `shell: bash` gir `bash --noprofile --norc -eo pipefail`. Uten det
     # kjører GitHub `bash -e`, som mangler pipefail: i `a | b` er det bare
