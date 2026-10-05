@@ -1657,6 +1657,32 @@ def test_en_tillatelse_uten_eier_kan_ikke_havne_paa_en_selskapsside():
     assert "11517" not in [l["loknr"] for l in sel["lokaliteter"]]
 
 
+def test_gikk_ut_overskriver_ikke_selskapets_navn():
+    """Regresjon fra d934c10: «Gikk ut»-løkka gjenbrukte variabelen
+    `navn`, og selskapet fikk MOTTAKERENS navn i tittelen. MÅLT
+    05.10.2026: 28 selskapssider mot ekte data."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        tillatelser_per_eier={"912345678": ["N-T-0001"]},
+        eierskap={"N-T-0001": {"eier_navn": "TESTLAKS AS",
+                               "eier_orgnr": "912345678",
+                               "lokaliteter": "10001"}},
+        enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
+        akva_dato="2026-09-14", akva={"10001": {"navn": "TESTHOLMEN"}},
+        overforinger_per_tillatelse={"N-T-0002": [
+            {"journal_dato": "2018-01-01", "rekkefolge": "1",
+             "mottaker_orgnr": "912345678", "mottaker_navn": "TESTLAKS AS"},
+            {"journal_dato": "2020-01-01", "rekkefolge": "2",
+             "mottaker_orgnr": "987654321",
+             "mottaker_navn": "ANDRE TESTVIK AS"}]})
+
+    sel = nettsted.bygg_selskap("912345678", felles)
+    assert sel["navn"] == "TESTLAKS AS"
+    ut = [o for o in sel["eierskapslinje"] if o["retning"] == "ut"]
+    assert [o["navn"] for o in ut] == ["ANDRE TESTVIK AS"]
+
+
 def test_selskapssiden_lenker_til_lokalitet_og_produksjonsomrade():
     html = _selskap()
     assert '<a href="/lokalitet/10001/">10001</a>' in html

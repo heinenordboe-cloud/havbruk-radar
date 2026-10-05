@@ -7002,13 +7002,16 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             if (o.get("mottaker_orgnr") or "").strip() != orgnr:
                 continue
             neste = rekka[i + 1]
-            navn, felt = _navn_eller_skjult(neste.get("mottaker_navn", ""),
-                                            "mottaker_navn")
+            # IKKE `navn`: det er selskapets eget navn, og det står på
+            # sida under. Fram til 05.10.2026 overskrev denne løkka det,
+            # og 28 selskapssider fikk MOTTAKERENS navn i tittelen.
+            mottaker, mottaker_felt = _navn_eller_skjult(
+                neste.get("mottaker_navn", ""), "mottaker_navn")
             ut_av.append({
                 "dato": neste.get("journal_dato", ""),
                 "tillatelse": nr,
-                "navn": navn,
-                "navn_felt": felt,
+                "navn": mottaker,
+                "navn_felt": mottaker_felt,
                 "retning": "ut",
                 "slag": "Gikk ut",
                 "hva": f"{nr} overført videre",
