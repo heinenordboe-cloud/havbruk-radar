@@ -90,7 +90,7 @@ import shutil
 import sys
 import time
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from html import escape
 from pathlib import Path
@@ -686,6 +686,9 @@ class Felles:
     # {(entity_id, felt): siste observed_at} — når vi sist SÅ feltet
     # endre seg. Brukes i «Sist endret»-kolonnen i registertabellene.
     sist_endret: dict[tuple[str, str], str]
+    # {orgnr: formene kildene oppgir} — det `_navn_eller_skjult()` slår
+    # opp i. Se `publiseringsvakt.formkart()`.
+    former: dict[str, frozenset[str]] = field(default_factory=dict)
 
 
 @lru_cache(maxsize=1)
@@ -790,8 +793,9 @@ def les_felles() -> Felles:
             if lok.strip():
                 till_per_lok[lok.strip()].add(nr)
 
+    alle_ovf = list(_overforinger().values())
     ovf_per_till: dict[str, list[dict]] = defaultdict(list)
-    for o in _overforinger().values():
+    for o in alle_ovf:
         ovf_per_till[o.get("tillatelse_nr", "")].append(o)
 
     # Changeloggen én gang, gjennom den ENE lesedøra — se `_les_beveg()`.
@@ -892,6 +896,7 @@ def les_felles() -> Felles:
         biomasse=bio_serier,
         biomasse_utgitt=bio_utgitt,
         sist_endret=sist_endret_av(beveg),
+        former=publiseringsvakt.formkart(enhet, eierskap, alle_ovf),
     )
 
 
@@ -3131,7 +3136,7 @@ def _uten_eier(oppgitt: list[str], eierskap: dict) -> list[str]:
     return [nr for nr in oppgitt if nr not in eierskap]
 
 
-def _eierrad(nr: str, d: dict) -> dict:
+def _eierrad(nr: str, d: dict, former: dict | None = None) -> dict:
     """Én rad i eierskapstabellen, med eller uten eiernavn.
 
     ## Spørsmålet stilles til KILDEN, i kildens vokabular
@@ -3185,42 +3190,48 @@ def _eierrad(nr: str, d: dict) -> dict:
         "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
                                        d.get("kapasitet_enhet", "")),
         "tildelt_dato": visningsord.oslodato(d.get("tildelt_tid")),
-        **_tildelt(d),
+        **_tildelt(d, former),
     }
 
 
-def _navn_eller_skjult(navn: str, felt: str) -> tuple[str, str]:
-    """(verdi, feltmerke) for en navnecelle — navnet, eller vår tekst.
+def _navn_eller_skjult(navn: str, felt: str, orgnr: str = "",
+                       former: dict | None = None) -> tuple[str, str, str]:
+    """(verdi, feltmerke, orgnr) for en navnecelle — eller vår tekst.
 
-    Samme regel som `_tildelt()`, for de cellene som ikke har et
-    orgnummer ved siden av seg. `fjern_egne_personer()` tar mottakerne
-    kilden selv KALLER personer; denne tar navnet som ender på en
-    personform der typen sier noe annet.
+    Navnet vises BARE når `publiseringsvakt.vises_som_organisasjon()`
+    sier ja: en ikke-personlig formkode i navnet, eller et orgnr
+    registeret gir en ikke-personlig form. Alt annet blir
+    `skjult_navn()`, og orgnummeret går med — står nummeret igjen, er
+    navnet ett oppslag i Brreg unna.
+
+    `former` er `publiseringsvakt.formkart()`. None betyr at vi ikke vet
+    noe om orgnummeret, og da avgjør navnet alene.
     """
+    orgnr = (orgnr or "").strip()
+    if publiseringsvakt.vises_som_organisasjon(
+            navn, (former or {}).get(orgnr, ())):
+        return navn, felt, orgnr
     kode = publiseringsvakt.personform_i_navn(navn)
-    if kode:
-        return publiseringsvakt.skjult_navn(kode), \
-            publiseringsvakt.SKJULT_NAVN_FELT
-    return navn, felt
+    return (publiseringsvakt.skjult_navn(kode),
+            publiseringsvakt.SKJULT_NAVN_FELT, "")
 
 
-def _tildelt(d: dict) -> dict:
+def _tildelt(d: dict, former: dict | None = None) -> dict:
     """Hvem tillatelsen ble tildelt — eller at navnet ikke vises.
 
-    Et `tildelt_navn` som ender på en personform byttes mot
-    `skjult_navn()`, og orgnummeret fjernes med det: står nummeret
-    igjen, er navnet ett oppslag i Brreg unna. MÅLT 05.10.2026: 3
-    tillatelser, alle ANS, alle med en innehaver i dag som er AS. Se
-    `publiseringsvakt.personform_i_navn()`.
+    Se `_navn_eller_skjult()`. MÅLT 05.10.2026: 12 `tildelt_navn` på
+    formen «ETTERNAVN, FORNAVN» sto på det publiserte nettstedet fordi regelen før
+    da bare skjulte det den GJENKJENTE som personlig.
     """
-    navn, felt = _navn_eller_skjult(d.get("tildelt_navn", ""),
-                                    "tildelt_navn")
-    skjult = felt == publiseringsvakt.SKJULT_NAVN_FELT
+    navn, felt, orgnr = _navn_eller_skjult(
+        d.get("tildelt_navn", ""), "tildelt_navn",
+        d.get("tildelt_orgnr", ""), former)
     return {"tildelt_navn": navn, "tildelt_felt": felt,
-            "tildelt_orgnr": "" if skjult else d.get("tildelt_orgnr", "")}
+            "tildelt_orgnr": orgnr}
 
 
-def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
+def _tillatelsesrader(mine_till: dict, uten_eier: list[str],
+                      former: dict | None = None) -> list[dict]:
     """Radene i eierskapstabellen — kjente OG ugjorte rede for.
 
     Samme radform for begge, med `eier_felt` som skiller dem. En egen
@@ -3228,7 +3239,7 @@ def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
     en utelatt rad ville gjort det usynlig.
     """
     rader = [
-        _eierrad(nr, d) for nr, d in mine_till.items()
+        _eierrad(nr, d, former) for nr, d in mine_till.items()
     ] + [
         {
             "nr": nr,
@@ -3571,7 +3582,8 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
 
 
 def _oppgitt_historikk(a: dict, tillatelser: list[dict],
-                       overforinger: list[dict]) -> list[dict]:
+                       overforinger: list[dict],
+                       former: dict | None = None) -> list[dict]:
     """Historikken KILDEN selv fører, eldst først.
 
     Tre slag, og alle tre er datoer registeret oppgir som en dato for
@@ -3642,8 +3654,9 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             })
     for o in overforinger:
         if o["dato"]:
-            navn, felt = _navn_eller_skjult(o["mottaker_navn"],
-                                            "mottaker_navn")
+            navn, felt, _orgnr = _navn_eller_skjult(
+                o["mottaker_navn"], "mottaker_navn",
+                o.get("mottaker_orgnr", ""), former)
             poster.append({
                 "dato": o["dato"],
                 "slag": "Overføring journalført",
@@ -3859,6 +3872,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
             if loknr in [x.strip() for x in (d.get("lokaliteter") or "").split(";")]
         }
         ovf = list(_overforinger().values())
+        former = publiseringsvakt.formkart(
+            _siste("enhetsregisteret")[1], eierskap, ovf)
         serie = _lusserie(loknr)
         endringer, maaleserie_rader, sist_endret = _endringer(
             loknr, sorted(mine_till))
@@ -3870,6 +3885,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
                      felles.tillatelser_per_lokalitet.get(loknr, ())}
         ovf = [o for nr in mine_till
                for o in felles.overforinger_per_tillatelse.get(nr, ())]
+        former = felles.former
         serie = felles.lusserier.get(loknr, [])
         endringer, maaleserie_rader, sist_endret = _endringer_av_indeks(
             loknr, sorted(mine_till), felles)
@@ -3890,7 +3906,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         }
         for o in overforinger
     ]
-    tillatelsesrader = _tillatelsesrader(mine_till, uten_eier)
+    tillatelsesrader = _tillatelsesrader(mine_till, uten_eier, former)
     dekning = felles.dekning_fra if felles else _dekning_fra()
 
     return {
@@ -4013,7 +4029,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
 
         # ---- de to historikkene ----
         "observert": _observert_historikk(endringer, dekning, felles),
-        "oppgitt": _oppgitt_historikk(a, tillatelsesrader, overforingsrader),
+        "oppgitt": _oppgitt_historikk(a, tillatelsesrader, overforingsrader,
+                                      former),
 
         # ---- fisk til stede ----
         "biolag": _biolagstripe(
@@ -7005,8 +7022,9 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             # IKKE `navn`: det er selskapets eget navn, og det står på
             # sida under. Fram til 05.10.2026 overskrev denne løkka det,
             # og 28 selskapssider fikk MOTTAKERENS navn i tittelen.
-            mottaker, mottaker_felt = _navn_eller_skjult(
-                neste.get("mottaker_navn", ""), "mottaker_navn")
+            mottaker, mottaker_felt, _orgnr = _navn_eller_skjult(
+                neste.get("mottaker_navn", ""), "mottaker_navn",
+                neste.get("mottaker_orgnr", ""), felles.former)
             ut_av.append({
                 "dato": neste.get("journal_dato", ""),
                 "tillatelse": nr,
@@ -7046,7 +7064,8 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
         "eierskap_dato": felles.eierskap_dato,
         "akva_dato": felles.akva_dato,
         "tillatelser": [dict(r, siden=siden_per_till.get(r["nr"], ""))
-                        for r in _tillatelsesrader(mine, [])],
+                        for r in _tillatelsesrader(mine, [],
+                                                   felles.former)],
         "tillatelser_antall": len(tillatelser),
         "lokaliteter": lokalitetsrader,
         "lokaliteter_antall": len(lokaliteter),

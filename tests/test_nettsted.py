@@ -1647,7 +1647,7 @@ def test_en_tillatelse_uten_eier_kan_ikke_havne_paa_en_selskapsside():
         enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
         akva_dato="2026-09-14",
         akva={"10001": {"navn": "TESTHOLMEN"}, "11517": {"navn": "TRETTØY"}},
-        overforinger_per_tillatelse={})
+        former={}, overforinger_per_tillatelse={})
 
     sel = nettsted.bygg_selskap("912345678", felles)
     numre = [t["nr"] for t in sel["tillatelser"]]
@@ -1670,7 +1670,7 @@ def test_gikk_ut_overskriver_ikke_selskapets_navn():
                                "lokaliteter": "10001"}},
         enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
         akva_dato="2026-09-14", akva={"10001": {"navn": "TESTHOLMEN"}},
-        overforinger_per_tillatelse={"N-T-0002": [
+        former={}, overforinger_per_tillatelse={"N-T-0002": [
             {"journal_dato": "2018-01-01", "rekkefolge": "1",
              "mottaker_orgnr": "912345678", "mottaker_navn": "TESTLAKS AS"},
             {"journal_dato": "2020-01-01", "rekkefolge": "2",
@@ -3302,6 +3302,68 @@ def test_tildelt_personform_naar_ikke_sida_og_porten_teller_null():
     funn = vakt.gransk_tekst(side, orgnr_ok, navn_ok, fil="index.html",
                              tvetydige={"DA"})
     assert funn == []
+
+
+# ---- regelen er SNUDD: et navn vises bare som positivt organisasjon ---
+#
+# Én fikstur per klasse fra målingen 05.10.2026 mot ekte data. Alle navn
+# er fiktive.
+
+SKJULT = "(navn ikke vist)"
+
+
+@pytest.mark.parametrize("navn, orgnr, former, vist", [
+    # person: «ETTERNAVN, FORNAVN», uten orgnr
+    ("TESTVIK, KARI ANNE", "", {}, False),
+    ("TESTVIK, KARI, STRAUMEN", "", {}, False),
+    # person med orgnr: trolig ENK, form ukjent — og form kjent som ENK
+    ("KARI ANNE TESTVIK", "987654321", {}, False),
+    ("KARI ANNE TESTVIK", "987654321", {"987654321": {"ENK"}}, False),
+    # personform i navnet
+    ("TESTVIK OG STRAUM ANS", "987654321", {}, False),
+    # selskap uten endelse: koden står først, i midten, eller stavet
+    ("AS TESTLAKS", "987654321", {}, True),
+    ("KS TESTFISK", "987654321", {}, True),
+    ("TESTFORSKING AS AVD MARIN", "987654321", {}, True),
+    ("TESTVIK FISKEOPPDRETT A/S", "987654321", {}, True),
+    ("TESTVIK LAKS A.S", "987654321", {}, True),
+    ("TESTMAR A.S.", "987654321", {}, True),
+    # annet: offentlig/stiftelse — vises bare med en form fra registeret
+    ("TESTLAND FYLKESKOMMUNE", "987654321", {}, False),
+    ("TESTLAND FYLKESKOMMUNE", "987654321", {"987654321": {"FYLK"}}, True),
+    ("STIFTELSEN TESTINSTITUTT", "987654321",
+     {"987654321": {"Foundation"}}, True),
+    # registeret sier personlig: vinner over en AS-endelse
+    ("TESTVIK AS", "987654321", {"987654321": {"Person"}}, False),
+])
+def test_tildelt_vises_bare_som_organisasjon(navn, orgnr, former, vist):
+    rad = nettsted._eierrad("T-D-0009", _till(
+        tildelt_navn=navn, tildelt_orgnr=orgnr), former)
+    if vist:
+        assert (rad["tildelt_navn"], rad["tildelt_orgnr"]) == (navn, orgnr)
+        assert rad["tildelt_felt"] == "tildelt_navn"
+    else:
+        assert rad["tildelt_navn"].endswith(SKJULT)
+        assert rad["tildelt_orgnr"] == ""
+
+
+def test_personnavn_naar_ikke_sida():
+    till = nettsted._eierrad("T-D-0009", _till(
+        tildelt_navn="TESTVIK, KARI ANNE", tildelt_orgnr=""))
+    side = _side(tillatelser=[till])
+    assert "TESTVIK, KARI" not in side
+    assert SKJULT in side
+
+
+def test_mottaker_uten_organisasjonsform_vises_ikke():
+    poster = nettsted._oppgitt_historikk({}, [], [
+        {"dato": "2018-03-13", "tillatelse": "T-D-0009",
+         "mottaker_navn": "TESTVIK, KARI ANNE", "mottaker_orgnr": ""},
+        {"dato": "2019-03-13", "tillatelse": "T-D-0009",
+         "mottaker_navn": "TESTLAND FYLKESKOMMUNE",
+         "mottaker_orgnr": "987654321"}],
+        {"987654321": frozenset({"FYLK"})})
+    assert [p["navn"] for p in poster] == [SKJULT, "TESTLAND FYLKESKOMMUNE"]
 
 
 def test_mottaker_med_personform_vises_ikke():

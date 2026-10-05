@@ -1421,9 +1421,13 @@ def _anonymiser(navn: str) -> str:
 
 # --------------------------------------------------- personformet navn
 
+# Organisasjonsformkodene en navneendelse kan bære. Personformene står
+# med; hvilke av dem som ER personlige avgjør `persondata`, ikke denne.
+FORMKODER = ("AS", "ASA", "DA", "ANS", "SA", "BA", "NUF", "KS", "IKS",
+             "FKF", "SF", "STI", "FLI", "PRE", "AL", "KBO", "SÆR")
+
 FORM_SUFFIKS = re.compile(
-    r"\s+(AS|ASA|DA|ANS|SA|BA|NUF|KS|IKS|FKF|SF|STI|FLI|PRE|AL|KBO|SÆR)\.?$",
-    re.I)
+    r"\s+(" + "|".join(FORMKODER) + r")\.?$", re.I)
 
 
 # Organisasjonsformene SSB plasserer i sektor 2300, «personlige
@@ -1459,9 +1463,15 @@ SEKTOR_2300 = frozenset(persondata.PERSONFORMER - {"ENK"})
 SKJULT_NAVN_FELT = "navn_skjult"
 
 
-def skjult_navn(kode: str) -> str:
-    """Teksten som står der et personformnavn sto. Ett sted."""
-    return f"{kode.strip().upper()} (navn ikke vist)"
+def skjult_navn(kode: str = "") -> str:
+    """Teksten som står der et navn sto. Ett sted.
+
+    Med en personformkode: «ANS (navn ikke vist)». Uten — navnet er
+    ikke positivt klassifisert som organisasjon, og vi vet ikke hva det
+    er: «(navn ikke vist)».
+    """
+    kode = kode.strip().upper()
+    return f"{kode} (navn ikke vist)" if kode else "(navn ikke vist)"
 
 
 def personform_i_navn(navn: object) -> str:
@@ -1480,7 +1490,101 @@ def personform_i_navn(navn: object) -> str:
 
 def er_skjult_navn(verdi: str) -> bool:
     """Er cellen nøyaktig vår tekst for et navn som ikke vises?"""
-    return any(verdi == skjult_navn(k) for k in persondata.PERSONFORMER)
+    return verdi == skjult_navn() or any(
+        verdi == skjult_navn(k) for k in persondata.PERSONFORMER)
+
+
+# --------------------------------------------------- vises som organisasjon
+#
+# REGELEN ER SNUDD 05.10.2026. Fram til da ble et navn skjult når det
+# ble GJENKJENT som personlig — og et navn som «ETTERNAVN, FORNAVN» ble
+# ikke gjenkjent som noe som helst, og ble vist. MÅLT samme dag: 12
+# personnavn på den formen, og 2 til med orgnr, sto på 15 sider på
+# det publiserte nettstedet.
+#
+# Nå vises et `tildelt_navn` eller `mottaker_navn` BARE når det positivt
+# er klassifisert som en organisasjon:
+#
+#   1. en ikke-personlig formkode som eget ord HVOR SOM HELST i navnet
+#      — «AS BOLAKS», «MØREFORSKING AS AVD …», «KVARØY … A/S», «… A.S»
+#   2. eller et orgnr som registeret gir en ikke-personlig form
+#
+# og aldri når noe sier personlig — en personformkode i navnet, eller en
+# personlig form på orgnummeret. Alt annet er `skjult_navn()`.
+#
+# Ingen lister med navn. Formene leses av kildenes egne rader
+# (`formkart()`), og hva som er personlig avgjør `sources.eierskap.
+# er_person()`, som tåler både Brregs koder og pub-aquas ord.
+_ORDGRENSE_FOR = r"(?<![\wÆØÅæøå/.])"
+_ORDGRENSE_ETTER = r"(?![\wÆØÅæøå/])"
+ORGORD = re.compile(
+    _ORDGRENSE_FOR
+    + r"(A/S|A\.S\.?|"
+    + "|".join(sorted(set(FORMKODER) - persondata.PERSONFORMER,
+                      key=len, reverse=True))
+    + r")" + _ORDGRENSE_ETTER)
+# «ETTERNAVN, FORNAVN», som Fiskeridirektoratet skriver en privatperson.
+# Prøves mot HELE celleverdien og aldri mot løpende tekst: MÅLT
+# 05.10.2026 treffer samme mønster over hele bygget 1 818 distinkte
+# strenger, nesten alle «KOMMUNE, FYLKE». Avgrenset til navneceller
+# treffer det nøyaktig de 12 personnavnene og ingenting annet.
+_STORT_ORD = r"[A-ZÆØÅÉÜÖÄ][A-ZÆØÅÉÜÖÄ'\-]+"
+PERSONNAVN = re.compile(
+    rf"{_STORT_ORD}(?: {_STORT_ORD})*, {_STORT_ORD}(?:,? {_STORT_ORD})*")
+PERSONORD = re.compile(
+    _ORDGRENSE_FOR + r"(" + "|".join(sorted(persondata.PERSONFORMER))
+    + r")\.?" + _ORDGRENSE_ETTER)
+
+
+def _personlig_form(form: object) -> bool:
+    from sources.eierskap import er_person
+    return er_person(str(form or "").strip())
+
+
+def vises_som_organisasjon(navn: object,
+                           former: Iterable[str] = ()) -> bool:
+    """Er navnet POSITIVT klassifisert som en organisasjon?
+
+    `former` er formene registeret oppgir for orgnummeret ved siden av —
+    se `formkart()`. Tom når vi ikke vet, og da avgjør navnet alene.
+    """
+    tekst = str(navn or "").strip()
+    former = [str(f).strip() for f in former if str(f or "").strip()]
+    if not tekst or any(_personlig_form(f) for f in former):
+        return False
+    if (personform_i_navn(tekst) or PERSONORD.search(tekst)
+            or PERSONNAVN.fullmatch(tekst)):
+        return False
+    return bool(ORGORD.search(tekst)) or bool(former)
+
+
+def formkart(enhet: dict, eierskap: dict,
+             overforinger: Iterable[dict]) -> dict[str, frozenset[str]]:
+    """{orgnr: formene kildene oppgir for det}. Ett sted, to brukere.
+
+    Generatoren kaller den med `Felles`, hvitelista med rammene den
+    leser. To utledninger av samme kart som kan svare ulikt, er formen
+    F6 og F7 hadde.
+
+      enhetsregisteret     organisasjonsform per orgnr
+      eierskap             organisasjonsform og eier_type per eier_orgnr
+      eierskap_historikk   mottaker_type per mottaker_orgnr
+    """
+    ut: dict[str, set[str]] = {}
+
+    def legg(orgnr: object, form: object) -> None:
+        o, f = str(orgnr or "").strip(), str(form or "").strip()
+        if o and f:
+            ut.setdefault(o, set()).add(f)
+
+    for orgnr, d in enhet.items():
+        legg(orgnr, d.get("organisasjonsform"))
+    for d in eierskap.values():
+        legg(d.get("eier_orgnr"), d.get("organisasjonsform"))
+        legg(d.get("eier_orgnr"), d.get("eier_type"))
+    for d in overforinger:
+        legg(d.get("mottaker_orgnr"), d.get("mottaker_type"))
+    return {o: frozenset(f) for o, f in ut.items()}
 
 
 def personeksponert(navn: str, organisasjonsform: str) -> bool:
