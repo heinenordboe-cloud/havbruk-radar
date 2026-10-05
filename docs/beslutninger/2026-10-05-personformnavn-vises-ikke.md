@@ -2,7 +2,7 @@
 dato: 2026-10-05
 tittel: Et navn som ender på en personform vises ikke — heller ikke som tildelt
 status: utkast
-commit: d934c10, 2c880f7
+commit: d934c10, 2c880f7, 9fe7f56, 18779ff
 ---
 
 # Personformnavn vises ikke
@@ -54,6 +54,50 @@ var det ikke.
   står i bygget og fanges ikke av regelen.
 - **`eier_navn`.** Uendret: den har `eier_type` og `organisasjonsform`,
   og `_eierrad()` spør dem.
+
+## Bestemt senere samme dag: regelen er SNUDD
+
+Regelen over skjulte et navn når den GJENKJENTE det som personlig. Et
+navn den ikke kjente igjen som noe, ble vist. MÅLT 05.10.2026 med curl
+mot produksjon: 12 personnavn på formen «ETTERNAVN, FORNAVN» og 2
+personnavn med orgnr sto på 15 lokalitetssider, ett treff per side, og
+søkeindeksen i det lokale bygget bar dem også.
+
+- Et `tildelt_navn` eller `mottaker_navn` vises nå BARE når
+  `publiseringsvakt.vises_som_organisasjon()` sier ja:
+  - en ikke-personlig formkode som eget ord hvor som helst i navnet
+    (`ORGORD`: kodene i `FORMKODER` minus `PERSONFORMER`, pluss «A/S»,
+    «A.S», «A.S.»), eller
+  - et orgnr som `formkart()` gir en ikke-personlig form (enhetsregisteret
+    `organisasjonsform`, eierskap `organisasjonsform`/`eier_type`,
+    eierskap_historikk `mottaker_type`),
+  - og aldri når noe sier personlig: en personform på orgnummeret
+    (`sources.eierskap.er_person()`), en personformkode i navnet, eller
+    formen «ETTERNAVN, FORNAVN» (`PERSONNAVN`).
+- Alt annet vises som «(navn ikke vist)», uten orgnr. Er en personform
+  kjent av endelsen, står koden foran: «ANS (navn ikke vist)».
+- Ingen lister med navn. Generatoren og hvitelista bruker SAMME to
+  funksjoner.
+- Hvitelista tar et navn fra enhetsregisteret, eierskap og
+  eierskap_historikk inn bare når det består regelen, og orgnummeret i
+  paret følger navnet (`ORGANISASJONSNAVN`).
+- Ny portprøve `personnavn`: «ETTERNAVN, FORNAVN» i en navnecelle er et
+  funn som ikke kan kvitteres, uansett hvitelista. Bare navneceller:
+  over hele teksten treffer mønsteret 1 818 distinkte «KOMMUNE, FYLKE».
+
+Målt mot havbruk-radar-data 9dd439e, 851 distinkte navn, vist før → etter:
+
+    person «ETTERNAVN, FORNAVN»     12 → 0
+    person med orgnr (trolig ENK)    2 → 0
+    selskap uten endelse            19 → 19
+    annet (offentlig, stiftelse…)   36 → 25
+    med kjent endelse              779 → 779   (3 ANS skjult fra før)
+
+    hvitelista: −28 navn (12 på personnavnform), −16 orgnr, 0 nye
+    porten: grønn på fullt bygg
+
+De 11 «annet» som nå skjules, har verken en kode i navnet eller en form
+på orgnummeret i noen av våre kilder.
 
 ## Hvorfor
 
