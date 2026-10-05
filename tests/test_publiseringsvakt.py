@@ -1466,6 +1466,97 @@ def test_det_eldre_bildet_leses_gjennom_doren(tmp_path, navnebytte):
     assert [f.slag for f in vakt.gransk(ut)] == ["ukjent_navn"]
 
 
+# ---- hvitelista stiller generatorens regel til organisasjonsnavn -------
+#
+# MÅLT 05.10.2026: 12 `tildelt_navn` på formen «ETTERNAVN, FORNAVN» sto i
+# hvitelista fordi de sto i eierskap-snapshotet. Porten gikk god for dem.
+
+@pytest.fixture
+def personnavn_i_registeret(tmp_path, monkeypatch):
+    rot = tmp_path / "raw"
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+
+    def obs(kilde, e, felt, verdi, dato="2026-09-28"):
+        return Observation(entity_id=e, entity_type="x", entity_name=e,
+                           field=felt, value=verdi, source=kilde,
+                           observed_at=dato)
+
+    rader = {
+        "eierskap": [
+            obs("eierskap", "T-T-0001", "eier_navn", "TESTLAKS AS"),
+            obs("eierskap", "T-T-0001", "eier_orgnr", "912345678"),
+            obs("eierskap", "T-T-0001", "organisasjonsform", "AS"),
+            obs("eierskap", "T-T-0001", "tildelt_navn", "TESTVIK, KARI ANNE"),
+            obs("eierskap", "T-T-0002", "eier_navn", "TESTLAKS AS"),
+            obs("eierskap", "T-T-0002", "eier_orgnr", "912345678"),
+            obs("eierskap", "T-T-0002", "organisasjonsform", "AS"),
+            obs("eierskap", "T-T-0002", "tildelt_navn", "AS TESTFISK"),
+            obs("eierskap", "T-T-0002", "tildelt_orgnr", "923456789"),
+        ],
+        "eierskap_historikk": [
+            obs("eierskap_historikk", "T-T-0001|1", "mottaker_navn",
+                "TESTLAND FYLKESKOMMUNE", "2026-12-31"),
+            obs("eierskap_historikk", "T-T-0001|1", "mottaker_orgnr",
+                "934567890", "2026-12-31"),
+            obs("eierskap_historikk", "T-T-0001|1", "mottaker_type",
+                "FYLK", "2026-12-31"),
+            obs("eierskap_historikk", "T-T-0001|2", "mottaker_navn",
+                "KARI ANNE TESTVIK", "2026-12-31"),
+            obs("eierskap_historikk", "T-T-0001|2", "mottaker_orgnr",
+                "945678901", "2026-12-31"),
+        ],
+    }
+    for kilde, obsene in rader.items():
+        mappe = rot / kilde
+        mappe.mkdir(parents=True)
+        dato = obsene[0].observed_at
+        pl.DataFrame([o.as_dict() for o in obsene]).write_parquet(
+            mappe / f"{dato}.parquet")
+    return rot
+
+
+def test_hvitelista_holder_ikke_et_navn_som_ikke_er_organisasjon(
+        personnavn_i_registeret):
+    orgnr, navn = vakt.hviteliste()
+    # Står i registeret, og består ikke regelen.
+    assert "TESTVIK, KARI ANNE" not in navn
+    assert "KARI ANNE TESTVIK" not in navn and "945678901" not in orgnr
+    # Består regelen: kode i navnet, eller en form på orgnummeret.
+    assert "AS TESTFISK" in navn and "923456789" in orgnr
+    assert "TESTLAND FYLKESKOMMUNE" in navn and "934567890" in orgnr
+    assert "TESTLAKS AS" in navn
+
+
+def test_porten_er_roed_paa_et_personnavn_fra_registeret(
+        tmp_path, personnavn_i_registeret):
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        '<!doctype html><title>x</title>'
+        '<td data-felt="tildelt_navn">TESTVIK, KARI ANNE</td>',
+        encoding="utf-8")
+    funn = vakt.gransk(ut)
+    assert sorted(f.slag for f in funn) == ["personnavn", "ukjent_navn"]
+    assert vakt.ukvittert(funn) == funn
+    assert "TESTVIK" not in " ".join(str(f) for f in funn)
+
+
+def test_personnavnprooven_fyrer_uten_hvitelista(lister):
+    """Selv med navnet i hvitelista: formen alene er et funn."""
+    orgnr, navn = lister
+    side = _side('<td data-felt="mottaker_navn">TESTVIK, KARI ANNE</td>')
+    funn = vakt.gransk_tekst(side, orgnr, navn | {"TESTVIK, KARI ANNE"})
+    assert [f.slag for f in funn] == ["personnavn"]
+
+
+def test_personnavnprooven_leser_ikke_kommune_og_fylke(lister):
+    orgnr, navn = lister
+    side = _side("<p>SENJA, TROMS</p>"
+                 '<td data-felt="kommune">SENJA, TROMS</td>')
+    assert vakt.gransk_tekst(side, orgnr, navn) == []
+
+
 def test_skjult_navn_maskeres_og_feller_ikke(lister):
     """Vår tekst inneholder koden. Uten maskeringen ville «ANS» i
     «ANS (navn ikke vist)» vært en umerket personformkode i fila."""

@@ -731,22 +731,93 @@ def hviteliste(mappe: Path | None = None) -> tuple[set[str], set[str]]:
     orgnr: set[str] = set()
     navn: set[str] = set()
     uker = endringsuker(mappe) if mappe is not None else set()
+    # Organisasjonsnavnene venter til formkartet er bygget av ALLE
+    # rammene — se `ORGANISASJONSNAVN`.
+    entiteter: dict[str, list[dict[str, dict]]] = {k: [] for k in
+                                                   ORGANISASJONSNAVN}
     for ramme in _snapshotrammer(uker):
         kolonner = set(ramme.columns)
         if {"entity_id", "field", "value"} - kolonner:
             continue
+        kilde = (str(ramme["source"][0])
+                 if "source" in kolonner and ramme.height else "")
+        holdt = {f for par in ORGANISASJONSNAVN.get(kilde, ())
+                 for f in par if f != "entity_id"}
         orgnr |= {e for e in ramme["entity_id"].to_list()
                   if _er_ni_siffer(str(e))}
         for felt, verdi in ramme.select(["field", "value"]).iter_rows():
-            if verdi is None:
+            if verdi is None or felt in holdt:
                 continue
             if felt in ORGNRFELT and _er_ni_siffer(str(verdi)):
                 orgnr.add(str(verdi))
             elif felt in NAVNEFELT:
                 navn.add(str(verdi).strip())
-        if "entity_name" in kolonner:
+        if kilde in entiteter:
+            per: dict[str, dict] = {}
+            for eid, en, felt, verdi in ramme.select(
+                    ["entity_id", "entity_name", "field",
+                     "value"]).iter_rows():
+                d = per.setdefault(str(eid), {"entity_id": str(eid),
+                                              "entity_name": en or ""})
+                d[str(felt)] = verdi
+            entiteter[kilde].append(per)
+        if "entity_name" in kolonner and not any(
+                f == "entity_name"
+                for par in ORGANISASJONSNAVN.get(kilde, ()) for f in par):
             navn |= {str(n).strip()
                      for n in ramme["entity_name"].to_list() if n}
+
+    o, n = _organisasjonsnavn(entiteter)
+    return orgnr | o, navn | n
+
+
+# KILDENE der et navn er en ORGANISASJON — eller noe som utgir seg for å
+# være det — og (navnefelt, orgnrfelt)-parene regelen i
+# `vises_som_organisasjon()` stilles til. Fra 05.10.2026 kommer et slikt
+# navn bare inn i hvitelista når det består regelen generatoren viser
+# det etter. Før det sto hvert `tildelt_navn` der, og 12 personnavn på
+# formen «ETTERNAVN, FORNAVN» var dermed «gjort rede for».
+#
+# Orgnummeret i paret følger navnet: et nummer som står ved siden av et
+# navn generatoren skjuler, skal porten heller ikke gå god for.
+# `entity_name` er et navn bare i enhetsregisteret; i eierskap er det
+# tillatelsesnummeret og står utenfor regelen.
+ORGANISASJONSNAVN: dict[str, tuple[tuple[str, str], ...]] = {
+    "enhetsregisteret": (("navn", "entity_id"),
+                         ("entity_name", "entity_id")),
+    "eierskap": (("eier_navn", "eier_orgnr"),
+                 ("tildelt_navn", "tildelt_orgnr")),
+    "eierskap_historikk": (("mottaker_navn", "mottaker_orgnr"),),
+}
+
+
+def _organisasjonsnavn(entiteter: dict[str, list[dict[str, dict]]]
+                       ) -> tuple[set[str], set[str]]:
+    """(orgnr, navn) fra organisasjonskildene som består regelen."""
+    def flat(kilde: str) -> dict[str, dict]:
+        ut: dict[str, dict] = {}
+        for i, per in enumerate(entiteter.get(kilde, [])):
+            for eid, d in per.items():
+                ut[f"{i}|{eid}"] = d
+        return ut
+
+    former = formkart(
+        {d["entity_id"]: d
+         for d in flat("enhetsregisteret").values()},
+        flat("eierskap"), flat("eierskap_historikk").values())
+    orgnr: set[str] = set()
+    navn: set[str] = set()
+    for kilde, par in ORGANISASJONSNAVN.items():
+        for d in flat(kilde).values():
+            for navnefelt, orgnrfelt in par:
+                verdi = str(d.get(navnefelt) or "").strip()
+                nummer = str(d.get(orgnrfelt) or "").strip()
+                if not verdi:
+                    continue
+                if vises_som_organisasjon(verdi, former.get(nummer, ())):
+                    navn.add(verdi)
+                    if _er_ni_siffer(nummer):
+                        orgnr.add(nummer)
     return orgnr, navn
 
 
@@ -1007,7 +1078,29 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
         if navn not in meldt:
             funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn), antall))
 
+    funn += _personnavnfunn(
+        fil, [v for f, v in felt_verdier(tekst) if f in NAVNEFELT]
+        + navn_i(tekst))
     return funn
+
+
+def _personnavnfunn(fil: str, verdier: Iterable[str]) -> list[Funn]:
+    """«ETTERNAVN, FORNAVN» i en NAVNECELLE er et funn — uansett hvitelista.
+
+    Den fjerde prøven, fra 05.10.2026. `ukjent_navn` spør om navnet er
+    gjort rede for; denne spør om det ser ut som et menneske. Hvitelista
+    holdt 12 slike navn fram til samme dag, og da var `ukjent_navn` blind
+    for dem. To prøver som må svikte samtidig er sikrere enn én.
+
+    Bare navneceller: MÅLT over hele teksten treffer mønsteret 1 818
+    distinkte «KOMMUNE, FYLKE». Kan ikke kvitteres.
+    """
+    antall: dict[str, int] = {}
+    for v in verdier:
+        if PERSONNAVN.fullmatch(v.strip()):
+            antall[v.strip()] = antall.get(v.strip(), 0) + 1
+    return [Funn(fil, "personnavn", _anonymiser(v), n)
+            for v, n in sorted(antall.items())]
 
 
 # --------------------------------------------------- uferdig tekst
@@ -1321,6 +1414,11 @@ def gransk_csv(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
                          len(former)))
     for navn, antall in sorted(ukjente_navn.items()):
         funn.append(Funn(fil, "ukjent_navn", _anonymiser(navn), antall))
+    if overskrifter:
+        funn += _personnavnfunn(fil, [
+            (verdi or "") for rad in rader
+            for kolonne, verdi in zip(overskrifter, rad)
+            if kolonne in NAVNEFELT])
     return funn
 
 
