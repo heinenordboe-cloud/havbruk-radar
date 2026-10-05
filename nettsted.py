@@ -1825,7 +1825,7 @@ VERDI_MANGLER_FELT = "verdi_mangler"
 def personformnavn(navn: object) -> bool:
     """Ender navnet på en organisasjonsform SSB regner som personlig?
 
-    «MELAKS ANS», «BRØDRENE X DA». Spørsmålet stilles til
+    «TESTVIK OG STRAUM ANS», «BRØDRENE X DA». Spørsmålet stilles til
     `core/persondata.PERSONFORMER` gjennom publiseringsvaktens egen
     suffiksleser — ikke til en liste her. To lister over hvilke
     endelser som betyr et personlig foretak, ville vært to steder å
