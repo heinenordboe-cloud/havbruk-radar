@@ -1847,12 +1847,7 @@ def personformnavn(navn: object) -> bool:
 
     MÅLT 22.09.2026: 14 av 2 338 indekserte sider bar et slikt navn.
     """
-    from publiseringsvakt import FORM_SUFFIKS
-    from core import persondata
-
-    tekst = str(navn or "").strip()
-    treff = FORM_SUFFIKS.search(tekst)
-    return bool(treff) and persondata.er_personform(treff.group(1))
+    return bool(publiseringsvakt.personform_i_navn(navn))
 
 
 def feltmerke(verdi: object, felt: str) -> str:
@@ -3184,9 +3179,39 @@ def _eierrad(nr: str, d: dict) -> dict:
         "kapasitet": visningsord.maalt(d.get("kapasitet", ""),
                                        d.get("kapasitet_enhet", "")),
         "tildelt_dato": visningsord.oslodato(d.get("tildelt_tid")),
-        "tildelt_navn": d.get("tildelt_navn", ""),
-        "tildelt_orgnr": d.get("tildelt_orgnr", ""),
+        **_tildelt(d),
     }
+
+
+def _navn_eller_skjult(navn: str, felt: str) -> tuple[str, str]:
+    """(verdi, feltmerke) for en navnecelle — navnet, eller vår tekst.
+
+    Samme regel som `_tildelt()`, for de cellene som ikke har et
+    orgnummer ved siden av seg. `fjern_egne_personer()` tar mottakerne
+    kilden selv KALLER personer; denne tar navnet som ender på en
+    personform der typen sier noe annet.
+    """
+    kode = publiseringsvakt.personform_i_navn(navn)
+    if kode:
+        return publiseringsvakt.skjult_navn(kode), \
+            publiseringsvakt.SKJULT_NAVN_FELT
+    return navn, felt
+
+
+def _tildelt(d: dict) -> dict:
+    """Hvem tillatelsen ble tildelt — eller at navnet ikke vises.
+
+    Et `tildelt_navn` som ender på en personform byttes mot
+    `skjult_navn()`, og orgnummeret fjernes med det: står nummeret
+    igjen, er navnet ett oppslag i Brreg unna. MÅLT 05.10.2026: 3
+    tillatelser, alle ANS, alle med en innehaver i dag som er AS. Se
+    `publiseringsvakt.personform_i_navn()`.
+    """
+    navn, felt = _navn_eller_skjult(d.get("tildelt_navn", ""),
+                                    "tildelt_navn")
+    skjult = felt == publiseringsvakt.SKJULT_NAVN_FELT
+    return {"tildelt_navn": navn, "tildelt_felt": felt,
+            "tildelt_orgnr": "" if skjult else d.get("tildelt_orgnr", "")}
 
 
 def _tillatelsesrader(mine_till: dict, uten_eier: list[str]) -> list[dict]:
@@ -3601,20 +3626,24 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                 "slag": "Tillatelse tildelt",
                 "hva": f"{till['nr']} tildelt",
                 "navn": till["tildelt_navn"],
-                "navn_felt": "tildelt_navn",
+                "navn_felt": till.get("tildelt_felt", "tildelt_navn"),
                 "orgnr": till.get("tildelt_orgnr", ""),
-                "navn_er_i_dag": True,
+                # Vår tekst er ikke «dagens navn» på noe nummer.
+                "navn_er_i_dag": (till.get("tildelt_felt")
+                                  != publiseringsvakt.SKJULT_NAVN_FELT),
                 "kilde": "eierskap", "felt": "tildelt_tid",
                 "presisjon": "dato oppgitt av registeret",
             })
     for o in overforinger:
         if o["dato"]:
+            navn, felt = _navn_eller_skjult(o["mottaker_navn"],
+                                            "mottaker_navn")
             poster.append({
                 "dato": o["dato"],
                 "slag": "Overføring journalført",
                 "hva": f"{o['tillatelse']} overført",
-                "navn": o["mottaker_navn"],
-                "navn_felt": "mottaker_navn",
+                "navn": navn,
+                "navn_felt": felt,
                 "orgnr": "", "navn_er_i_dag": False,
                 "kilde": "eierskap_historikk", "felt": "journal_dato",
                 "presisjon": "journalført senest denne datoen",
@@ -4290,6 +4319,7 @@ def _miljo() -> Environment:
     miljo.filters["kildenavn"] = visningsord.kilde
     miljo.globals["feltmerke"] = feltmerke
     miljo.globals["personformnavn"] = personformnavn
+    miljo.globals["SKJULT_NAVN_FELT"] = publiseringsvakt.SKJULT_NAVN_FELT
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER
     return miljo
 
@@ -6966,11 +6996,13 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             if (o.get("mottaker_orgnr") or "").strip() != orgnr:
                 continue
             neste = rekka[i + 1]
+            navn, felt = _navn_eller_skjult(neste.get("mottaker_navn", ""),
+                                            "mottaker_navn")
             ut_av.append({
                 "dato": neste.get("journal_dato", ""),
                 "tillatelse": nr,
-                "navn": neste.get("mottaker_navn", ""),
-                "navn_felt": "mottaker_navn",
+                "navn": navn,
+                "navn_felt": felt,
                 "retning": "ut",
                 "slag": "Gikk ut",
                 "hva": f"{nr} overført videre",

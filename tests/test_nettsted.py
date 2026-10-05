@@ -3231,6 +3231,62 @@ def test_alle_personformene_treffer_samme_ledd():
         assert skjult == persondata.er_personform(kode), (type_, kode)
 
 
+# ---- et TILDELT navn med personform vises ikke ------------------------
+#
+# MÅLT 05.10.2026 mot havbruk-radar-data: 14 lokalitetssider bar et
+# `tildelt_navn` som endte på ANS, og porten slapp dem gjennom på en
+# kvittering. Regelen er organisasjonsformen + `er_personform()`, ikke en
+# liste navn — fiksturen under bruker et navn som ikke finnes i dataene.
+
+def _tildelt_til_personform():
+    return _till(tildelt_navn="TESTVIK OG STRAUM ANS",
+                 tildelt_orgnr="987654321")
+
+
+def test_tildelt_personform_byttes_mot_formen():
+    import publiseringsvakt as vakt
+
+    rad = nettsted._eierrad("T-D-0009", _tildelt_til_personform())
+    assert rad["tildelt_navn"] == "ANS (navn ikke vist)"
+    assert rad["tildelt_felt"] == vakt.SKJULT_NAVN_FELT
+    # Orgnummeret går med: står det igjen, er navnet ett oppslag unna.
+    assert rad["tildelt_orgnr"] == ""
+    # Innehaveren i dag er et AS, og den står.
+    assert rad["eier_navn"] == "SALMAR OPPDRETT AS"
+
+
+def test_tildelt_personform_naar_ikke_sida_og_porten_teller_null():
+    """Hele veien: rendret side, så porten. Ingen personform-funn, ingen
+    ukjent_navn, og verken navnet, orgnummeret eller en lenke står."""
+    import publiseringsvakt as vakt
+
+    till = nettsted._eierrad("T-D-0009", _tildelt_til_personform())
+    side = _side(tillatelser=[till])
+    assert "TESTVIK" not in side
+    assert "987654321" not in side
+    assert "/selskap/987654321/" not in side
+    assert "ANS (navn ikke vist)" in side
+
+    # Hvitelista som om alt annet på sida var gjort rede for — men den
+    # skjulte teksten skal ikke trenge å stå der.
+    navn_ok = ({n for f, n in vakt.felt_verdier(side)
+                if f != vakt.SKJULT_NAVN_FELT} | set(vakt.navn_i(side)))
+    navn_ok.discard("ANS (navn ikke vist)")
+    orgnr_ok = set(vakt.NI_SIFFER.findall(side))
+    funn = vakt.gransk_tekst(side, orgnr_ok, navn_ok, fil="index.html",
+                             tvetydige={"DA"})
+    assert funn == []
+
+
+def test_mottaker_med_personform_vises_ikke():
+    poster = nettsted._oppgitt_historikk({}, [], [{
+        "dato": "2018-03-13", "tillatelse": "T-D-0009",
+        "mottaker_navn": "TESTVIK OG STRAUM DA",
+        "mottaker_orgnr": "987654321"}])
+    assert [p["navn"] for p in poster] == ["DA (navn ikke vist)"]
+    assert poster[0]["orgnr"] == ""
+
+
 def test_navnet_staar_ikke_paa_sida(tmp_path):
     """Porten leser utputtet. Denne leser malen — samme spørsmål, ett
     ledd tidligere, slik at et brudd har et navn før det har et funn."""

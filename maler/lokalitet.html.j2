@@ -872,8 +872,8 @@
             <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</span>)</span>
         </td>
         {%- else %}
-        <td class="eier" data-felt="{{ o.navn_felt }}"
-            {%- if personformnavn(o.navn) %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
+        <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"
+            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
         {%- endif %}
         {% else %}
         <td>—</td>

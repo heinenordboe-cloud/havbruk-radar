@@ -879,6 +879,10 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     navnespenn: list[tuple[int, int]] = []
     for m in FELTMERKE.finditer(tekst):
         felt, verdi = m.group(1), _celleverdi(m.group(2))
+        if felt == SKJULT_NAVN_FELT and er_skjult_navn(verdi):
+            # Vår tekst, ikke et navn. Se `skjult_navn()`.
+            navnespenn.append((m.start(2), m.end(2)))
+            continue
         if felt not in NAVNEFELT or not verdi:
             continue
         n = len(alle_koder.findall(verdi)) if alle_koder else 0
@@ -917,6 +921,9 @@ def gransk_tekst(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     for felt, verdi in felt_verdier(tekst):
         if felt in NAVNEFELT:
             if navnenoekkel(verdi) not in navn_ok:
+                ukjente_navn[verdi] = ukjente_navn.get(verdi, 0) + 1
+        elif felt == SKJULT_NAVN_FELT:
+            if not er_skjult_navn(verdi):
                 ukjente_navn[verdi] = ukjente_navn.get(verdi, 0) + 1
         elif felt == persondata.FORM_FELT:
             if persondata.er_personform(verdi):
@@ -1383,6 +1390,53 @@ FORM_SUFFIKS = re.compile(
 # `core/persondata.PERSONFORMER` minus ENK, og en egen kopi ville blitt
 # stående uendret den dagen grensa flyttes igjen.
 SEKTOR_2300 = frozenset(persondata.PERSONFORMER - {"ENK"})
+
+
+# --------------------------------------------------- navnet vises ikke
+#
+# Et navn generatoren ikke skal vise, byttes mot VÅR tekst:
+# «ANS (navn ikke vist)». Koden står med fordi «et selskap tildelte
+# tillatelsen» og «et personlig foretak gjorde det» er to ulike
+# opplysninger, og bare navnet er persondata.
+#
+# Regelen er organisasjonsformen og `persondata.er_personform()`, ikke
+# en liste navn. For `tildelt_navn` er SUFFIKSET den eneste formen vi
+# har: MÅLT 05.10.2026 finnes 0 av de 3 tildelt_orgnr i
+# enhetsregisteret-snapshotet, rått eller gjennom døra, og eierskap
+# oppgir bare formen til den som eier tillatelsen NÅ. Se
+# docs/beslutninger/2026-10-05-personformnavn-vises-ikke.md.
+#
+# Porten må kjenne teksten, fordi den inneholder en personformkode:
+# de entydige kodene søkes som hele ord i hele fila (se
+# `gransk_tekst`), og «ANS» i vår egen setning ville feilt den. Bare
+# NØYAKTIG `skjult_navn(kode)` i en celle merket `SKJULT_NAVN_FELT`
+# maskeres. Står noe annet i en slik celle, er det et `ukjent_navn` —
+# merkingen sier at verdien er vår, og da må den være det.
+SKJULT_NAVN_FELT = "navn_skjult"
+
+
+def skjult_navn(kode: str) -> str:
+    """Teksten som står der et personformnavn sto. Ett sted."""
+    return f"{kode.strip().upper()} (navn ikke vist)"
+
+
+def personform_i_navn(navn: object) -> str:
+    """Personformkoden navnet ender på, eller tom streng.
+
+    «TESTVIK OG STRAUM ANS» -> «ANS». Formen leses av `FORM_SUFFIKS` og avgjøres
+    av `persondata.er_personform()`, så grensa flytter seg med
+    `PERSONFORMER` og ikke med en liste her. ENK fanges IKKE: et
+    enkeltpersonforetak bærer ingen endelse i navnet.
+    """
+    treff = FORM_SUFFIKS.search(str(navn or "").strip())
+    if treff and persondata.er_personform(treff.group(1)):
+        return treff.group(1).upper()
+    return ""
+
+
+def er_skjult_navn(verdi: str) -> bool:
+    """Er cellen nøyaktig vår tekst for et navn som ikke vises?"""
+    return any(verdi == skjult_navn(k) for k in persondata.PERSONFORMER)
 
 
 def personeksponert(navn: str, organisasjonsform: str) -> bool:

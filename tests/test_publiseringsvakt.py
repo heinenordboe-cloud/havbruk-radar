@@ -1397,6 +1397,35 @@ def test_attribuert_treff_telles_ikke_dobbelt(lister):
     assert len([f for f in funn if f.slag == "personform"]) == 1
 
 
+def test_skjult_navn_maskeres_og_feller_ikke(lister):
+    """Vår tekst inneholder koden. Uten maskeringen ville «ANS» i
+    «ANS (navn ikke vist)» vært en umerket personformkode i fila."""
+    orgnr, navn = lister
+    for kode in sorted(persondata.PERSONFORMER):
+        side = _side(f'<td data-felt="{vakt.SKJULT_NAVN_FELT}">'
+                     f'{vakt.skjult_navn(kode)}</td>')
+        assert vakt.gransk_tekst(side, orgnr, navn) == [], kode
+
+
+def test_skjult_merking_rundt_noe_annet_er_et_funn(lister):
+    """Merkingen sier at verdien er VÅR. Står et navn der, skal porten
+    ikke la merkingen gjøre det usynlig."""
+    orgnr, navn = lister
+    side = _side(f'<td data-felt="{vakt.SKJULT_NAVN_FELT}">'
+                 f'Hansen og Olsen ANS</td>')
+    slag = sorted(f.slag for f in vakt.gransk_tekst(side, orgnr, navn))
+    assert slag == ["personform", "ukjent_navn"]
+
+
+def test_personform_i_navn_er_regelen_og_ikke_en_liste():
+    assert vakt.personform_i_navn("TESTVIK OG STRAUM ANS") == "ANS"
+    assert vakt.personform_i_navn("Testvik og Straum da") == "DA"
+    assert vakt.personform_i_navn("PARTREDERIET X PRE") == "PRE"
+    assert vakt.personform_i_navn("SALMAR NORD AS") == ""
+    assert vakt.personform_i_navn("ANSGAR HAVBRUK AS") == ""
+    assert vakt.personform_i_navn(None) == ""
+
+
 def test_umerket_personformkode_meldes_fortsatt_som_slag(lister):
     """Det som ikke kan attribueres, kan ikke kvitteres — og skal
     fortsatt meldes. Ellers ville merkingen blitt en vei til å gjøre et
