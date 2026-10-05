@@ -176,6 +176,18 @@ CHANGE_SCHEMA = {
     # ikke ble det — uten å slå opp i snapshotene. Tom streng = vet ikke.
     "domene": pl.Utf8,
     "forrige_domene": pl.Utf8,
+    # ENDEPUNKTET hver av de to sidene ble hentet fra. Tom streng = vet
+    # ikke: snapshots fra før 02.10.2026 har ikke feltet, og det fylles
+    # ikke inn i ettertid (regel 2, 1b-7). Et snapshot fra 2026-09-22 er
+    # derfor IKKE «primæren» her, selv om det var det.
+    #
+    # Kom inn 04.10.2026, da `biomasselag` skrev sitt første snapshot fra
+    # reserven og 29 endringer mot 22.09 ikke lot seg fordele på kilden
+    # og byttet. Radene FILTRERES IKKE — se `endepunktbytte()` for hvorfor
+    # merket er en kolonne og ikke en change_type, og
+    # docs/FORSLAG-endepunkt-i-endringsloggen.md variant A.
+    "endepunkt": pl.Utf8,
+    "forrige_endepunkt": pl.Utf8,
 }
 
 
@@ -267,6 +279,10 @@ def compare(current: pl.DataFrame, observed_at: str,
         # leser changeloggen om to år skal kunne se hva kroppen uttalte
         # seg om uten å gå til snapshotet.
         dom = snapshot.domene_i(group)
+
+        # Endepunktet bæres på samme måte: proveniens, ikke en prøve.
+        endepunkt = snapshot.endepunkt_i(group) or ""
+        forrige_endepunkt = snapshot.endepunkt_i(old) or ""
 
         # Entitetene som ble til i verden etter forrige snapshot. De
         # skal STÅ som "ny" selv i en utvidelsesuke — se docstringen.
@@ -365,6 +381,8 @@ def compare(current: pl.DataFrame, observed_at: str,
                 "forrige_published_at": forrige_utgitt,
                 "domene": dom,
                 "forrige_domene": snapshot.domene_i(old),
+                "endepunkt": endepunkt,
+                "forrige_endepunkt": forrige_endepunkt,
             })
 
     if not changes:
@@ -511,6 +529,8 @@ def revisjon_mellom(eldre: pl.DataFrame, nyere: pl.DataFrame,
             "forrige_published_at": snapshot.published_at_i(eldre) or "",
             "domene": dom,
             "forrige_domene": snapshot.domene_i(eldre),
+            "endepunkt": snapshot.endepunkt_i(nyere) or "",
+            "forrige_endepunkt": snapshot.endepunkt_i(eldre) or "",
         })
 
     if not changes:
@@ -614,6 +634,52 @@ def bevegelse(endringer: pl.DataFrame) -> pl.DataFrame:
     if endringer.is_empty() or "change_type" not in endringer.columns:
         return endringer
     return endringer.filter(~pl.col("change_type").is_in(sorted(IKKE_BEVEGELSE)))
+
+
+def endepunktbytte(endringer: pl.DataFrame) -> pl.DataFrame:
+    """Radene der de to snapshotene KJENT kom fra hvert sitt endepunkt.
+
+    Begge sider må oppgi endepunktet. Er den ene tom, vet vi ikke om det
+    var et bytte, og raden hører hjemme i `endepunkt_uavklart()` — å kalle
+    tomt for «annerledes» ville påstått et bytte ingen har sett.
+
+    Dette er et MERKE, ikke et filter. Radene står i `bevegelse()` og i
+    «X endringer denne uka» som før. Grunnen er målt 04.10.2026: av 29
+    endringer mot 22.09 er 2 mistenkelige og 27 forenlige med ekte
+    endring, og ingenting i de to snapshotene skiller dem. Å filtrere
+    ville gjemt fire `har_fisk`-endringer som godt kan ha skjedd i sjøen —
+    og en undertrykt rad er en hendelse ingen får se (1b-3).
+    `utvalgsutvidelse` kan filtreres fordi påstanden er sikker per rad.
+    Denne er det ikke.
+    """
+    return _endepunkt_filter(endringer, begge_kjente=True)
+
+
+def endepunkt_uavklart(endringer: pl.DataFrame) -> pl.DataFrame:
+    """Radene der NØYAKTIG ÉN side oppgir endepunktet.
+
+    Typisk det første snapshotet med feltet mot et eldre uten det —
+    `biomasselag` 2026-10-04 mot 2026-09-22 — eller en backfillet rad.
+    Vi vet hvor den ene påstanden kom fra, ikke den andre. Det er ikke et
+    bytte, og det er heller ikke «samme»; det er det leseren skal få se.
+    """
+    return _endepunkt_filter(endringer, begge_kjente=False)
+
+
+def _endepunkt_filter(endringer: pl.DataFrame, *,
+                      begge_kjente: bool) -> pl.DataFrame:
+    # Changelog-filer skrevet før 04.10.2026 har ikke kolonnene. Lest med
+    # `diagonal_relaxed` er de null, og null er «vet ikke» som tom streng.
+    if endringer.is_empty() or "endepunkt" not in endringer.columns:
+        return endringer.clear()
+    naa = pl.col("endepunkt").fill_null("")
+    foer = pl.col("forrige_endepunkt").fill_null("") \
+        if "forrige_endepunkt" in endringer.columns else pl.lit("")
+    if begge_kjente:
+        vilkaar = (naa != "") & (foer != "") & (naa != foer)
+    else:
+        vilkaar = (naa == "") != (foer == "")
+    return endringer.filter(vilkaar)
 
 
 def slaa_sammen(deler: list[pl.DataFrame]) -> pl.DataFrame:

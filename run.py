@@ -76,6 +76,41 @@ def _actions_output(navn: str, verdi: str) -> None:
         f.write(f"{navn}={verdi}\n")
 
 
+def endepunktlinjer(endringer) -> list[str]:
+    """Én linje per kilde der endringene spenner over to endepunkter,
+    eller over et ukjent og et kjent. Tom liste når ingen gjør det.
+
+    Står i både commit-meldingen og kjøringsloggen. Uten den ser 29
+    endringer fra et reserve-endepunkt ut som 29 endringer i sjøen.
+    """
+    linjer = []
+    for hva, rader in (("endepunktbytte", diff.endepunktbytte(endringer)),
+                       ("endepunkt ukjent på den ene siden",
+                        diff.endepunkt_uavklart(endringer))):
+        if rader.is_empty():
+            continue
+        for (kilde, fra, til), gruppe in sorted(
+                rader.group_by(["source", "forrige_endepunkt", "endepunkt"]),
+                key=lambda x: tuple(str(v) for v in x[0])):
+            linjer.append(
+                f"{kilde}: {gruppe.height} endringer på "
+                f"{gruppe['entity_id'].n_unique()} entiteter over {hva} "
+                f"({_kort_endepunkt(fra)} → {_kort_endepunkt(til)}). "
+                f"Talt med, ikke filtrert.")
+    return linjer
+
+
+def _kort_endepunkt(url) -> str:
+    """`…/services/Yggdrasil/Biomasse/MapServer/0` -> `Biomasse/0`.
+    Tom eller None -> «ukjent»."""
+    if not url:
+        return "ukjent"
+    deler = str(url).rstrip("/").split("/")
+    if len(deler) >= 3 and deler[-2] in ("MapServer", "FeatureServer"):
+        return f"{deler[-3]}/{deler[-1]}"
+    return str(url)
+
+
 def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
                        fasit=None) -> str:
     """Commit-meldingen er nyhetsbrevet ditt de neste fire månedene.
@@ -124,6 +159,13 @@ def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
             f"Utvalget ble utvidet: {berort} entitet(er) kom inn, "
             f"{utvidelse} rader merket utvalgsutvidelse (ikke bevegelse)."
         )
+
+    # Endepunktet. Radene er TALT med over — de filtreres ikke — og
+    # derfor må meldingen si at noen av dem kan skyldes byttet.
+    endepunkt = endepunktlinjer(endringer)
+    if endepunkt:
+        linjer.append("")
+        linjer += endepunkt
 
     # Hvilke felter blindsonen består av. Dette er lista over regler som
     # mangler, sortert etter hvor mye de ville fanget.
@@ -533,6 +575,8 @@ def main() -> int:
                   ["entity_id"].n_unique())
         print(f"  {utvidelse} rader er utvalgsutvidelse ({berort} nye entiteter "
               f"i utvalget) — lagret, men ikke talt som bevegelse")
+    for linje in endepunktlinjer(endringer):
+        print(f"  {linje}")
 
     # Den ene summen som ikke kan stemme ved et sammentreff. Går den ikke
     # opp, teller scoringen feil, og da er alt under her upålitelig.
