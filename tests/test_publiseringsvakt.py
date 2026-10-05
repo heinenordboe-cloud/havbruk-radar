@@ -821,7 +821,7 @@ def test_tsv_avgrenses_av_tabulator_og_ikke_av_komma(tmp_path, lister,
 
     Vakten sa at den dekket `.tsv`. Den gjorde det ikke."""
     orgnr, navn = lister
-    monkeypatch.setattr(vakt, "hviteliste", lambda: (orgnr, navn))
+    monkeypatch.setattr(vakt, "hviteliste", lambda mappe=None: (orgnr, navn))
     monkeypatch.setattr(vakt, "_snapshotrammer", lambda: iter(()))
     (tmp_path / "serie.tsv").write_text(
         "navn\tkommune\nKari Nordmann\tBODØ\n", encoding="utf-8")
@@ -842,7 +842,7 @@ def test_gransk_dispatcher_csv_til_kolonneproven(tmp_path, lister, monkeypatch):
     Uten dispatchen ville CSV-en gått gjennom tekstprøvene, og navnet i
     navnekolonnen vært usynlig."""
     orgnr, navn = lister
-    monkeypatch.setattr(vakt, "hviteliste", lambda: (orgnr, navn))
+    monkeypatch.setattr(vakt, "hviteliste", lambda mappe=None: (orgnr, navn))
     monkeypatch.setattr(vakt, "_snapshotrammer", lambda: iter(()))
     (tmp_path / "serie.csv").write_text(
         _csv("navn,verdi", "Kari Nordmann,1"), encoding="utf-8")
@@ -1395,6 +1395,75 @@ def test_attribuert_treff_telles_ikke_dobbelt(lister):
     side = _side('<td data-felt="tildelt_navn">Hansen og Olsen ANS</td>')
     funn = vakt.gransk_tekst(side, orgnr, navn | {"Hansen og Olsen ANS"})
     assert len([f for f in funn if f.slag == "personform"]) == 1
+
+
+# ---- endringssidene: FRA-verdien står i øyeblikksbildet før ------------
+#
+# MÅLT 05.10.2026 mot havbruk-radar-data: porten stoppet på 4
+# `ukjent_navn`, alle tidligere navn på et AS i en navneendring på
+# /endringer/2026-40/ og /2026-41/. Hvitelista leste bare nyeste
+# enhetsregisteret-snapshot, og der heter selskapet noe annet.
+
+@pytest.fixture
+def navnebytte(tmp_path, monkeypatch):
+    """Et AS som bytter navn mellom 21.09 (uke 39) og 28.09 (uke 40),
+    og et ENK som bare står i den eldste fila."""
+    rot = tmp_path / "raw"
+    mappe = rot / "enhetsregisteret"
+    mappe.mkdir(parents=True)
+    monkeypatch.setattr(snapshot, "RAW_DIR", rot)
+    monkeypatch.setattr(vakt, "RAW_DIR", rot)
+
+    def obs(e, felt, verdi, dato):
+        return Observation(entity_id=e, entity_type="selskap",
+                           entity_name="", field=felt, value=verdi,
+                           source="enhetsregisteret", observed_at=dato)
+
+    for dato, navn in [("2026-09-14", "TESTVIK GAMMEL AS"),
+                       ("2026-09-21", "TESTVIK GAMMEL AS"),
+                       ("2026-09-28", "TESTVIK NY AS")]:
+        rader = [obs("912345678", "navn", navn, dato),
+                 obs("912345678", "organisasjonsform", "AS", dato)]
+        if dato == "2026-09-21":
+            rader += [obs("998877665", "navn", "Kari Nordmann", dato),
+                      obs("998877665", "organisasjonsform", "ENK", dato)]
+        pl.DataFrame([o.as_dict() for o in rader]).write_parquet(
+            mappe / f"{dato}.parquet")
+    return rot
+
+
+def _endringsside(ut, uke, navn):
+    side = ut / "endringer" / uke
+    side.mkdir(parents=True)
+    (side / "index.html").write_text(
+        f'<!doctype html><title>x</title><td data-felt="navn">{navn}</td>',
+        encoding="utf-8")
+
+
+def test_fra_verdien_paa_en_endringsside_er_gjort_rede_for(tmp_path,
+                                                          navnebytte):
+    """Feiler på koden fra før 05.10.2026: da var navnet `ukjent_navn`."""
+    ut = tmp_path / "ut"
+    _endringsside(ut, "2026-40", "TESTVIK GAMMEL AS")
+    assert [f.slag for f in vakt.gransk(ut)] == []
+    assert vakt.endringsuker(ut) == {"2026-40"}
+
+
+def test_uten_endringsside_leses_bare_nyeste(tmp_path, navnebytte):
+    """Utvidelsen gjelder ukene bygget VISER, ikke alt som finnes."""
+    _orgnr, navn = vakt.hviteliste(tmp_path / "tom")
+    assert "TESTVIK NY AS" in navn
+    assert "TESTVIK GAMMEL AS" not in navn
+
+
+def test_det_eldre_bildet_leses_gjennom_doren(tmp_path, navnebytte):
+    """F15-vakten: ENK-et i 21.09-fila kommer IKKE inn med utvidelsen."""
+    ut = tmp_path / "ut"
+    _endringsside(ut, "2026-40", "Kari Nordmann")
+    orgnr, navn = vakt.hviteliste(ut)
+    assert "TESTVIK GAMMEL AS" in navn
+    assert "Kari Nordmann" not in navn and "998877665" not in orgnr
+    assert [f.slag for f in vakt.gransk(ut)] == ["ukjent_navn"]
 
 
 def test_skjult_navn_maskeres_og_feller_ikke(lister):

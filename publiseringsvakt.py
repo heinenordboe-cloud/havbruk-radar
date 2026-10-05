@@ -567,7 +567,10 @@ def _dato_og_nummer(stem: str) -> tuple[str, int]:
 #               årganger overføringer.
 #   "henting"   NYESTE dato. Et navn fra forrige ukes uttrekk er et navn
 #               som ikke gjelder lenger, og en visning skal ikke hente
-#               fra det.
+#               fra det. UNNTAKET er endringssidene: for hver uke bygget
+#               har en `/endringer/<uke>/` for, leses også de to
+#               øyeblikksbildene endringen er regnet mellom — se
+#               `_datoene()`.
 #   ""          NYESTE, altså den strengeste lesningen — og et funn. Se
 #               `grunnlagsfunn()`.
 #
@@ -598,15 +601,51 @@ def _erklaeringene() -> tuple[dict[str, str], dict]:
     return partisjonering_per_kilde(kilder), kilder_per_navn(kilder)
 
 
-def _datoene(kilde: str, partisjonering: str) -> list[str]:
-    """Datoene hvitelista skal lese for kilden. Regelen, ett sted."""
+def _datoene(kilde: str, partisjonering: str,
+             uker: Iterable[str] = ()) -> list[str]:
+    """Datoene hvitelista skal lese for kilden. Regelen, ett sted.
+
+    `uker` er ISO-ukene bygget har en endringsside for («2026-40»). For
+    en henting-kilde viser den siden FRA-verdien til en endring, og den
+    står bare i øyeblikksbildet FØR. MÅLT 05.10.2026: porten stoppet på
+    4 `ukjent_navn`, alle tidligere navn på et AS i en navneendring.
+    Derfor leses, for hver dato i en av ukene, den datoen og datoen før
+    — de to `diff.compare()` sammenlignet — i tillegg til nyeste.
+
+    De eldre bildene leses gjennom SAMME dør og samme kildehook som
+    resten (`_rammene_for`). Det er det som skiller dette fra «de siste
+    N øyeblikksbildene», som `nettsted._hendelse()` advarer mot: en
+    personform døra fjerner i dag, kommer ikke inn igjen her.
+    """
     if partisjonering == "verden":
         return snapshot.datoer(kilde)
-    siste = snapshot.siste_dato(kilde)
-    return [siste] if siste else []
+    alle = snapshot.datoer(kilde)
+    valgt = set(alle[-1:])
+    uker = set(uker)
+    for i, dato in enumerate(alle):
+        if _isouke(dato) in uker:
+            valgt.add(dato)
+            if i > 0:
+                valgt.add(alle[i - 1])
+    return sorted(valgt)
 
 
-def _snapshotrammer() -> Iterable[pl.DataFrame]:
+def _isouke(dato: str) -> str:
+    """«2026-09-28» -> «2026-40», som `nettsted._ukeslug()` og URL-en."""
+    aar, uke, _ = dt.date.fromisoformat(dato[:10]).isocalendar()
+    return f"{aar}-{uke:02d}"
+
+
+def endringsuker(mappe: Path) -> set[str]:
+    """ISO-ukene bygget i `mappe` har en `/endringer/<uke>/` for."""
+    rot = mappe / "endringer"
+    if not rot.is_dir():
+        return set()
+    return {p.name for p in rot.iterdir()
+            if p.is_dir() and re.fullmatch(r"\d{4}-\d{2}", p.name)}
+
+
+def _snapshotrammer(uker: Iterable[str] = ()) -> Iterable[pl.DataFrame]:
     """Rammene hvitelista bygges av, LEST GJENNOM `snapshot._les()`.
 
     Veien er ikke likegyldig. `_les()` er den ene døra, og den kjører
@@ -627,14 +666,15 @@ def _snapshotrammer() -> Iterable[pl.DataFrame]:
     for kdir in sorted(RAW_DIR.iterdir()):
         if not kdir.is_dir():
             continue
-        for ramme in _rammene_for(kdir.name, partisjonering, kilder):
+        for ramme in _rammene_for(kdir.name, partisjonering, kilder, uker):
             yield ramme
 
 
 def _rammene_for(kilde: str, partisjonering: dict[str, str],
-                 kilder: dict) -> Iterable[pl.DataFrame]:
+                 kilder: dict, uker: Iterable[str] = ()
+                 ) -> Iterable[pl.DataFrame]:
     """Rammene for én kilde, etter regelen og med kildens eget tillegg."""
-    for dato in _datoene(kilde, partisjonering.get(kilde, "")):
+    for dato in _datoene(kilde, partisjonering.get(kilde, ""), uker):
         for _versjon, ramme in snapshot.versjoner(kilde, dato):
             eier = kilder.get(kilde)
             if eier is None:
@@ -671,8 +711,11 @@ def _gamle_snapshotrammer() -> Iterable[pl.DataFrame]:
             yield ramme
 
 
-def hviteliste() -> tuple[set[str], set[str]]:
+def hviteliste(mappe: Path | None = None) -> tuple[set[str], set[str]]:
     """(orgnumre, navn) som ER gjort rede for. Begge lest gjennom døra.
+
+    Med `mappe` leses i tillegg øyeblikksbildene endringssidene i det
+    bygget er regnet av — se `_datoene()`.
 
     Hvilke datoer som leses er KILDENS erklæring og ikke vaktens valg —
     alle for «verden», nyeste for «henting». Se kommentaren over
@@ -687,7 +730,8 @@ def hviteliste() -> tuple[set[str], set[str]]:
     """
     orgnr: set[str] = set()
     navn: set[str] = set()
-    for ramme in _snapshotrammer():
+    uker = endringsuker(mappe) if mappe is not None else set()
+    for ramme in _snapshotrammer(uker):
         kolonner = set(ramme.columns)
         if {"entity_id", "field", "value"} - kolonner:
             continue
@@ -1827,7 +1871,7 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
                 "bygget oppgir ingen kontaktadresse, og ber samtidig om "
                 "rettelser. Sett HAVBRUK_KONTAKT"))
 
-    orgnr_ok, navn_ok = hviteliste()
+    orgnr_ok, navn_ok = hviteliste(mappe)
     tvetydige = tvetydige_koder(_snapshotrammer())
     kvittert = kvitteringer()
     for sti in sorted(p for p in mappe.rglob("*") if p.is_file()):
@@ -1963,7 +2007,7 @@ def main() -> int:
         print(f"{mappe} er ikke en mappe.")
         return 2
 
-    orgnr_ok, navn_ok = hviteliste()
+    orgnr_ok, navn_ok = hviteliste(mappe)
     print(f"Hviteliste fra {RAW_DIR}: {len(orgnr_ok)} orgnumre, "
           f"{len(navn_ok)} navn — lest gjennom snapshot._les()")
 

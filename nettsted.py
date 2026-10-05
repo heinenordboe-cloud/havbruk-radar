@@ -1944,6 +1944,12 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
     # leste «de siste N øyeblikksbildene» ville tatt den inn igjen, og
     # da ville vakten gått god for et navngitt menneske.
     #
+    # Fra 05.10.2026 leser hvitelista likevel de to øyeblikksbildene
+    # hver endringsuke i bygget er regnet mellom — men GJENNOM døra og
+    # kildehooken, så det over gjelder ikke dem. Se
+    # `publiseringsvakt._datoene()`. Borte-raden navngis fortsatt ikke:
+    # det er et valg om siden, ikke bare om porten.
+    #
     # ## Hva som står igjen
     #
     # Hendelsen. Kilden, datoen og antall felt. Det er nok til at en
