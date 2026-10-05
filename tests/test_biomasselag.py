@@ -240,10 +240,11 @@ class Lag:
     at reserven IKKE ble spurt."""
 
     def __init__(self, rader, *, antall=None, feilsvar=False, status=200,
-                 felter=None):
+                 felter=None, feilsvar_paa_side=False):
         self.rader = rader
         self.antall = len(rader) if antall is None else antall
         self.feilsvar = feilsvar
+        self.feilsvar_paa_side = feilsvar_paa_side
         self.status = status
         self.felter = felter or (biomasselag.FELTER + biomasselag.KJENTE_UTELATTE)
         self.kall = 0
@@ -259,6 +260,8 @@ class Lag:
             return httpx.Response(200, json=FEIL_500)
         if q.get("returnCountOnly") == "true":
             return httpx.Response(200, json={"count": self.antall})
+        if self.feilsvar_paa_side:
+            return httpx.Response(200, json=FEIL_500)
         fra, n = int(q["resultOffset"]), int(q["resultRecordCount"])
         return httpx.Response(200, json={
             "features": [{"attributes": r} for r in self.rader[fra:fra + n]]})
@@ -460,6 +463,22 @@ def test_primaer_code_500_gir_reserve_og_proveniensen_sier_det(nett, helse):
     assert post["advarsler_sist"] == [
         "biomasselag: reserve fiskeridirWMS_akva/6 (primær: code 500)"]
     assert res.advarsler == post["advarsler_sist"], "samme tekst i jobben"
+
+
+def test_primaer_code_500_paa_en_side_etter_tellingen_gir_ogsa_reserve(nett, helse):
+    """200 OK med error-objekt er en feil på HVERT /query-kall, ikke bare
+    det første. Testen over treffer tellekallet; her svarer tellingen, og
+    feilen kommer på første dataside (`_json()` i `_hent_lag`)."""
+    nett[PRIMAER] = primaer = Lag(_rader(3), feilsvar_paa_side=True)
+    nett[RESERVE] = Lag(_rader(3), felter=RESERVE_FELTER_MAALT)
+
+    obs, res, post = _kjor()
+
+    assert primaer.kall >= 3, "metadata, telling og minst én side"
+    assert res.ok
+    assert {o.endepunkt for o in obs} == {RESERVE}
+    assert post["advarsler_sist"] == [
+        "biomasselag: reserve fiskeridirWMS_akva/6 (primær: code 500)"]
 
 
 def test_primaer_http_feil_gir_ogsa_reserve(nett, helse):
