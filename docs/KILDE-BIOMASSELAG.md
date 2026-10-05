@@ -210,3 +210,91 @@ målingene, er ikke vist.
 Raske, like svar med 200 OK tyder på at tjenesten lever og at feilen
 sitter i spørringen mot laget bak den, ikke i nettverket. Det er en
 tolkning, ikke målt.
+
+## 6. Parhenting — begge endepunkter i samme kjøring
+
+### Serien er uendret
+
+`raw/biomasselag/` skrives fortsatt bare av `run.py`, med ett snapshot
+per kjøring: **primæren, med reserven som fallback** når primæren
+feiler med HTTP-feil eller et error-objekt i svaret. Parhentingen
+påvirker ikke serien, `arkiv/biomasselag/`, health.json eller
+changeloggen.
+
+### Hva den er til
+
+Å gjøre endepunktets bidrag MÅLBART. Uke 40 kunne det ikke måles (punkt
+5): primær og reserve har aldri svart på samme tidspunkt. Et par hentet
+i samme kjøring gir forskjellen mellom endepunktene uten at tida er
+blandet inn.
+
+### Når den kjøres
+
+For hånd, og ikke ukentlig:
+
+1. **Den første dagen primæren svarer igjen.** Det er den målingen som
+   mangler for uke 40. Kjør den samme dag som `run.py` går tilbake til
+   primæren — helst rett etter innsamlingen, slik at paret og snapshotet
+   ligger nær hverandre.
+2. Ellers ved behov, f.eks. når en ukes endringer ser ut til å følge
+   endepunktet mer enn sjøen.
+
+Så lenge primæren er nede, gir den bare beskjed og skriver ingenting.
+Det er riktig utfall, ikke en feil.
+
+### Hvordan
+
+    cd havbruk-radar
+    HAVBRUK_DATA_DIR=../havbruk-radar-data/data python parhent_biomasselag.py --torrkjor
+    HAVBRUK_DATA_DIR=../havbruk-radar-data/data python parhent_biomasselag.py
+
+Tørrkjøringen henter og sammenligner uten å skrive. Uten
+`HAVBRUK_DATA_DIR` skrives det til `data/` her, som er gitignorert.
+Filene committes i datarepoet for hånd:
+
+    cd ../havbruk-radar-data
+    git add data/arkiv/biomasselag-par/
+    git commit -m "Parhenting biomasselag <dato>"
+    git push
+
+| exitkode | betyr | skrevet |
+|---|---|---|
+| 0 | begge svarte | to kropper og én sammenligning |
+| 2 | primæren svarer ikke | ingenting |
+| 3 | ingen av dem svarer | ingenting |
+| 4 | bare reserven svarer ikke | ingenting |
+| 1 | annen feil, f.eks. `count` ≠ antall rader | ingenting |
+
+«Svarer ikke» er samme prøve som i kilden (`_er_primaerfeil`): HTTP-feil
+ETTER `_http`s fire forsøk, eller **200 OK med et error-objekt i
+kroppen** — formen målt 02.10 og 04.10. En feilkropp arkiveres aldri som
+data. En fullstendighetsfeil er IKKE «svarer ikke»; den gir exit 1, som i
+kilden.
+
+### Hva som skrives
+
+    data/arkiv/biomasselag-par/primaer/<dato>.json.gz
+    data/arkiv/biomasselag-par/reserve/<dato>.json.gz
+    data/arkiv/biomasselag-par/sammenligning/<dato>.json
+
+Kroppene er det `Biomasselag.fetch()` ville arkivert: samme `FELTER`,
+samme `HVOR`, samme paginering og fullstendighetssjekk. sha256 i
+sammenligningen er av den dekomprimerte kroppen, som `raw_hash` på en
+snapshotrad. Append-only: samme dato to ganger gir løpenummer.
+
+Sammenligningen har:
+
+- rader og lokaliteter per side, felles, og loknr som bare finnes i den
+  ene
+- per felt (`navn`, `status_lokalitet`, `har_fisk`, `arter`,
+  `siste_rapport`): antall avvik og hvilke loknr. `objectid` er ikke med
+  — den er tildelt på nytt mellom endepunktene
+- `siste_rapport`: hvor mange er nyere og eldre i reserven, nyeste dato
+  per side, og hver forskjell med begge verdier
+- per side: URL, hentetidspunkt og om den svarte, med grunn
+
+Kontrollert mot arkivkroppene 22.09 (primær) og 04.10 (reserve):
+sammenligningen gir 13 nyere og 2 eldre `siste_rapport`, 4 `har_fisk`
+og 5 `arter` — samme tall som punkt 5. Første live tørrkjøring
+05.10.2026: primæren `code 500`, exit 2, ingenting skrevet. Reserven ga
+da 1128 rader, mot 1127 både 02.10 og 04.10.
