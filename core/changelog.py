@@ -591,7 +591,7 @@ def fjern_personformer(endringer: pl.DataFrame) -> pl.DataFrame:
     Designrunden bygget nøyaktig det. `/endringer/<år>-<uke>/` er
     endringer denne uka på tvers av kilder, med CSV og JSON ved siden.
     MÅLT 23.09.2026 nådde én rad om en personform uke 39s side —
-    `RØN GARD DA`, som `Ny i vårt utvalg` — og den hadde ikke noe navn
+    `TESTGARD DA`, som `Ny i vårt utvalg` — og den hadde ikke noe navn
     på siden bare fordi entiteten var ute av snapshotet og oppslaget
     falt til en nøytral etikett. Det er ikke en beskyttelse; det er en
     tilfeldighet til.

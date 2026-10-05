@@ -146,7 +146,7 @@ hadde vært fristende å bruke.
 Men «navnet slutter på AS» er en SYNTAKTISK prøve på et SEMANTISK
 spørsmål, og `core/persondata.py` advarer ordrett mot den: «å filtrere PÅ
 NAVNET er nøyaktig samme feil som ni-siffer-testen fra 16.08». Et ENK kan
-hete «LYNGSSKJELLAN V/ARNE SAMUELSEN» og et AS kan hete «Ola Nordmann
+hete «TESTSKJELL V/OLA NORDMANN» og et AS kan hete «Ola Nordmann
 AS». Navnet er ikke formen.
 
 Målingen bekrefter at snarveien ville gitt riktig svar her — og det er

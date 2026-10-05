@@ -1661,14 +1661,14 @@ def test_pakket_sideutdrag_granskes_som_tekst(tmp_path):
     import gzip
 
     kropp = (b"pagefind_dcd"
-             + '{"url":"/selskap/1/","content":"MELAKS ANS 912345678"}'
+             + '{"url":"/selskap/1/","content":"TESTVIK OG STRAUM ANS 912345678"}'
              .encode("utf-8"))
     fil = tmp_path / "nb_abc.pf_fragment"
     fil.write_bytes(gzip.compress(kropp))
 
     tekst = vakt._tekst(fil)
     assert tekst is not None, "utdraget skal kunne leses"
-    assert "MELAKS ANS" in tekst
+    assert "TESTVIK OG STRAUM ANS" in tekst
 
     funn = vakt.gransk_tekst(tekst, set(), set(), fil="nb_abc.pf_fragment")
     assert sorted(f.slag for f in funn) == ["personform", "ukjent_orgnr"]
