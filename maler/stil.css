@@ -1274,26 +1274,24 @@ a:hover {
       rgba(6, 22, 29, 0) 100%);
 }
 
-/* FLATA MÅ BRYTE UT AV HEROENS EGEN SIDELUFT.
+/* FLATA MÅ BRYTE UT AV HEROENS EGEN TOPPLUFT.
  *
- * Under 48rem får `.hero` `padding-inline: var(--rom-16)` og
- * `padding-block-start: var(--rom-32)` — se seksjon 8. Den luften er
- * fra den gang heroen var et bånd med en kant, og den gjelder
- * fortsatt: heroteksten står da på samme gutter som resten av siden.
+ * Under 48rem får `.hero` `padding-block-start: var(--rom-32)` — se
+ * seksjon 8. Et BÅND skal nå kanten: MÅLT 27.09.2026 på 390 sto flata
+ * y=32, med fotografi synlig over den. Negativ marg tar den opp til
+ * kanten, og like stor padding setter menyen tilbake der den sto.
  *
- * Men et BÅND skal nå kanten. MÅLT på 390: flata sto x=16 og y=32 med
- * bredde 358, altså et mørkt rektangel med synlig fotografi rundt tre
- * av fire sider. Negativ marg tar den ut til kanten, og like stor
- * padding setter menyen tilbake der den sto.
+ * SIDELEDS TRENGS INGENTING LENGER. Heroen hadde også 16 px
+ * `padding-inline`, og flata brøt ut av den på samme måte. Den luften
+ * er fjernet 06.10.2026 (se seksjon 8): den kom i tillegg til `.ark`s
+ * egen og satte forsidens meny 16 px lenger inn enn alle andre siders.
  *
- * Tallene gjentas her og leses ikke av heroen — CSS kan ikke spørre
- * om sin egen forelders padding. Endres seksjon 8, må dette følge, og
- * det er `test_menyflata_naar_heroens_kant` som fanger at det ikke
- * gjorde det. */
+ * Tallet gjentas her og leses ikke av heroen — CSS kan ikke spørre om
+ * sin egen forelders padding. Endres seksjon 8, må dette følge, og det
+ * er `test_menyflata_naar_heroens_kant` som fanger at det ikke gjorde
+ * det. */
 @media (max-width: 48rem) {
   .hero-menyflate {
-    margin-inline: calc(var(--rom-16) * -1);
-    padding-inline: var(--rom-16);
     margin-block-start: calc(var(--rom-32) * -1);
     padding-block-start: var(--rom-32);
   }
@@ -1907,6 +1905,23 @@ a:hover {
 
 @media (min-width: 62rem) {
   .tabellramme { overflow-x: visible; }
+}
+
+/* RAMMA SOM RULLER OGSÅ PÅ BRED SKJERM.
+ *
+ * Over 62rem er ramma ingen scrollport, for at tabellhodet skal kunne
+ * feste seg til vinduet. Det forutsetter at tabellen får plass i
+ * spalten, og det gjør ikke alle: MÅLT 06.10.2026 var /om/ 1 403 px
+ * bred på 1000 (kildetabellen, 1 033 px innhold i 760) og /endringer/
+ * 1 280 px (ukeoversikten, 15 spalter, 1 240 px). Kravet over — SIDEN
+ * ruller aldri vannrett — ble da brutt på bred skjerm og ikke på telefon.
+ *
+ * Klassen settes på KORTE tabeller, der et klebrig hode ikke trengs:
+ * kildene (13 rader), ferskheten, lånelista og ukene. Lange tabeller
+ * som lokalitetslista beholder hodet. `test_ingen_vannrett_rulling_paa_
+ * bred_skjerm` måler hver sidetype i tre bredder. */
+@media (min-width: 62rem) {
+  .tabellramme--ruller { overflow-x: auto; }
 }
 
 table {
@@ -3484,6 +3499,34 @@ figcaption {
 
 .om-tekst h2:first-child { margin-block-start: 0; }
 
+/* TABELLENE I OM-TEKSTEN ER PROSA, og de var bredere enn spalten.
+ *
+ * MÅLT 06.10.2026: kildetabellen hadde 1 033 px innhold i en spalte på
+ * 760, og fordi `.tabellramme` slutter å rulle over 62rem, rant den ut
+ * av SIDEN — 37 px vannrett rulling på 1440, 403 px på 1000. Tre ting
+ * holdt den bred:
+ *
+ *   `tbody th { nowrap }`   riktig for «N-G-0066», feil for
+ *                           «Ekspertgruppen for vurdering av …»
+ *   lange ord               «kapasitetsjusteringsforskriftene», 238 px
+ *   nettadresser            «barentswatch.no/artikler/api-vilkar», 223
+ *
+ * De to første løses her: radhodet får bryte, og ord deles etter
+ * ordboka (`lang="nb"`). `overflow-wrap: anywhere` ble prøvd og
+ * forkastet — den tar bredden ned, men lar tabellalgoritmen bryte
+ * «25.08.2026» til «25.0 / 8.20 / 26» og «nei» til «ne / i».
+ *
+ * ATTRIBUSJONEN DELES IKKE. Den står ORDRETT, og «Brønnøysundregistre-
+ * ne» er ikke det kilden ba oss skrive.
+ *
+ * Det som er igjen, ruller i ramma: mellom 62rem og ~1200 px står
+ * innholdsfortegnelsen ved siden av, og spalten er 544 px. Se
+ * `.tabellramme--ruller`. */
+.om-tekst tbody th { white-space: normal; }
+.om-tekst :is(th, td) { hyphens: auto; }
+.om-tekst td[data-felt="attribusjon"] { hyphens: manual; }
+
+
 /* ---------------------------------------------------------------- *
  * 6f. SØKESIDEN
  *
@@ -3621,10 +3664,17 @@ footer p { max-width: var(--maal-tekst); margin: 0; }
      hver side, og på 360px er det 11 % av skjermen brukt på en kant. */
   body { background: var(--farge-ark); }
 
-  .topp, .hero, main, footer {
+  .topp, main, footer {
     padding-inline: var(--rom-16);
     border-inline: 0;
   }
+
+  /* HEROEN HAR INGEN SIDELUFT AV SEG SELV. Innholdet står i `.ark`, som
+     har `--marg-side`, og 16 px her kom i tillegg: menyen, mottoet og
+     søkefeltet sto på x=36 mens resten av nettstedet står på x=20.
+     MÅLT 06.10.2026 på 390: menylista fikk 318 px til 341 px innhold,
+     og «Søk» ble kappet til «S» ved høyre kant. */
+  .hero { border-inline: 0; }
 
   /* Båndet beholder farge og strek, men ikke luften: 3rem over og under
      er en tredjedel av en telefonskjerm brukt på ingenting. */

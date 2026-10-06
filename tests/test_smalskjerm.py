@@ -113,6 +113,28 @@ def test_ingen_vannrett_rulling_paa_390(side, tjener, sti):
         f"{sti}: dokumentet er {dokument}px bredt i et {vindu}px vindu")
 
 
+@pytest.mark.parametrize("bredde", (1000, 1200, 1440))
+@pytest.mark.parametrize("sti", SIDER)
+def test_ingen_vannrett_rulling_paa_bred_skjerm(side, tjener, sti, bredde):
+    """Over 62rem slutter `.tabellramme` å rulle, med vilje — og da kan en
+    tabell som er bredere enn spalten dra SIDEN ut i stedet.
+
+    MÅLT 06.10.2026: /om/ var 1 477 px bred på 1440 og 1 403 på 1000.
+    Kildetabellen hadde 1 033 px innhold i en spalte på 760. Prøven over
+    målte bare 390, der ramma ruller, og så det derfor ikke.
+    """
+    side.set_viewport_size({"width": bredde, "height": 900})
+    try:
+        side.goto(tjener + sti, wait_until="load")
+        dokument, vindu = side.evaluate(
+            "() => [document.documentElement.scrollWidth, window.innerWidth]")
+    finally:
+        side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert dokument <= vindu, (
+        f"{sti} @ {bredde}: dokumentet er {dokument}px bredt i et "
+        f"{vindu}px vindu")
+
+
 # ---- brikkene ---------------------------------------------------------
 #
 # 44 PIKSLER. WCAG 2.2 AA 2.5.8 setter 24x24 som minstemål; 44 er det
@@ -466,6 +488,37 @@ def test_menyen_ruller_framfor_aa_bryte(side, tjener, bredde):
     assert m["overflow"] == "auto", "lista er ingen rulleboks"
     assert m["sisteSynlig"], "siste punkt er ikke nåbart ved å rulle"
     assert not m["sideRuller"], "menyen dro SIDA ut i bredden"
+
+
+@pytest.mark.parametrize("bredde", (360, 390))
+def test_forsidens_meny_har_samme_kanter_som_resten(side, tjener, bredde):
+    """Forsiden fikk 16 px ekstra sideluft fra `.hero`, oppå `.ark`s egen.
+
+    MÅLT 06.10.2026 på 390: menylista sto x=32–350 på forsiden og
+    x=16–366 på undersidene. Den fikk 318 px til 341 px innhold, og
+    «Søk» ble kappet til «S» — nåbart ved å rulle, men ikke synlig.
+    """
+    side.set_viewport_size({"width": bredde, "height": 844})
+    kanter = {}
+    try:
+        for sti in ("/", "/lokalitet/31397/"):
+            side.goto(tjener + sti, wait_until="load")
+            kanter[sti] = side.evaluate("""() => {
+              const ul = document.querySelector('.hovedmeny ul');
+              const r = ul.getBoundingClientRect();
+              const m = document.querySelector('.hovedmeny .merke')
+                                .getBoundingClientRect();
+              return {ul: [Math.round(r.left), Math.round(r.right)],
+                      merke: Math.round(m.left),
+                      ruller: ul.scrollWidth > ul.clientWidth};
+            }""")
+    finally:
+        side.set_viewport_size({"width": BREDDE, "height": 844})
+    forside, underside = kanter["/"], kanter["/lokalitet/31397/"]
+    assert forside["ul"] == underside["ul"], kanter
+    assert forside["merke"] == underside["merke"], kanter
+    if bredde == 390:
+        assert not forside["ruller"], "alle fem punktene skal synes på 390"
 
 
 # ---- brikka «Alle N rader» --------------------------------------------
