@@ -4980,6 +4980,32 @@ ENDRINGSKILDER = ("akvakultur", "biomasselag", "eierskap",
                   "enhetsregisteret")
 
 
+def _ukens_overskriftstall(uke: dict, valgt: dict | None,
+                           rader: list[dict]) -> int:
+    """Tallet i ukesidens første setning — og i metabeskrivelsen.
+
+    ETT TALL, TO STEDER. Metabeskrivelsen (og `og:description` og
+    søkeindeksen, som leser den) sa `len(hendelser)`: radene i FILA, før
+    sammenslåing og med selskapsdata. Uke 41 sa da «158 endringer» i
+    søkeresultatet over en side som sa «90 endringer». MÅLT 06.10.2026.
+
+    Ufiltrert side: `antall`, overskriftstallet. Typeside: radene som
+    står i tabellen, som er det setningen «N av M rader … er X» teller.
+    """
+    return len(rader) if valgt else uke["antall"]
+
+
+def _ukebeskrivelse(uke: dict, valgt: dict | None, rader: list[dict]) -> str:
+    """Metabeskrivelsen, med samme tall og samme ord som overskriften."""
+    n = _ukens_overskriftstall(uke, valgt, rader)
+    if valgt:
+        return (f"{n} av {visningsord.antall(uke['antall_rader'], 'rad', 'rader')} "
+                f"i {uke['vist']} ({uke['spenn']}) er "
+                f"{valgt['navn'].lower()} — norske akvakulturregistre.")
+    return (f"{visningsord.antall(n, 'endring', 'endringer')} observert i "
+            f"{uke['vist']} ({uke['spenn']}) i norske akvakulturregistre.")
+
+
 def skriv_endringssider(rot: Path, felles: Felles,
                         uker: list[dict]) -> list[Path]:
     """Indeksen, ukesidene, typesidene og datafilene."""
@@ -5023,6 +5049,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
             ledet, egen = slaa_sammen_trukne(ledet), slaa_sammen_trukne(egen)
             skriv_html(sti, uke_mal.render(
                 u=uke, rader=ledet, egen=egen, valgt=valgt, url=url,
+                overskriftstall=_ukens_overskriftstall(uke, valgt, ledet),
                 nyere=nyere, eldre=eldre, uker_totalt=len(uker),
                 # TIDSLINJA FLYTTET HIT 27.09.2026. Den sto på forsiden
                 # og bare der, og forsiden viser nå ukas sak i tre
@@ -5045,10 +5072,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
                 **_grunnkontekst(
                     felles, rot, sti, kilder=ENDRINGSKILDER,
                     tittel=f"{tittel} — Kystloggen",
-                    beskrivelse=(
-                        f"{len(hendelser)} endringer observert i "
-                        f"{uke['vist']} ({uke['spenn']}) i norske "
-                        f"akvakulturregistre."),
+                    beskrivelse=_ukebeskrivelse(uke, valgt, ledet),
                     jsonld=_jsonld_uke(uke, hendelser, felles.vilkaar, url),
                     proveniens_tekst=proveniens(
                         uke["siste_dato"], felles.akva_hentet,

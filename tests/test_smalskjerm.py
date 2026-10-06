@@ -40,6 +40,7 @@ måler derfor sida og kortcellene, ikke rammene.
 """
 
 import os
+import re
 import socketserver
 import threading
 from functools import partial
@@ -133,6 +134,42 @@ def test_ingen_vannrett_rulling_paa_bred_skjerm(side, tjener, sti, bredde):
     assert dokument <= vindu, (
         f"{sti} @ {bredde}: dokumentet er {dokument}px bredt i et "
         f"{vindu}px vindu")
+
+
+def _ledetall(tekst: str) -> int:
+    """Første tall i en tekst, med tusenskille av mellomrom eller nbsp."""
+    m = re.search(r"\d[\d\u00a0\u202f ]*", tekst)
+    assert m, f"ingen tall i: {tekst[:120]}"
+    return int(re.sub(r"\D", "", m.group()))
+
+
+def test_metabeskrivelsen_har_samme_tall_som_overskriften():
+    """Hver ukeside og hver typeside, lest som fil — ingen nettleser.
+
+    Metabeskrivelsen sa radene i FILA, og uke 41 sto i søkeresultatet som
+    «158 endringer» over en side som sa «90 endringer». MÅLT 06.10.2026.
+    Prøven går gjennom ALLE sidene i bygget, ikke ett eksempel: tallet
+    skal være likt på hver eneste én.
+    """
+    import html as _html
+
+    sider = sorted(Path(ROT, "endringer").glob("*/**/index.html"))
+    assert sider, "fant ingen ukesider i bygget"
+    avvik = []
+    for f in sider:
+        kilde = f.read_text(encoding="utf-8")
+        meta = re.search(r'<meta name="description" content="([^"]*)"', kilde)
+        sammendrag = re.search(
+            r'class="uke-sammendrag[^"]*">\s*<p>(.*?)</p>', kilde, re.S)
+        if not (meta and sammendrag):
+            avvik.append(f"{f}: mangler meta eller sammendrag")
+            continue
+        overskrift = re.sub(r"<[^>]+>", "", sammendrag.group(1))
+        a = _ledetall(_html.unescape(meta.group(1)))
+        b = _ledetall(_html.unescape(overskrift))
+        if a != b:
+            avvik.append(f"{f.relative_to(ROT)}: meta {a}, overskrift {b}")
+    assert not avvik, "\n".join(avvik[:20])
 
 
 # ---- brikkene ---------------------------------------------------------

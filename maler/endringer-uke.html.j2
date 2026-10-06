@@ -74,10 +74,12 @@
   <div class="uke-topp">
   <div class="uke-sammendrag uke-sammendrag--bred">
     {% if valgt %}
-    <p>{{ rader|length }} av {{ antall(u.antall_rader, "rad", "rader") }} i {{ u.vist }} er
+    {#- `overskriftstall` OG IKKE ET EGET UTTRYKK HER. Metabeskrivelsen
+        bruker samme tall — se `_ukens_overskriftstall()`. #}
+    <p>{{ overskriftstall }} av {{ antall(u.antall_rader, "rad", "rader") }} i {{ u.vist }} er
       {{ valgt.navn|lower }} — {{ valgt.hva }}.</p>
     {% else %}
-    <p>{{ antall(u.antall, "endring", "endringer") }} observert i {{ u.vist }}:
+    <p>{{ antall(overskriftstall, "endring", "endringer") }} observert i {{ u.vist }}:
       {{ u.ledet_slag }}.</p>
     {% endif %}
     {# DE TO TALLENE ER IKKE DET SAMME, og forskjellen skjules ikke.

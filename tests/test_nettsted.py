@@ -3936,6 +3936,22 @@ def test_tallene_paa_ukesiden_teller_radene_som_staar_der():
     assert sum(data["typer"].values()) == len(data["hendelser"]) == 5
 
 
+def test_metabeskrivelsen_bruker_overskriftstallet():
+    """Uke 41: «158 endringer» i søkeresultatet, «90» på siden."""
+    uke = {"antall": 90, "antall_rader": 157, "vist": "uke 41, 2026",
+           "spenn": "5.–11. oktober 2026",
+           "hendelser": [{}] * 158}
+    tillatelse = {"id": "tillatelse", "navn": "Tillatelse"}
+    rader = [{}] * 47
+
+    assert nettsted._ukens_overskriftstall(uke, None, rader) == 90
+    assert nettsted._ukebeskrivelse(uke, None, rader).startswith(
+        "90 endringer observert i uke 41, 2026")
+    assert nettsted._ukens_overskriftstall(uke, tillatelse, rader) == 47
+    assert nettsted._ukebeskrivelse(uke, tillatelse, rader).startswith(
+        "47 av 157 rader i uke 41, 2026")
+
+
 def test_radtallet_kalles_rader_og_aldri_endringer():
     """Ett tall, ett ord. `antall_rader` er rader."""
     for navn in ("forside.html.j2", "endringer-uke.html.j2"):
