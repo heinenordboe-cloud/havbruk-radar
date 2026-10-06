@@ -127,6 +127,24 @@ def _arkiver(klient: httpx.Client, url: str, dato: str, torr: bool,
                  "published_at": utgitt})
 
 
+def _advar(logg: list, hva: str, tekst: str) -> None:
+    """::warning:: i Actions OG en post i loggfila.
+
+    Fram til 06.10.2026 sto disse tre tilfellene bare som en `print`:
+    tom indeks, feil i Wayback-oppslaget, og feil som kom sammen med nye
+    kropper. Jobben ble grønn, og loggfila — det eneste som overlever
+    Actions-historikken — sa ingenting. En dag der Wayback ikke svarte, så
+    nøyaktig ut som en dag der det ikke fantes noe nytt.
+
+    `::warning::` og ikke rød: et Wayback-oppslag som feiler i sesongen
+    skal ikke rødlyse jobben hver dag, men det skal stå der man ser og i
+    fila som blir liggende. Postene har verken `ny` eller `feil`, så de
+    endrer ikke tellingen exit-koden bygger på.
+    """
+    print(f"::warning::Auksjonsarkivering: {tekst}")
+    logg.append({"advarsel": hva, "tekst": tekst})
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--torrkjor", action="store_true")
@@ -160,6 +178,18 @@ def main() -> int:
     except Exception as e:
         print(f"  Indeksen kunne ikke leses for barnelenker: {e}")
         barn = []
+        _advar(logg, "tom_indeks",
+               f"indeksen kunne ikke leses for barnelenker ({e}). Ingen "
+               f"auksjonsrunde er hentet fra {INDEKS}.")
+    else:
+        # Indeksen har listet seks runder siden 14.09.2026. Null barn er
+        # ikke «ingen auksjoner» — det er en side som har endret form, og
+        # da fanges ikke 2026-barnet heller.
+        if not barn:
+            _advar(logg, "tom_indeks",
+                   f"indeksen svarte, men lenket ingen auksjonsrunder. "
+                   f"Har {INDEKS} endret form, fanges ikke et nytt "
+                   f"resultat heller.")
 
     print(f"\n{len(barn)} auksjonsrunde(r) lenket fra indeksen:")
     for sti in barn:
@@ -174,6 +204,10 @@ def main() -> int:
     except Exception as e:
         print(f"  CDX-oppslaget feilet: {e}")
         rader = []
+        _advar(logg, "wayback_feilet",
+               f"Wayback-oppslaget (CDX) feilet: {e}. Regjeringen.no-sidene "
+               f"er ikke sjekket i dag, og «0 avtrykk» under betyr «vet "
+               f"ikke», ikke «ingen».")
 
     treff = [(ts, u) for ts, u in rader if _RELEVANT.search(u)]
     print(f"  {len(rader)} avtrykk fra {a.fra} nevner auksjon, "
@@ -184,7 +218,17 @@ def main() -> int:
 
     nye = sum(1 for r in logg if r.get("ny"))
     feil = sum(1 for r in logg if "feil" in r)
-    print(f"\n{len(logg)} adresse(r), {nye} ny(e) kropp(er), {feil} feil.")
+    # Exit 0 når noe nytt kom inn, også om andre adresser feilet — én død
+    # lenke skal ikke koste dagens funn. Men feilene skal sies.
+    if feil and nye:
+        _advar(logg, "feil_med_nye",
+               f"{feil} adresse(r) feilet samme dag som {nye} ny(e) "
+               f"kropp(er) ble arkivert. Jobben er grønn fordi noe kom inn; "
+               f"adressene som feilet er ikke hentet.")
+    adresser = sum(1 for r in logg if "url" in r)
+    advarsler = sum(1 for r in logg if "advarsel" in r)
+    print(f"\n{adresser} adresse(r), {nye} ny(e) kropp(er), {feil} feil, "
+          f"{advarsler} advarsel(er).")
 
     if not a.torrkjor:
         sti = raw_arkiv.ARKIV_DIR / KILDE / f"{dato}.logg.json"
