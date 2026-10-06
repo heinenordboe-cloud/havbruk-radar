@@ -1757,6 +1757,65 @@ def test_kadens_stemples_for_kilde_som_ikke_var_forfalt(tmp_path, monkeypatch):
     assert tilstand["daglig"]["min_dager_mellom"] == 1
 
 
+
+def test_tom_levering_gir_ikke_sist_ok(tmp_path, monkeypatch):
+    """0 rader uten feil, fra en kilde som har levert før, er ikke hentet.
+
+    Fram til 06.10.2026 fikk den `sist_ok`, run.py skrev ikke noe
+    snapshot fordi det ikke var noe å skrive, og tilsynet så `sist_ok` i
+    uka og meldte OK. Nå står `sist_ok` på forrige levering, og
+    tilsynslista sier at uka mangler.
+    """
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    health.skriv(health.oppdater([runner.Result("falsk", True, 500)],
+                                 "2026-09-28", kadens={"falsk": 7})[0])
+
+    tilstand, nede = health.oppdater([runner.Result("falsk", True, 0)],
+                                     "2026-10-05", kadens={"falsk": 7})
+
+    post = tilstand["falsk"]
+    assert post["sist_ok"] == "2026-09-28", "et tomt svar er ikke hentet"
+    assert post["sist_forsok"] == "2026-10-05"
+    assert post["sist_tom"] == "2026-10-05"
+    assert post["volum_referanse"] == 500, "referansen står stille"
+    [varsel] = [v for v in nede if v.startswith("falsk")]
+    assert "tom levering" in varsel and "uka mangler" in varsel
+    # Frekvensvakten prøver igjen: uka er ikke hentet.
+    health.skriv(tilstand)
+    assert runner._uke_er_eldre(health.les()["falsk"]["sist_ok"], "2026-10-06")
+
+    # Neste levering med rader gir sist_ok igjen, og datoen for den tomme
+    # står igjen som historikk.
+    etter, nede = health.oppdater([runner.Result("falsk", True, 500)],
+                                  "2026-10-06", kadens={"falsk": 7})
+    assert etter["falsk"]["sist_ok"] == "2026-10-06"
+    assert etter["falsk"]["sist_tom"] == "2026-10-05"
+    assert not [v for v in nede if v.startswith("falsk")]
+
+
+def test_tom_forste_kjoring_gir_ikke_referanse_null(tmp_path, monkeypatch):
+    """En referanse på 0 gjorde volumvakten blind for alltid: `not
+    referanse` er sant for 0, og vakten etablerte nivået på nytt hver gang
+    i stedet for å sammenligne. Nå står referansen ukjent til kilden har
+    levert, og den første leveringen med rader setter den."""
+    from core import health
+
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+
+    tilstand, _ = health.oppdater([runner.Result("ny", True, 0)], "2026-09-28")
+    assert tilstand["ny"]["volum_referanse"] is None
+    health.skriv(tilstand)
+
+    tilstand, _ = health.oppdater([runner.Result("ny", True, 400)], "2026-10-05")
+    assert tilstand["ny"]["volum_referanse"] == 400
+    health.skriv(tilstand)
+
+    # Og nå sammenligner vakten: et fall til 100 varsles.
+    _, nede = health.oppdater([runner.Result("ny", True, 100)], "2026-10-12")
+    assert any("ny (volum 25%" in v for v in nede), nede
+
 def test_kadens_stemples_for_kilde_som_feilet(tmp_path, monkeypatch):
     """Og for en kilde som feilet. Den er like ukentlig som før.
 
@@ -2199,23 +2258,26 @@ def test_null_observasjoner_uten_exception_varsler(tmp_path, monkeypatch):
     tilstand, nede = health.oppdater([runner.Result("falsk", True, 0)], "2026-01-08")
     health.skriv(tilstand)
 
-    assert nede == ["falsk (volum 0% av referanse 1000: 0 observasjoner, kjøring 1)"]
+    # Fra 06.10.2026 er null rader en TOM LEVERING, ikke et volumfall: uka
+    # mangler, og varselet sier det. Se `test_tom_levering_gir_ikke_sist_ok`.
+    assert nede == ["falsk (tom levering: 0 rader mot referanse 1000 — ikke "
+                    "regnet som hentet, uka mangler snapshot, kjøring 1)"]
     # 0 skal ikke bli den nye normalen — da ville alt vært "friskt" igjen.
     assert tilstand["falsk"]["volum_referanse"] == 1000
 
 
 def test_null_referanse_gir_ikke_divisjon_paa_null(tmp_path, monkeypatch):
-    """Leverer kilden 0 på aller første kjøring, blir referansen 0.
-    Vakten skal da ligge i dvale (ikke krasje, ikke varsle) til et ekte
-    volum kommer inn og etablerer nivået."""
+    """Leverer kilden 0 på aller første kjøring, er referansen UKJENT —
+    ikke 0 (fra 06.10.2026). Vakten skal ligge i dvale (ikke krasje, ikke
+    varsle) til et ekte volum kommer inn og etablerer nivået."""
     health = _helse(tmp_path, monkeypatch)
 
     tilstand, nede = health.oppdater([runner.Result("ny", True, 0)], "2026-01-01")
     health.skriv(tilstand)
     assert nede == []
-    assert tilstand["ny"]["volum_referanse"] == 0
+    assert tilstand["ny"]["volum_referanse"] is None
 
-    # Fortsatt 0, med referanse 0: her ville en naiv andel-utregning
+    # Fortsatt 0, uten referanse: her ville en naiv andel-utregning
     # kastet ZeroDivisionError og felt hele kjøringen.
     tilstand, nede = health.oppdater([runner.Result("ny", True, 0)], "2026-01-08")
     health.skriv(tilstand)
@@ -2242,7 +2304,7 @@ def test_godta_volum_uten_levert_volum_dreper_ikke_vakten(tmp_path, monkeypatch)
     ok, melding = health.godta_volum("tom")
     assert not ok
     assert "ikke noe registrert volum" in melding
-    assert health.les()["tom"]["volum_referanse"] == 0
+    assert health.les()["tom"]["volum_referanse"] is None
 
     # Vakten er fortsatt i live: et ekte nivå kan fortsatt etableres,
     # og et fall fra det varsler som normalt.

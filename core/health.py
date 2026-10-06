@@ -121,8 +121,13 @@ def _vurder_volum(kilde: str, antall: int, gammel: dict) -> tuple[int, int, str 
     # Første kjøring for kilden: etabler nivået, ikke varsle. Det finnes
     # ikke noe å sammenligne mot, og et varsel her ville bare vært støy
     # i den ene situasjonen du uansett sitter og ser på skjermen.
+    #
+    # MEN IKKE MED NULL. En tom første kjøring satte referansen til 0 fram
+    # til 06.10.2026, og `not referanse` over er da sant for alltid: vakten
+    # sammenlignet aldri igjen før kilden leverte noe. Referansen står
+    # ukjent (None) til kilden har levert minst én rad.
     if not referanse:
-        return antall, 0, None
+        return (antall or None), 0, None
 
     andel = antall / referanse
     if andel < _min_andel(kilde):
@@ -667,6 +672,25 @@ def oppdater(
         gammel = forrige.get(r.source, {})
         strekk = 0 if r.ok else gammel.get("feil_paa_rad", 0) + 1
 
+        # TOM LEVERING: kilden svarte uten feil, men med null rader, og den
+        # har levert før. Da er ingenting hentet, og det skal ikke se ut som
+        # om noe ble det. Fram til 06.10.2026 fikk den `sist_ok` som enhver
+        # annen vellykket kjøring, mens run.py hoppet over snapshotet fordi
+        # det ikke var noe å skrive. Tilsynet så `sist_ok` i denne ISO-uka
+        # og meldte OK, og frekvensvakten holdt kilden igjen resten av uka:
+        # en uke uten snapshot, og alle tre vaktene grønne.
+        #
+        # `sist_ok` røres derfor ikke. Det er det som får tilsynet til å
+        # regne uka som manglende og frekvensvakten til å prøve igjen ved
+        # tirsdagens gjenkjøring. Varselet havner i tilsynslista, og run.py
+        # gjør det til ::warning:: og DELVIS. CLAUDE.md 1b-2: et FORSØK er
+        # ikke et RESULTAT, og et tomt svar er et forsøk.
+        #
+        # Bare når referansen er over null. En kilde som aldri har levert
+        # har ingen forventning å bryte; se `_vurder_volum`.
+        tom = (r.ok and r.count == 0
+               and (gammel.get("volum_referanse") or 0) > 0)
+
         # En kilde som er nede leverte ingenting, og 0 observasjoner skal
         # ikke få lov til å ødelegge referansenivået. Da beholdes både
         # referansen og lav-strekken urørt til kilden er oppe igjen.
@@ -680,7 +704,8 @@ def oppdater(
             volum_varsel = None
 
         ny[r.source] = {
-            "sist_ok": observed_at if r.ok else gammel.get("sist_ok"),
+            "sist_ok": (observed_at if r.ok and not tom
+                        else gammel.get("sist_ok")),
             "sist_forsok": observed_at,
             "feil_paa_rad": strekk,
             "antall_sist": r.count,
@@ -697,6 +722,9 @@ def oppdater(
             # gjaldt sist, ikke hva som har gjeldt noen gang.
             "advarsler_sist": list(r.advarsler),
         }
+        # Datoen for siste tomme levering, båret videre som `sist_ok`.
+        if gammel.get("sist_tom") and not tom:
+            ny[r.source]["sist_tom"] = gammel["sist_tom"]
 
         # Feltvakt: kun når kilden faktisk leverte. En nede kilde har
         # ingen felter, og skal ikke få referansen sin rasert.
@@ -766,7 +794,17 @@ def oppdater(
 
         # Leverte, men mistenkelig lite av det -> samme alarm, annen årsak.
         # Fyrer hver uke så lenge nivået er brutt, ikke bare uka det skjedde.
-        if volum_varsel:
+        #
+        # Den tomme leveringen får sin egen tekst i stedet for volumvaktens
+        # «volum 0 %»: den sier at uka MANGLER, ikke at den er tynn.
+        if tom:
+            ny[r.source]["sist_tom"] = observed_at
+            nede.append(
+                f"{r.source} (tom levering: 0 rader mot referanse "
+                f"{gammel.get('volum_referanse')} — ikke regnet som hentet, "
+                f"uka mangler snapshot, kjøring {volum_strekk})"
+            )
+        elif volum_varsel:
             nede.append(volum_varsel)
 
         # Et felt som forsvant er egen sak, med egen kvittering.
