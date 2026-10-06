@@ -597,33 +597,27 @@ def test_tilstandsspalta_har_tak_paa_bred_skjerm(side, tjener, sti):
     assert m["hoyde"] <= m["vindu"], m
 
 
-# ---- brikka «Alle N rader» --------------------------------------------
+# ---- brikka «Alle N endringer» ----------------------------------------
 
 
-@pytest.mark.parametrize("uke", ("2026-36", "2026-37", "2026-39"))
-def test_brikka_teller_radene_siden_faktisk_viser(side, tjener, uke):
-    """«Alle N rader» skal være radene på SIDEN, ikke i changeloggen.
+@pytest.mark.parametrize("uke", ("2026-36", "2026-37", "2026-39", "2026-41"))
+def test_alle_brikka_teller_det_samme_som_overskriften(side, tjener, uke):
+    """«Alle N endringer» er overskriftens N, uten selskapsdata.
 
-    `tillatelser` og `tillatelser_trukket` er to halvdeler av én
-    hendelse og vises som én rad. Fram til 25.09.2026 telte brikka
-    changelogg-radene, og uke 36 sa «Alle 61 rader» over en side som
-    viste 54.
-
-    Målt på rendret side og ikke i ramma: tallet er én ting, radene i
-    to tabeller er noe annet, og bare nettleseren kan telle det siste.
+    Til 25.09.2026 telte brikka changelogg-radene, og fram til 06.10
+    radene på siden — med selskapsdataene, som har sin egen del og sin
+    egen brikke. Uke 41 sa «Alle 134 rader» under «75 endringer».
     """
     side.goto(f"{tjener}/endringer/{uke}/", wait_until="load")
     tall = side.evaluate(r"""() => {
       const brikke = document.querySelector(".typemerke--valgt .typemerke-tall");
-      const rader = document.querySelectorAll(
-          "#endringer-uke tbody tr:not([data-tom]), "
-          + "#endringer-selskapsdata tbody tr").length;
+      const p = document.querySelector(".uke-sammendrag p");
       return {brikke: brikke ? brikke.textContent.replace(/\D/g, "") : null,
-              rader};
+              overskrift: p ? p.textContent.trim().split(" ")[0].replace(/\D/g, "") : null};
     }""")
     assert tall["brikke"] is not None, "fant ikke den valgte brikka"
-    assert int(tall["brikke"]) == tall["rader"], (
-        f"uke {uke}: brikka sier {tall['brikke']}, siden viser {tall['rader']}")
+    assert tall["brikke"] == tall["overskrift"], (
+        f"uke {uke}: brikka sier {tall['brikke']}, overskriften {tall['overskrift']}")
 
 
 # ---- søket -----------------------------------------------------------

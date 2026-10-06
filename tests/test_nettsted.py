@@ -4181,7 +4181,8 @@ def test_tallene_paa_ukesiden_teller_radene_som_staar_der():
     assert len(uke["hendelser"]) == 5, "fila har hver rad kilden ga"
     assert len(uke["ledet"]) == 3, "paret står som én rad"
 
-    # Brikkene summerer til «Alle N rader».
+    # Typebrikkene summerer til radene på siden. «Alle»-brikka er
+    # overskriftstallet `antall`, ikke dette — se endringer-uke.html.j2.
     assert sum(k["antall"] for k in uke["typer"]) == uke["antall_rader"]
     assert uke["antall_rader"] == len(uke["ledet"]) + len(uke["egen_del"])
 

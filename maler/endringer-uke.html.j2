@@ -205,7 +205,11 @@
       <a class="typemerke{% if not valgt %} typemerke--valgt{% endif %}"
          href="/endringer/{{ u.slug }}/"
          {%- if not valgt %} aria-current="page"{% endif %}>
-        Alle <span class="typemerke-tall">{{ tall(u.antall_rader) }}</span> rader
+        {#- SAMME TALL SOM OVERSKRIFTEN PÅ UKESIDA, `u.antall`. Selskapsdata
+            har sin egen del og sin egen brikke, og felt som kom eller gikk
+            telles ikke — heller ikke her. #}
+        Alle <span class="typemerke-tall">{{ tall(u.antall) }}</span>
+        {{ "endring" if u.antall == 1 else "endringer" }}
       </a>
     </li>
     {# EN BRIKKE MED NULL ER IKKE EN LENKE — se forsiden. #}
