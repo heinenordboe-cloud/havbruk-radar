@@ -1,7 +1,7 @@
 # Åpne spørsmål
 
-Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Atten
-tekniske spørsmål står igjen: seks under, sortert etter hva som
+Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Nitten
+tekniske spørsmål står igjen: sju under, sortert etter hva som
 blokkerer mest, og tolv fra designimplementeringen 22.09.2026.
 
 Tallet var «elleve» fram til 24.09.2026, og det var feil på samme måte
@@ -156,6 +156,42 @@ biomassetabell med sin egen serie, slik lokalitetssiden har for
 lusetall. Kilden reviderer bakover (12,3 % av radene, målt 25.08), så en
 slik tabell må vise hvilken henting tallene kommer fra — ellers sier den
 noe annet neste måned uten at noen rørte den.
+
+---
+
+## 7. En lusetallsuke under 80 % rapportering hentes ikke på nytt
+
+**Status:** Ubesvart. Skrevet 06.10.2026.
+
+`sources/lusetall.py` henter uke N-4 og advarer når under 80 % av de
+aktive lokalitetene har rapportert. Advarselen blir `::warning::` og
+DELVIS — ikke rød jobb, etter beslutningen 31.08.2026. Uka skrives
+uansett, og **ingenting henter den på nytt i dag**: neste kjøring finner
+snapshotet (`snapshot.finnes_allerede`) og hopper over gyldighetsdatoen,
+og uka etter peker kilden på en ny uke. En ufullstendig uke blir stående
+som den eneste påstanden vi har om den uka. Docstringene sa fram til
+06.10.2026 at kilden «nekter å skrive» slike uker og at jobben blir rød,
+og ingen av delene stemte.
+
+MÅLT 06.10.2026 i de 767 arkiverte kroppene: 40 uker ligger under 80 %,
+alle i 2012–2014 (laveste 2012-12-24, 56,2 %). Ingen siden 10.03.2014,
+og ingen i den ukentlige driften siden 18.08.2026. Dagens N-4 har
+99,2 % (uke 37), og uke 40 hadde 90,8 % samme dag. Risikoen er altså
+liten i normal drift. Men den er ikke null: et brudd hos Mattilsynet
+eller BarentsWatch rundt hentedagen ville gitt en permanent hullete uke,
+og bare en `::warning::` om det.
+
+Det som må avgjøres:
+
+1. Skal kilden **nekte** å skrive under grensen (kaste, slik at uka
+   mangler og tilsynet og gjenkjøringen tar den), eller skrive og
+   **merke** uka?
+2. Skal en uke under grensen hentes **på nytt senere** — for eksempel
+   som N-5 neste mandag — og hvordan skal den andre påstanden stå ved
+   siden av den første? Snapshotet er append-only, så det blir et
+   løpenummer (`.2`), ikke en erstatning.
+3. Skal backfillen bruke samme grense? Uten et unntak for 2012–2014
+   ville de 40 historiske ukene stoppet den.
 
 ---
 

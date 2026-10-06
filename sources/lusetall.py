@@ -22,8 +22,15 @@ en permanent falsk forskjell i dataene.
 
 Inneværende uke har 5 % av aktive lokaliteter rapportert. Uke N-4 har
 99,3 %. Snapshots er append-only, så en ufullstendig uke er permanent —
-derfor hentes uke N-4, og derfor nekter kilden å skrive en uke der under
-80 % av de aktive har rapportert.
+derfor hentes uke N-4.
+
+Kilden NEKTER IKKE å skrive en uke der under 80 % av de aktive har
+rapportert. Den skriver uka og gir en advarsel (`_vurder_rapportering`),
+som run.py gjør til ::warning:: og DELVIS — ikke rød jobb, etter
+beslutningen 31.08.2026 (docs/beslutninger/2026-08-31-tilsyn-feiler-
+ikke-jobben.md). Uka hentes ikke på nytt av seg selv: neste kjøring
+finner snapshotet og hopper over den. Se docs/APNE-SPORSMAL.md.
+Docstringen sa «nekter å skrive» fram til 06.10.2026.
 
 ## Om observed_at
 
@@ -237,8 +244,17 @@ def rapportert_andel(rå: dict) -> tuple[int, int, float]:
 
 def _vurder_rapportering(rå: dict) -> list[str]:
     """Advarsel hvis uka ser ufullstendig ut. Ikke exception: snapshotet
-    skal fortsatt skrives, men jobben skal bli rød så uka kan hentes på
-    nytt senere."""
+    skrives uansett.
+
+    Advarselen går til tilsynslista i run.py og blir ::warning:: og
+    DELVIS i commit-meldingen. Jobben blir IKKE rød — det sa denne
+    docstringen fram til 06.10.2026, men slik har det ikke vært siden
+    beslutningen 31.08.2026 om at tilsynsvarsler ikke feller jobben.
+
+    Uka hentes heller ikke på nytt: snapshotet ligger skrevet, og neste
+    kjøring hopper over gyldighetsdatoen (`snapshot.finnes_allerede`).
+    Skal den hentes igjen, må det gjøres for hånd. Se docs/APNE-SPORSMAL.md.
+    """
     grense = float(get("kilder.lusetall.min_rapportert_andel", 0.80))
     aktive, rapportert, andel = rapportert_andel(rå)
     if aktive and andel < grense:
