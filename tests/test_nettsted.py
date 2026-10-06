@@ -4267,6 +4267,41 @@ def test_ukesiden_klassifiserer_hver_rad_med_den_felles_regelen(monkeypatch):
         "1 endring observert")
 
 
+def test_artsbegrensningene_telles_av_radene_uten_grunn():
+    """Uke 35: 118 lokaliteter, 76 mistet alle, 42 fikk sine første."""
+    def h(eid, fra, til, dato="2026-08-24"):
+        return {"kilde": "akvakultur", "kildefelt": "artsbegrensninger_antall",
+                "entity_id": eid, "fra": fra, "til": til, "dato": dato}
+    rader = [h("1", "1", "0"), h("2", "3", "0"), h("3", "0", "1"),
+             h("4", "2", "1"),  # flyttet seg, men verken alt eller første
+             {"kilde": "akvakultur", "kildefelt": "versjon_gyldig_fra",
+              "entity_id": "5", "fra": "a", "til": "b", "dato": "2026-08-24"}]
+    assert nettsted._artsbegrensninger(rader) == [{
+        "dato": "2026-08-24", "lokaliteter": 4,
+        "mistet_alle": 2, "fikk_forste": 1}]
+
+
+def test_bare_uke_35_faar_setningen_om_artsbegrensningene(monkeypatch):
+    def lok(dato, fra, til):
+        return {"entity_id": "45119", "entity_type": "lokalitet",
+                "entity_name": "ABELSNES II", "field": "artsbegrensninger_antall",
+                "old_value": fra, "new_value": til, "change_type": "endret",
+                "source": "akvakultur", "observed_at": dato,
+                "forrige_observed_at": "", "forrige_fetched_at": "",
+                "published_at": "", "forrige_published_at": ""}
+    monkeypatch.setattr(nettsted, "ukentlige_kilder",
+                        lambda: frozenset({"akvakultur"}))
+    felles = _felles_stubb(
+        akva={"45119": {"navn": "ABELSNES II", "prodomraade_kode": ""}},
+        bevegelse=pl.DataFrame([lok("2026-08-24", "2", "0"),
+                                lok("2026-09-14", "0", "1")]))
+    uker = {u["slug"]: u for u in nettsted.les_endringsuker(felles)}
+    assert uker["2026-35"]["artsbegrensninger"] == [{
+        "dato": "2026-08-24", "lokaliteter": 1, "mistet_alle": 1,
+        "fikk_forste": 0}]
+    assert uker["2026-38"]["artsbegrensninger"] == []
+
+
 def test_radtallet_kalles_rader_og_aldri_endringer():
     """Ett tall, ett ord. `antall_rader` er rader."""
     for navn in ("forside.html.j2", "endringer-uke.html.j2"):

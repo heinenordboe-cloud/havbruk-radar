@@ -172,6 +172,20 @@ def test_metabeskrivelsen_har_samme_tall_som_overskriften():
     assert not avvik, "\n".join(avvik[:20])
 
 
+def test_uke_35_sier_hva_trinnet_i_artsbegrensningene_var():
+    """Tallene fra målingen 25.09.2026 (KILDE-AKVAKULTUR.md 4.5), regnet
+    av radene i bygget — og bare på uke 35."""
+    import html as _html
+    def tekst(uke):
+        f = Path(ROT, "endringer", uke, "index.html")
+        return " ".join(_html.unescape(re.sub(r"<[^>]+>", " ",
+                                              f.read_text(encoding="utf-8"))).split())
+    t = tekst("2026-35")
+    assert ("hadde Fiskeridirektoratet endret artsbegrensningene for "
+            "118 lokaliteter: 76 mistet alle, og 42 fikk sine første.") in t
+    assert "endret artsbegrensningene for" not in tekst("2026-38")
+
+
 # ---- brikkene ---------------------------------------------------------
 #
 # 44 PIKSLER. WCAG 2.2 AA 2.5.8 setter 24x24 som minstemål; 44 er det

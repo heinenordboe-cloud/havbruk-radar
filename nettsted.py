@@ -2391,6 +2391,43 @@ def _ukemerke(datoer: list[str], forrige: list[str]) -> str:
             f"{_datoord(forrige, med_aar=not samme_aar)}")
 
 
+# UKENE der de tekniske endringene innledes med en setning om
+# artsbegrensningene. Bestemt av Heine 06.10.2026: artsbegrensningene
+# forblir tekniske, men uke 35 skal si hva trinnet var — 118 lokaliteter
+# samme dag (docs/KILDE-AKVAKULTUR.md punkt 4.5). En LISTE og ikke en
+# terskel: hvilke uker som får setningen er et valg, ikke en regel om
+# hva et «trinn» er. Tallene i setningen regnes av radene.
+ARTSBEGRENSNING_SETNING_UKER = frozenset({"2026-35"})
+
+
+def _artsbegrensninger(tekniske: list[dict]) -> list[dict]:
+    """Per observasjonsdato: hvor mange lokaliteter, hvor mange mistet
+    alle artsbegrensningene, og hvor mange fikk sine første.
+
+    Bare tall, lest av `fra` og `til`. Ingen grunn: den er ikke sett
+    (KILDE-AKVAKULTUR.md 4.5).
+    """
+    per_dato: dict[str, dict[str, set]] = {}
+    for h in tekniske:
+        if (h.get("kilde"), h.get("kildefelt")) != ("akvakultur",
+                                                     "artsbegrensninger_antall"):
+            continue
+        try:
+            fra, til = int(float(h["fra"] or 0)), int(float(h["til"] or 0))
+        except ValueError:
+            fra = til = -1
+        d = per_dato.setdefault(h["dato"], {"alle": set(), "mistet": set(),
+                                            "fikk": set()})
+        d["alle"].add(h["entity_id"])
+        if fra > 0 and til == 0:
+            d["mistet"].add(h["entity_id"])
+        if fra == 0 and til > 0:
+            d["fikk"].add(h["entity_id"])
+    return [{"dato": dato, "lokaliteter": len(d["alle"]),
+             "mistet_alle": len(d["mistet"]), "fikk_forste": len(d["fikk"])}
+            for dato, d in sorted(per_dato.items())]
+
+
 def les_endringsuker(felles: Felles) -> list[dict]:
     """Én post per ISO-uke vi har observert endringer i, nyest først.
 
@@ -2636,6 +2673,9 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "utenfor_tellingen": ikke_telt,
             # DE TEKNISKE, i sin egen del. Telles ikke i noe tall over.
             "tekniske_rader": tekniske,
+            "artsbegrensninger": (_artsbegrensninger(tekniske)
+                                  if slug in ARTSBEGRENSNING_SETNING_UKER
+                                  else []),
             "tekniske": len(tekniske),
             "antall_fil": telt_fil,
             "typer": [dict(k, antall=antall.get(k["id"], 0))

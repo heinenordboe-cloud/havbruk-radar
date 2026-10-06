@@ -257,6 +257,17 @@
   {% if tekniske %}
   <details class="tallboks tekniske-endringer">
     <summary>{{ antall(tekniske|length, "teknisk endring", "tekniske endringer") }}</summary>
+    {#- ARTSBEGRENSNINGENE, med tallene fra radene og uten noen grunn.
+        Bare i ukene `ARTSBEGRENSNING_SETNING_UKER` nevner. #}
+    {% for a in u.artsbegrensninger %}
+    <p class="tabellnote">
+      I øyeblikksbildet <time datetime="{{ a.dato }}">{{ a.dato|dato }}</time>
+      hadde Fiskeridirektoratet endret artsbegrensningene for
+      {{ antall(a.lokaliteter, "lokalitet", "lokaliteter") }}:
+      {{ tall(a.mistet_alle) }} mistet alle, og {{ tall(a.fikk_forste) }}
+      fikk sine første.
+    </p>
+    {% endfor %}
     <p class="tabellnote">
       Koordinatjusteringer under {{ koordinatterskel }} meter,
       versjonsdato og versjonsårsak, artsbegrensninger, sykdomsflagg som
