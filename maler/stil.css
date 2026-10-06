@@ -2350,6 +2350,16 @@ td[data-felt="farge_mangler"]::before {
   max-width: none;
 }
 
+/* EN SETNING UNDER OVERSKRIFTEN PÅ UKESIDEN, i båndet. Lysere enn
+   undertittelen under den: den er innhold, undertittelen er merkelapp. */
+.uke-ingress {
+  margin: 0 0 var(--rom-14);
+  max-width: var(--maal-tekst);
+  font-size: var(--fs-15);
+  line-height: var(--lh-brod);
+  color: var(--hav-tegn);
+}
+
 /* FAKTALISTA. `dl` og ikke `table`: fire etikett/verdi-par er en
    beskrivelsesliste, og en `<thead>` over dem ville vært semantikk vi
    fant på for å ha noe å fylle ut. */

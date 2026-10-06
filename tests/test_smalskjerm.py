@@ -184,6 +184,11 @@ def test_uke_35_sier_hva_trinnet_i_artsbegrensningene_var():
     assert ("hadde Fiskeridirektoratet endret artsbegrensningene for "
             "118 lokaliteter: 76 mistet alle, og 42 fikk sine første.") in t
     assert "endret artsbegrensningene for" not in tekst("2026-38")
+    # RETT UNDER OVERSKRIFTEN, ikke i den lukkede delen med de tekniske.
+    rå = Path(ROT, "endringer", "2026-35", "index.html").read_text(encoding="utf-8")
+    assert re.search(r'</h1>\s*<p class="uke-ingress">\s*I øyeblikksbildet', rå)
+    detaljer = rå.split('<details class="tallboks tekniske-endringer">', 1)[1]
+    assert "endret artsbegrensningene" not in detaljer.split("</details>", 1)[0]
 
 
 # ---- brikkene ---------------------------------------------------------
