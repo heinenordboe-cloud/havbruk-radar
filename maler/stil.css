@@ -468,11 +468,9 @@
   --rom-32: 2rem;
   --rom-40: 2.5rem;
   --rom-44: 2.75rem;
-  /* `--rom-48` MANGLET fram til 06.10.2026. Taket på den klebrige
-     tilstandsspalta (`.lok-tilstand`) er `calc(100dvh - var(--rom-48))`,
-     og en udefinert variabel gjør hele uttrykket ugyldig når verdien
-     regnes ut — taket ble `none`. Spalta vokste til full høyde, og ved
-     en kort tidslinje sto 1 160 px tomt ved siden av (45140, 1440). */
+  /* `--rom-48` MANGLET fram til 06.10.2026, og taket på den klebrige
+     tilstandsspalta ble da `none`. Taket er fjernet samme dag, med
+     innholdet som krevde det — se `.lok-tilstand`. */
   --rom-48: 3rem;
   --rom-56: 3.5rem;
   --rom-64: 4rem;
@@ -643,6 +641,10 @@ main:focus { outline: none; }
   font-size: var(--fs-14);
   inline-size: 100%;
   overflow-x: auto;
+  /* `hidden` og ikke den beregnede `auto`: en `overflow-x: auto` gjør
+     `overflow-y` til `auto` også, og menyen ville vært en loddrett
+     rullboks på 31 piksler som aldri ruller. Klippingen er den samme. */
+  overflow-y: hidden;
   overscroll-behavior-inline: contain;
   scrollbar-width: none;
   padding: 4px;
@@ -2585,22 +2587,20 @@ td[data-felt="farge_mangler"]::before {
   .lok-to { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
   .lok-tidslinje { order: 1; min-inline-size: 0; }
 
-  /* KLEBRIG, MED TAK OG EGEN RULLING.
+  /* KLEBRIG, UTEN TAK OG UTEN EGEN RULLING.
    *
-   * En `position: sticky` uten høydetak fester seg med toppen i
-   * skjermkanten og lar bunnen henge utenfor — og det som ligger
-   * nederst (siteringen) blir da uleselig på en 900 piksler høy skjerm.
-   * Taket og `overflow-y: auto` gir spalta sin egen rulling i stedet.
-   * `overscroll-behavior: contain` hindrer at rullingen fortsetter i
-   * dokumentet når spalta er i bunn. */
+   * Til 06.10.2026 hadde spalta `max-block-size` og `overflow-y: auto`,
+   * fordi fisk til stede og siteringen lå nederst i den og ellers ble
+   * hengende under skjermkanten. Det ga en rullboks inni en rullende
+   * side. De to står nå i hovedflyten under tidslinja, og spalta har
+   * bare tilstanden og kartet. Ingen element på lokalitetssiden har
+   * egen loddrett rulling — `test_lokalitetssiden_har_ingen_egen_
+   * loddrett_rulling` i test_smalskjerm.py måler det. */
   .lok-tilstand {
     order: 2;
     position: sticky;
     inset-block-start: var(--rom-24);
     align-self: start;
-    max-block-size: calc(100dvh - var(--rom-48));
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 }
 

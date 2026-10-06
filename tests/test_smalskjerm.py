@@ -577,23 +577,72 @@ def test_forsidens_meny_har_samme_kanter_som_resten(side, tjener, bredde):
         assert not forside["ruller"], "alle fem punktene skal synes på 390"
 
 
-@pytest.mark.parametrize("sti", ("/lokalitet/31397/",))
-def test_tilstandsspalta_har_tak_paa_bred_skjerm(side, tjener, sti):
-    """Taket er `calc(100dvh - var(--rom-48))`, og `--rom-48` fantes
-    ikke fram til 06.10.2026. Uttrykket ble ugyldig, taket `none`, og
-    spalta vokste til full høyde ved siden av en kort tidslinje."""
+LOKALITETER = ("/lokalitet/45140/", "/lokalitet/12325/", "/lokalitet/31397/")
+
+
+@pytest.mark.parametrize("bredde", (1440, 390))
+@pytest.mark.parametrize("sti", LOKALITETER)
+def test_lokalitetssiden_har_ingen_egen_loddrett_rulling(side, tjener, sti, bredde):
+    """Ingen element har `overflow-y` `auto` eller `scroll`, bortsett fra
+    tabellrammene som ruller vannrett på telefon.
+
+    Til 06.10.2026 hadde høyrespalta et høydetak og egen rulling, for at
+    fisk til stede og siteringen nederst i den skulle nås. Det var en
+    rullboks inni en rullende side. Unntaket måles på `overflow-x`: en
+    ramme som ruller vannrett får `overflow-y: auto` beregnet av
+    nettleseren, og det er den ene formen som er meningen.
+    """
+    side.set_viewport_size({"width": bredde, "height": 900})
+    try:
+        side.goto(tjener + sti, wait_until="load")
+        ruller = side.evaluate("""() => [...document.querySelectorAll("*")]
+          .filter(e => {
+            const s = getComputedStyle(e);
+            if (!["auto", "scroll"].includes(s.overflowY)) return false;
+            return !(e.classList.contains("tabellramme")
+                     && ["auto", "scroll"].includes(s.overflowX));
+          })
+          .map(e => e.tagName.toLowerCase() + "." + e.className)""")
+    finally:
+        side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert not ruller, f"{sti} på {bredde}: {ruller}"
+
+
+@pytest.mark.parametrize("sti", LOKALITETER)
+def test_hoyrespalta_har_bare_tilstanden_og_kartet(side, tjener, sti):
+    """Fisk til stede og siteringen står i hovedflyten under tidslinja,
+    over hele bredden — ikke i høyrespalta."""
     side.set_viewport_size({"width": 1440, "height": 900})
     try:
         side.goto(tjener + sti, wait_until="load")
         m = side.evaluate("""() => {
-          const t = document.querySelector('.lok-tilstand');
-          return {tak: getComputedStyle(t).maxBlockSize,
-                  hoyde: t.getBoundingClientRect().height,
-                  vindu: window.innerHeight};
+          const t = document.querySelector(".lok-tilstand");
+          const l = document.querySelector(".lok-tidslinje");
+          const fisk = document.querySelector("#fisk-tittel").closest("section");
+          const siter = document.querySelector("#siter");
+          const etter = (a, b) => !!(a.compareDocumentPosition(b)
+                                     & Node.DOCUMENT_POSITION_FOLLOWING);
+          return {
+            i_spalta: [...t.querySelectorAll("h2")].map(h => h.id),
+            kart: !!t.querySelector(".posisjonskart, .posisjon-mangler"),
+            fisk_etter: etter(l, fisk), siter_etter: etter(l, siter),
+            fisk_bredde: fisk.getBoundingClientRect().width,
+            siter_bredde: siter.getBoundingClientRect().width,
+            // FULL BREDDE er lakselusblokka sin, som står over hele siden.
+            full: document.querySelector("#lus-tittel").closest("section")
+                          .getBoundingClientRect().width,
+            hoyde: t.getBoundingClientRect().height,
+            vindu: window.innerHeight};
         }""")
     finally:
         side.set_viewport_size({"width": BREDDE, "height": 844})
-    assert m["tak"] != "none", m
+    assert m["i_spalta"] == ["tilstand-tittel"], m
+    assert m["kart"], m
+    assert m["fisk_etter"] and m["siter_etter"], m
+    assert abs(m["fisk_bredde"] - m["full"]) <= 1, m
+    assert abs(m["siter_bredde"] - m["full"]) <= 1, m
+    # Uten tak må innholdet få plass, ellers henger bunnen av den
+    # klebrige spalta under skjermkanten.
     assert m["hoyde"] <= m["vindu"], m
 
 
