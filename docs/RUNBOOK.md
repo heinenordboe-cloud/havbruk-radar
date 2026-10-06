@@ -122,6 +122,67 @@ Hemmelighetene heter `SPEIL_URL` og `SPEIL_TOKEN`, og variabelen som slår
 det på heter `SPEILING_AKTIV`. Ingen andre navn — en tidligere versjon av
 dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
 
+## Varslene som kommer til deg
+
+Tre kanaler, og hver av dem svarer på sitt eget spørsmål:
+
+| Kanal | Svarer på | Hvor du ser det |
+|---|---|---|
+| Rød jobb | En kilde mangler i snapshotet, eller noe stoppet kjøringen | E-post fra GitHub |
+| Issuen «Innsamlingen trenger tilsyn» | Kjøringen endte DELVIS eller rød | Varsel fra GitHub når den opprettes eller kommenteres. Du nevnes med @ |
+| `HEARTBEAT_URL` | Kjøringen skjedde i det hele tatt | E-post fra overvåkingstjenesten når signalet uteblir |
+
+Issuen lages og lukkes av `.github/varsel.py` i datarepoet, som siste
+steg i `samle.yml`. Den lukkes av seg selv når en kjøring som faktisk
+samlet inn ender helt grønn. Tirsdagens gjenkjøring i en frisk uke rører
+den ikke. Lukker du den for hånd, åpnes en ny ved neste DELVIS kjøring.
+
+### Overvåking utenfra: `HEARTBEAT_URL`
+
+Alle andre vakter kjører på GitHub. Blir Actions slått av, kontoen låst
+eller cron droppet, tier de alle sammen — `tilsyn.yml` også. Den eneste
+vakten som ikke deler skjebne med det den vokter, er en tjeneste utenfor
+GitHub som venter på et signal hver uke og sier fra når det uteblir.
+
+`samle.yml` sender et GET til `HEARTBEAT_URL` når innsamlingen skjedde:
+«Samle inn» og «Commit snapshot» gikk, og `run.py` kom til slutten.
+**Også når kjøringen er DELVIS.** Kvaliteten har issuen. Et
+innholdsvarsel som står i ukevis ville ellers holdt overvåkingen rød i
+ukevis, og da blir den mutet.
+
+Mangler secreten, gir første steg en `::warning::` og innsamlingen går
+som før. Det samme gjelder `HAVBRUK_KONTAKT`.
+
+**Oppsett, en gang.** Eksemplet er Healthchecks.io (gratisnivå, ingen
+installasjon). Cronitor og Better Stack virker likt: en URL som skal
+kalles, og et varsel når den ikke blir det.
+*Ikke prøvd herfra: stegene er skrevet ut fra hvordan tjenesten er
+beskrevet, ikke fra et oppsett noen har gjort. Rett dem når du har gjort
+det.*
+
+1. Lag en konto på healthchecks.io med e-postadressen du vil varsles på.
+2. Lag en ny «check». Navn: `havbruk-radar innsamling`.
+3. Velg tidsplan som **cron**: `0 5 * * 1`, tidssone **UTC**. Det er
+   mandagens innsamling i `samle.yml`.
+4. **Grace time: 2 dager.** Tirsdagens gjenkjøring går 19:00 UTC, 38
+   timer etter mandagen, og den skal få reparere en mandag som uteble før
+   noen blir varslet. Med 2 dager kommer varselet onsdag 05:00 UTC, en
+   time før `tilsyn.yml`.
+5. Kopier ping-adressen (`https://hc-ping.com/<uuid>`).
+6. I datarepoet: Settings → Secrets and variables → Actions → New
+   repository secret. Navn `HEARTBEAT_URL`, verdi adressen. Sett også
+   `HAVBRUK_KONTAKT` der hvis den mangler.
+7. Kall adressen én gang for hånd for å se at checken går grønn:
+
+       curl -fsS https://hc-ping.com/<uuid>
+
+   En manuell kjøring av `samle.yml` sender **ikke** signal i en uke der
+   alle kilder allerede er hentet: `run.py` samler ikke inn, og det er
+   da signalet holdes tilbake. Første ekte signal kommer mandagen etter.
+
+Adressen er en hemmelighet: den som har den, kan holde vakten grønn.
+Den står derfor i secrets og ikke i workflowen.
+
 ## Publisering: `publiser.py`
 
 Nettstedet ligger på **Cloudflare Pages**, prosjekt `kystloggen`,
