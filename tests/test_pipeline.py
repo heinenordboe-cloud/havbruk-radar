@@ -1233,6 +1233,42 @@ def test_gammel_flat_fil_med_annen_kilde_er_ingen_kollisjon(tmp_path, monkeypatc
     assert sorted(alt["source"].to_list()) == ["lusetall", "sjotemperatur"]
 
 
+
+def test_uleselig_flat_fil_mister_ingen_data_men_vakten_sier_fra(
+        tmp_path, monkeypatch, capsys):
+    """MÅLT 06.10.2026: en uleselig flat fil blir ikke slettet eller
+    overskrevet. `skriv()` lager kildens egen fil ved siden av, og
+    `les_alt()` kaster ved neste bygg.
+
+    Det som tidde var kollisjonsvakten. Den kan ikke se om kilden står i
+    fila, og slipper skrivingen gjennom. Blir fila lesbar igjen, telles
+    radene to ganger. Derfor ::warning:: når det skjer."""
+    from core import changelog
+
+    kat = tmp_path / "changelog"
+    kat.mkdir()
+    monkeypatch.setattr(changelog, "CHANGELOG_DIR", kat)
+    monkeypatch.setattr(changelog, "GAMMEL_FIL", tmp_path / "finnes-ikke.parquet")
+
+    flat = kat / "2014-06-02.parquet"
+    _endring_fra("lusetall", "2014-06-02", "20").write_parquet(flat)
+    hel = flat.read_bytes()
+    flat.write_bytes(hel[: len(hel) // 2])          # avkortet: uleselig
+    for_ = flat.read_bytes()
+
+    sti = changelog.skriv(_endring_fra("lusetall", "2014-06-02", "21"),
+                          "2014-06-02")
+
+    assert sti == kat / "lusetall" / "2014-06-02.parquet"
+    assert flat.read_bytes() == for_, "den uleselige fila står urørt"
+    ut = capsys.readouterr().out
+    assert ut.startswith("::warning::Changelog: 2014-06-02.parquet kan ikke leses")
+    assert "telles lusetalls endringer for 2014-06-02 to ganger" in ut
+
+    # Lesingen sier fra høyt, som før.
+    with pytest.raises(Exception, match="PAR1"):
+        changelog.les_alt()
+
 def test_changelog_tom_gir_riktig_skjema(tmp_path, monkeypatch):
     from core import changelog
     from core.diff import CHANGE_SCHEMA

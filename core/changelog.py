@@ -125,9 +125,25 @@ def _gammel_flat_fil(observed_at: str, kilde: str) -> Path | None:
         return None
     try:
         kilder = set(pl.read_parquet(flat, columns=["source"])["source"].to_list())
-    except Exception:
-        # Uleselig gammel fil skal ikke blokkere en ny skriving. Den blir
-        # uansett oppdaget av les_alt(), som er stedet å si fra om den.
+    except Exception as e:
+        # Uleselig gammel fil skal ikke blokkere en ny skriving.
+        #
+        # MÅLT 06.10.2026 med en avkortet flat fil som bar kildens rader:
+        # ingen data går tapt. `skriv()` lager `<kilde>/<dato>.parquet` ved
+        # siden av, den uleselige fila står urørt, og `les_alt()` kaster
+        # ComputeError ved neste nettstedsbygg. Innsamlingen kaller ikke
+        # `les_alt()` og er grønn.
+        #
+        # Det som TIER er denne vakten: den kan ikke se om kilden allerede
+        # står i fila, og slipper skrivingen gjennom. Blir fila lesbar
+        # igjen (hentet fra git, reparert), teller `les_alt()` de samme
+        # endringene to ganger, og ingenting sier fra. Derfor ::warning::,
+        # så sammenhengen står i loggen fra den dagen det skjedde.
+        print(f"::warning::Changelog: {flat.name} kan ikke leses ({e}). "
+              f"Kollisjonsvakten kan ikke se om {kilde!r} allerede står i "
+              f"den, og skriver {kilde}/{observed_at}.parquet likevel. Blir "
+              f"fila lesbar igjen, telles {kilde}s endringer for "
+              f"{observed_at} to ganger.")
         return None
     return flat if kilde in kilder else None
 
