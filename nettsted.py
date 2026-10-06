@@ -105,6 +105,7 @@ sys.path.insert(0, str(ROOT))
 import beslutning                                          # noqa: E402
 import kart                                                # noqa: E402
 import publiseringsvakt                                    # noqa: E402
+import vesentlighet                                        # noqa: E402
 import visningsord                                         # noqa: E402
 from core import changelog, diff, snapshot                 # noqa: E402
 from core.contract import attribusjon_per_kilde            # noqa: E402
@@ -2325,7 +2326,12 @@ def les_endringsuker(felles: Felles) -> list[dict]:
     grunnfelt = {(k, grunn) for (k, _a), grunn in avledede.items()}
     samlet: dict[tuple, dict] = {}
     rader: list[dict] = []
-    for r in mine.iter_rows(named=True):
+    # VESENTLIG ELLER TEKNISK, klassifisert på changelog-radene FØR noe
+    # slås sammen: reglene ser på andre rader (koordinatpar, fisk samme
+    # uke), og de må se alle. Se `vesentlighet`.
+    raa = list(mine.iter_rows(named=True))
+    klasser = vesentlighet.klassifiser(raa)
+    for r, kl in zip(raa, klasser):
         ct = str(r["change_type"])
         kilde_felt = (str(r["source"]), str(r["field"]))
         er_grunn = True
@@ -2343,13 +2349,19 @@ def les_endringsuker(felles: Felles) -> list[dict]:
                       str(r["observed_at"]),
                       str(r["forrige_observed_at"]))
         else:
-            rader.append(_hendelse(r, felles))
+            rader.append(dict(_hendelse(r, felles), klasse=kl.klasse))
             continue
         post = samlet.get(nøkkel)
         if post is None:
-            samlet[nøkkel] = {"rad": r, "felt": 1, "grunn": er_grunn}
+            samlet[nøkkel] = {"rad": r, "felt": 1, "grunn": er_grunn,
+                              "klasse": kl.klasse}
         else:
             post["felt"] += 1
+            # EN SAMLET HENDELSE ER VESENTLIG HVIS NOEN AV RADENE ER DET.
+            # Et avledet felt er teknisk fordi grunnfeltet ved siden av er
+            # vesentlig; hendelsen er grunnfeltets.
+            if kl.vesentlig:
+                post["klasse"] = vesentlighet.VESENTLIG
             # GRUNNFELTET STÅR I HENDELSEN. «har_fisk: Nei -> Ja» er hva
             # som skjedde; «antall_arter: 0 -> 1» er følgen av det, og en
             # hendelse som viste følgen ville krevd at leseren regnet
@@ -2358,7 +2370,8 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             if er_grunn and not post["grunn"]:
                 post["rad"] = r
                 post["grunn"] = True
-    rader += [_hendelse(p["rad"], felles, p["felt"]) for p in samlet.values()]
+    rader += [dict(_hendelse(p["rad"], felles, p["felt"]), klasse=p["klasse"])
+              for p in samlet.values()]
 
     per_uke: dict[str, list[dict]] = defaultdict(list)
     for h in rader:
@@ -2487,6 +2500,13 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             # motsier tabellen den står under.
             "antall_med_egen_del": telt + len(egen),
             "utenfor_tellingen": ikke_telt,
+            # RADENE I HOVEDTABELLEN, delt på klasse. Se `vesentlighet`.
+            # Selskapsdataene står for seg og deles ikke: reglene er
+            # skrevet for lokaliteter og tillatelser.
+            "vesentlige": sum(1 for h in ledet
+                              if h.get("klasse") == vesentlighet.VESENTLIG),
+            "tekniske": sum(1 for h in ledet
+                            if h.get("klasse") == vesentlighet.TEKNISK),
             "typer": [dict(k, antall=antall.get(k["id"], 0))
                       for k in ENDRINGSTYPER],
             "utenfor_uka": utenfor,

@@ -191,7 +191,11 @@
   <p class="tabelltittel" id="endringer-uke-tittel">{{ antall(rader|length,
       "rad", "rader") }}
       {% if valgt %}{% else %}utenom selskapsdata{% endif %}
-      i {{ u.vist }}.</p>
+      i {{ u.vist }}{% if rader %}:
+      {#- VESENTLIG OG TEKNISK fra `vesentlighet`, samme regel som
+          lokalitetssiden bruker. Telt av radene som står i tabellen. #}
+      {% set ves = rader|selectattr("klasse", "equalto", "vesentlig")|list|length %}
+      {{ tall(ves) }} vesentlige og {{ tall(rader|length - ves) }} tekniske{% endif %}.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-uke-tittel" tabindex="0">
   <table id="endringer-uke" aria-labelledby="endringer-uke-tittel" data-pagefind-ignore>
@@ -207,7 +211,7 @@
     </thead>
     <tbody>
       {% for r in rader %}
-      <tr data-type="{{ r.type }}">
+      <tr data-type="{{ r.type }}" data-klasse="{{ r.klasse }}">
         <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
         <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
           {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>

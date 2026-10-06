@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-10-06** — [Vesentlig eller teknisk — én regel for hver registerendring, og en koordinatterskel på 100 m](2026-10-06-vesentlig-og-teknisk.md) — utkast
 - **2026-10-06** — [Ukas tall telles på radene slik de vises — en trukket tillatelse er én hendelse, ikke to](2026-10-06-tellingen-folger-radene.md) — utkast
 - **2026-10-05** — [Et navn som ender på en personform vises ikke — heller ikke som tildelt](2026-10-05-personformnavn-vises-ikke.md) — utkast
 - **2026-10-02** — [Biomasselag får et reserve-endepunkt, og hvert snapshot sier hvilket som svarte](2026-10-02-biomasselag-reserve.md) — utkast

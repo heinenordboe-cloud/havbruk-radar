@@ -28,6 +28,7 @@ import beslutning
 import kart
 import nettsted
 from core.contract import Source
+import vesentlighet
 import visningsord
 
 
@@ -3961,6 +3962,43 @@ def test_metabeskrivelsen_bruker_overskriftstallet():
     assert nettsted._ukens_overskriftstall(uke, tillatelse, rader) == 47
     assert nettsted._ukebeskrivelse(uke, tillatelse, rader).startswith(
         "47 av 157 rader i uke 41, 2026")
+
+
+def test_ukesiden_klassifiserer_hver_rad_med_den_felles_regelen(monkeypatch):
+    """45140 den 05.10.2026: en flytting på 24 m, versjonsdatoen, og at
+    fisken var borte. Bare det siste er vesentlig.
+
+    Regelen står i `vesentlighet`, og ukesiden skal bruke den — ikke en
+    egen.
+    """
+    def lok(felt, fra, til, kilde="akvakultur", endring="endret"):
+        return {"entity_id": "45140", "entity_type": "lokalitet",
+                "entity_name": "NORDSKAFTET", "field": felt,
+                "old_value": fra, "new_value": til, "change_type": endring,
+                "source": kilde, "observed_at": "2026-09-21",
+                "forrige_observed_at": "2026-09-14",
+                "forrige_fetched_at": "", "published_at": "",
+                "forrige_published_at": ""}
+    rader = [lok("breddegrad", "66.629683", "66.629483"),
+             lok("lengdegrad", "13.10985", "13.110067"),
+             lok("versjon_gyldig_fra", "2024-07-15T22:00:00Z",
+                 "2026-09-29T22:00:00Z"),
+             lok("har_fisk", "Ja", "Nei", kilde="biomasselag")]
+    monkeypatch.setattr(nettsted, "ukentlige_kilder",
+                        lambda: frozenset({"akvakultur", "biomasselag"}))
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    felles = _felles_stubb(
+        akva={"45140": {"navn": "NORDSKAFTET", "prodomraade_kode": "8"}},
+        po_navn={"8": "Helgeland til Bodø"},
+        bevegelse=pl.DataFrame(rader))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    klasse = {h["felt"]: h["klasse"] for h in uke["hendelser"]}
+    assert klasse == {"breddegrad": "teknisk", "lengdegrad": "teknisk",
+                      "versjon_gyldig_fra": "teknisk", "har_fisk": "vesentlig"}
+    assert uke["vesentlige"] == 1
+    assert uke["vesentlige"] + uke["tekniske"] == len(uke["ledet"])
 
 
 def test_radtallet_kalles_rader_og_aldri_endringer():
