@@ -3222,6 +3222,63 @@ def test_omraadesiden_sier_ikke_at_den_mangler_begrunnelsen_den_siterer():
             "skrevet noe, men forklarer ikke fargen selv.") in flat
 
 
+def _raa(felt, fra, til, dato="2026-09-21", kilde="akvakultur",
+         endring="endret", eid="31397"):
+    """Én changelog-rad i dørens form, for `_lokalitetsendringer()`."""
+    return {"observed_at": dato, "forrige_observed_at": "2026-09-14",
+            "entity_id": eid, "source": kilde, "field": felt,
+            "old_value": fra, "new_value": til, "change_type": endring}
+
+
+def test_versjonsaarsaken_er_forklaring_og_ikke_egen_rad(monkeypatch):
+    """«Samdrift: ja → nei (registeret: samdrift avsluttet)»."""
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    rader = nettsted._lokalitetsendringer([
+        _raa("har_samdrift", "True", "False"),
+        _raa("versjon_gyldig_fra", "2024-07-15T22:00:00Z",
+             "2026-09-19T22:00:00Z"),
+        _raa("versjon_aarsak", "COORDINATES", "JOINT_OPERATIONS_ENDED"),
+    ], "31397")
+
+    assert [r["kildefelt"] for r in rader] == ["har_samdrift",
+                                              "versjon_gyldig_fra"]
+    samdrift, versjon = rader
+    assert samdrift["klasse"] == "vesentlig"
+    assert samdrift["forklaring"] == "samdrift avsluttet"
+    assert versjon["klasse"] == "teknisk"
+    assert versjon["forklaring"] == "", "vesentlige først"
+
+    html = _side(endringer=[], observert=nettsted._observert_historikk(
+        rader, [{"kilde": "akvakultur", "fra": "2026-08-17"}], None))
+    flat = " ".join(re.sub(r"<[^>]+>", " ", html).split())
+    assert "nei (registeret: samdrift avsluttet )" in flat \
+        or "nei (registeret: samdrift avsluttet)" in flat
+    assert "Versjonsårsak" not in flat.split("Registerfeltene")[0]
+
+
+def test_versjonsaarsaken_forklarer_de_tekniske_naar_det_ikke_er_annet(
+        monkeypatch):
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    rader = nettsted._lokalitetsendringer([
+        _raa("versjon_gyldig_fra", "a", "b"),
+        _raa("versjon_aarsak", "IMPORTED", "COORDINATES"),
+    ], "31397")
+    assert [(r["kildefelt"], r["forklaring"]) for r in rader] == [
+        ("versjon_gyldig_fra", "koordinater endret")]
+
+
+def test_versjonsaarsaken_blir_staaende_naar_den_er_alene(monkeypatch):
+    """Ingenting å forklare: raden er fortsatt noe registeret sa."""
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    andre_dag = _raa("har_samdrift", "True", "False", dato="2026-09-28")
+    rader = nettsted._lokalitetsendringer([
+        andre_dag, _raa("versjon_aarsak", "IMPORTED", "COORDINATES")],
+        "31397")
+    assert sorted(r["kildefelt"] for r in rader) == ["har_samdrift",
+                                                    "versjon_aarsak"]
+    assert all(r["forklaring"] == "" for r in rader)
+
+
 def test_om_siden_lenker_til_fontlisensen():
     """OFL 1.1 krever at lisensteksten følger fonten. `skriv_fonter()`
     legger den på /newsreader-OFL.txt, men en fil ingen vet om er en

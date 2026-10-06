@@ -484,6 +484,13 @@
            selskap — den er fraværet av et, og porten stoppet fire
            sider på nettopp det. Se `feltmerke()`. #}
         {{ verdiendring(post, "verdi-fra", "verdi-til") }}
+        {#- REGISTERETS FORKLARING, når den finnes: `versjon_aarsak` samme
+            dag, vist her og ikke som egen rad. Se
+            `_med_versjonsaarsak()`. #}
+        {%- if post.forklaring %}
+        <span class="tidsakse-forklaring">(registeret:
+          <span data-felt="versjon_aarsak">{{ post.forklaring }}</span>)</span>
+        {%- endif %}
       </p>
       {% endif %}
     </li>

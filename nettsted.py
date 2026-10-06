@@ -1281,7 +1281,7 @@ def _endringer(loknr: str, tillatelser: list[str]
     register_rader = [r for r in rader_alle
                       if not er_maaleserie(str(r["source"]), str(r["field"]))]
     register_rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
-    rader = [_endringsrad(r, loknr) for r in register_rader]
+    rader = _lokalitetsendringer(register_rader, loknr)
     # SAMME KART SOM BATCHEN BYGGER, av den samme ramma. Se
     # `sist_endret_av()` for hvorfor det ikke kan være to.
     return rader, maaleserie, sist_endret_av(beveg)
@@ -1301,6 +1301,58 @@ def _partisjonering() -> dict[str, str]:
     ut: dict[str, str] = {}
     for kilde in registry.discover():
         ut.update(erklaert_partisjonering(kilde))
+    return ut
+
+
+def _lokalitetsendringer(raa: list[dict], loknr: str) -> list[dict]:
+    """Changelog-radene for én lokalitet som tidslinjerader, med klasse.
+
+    ETT STED, TO KALLERE: `_endringer()` og `_endringer_av_indeks()`
+    skal svare det samme, og gjør det fordi begge går hit.
+
+    Klassen settes av `vesentlighet.klassifiser()` på HELE lista før
+    noe annet skjer: to av reglene ser på andre rader samme dag.
+    """
+    klasser = vesentlighet.klassifiser(raa)
+    rader = [dict(_endringsrad(r, loknr), klasse=k.klasse, forklaring="")
+             for r, k in zip(raa, klasser)]
+    return _med_versjonsaarsak(rader)
+
+
+# Registerets forklaring på en ny versjon av oppføringen. Den er ikke en
+# hendelse, men et svar på hvorfor en annen rad samme dag finnes.
+VERSJONSAARSAK = ("akvakultur", "versjon_aarsak")
+
+
+def _med_versjonsaarsak(rader: list[dict]) -> list[dict]:
+    """«Samdrift: ja → nei (registeret: samdrift avsluttet)».
+
+    `versjon_aarsak` står ikke som egen rad. Verdien den fikk, settes som
+    `forklaring` på de andre akvakultur-radene for samme lokalitet samme
+    dag — de vesentlige hvis det finnes noen, ellers de tekniske.
+
+    FINNES DET INGEN ANDRE RADER, BLIR DEN STÅENDE. En forklaring uten
+    noe å forklare er fortsatt noe registeret sa, og en rad som forsvant
+    fordi partneren manglet, ville vært en stille utelatelse — samme
+    regel som `slaa_sammen_trukne()`.
+
+    Bare en årsak som ENDRET seg har en rad. Er årsaken den samme som
+    forrige versjons, står den ikke i loggen, og da forklares ingenting.
+    Å lese den av snapshotet ville vært en annen påstand: at årsaken
+    gjelder akkurat denne endringen.
+    """
+    aarsaker = [r for r in rader
+                if (r["kilde"], r["kildefelt"]) == VERSJONSAARSAK and r["til"]]
+    ut = [r for r in rader if not any(r is a for a in aarsaker)]
+    for a in aarsaker:
+        samme = [r for r in ut if r["kilde"] == VERSJONSAARSAK[0]
+                 and r["entity_id"] == a["entity_id"] and r["dato"] == a["dato"]]
+        maal = [r for r in samme if r["klasse"] == vesentlighet.VESENTLIG] or samme
+        if not maal:
+            ut.append(a)
+            continue
+        for r in maal:
+            r["forklaring"] = a["til"]
     return ut
 
 
@@ -1374,7 +1426,7 @@ def _endringer_av_indeks(loknr: str, tillatelser: list[str],
         rader += [r for r in felles.registerendringer.get(nr, ())
                   if r["source"] in ENDRINGER_VIA_TILLATELSE]
     rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
-    return ([_endringsrad(r, loknr) for r in rader],
+    return (_lokalitetsendringer(rader, loknr),
             felles.maaleserierader.get(loknr, 0),
             felles.sist_endret)
 
@@ -3566,6 +3618,11 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
         "gjelder": e["gjelder"],
         "kilde": e["kilde"],
         "forste": False,
+        # VESENTLIG ELLER TEKNISK, og registerets forklaring. Se
+        # `_lokalitetsendringer()`. Rader uten klasse er vesentlige: det
+        # er standarden i `vesentlighet` også.
+        "klasse": e.get("klasse", vesentlighet.VESENTLIG),
+        "forklaring": e.get("forklaring", ""),
     } for e in endringer]
     # SAMME SAMMENSLÅING SOM PÅ ENDRINGSSIDENE, fra det samme ene
     # stedet: tidslinja og ukestabellen skal ikke svare ulikt på hva som
@@ -3594,6 +3651,8 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
             "gjelder": "lokaliteten",
             "kilde": "",
             "forste": True,
+            "klasse": vesentlighet.VESENTLIG,
+            "forklaring": "",
             # HVILKE KILDER DATOEN GJELDER. Setningen på siden sier
             # «registerfeltene», og her står navnene den bygger på, så
             # de to ikke kan bli uenige.
