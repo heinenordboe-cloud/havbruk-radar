@@ -505,8 +505,21 @@ dødt.
 python backfill.py --kilde biomasse --revisjon
 ```
 
-**Hører i cron, ved siden av `run.py`.** Én gang i måneden, etter den
-20. — det er da Fiskeridirektoratet publiserer fila på nytt.
+**Kjører av seg selv den 22. i måneden**, `revisjon.yml` i datarepoet —
+to dager etter at Fiskeridirektoratet publiserer fila på nytt den 20.
+Fram til 06.10.2026 sto det her at den «hører i cron», men ingen workflow
+kjørte den.
+
+Gikk den rød, står grunnen i loggen: hentingen feilet, en måned mangler
+i fila, eller `Grunnlagssprik`. Kjør den på nytt med «Run workflow» i
+Actions, eller lokalt med linja over mot datarepoet. Kjøringen er
+rekonstruktiv: en måned som går tapt, kan tas igjen senere, fordi hver
+publisering er arkivert av den ukentlige innsamlingen.
+
+MÅLT 06.10.2026, lokalt mot en klone av datarepoet: 105 måneder, 0
+revidert. Stemmer med en tekstdiff av kroppene: september-utgaven endret
+bare juni og juli 2026 mot august-utgaven, og juni var ikke skrevet før
+september-utgaven kom.
 
 ## Månedlig: vilkårsarkiveringen
 
