@@ -453,7 +453,14 @@
            tankestrek i en celle merket `eier_navn` er ikke et ukjent
            selskap — den er fraværet av et, og porten stoppet fire
            sider på nettopp det. Se `feltmerke()`. #}
+        {%- if post.samlet %}
+        {#- ÉN HENDELSE for en oppføring som kom eller gikk, i stedet for
+            én rad per felt. Se `_samle_oppforinger()`. #}
+        {{ antall(post.samlet, "felt", "felt") }}
+        {{ "oppgitt første gang" if post.endringstype == "ny" else "ikke lenger oppgitt" }}
+        {%- else %}
         {{ verdiendring(post, "verdi-fra", "verdi-til") }}
+        {%- endif %}
         {#- REGISTERETS FORKLARING, når den finnes: `versjon_aarsak` samme
             dag, vist her og ikke som egen rad. Se
             `_med_versjonsaarsak()`. #}

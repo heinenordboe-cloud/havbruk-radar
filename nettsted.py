@@ -1314,9 +1314,72 @@ def _lokalitetsendringer(raa: list[dict], loknr: str) -> list[dict]:
     noe annet skjer: to av reglene ser på andre rader samme dag.
     """
     klasser = vesentlighet.klassifiser(raa)
-    rader = [dict(_endringsrad(r, loknr), klasse=k.klasse, forklaring="")
+    rader = [dict(_endringsrad(r, loknr), klasse=k.klasse, forklaring="",
+                  endringstype=str(r["change_type"]), samlet=0)
              for r, k in zip(raa, klasser)]
-    return _med_versjonsaarsak(rader)
+    # REGISTERETS EGET ORD FOR «NY». Lest av den rå koden, ikke av den
+    # oversatte teksten: `NEW_SITE` er det registeret sier.
+    nye_lokaliteter = {(str(r["entity_id"]), str(r["observed_at"]))
+                       for r in raa
+                       if (str(r["source"]), str(r["field"])) == VERSJONSAARSAK
+                       and str(r["new_value"]) == "NEW_SITE"}
+    return _samle_oppforinger(_med_versjonsaarsak(rader), nye_lokaliteter)
+
+
+# Kildene der `ny`/`borte` betyr at en OPPFØRING kom eller gikk: en
+# lokalitet i Akvakulturregisteret, en tillatelse i eierskapsregisteret.
+# `lusetall` og `biomasselag` står ikke her: der betyr `ny` at
+# lokaliteten kom inn i en annen kilde, og radene er sykdomsflagg og
+# fisk til stede som klassifiseres hver for seg.
+OPPFORINGSKILDER = frozenset({"akvakultur", "eierskap"})
+
+
+def _samle_oppforinger(rader: list[dict],
+                       nye_lokaliteter: set[tuple[str, str]]) -> list[dict]:
+    """En oppføring som kom eller gikk, er ÉN hendelse og ikke én rad per felt.
+
+    MÅLT 06.10.2026: en ny lokalitet ga 25 rader i tidslinja, og 45307
+    fikk i tillegg 85 for de fem tillatelsene som kom med den. Ukesiden
+    har slått sammen per oppføring siden den ble bygget; dette er samme
+    regel på lokalitetssiden.
+
+    ORDET FØLGER BELEGGET. «Ny lokalitet registrert» står bare der
+    registeret selv sier det, med `versjon_aarsak = NEW_SITE` samme dag
+    (alle seks i dataene i dag). Ellers står ukesidens ord, «Ny i vårt
+    utvalg» og «Ute av vårt utvalg»: vi vet at den er ny for OSS, ikke
+    at den er ny i registeret.
+
+    Forklaringen fra registeret blir med hendelsen hvis et av feltene
+    hadde den — se `_med_versjonsaarsak()`.
+    """
+    grupper: dict[tuple, list[dict]] = {}
+    ut: list[dict] = []
+    for r in rader:
+        if r["endringstype"] in ("ny", "borte") and r["kilde"] in OPPFORINGSKILDER:
+            nokkel = (r["kilde"], r["entity_id"], r["dato"], r["endringstype"])
+            if nokkel not in grupper:
+                grupper[nokkel] = []
+                ut.append(nokkel)
+            grupper[nokkel].append(r)
+        else:
+            ut.append(r)
+    resultat = []
+    for post in ut:
+        if isinstance(post, dict):
+            resultat.append(post)
+            continue
+        kilde, eid, dato, slag = post
+        felt = grupper[post]
+        if kilde == "akvakultur" and slag == "ny" and (eid, dato) in nye_lokaliteter:
+            etikett = "Ny lokalitet registrert"
+        else:
+            etikett = "Ny i vårt utvalg" if slag == "ny" else "Ute av vårt utvalg"
+        resultat.append(dict(
+            felt[0], etikett=etikett, felt="oppforing", kildefelt="oppforing",
+            fra="", til="", differanse=[], samlet=len(felt),
+            klasse=vesentlighet.VESENTLIG,
+            forklaring=next((f["forklaring"] for f in felt if f["forklaring"]), "")))
+    return resultat
 
 
 # Registerets forklaring på en ny versjon av oppføringen. Den er ikke en
@@ -1351,8 +1414,11 @@ def _med_versjonsaarsak(rader: list[dict]) -> list[dict]:
         if not maal:
             ut.append(a)
             continue
-        for r in maal:
-            r["forklaring"] = a["til"]
+        # HØYST ÉN GANG PER LOKALITET OG DAG. Fram til 06.10.2026 sto
+        # forklaringen på hver rad den gjaldt, og 45302 viste «(registeret:
+        # ny lokalitet)» 24 ganger. Den står nå på den første — den
+        # nyeste vesentlige, i tidslinjas rekkefølge.
+        maal[0]["forklaring"] = a["til"]
     return ut
 
 
@@ -3636,6 +3702,10 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
         # er standarden i `vesentlighet` også.
         "klasse": e.get("klasse", vesentlighet.VESENTLIG),
         "forklaring": e.get("forklaring", ""),
+        # FELT SOM ER SLÅTT SAMMEN til én hendelse. Se
+        # `_samle_oppforinger()`.
+        "samlet": e.get("samlet", 0),
+        "endringstype": e.get("endringstype", ""),
     } for e in endringer]
     # SAMME SAMMENSLÅING SOM PÅ ENDRINGSSIDENE, fra det samme ene
     # stedet: tidslinja og ukestabellen skal ikke svare ulikt på hva som
@@ -3666,6 +3736,8 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
             "forste": True,
             "klasse": vesentlighet.VESENTLIG,
             "forklaring": "",
+            "samlet": 0,
+            "endringstype": "",
             # HVILKE KILDER DATOEN GJELDER. Setningen på siden sier
             # «registerfeltene», og her står navnene den bygger på, så
             # de to ikke kan bli uenige.

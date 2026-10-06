@@ -3390,6 +3390,68 @@ def test_hver_romvariabel_stilarket_bruker_er_definert():
     assert brukt <= definert, sorted(brukt - definert)
 
 
+def _ny_lokalitet(aarsak="NEW_SITE", eid="45302", dato="2026-08-31"):
+    felt = ["navn", "kommune", "fylke", "kapasitet", "har_samdrift",
+            "versjon_gyldig_fra", "forste_klarering"]
+    rader = [_raa(f, None, "x", dato=dato, endring="ny", eid=eid) for f in felt]
+    rader.append(_raa("versjon_aarsak", None, aarsak, dato=dato,
+                      endring="ny", eid=eid))
+    return rader
+
+
+def test_en_ny_lokalitet_er_en_hendelse(monkeypatch):
+    """45302: 25 rader i tidslinja, og «(registeret: ny lokalitet)» på
+    24 av dem. Nå én hendelse, med forklaringen én gang."""
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    rader = nettsted._lokalitetsendringer(_ny_lokalitet(), "45302")
+    assert len(rader) == 1
+    [r] = rader
+    assert r["etikett"] == "Ny lokalitet registrert"
+    assert r["samlet"] == 7, "versjonsårsaken er forklaring, ikke et felt"
+    assert r["klasse"] == "vesentlig"
+    assert r["forklaring"] == "ny lokalitet"
+
+    html = _side(endringer=[], observert=nettsted._observert_historikk(
+        rader, [{"kilde": "akvakultur", "fra": "2026-08-17"}], None))
+    flat = " ".join(re.sub(r"<[^>]+>", " ", html).split())
+    assert flat.count("Ny lokalitet registrert") == 1
+    assert "7 felt oppgitt første gang" in flat
+    assert flat.count("registeret: ny lokalitet") == 1
+
+
+def test_uten_registerets_ord_er_den_bare_ny_for_oss(monkeypatch):
+    """«Registrert» krever `NEW_SITE`. Uten den vet vi bare at
+    oppføringen er ny i VÅRT utvalg — ukesidens ord."""
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    [r] = nettsted._lokalitetsendringer(_ny_lokalitet("IMPORTED"), "45302")
+    assert r["etikett"] == "Ny i vårt utvalg"
+
+
+def test_en_ny_tillatelse_paa_lokaliteten_er_en_hendelse(monkeypatch):
+    """45307 fikk 85 rader for fem tillatelser."""
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    rader = []
+    for nr in ("VL-B-0012", "VL-B-0013"):
+        rader += [_raa(f, None, "x", kilde="eierskap", endring="ny", eid=nr)
+                  for f in ("eier_navn", "eier_orgnr", "kapasitet")]
+    ut = nettsted._lokalitetsendringer(rader, "45307")
+    assert [(r["gjelder"], r["etikett"], r["samlet"]) for r in ut] == [
+        ("tillatelse VL-B-0012", "Ny i vårt utvalg", 3),
+        ("tillatelse VL-B-0013", "Ny i vårt utvalg", 3)]
+
+
+def test_versjonsaarsaken_staar_hoyst_en_gang_per_lokalitet_og_dag(monkeypatch):
+    monkeypatch.setattr(vesentlighet, "avledede_felt", lambda: {})
+    rader = nettsted._lokalitetsendringer([
+        _raa("breddegrad", "62.116567", "62.11595"),
+        _raa("lengdegrad", "5.420717", "5.4173"),
+        _raa("har_samdrift", "True", "False"),
+        _raa("versjon_aarsak", "IMPORTED", "COORDINATES"),
+    ], "31397")
+    assert sum(1 for r in rader if r["forklaring"]) == 1
+    assert rader[0]["forklaring"] == "koordinater endret"
+
+
 def test_om_siden_lenker_til_fontlisensen():
     """OFL 1.1 krever at lisensteksten følger fonten. `skriv_fonter()`
     legger den på /newsreader-OFL.txt, men en fil ingen vet om er en
