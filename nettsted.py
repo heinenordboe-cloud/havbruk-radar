@@ -4228,6 +4228,10 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # mal er et tall som ikke oppdateres når dataene gjør det, og da
         # er siden usann neste uke uten at noen rørte den.
         "lus_uten_tall": sum(1 for u in serie if u["voksne_hunnlus"] == ""),
+        # UKER MED ET TALL. Null betyr at lokaliteten aldri har hatt et
+        # lusetall — også når den står i serien med tomme uker — og da
+        # vises ikke knappen «Lusetall som CSV». Fila skrives likevel.
+        "lus_med_tall": sum(1 for u in serie if u["voksne_hunnlus"] != ""),
         # Hele serien, urørt. CSV-en skrives av den; tabellen viser
         # slutten av den. At de to kommer fra SAMME liste er det som
         # gjør at de ikke kan bli uenige.

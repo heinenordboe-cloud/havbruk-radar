@@ -62,8 +62,13 @@
         <a class="knapp knapp--tynn" href="feed.xml">Følg denne
           lokaliteten (feed)</a>
         <a class="knapp knapp--tynn" href="#siter">Siter</a>
+        {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
+            tomme uker lover noe den ikke holder. Fila ligger der, og
+            teksten under lusegrafen lenker fortsatt til den. #}
+        {% if lok.lus_med_tall %}
         <a class="knapp knapp--tynn" href="{{ lok.csv_filnavn }}">Lusetall
           som CSV</a>
+        {% endif %}
       </p>
   </div>
 </div>

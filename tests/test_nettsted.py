@@ -284,7 +284,7 @@ def _side(**overstyr) -> str:
         "lus_serie": [_uke_raa()],
         "lus": nettsted.til_visning([_uke_raa()]),
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
-        "lus_uker": 764, "lus_uten_tall": 207,
+        "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765,
         "lus_fravaer": "",
         "csv_filnavn": nettsted.CSV_FILNAVN,
@@ -1034,7 +1034,7 @@ def _csv(**overstyr) -> str:
     lok = {
         "loknr": "31397", "navn": "OTERNESET", "kommune": "HARSTAD",
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
-        "lus_uker": 764, "lus_uten_tall": 207,
+        "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765,
         "lus_serie": [_uke_raa()],
     }
@@ -3200,7 +3200,7 @@ def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
     serie = [_uke_raa(voksne_hunnlus="", lus_er_rapportert="False",
                       brakklagt="True") for _ in range(3)]
     html = _side(lus_serie=serie, lus=nettsted.til_visning(serie),
-                 lus_uker=3, lus_uten_tall=3, lusegraf=None,
+                 lus_uker=3, lus_uten_tall=3, lus_med_tall=0, lusegraf=None,
                  lusetall_snapshots=767, lus_fravaer="paa_land")
     flat = " ".join(html.split())
 
@@ -3209,6 +3209,22 @@ def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
     assert "finnes ikke i noen av" not in flat
     assert "null rader" not in flat
     assert "Lokaliteten ligger på land" in flat
+
+
+def test_csv_knappen_vises_bare_naar_lokaliteten_har_hatt_et_lusetall():
+    """12325 står i alle ukene uten ett tall. Knappen «Lusetall som CSV»
+    vises ikke der; fila og lenka i teksten under grafen blir stående."""
+    tom = [_uke_raa(voksne_hunnlus="", lus_er_rapportert="False",
+                    brakklagt="True") for _ in range(3)]
+    html = _side(lus_serie=tom, lus=nettsted.til_visning(tom),
+                 lus_uker=3, lus_uten_tall=3, lus_med_tall=0, lusegraf=None,
+                 lusetall_snapshots=767, lus_fravaer="paa_land")
+    flat = " ".join(html.split())
+    assert "Lusetall som CSV" not in flat
+    assert f'href="{nettsted.CSV_FILNAVN}"' in html, "lenka i teksten står"
+
+    med = _side(lus_med_tall=1)
+    assert "Lusetall som CSV" in " ".join(med.split())
 
 
 def test_omraadesiden_sier_ikke_at_den_mangler_begrunnelsen_den_siterer():
