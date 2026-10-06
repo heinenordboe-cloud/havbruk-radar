@@ -1842,6 +1842,7 @@ def test_tom_forste_kjoring_gir_ikke_referanse_null(tmp_path, monkeypatch):
 
     tilstand, _ = health.oppdater([runner.Result("ny", True, 0)], "2026-09-28")
     assert tilstand["ny"]["volum_referanse"] is None
+    assert tilstand["ny"]["sist_ok"] is None, "en tom første levering er ikke hentet"
     health.skriv(tilstand)
 
     tilstand, _ = health.oppdater([runner.Result("ny", True, 400)], "2026-10-05")
@@ -2308,16 +2309,21 @@ def test_null_referanse_gir_ikke_divisjon_paa_null(tmp_path, monkeypatch):
     varsle) til et ekte volum kommer inn og etablerer nivået."""
     health = _helse(tmp_path, monkeypatch)
 
+    # Fra 07.10.2026 er en tom første levering en tom levering, og den
+    # sies fra om — men den krasjer ikke, og den lager ingen referanse.
     tilstand, nede = health.oppdater([runner.Result("ny", True, 0)], "2026-01-01")
     health.skriv(tilstand)
-    assert nede == []
+    assert nede == ["ny (tom levering: 0 rader, og kilden har aldri levert "
+                    "en rad — ikke regnet som hentet, kjøring 1)"]
     assert tilstand["ny"]["volum_referanse"] is None
+    assert tilstand["ny"]["sist_ok"] is None
 
     # Fortsatt 0, uten referanse: her ville en naiv andel-utregning
     # kastet ZeroDivisionError og felt hele kjøringen.
     tilstand, nede = health.oppdater([runner.Result("ny", True, 0)], "2026-01-08")
     health.skriv(tilstand)
-    assert nede == []
+    assert nede == ["ny (tom levering: 0 rader, og kilden har aldri levert "
+                    "en rad — ikke regnet som hentet, kjøring 2)"]
 
     # Første ekte leveranse etablerer nivået, uten å varsle underveis.
     tilstand, nede = health.oppdater([runner.Result("ny", True, 500)], "2026-01-15")

@@ -686,10 +686,16 @@ def oppdater(
         # gjør det til ::warning:: og DELVIS. CLAUDE.md 1b-2: et FORSØK er
         # ikke et RESULTAT, og et tomt svar er et forsøk.
         #
-        # Bare når referansen er over null. En kilde som aldri har levert
-        # har ingen forventning å bryte; se `_vurder_volum`.
-        tom = (r.ok and r.count == 0
-               and (gammel.get("volum_referanse") or 0) > 0)
+        # OGSÅ FOR EN NY KILDE. Til 07.10.2026 gjaldt regelen bare når
+        # referansen var over null, med den begrunnelsen at en kilde som
+        # aldri har levert ikke har noen forventning å bryte. Men `sist_ok`
+        # sier ikke «svaret var som ventet» — det sier «vi fikk noe». En ny
+        # kilde som svarte tomt første gang fikk `sist_ok`, tilsynet så
+        # uka som hentet, og ingen hadde noensinne sett en rad fra den.
+        # Samme feil som over, bare i kildens første uke i stedet for i en
+        # vilkårlig uke senere.
+        tom = r.ok and r.count == 0
+        referanse_for = gammel.get("volum_referanse") or 0
 
         # En kilde som er nede leverte ingenting, og 0 observasjoner skal
         # ikke få lov til å ødelegge referansenivået. Da beholdes både
@@ -799,11 +805,20 @@ def oppdater(
         # «volum 0 %»: den sier at uka MANGLER, ikke at den er tynn.
         if tom:
             ny[r.source]["sist_tom"] = observed_at
-            nede.append(
-                f"{r.source} (tom levering: 0 rader mot referanse "
-                f"{gammel.get('volum_referanse')} — ikke regnet som hentet, "
-                f"uka mangler snapshot, kjøring {volum_strekk})"
-            )
+            if referanse_for > 0:
+                nede.append(
+                    f"{r.source} (tom levering: 0 rader mot referanse "
+                    f"{referanse_for} — ikke regnet som hentet, "
+                    f"uka mangler snapshot, kjøring {volum_strekk})"
+                )
+            else:
+                # Ingen referanse å telle strekket mot, så det telles her.
+                ny[r.source]["tom_paa_rad"] = gammel.get("tom_paa_rad", 0) + 1
+                nede.append(
+                    f"{r.source} (tom levering: 0 rader, og kilden har aldri "
+                    f"levert en rad — ikke regnet som hentet, kjøring "
+                    f"{ny[r.source]['tom_paa_rad']})"
+                )
         elif volum_varsel:
             nede.append(volum_varsel)
 
