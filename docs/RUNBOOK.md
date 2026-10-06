@@ -113,14 +113,23 @@ ellers står innsamlingen stille.
 **4. Du ødelegger historikken selv.** `git push --force` etter en rebase.
 → Slå på branch protection på `main` i repo-innstillingene.
 
-**5. GitHub forsvinner.** Minst sannsynlig, men speilingen dekker det.
+**5. GitHub forsvinner.** Minst sannsynlig. Speilingen skal dekke det,
+men **den har ikke vist at den gjør det**: per 05.09.2026 var
+`SPEIL_URL` og `SPEIL_TOKEN` ikke satt, og jobben hadde aldri lyktes. Om
+de er satt siden, kan bare Actions-historikken til `speil.yml` i
+datarepoet svare på. Står den rød hver mandag, er det ikke støy — da
+finnes det ingen backup.
 Speilworkflowen hører hjemme i DATAREPOET, ikke her — koden er allerede
 offentlig og finnes i enhver klone, mens historikken er det eneste som
 ikke kan skaffes på nytt. Codeberg eller GitLab, begge gratis.
 
-Hemmelighetene heter `SPEIL_URL` og `SPEIL_TOKEN`, og variabelen som slår
-det på heter `SPEILING_AKTIV`. Ingen andre navn — en tidligere versjon av
-dokumentasjonen sa `MIRROR_URL`, som aldri har vært riktig.
+Hemmelighetene heter `SPEIL_URL` og `SPEIL_TOKEN`. Det finnes ingen
+bryter: `speil.yml` kjører alltid og blir rød når en av dem mangler.
+Variabelen `SPEILING_AKTIV` slo jobben på fram til 05.09.2026, og ble
+fjernet fordi en manglende variabel gjorde at jobben ble hoppet over uten
+et ord — tre uker uten backup så ut som tre uker med. Workflowen leser den
+ikke lenger. (En enda eldre versjon av dokumentasjonen sa `MIRROR_URL`,
+som aldri har vært riktig.)
 
 ## Varslene som kommer til deg
 
