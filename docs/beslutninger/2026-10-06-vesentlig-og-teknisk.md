@@ -93,6 +93,32 @@ Per uke, ukesidens hovedtabell:
     2026-36       14           13          1
     2026-35      121            2        119
 
+## Målt 06.10.2026: 173 forklaringer, 18 færre rader
+
+Rapporten fra økt 2 sa at 173 rader fikk en registerforklaring, mens
+totalen på lokalitetssidene bare falt med 18 (6 316 før, 4 274 + 2 024 =
+6 298 etter). Begge tallene er riktige, og de teller hver sin ting.
+
+- **18** er versjonsårsak-radene som forsvant som egne rader: 12 `endret`
+  og 6 `ny`. Alle 18 i loggen fikk noe å forklare. Ingen ble stående
+  alene.
+- **173** er radene som fikk forklaringen. Én årsak forklarer alle de
+  andre akvakultur-radene for samme lokalitet samme dag:
+
+      mottakere per årsak   lokaliteter   rader
+                       24             6     144   nye lokaliteter (45302–45307)
+                        5             2      10   kapasitet og tillatelser
+                        3             2       6   koordinater og versjonsdato
+                        2             5      10
+                        1             3       3
+                                     18     173
+
+**144 av de 173 er støy.** En ny lokalitet har 24 felt som «kom», og
+hver av dem står med «(registeret: ny lokalitet)». På 45302 står det 24
+ganger i tidslinja. Forklaringen er sann, men den hører til lokaliteten
+og ikke til hvert felt. Ikke rettet: se rapporten fra økt 3 for
+forslaget.
+
 ## Hvorfor
 
 [Heine skriver.]
