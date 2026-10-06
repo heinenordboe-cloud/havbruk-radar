@@ -419,6 +419,8 @@
   --fs-13:  0.8125rem;    /* etikett, metadata */
   --fs-14:  0.875rem;     /* tabellcelle, mono-tall (13,5–14) */
   --fs-15:  0.9375rem;    /* brødtekst, seksjonsetikett */
+  --fs-16:  1rem;         /* tegnforklaring per runde. Manglet til 06.10.2026: */
+                          /* `.rundefakta-liste dt` falt tilbake til arvet størrelse */
   --fs-17:  1.0625rem;    /* brødtekst, stor */
   --fs-19:  1.1875rem;    /* ordmerke i nav */
   --fs-22:  1.375rem;

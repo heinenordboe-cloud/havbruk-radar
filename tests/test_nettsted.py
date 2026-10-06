@@ -3379,15 +3379,33 @@ def test_registerfeltene_er_lukket_som_standard():
     assert "Navnet står her i registerets egen skrivemåte." in " ".join(inni.split())
 
 
-def test_hver_romvariabel_stilarket_bruker_er_definert():
+# Variabler stilarket bruker uten å definere, MED VILJE, og hvor det står
+# hvorfor. En ny udefinert variabel feller prøven; det gjør også en som
+# blir definert uten å bli strøket herfra.
+KJENTE_UDEFINERTE = {
+    "--farge-stripe": "docs/design/STILGUIDE.md",
+}
+
+
+def test_hver_variabel_stilarket_bruker_er_definert():
     """En udefinert `var()` gjør hele deklarasjonen ugyldig når verdien
-    regnes ut, uten feilmelding. `--rom-48` manglet og tok taket på
-    tilstandsspalta med seg (06.10.2026)."""
-    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
-           ).read_text(encoding="utf-8")
-    definert = set(re.findall(r"(--rom-[\w-]+)\s*:", css))
-    brukt = set(re.findall(r"var\((--rom-[\w-]+)", css))
-    assert brukt <= definert, sorted(brukt - definert)
+    regnes ut — uten feilmelding, i nettleseren eller noe annet sted.
+
+    MÅLT 06.10.2026, tre stykker: `--rom-48` tok taket på
+    tilstandsspalta med seg, `--fs-16` en skriftstørrelse, og
+    `--farge-stripe` radtonen i alle tabeller siden 22.09.2026."""
+    rot = Path(__file__).resolve().parents[1]
+    css = (rot / "maler" / "stil.css").read_text(encoding="utf-8")
+    definert = set(re.findall(r"(--[\w-]+)\s*:", css))
+    brukt = set(re.findall(r"var\((--[\w-]+)", css))
+    udefinert = brukt - definert
+    assert udefinert == set(KJENTE_UDEFINERTE), (
+        f"ny udefinert: {sorted(udefinert - set(KJENTE_UDEFINERTE))}, "
+        f"nå definert, stryk fra lista: "
+        f"{sorted(set(KJENTE_UDEFINERTE) - udefinert)}")
+    for hvor in KJENTE_UDEFINERTE.values():
+        notat = (rot / hvor).read_text(encoding="utf-8")
+        assert all(v in notat for v in KJENTE_UDEFINERTE), hvor
 
 
 def _ny_lokalitet(aarsak="NEW_SITE", eid="45302", dato="2026-08-31"):
