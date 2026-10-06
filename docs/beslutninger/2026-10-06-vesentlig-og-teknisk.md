@@ -30,6 +30,7 @@ commit: [fylles inn]
 - **Standarden er vesentlig.** Et felt ingen regel nevner, vises øverst.
 - Koordinatterskelen er **100 m**, valgt av Heine 06.10.2026. Den står
   som én konstant (`KOORDINAT_TERSKEL_M`) og flytter seg ikke av seg selv.
+  Eget notat: 2026-10-06-koordinatterskel-100-m.md.
 
 ## Tre punkter der bestillingen er tolket
 

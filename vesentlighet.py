@@ -53,8 +53,9 @@ TEKNISK = "teknisk"
 # CLAUDE.md 1b-4 sier at en terskel skal måles når det finnes data. Det
 # gjør det nesten ikke ennå. 100 m ble valgt av Heine 06.10.2026, midt i
 # det tomme feltet. Den flytter seg ikke av seg selv: endres den, er det
-# fordi noen har målt på nytt. Målingen står i
-# docs/beslutninger/2026-10-06-vesentlig-og-teknisk.md.
+# fordi noen har målt på nytt, og det skal skje ved årsskiftet
+# 2026/2027. Beslutningen og målingen står i
+# docs/beslutninger/2026-10-06-koordinatterskel-100-m.md.
 KOORDINAT_TERSKEL_M = 100.0
 
 KOORDINATER = ("breddegrad", "lengdegrad")
