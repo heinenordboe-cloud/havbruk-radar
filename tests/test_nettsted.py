@@ -3826,6 +3826,67 @@ def test_lenka_teller_det_samme_som_oppsummeringen(monkeypatch):
     assert uke["antall_med_egen_del"] == 2, "1 + 1, ikke 3"
 
 
+def _akva_rad(felt, gammel, ny, change_type="endret", loknr="12235"):
+    return {"entity_id": loknr, "entity_type": "lokalitet",
+            "entity_name": f"LOK {loknr}", "field": felt,
+            "old_value": gammel, "new_value": ny,
+            "change_type": change_type, "source": "akvakultur",
+            "observed_at": "2026-09-21",
+            "forrige_observed_at": "2026-09-14", "forrige_fetched_at": "",
+            "published_at": "", "forrige_published_at": ""}
+
+
+def test_tallene_paa_ukesiden_teller_radene_som_staar_der():
+    """Brikkene summerer til «Alle», og teksten til tabellen.
+
+    Uke 41 (observert 05.10.2026): brikkene summerte til 158 under «Alle
+    157», og «91 endringer» + «8 rader til» sto over en tabell med 98
+    rader. Årsaken var én `tillatelser_trukket`-rad som
+    `slaa_sammen_trukne()` slår inn i sin `tillatelser`-rad i tabellen,
+    men som ble telt for seg i alt unntatt «Alle».
+
+    Fiksturen har nettopp den formen: et par som slås sammen, et felt
+    som kom (står i tabellen, telles ikke), og én selskapsdatarad.
+    """
+    rader = [
+        # Paret: M-VN-0024 forsvant fordi den ble trukket. Én hendelse.
+        _akva_rad("tillatelser", "M-VN-0024; M-VN-0027", "M-VN-0027"),
+        _akva_rad("tillatelser_trukket", "M-VN-0001",
+                  "M-VN-0001; M-VN-0024"),
+        # En annen lokalitet, en vanlig endring.
+        _akva_rad("kapasitet", "1", "2", loknr="31397"),
+        # Et felt som kom: i tabellen, ikke i tellingen.
+        _akva_rad("fylke", None, "TROMS",
+                  change_type=nettsted.diff.FELT_NY, loknr="31397"),
+        # Selskapsdata: står for seg.
+        _enh_rad("antall_ansatte", "10", "12"),
+    ]
+    felles = _felles_stubb(
+        akva={"12235": {"navn": "LOK 12235", "prodomraade_kode": ""},
+              "31397": {"navn": "LOK 31397", "prodomraade_kode": ""}},
+        enhet={"912345678": {"navn": "Testlaks AS", "kommune": "BODØ"}},
+        bevegelse=pl.DataFrame(rader))
+
+    [uke] = nettsted.les_endringsuker(felles)
+
+    assert len(uke["hendelser"]) == 5, "fila har hver rad kilden ga"
+    assert len(uke["ledet"]) == 3, "paret står som én rad"
+
+    # Brikkene summerer til «Alle N rader».
+    assert sum(k["antall"] for k in uke["typer"]) == uke["antall_rader"]
+    assert uke["antall_rader"] == len(uke["ledet"]) + len(uke["egen_del"])
+
+    # «N endringer» + «M rader til» er radene i hovedtabellen, og
+    # «K endringer i selskapsdata» er radene i sin egen del.
+    assert uke["antall"] + uke["utenfor_tellingen"] == len(uke["ledet"])
+    assert uke["antall_egen_del"] == len(uke["egen_del"])
+    assert uke["antall"] == 2, "paret er én hendelse, kapasiteten én"
+
+    # Fila teller sine egne rader, ikke sidens.
+    data = json.loads(nettsted._ukens_json(uke))
+    assert sum(data["typer"].values()) == len(data["hendelser"]) == 5
+
+
 def test_radtallet_kalles_rader_og_aldri_endringer():
     """Ett tall, ett ord. `antall_rader` er rader."""
     for navn in ("forside.html.j2", "endringer-uke.html.j2"):

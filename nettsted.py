@@ -1664,10 +1664,16 @@ SAMLES_PER_OMRAADE = frozenset({("akvakultur", "prodomraade_status")})
 # Derfor slås de sammen til én rad der det ene ordet står ved det ene
 # nummeret — ikke to rader der leseren må se at de handler om det samme.
 #
-# DETTE ER VISNING, IKKE TELLING. Erklæringen som ville endret tallet er
-# `Source.avledet_av`, og `tillatelser_trukket` er MÅLT og bevisst IKKE
-# erklært der — se sources/akvakultur.py. Ukas tall regnes derfor før
-# denne sammenslåingen og er uendret av den.
+# DETTE ER IKKE `Source.avledet_av`. Den erklæringen ville kastet
+# `tillatelser_trukket` og beholdt grunnraden, og ordet «trukket» ville
+# forsvunnet — se sources/akvakultur.py. Her blir ordet stående ved
+# nummeret det gjelder.
+#
+# Ukas tall på SIDEN telles etter sammenslåingen, fordi de sier hvor
+# mange rader som står der: én hendelse, én rad, én i tellingen. Fram
+# til 06.10.2026 ble de telt før, og uke 41 hadde typebrikker som
+# summerte til én mer enn «Alle». Filene (CSV, JSON, feed) har fortsatt
+# hver rad kilden ga oss — se `antall_i_fila`.
 SLAAS_INN_I = {("akvakultur", "tillatelser_trukket"): "tillatelser"}
 
 # Radtypene der raden handler om ET FELT og ikke om oppføringen. De tre
@@ -1714,8 +1720,8 @@ def slaa_sammen_trukne(rader: list[dict]) -> list[dict]:
     sin egen. Den sier fortsatt noe sant, og en rad som forsvant fordi
     partneren manglet ville vært en stille utelatelse.
 
-    TELLINGEN RØRES IKKE. Den som kaller teller før, ikke etter — se
-    `SLAAS_INN_I`.
+    Den som kaller teller ETTER, ikke før: tallene på siden sier hvor
+    mange rader som står der. Se `SLAAS_INN_I`.
     """
     if not any((r.get("kilde"), r.get("kildefelt")) in SLAAS_INN_I
                for r in rader):
@@ -2392,7 +2398,26 @@ def les_endringsuker(felles: Felles) -> list[dict]:
         forrige_datoer = sorted({d for d in
                                  (h.get("forrige_dato") or "" for h in hendelser)
                                  if d})
-        antall = Counter(h["type"] for h in hendelser)
+        # DE VISTE RADENE ER SAMMENSLÅTTE, RADENE I FILA ER DET IKKE.
+        #
+        # `slaa_sammen_trukne()` slår `tillatelser` og `tillatelser_trukket`
+        # sammen: to halvdeler av én hendelse, som én rad i tabellen.
+        # `hendelser` er urørt og går til CSV, JSON, feed og JSON-LD — de
+        # skal ha hver rad kilden ga oss.
+        #
+        # ALLE TALLENE PÅ SIDEN TELLER DISSE, ikke `hendelser`. Brikka
+        # «Alle N rader» gjorde det fra 25.09.2026, da uke 36 sa «Alle 61
+        # rader» over en side som viste 54. Typebrikkene, overskriftstallet
+        # og «N rader til» ble stående på `hendelser`, og uke 41 viste
+        # derfor brikker som summerte til 158 under «Alle 157», og «91
+        # endringer» + «8 rader til» over en tabell med 98 rader. Én rad
+        # (Oanes Sjø, `tillatelser_trukket`) var telt to ganger. Et tall som
+        # sier hvor mange rader som står der, må telles der de står.
+        egen = slaa_sammen_trukne([h for h in hendelser
+                                   if h["type"] in EGEN_DEL])
+        ledet = slaa_sammen_trukne([h for h in hendelser
+                                    if h["type"] not in EGEN_DEL])
+        antall = Counter(h["type"] for h in ledet + egen)
         # UKAS TALL TELLER BARE DET SOM SKJEDDE I VERDEN. En rad med
         # `teller: False` står i tabellen og i feeden, men ikke i
         # «812 endringer» — samme asymmetri som `utvalgsutvidelse`:
@@ -2408,20 +2433,6 @@ def les_endringsuker(felles: Felles) -> list[dict]:
         # spørsmålet forsiden stiller. Se `selskap` i `ENDRINGSTYPER`.
         telt = sum(n for t, n in antall.items()
                    if TELLER.get(t, True) and t not in EGEN_DEL)
-        # DE VISTE RADENE ER SAMMENSLÅTTE, RADENE I FILA ER DET IKKE.
-        #
-        # `slaa_sammen_trukne()` er en VISNING: `tillatelser` og
-        # `tillatelser_trukket` er to halvdeler av én hendelse og står
-        # som én rad i tabellen. `hendelser` er urørt og går til CSV,
-        # JSON, feed og JSON-LD — de skal ha hver rad kilden ga oss.
-        #
-        # Brikka «Alle N rader» teller derfor DISSE, ikke `hendelser`.
-        # Fram til 25.09.2026 gjorde den det motsatte, og uke 36 sa
-        # «Alle 61 rader» over en side som viste 54.
-        egen = slaa_sammen_trukne([h for h in hendelser
-                                   if h["type"] in EGEN_DEL])
-        ledet = slaa_sammen_trukne([h for h in hendelser
-                                    if h["type"] not in EGEN_DEL])
         ikke_telt = sum(n for t, n in antall.items()
                         if not TELLER.get(t, True) and t not in EGEN_DEL)
         # HVA TALLET TELLER, skrevet av slagene som faktisk er der.
@@ -4913,7 +4924,12 @@ def _ukens_json(uke: dict) -> str:
         "observasjonsdatoer": uke["datoer"],
         "sammenlignet_mot": uke["forrige_datoer"],
         "antall": uke["antall"],
-        "typer": {k["id"]: k["antall"] for k in uke["typer"]},
+        # FILAS RADER, ikke sidens. `hendelser` under er usammenslått
+        # (se `slaa_sammen_trukne()`), og typetallene skal summere til
+        # radene i samme fil — ikke til tabellen på siden.
+        "typer": {k["id"]: n for k in ENDRINGSTYPER
+                  for n in [sum(h["type"] == k["id"]
+                                for h in uke["hendelser"])]},
         "merknad": ("«observert» er datoen vi så endringen i "
                     "øyeblikksbildet, ikke datoen registeret gjorde den"),
         "kilder": list(attribusjon(ENDRINGSKILDER)),
