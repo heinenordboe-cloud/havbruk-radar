@@ -73,6 +73,45 @@ Overskriftstallet per uke, før og etter:
 16 hendelser over sju uker. Tallene står på forsiden, ukesidene og
 ukeoversikten, og alle flyttet seg samme dag.
 
+## Endret samme dag: overskriften teller de VESENTLIGE
+
+Bestilt av Heine 06.10.2026, etter at `vesentlighet` kom (se
+2026-10-06-vesentlig-og-teknisk.md). Regelen over står: tallene telles
+på radene slik de vises. Det som endres er HVILKE rader hovedtabellen
+viser.
+
+- Hovedtabellen, typebrikkene, «Alle N rader», overskriften («N
+  endringer observert») og metabeskrivelsen teller bare de
+  **vesentlige** radene.
+- De **tekniske** står i én sammenleggbar del under hovedtabellen, med
+  eget antall («23 tekniske endringer»), og telles ikke i noe tall over.
+- **CSV og JSON er uendret**, byte for byte i alle sju ukene (målt mot
+  bygget før endringen). Hodet deres teller som før: `antall_fil`, alle
+  radene. JSON-ens `antall` er fortsatt 90 for uke 41, mens siden sier 75.
+- Typesidene (`/endringer/2026-41/tillatelse/`) viser de vesentlige av
+  typen i tabellen og de tekniske av typen i sin egen del.
+
+De to likhetene fra over holder fortsatt, nå for de vesentlige:
+
+    sum(typebrikkene)                       = «Alle N rader»
+    «N endringer» + «N rader til»          = rader i hovedtabellen
+
+Målt 06.10.2026, sidene før og etter:
+
+    uke        overskrift      «Alle»       hovedtabell    tekniske
+               før   etter    før  etter    før  etter
+    2026-41     90     75     157   134      98     75        23
+    2026-40     31     21      96    82      35     21        14
+    2026-39     12      8     449   445      12      8         4
+    2026-38    105     94     216   140     170     94        76
+    2026-37     37     25      79    67      37     25        12
+    2026-36     13     12      54    53      14     13         1
+    2026-35    121      2     186    67     121      2       119
+
+«Alle» rommer selskapsdataene, som ikke klassifiseres som tekniske
+(reglene er skrevet for lokaliteter og tillatelser). Uke 35 er
+artsbegrensningene: 118 av 119 rader er tekniske.
+
 ## Hva som ikke er dekket
 
 - Metabeskrivelsen på ukesidene (og `og:description` og søkeindeksen)

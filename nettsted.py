@@ -2478,10 +2478,26 @@ def les_endringsuker(felles: Felles) -> list[dict]:
         # endringer» + «8 rader til» over en tabell med 98 rader. Én rad
         # (Oanes Sjø, `tillatelser_trukket`) var telt to ganger. Et tall som
         # sier hvor mange rader som står der, må telles der de står.
-        egen = slaa_sammen_trukne([h for h in hendelser
-                                   if h["type"] in EGEN_DEL])
-        ledet = slaa_sammen_trukne([h for h in hendelser
-                                    if h["type"] not in EGEN_DEL])
+        egen_alle = slaa_sammen_trukne([h for h in hendelser
+                                        if h["type"] in EGEN_DEL])
+        ledet_alle = slaa_sammen_trukne([h for h in hendelser
+                                         if h["type"] not in EGEN_DEL])
+        # FILENES TALL, regnet som før 06.10.2026 (økt 3): alle radene,
+        # vesentlige og tekniske. CSV- og JSON-hodet bruker det, og filene
+        # skal ikke endre seg fordi SIDEN begynte å skille klassene.
+        alle = Counter(h["type"] for h in ledet_alle + egen_alle)
+        telt_fil = sum(n for t, n in alle.items()
+                       if TELLER.get(t, True) and t not in EGEN_DEL)
+        # VESENTLIG I TABELLEN, TEKNISK SAMLET. Hovedtabellen,
+        # typebrikkene, overskriften og metabeskrivelsen teller bare de
+        # vesentlige; de tekniske står i én sammenleggbar del med eget
+        # antall. Klassen er `vesentlighet`s, satt på hver hendelse over.
+        # Se docs/beslutninger/2026-10-06-tellingen-folger-radene.md.
+        ves = vesentlighet.VESENTLIG
+        ledet = [h for h in ledet_alle if h.get("klasse", ves) == ves]
+        egen = [h for h in egen_alle if h.get("klasse", ves) == ves]
+        tekniske = [h for h in ledet_alle + egen_alle
+                    if h.get("klasse", ves) != ves]
         antall = Counter(h["type"] for h in ledet + egen)
         # UKAS TALL TELLER BARE DET SOM SKJEDDE I VERDEN. En rad med
         # `teller: False` står i tabellen og i feeden, men ikke i
@@ -2552,13 +2568,10 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             # motsier tabellen den står under.
             "antall_med_egen_del": telt + len(egen),
             "utenfor_tellingen": ikke_telt,
-            # RADENE I HOVEDTABELLEN, delt på klasse. Se `vesentlighet`.
-            # Selskapsdataene står for seg og deles ikke: reglene er
-            # skrevet for lokaliteter og tillatelser.
-            "vesentlige": sum(1 for h in ledet
-                              if h.get("klasse") == vesentlighet.VESENTLIG),
-            "tekniske": sum(1 for h in ledet
-                            if h.get("klasse") == vesentlighet.TEKNISK),
+            # DE TEKNISKE, i sin egen del. Telles ikke i noe tall over.
+            "tekniske_rader": tekniske,
+            "tekniske": len(tekniske),
+            "antall_fil": telt_fil,
             "typer": [dict(k, antall=antall.get(k["id"], 0))
                       for k in ENDRINGSTYPER],
             "utenfor_uka": utenfor,
@@ -4993,7 +5006,7 @@ def _ukens_csv(uke: dict) -> str:
             # MERKET OG IKKE KALENDERUKA: «21.–27. september» påsto at
             # vi så på syv dager. Se `_ukemerke()`.
             f"# {uke['merke']}",
-            f"# {uke['antall']} hendelser, "
+            f"# {uke['antall_fil']} hendelser, "
             f"observasjonsdatoer {', '.join(uke['datoer'])}",
             "#",
             "# «observert» er datoen VI så endringen i øyeblikksbildet,",
@@ -5034,7 +5047,8 @@ def _ukens_json(uke: dict) -> str:
         "merke": uke["merke"],
         "observasjonsdatoer": uke["datoer"],
         "sammenlignet_mot": uke["forrige_datoer"],
-        "antall": uke["antall"],
+        # FILENS TALL, ikke sidens: sida teller bare de vesentlige.
+        "antall": uke["antall_fil"],
         # FILAS RADER, ikke sidens. `hendelser` under er usammenslått
         # (se `slaa_sammen_trukne()`), og typetallene skal summere til
         # radene i samme fil — ikke til tabellen på siden.
@@ -5120,18 +5134,24 @@ def skriv_endringssider(rot: Path, felles: Felles,
             # SELSKAPSDATA STÅR FOR SEG PÅ UKESIDEN. På den ufiltrerte
             # sida deles radene; på en typeside er valget alt gjort, og
             # da er alt ett bord.
+            #
+            # RADENE ER `les_endringsuker()`s, ikke regnet her på nytt. Der
+            # er de slått sammen og delt på klasse, og der er tallene telt
+            # av dem. To steder som deler hver for seg, er formen F6 og F7
+            # hadde. `uke["hendelser"]` er urørt og går til CSV-en,
+            # JSON-en, feeden og JSON-LD-en.
             if slag:
-                ledet, egen = hendelser, []
+                ledet = [h for h in uke["ledet"] + uke["egen_del"]
+                         if h["type"] == slag]
+                egen = []
+                tekniske = [h for h in uke["tekniske_rader"]
+                            if h["type"] == slag]
             else:
-                ledet = [h for h in hendelser if h["type"] not in EGEN_DEL]
-                egen = [h for h in hendelser if h["type"] in EGEN_DEL]
-            # SAMMENSLÅINGEN STÅR HER og ikke i `les_endringsuker()`, og
-            # det er grensa mellom visning og data: `uke["hendelser"]`
-            # går til CSV-en, JSON-en, feeden og JSON-LD-en, og de skal
-            # ha hver rad kilden ga oss. Det er tabellen som slår sammen.
-            ledet, egen = slaa_sammen_trukne(ledet), slaa_sammen_trukne(egen)
+                ledet, egen = uke["ledet"], uke["egen_del"]
+                tekniske = uke["tekniske_rader"]
             skriv_html(sti, uke_mal.render(
                 u=uke, rader=ledet, egen=egen, valgt=valgt, url=url,
+                tekniske=tekniske,
                 overskriftstall=_ukens_overskriftstall(uke, valgt, ledet),
                 nyere=nyere, eldre=eldre, uker_totalt=len(uker),
                 # TIDSLINJA FLYTTET HIT 27.09.2026. Den sto på forsiden

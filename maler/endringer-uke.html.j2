@@ -65,6 +65,26 @@
 
 {% block innhold %}
 
+{#- ÉN RAD, TO TABELLER: de vesentlige og de tekniske har samme kolonner,
+    og en rad som ble skrevet to steder kunne fått to merkinger. #}
+{% macro endringsrad(r) %}
+      <tr data-type="{{ r.type }}" data-klasse="{{ r.klasse }}">
+        <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
+        <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
+          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
+          {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
+        </td>
+        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(r.po, 'prodomraade_kode') }}">
+          {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
+          {%- else %}{{ VERDI_MANGLER }}{% endif %}
+        </td>
+        <td data-felt="endringstype">{{ r.type_navn }}</td>
+        <td class="endring {{ r.til_klasse }}" data-felt="endringstekst">{{ r.etikett }}:
+          {{ verdiendring(r) }}</td>
+      </tr>
+{% endmacro %}
+
 <section class="ark seksjon">
   {# SAMMENDRAGET OG TIDSLINJA I SAMME RUTE. `.uke-topp` er en grid som
      legger dem side om side fra 420 px per spalte og under hverandre
@@ -87,6 +107,12 @@
        opplysninger om hva KILDEN rapporterer, ikke om hva som skjedde
        i havbruket, og de telles derfor ikke i tallet over. De står i
        tabellen. #}
+    {% if tekniske %}
+    <p class="tabellnote">
+      {{ antall(tekniske|length, "teknisk endring", "tekniske endringer") }} står
+      samlet under tabellen og telles ikke med.
+    </p>
+    {% endif %}
     {% if u.utenfor_tellingen and not valgt %}
     <p class="tabellnote">
       {{ antall(u.utenfor_tellingen, "rad", "rader") }} til står i tabellen uten å telle
@@ -189,13 +215,9 @@
       er borte fra 24.09.2026 — brikkene er filteret, og hver brikke er
       en egen bygget side. «Viser N av N» var da en omvei til N. #}
   <p class="tabelltittel" id="endringer-uke-tittel">{{ antall(rader|length,
-      "rad", "rader") }}
+      "vesentlig rad", "vesentlige rader") }}
       {% if valgt %}{% else %}utenom selskapsdata{% endif %}
-      i {{ u.vist }}{% if rader %}:
-      {#- VESENTLIG OG TEKNISK fra `vesentlighet`, samme regel som
-          lokalitetssiden bruker. Telt av radene som står i tabellen. #}
-      {% set ves = rader|selectattr("klasse", "equalto", "vesentlig")|list|length %}
-      {{ tall(ves) }} vesentlige og {{ tall(rader|length - ves) }} tekniske{% endif %}.</p>
+      i {{ u.vist }}.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="endringer-uke-tittel" tabindex="0">
   <table id="endringer-uke" aria-labelledby="endringer-uke-tittel" data-pagefind-ignore>
@@ -210,23 +232,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for r in rader %}
-      <tr data-type="{{ r.type }}" data-klasse="{{ r.klasse }}">
-        <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
-        <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
-          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
-          {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
-        </td>
-        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
-        <td data-felt="{{ feltmerke(r.po, 'prodomraade_kode') }}">
-          {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
-          {%- else %}{{ VERDI_MANGLER }}{% endif %}
-        </td>
-        <td data-felt="endringstype">{{ r.type_navn }}</td>
-        <td class="endring {{ r.til_klasse }}" data-felt="endringstekst">{{ r.etikett }}:
-          {{ verdiendring(r) }}</td>
-      </tr>
-      {% endfor %}
+      {% for r in rader %}{{ endringsrad(r) }}{% endfor %}
       {# TOMRADEN står når det ikke er rader. Den var `hidden` og ble
          slått på av filterskriptet; nå finnes ikke skriptet, og raden
          skrives bare når tabellen faktisk er tom. Uten den ville en tom
@@ -243,6 +249,41 @@
     </tbody>
   </table>
   </div>
+
+  {#- DE TEKNISKE ENDRINGENE, samlet og lukket. De telles ikke i noe tall
+      over — ikke i overskriften, ikke i brikkene, ikke i metabeskrivelsen
+      — men de står her, og i CSV-en og JSON-en som før. Se `vesentlighet`
+      for hva som er teknisk. #}
+  {% if tekniske %}
+  <details class="tallboks tekniske-endringer">
+    <summary>{{ antall(tekniske|length, "teknisk endring", "tekniske endringer") }}</summary>
+    <p class="tabellnote">
+      Koordinatjusteringer under {{ koordinatterskel }} meter,
+      versjonsdato og versjonsårsak, artsbegrensninger, sykdomsflagg som
+      bare kom inn i eller falt ut av kilden uten å være satt, og felt som
+      gjentar eller følger av en annen endring samme uke.
+    </p>
+    <div class="tabellramme" role="region"
+         aria-labelledby="endringer-uke-tekniske-tittel" tabindex="0">
+    <p class="visuelt-skjult" id="endringer-uke-tekniske-tittel">Tekniske endringer i {{ u.vist }}</p>
+    <table id="endringer-uke-tekniske" aria-labelledby="endringer-uke-tekniske-tittel" data-pagefind-ignore>
+      <thead>
+        <tr>
+          <th scope="col">Observert</th>
+          <th scope="col">Gjelder</th>
+          <th scope="col">Kommune</th>
+          <th scope="col">Produksjonsområde</th>
+          <th scope="col">Type</th>
+          <th scope="col">Endring</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in tekniske %}{{ endringsrad(r) }}{% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+  {% endif %}
 
   {# SELSKAPSDATA, I SIN EGEN DEL.
      `<details open>` og ikke `hidden`: uten JavaScript står den ÅPEN,

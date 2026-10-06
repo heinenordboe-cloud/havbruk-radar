@@ -4154,8 +4154,26 @@ def test_ukesiden_klassifiserer_hver_rad_med_den_felles_regelen(monkeypatch):
     klasse = {h["felt"]: h["klasse"] for h in uke["hendelser"]}
     assert klasse == {"breddegrad": "teknisk", "lengdegrad": "teknisk",
                       "versjon_gyldig_fra": "teknisk", "har_fisk": "vesentlig"}
-    assert uke["vesentlige"] == 1
-    assert uke["vesentlige"] + uke["tekniske"] == len(uke["ledet"])
+
+    # OVERSKRIFTEN, BRIKKENE OG HOVEDTABELLEN teller de vesentlige.
+    assert uke["antall"] == 1
+    assert [h["felt"] for h in uke["ledet"]] == ["har_fisk"]
+    assert uke["antall_rader"] == 1
+    assert sum(k["antall"] for k in uke["typer"]) == uke["antall_rader"]
+    # DE TEKNISKE står for seg, med eget antall.
+    assert uke["tekniske"] == 3 == len(uke["tekniske_rader"])
+    assert {h["felt"] for h in uke["tekniske_rader"]} == {
+        "breddegrad", "lengdegrad", "versjon_gyldig_fra"}
+    # FILENE er uendret: alle radene, og hodet teller som før.
+    assert uke["antall_fil"] == 4
+    data = json.loads(nettsted._ukens_json(uke))
+    assert data["antall"] == 4
+    assert len(data["hendelser"]) == 4
+    assert sum(data["typer"].values()) == 4
+    assert "# 4 hendelser" in nettsted._ukens_csv(uke)
+    # Metabeskrivelsen følger overskriften.
+    assert nettsted._ukebeskrivelse(uke, None, uke["ledet"]).startswith(
+        "1 endring observert")
 
 
 def test_radtallet_kalles_rader_og_aldri_endringer():
