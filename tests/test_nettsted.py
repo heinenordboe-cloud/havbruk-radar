@@ -3210,6 +3210,17 @@ def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
     assert "Lokaliteten ligger på land" in flat
 
 
+def test_omraadesiden_sier_ikke_at_den_mangler_begrunnelsen_den_siterer():
+    """«Siden viser vedtaket, ikke begrunnelsen» sto på sider som siterte
+    departementets begrunnelse ordrett noen skjermer over."""
+    mal = (Path(__file__).resolve().parents[1] / "maler"
+           / "produksjonsomrade.html.j2").read_text(encoding="utf-8")
+    flat = " ".join(re.sub(r"\{#.*?#\}", "", mal, flags=re.S).split())
+    assert "ikke begrunnelsen" not in flat
+    assert ("Siden viser vedtaket og siterer departementet der det har "
+            "skrevet noe, men forklarer ikke fargen selv.") in flat
+
+
 def test_om_siden_lenker_til_fontlisensen():
     """OFL 1.1 krever at lisensteksten følger fonten. `skriv_fonter()`
     legger den på /newsreader-OFL.txt, men en fil ingen vet om er en
