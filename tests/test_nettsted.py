@@ -4554,6 +4554,26 @@ def test_tallet_sier_hva_det_teller():
     assert "selskapsdata" in bi["tekst"]
 
 
+
+def test_forsiden_sier_hvilket_slag_som_hadde_flest_endringer():
+    """«Flest endringer gjaldt tillatelser (47): …», ikke «Størst er
+    tillatelse med 47: …». Tallet er det samme som før."""
+    uke = {"antall": 75, "vist": "uke 41, 2026", "antall_egen_del": 0,
+           "ledet_slag": "tillatelser og lokalitetsopplysninger",
+           "typer": [dict(k, antall={"tillatelse": 47, "lokalitet": 28}
+                          .get(k["id"], 0))
+                     for k in nettsted.ENDRINGSTYPER]}
+    tekster = [s["tekst"] for s in nettsted._sammendrag(uke)]
+    assert ("Flest endringer gjaldt tillatelser (47): kapasitet, formål "
+            "eller hvilke lokaliteter de hører til.") in tekster
+    assert not any("Størst er" in t for t in tekster)
+    # Et slag uten egen forklaring bruker `hva`.
+    uke["typer"] = [dict(k, antall={"lokalitet": 28}.get(k["id"], 0))
+                    for k in nettsted.ENDRINGSTYPER]
+    assert ("Flest endringer gjaldt lokalitetsopplysninger (28): navn, "
+            "kommune, arter, kapasitet eller posisjon.") in [
+        s["tekst"] for s in nettsted._sammendrag(uke)]
+
 def test_selskapsdatadelen_er_apen_uten_javascript():
     """`<details open>` som skriptet LUKKER, ikke en skjult del som
     skriptet åpner. En del som må åpnes av et skript er en del som ikke

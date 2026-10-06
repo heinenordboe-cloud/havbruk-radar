@@ -1651,8 +1651,13 @@ ENDRINGSTYPER = (
      "hva": "produksjonsområdets farge, slik registeret oppgir den"},
     {"id": "eierskap", "navn": "Eierskap", "kort": "eierskap",
      "hva": "hvem som eier en tillatelse"},
+    # `forklaring` er forsidens ord, etter «Flest endringer gjaldt
+    # tillatelser (N):». `hva` står med typen som subjekt i ordlista og
+    # på brikkene; de to setningene har ulik grammatikk. Uten
+    # `forklaring` brukes `hva`.
     {"id": "tillatelse", "navn": "Tillatelse", "kort": "tillatelser",
-     "hva": "tillatelsens formål, kapasitet eller lokaliteter"},
+     "hva": "tillatelsens formål, kapasitet eller lokaliteter",
+     "forklaring": "kapasitet, formål eller hvilke lokaliteter de hører til"},
     # «I VÅRT UTVALG», IKKE «I REGISTERET». Skillet er målt, ikke
     # forsiktighet: 23.09.2026 slo vi opp alle de 29 selskapene uke 39
     # kalte «Ute av registeret» mot Brønnøysunds åpne API. 20 av dem
@@ -6631,7 +6636,7 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
 # HVOR MANGE SETNINGER AV SAMMENDRAGET FORSIDEN VISER.
 #
 # `_sammendrag()` kan returnere fire: ledesetningen, selskapsdata,
-# størst og nest størst. Forsiden tar de tre første — den skal si hva
+# flest og nest flest. Forsiden tar de tre første — den skal si hva
 # som skjedde, ikke være ukessiden. Den fjerde («Deretter <type> med
 # N») er den som faller, og den er den minst bærende av dem.
 #
@@ -6718,8 +6723,9 @@ def _sammendrag(uke: dict | None) -> list[dict]:
             f"registeret fulgte den opp."))
     else:
         setninger.append(sak(
-            f"Størst er {storst['navn'].lower()} med "
-            f"{visningsord.tall(storst['antall'])}: {storst['hva']}."))
+            f"Flest endringer gjaldt {storst['kort']} "
+            f"({visningsord.tall(storst['antall'])}): "
+            f"{storst.get('forklaring', storst['hva'])}."))
 
     if len(med_tall) > 1:
         nest = med_tall[1]
