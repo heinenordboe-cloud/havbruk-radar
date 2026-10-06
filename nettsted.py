@@ -4443,6 +4443,10 @@ def _miljo() -> Environment:
     # «1 tillatelser» sto på lokalitetssiden fra den ble bygget. Én
     # hjelper, brukt overalt — se visningsord.antall()/alle().
     miljo.globals["antall"] = visningsord.antall
+    # TERSKELEN ER ETT TALL, i `vesentlighet`. Teksten som forklarer den,
+    # leser det derfra og skriver det ikke av.
+    miljo.globals["koordinatterskel"] = visningsord.tall(
+        int(vesentlighet.KOORDINAT_TERSKEL_M))
     # TALL OG PROSENT SOM GLOBALER, ikke bare som filtre. Et filter
     # leses bakfra i en `{% if %}`-kjede, og et tall skrevet uten dem
     # står med tusenskille noen steder og uten andre — MÅLT 24.09.2026

@@ -3279,6 +3279,106 @@ def test_versjonsaarsaken_blir_staaende_naar_den_er_alene(monkeypatch):
     assert all(r["forklaring"] == "" for r in rader)
 
 
+# ---- lokalitetssiden: vesentlig først, forklaringene samlet --------------
+
+FORKLARINGENE = (
+    "Datoen er som hovedregel når VI så endringen",
+    "Måleseriene telles ikke som endringer her.",
+    "ILA- og PD-flaggene er unntaket.",
+    "betyr at flagget står, ikke at sykdommen er påvist.",
+    "Laget oppgir ingen mengde",
+    "Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss",
+    "er da tillatelsen ble gitt første gang",
+    "er dagens navn</strong> på organisasjonsnummeret",
+    "«Journalført senest denne datoen»</strong> er ikke det samme",
+    "Navnet står her i registerets egen skrivemåte.",
+)
+
+
+def test_ingen_forklaring_er_slettet_fra_lokalitetsmalen():
+    """Teksten FLYTTES, den endres ikke. Én setning fra hver."""
+    mal = " ".join((Path(__file__).resolve().parents[1] / "maler"
+                    / "lokalitet.html.j2").read_text(encoding="utf-8").split())
+    for setning in FORKLARINGENE:
+        assert " ".join(setning.split()) in mal, setning
+
+
+def _om_tallene(html: str) -> str:
+    a = html.index('id="om-tallene"')
+    return html[a:html.index("</details>", a)]
+
+
+def test_forklaringene_star_samlet_i_om_tallene():
+    html = _side()
+    om = " ".join(_om_tallene(html).split())
+    for setning in ("Måleseriene telles ikke som endringer her.",
+                    "Laget oppgir ingen mengde",
+                    "Sjekksummen er SHA-256",
+                    "er da tillatelsen ble gitt første gang",
+                    "«Journalført senest denne datoen»"):
+        assert setning in om, setning
+    # Og ikke to steder.
+    flat = " ".join(html.split())
+    assert flat.count("Sjekksummen er SHA-256") == 1
+    assert flat.count("Laget oppgir ingen mengde") == 1
+
+
+@pytest.mark.parametrize("overstyr, borte", [
+    ({"biolag": None}, "Laget oppgir ingen mengde"),
+    ({"maaleserie_rader": 0}, "Måleseriene telles ikke"),
+    ({"overforinger": []}, "«Journalført senest denne datoen»"),
+    ({"tillatelser": []}, "er da tillatelsen ble gitt første gang"),
+    # Fiksturen har ingen ILA/PD-post i tidslinja.
+    ({}, "ILA- og PD-flaggene er unntaket."),
+    ({}, "<strong>Tekniske endringer</strong>"),
+])
+def test_en_forklaring_staar_bare_naar_det_den_forklarer_finnes(overstyr, borte):
+    assert borte not in " ".join(_side(**overstyr).split())
+
+
+def _post(felt, klasse, dato, kilde="akvakultur", fra="a", til="b"):
+    return nettsted._observert_historikk([dict(
+        _endringsrader([{"dato": dato, "kilde": kilde, "felt": felt,
+                         "fra": fra, "til": til}])[0],
+        klasse=klasse)], [], None)[0]
+
+
+def test_vesentlige_foerst_og_tekniske_samlet_med_antall():
+    observert = [
+        _post("har_samdrift", "vesentlig", "2026-10-05", fra="True", til="False"),
+        _post("versjon_gyldig_fra", "teknisk", "2026-10-05"),
+        _post("breddegrad", "teknisk", "2026-09-28", fra="66.0", til="66.0001"),
+        _post("har_ila", "vesentlig", "2019-11-18", kilde="lusetall",
+              fra="False", til="True"),
+    ]
+    html = _side(observert=observert)
+    flat = " ".join(html.split())
+
+    a = html.index('class="tallboks tekniske-endringer"')
+    hoved = html[html.index('class="tidsakse tidsakse--observert"'):a]
+    tekn = html[a:html.index("</details>", a)]
+    assert "Samdrift" in hoved and "ILA" in hoved
+    assert "Versjon gyldig fra" not in hoved and "Breddegrad" not in hoved
+    assert "2 tekniske endringer" in tekn
+    assert "Versjon gyldig fra" in tekn and "Breddegrad" in tekn
+    # Nyeste først blant de vesentlige.
+    assert hoved.index("Samdrift") < hoved.index("ILA")
+    # Nå finnes både flagg og tekniske: begge forklaringene står.
+    om = " ".join(_om_tallene(html).split())
+    assert "ILA- og PD-flaggene er unntaket." in om
+    assert f"under {visningsord.tall(int(vesentlighet.KOORDINAT_TERSKEL_M))} meter" in om
+
+
+def test_registerfeltene_er_lukket_som_standard():
+    html = _side()
+    a = html.index('class="tallboks registerfelt"')
+    tag = html[html.rindex("<details", 0, a + 1):html.index(">", a)]
+    assert " open" not in tag
+    inni = html[a:html.index("</details>", a)]
+    assert 'id="akvakultur-register"' in inni
+    assert "Navnet står her i registerets egen skrivemåte." in " ".join(inni.split())
+
+
 def test_om_siden_lenker_til_fontlisensen():
     """OFL 1.1 krever at lisensteksten følger fonten. `skriv_fonter()`
     legger den på /newsreader-OFL.txt, men en fil ingen vet om er en

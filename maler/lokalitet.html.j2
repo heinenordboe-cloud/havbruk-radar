@@ -354,22 +354,6 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">
-      <strong>Laget oppgir ingen mengde</strong> — verken antall fisk
-      eller kilo biomasse. Biomassedatabasen etter
-      akvakulturdriftsforskriften § 44 er børssensitiv og ikke
-      offentlig, så dette er ja/nei og art, aldri hvor mye. De
-      offentlige mengdetallene finnes per produksjonsområde og står
-      {% if lok.po_kode %}
-      <a href="/produksjonsomrade/{{ lok.po_kode }}/#biomasse-maaned">på
-        områdesiden</a>.
-      {% else %}
-      på områdesidene.
-      {% endif %}
-      «Arter» er artene oppdretter meldte som til stede ved siste
-      månedsrapport, og er ikke det samme som artene lokaliteten har
-      tillatelse for.
-    </p>
     {% else %}
     <p class="tomt">
       Lokaliteten står ikke i biomasselaget i noen av de
@@ -399,12 +383,6 @@
       Øyeblikksbilde {{ lok.siter.uke }}, {{ lok.siter.dato }},
       sjekksum {{ lok.siter.sjekksum[:8] }}…{{ lok.siter.sjekksum[-4:] }}.
       {{ lok.siter.url }}</p>
-    <p class="siterboks-note">
-      Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss
-      den dagen. Den identifiserer øyeblikksbildet, og gjør at en
-      sitering kan etterprøves mot arkivet selv om siden er bygget om
-      siden.
-    </p>
   </div>
 </section>
 </div>
@@ -427,22 +405,14 @@
       <h2 id="observert-tittel">Endringer vi har sett</h2>
     </div>
   </div>
-  <p class="historikk-forklaring">
-    Hver endring i registerfeltene siden første øyeblikksbilde.
-    <strong>Datoen er som hovedregel når VI så endringen</strong> —
-    registeret oppgir ikke når det gjorde den, så den kan ha skjedd når
-    som helst i uka før. Unntaket er sykdomsflaggene fra BarentsWatch:
-    de er datert til <em>uka de gjelder for</em>, og hver slik post sier
-    det. Loggen dekker
-    {% for d in lok.dekning_fra %}{{ d.kilde }} fra
-    <time datetime="{{ d.fra }}">{{ d.fra|dato }}</time>{% if not loop.last %},
-    {% endif %}{% endfor %}; en endring som skjedde før det, har vi
-    ikke sett skje.
-  </p>
 
-  {% if lok.observert|length > 1 %}
-  <ol class="tidsakse tidsakse--observert">
-    {% for post in lok.observert %}
+  {#- VESENTLIG FØRST, TEKNISK SAMLET. Klassen kommer fra `vesentlighet`
+      og står på hver post — se `_lokalitetsendringer()`. «Første
+      øyeblikksbilde» er en vesentlig post og står i de vesentliges
+      tidsrekke, der datoen hører hjemme. #}
+  {% set vesentlige = lok.observert|selectattr("klasse", "equalto", "vesentlig")|list %}
+  {% set tekniske = lok.observert|selectattr("klasse", "equalto", "teknisk")|list %}
+  {% macro tidslinjepost(post) %}
     <li{% if post.forste %} class="tidsakse-forste"{% endif %}
         title="{{ post.uke }}">
       <span class="tidsakse-punkt" aria-hidden="true"></span>
@@ -494,8 +464,19 @@
       </p>
       {% endif %}
     </li>
-    {% endfor %}
+  {% endmacro %}
+  {% if lok.observert|length > 1 %}
+  <ol class="tidsakse tidsakse--observert">
+    {% for post in vesentlige %}{{ tidslinjepost(post) }}{% endfor %}
   </ol>
+  {% if tekniske %}
+  <details class="tallboks tekniske-endringer">
+    <summary>{{ antall(tekniske|length, "teknisk endring", "tekniske endringer") }}</summary>
+    <ol class="tidsakse tidsakse--observert tidsakse--teknisk">
+      {% for post in tekniske %}{{ tidslinjepost(post) }}{% endfor %}
+    </ol>
+  </details>
+  {% endif %}
   {% else %}
   <p class="tomt">
     Ingen endringer siden første øyeblikksbilde
@@ -505,6 +486,47 @@
   </p>
   {% endif %}
 
+  {#- OM TALLENE PÅ DENNE SIDEN. Forklaringene sto spredt over siden, like
+      på hver lokalitet, og flere av dem forklarte noe som ikke sto der:
+      «Journalført senest» på en side uten journalførte overføringer,
+      ILA/PD-boksen på et landanlegg uten flagg. De er samlet her, og hver
+      står bare når det den forklarer finnes på siden.
+
+      TEKSTEN ER FLYTTET, IKKE ENDRET. Henvisninger som «under» stemmer
+      fordi boksen står etter tidslinja og før lusetallene, tillatelsene
+      og historikken. Flyttes boksen, må de leses på nytt. #}
+  {% set flagg = lok.observert|selectattr("kildefelt", "in", ["har_ila", "har_pd"])|list %}
+  {% set tildelt_finnes = lok.tillatelser|selectattr("tildelt_dato")|list %}
+  {% set tildelinger = lok.oppgitt|selectattr("slag", "equalto", "Tillatelse tildelt")|list %}
+  {% set journalfort = lok.oppgitt|selectattr("presisjon", "equalto", "journalført senest denne datoen")|list %}
+  <details class="tallboks om-tallene" id="om-tallene">
+    <summary>Om tallene på denne siden</summary>
+    {% if lok.endringer %}
+<p class="tabellnote">
+    Hver endring i registerfeltene siden første øyeblikksbilde.
+    <strong>Datoen er som hovedregel når VI så endringen</strong> —
+    registeret oppgir ikke når det gjorde den, så den kan ha skjedd når
+    som helst i uka før. Unntaket er sykdomsflaggene fra BarentsWatch:
+    de er datert til <em>uka de gjelder for</em>, og hver slik post sier
+    det. Loggen dekker
+    {% for d in lok.dekning_fra %}{{ d.kilde }} fra
+    <time datetime="{{ d.fra }}">{{ d.fra|dato }}</time>{% if not loop.last %},
+    {% endif %}{% endfor %}; en endring som skjedde før det, har vi
+    ikke sett skje.
+  </p>
+    {% endif %}
+    {% if tekniske %}
+    <p class="tabellnote">
+      {#- DEN ENESTE NYE TEKSTEN i boksen: hva klassen betyr. Den sier
+          reglene i `vesentlighet`, og ingenting om dataene. #}
+      <strong>Tekniske endringer</strong> er koordinatjusteringer under
+      {{ koordinatterskel }} meter, versjonsdato og versjonsårsak, artsbegrensninger,
+      sykdomsflagg som bare kom inn i eller falt ut av kilden uten å
+      være satt, og felt som gjentar eller følger av en annen endring
+      samme uke. De står samlet under tidslinja, ikke borte.
+    </p>
+    {% endif %}
+    {% if lok.maaleserie_rader %}
   <p class="tabellnote">
     Måleseriene telles ikke som endringer her. Lusetall og sjøtemperatur
     leverer et nytt tall hver uke — for denne lokaliteten
@@ -512,6 +534,8 @@
     {{ lok.endringer|length }} registerendringer.
     Lusetallene står som en serie under.
   </p>
+    {% endif %}
+    {% if flagg %}
   <p class="tabellnote">
     <strong>ILA- og PD-flaggene er unntaket.</strong> De ligger i
     lusetallkilden, men de er ikke målinger — de er flagg som slås av og
@@ -528,6 +552,58 @@
         er det samme innholdet, på en adresse som svarer. #}
     <a href="/om/#hva-vi-ikke-gjor">hva som bevisst ikke hentes</a>.
   </p>
+    {% endif %}
+    {% if lok.biolag %}
+    <p class="tabellnote">
+      <strong>Laget oppgir ingen mengde</strong> — verken antall fisk
+      eller kilo biomasse. Biomassedatabasen etter
+      akvakulturdriftsforskriften § 44 er børssensitiv og ikke
+      offentlig, så dette er ja/nei og art, aldri hvor mye. De
+      offentlige mengdetallene finnes per produksjonsområde og står
+      {% if lok.po_kode %}
+      <a href="/produksjonsomrade/{{ lok.po_kode }}/#biomasse-maaned">på
+        områdesiden</a>.
+      {% else %}
+      på områdesidene.
+      {% endif %}
+      «Arter» er artene oppdretter meldte som til stede ved siste
+      månedsrapport, og er ikke det samme som artene lokaliteten har
+      tillatelse for.
+    </p>
+    {% endif %}
+<p class="tabellnote">
+      Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss
+      den dagen. Den identifiserer øyeblikksbildet, og gjør at en
+      sitering kan etterprøves mot arkivet selv om siden er bygget om
+      siden.
+    </p>
+    {% if tildelt_finnes %}
+<p class="tabellnote">
+      «Tildelt» er da tillatelsen ble gitt første gang — ikke
+      nødvendigvis til den som eier den nå. Hvem den ble gitt TIL står i
+      historikken under.
+</p>
+    {% endif %}
+    {% if tildelinger %}
+  <p class="tabellnote">
+    <strong>Navnet ved «Tillatelse tildelt» er dagens navn</strong> på
+    organisasjonsnummeret, ikke navnet selskapet hadde da tillatelsen
+    ble gitt. Registeret oppgir nummeret og slår navnet opp når det
+    svarer, så en tildeling fra 1995 viser navnet nummeret bærer nå.
+    Derfor står nummeret først.
+  </p>
+    {% endif %}
+    {% if journalfort %}
+  <p class="tabellnote">
+    <strong>«Journalført senest denne datoen»</strong> er ikke det samme
+    som overdragelsesdato. Journaldatoen er da saken ble ført, og
+    overdragelsen kan ha skjedd før. Serien skiller heller ikke
+    konserninterne flyttinger fra ekte oppkjøp; det lar seg ikke gjøre
+    med offentlige data.
+  </p>
+    {% endif %}
+  </details>
+
 </section>
 </div>
 
@@ -773,11 +849,8 @@
       </tbody>
     </table>
     </div>
+    {% if lok.tillatelser_uten_eier %}
     <p class="tabellnote">
-      «Tildelt» er da tillatelsen ble gitt første gang — ikke
-      nødvendigvis til den som eier den nå. Hvem den ble gitt TIL står i
-      historikken under.
-      {% if lok.tillatelser_uten_eier %}
       For {{ lok.tillatelser_uten_eier }} av
       {{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }} vet vi ikke hvem eieren
       er. Tillatelsen finnes og er aktiv i Akvakulturregisteret — det er
@@ -787,8 +860,8 @@
       vårt. Radene står med «{{ lok.eier_ukjent }}» framfor å bli
       utelatt. Se
       <a href="/om/#dekning">hva dekningen er</a>.
-      {% endif %}
     </p>
+    {% endif %}
   </section>
 
   <section class="blokk" aria-labelledby="felt-tittel">
@@ -797,6 +870,11 @@
       Slik Akvakulturregisteret viser lokaliteten i siste
       øyeblikksbilde, med kildens egne verdier.
     </p>
+    {#- LUKKET SOM STANDARD. 27 felt slik registeret fører dem er
+        oppslagsverk, ikke det en leser kommer for; de viktigste står i
+        tilstanden øverst. Noten om navnet følger tabellen inn. #}
+    <details class="tallboks registerfelt">
+      <summary>Alle {{ antall(lok.register|length, "felt", "felt") }} slik registeret oppgir dem</summary>
     <p class="tabelltittel" id="akvakultur-register-tittel">Hva Akvakulturregisteret sier, øyeblikksbilde
         <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.</p>
     <div class="tabellramme" role="region"
@@ -843,6 +921,7 @@
       «—» i siste kolonne betyr at feltet ikke har endret seg i loggen
       vår, ikke at det aldri har endret seg.
     </p>
+    </details>
   </section>
 </div>
 
@@ -919,20 +998,6 @@
     </tbody>
   </table>
   </div>
-  <p class="tabellnote">
-    <strong>Navnet ved «Tillatelse tildelt» er dagens navn</strong> på
-    organisasjonsnummeret, ikke navnet selskapet hadde da tillatelsen
-    ble gitt. Registeret oppgir nummeret og slår navnet opp når det
-    svarer, så en tildeling fra 1995 viser navnet nummeret bærer nå.
-    Derfor står nummeret først.
-  </p>
-  <p class="tabellnote">
-    <strong>«Journalført senest denne datoen»</strong> er ikke det samme
-    som overdragelsesdato. Journaldatoen er da saken ble ført, og
-    overdragelsen kan ha skjedd før. Serien skiller heller ikke
-    konserninterne flyttinger fra ekte oppkjøp; det lar seg ikke gjøre
-    med offentlige data.
-  </p>
   {% else %}
   <p class="tomt">
     Ingen av kildene oppgir egne datoer for denne lokaliteten — verken
