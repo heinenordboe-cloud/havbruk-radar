@@ -622,15 +622,42 @@
     </p>
 
     {% else %}
+    {#- TO TILSTANDER UTEN GRAF, og de er ikke den samme. `lusegraf` er
+        `None` både når lokaliteten MANGLER hos BarentsWatch og når den
+        står der uten ett eneste tall. Grenen sa «finnes ikke i noen av
+        de 767 ukene» om begge, og MÅLT 06.10.2026 var det usant på 778
+        av 783 sider — Moltustranda (12325) står i alle 767, uten tall.
+        `lus_uker` er antall uker lokaliteten står i, og skiller dem. #}
     <p class="tomt">
-      Ingen lusetall rapportert. Lokaliteten finnes ikke i noen av de
+      Ingen lusetall rapportert.
+      {% if lok.lus_uker %}
+      Lokaliteten står i {{ tall(lok.lus_uker) }} av de
+      {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
+      BarentsWatch, men kilden oppgir ikke et tall i noen av dem.
+      {% else %}
+      Lokaliteten finnes ikke i noen av de
       {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
       BarentsWatch — ikke i én uke med tomt tall, men ikke i registeret
-      i det hele tatt. Det er ventet for anlegg som ikke har laksefisk:
+      i det hele tatt.
+      {% endif %}
+      {#- HVA REGISTERET SIER, ikke hva vi tror. «Ventet for anlegg som
+          ikke har laksefisk» sto på hver side uten lusetall, også på
+          laksanlegg. Se `_lus_fravaer()`. #}
+      {% if lok.lus_fravaer == "uten_laks" %}
+      Lokaliteten er ikke oppført med laks i Akvakulturregisteret, og
       lusetellingen gjelder laks og ørret i sjø.
+      {% elif lok.lus_fravaer == "paa_land" %}
+      Lokaliteten ligger på land, og lusetellingen gjelder laks og ørret
+      i sjø.
+      {% endif %}
+      {% if lok.lus_uker %}
+      <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> har alle
+      ukene, med tomt tall der kilden ikke oppgir noe.
+      {% else %}
       <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> finnes
       likevel, med hode og null rader — «vi har sett etter og ikke
       funnet noe» er et svar, og 404 er det ikke.
+      {% endif %}
     </p>
     {% endif %}
 

@@ -3855,6 +3855,32 @@ def _naboer(loknr: str, akva: dict, nokkel: int) -> list[tuple]:
     return [t for t in _NABOER[nokkel] if t[0] != loknr]
 
 
+def _lus_fravaer(a: dict) -> str:
+    """Hva registeret selv sier som forklarer at lusetallene mangler.
+
+    «Det er ventet for anlegg som ikke har laksefisk» sto på HVER
+    lokalitet som ikke finnes hos BarentsWatch, uansett hva registeret
+    oppgir. Moltustranda (12325) er oppført med laks og fikk setningen
+    likevel: grunnen der er at anlegget ligger på land.
+
+    Tre svar, og bare de to første er en forklaring:
+
+        "uten_laks"   arter har ikke `SALMON`
+        "paa_land"    plasseringstype er `Onshore`
+        ""            laks, ikke på land — registeret forklarer ikke
+                      fraværet, og siden skal ikke gjøre det for det
+
+    Ordene er kodene, ikke «laksefisk»: `SALMON` er «laks», og hvilke
+    arter koden omfatter er ikke dokumentert (se `visningsord`).
+    """
+    arter = (a.get("arter") or "").split(";")
+    if "SALMON" not in {x.strip() for x in arter}:
+        return "uten_laks"
+    if (a.get("plasseringstype") or "").strip() == "Onshore":
+        return "paa_land"
+    return ""
+
+
 def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     """Alle dataene én lokalitetsside trenger. Ingen HTML her.
 
@@ -3987,6 +4013,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # 764 uker og ikke funnet den».
         "lusetall_snapshots": (len(felles.lusetall_snapshots) if felles
                                else len(snapshot.datoer("lusetall"))),
+        # HVA DATAENE SIER OM HVORFOR den mangler. Se `_lus_fravaer()`.
+        "lus_fravaer": _lus_fravaer(a),
         # Telles her og skrives ikke inn i malen for hånd. Et tall i en
         # mal er et tall som ikke oppdateres når dataene gjør det, og da
         # er siden usann neste uke uten at noen rørte den.

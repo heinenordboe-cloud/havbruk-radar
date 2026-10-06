@@ -285,6 +285,7 @@ def _side(**overstyr) -> str:
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207,
         "lusetall_snapshots": 765,
+        "lus_fravaer": "",
         "csv_filnavn": nettsted.CSV_FILNAVN,
         "endringer": [{
             "dato": "2026-08-31", "gjelder": "lokaliteten",
@@ -3159,6 +3160,54 @@ def test_siden_uten_lusetall_far_ingen_graf():
     assert "Ingen lusetall rapportert" in html
     # Men tabellen står, med hode og null rader.
     assert 'id="lusetall-uke"' in html
+
+
+@pytest.mark.parametrize("arter, plassering, ventet", [
+    # Moltustranda (12325): laks, på land. Fikk «ikke har laksefisk».
+    ("SALMON", "Onshore", "Lokaliteten ligger på land"),
+    ("OTHER_FISH; SHELL_FISH", "Offshore", "ikke oppført med laks i Akvakulturregisteret"),
+    ("OTHER_FISH; SALMON", "Onshore", "Lokaliteten ligger på land"),
+    # Laks i sjø: registeret forklarer ikke fraværet, og siden gjør det
+    # heller ikke.
+    ("SALMON", "Offshore", None),
+    ("SALMON", "Ocean", None),
+])
+def test_uten_lusetall_sier_siden_bare_det_registeret_oppgir(
+        arter, plassering, ventet):
+    """«Det er ventet for anlegg som ikke har laksefisk» sto på HVER side
+    uten lusetall, også på 12325, som er oppført med laks."""
+    grunn = nettsted._lus_fravaer({"arter": arter,
+                                   "plasseringstype": plassering})
+    html = _side(lus_serie=[], lus=[], lus_uker=0, lus_fra="", lus_til="",
+                 lusegraf=None, lusetall_snapshots=764, lus_fravaer=grunn)
+    flat = " ".join(html.split())
+
+    assert "laksefisk" not in flat
+    assert "Ingen lusetall rapportert" in flat
+    if ventet is None:
+        assert "ligger på land" not in flat
+        assert "ikke oppført med laks" not in flat
+    else:
+        assert ventet in flat
+
+
+def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
+    """`lusegraf` er `None` også når lokaliteten STÅR hos BarentsWatch,
+    bare uten tall. Moltustranda (12325) står i alle 767 ukene, og siden
+    sa «finnes ikke i noen av de 767 ukene» og «null rader» om en
+    CSV med 767. MÅLT 06.10.2026: 778 av 783 sider uten lusetall."""
+    serie = [_uke_raa(voksne_hunnlus="", lus_er_rapportert="False",
+                      brakklagt="True") for _ in range(3)]
+    html = _side(lus_serie=serie, lus=nettsted.til_visning(serie),
+                 lus_uker=3, lus_uten_tall=3, lusegraf=None,
+                 lusetall_snapshots=767, lus_fravaer="paa_land")
+    flat = " ".join(html.split())
+
+    assert nettsted.lusegraf(serie) is None, "forutsetningen for prøven"
+    assert "Lokaliteten står i 3 av de 767 ukene" in flat
+    assert "finnes ikke i noen av" not in flat
+    assert "null rader" not in flat
+    assert "Lokaliteten ligger på land" in flat
 
 
 def test_om_siden_lenker_til_fontlisensen():
