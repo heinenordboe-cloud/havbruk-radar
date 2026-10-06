@@ -466,6 +466,12 @@
   --rom-32: 2rem;
   --rom-40: 2.5rem;
   --rom-44: 2.75rem;
+  /* `--rom-48` MANGLET fram til 06.10.2026. Taket på den klebrige
+     tilstandsspalta (`.lok-tilstand`) er `calc(100dvh - var(--rom-48))`,
+     og en udefinert variabel gjør hele uttrykket ugyldig når verdien
+     regnes ut — taket ble `none`. Spalta vokste til full høyde, og ved
+     en kort tidslinje sto 1 160 px tomt ved siden av (45140, 1440). */
+  --rom-48: 3rem;
   --rom-56: 3.5rem;
   --rom-64: 4rem;
   --rom-72: 4.5rem;

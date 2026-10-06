@@ -3379,6 +3379,17 @@ def test_registerfeltene_er_lukket_som_standard():
     assert "Navnet står her i registerets egen skrivemåte." in " ".join(inni.split())
 
 
+def test_hver_romvariabel_stilarket_bruker_er_definert():
+    """En udefinert `var()` gjør hele deklarasjonen ugyldig når verdien
+    regnes ut, uten feilmelding. `--rom-48` manglet og tok taket på
+    tilstandsspalta med seg (06.10.2026)."""
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    definert = set(re.findall(r"(--rom-[\w-]+)\s*:", css))
+    brukt = set(re.findall(r"var\((--rom-[\w-]+)", css))
+    assert brukt <= definert, sorted(brukt - definert)
+
+
 def test_om_siden_lenker_til_fontlisensen():
     """OFL 1.1 krever at lisensteksten følger fonten. `skriv_fonter()`
     legger den på /newsreader-OFL.txt, men en fil ingen vet om er en

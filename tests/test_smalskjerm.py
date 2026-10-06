@@ -558,6 +558,26 @@ def test_forsidens_meny_har_samme_kanter_som_resten(side, tjener, bredde):
         assert not forside["ruller"], "alle fem punktene skal synes på 390"
 
 
+@pytest.mark.parametrize("sti", ("/lokalitet/31397/",))
+def test_tilstandsspalta_har_tak_paa_bred_skjerm(side, tjener, sti):
+    """Taket er `calc(100dvh - var(--rom-48))`, og `--rom-48` fantes
+    ikke fram til 06.10.2026. Uttrykket ble ugyldig, taket `none`, og
+    spalta vokste til full høyde ved siden av en kort tidslinje."""
+    side.set_viewport_size({"width": 1440, "height": 900})
+    try:
+        side.goto(tjener + sti, wait_until="load")
+        m = side.evaluate("""() => {
+          const t = document.querySelector('.lok-tilstand');
+          return {tak: getComputedStyle(t).maxBlockSize,
+                  hoyde: t.getBoundingClientRect().height,
+                  vindu: window.innerHeight};
+        }""")
+    finally:
+        side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert m["tak"] != "none", m
+    assert m["hoyde"] <= m["vindu"], m
+
+
 # ---- brikka «Alle N rader» --------------------------------------------
 
 
