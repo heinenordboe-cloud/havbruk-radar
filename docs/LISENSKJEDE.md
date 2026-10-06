@@ -14,6 +14,16 @@ endres uten at noe i dataene beveger seg, og en lisens lest for et år
 siden er en antakelse med en dato på. Samme skille som `published_at`:
 tidspunktet tilhører KILDEN, ikke oss.
 
+**Vilkårssidene ligger i arkivet fra 06.10.2026.** Fram til da var
+sitatene i denne fila lest, men ikke tatt vare på: ingen kunne etterprøve
+hva en side faktisk sa den dagen den ble lest. `arkiver_vilkar.py`
+lagrer nå BarentsWatchs, Fiskeridirektoratets, Brregs og Lovdatas side
+som kropper med sha256 i `data/arkiv/vilkar-<part>/` i datarepoet, én gang
+i måneden (`vilkar.yml`), og bare når kroppen er ny. Loggfila
+`data/arkiv/vilkar/<dato>.logg.json` har i tillegg en hash av den synlige
+teksten, så en endring i vilkårene kan skilles fra en endring i markupen.
+Sitatene under er fortsatt lest for hånd; kroppene er belegget.
+
 ---
 
 ## Tabellen
@@ -24,8 +34,8 @@ tidspunktet tilhører KILDEN, ikke oss.
 | `biomasse` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
 | `biomasselag` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
 | `romming` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
-| `eierskap` | NLOD (Fiskeridir.) + **NLOD 2.0** (Brreg) | [fiskeridir.no](https://www.fiskeridir.no/statistikk-tall-og-analyse/lisens-for-bruk-av-fiskeridirektoratets-data) + [brreg.no/…/apne-data](https://www.brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/) | «Kilde: Fiskeridirektoratet» **+** «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 25.08. / 14.09.2026 |
-| `enhetsregisteret` | **NLOD 2.0** — gjelder det **frie** nivået, se merknad B | [brreg.no/…/apne-data](https://www.brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/), lisenstekst [data.norge.no/nlod/no/2.0](https://data.norge.no/nlod/no/2.0) | «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 14.09.2026 |
+| `eierskap` | NLOD (Fiskeridir.) + **NLOD 2.0** (Brreg) | [fiskeridir.no](https://www.fiskeridir.no/statistikk-tall-og-analyse/lisens-for-bruk-av-fiskeridirektoratets-data) + [brreg.no/…/datasett-og-api](https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/datasett-og-api/) | «Kilde: Fiskeridirektoratet» **+** «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 25.08. / 14.09.2026 |
+| `enhetsregisteret` | **NLOD 2.0** — gjelder det **frie** nivået, se merknad B | [brreg.no/…/datasett-og-api](https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/datasett-og-api/), lisenstekst [data.norge.no/nlod/no/2.0](https://data.norge.no/nlod/no/2.0) | «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 14.09.2026 |
 | `lusetall` | NLOD | [barentswatch.no/artikler/api-vilkar](https://www.barentswatch.no/artikler/api-vilkar) | «Data levert av BarentsWatch» **+** «Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra Mattilsynet.» | **ja, uttrykkelig** | 12.09.2026 |
 | `sjotemperatur` | NLOD | samme | «Data levert av BarentsWatch» | **ja, uttrykkelig** | 12.09.2026 |
 | `trafikklysvedtak` | NLOD 2.0, via unntaket i Lovdatas punkt 2.3 | [lovdata.no/info/brukeravtale](https://lovdata.no/info/brukeravtale) | «hvis du oppgir Lovdata som kilde og ellers følger vilkårene i NLOD 2.0» | **ja**, men se merknad C | 12.09.2026 |
@@ -250,7 +260,11 @@ ingen hadde lest Brregs egen lisensside; det er nå gjort.
 
 ### Lisensen, ordrett fra Brregs egen side
 
-Fra `brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/`:
+Fra `brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/`, lest
+14.09.2026. **Den adressen gir 404 fra 06.10.2026** (MÅLT). Setningen står
+ordrett på `brreg.no/bruke-data-fra-bronnoysundregistrene/datasett-og-api/`,
+som Brregs gamle `/produkter-og-tjenester/apne-data/` videresender til, og
+er arkivert derfra:
 
 > «Datasettene følger Norsk lisens for åpne data (NLOD). Det er ikke
 > nødvendig å registrere seg for å ta datasettet i bruk.»

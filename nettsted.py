@@ -199,6 +199,17 @@ ANSVARLIG_FOR = {
 }
 
 
+# ATTRIBUSJONSSETNINGER SOM SKAL VÆRE LENKER. BarentsWatchs vilkår
+# (api-vilkar, sist oppdatert 02.11.2023, lest 06.10.2026): «All bruk av
+# BarentsWatch API i applikasjoner skal derfor merkes med følgende tekst
+# og lenkes til BarentsWatch om mulig». Setningen sto som ren tekst i
+# bunnteksten fram til 06.10.2026. Nøkkelen er setningen, som i
+# `ANSVARLIG_FOR`.
+ATTRIBUSJONSLENKE = {
+    "Data levert av BarentsWatch": "https://www.barentswatch.no/",
+}
+
+
 def fraskrivelse(kilder, vilkaar=None, i_tillegg=()) -> list[str]:
     """Organene en side skal si at IKKE går god for sammenstillingen.
 
@@ -4598,6 +4609,7 @@ def _miljo() -> Environment:
     miljo.filters["kildenavn"] = visningsord.kilde
     miljo.globals["feltmerke"] = feltmerke
     miljo.globals["personformnavn"] = personformnavn
+    miljo.globals["attribusjonslenke"] = ATTRIBUSJONSLENKE
     miljo.globals["SKJULT_NAVN_FELT"] = publiseringsvakt.SKJULT_NAVN_FELT
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER
     return miljo

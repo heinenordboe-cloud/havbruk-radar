@@ -182,8 +182,11 @@
     <div>
       <h2 id="kilder">Kilder og vilkår</h2>
       <ul class="bunn-kilder">
+        {#- En setning kilden vil ha som LENKE står som lenke. Se
+            `ATTRIBUSJONSLENKE`. #}
         {% for setning in attribusjon %}
-        <li>{{ setning }}</li>
+        <li>{% if setning in attribusjonslenke %}<a href="{{ attribusjonslenke[setning] }}">{{ setning }}</a>
+          {%- else %}{{ setning }}{% endif %}</li>
         {% endfor %}
       </ul>
     </div>

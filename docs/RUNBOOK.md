@@ -508,6 +508,23 @@ python backfill.py --kilde biomasse --revisjon
 **Hører i cron, ved siden av `run.py`.** Én gang i måneden, etter den
 20. — det er da Fiskeridirektoratet publiserer fila på nytt.
 
+## Månedlig: vilkårsarkiveringen
+
+```bash
+python arkiver_vilkar.py --torrkjor      # se hva den ville hentet
+python arkiver_vilkar.py                 # arkiver
+```
+
+Kjører av seg selv den 2. i måneden (`vilkar.yml` i datarepoet). Henter
+vilkårssidene til BarentsWatch, Fiskeridirektoratet, Brreg og Lovdata og
+lagrer kroppen i `data/arkiv/vilkar-<part>/` når den er ny. Rød hvis én
+side ikke kan hentes. Da har adressen trolig flyttet, slik Brregs gjorde
+før 06.10.2026: finn den nye på utgiverens egen side, ikke gjett, og
+rett `SIDER` i skriptet og lenka i `docs/LISENSKJEDE.md`.
+
+Endret `tekst_sha256` i loggfila betyr at teksten på sida er en annen.
+Les den, og oppdater LISENSKJEDE hvis vilkårene har endret seg.
+
 ## Auksjonsarkivering — kjører av seg selv, men bare i sesongen
 
 ```bash

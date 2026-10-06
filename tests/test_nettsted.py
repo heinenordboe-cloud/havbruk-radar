@@ -508,6 +508,15 @@ def test_attribusjonen_staar_i_den_genererte_html_en():
     assert "Brønnøysundregistrene" in html
 
 
+def test_barentswatch_attribusjonen_er_en_lenke_til_barentswatch():
+    """Vilkårene: «skal derfor merkes med følgende tekst og lenkes til
+    BarentsWatch om mulig». De andre setningene står som tekst."""
+    html = _side()
+    assert ('<a href="https://www.barentswatch.no/">Data levert av '
+            'BarentsWatch</a>') in html
+    assert "<li>Kilde: Fiskeridirektoratet</li>" in " ".join(html.split())
+
+
 # ---- JSON-LD ----------------------------------------------------------
 
 def _jsonld_av(html: str) -> dict:
