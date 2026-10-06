@@ -97,3 +97,40 @@ def test_en_vanlig_dag_har_ingen_advarsler(kjor, capsys):
     assert kode == 0
     assert _advarsler(logg) == []
     assert "::warning::" not in capsys.readouterr().out
+
+
+# ---- kodeproveniens ---------------------------------------------------
+
+
+def test_hver_arkivert_kropp_har_kodeproveniens_i_loggen(kjor):
+    kode, logg = kjor(lambda url: (INDEKS_MED_BARN, ""), lambda url: Svar(""))
+
+    kropper = [r for r in logg if "sha256" in r]
+    assert kropper
+    for r in kropper:
+        assert r["kode_commit"] == "0" * 40      # conftest låser den
+        assert r["kode_rent"] == "ja"
+        assert r["fetched_at"].endswith("+00:00")
+    # Advarsels- og feilposter er ikke kropper og får ikke stempel.
+    assert all("kode_commit" not in r for r in logg if "sha256" not in r)
+
+
+def test_kode_som_ikke_kan_spores_henter_ingenting(tmp_path, monkeypatch, capsys):
+    """Samme sperre som run.py, spurt FØR noe hentes."""
+    from core import kodeproveniens
+
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path / "arkiv")
+
+    def ikke(*a, **k):
+        raise kodeproveniens.IkkeSporbar("arbeidstreet er ikke rent")
+    monkeypatch.setattr(kodeproveniens, "krev_sporbar", ikke)
+
+    def hent(url):
+        raise AssertionError("skulle ikke hentet noe")
+    monkeypatch.setattr(ark, "_hent", lambda klient, url: hent(url))
+    monkeypatch.setattr(sys, "argv", ["arkiver_auksjon.py", "--dato", "2026-10-06"])
+
+    assert ark.main() == 1
+    assert "::error::Auksjonsarkiveringen startet ikke: arbeidstreet er ikke rent" \
+        in capsys.readouterr().out
+    assert not (tmp_path / "arkiv").exists()

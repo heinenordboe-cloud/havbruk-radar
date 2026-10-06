@@ -72,3 +72,43 @@ def test_en_side_som_feiler_gir_rod_men_de_andre_arkiveres(arkiv, monkeypatch, c
            in capsys.readouterr().out
     assert not (arkiv / "vilkar-lovdata").exists()
     assert len(list((arkiv / "vilkar-barentswatch").glob("*.gz"))) == 1
+
+
+def test_hver_arkivert_kropp_har_kodeproveniens_i_loggen(arkiv, monkeypatch):
+    _sider(monkeypatch, lambda url: (b"<p>x</p>", ""))
+    ark.main(["--dato", "2026-10-06"])
+    logg = json.loads((arkiv / "vilkar" / "2026-10-06.logg.json").read_text())
+    for r in logg:
+        assert r["kode_commit"] == "0" * 40      # conftest låser den
+        assert r["kode_rent"] == "ja"
+        assert r["fetched_at"].endswith("+00:00")
+
+
+def test_kode_som_ikke_kan_spores_henter_ingenting(arkiv, monkeypatch, capsys):
+    """Samme sperre som run.py, spurt FØR noe hentes."""
+    from core import kodeproveniens
+
+    def ikke(*a, **k):
+        raise kodeproveniens.IkkeSporbar("HEAD finnes ikke på origin/main")
+    monkeypatch.setattr(kodeproveniens, "krev_sporbar", ikke)
+
+    def hent(url):
+        raise AssertionError("skulle ikke hentet noe")
+    _sider(monkeypatch, hent)
+
+    assert ark.main(["--dato", "2026-10-06"]) == 1
+    assert "::error::Vilkårsarkiveringen startet ikke" in capsys.readouterr().out
+    assert not arkiv.exists()
+
+
+def test_torrkjoring_krever_ikke_sporbar_kode(arkiv, monkeypatch):
+    """Den skriver ingen fil, så det finnes ingen fil å gjøre rede for."""
+    from core import kodeproveniens
+
+    def ikke(*a, **k):
+        raise kodeproveniens.IkkeSporbar("urent")
+    monkeypatch.setattr(kodeproveniens, "krev_sporbar", ikke)
+    _sider(monkeypatch, lambda url: (b"x", ""))
+
+    assert ark.main(["--torrkjor"]) == 0
+    assert not arkiv.exists()

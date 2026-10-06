@@ -1,8 +1,10 @@
 # Åpne spørsmål
 
-Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Nitten
+Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Atten
 tekniske spørsmål står igjen: sju under, sortert etter hva som
-blokkerer mest, og tolv fra designimplementeringen 22.09.2026.
+blokkerer mest, og elleve fra designimplementeringen 22.09.2026.
+Punkt 9 i den andre lista (auksjonsarkivenes kodeproveniens) ble avgjort
+06.10.2026 og er flyttet til docs/beslutninger/; de etter er rykket opp.
 
 Tallet var «elleve» fram til 24.09.2026, og det var feil på samme måte
 som «to» var det før 23.09: den andre lista hadde elleve punkter, ikke
@@ -348,46 +350,7 @@ leser CSS-en slik kontrastprøven gjør?
 Den andre veien fanger nettopp denne feilen og koster ingenting. Den
 fanger ikke neste, som blir noe annet.
 
-### 9. Auksjonsarkivene har ingen kodeproveniens
-
-Fra 23.09.2026, som følge av
-`docs/beslutninger/2026-09-23-kodeproveniens-per-snapshot.md`.
-
-`snapshot.write()` stempler `kode_commit` og `kode_rent` på hver rad.
-`arkiver_auksjon.py` går ikke gjennom den døra: den importerer bare
-`core.raw` og `sources._http` (linje 61–62), kaller ikke
-`kodeproveniens.krev_sporbar()`, og skriver til `data/arkiv/` via
-`raw.arkiver_ny()` (linje 106). Den er dermed heller ikke omfattet av
-sperren i `run.py`.
-
-**Argumentet for at det er greit:** en arkivfil er en RÅ KROPP, ikke
-tolkede rader. `raw_hash` — sha256 av kroppen — identifiserer den
-fullstendig, og den er uavhengig av hvilken kode som lastet den ned. To
-kjøringer av ulik kode mot samme svar gir samme fil og samme sum. Det er
-nettopp det et snapshot IKKE har: samme kropp gir 1934 eller 2611
-overføringer alt etter hvilket filter som leste den, og det er derfor
-snapshotene trengte stempelet.
-
-**Argumentet mot, og grunnen til at dette står som et åpent spørsmål:**
-
-1. Koden avgjør likevel HVA som ble hentet. `arkiver_auksjon.py` velger
-   URL-er ved å lese en indeksside og følge lenker; en endring i den
-   utvelgelsen endrer hvilke kropper som finnes, uten å endre noen sum.
-   Fraværet av en fil er ikke synlig i noen sjekksum.
-2. Kilden kan ikke etterprøves mot koden. Finner noen om fem år en
-   arkivfil som ser rar ut, er det ingenting i `data/arkiv/` som sier
-   hvilken utgave av nedlasteren som hentet den.
-3. Sperren gjelder ikke. En auksjonskjøring fra upushet kode er mulig i
-   dag, og ingen ville sett det.
-
-**Spørsmålet:** skal `data/arkiv/` få en sidevogn — én linje per fil med
-commit, renhet og hentetidspunkt — eller holder `raw_hash`?
-
-En sidevogn bryter ikke append-only så lenge den også er append-only,
-men den er en ANDRE fil per kropp, og det er en kostnad i et arkiv som
-allerede har 1 800 filer.
-
-### 10. `trafikklysvedtak` hentes ikke igjen før 2027
+### 9. `trafikklysvedtak` hentes ikke igjen før 2027
 
 Fra 23.09.2026.
 
@@ -423,7 +386,7 @@ kjernen.
 
 Ikke rørt nå, etter beskjed.
 
-### 11. Prosjektet står på KLASSISK Pages, opprettet med `--force`
+### 10. Prosjektet står på KLASSISK Pages, opprettet med `--force`
 
 Fra 23.09.2026.
 
@@ -485,7 +448,7 @@ forhåndsvisning kan skilles fra produksjon, og hvor mange linjer i
 ny opplasting. Etter at domenet er knyttet, er den også en
 DNS-operasjon på en adresse noen har lenket til.
 
-### 12. www videresender ikke — to verter svarer 200 med samme side
+### 11. www videresender ikke — to verter svarer 200 med samme side
 
 MÅLT 24.09.2026:
 

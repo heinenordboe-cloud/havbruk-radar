@@ -48,6 +48,19 @@ Målt 14.09.2026: verken indeksen eller 2024-barnet sender
 disse sidene. Feltet settes da TOMT med en advarsel, aldri til
 hentetidspunktet — CLAUDE.md 1b-7 punkt 1. For Wayback-kroppene leses
 `X-Archive-Orig-Last-Modified` når den finnes.
+
+## Kodeproveniens
+
+Fra 06.10.2026, som de andre arkiverte kroppene. Før noe hentes, kaller
+skriptet `kodeproveniens.krev_sporbar()`, samme sperre som `run.py`:
+arbeidstreet må være rent og HEAD må finnes på origin/main, ellers
+stopper det med `::error::` og exit 1. Hver arkivert kropp får
+`kode_commit`, `kode_rent` og `fetched_at` i dagens loggfil, ved siden
+av sha256-en. Loggfila er sidevogna: én per kjøring, ikke én per kropp.
+`--torrkjor` skriver ingen fil og er unntatt, som i run.py. Logger
+skrevet før 06.10.2026 har ikke feltene, og de fylles ikke inn i
+ettertid (CLAUDE.md regel 2). Se
+docs/beslutninger/2026-10-06-arkivkropper-kodeproveniens.md.
 """
 
 import argparse
@@ -58,6 +71,7 @@ import sys
 
 import httpx
 
+from core import kodeproveniens
 from core import raw as raw_arkiv
 from sources import _http
 
@@ -117,6 +131,8 @@ def _arkiver(klient: httpx.Client, url: str, dato: str, torr: bool,
         logg.append({"url": url, "byte": len(kropp), "torrkjoring": True})
         return
 
+    # Når VI hentet kroppen (CLAUDE.md 1b-7: OSS, ikke kilden).
+    hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     h, ny = raw_arkiv.arkiver_ny(KILDE, dato, kropp)
     merke = "NY" if ny else "uendret"
     print(f"  {merke:<8} {len(kropp):>7} B  {h[:16]}…  {url}")
@@ -124,7 +140,7 @@ def _arkiver(klient: httpx.Client, url: str, dato: str, torr: bool,
         print(f"           published_at TOM — svaret bærer ingen "
               f"Last-Modified. Ikke satt til hentetidspunktet (1b-7).")
     logg.append({"url": url, "byte": len(kropp), "sha256": h, "ny": ny,
-                 "published_at": utgitt})
+                 "published_at": utgitt, "fetched_at": hentet})
 
 
 def _advar(logg: list, hva: str, tekst: str) -> None:
@@ -163,6 +179,18 @@ def main() -> int:
     dato = a.dato or dt.date.today().isoformat()
     print(f"Auksjonsarkivering {dato}"
           + ("  (TØRRKJØRING)" if a.torrkjor else ""))
+
+    # KAN KJØRINGEN GJØRES REDE FOR? Spurt før noe hentes. Se modulens
+    # docstring, «Kodeproveniens».
+    proveniens: dict = {}
+    if not a.torrkjor:
+        try:
+            sha, tilstand = kodeproveniens.krev_sporbar()
+        except kodeproveniens.IkkeSporbar as e:
+            print(f"::error::Auksjonsarkiveringen startet ikke: {e}")
+            return 1
+        proveniens = {"kode_commit": sha, "kode_rent": tilstand}
+        print(f"  kode        {sha[:12]}  rent, på origin/main")
 
     logg: list = []
 
@@ -229,6 +257,12 @@ def main() -> int:
     advarsler = sum(1 for r in logg if "advarsel" in r)
     print(f"\n{adresser} adresse(r), {nye} ny(e) kropp(er), {feil} feil, "
           f"{advarsler} advarsel(er).")
+
+    # Stempelet står på hver kropp som ble arkivert eller funnet igjen —
+    # postene med sha256 — og ikke på feil- og advarselsposter.
+    for r in logg:
+        if "sha256" in r:
+            r.update(proveniens)
 
     if not a.torrkjor:
         sti = raw_arkiv.ARKIV_DIR / KILDE / f"{dato}.logg.json"

@@ -36,6 +36,19 @@ står ellers tom — aldri hentetidspunktet (CLAUDE.md 1b-7).
 En vilkårsside er ikke data om havbruk, og den gir ingen `Observation`.
 Den arkiveres som `arkiver_auksjon.py` gjør: kroppen først, og et
 eventuelt uttrekk senere av noe som er skrevet mot en kropp som finnes.
+
+## Kodeproveniens
+
+Fra 06.10.2026, som de andre arkiverte kroppene. Før noe hentes, kaller
+skriptet `kodeproveniens.krev_sporbar()`, samme sperre som `run.py`:
+arbeidstreet må være rent og HEAD må finnes på origin/main, ellers
+stopper det med `::error::` og exit 1. Hver arkivert kropp får
+`kode_commit`, `kode_rent` og `fetched_at` i dagens loggfil, ved siden
+av sha256-en. Loggfila er sidevogna: én per kjøring, ikke én per kropp.
+`--torrkjor` skriver ingen fil og er unntatt, som i run.py. Logger
+skrevet før 06.10.2026 har ikke feltene, og de fylles ikke inn i
+ettertid (CLAUDE.md regel 2). Se
+docs/beslutninger/2026-10-06-arkivkropper-kodeproveniens.md.
 """
 
 import argparse
@@ -48,6 +61,7 @@ import sys
 
 import httpx
 
+from core import kodeproveniens
 from core import raw as raw_arkiv
 from sources import _http
 
@@ -101,10 +115,12 @@ def arkiver(klient: httpx.Client, part: str, url: str, dato: str,
         print(f"  ville arkivert  {len(kropp):>7} B  {url}")
         return dict(post, torrkjoring=True)
 
+    # Når VI hentet kroppen (CLAUDE.md 1b-7: OSS, ikke kilden).
+    hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     sha, ny = raw_arkiv.arkiver_ny(kilde(part), dato, kropp)
     print(f"  {'NY' if ny else 'uendret':<8} {len(kropp):>7} B  "
           f"{sha[:16]}…  tekst {tekst_sha[:12]}…  {url}")
-    return dict(post, sha256=sha, ny=ny)
+    return dict(post, sha256=sha, ny=ny, fetched_at=hentet)
 
 
 def main(argv=None) -> int:
@@ -118,11 +134,27 @@ def main(argv=None) -> int:
     dato = a.dato or dt.date.today().isoformat()
     print(f"Vilkårsarkivering {dato}" + ("  (TØRRKJØRING)" if a.torrkjor else ""))
 
+    # KAN KJØRINGEN GJØRES REDE FOR? Spurt før noe hentes. Se modulens
+    # docstring, «Kodeproveniens».
+    proveniens: dict = {}
+    if not a.torrkjor:
+        try:
+            sha, tilstand = kodeproveniens.krev_sporbar()
+        except kodeproveniens.IkkeSporbar as e:
+            print(f"::error::Vilkårsarkiveringen startet ikke: {e}")
+            return 1
+        proveniens = {"kode_commit": sha, "kode_rent": tilstand}
+        print(f"  kode        {sha[:12]}  rent, på origin/main")
+
     # Ingen egen User-Agent: `sources/_http.py` setter den for alle kall,
     # med kontaktadressen fra HAVBRUK_KONTAKT, og overstyrer kallerens.
     with httpx.Client(timeout=60.0, follow_redirects=True) as klient:
         logg = [arkiver(klient, part, url, dato, a.torrkjor)
                 for part, url in SIDER.items()]
+
+    for r in logg:
+        if "sha256" in r:
+            r.update(proveniens)
 
     nye = sum(1 for r in logg if r.get("ny"))
     feil = sum(1 for r in logg if "feil" in r)

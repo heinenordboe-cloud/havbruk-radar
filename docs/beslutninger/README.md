@@ -9,6 +9,7 @@ ikke kunne leses som gjeldende — se `status` i hver fil.
 
 Nyeste øverst.
 
+- **2026-10-06** — [Arkivkropper uten snapshot får kodeproveniens i kjøringens loggfil, ikke i en sidevogn per kropp](2026-10-06-arkivkropper-kodeproveniens.md) — utkast
 - **2026-10-06** — [Koordinatterskelen er 100 m — bygget på seks målinger, vurderes på nytt ved årsskiftet](2026-10-06-koordinatterskel-100-m.md) — besluttet, vurderes på nytt ved årsskiftet
 - **2026-10-06** — [Vesentlig eller teknisk — én regel for hver registerendring, og en koordinatterskel på 100 m](2026-10-06-vesentlig-og-teknisk.md) — utkast
 - **2026-10-06** — [Ukas tall telles på radene slik de vises — en trukket tillatelse er én hendelse, ikke to](2026-10-06-tellingen-folger-radene.md) — utkast
