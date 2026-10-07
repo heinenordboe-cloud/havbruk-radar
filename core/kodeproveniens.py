@@ -183,23 +183,68 @@ def _lokal_main() -> str:
                    "refs/remotes/origin/main")
 
 
-def _er_stamfar(sha: str, mot: str) -> bool:
-    """Er `sha` lik eller stamfar til `mot`?
+def er_grunn() -> bool:
+    """Er arbeidstreet en GRUNN klone (`fetch-depth: 1` og liknende)?"""
+    return _git_ut("rev-parse", "--is-shallow-repository") == "true"
+
+
+def _har_commit(sha: str) -> bool:
+    return _git("cat-file", "-e", f"{sha}^{{commit}}")[0] == 0
+
+
+def _er_stamfar(sha: str, mot: str) -> tuple[bool | None, str]:
+    """(er `sha` lik eller stamfar til `mot`, grunn når det ikke kan avgjøres).
 
     `--is-ancestor` gir exit 0 for ja og 1 for nei, og -1 fra `_git()`
-    når kallet ikke gikk. Bare 0 er ja. I et GRUNT arbeidstre kan git
-    mangle historikken mellom to ulike commiter og svare nei på noe som
-    er sant — derfor sjekkes likhet først, som er tilfellet i CI.
+    når kallet ikke gikk. Bare 0 er ja.
+
+    ## Nei er ikke alltid nei
+
+    Git kan bare svare om historikk den HAR. To tilfeller der den ikke
+    har den, og der et nei derfor er «vet ikke»:
+
+      * **Grunn klone.** Historikken bak grensa mangler, og git svarer
+        nei på noe som er sant. MÅLT 07.10.2026: bygg.yml hentet
+        kodrepoet med `fetch-depth: 1`, og porten meldte 15 snapshots
+        som skrevet av kode som «ikke finnes på origin/main». Alle 15
+        commitene fantes der.
+      * **`mot` er ikke hentet.** Fjernlagerets `origin/main` kan være
+        nyere enn noe klonen har sett. MÅLT samme dag: en full klone
+        laget før tre nye pusher ga de samme 15 «finnes ikke».
+
+    Bare når begge er utelukket er et nei et nei. Likhet sjekkes først,
+    og det er tilfellet i CI for HEAD — det avgjøres uten historikk.
     """
     if sha == mot:
-        return True
+        return True, ""
     kode, _ = _git("merge-base", "--is-ancestor", sha, mot)
-    return kode == 0
+    if kode == 0:
+        return True, ""
+    grunner = []
+    if er_grunn():
+        grunner.append(HISTORIKKEN_MANGLER)
+    if not _har_commit(mot):
+        grunner.append(f"origin/main ({mot[:12]}) er ikke hentet i denne "
+                       f"klonen — det kan ikke avgjøres om commiten finnes "
+                       f"der. Kjør git fetch")
+    return (None, "; ".join(grunner)) if grunner else (False, "")
+
+
+HISTORIKKEN_MANGLER = (
+    "historikken mangler: klonen er grunn, og commiten ligger bak grensa "
+    "— det kan ikke avgjøres om den finnes på origin/main. Hent med "
+    "full historikk (fetch-depth: 0)")
 
 
 @lru_cache(maxsize=4)
-def paa_origin_main(sha: str) -> tuple[bool, str]:
-    """(er den pushet, hvordan vi vet det).
+def paa_origin_main(sha: str) -> tuple[bool | None, str]:
+    """(er den pushet, hvordan vi vet det). `None` = kan ikke avgjøres.
+
+    `None` kommer når klonen mangler historikken som trengs — grunn,
+    eller uten fjernlagerets origin/main — og `hvordan` sier hvilken.
+    Se `_er_stamfar()`. Den er falsy, så en
+    kaller som bare spør `if not pushet` stopper fortsatt; men den skal
+    ikke si at commiten ikke finnes.
 
     Andre leddet er ikke pynt: det skiller «fjernlageret sa ja» fra «den
     lokale referansen sa ja» fra «ingen av dem kunne svare», og det er
@@ -214,13 +259,16 @@ def paa_origin_main(sha: str) -> tuple[bool, str]:
 
     fjern = _fjern_main()
     if fjern:
-        return _er_stamfar(sha, fjern), f"fjernlageret: origin/main = {fjern[:12]}"
+        svar, grunn = _er_stamfar(sha, fjern)
+        grunnlag = f"fjernlageret: origin/main = {fjern[:12]}"
+        return svar, f"{grunn}; {grunnlag}" if grunn else grunnlag
 
     lokal = _lokal_main()
     if lokal:
-        return (_er_stamfar(sha, lokal),
-                f"lokal refs/remotes/origin/main = {lokal[:12]} "
-                f"(fjernlageret svarte ikke)")
+        svar, grunn = _er_stamfar(sha, lokal)
+        grunnlag = (f"lokal refs/remotes/origin/main = {lokal[:12]} "
+                    f"(fjernlageret svarte ikke)")
+        return svar, f"{grunn}; {grunnlag}" if grunn else grunnlag
 
     return False, ("verken fjernlageret eller en lokal "
                    "refs/remotes/origin/main kunne svare")
@@ -256,6 +304,11 @@ def krev_sporbar() -> tuple[str, str]:
             f"kode som skrev fila.\n\n" + (_git_ut("status", "--short") or ""))
 
     pushet, hvordan = paa_origin_main(sha)
+    if pushet is None:
+        raise IkkeSporbar(
+            f"HEAD {sha[:12]}: {hvordan}.\n\n"
+            f"Det er ikke F15 — det er klonen som mangler historikken "
+            f"som trengs for å svare.")
     if not pushet:
         raise IkkeSporbar(
             f"HEAD {sha[:12]} finnes ikke på origin/main. Push først.\n"

@@ -1948,6 +1948,9 @@ def kodeproveniensfunn() -> list[Funn]:
         visste at den ikke kunne gjøre rede for seg.
       * **Hashen finnes ikke på `origin/main`.** Funn. Det er F15 i sin
         rene form.
+      * **Det kan ikke avgjøres** — klonen av kodrepoet er grunn, eller
+        har ikke hentet fjernlagerets origin/main. Funn, men med den
+        grunnen og ikke «finnes ikke». Se `kodeproveniens._er_stamfar()`.
 
     Skillet mellom de to første krever at man vet om KOLONNEN fantes, og
     ikke bare om den er tom. `snapshot.kodeproveniens_per_fil()` svarer
@@ -1976,7 +1979,15 @@ def kodeproveniensfunn() -> list[Funn]:
                     f"{sha[:12]} — arbeidstreet var ikke rent "
                     f"({', '.join(post['rent']) or 'uoppgitt'})"))
             pushet, hvordan = kodeproveniens.paa_origin_main(sha)
-            if not pushet:
+            if pushet is None:
+                # KAN IKKE AVGJØRES — grunn klone, eller origin/main ikke
+                # hentet. Ikke «finnes ikke»: den påstanden ville vært
+                # usann for hver commit git ikke har sett. Fortsatt et
+                # funn — vi kan ikke gjøre rede for fila — men med riktig
+                # grunn.
+                funn.append(Funn(rel, "kodeproveniens",
+                                 f"{sha[:12]} — {hvordan}"))
+            elif not pushet:
                 funn.append(Funn(
                     rel, "kodeproveniens",
                     f"{sha[:12]} finnes ikke på origin/main ({hvordan})"))
