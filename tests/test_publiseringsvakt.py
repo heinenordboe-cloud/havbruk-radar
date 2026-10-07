@@ -1950,3 +1950,250 @@ def test_wasm_pinnes_ikke_lenger_paa_sum():
     assert not hasattr(vakt, "BINAERFILER_VERKTOY")
     assert "2feab03d140476c959ca2b69830b84c8292403085d8280a381b140632e8a7274" \
         not in vakt.BINAERFILER_ALLE
+
+
+# ---- pakkede nedlastinger: .xlsx og .zip -------------------------------
+#
+# Fra 07.10.2026 går lusetall og ukesfiler ut som regneark og ZIP. Begge
+# er arkiver, og vakten pakker dem ut og stiller de samme prøvene på
+# innholdet som på HTML og CSV. Regnearkene her bygges for hånd med
+# `zipfile`: prøven skal lese det som står i fila, og en fikstur skrevet
+# av det samme biblioteket som skriver nettstedets filer ville prøvd
+# biblioteket mot seg selv.
+
+_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
+
+def _xlsx(ark: dict[str, list[list]], ekstra: dict[str, bytes] | None = None,
+          kjerne: str = "") -> bytes:
+    """En minimal, gyldig `.xlsx`. Strenger går til sharedStrings, tall
+    står som tall — samme form som et regnearkprogram skriver."""
+    import io
+    import zipfile
+    from xml.sax.saxutils import escape
+
+    delte: list[str] = []
+
+    def celle(ref: str, v) -> str:
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return f'<c r="{ref}"><v>{v}</v></c>'
+        delte.append(str(v))
+        return f'<c r="{ref}" t="s"><v>{len(delte) - 1}</v></c>'
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        arkliste, rels = [], []
+        for i, (navn, rader) in enumerate(ark.items(), 1):
+            xml_rader = "".join(
+                f'<row r="{r}">' + "".join(
+                    celle(f"{chr(65 + k)}{r}", v)
+                    for k, v in enumerate(rad) if v != "") + "</row>"
+                for r, rad in enumerate(rader, 1))
+            z.writestr(f"xl/worksheets/sheet{i}.xml",
+                       f'<worksheet xmlns="{_NS}"><sheetData>{xml_rader}'
+                       f"</sheetData></worksheet>")
+            arkliste.append(f'<sheet name="{escape(navn)}" sheetId="{i}" '
+                            f'r:id="rId{i}"/>')
+            rels.append(f'<Relationship Id="rId{i}" Type="ws" '
+                        f'Target="worksheets/sheet{i}.xml"/>')
+        z.writestr("xl/workbook.xml",
+                   f'<workbook xmlns="{_NS}" xmlns:r="{_R}"><sheets>'
+                   + "".join(arkliste) + "</sheets></workbook>")
+        z.writestr("xl/_rels/workbook.xml.rels",
+                   '<Relationships xmlns="http://schemas.openxmlformats.org/'
+                   'package/2006/relationships">' + "".join(rels)
+                   + "</Relationships>")
+        z.writestr("xl/sharedStrings.xml",
+                   f'<sst xmlns="{_NS}">' + "".join(
+                       f"<si><t>{escape(s)}</t></si>" for s in delte)
+                   + "</sst>")
+        # PAKKENS EGEN RELASJONSFIL, som hvert ekte regneark har. Den
+        # manglet i første utgave av denne fiksturen, og derfor så ingen
+        # test at `Path(".rels").suffix` er tom — se `_endelse()`.
+        z.writestr("_rels/.rels",
+                   '<Relationships xmlns="http://schemas.openxmlformats.org/'
+                   'package/2006/relationships"/>')
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("docProps/core.xml",
+                   "<coreProperties><created>2026-10-07T00:00:00Z</created>"
+                   f"<creator>Kystloggen</creator>{kjerne}</coreProperties>")
+        for navn, innhold in (ekstra or {}).items():
+            z.writestr(navn, innhold)
+    return buf.getvalue()
+
+
+def _zip(medlemmer: dict[str, bytes | str]) -> bytes:
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for navn, innhold in medlemmer.items():
+            z.writestr(navn, innhold)
+    return buf.getvalue()
+
+
+_REN_DATA = [["entity_id", "entity_name", "kommune"],
+             ["912345678", "Nordlaks Oppdrett", "BODØ"]]
+_REN_OM = [["Felt", "Verdi"], ["Kilde", "Data levert av BarentsWatch"]]
+
+
+def test_et_rent_regneark_og_en_ren_zip_gir_ingen_funn(tmp_path,
+                                                      snapshotmappe):
+    """Den ufarlige siden: uten den er resten av prøvene verdiløse, for
+    en vakt som feller alt som er pakket blir slått av."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "a.xlsx").write_bytes(_xlsx({"Data": _REN_DATA,
+                                       "Om dataene": _REN_OM}))
+    (ut / "a.zip").write_bytes(_zip({
+        "a.csv": "entity_id,entity_name\n912345678,Nordlaks Oppdrett\n",
+        "metadata.json": '{"dc:title": "ren"}',
+        "README.txt": "Data levert av BarentsWatch\n"}))
+    assert vakt.gransk(ut) == []
+
+
+def test_regnearket_var_ugransket_for_07_10(tmp_path, snapshotmappe):
+    """Ankeret for hva som endret seg: fram til 07.10.2026 var en
+    `.xlsx` `ugranska`. Nå leses den — og et ark med et ukjent navn i
+    en navnekolonne felles, med arket i stien."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "a.xlsx").write_bytes(_xlsx({"Data": [
+        ["entity_id", "entity_name"], ["", "Kari Nordmann"]]}))
+    funn = vakt.gransk(ut)
+    assert [(f.fil, f.slag) for f in funn] == [("a.xlsx!/Data", "ukjent_navn")]
+    assert "Kari" not in str(funn[0])
+
+
+def test_personform_i_fritekst_paa_om_arket_felles(lister):
+    """«Om dataene» er fritekst i CELLER, ikke kommentarlinjer. En
+    CSV-prøve alene ville bare sett kolonnene, og en entydig personform-
+    kode midt i en forklaring ville gått ut."""
+    orgnr, navn = lister
+    funn = vakt.gransk_xlsx(_xlsx({"Om dataene": [
+        ["Felt", "Verdi"], ["Merknad", "Eieren er et ENK"]]}),
+        "a.xlsx", orgnr, navn)
+    assert [(f.fil, f.slag) for f in funn] == [
+        ("a.xlsx!/Om dataene", "personform")]
+
+
+def test_tvetydig_kode_i_regneark_leses_av_kolonnen(lister, monkeypatch):
+    """`DA` er dekar i `kapasitet_enhet` og delt ansvar i
+    `organisasjonsform`. I et ark er det kolonnen som avgjør, som i CSV."""
+    orgnr, navn = lister
+    monkeypatch.setattr(persondata, "PERSONFORMER",
+                        frozenset(persondata.PERSONFORMER | {"DA"}))
+    ark = _xlsx({"Data": [["kapasitet_enhet", "organisasjonsform"],
+                          ["DA", ""]]})
+    assert vakt.gransk_xlsx(ark, "a.xlsx", orgnr, navn,
+                            tvetydige={"DA"}) == []
+    ark = _xlsx({"Data": [["kapasitet_enhet", "organisasjonsform"],
+                          ["", "DA"]]})
+    assert [f.slag for f in vakt.gransk_xlsx(
+        ark, "a.xlsx", orgnr, navn, tvetydige={"DA"})] == ["personform"]
+
+
+def test_orgnummer_som_tallcelle_felles(lister):
+    """Et regneark lagrer tall som tall. Et orgnummer skrevet som tall
+    står i `<v>`, ikke i sharedStrings — og skal ses der også."""
+    orgnr, navn = lister
+    funn = vakt.gransk_xlsx(_xlsx({"Data": [["entity_id"], [998877665]]}),
+                            "a.xlsx", orgnr, navn)
+    assert [f.slag for f in funn] == ["ukjent_orgnr"]
+
+
+def test_raatt_tidsstempel_i_celle_felles_men_ikke_i_dokumentegenskapene(
+        lister):
+    """`docProps/core.xml` SKAL ha `dcterms:created` med klokkeslett —
+    det er formatet, som `<updated>` i en feed. En celle er det leseren
+    ser."""
+    orgnr, navn = lister
+    ren = _xlsx({"Data": _REN_DATA})
+    assert vakt.gransk_xlsx(ren, "a.xlsx", orgnr, navn) == []
+    skitten = _xlsx({"Data": [["hentet"], ["2026-10-05T04:12:00+00:00"]]})
+    assert [f.slag for f in vakt.gransk_xlsx(
+        skitten, "a.xlsx", orgnr, navn)] == ["raatt_tidsstempel"]
+
+
+def test_persondata_i_dokumentegenskapene_felles(lister):
+    """Dokumentegenskapene er ikke synlige i arket, men de følger med
+    fila. Persondataprøvene gjelder dem."""
+    orgnr, navn = lister
+    funn = vakt.gransk_xlsx(
+        _xlsx({"Data": _REN_DATA}, kjerne="<subject>998877665</subject>"),
+        "a.xlsx", orgnr, navn)
+    assert [(f.fil, f.slag) for f in funn] == [
+        ("a.xlsx!/docProps/core.xml", "ukjent_orgnr")]
+
+
+def test_uferdig_tekst_og_reposti_i_regneark_felles(lister):
+    orgnr, navn = lister
+    funn = vakt.gransk_xlsx(_xlsx({"Om dataene": [
+        ["Felt", "Verdi"], ["Lisens", "TODO"],
+        ["Se", "docs/RUNBOOK.md"]]}), "a.xlsx", orgnr, navn)
+    assert sorted(f.slag for f in funn) == ["reposti", "uferdig"]
+
+
+def test_ukjent_del_i_regnearket_er_ugransket(lister):
+    """Et innebygd bilde eller et makroprosjekt er ikke XML. Vi skriver
+    ingen, og en som dukker opp skal vakten si at den ikke har lest."""
+    orgnr, navn = lister
+    funn = vakt.gransk_xlsx(
+        _xlsx({"Data": _REN_DATA}, ekstra={"xl/vbaProject.bin": b"\x00\x01"}),
+        "a.xlsx", orgnr, navn)
+    assert [(f.fil, f.slag) for f in funn] == [
+        ("a.xlsx!/xl/vbaProject.bin", "ugranska")]
+
+
+def test_et_ulesbart_regneark_er_ugransket(tmp_path, snapshotmappe):
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "a.xlsx").write_bytes(b"PK\x03\x04 ikke et regneark")
+    assert [f.slag for f in vakt.gransk(ut)] == ["ugranska"]
+
+
+def test_zip_medlemmer_granskes_som_om_de_laa_utpakket(tmp_path,
+                                                      snapshotmappe):
+    """Hvert medlem får prøvene for SIN type: CSV-en per kolonne,
+    JSON og tekst som tekst — og en ukjent type er ugranska, inni et
+    arkiv som utenfor."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "a.zip").write_bytes(_zip({
+        "data.csv": "entity_id,entity_name\n,Kari Nordmann\n",
+        "metadata.json": '{"merknad": "TODO"}',
+        "README.txt": "Hentet 2026-10-05T04:12:00+00:00\n",
+        "rader.parquet": b"PAR1",
+        "inni.xlsx": _xlsx({"Om dataene": [["Felt"], ["et ENK"]]}),
+    }))
+    assert sorted((f.fil, f.slag) for f in vakt.gransk(ut)) == [
+        ("a.zip!/README.txt", "raatt_tidsstempel"),
+        ("a.zip!/data.csv", "ukjent_navn"),
+        ("a.zip!/inni.xlsx!/Om dataene", "personform"),
+        ("a.zip!/metadata.json", "uferdig"),
+        ("a.zip!/rader.parquet", "ugranska"),
+    ]
+
+
+def test_mappa_og_arkivet_faar_de_samme_proevene(tmp_path, snapshotmappe):
+    """Én funksjon for tekstprøvene, `tekstfunn()`. En CSV som feller
+    porten utpakket, skal felle den med de samme funnene inni en ZIP."""
+    tekst = "entity_id,entity_name\n998877665,Kari Nordmann\n# TODO\n"
+    los, pakket = tmp_path / "los", tmp_path / "pakket"
+    los.mkdir()
+    pakket.mkdir()
+    (los / "d.csv").write_text(tekst, encoding="utf-8")
+    (pakket / "d.zip").write_bytes(_zip({"d.csv": tekst}))
+    a = [(f.slag, f.utdrag, f.antall) for f in vakt.gransk(los)]
+    b = [(f.slag, f.utdrag, f.antall) for f in vakt.gransk(pakket)]
+    assert a and a == b
+
+
+def test_endelsen_paa_et_punktfilnavn():
+    """`_rels/.rels` har endelsen `.rels`, ikke ingen."""
+    assert vakt._endelse("_rels/.rels") == ".rels"
+    assert vakt._endelse("xl/_rels/workbook.xml.rels") == ".rels"
+    assert vakt._endelse("[Content_Types].xml") == ".xml"
+    assert vakt._endelse("README") == ""
+    assert vakt._endelse("mappe.v2/README") == ""
