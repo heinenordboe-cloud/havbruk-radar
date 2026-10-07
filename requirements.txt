@@ -3,7 +3,7 @@
 # tilfeldig mandag møter et endret API og blir rød uten at du gjorde noe.
 #
 # Oppgradering skjer når DU velger det: bump versjonen, kjør pytest, commit.
-# Regenerer med: pip freeze | grep -iE "^(httpx|polars|pypdf|PyYAML)=="
+# Regenerer med: pip freeze | grep -iE "^(httpx|polars|pypdf|PyYAML|XlsxWriter)=="
 #
 # pyarrow er fjernet: polars leser og skriver parquet selv, og pyarrow
 # ble aldri importert noe sted i koden.
@@ -45,3 +45,15 @@ cryptography==50.0.1
 # Byggetid er ikke en begrensning her, og det er derfor enkelhet kan
 # vinne.
 Jinja2==3.1.6
+
+# Skriver nedlastingene som regneark (.xlsx). Kom inn 07.10.2026, da
+# lusetallserien og ukesfilene fikk Excel og datapakke i stedet for én
+# CSV — se nedlasting.py.
+#
+# XlsxWriter og ikke openpyxl: den skriver bare, og det er alt vi gjør.
+# Ren Python, ingen avhengigheter, og den lar oss sette `created` selv,
+# så to bygg av de samme dataene gir de samme bytene. Porten LESER
+# regnearkene uten den — rett fra XML-en, se
+# `publiseringsvakt.xlsx_ark()` — så vakten er ikke avhengig av
+# biblioteket den skal kontrollere.
+XlsxWriter==3.2.9

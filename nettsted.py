@@ -104,6 +104,7 @@ sys.path.insert(0, str(ROOT))
 
 import beslutning                                          # noqa: E402
 import kart                                                # noqa: E402
+import nedlasting                                          # noqa: E402
 import publiseringsvakt                                    # noqa: E402
 import vesentlighet                                        # noqa: E402
 import visningsord                                         # noqa: E402
@@ -843,6 +844,7 @@ def les_felles() -> Felles:
     for dato in lusedatoer:
         aar, ukenr = _isouke(dato)
         for _nr, ramme in snapshot.versjoner("lusetall", dato):
+            hentet = snapshot.fetched_at_i(ramme) or ""
             per_lok: dict[str, dict[str, str]] = defaultdict(dict)
             for eid, felt, verdi in ramme.select(
                     ["entity_id", "field", "value"]).iter_rows():
@@ -852,6 +854,7 @@ def les_felles() -> Felles:
                 uke["dato"] = dato
                 uke["iso_aar"] = str(aar)
                 uke["iso_uke"] = f"{ukenr:02d}"
+                uke["hentet"] = hentet
                 serier[eid].append(uke)
 
     # PRODUKSJONSOMRÅDENE. Navnet står på hver lokalitet i akvakultur og
@@ -1132,6 +1135,10 @@ def _lusserie(loknr: str) -> list[dict]:
             uke["dato"] = dato
             uke["iso_aar"] = str(aar)
             uke["iso_uke"] = f"{ukenr:02d}"
+            # NÅR VI HENTET UKA — `fetched_at`, oss. Står i nedlastingenes
+            # «Om dataene», og er ikke en kolonne: den sier noe om
+            # snapshotet, ikke om lokaliteten.
+            uke["hentet"] = snapshot.fetched_at_i(ramme) or ""
             rader.append(uke)
     return rader
 
@@ -2698,6 +2705,10 @@ def les_endringsuker(felles: Felles) -> list[dict]:
                                   else []),
             "tekniske": len(tekniske),
             "antall_fil": telt_fil,
+            # Nedlastingene, med navnet de har på disk. Se
+            # `endringer_datasett()`.
+            "xlsx_filnavn": UKE_XLSX,
+            "zip_filnavn": UKE_ZIP,
             "typer": [dict(k, antall=antall.get(k["id"], 0))
                       for k in ENDRINGSTYPER],
             "utenfor_uka": utenfor,
@@ -4252,7 +4263,10 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # gjør at de ikke kan bli uenige.
         "lus_serie": serie,
         "lusegraf": lusegraf(serie),
-        "csv_filnavn": CSV_FILNAVN,
+        # Nedlastingene. `lusetall.csv` er ikke lenger blant dem, men
+        # skrives fortsatt — se `XLSX_FILNAVN`.
+        "xlsx_filnavn": XLSX_FILNAVN,
+        "zip_filnavn": ZIP_FILNAVN,
         "endringer": endringer,
         "maaleserie_rader": maaleserie_rader,
         "dekning_fra": dekning,
@@ -4423,6 +4437,171 @@ def csv_tekst(lok: dict, setninger: list[str], bygget: str) -> str:
     return ut.getvalue()
 
 
+# ------------------------------------------- regnearket og datapakken
+#
+# Fra 07.10.2026 tilbys lusetallserien som Excel (.xlsx) og som
+# datapakke (.zip) i stedet for som én CSV. `lusetall.csv` skrives
+# fortsatt, med samme innhold som før: adressen er lenket til og sitert,
+# og en adresse som slutter å svare er en sitering som slutter å virke.
+# Den er bare ikke lenger knappen. Se nedlasting.py for formatene.
+
+XLSX_FILNAVN = "lusetall.xlsx"
+XLSX_MIME = ("application/vnd.openxmlformats-officedocument."
+             "spreadsheetml.sheet")
+ZIP_FILNAVN = "lusetall.zip"
+
+# LISENSEN PER KILDE, som den skal stå i en nedlastet fil.
+#
+# Fra docs/LISENSKJEDE.md, tabellen, lest 25.08.–14.09.2026. Står her og
+# ikke på kilden av samme grunn som `LISENS_URL`: hva vi oppgir i en
+# fil vi distribuerer, er publiseringsleddets sak. En kilde som ikke
+# står her, kaster i `kildelisens()` — en fil uten lisenslinje skal ikke
+# skrives, samme regel som `UbelagtKilde`.
+KILDELISENS = {
+    "lusetall": ("BarentsWatch (opplysninger fra Mattilsynet)", "NLOD",
+                 "https://www.barentswatch.no/artikler/api-vilkar"),
+    "akvakultur": ("Fiskeridirektoratet, Akvakulturregisteret", "NLOD",
+                   "https://www.fiskeridir.no/statistikk-tall-og-analyse/"
+                   "lisens-for-bruk-av-fiskeridirektoratets-data"),
+    "biomasselag": ("Fiskeridirektoratet, kartlaget for biomasse", "NLOD",
+                    "https://www.fiskeridir.no/statistikk-tall-og-analyse/"
+                    "lisens-for-bruk-av-fiskeridirektoratets-data"),
+    "eierskap": ("Fiskeridirektoratet og Brønnøysundregistrene, "
+                 "tillatelser og eiere",
+                 "NLOD (Fiskeridirektoratet) og NLOD 2.0 "
+                 "(Brønnøysundregistrene)",
+                 "https://www.fiskeridir.no/statistikk-tall-og-analyse/"
+                 "lisens-for-bruk-av-fiskeridirektoratets-data"),
+    "enhetsregisteret": ("Brønnøysundregistrene, Enhetsregisteret",
+                         "NLOD 2.0", "https://data.norge.no/nlod/no/2.0"),
+}
+
+
+def kildelisens(kilder) -> list[tuple[str, str, str]]:
+    """(utgiver, lisens, lenke) for kildene, i rekkefølge. Kaster på en
+    kilde uten lisenslinje."""
+    ut = []
+    for kilde in kilder:
+        if kilde not in KILDELISENS:
+            raise UbelagtKilde(
+                f"{kilde}: ingen lisenslinje i KILDELISENS. En nedlastet "
+                f"fil skal si hvilken lisens dataene står under.")
+        ut.append(KILDELISENS[kilde])
+    return ut
+
+
+# KOLONNENE I LUSETALLFILENE, med forklaring og hva en tom celle betyr.
+# Navnene er `CSV_KOLONNER`, i samme rekkefølge — se
+# `test_lusekolonnene_er_csv_kolonnene`. Kildenøkkelen i parentes er
+# BarentsWatch sin, slik `sources/lusetall.py` mapper den.
+LUSEKOLONNER = (
+    nedlasting.Kolonne(
+        "lokalitetsnummer", "string",
+        "Fiskeridirektoratets lokalitetsnummer. Et nummer som identifiserer, "
+        "ikke et tall å regne med, og lagret som tekst."),
+    nedlasting.Kolonne(
+        "dato", "date",
+        "Mandagen i ISO-uka raden gjelder for. Kilden daterer hver uke til "
+        "mandagen."),
+    nedlasting.Kolonne(
+        "iso_aar", "integer",
+        "ISO-året uka hører til. Kan avvike fra kalenderåret rundt nyttår: "
+        "2019-12-30 er uke 1 i 2020."),
+    nedlasting.Kolonne("iso_uke", "integer", "ISO-ukenummeret, 1 til 53."),
+    nedlasting.Kolonne(
+        "voksne_hunnlus", "decimal",
+        "Gjennomsnittlig antall voksne hunnlus per fisk, oppdretterens "
+        "ukentlige telling rapportert til Mattilsynet (avgAdultFemaleLice).",
+        "Kilden oppgir ikke noe tall for uka. Det er ikke null — se "
+        "lus_er_rapportert på samme rad."),
+    nedlasting.Kolonne(
+        "lus_er_rapportert", "boolean",
+        "Om lusetall er rapportert for uka (hasReportedLice). Skiller "
+        "«rapportert null lus» fra «ikke rapportert».",
+        "Kilden oppgir ikke feltet for uka."),
+    nedlasting.Kolonne(
+        "har_laksefisk", "boolean",
+        "Om det står laksefisk på lokaliteten (hasSalmonoids).",
+        "Kilden oppgir ikke feltet for uka."),
+    nedlasting.Kolonne(
+        "brakklagt", "boolean",
+        "Om lokaliteten er brakklagt (isFallow).",
+        "Kilden oppgir ikke feltet for uka."),
+    nedlasting.Kolonne(
+        "har_medikamentell_behandling", "boolean",
+        "Om det er gjort medikamentell behandling mot lus "
+        "(hasSubstanceTreatments). Målt 01.09.2026: siste uke kilden "
+        "oppga sann for noen lokalitet, var 2024-11-11. Usann etter den "
+        "uka kan derfor ikke leses som at det ikke ble gjort.",
+        "Kilden oppgir ikke feltet for uka."),
+    nedlasting.Kolonne(
+        "har_mekanisk_fjerning", "boolean",
+        "Om lus er fjernet mekanisk (hasMechanicalRemoval).",
+        "Kilden oppgir ikke feltet for uka."),
+    nedlasting.Kolonne(
+        "har_rensefisk", "boolean",
+        "Om det er satt ut rensefisk (hasCleanerfishDeployed). Målt "
+        "01.09.2026: siste uke kilden oppga sann for noen lokalitet, var "
+        "2023-04-17. Usann etter den uka kan derfor ikke leses som at det "
+        "ikke ble gjort.",
+        "Kilden oppgir ikke feltet for uka."),
+)
+
+
+def _hentet_spenn(stempler, hvorfra: str) -> list[str]:
+    """Setningen om når VI hentet. Tom liste når ingenting er kjent.
+
+    `fetched_at` handler om oss, ikke om kilden (CLAUDE.md 1b-7).
+    Mangler stemplet på alle radene, sier fila ingenting om det framfor
+    å finne på et tidspunkt.
+    """
+    kjente = sorted(s for s in stempler if s)
+    if not kjente:
+        return []
+    forste, siste = (visningsord.tidspunkt(kjente[0]),
+                     visningsord.tidspunkt(kjente[-1]))
+    if forste == siste:
+        return [f"Hentet fra {hvorfra} {siste}."]
+    return [f"Hentet fra {hvorfra} mellom {forste} og {siste}. Eldre uker "
+            f"er hentet i ettertid, samlet."]
+
+
+def lusetall_datasett(lok: dict, setninger: list[str],
+                      bygget: str) -> nedlasting.Datasett:
+    """Lusetallserien for én lokalitet, som regneark og datapakke.
+
+    Radene er `lus_serie` — den SAMME lista CSV-en, tabellen og grafen
+    bygges av.
+    """
+    if lok["lus_uker"]:
+        innhold = (f"Ukentlige lusetall for akvakulturlokalitet "
+                   f"{lok['loknr']} {lok['navn']}, {lok['kommune']}: "
+                   f"{lok['lus_uker']} uker fra {lok['lus_fra']} til "
+                   f"{lok['lus_til']}, én rad per uke. "
+                   f"{lok['lus_uten_tall']} av {lok['lus_uker']} uker har "
+                   f"ikke noe tall for voksne hunnlus.")
+    else:
+        innhold = (f"Ingen uker. Lokalitet {lok['loknr']} {lok['navn']}, "
+                   f"{lok['kommune']}, finnes ikke i noen av de "
+                   f"{lok['lusetall_snapshots']} ukene vi har fra "
+                   f"BarentsWatch. Fila har overskrift og null rader.")
+    return nedlasting.Datasett(
+        stamme=Path(XLSX_FILNAVN).stem,
+        tittel=f"Lusetall for lokalitet {lok['loknr']} {lok['navn']}",
+        beskrivelse=innhold,
+        kolonner=LUSEKOLONNER,
+        rader=[{"lokalitetsnummer": lok["loknr"], **u}
+               for u in lok["lus_serie"]],
+        kilder=kildelisens(["lusetall"]),
+        attribusjon=list(setninger),
+        hentet=_hentet_spenn((u.get("hentet", "") for u in lok["lus_serie"]),
+                             "BarentsWatch"),
+        bygget=bygget,
+        merknader=["Tallene er gjengitt uendret fra kilden."],
+        nokkel=("lokalitetsnummer", "dato"),
+    )
+
+
 def jsonld(lok: dict) -> str:
     """schema.org/Dataset for lokalitetssiden.
 
@@ -4498,16 +4677,24 @@ def jsonld(lok: dict) -> str:
         # påfunnet domene ville vært en påstand om noe som ikke er
         # avgjort — samme grunn som at `url` ikke står her i det hele
         # tatt.
+        #
+        # TO NEDLASTINGER, de samme som knappene. `lusetall.csv` svarer
+        # fortsatt, men står ikke her: den er en gammel adresse som
+        # holdes i live, ikke et tilbud.
+        spenn = f"{lok['lus_uker']} uker, {lok['lus_fra']} til {lok['lus_til']}."
         data["distribution"] = [{
             "@type": "DataDownload",
-            "name": f"Lusetall for lokalitet {lok['loknr']}, hele serien",
-            "description": (
-                f"{lok['lus_uker']} uker, {lok['lus_fra']} til "
-                f"{lok['lus_til']}. CSV med kommentarhode."),
-            "contentUrl": CSV_FILNAVN,
-            "encodingFormat": "text/csv",
+            "name": f"Lusetall for lokalitet {lok['loknr']}, hele serien, "
+                    f"{hva}",
+            "description": f"{spenn} {beskrivelse}",
+            "contentUrl": fil,
+            "encodingFormat": format_,
             "creditText": (indeks.get("lusetall") or ("",))[0],
-        }]
+        } for fil, format_, hva, beskrivelse in (
+            (lok["xlsx_filnavn"], XLSX_MIME, "Excel",
+             "Regneark med arket «Om dataene»."),
+            (lok["zip_filnavn"], "application/zip", "datapakke",
+             "CSV, metadata.json etter W3C CSVW og README.txt."))]
         data["variableMeasured"] = [{
             "@type": "PropertyValue",
             "name": "voksne_hunnlus",
@@ -4855,12 +5042,23 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     # null rader sier «vi har sett etter og ikke funnet noe»; en
     # manglende fil sier ingenting, og 404 er ikke et svar. Lenka fra
     # sida er den samme uansett, og kommentarhodet oppgir 0 uker.
+    #
+    # ÉN BYGGEDATO for alle tre filene. To oppslag på klokka kan svare
+    # ulikt rundt midnatt, og da daterer CSV-en og regnearket seg til
+    # hver sin dag (CLAUDE.md 1b, F7).
+    bygget = dt.date.today().isoformat()
+    setninger = attribusjon(["lusetall"], vilkaar)
     csv_sti = mappe / CSV_FILNAVN
-    csv_sti.write_text(
-        csv_tekst(lok, attribusjon(["lusetall"], vilkaar),
-                  dt.date.today().isoformat()),
-        encoding="utf-8")
-    return [sti, csv_sti]
+    csv_sti.write_text(csv_tekst(lok, setninger, bygget), encoding="utf-8")
+
+    # REGNEARKET OG DATAPAKKEN, av de samme radene. Skrives også når
+    # serien er tom, av samme grunn som CSV-en: «vi har sett etter og
+    # ikke funnet noe» er et svar.
+    ds = lusetall_datasett(lok, setninger, bygget)
+    xlsx_sti, zip_sti = mappe / XLSX_FILNAVN, mappe / ZIP_FILNAVN
+    xlsx_sti.write_bytes(nedlasting.xlsx_bytes(ds))
+    zip_sti.write_bytes(nedlasting.zip_bytes(ds))
+    return [sti, csv_sti, xlsx_sti, zip_sti]
 
 
 # -------------------------------------------------------- stilarket
@@ -5157,22 +5355,141 @@ def _ukens_csv(uke: dict) -> str:
     buffer.write("#\n")
 
     skriver = csv.writer(buffer, lineterminator="\n")
-    skriver.writerow(["observert", "uke", "type", "kilde", "entity_id",
-                      "entity_name", "felt", "fra", "til", "kommune",
-                      "prodomraade_kode", "prodomraade_navn"])
-    for h in uke["hendelser"]:
-        # `entity_id` OG `entity_name` ER TOMME for en hendelse vi ikke
-        # kan navngi. Kolonneoverskriften ER merkingen i en CSV
-        # (`gransk_csv`), så en etikett som «Tillatelse N-R-0056» i
-        # `entity_name`-kolonnen ville blitt lest som et navn — og det
-        # er nøyaktig hva porten meldte. Se `_hendelse()`.
-        skriver.writerow([h["dato"], uke["slug"], h["type"], h["kilde"],
-                          h["identitet"],
-                          h["gjelder"] if h["gjelder_felt"] == "entity_name"
-                          else "", h["felt"],
-                          h["fra"], h["til"], h["kommune"], h["po"],
-                          h["po_navn"]])
+    skriver.writerow([k.navn for k in UKEKOLONNER])
+    for rad in _ukens_rader(uke):
+        skriver.writerow([rad[k.navn] for k in UKEKOLONNER])
     return buffer.getvalue()
+
+
+def _ukens_rader(uke: dict) -> list[dict]:
+    """Ukas hendelser som rader, for CSV-en, regnearket og datapakken.
+
+    ÉN liste for alle tre. Se nedlasting.py.
+    """
+    # `entity_id` OG `entity_name` ER TOMME for en hendelse vi ikke
+    # kan navngi. Kolonneoverskriften ER merkingen i en CSV
+    # (`gransk_csv`), så en etikett som «Tillatelse N-R-0056» i
+    # `entity_name`-kolonnen ville blitt lest som et navn — og det
+    # er nøyaktig hva porten meldte. Se `_hendelse()`.
+    return [{"observert": h["dato"], "uke": uke["slug"], "type": h["type"],
+             "kilde": h["kilde"], "entity_id": h["identitet"],
+             "entity_name": (h["gjelder"]
+                             if h["gjelder_felt"] == "entity_name" else ""),
+             "felt": h["felt"], "fra": h["fra"], "til": h["til"],
+             "kommune": h["kommune"], "prodomraade_kode": h["po"],
+             "prodomraade_navn": h["po_navn"]}
+            for h in uke["hendelser"]]
+
+
+# KOLONNENE I UKESFILENE. Rekkefølgen er den CSV-en har hatt siden
+# 16.09.2026, og den endres ikke: en kolonne som flytter seg er et
+# brudd for den som leser fila med et skript.
+_KUN_NAVNGITTE = ("Tom når hendelsen gjelder noe vi ikke navngir med "
+                  "kildens navn: en tillatelse, eller en oppføring som er "
+                  "ute av utvalget vårt. entity_id og entity_name er da "
+                  "begge tomme.")
+_UTEN_LOKALITET = ("Tom når hendelsen ikke kan knyttes til én lokalitet "
+                   "der registeret oppgir dette.")
+UKEKOLONNER = (
+    nedlasting.Kolonne(
+        "observert", "date",
+        "Datoen vi så endringen i øyeblikksbildet. Ikke datoen registeret "
+        "gjorde den — registeret oppgir ikke det."),
+    nedlasting.Kolonne(
+        "uke", "string",
+        "Endringsuka raden hører til, som år-uke (ISO). Samme verdi som i "
+        "adressen til ukesiden."),
+    nedlasting.Kolonne(
+        "type", "string",
+        "Hva slags endring. Verdiene står under «Merknad: type»."),
+    nedlasting.Kolonne(
+        "kilde", "string",
+        "Hvilken av våre kilder endringen ble sett i: akvakultur, "
+        "biomasselag, eierskap eller enhetsregisteret."),
+    nedlasting.Kolonne(
+        "entity_id", "string",
+        "Lokalitetsnummer (akvakultur, biomasselag) eller "
+        "organisasjonsnummer (enhetsregisteret). Et nummer som "
+        "identifiserer, lagret som tekst.", _KUN_NAVNGITTE),
+    nedlasting.Kolonne(
+        "entity_name", "string",
+        "Navnet kilden oppgir for lokaliteten eller selskapet.",
+        _KUN_NAVNGITTE),
+    nedlasting.Kolonne(
+        "felt", "string", "Feltet som endret seg, med kildens feltnavn."),
+    nedlasting.Kolonne(
+        "fra", "string",
+        "Verdien før, slik ukesiden viser den. Tekst, også når verdien er "
+        "et tall: kolonnen bærer verdier fra mange ulike felt.",
+        "Feltet var ikke oppgitt i forrige øyeblikksbilde (for eksempel "
+        "«felt oppgitt første gang»)."),
+    nedlasting.Kolonne(
+        "til", "string",
+        "Verdien etter, slik ukesiden viser den. Tekst, av samme grunn.",
+        "Feltet er ikke oppgitt i dette øyeblikksbildet (for eksempel "
+        "«felt ikke lenger oppgitt»)."),
+    nedlasting.Kolonne(
+        "kommune", "string",
+        "Kommunen lokaliteten ligger i, fra Akvakulturregisteret.",
+        _UTEN_LOKALITET),
+    nedlasting.Kolonne(
+        "prodomraade_kode", "string",
+        "Produksjonsområdets nummer, 1 til 13. Tekst, fordi det er et "
+        "nummer som identifiserer.", _UTEN_LOKALITET),
+    nedlasting.Kolonne(
+        "prodomraade_navn", "string", "Produksjonsområdets navn.",
+        _UTEN_LOKALITET),
+)
+
+UKE_XLSX = "endringer.xlsx"
+UKE_ZIP = "endringer.zip"
+
+
+@lru_cache(maxsize=None)
+def _hentet_snapshot(kilde: str, dato: str) -> str:
+    """`fetched_at` i nyeste versjon av kildens snapshot for datoen. Tom
+    når det ikke finnes eller ikke er stemplet."""
+    versjoner = snapshot.versjoner(kilde, dato)
+    return (snapshot.fetched_at_i(versjoner[-1][1]) or "") if versjoner else ""
+
+
+def endringer_datasett(uke: dict, vilkaar=None,
+                       bygget: str | None = None) -> nedlasting.Datasett:
+    """Ukas hendelser som regneark og datapakke. Samme rader som CSV-en.
+
+    HENTETIDSPUNKTET ER UKAS EGET, per kilde: snapshotet hver hendelse
+    ble sett i. Ikke `akva_hentet`, som er det NYESTE øyeblikksbildets —
+    for en eldre uke ville det vært et tidspunkt som handler om en annen
+    henting enn den raden kom fra.
+    """
+    bygget = bygget or dt.date.today().isoformat()
+    par = sorted({(h["kilde"], h["dato"]) for h in uke["hendelser"]})
+    hentet = []
+    for kilde in ENDRINGSKILDER:
+        stempler = [_hentet_snapshot(k, d) for k, d in par if k == kilde]
+        for setning in _hentet_spenn(stempler, kilde):
+            hentet.append(setning)
+    typer = "; ".join(f"{t['id']}: {t['hva']}" for t in ENDRINGSTYPER)
+    return nedlasting.Datasett(
+        stamme=Path(UKE_XLSX).stem,
+        tittel=f"Endringer observert i {uke['vist']}",
+        beskrivelse=(
+            f"{uke['merke']}. {uke['antall_fil']} hendelser i norske "
+            f"akvakulturregistre, én rad per endret felt, med "
+            f"observasjonsdato {', '.join(uke['datoer'])}. Alle radene i "
+            f"uka, ikke bare dem ukesiden viser."),
+        kolonner=UKEKOLONNER,
+        rader=_ukens_rader(uke),
+        kilder=kildelisens(ENDRINGSKILDER),
+        attribusjon=attribusjon(ENDRINGSKILDER, vilkaar),
+        hentet=hentet,
+        bygget=bygget,
+        merknader=[
+            "«observert» er datoen vi så endringen i øyeblikksbildet, ikke "
+            "datoen registeret gjorde den.",
+            f"type: {typer}",
+        ],
+    )
 
 
 def _ukens_json(uke: dict) -> str:
@@ -5329,11 +5646,18 @@ def skriv_endringssider(rot: Path, felles: Felles,
 
         # DATAFILENE ligger i UKAS egen mappe, ved siden av siden —
         # samme regel som lusetall-CSV-en (url-struktur punkt 8).
-        for navn, tekst in (("endringer.csv", _ukens_csv(uke)),
-                            ("endringer.json", _ukens_json(uke))):
+        #
+        # `endringer.csv` er ikke lenger lenket fra siden; regnearket og
+        # datapakken har tatt plassen. Den skrives likevel: adressen er
+        # gitt ut, og den skal fortsette å svare.
+        ds = endringer_datasett(uke, felles.vilkaar)
+        for navn, innhold in (("endringer.csv", _ukens_csv(uke).encode()),
+                              ("endringer.json", _ukens_json(uke).encode()),
+                              (ds.xlsx_navn, nedlasting.xlsx_bytes(ds)),
+                              (ds.zip_navn, nedlasting.zip_bytes(ds))):
             fil = mappe / navn
             fil.parent.mkdir(parents=True, exist_ok=True)
-            fil.write_text(tekst, encoding="utf-8")
+            fil.write_bytes(innhold)
             skrevet.append(fil)
 
     sti = rot / ENDRINGER_STI / "index.html"
@@ -5389,8 +5713,10 @@ def _jsonld_uke(uke: dict, rader: list[dict], vilkaar: dict,
         "isBasedOn": kilder,
         "creator": {"@type": "Organization", "name": "Kystloggen"},
         "distribution": [
-            {"@type": "DataDownload", "encodingFormat": "text/csv",
-             "contentUrl": "endringer.csv"},
+            {"@type": "DataDownload", "encodingFormat": XLSX_MIME,
+             "contentUrl": UKE_XLSX},
+            {"@type": "DataDownload", "encodingFormat": "application/zip",
+             "contentUrl": UKE_ZIP},
             {"@type": "DataDownload", "encodingFormat": "application/json",
              "contentUrl": "endringer.json"},
         ],
