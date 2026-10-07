@@ -289,15 +289,19 @@ def test_skriv_alle_legger_regneark_og_pakke_ved_hver_lokalitet(
     nettsted.skriv_alle(ut)
     for loknr in ("10001", "10002"):
         mappe = ut / "lokalitet" / loknr
-        for navn in (nettsted.CSV_FILNAVN, nettsted.XLSX_FILNAVN,
-                     nettsted.ZIP_FILNAVN):
+        for navn in (nettsted.CSV_FILNAVN,
+                     f"kystloggen-lusetall-{loknr}-2026-34.xlsx",
+                     f"kystloggen-lusetall-{loknr}-2026-34.zip"):
             assert (mappe / navn).is_file(), (loknr, navn)
 
     mappe = ut / "lokalitet" / "10001"
-    data = dict(vakt.xlsx_ark((mappe / nettsted.XLSX_FILNAVN).read_bytes()))
+    data = dict(vakt.xlsx_ark(
+        (mappe / "kystloggen-lusetall-10001-2026-34.xlsx").read_bytes()))
     assert [r[1] for r in data["Data"][1:]] == ["46244", "46251"]
-    pakket = zipfile.ZipFile(mappe / nettsted.ZIP_FILNAVN)
+    pakket = zipfile.ZipFile(mappe / "kystloggen-lusetall-10001-2026-34.zip")
+    # CSV-en i pakken har pakkens navn.
     csv_navn = [n for n in pakket.namelist() if n.endswith(".csv")]
+    assert csv_navn == ["kystloggen-lusetall-10001-2026-34.csv"]
     rader = list(csv.reader(io.StringIO(pakket.read(csv_navn[0]).decode())))
     # SAMME RADER som den gamle CSV-en, uten kommentarhodet.
     gammel = [l for l in (mappe / nettsted.CSV_FILNAVN).read_text()
@@ -369,3 +373,36 @@ def test_ukesfilas_hentetidspunkt_er_ukas_eget(monkeypatch):
     assert ds.hentet == [
         "Hentet fra akvakultur 5. oktober 2026 kl. 04.12 UTC.",
         "Hentet fra eierskap 5. oktober 2026 kl. 04.20 UTC."]
+
+
+# ---- filnavnene ---------------------------------------------------------
+
+def test_filnavnene_sier_hva_fila_er():
+    """Ikke `lusetall.csv` for alt: 1 782 like navn i en nedlastingsmappe
+    er `lusetall (1).csv` til `lusetall (1781).csv`."""
+    assert nettsted.lusetall_stamme("20797", "2026-37") == \
+        "kystloggen-lusetall-20797-2026-37"
+    assert nettsted.endringer_stamme("2026-41") == "kystloggen-endringer-2026-41"
+    # Uten uke står navnet uten den, ikke med en påfunnet.
+    assert nettsted.lusetall_stamme("20797", "") == "kystloggen-lusetall-20797"
+
+
+def test_uka_i_lusetallnavnet_er_nyeste_snapshot_ikke_lokalitetens_siste(
+        datamappe):
+    """10002 har ingen lusetall. Fila er likevel sett etter til uke 34,
+    og navnet sier det."""
+    felles = nettsted.les_felles()
+    for loknr in ("10001", "10002"):
+        lok = nettsted.bygg_lokalitet(loknr, felles)
+        assert lok["xlsx_filnavn"] == f"kystloggen-lusetall-{loknr}-2026-34.xlsx"
+        assert lok["zip_filnavn"] == f"kystloggen-lusetall-{loknr}-2026-34.zip"
+
+
+def test_ukesfila_heter_etter_uka_og_pakken_har_samme_navn():
+    uke = dict(_uke(), xlsx_filnavn="kystloggen-endringer-2026-41.xlsx",
+               zip_filnavn="kystloggen-endringer-2026-41.zip")
+    ds = nettsted.endringer_datasett(uke, bygget="2026-10-07")
+    assert ds.xlsx_navn == uke["xlsx_filnavn"]
+    assert ds.zip_navn == uke["zip_filnavn"]
+    pakket = zipfile.ZipFile(io.BytesIO(nedlasting.zip_bytes(ds)))
+    assert pakket.namelist()[0] == "kystloggen-endringer-2026-41.csv"

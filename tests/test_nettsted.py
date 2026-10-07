@@ -241,6 +241,11 @@ def _uke_raa(**overstyr) -> dict:
     return uke
 
 
+# Filnavnene `_side()` bruker. Uke 34 er fiksturens nyeste lusetallsuke.
+_XLSX = "kystloggen-lusetall-31397-2026-34.xlsx"
+_ZIP = "kystloggen-lusetall-31397-2026-34.zip"
+
+
 def _side(**overstyr) -> str:
     """En rendret lokalitetsside av konstruerte data.
 
@@ -287,8 +292,8 @@ def _side(**overstyr) -> str:
         "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765,
         "lus_fravaer": "",
-        "xlsx_filnavn": nettsted.XLSX_FILNAVN,
-        "zip_filnavn": nettsted.ZIP_FILNAVN,
+        "xlsx_filnavn": _XLSX,
+        "zip_filnavn": _ZIP,
         "endringer": [{
             "dato": "2026-08-31", "gjelder": "lokaliteten",
             "kilde": "akvakultur", "felt": "tillatelser_antall",
@@ -1149,10 +1154,10 @@ def test_filnavnene_staar_ett_sted():
     """Navnene står på disk, i lenkene fra sida og i `contentUrl`. Tre
     strenger som skal si det samme er formen F6 og F7 hadde."""
     html = _side()
-    for navn in (nettsted.XLSX_FILNAVN, nettsted.ZIP_FILNAVN):
+    for navn in (_XLSX, _ZIP):
         assert f'href="{navn}"' in html
     assert [d["contentUrl"] for d in _jsonld_av(html)["distribution"]] == [
-        nettsted.XLSX_FILNAVN, nettsted.ZIP_FILNAVN]
+        _XLSX, _ZIP]
 
 
 def test_jsonld_distribution_peker_paa_hele_serien():
@@ -1177,8 +1182,8 @@ def test_jsonld_contentUrl_er_relativ():
 def test_siden_lenker_til_nedlastingene():
     """Filene er ikke siterbare hvis ingen finner dem."""
     html = _side()
-    assert f'<a href="{nettsted.XLSX_FILNAVN}">' in html
-    assert f'<a href="{nettsted.ZIP_FILNAVN}">' in html
+    assert f'<a href="{_XLSX}">' in html
+    assert f'<a href="{_ZIP}">' in html
     assert "764 uker" in html
 
 
@@ -3252,14 +3257,14 @@ def test_nedlastingsknappene_vises_bare_naar_lokaliteten_har_hatt_et_lusetall():
     html = _side(lus_serie=tom, lus=nettsted.til_visning(tom),
                  lus_uker=3, lus_uten_tall=3, lus_med_tall=0, lusegraf=None,
                  lusetall_snapshots=767, lus_fravaer="paa_land")
-    assert 'class="knapp knapp--tynn" href="lusetall' not in html
-    assert f'href="{nettsted.XLSX_FILNAVN}"' in html, "lenka i teksten står"
-    assert f'href="{nettsted.ZIP_FILNAVN}"' in html, "lenka i teksten står"
+    assert 'class="knapp knapp--tynn" href="kystloggen-lusetall' not in html
+    assert f'href="{_XLSX}"' in html, "lenka i teksten står"
+    assert f'href="{_ZIP}"' in html, "lenka i teksten står"
 
     med = " ".join(_side(lus_med_tall=1).split())
-    assert ('<a class="knapp knapp--tynn" href="lusetall.xlsx" download '
+    assert (f'<a class="knapp knapp--tynn" href="{_XLSX}" download '
             'aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>') in med
-    assert ('<a class="knapp knapp--tynn" href="lusetall.zip" download '
+    assert (f'<a class="knapp knapp--tynn" href="{_ZIP}" download '
             'aria-label="Lusetall som Data (.zip)">Data (.zip)</a>') in med
 
 

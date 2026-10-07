@@ -2707,8 +2707,8 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "antall_fil": telt_fil,
             # Nedlastingene, med navnet de har på disk. Se
             # `endringer_datasett()`.
-            "xlsx_filnavn": UKE_XLSX,
-            "zip_filnavn": UKE_ZIP,
+            "xlsx_filnavn": f"{endringer_stamme(slug)}.xlsx",
+            "zip_filnavn": f"{endringer_stamme(slug)}.zip",
             "typer": [dict(k, antall=antall.get(k["id"], 0))
                       for k in ENDRINGSTYPER],
             "utenfor_uka": utenfor,
@@ -4164,6 +4164,12 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         oppgitt = _liste(a.get("tillatelser"))
         uten_eier = _uten_eier(oppgitt, eierskap)
 
+    # UKESNAPSHOTENE FOR LUSETALL, slått opp ÉN gang. Antallet står på
+    # siden og den nyeste uka i filnavnet; to oppslag kunne svart ulikt.
+    lusedatoer = (felles.lusetall_snapshots if felles
+                  else snapshot.datoer("lusetall"))
+    lus_versjon = _ukeslug(lusedatoer[-1]) if lusedatoer else ""
+
     overforinger = sorted(
         (o for o in ovf if o.get("tillatelse_nr") in mine_till),
         key=lambda o: (o.get("journal_dato", ""), o.get("tillatelse_nr", "")),
@@ -4246,8 +4252,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # Hvor mange ukesnapshots vi HAR. Uten det kan en side med null
         # uker ikke skille «vi har ikke sett etter» fra «vi har sett i
         # 764 uker og ikke funnet den».
-        "lusetall_snapshots": (len(felles.lusetall_snapshots) if felles
-                               else len(snapshot.datoer("lusetall"))),
+        "lusetall_snapshots": len(lusedatoer),
         # HVA DATAENE SIER OM HVORFOR den mangler. Se `_lus_fravaer()`.
         "lus_fravaer": _lus_fravaer(a),
         # Telles her og skrives ikke inn i malen for hånd. Et tall i en
@@ -4264,9 +4269,10 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "lus_serie": serie,
         "lusegraf": lusegraf(serie),
         # Nedlastingene. `lusetall.csv` er ikke lenger blant dem, men
-        # skrives fortsatt — se `XLSX_FILNAVN`.
-        "xlsx_filnavn": XLSX_FILNAVN,
-        "zip_filnavn": ZIP_FILNAVN,
+        # skrives fortsatt. Navnet bærer dataversjonen — se
+        # `lusetall_stamme()`.
+        "xlsx_filnavn": f"{lusetall_stamme(loknr, lus_versjon)}.xlsx",
+        "zip_filnavn": f"{lusetall_stamme(loknr, lus_versjon)}.zip",
         "endringer": endringer,
         "maaleserie_rader": maaleserie_rader,
         "dekning_fra": dekning,
@@ -4445,10 +4451,35 @@ def csv_tekst(lok: dict, setninger: list[str], bygget: str) -> str:
 # og en adresse som slutter å svare er en sitering som slutter å virke.
 # Den er bare ikke lenger knappen. Se nedlasting.py for formatene.
 
-XLSX_FILNAVN = "lusetall.xlsx"
 XLSX_MIME = ("application/vnd.openxmlformats-officedocument."
              "spreadsheetml.sheet")
-ZIP_FILNAVN = "lusetall.zip"
+
+
+def lusetall_stamme(loknr: str, uke: str) -> str:
+    """Filnavnet uten endelse: «kystloggen-lusetall-20797-2026-37».
+
+    NAVNET SIER HVA FILA ER, ikke «lusetall» for alt. Fram til
+    07.10.2026 het hver eneste lokalitets fil `lusetall.csv`, og 1 782
+    nedlastinger i samme mappe hos en leser ble `lusetall (1).csv`,
+    `lusetall (2).csv` …
+
+    UKA ER DATAVERSJONEN: ISO-uka til det NYESTE lusetallsnapshotet,
+    altså hvor langt serien er sett etter — ikke byggeuka, og ikke siste
+    uke lokaliteten selv har en rad. F6 var nettopp et filnavn datert
+    etter kjøredagen over innhold fra en annen uke. En lokalitet som
+    sluttet å rapportere i 2019, står i fila «-2026-37» fordi den er
+    sett etter til og med uke 37 uten å bli funnet.
+
+    Uten uke (ingen lusetallsnapshots i det hele tatt) står navnet uten
+    den, framfor med en påfunnet.
+    """
+    return "-".join(x for x in ("kystloggen-lusetall", loknr, uke) if x)
+
+
+def endringer_stamme(slug: str) -> str:
+    """«kystloggen-endringer-2026-41». Uka er endringsukas egen, den
+    samme som i adressen til ukesiden."""
+    return f"kystloggen-endringer-{slug}"
 
 # LISENSEN PER KILDE, som den skal stå i en nedlastet fil.
 #
@@ -4586,7 +4617,7 @@ def lusetall_datasett(lok: dict, setninger: list[str],
                    f"{lok['lusetall_snapshots']} ukene vi har fra "
                    f"BarentsWatch. Fila har overskrift og null rader.")
     return nedlasting.Datasett(
-        stamme=Path(XLSX_FILNAVN).stem,
+        stamme=Path(lok["xlsx_filnavn"]).stem,
         tittel=f"Lusetall for lokalitet {lok['loknr']} {lok['navn']}",
         beskrivelse=innhold,
         kolonner=LUSEKOLONNER,
@@ -5055,7 +5086,7 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     # serien er tom, av samme grunn som CSV-en: «vi har sett etter og
     # ikke funnet noe» er et svar.
     ds = lusetall_datasett(lok, setninger, bygget)
-    xlsx_sti, zip_sti = mappe / XLSX_FILNAVN, mappe / ZIP_FILNAVN
+    xlsx_sti, zip_sti = mappe / ds.xlsx_navn, mappe / ds.zip_navn
     xlsx_sti.write_bytes(nedlasting.xlsx_bytes(ds))
     zip_sti.write_bytes(nedlasting.zip_bytes(ds))
     return [sti, csv_sti, xlsx_sti, zip_sti]
@@ -5441,8 +5472,6 @@ UKEKOLONNER = (
         _UTEN_LOKALITET),
 )
 
-UKE_XLSX = "endringer.xlsx"
-UKE_ZIP = "endringer.zip"
 
 
 @lru_cache(maxsize=None)
@@ -5471,7 +5500,7 @@ def endringer_datasett(uke: dict, vilkaar=None,
             hentet.append(setning)
     typer = "; ".join(f"{t['id']}: {t['hva']}" for t in ENDRINGSTYPER)
     return nedlasting.Datasett(
-        stamme=Path(UKE_XLSX).stem,
+        stamme=endringer_stamme(uke["slug"]),
         tittel=f"Endringer observert i {uke['vist']}",
         beskrivelse=(
             f"{uke['merke']}. {uke['antall_fil']} hendelser i norske "
@@ -5714,9 +5743,9 @@ def _jsonld_uke(uke: dict, rader: list[dict], vilkaar: dict,
         "creator": {"@type": "Organization", "name": "Kystloggen"},
         "distribution": [
             {"@type": "DataDownload", "encodingFormat": XLSX_MIME,
-             "contentUrl": UKE_XLSX},
+             "contentUrl": uke["xlsx_filnavn"]},
             {"@type": "DataDownload", "encodingFormat": "application/zip",
-             "contentUrl": UKE_ZIP},
+             "contentUrl": uke["zip_filnavn"]},
             {"@type": "DataDownload", "encodingFormat": "application/json",
              "contentUrl": "endringer.json"},
         ],
