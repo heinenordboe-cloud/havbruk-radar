@@ -184,3 +184,63 @@ def test_main_er_rod_naar_utvalget_ikke_kan_settes_sammen(tmp_path, capsys):
     assert royktest.main(["--mappe", str(m), "--kvittering", str(k),
                           "--forsok", "1", "--pause", "0"]) == 1
     assert "::error::Røyktesten kunne ikke settes opp" in capsys.readouterr().out
+
+
+# ---- www → apex ---------------------------------------------------------
+
+def _www(svar: dict):
+    """En henter for www-verten: sti → (status, location)."""
+    def henter(url):
+        sti = "/" + url.split("://", 1)[1].split("/", 1)[1]
+        status, location = svar.get(sti, (301, "https://x.test" + sti))
+        return (status, {"location": location} if location else {}, "", url)
+    return henter
+
+
+def test_www_stiene_er_roten_og_en_dyp_sti(tmp_path):
+    sider = royktest.utvalg(_bygg(tmp_path), UKE)
+    assert royktest.www_stier(sider) == ["/", "/lokalitet/9/"]
+
+
+def test_www_med_301_til_samme_sti_er_rent(tmp_path):
+    m = _bygg(tmp_path)
+    assert royktest.kjor("https://x.test", royktest.utvalg(m, UKE), CSP,
+                         forsok=1, pause=0, henter=_levende(m),
+                         adresse=ADRESSE, www="https://www.x.test",
+                         www_henter=_www({})) == []
+
+
+@pytest.mark.parametrize("svar,ventet", [
+    ({"/": (200, "")}, "www.x.test/: status 200, ikke 301"),
+    ({"/": (308, "https://x.test/")}, "status 308"),
+    ({"/": (302, "https://x.test/")}, "status 302"),
+    # Alt til forsiden: svarer, men mister stien.
+    ({"/lokalitet/9/": (301, "https://x.test/")},
+     "www.x.test/lokalitet/9/: 301 til «https://x.test/»"),
+    ({"/": (301, "https://www.x.test/")}, "301 til «https://www.x.test/»"),
+])
+def test_www_som_ikke_videresender_riktig_er_rod(tmp_path, svar, ventet):
+    m = _bygg(tmp_path)
+    feil = royktest.kjor("https://x.test", royktest.utvalg(m, UKE), CSP,
+                         forsok=1, pause=0, henter=_levende(m),
+                         adresse=ADRESSE, www="https://www.x.test",
+                         www_henter=_www(svar))
+    assert len(feil) == 1 and ventet in feil[0], feil
+
+
+def test_www_sjekkes_bare_for_produksjonsadressen(monkeypatch, tmp_path):
+    """En annen --base (en forhåndsvisning) har ingen www-vert."""
+    m = _bygg(tmp_path / "m")
+    k = tmp_path / "k.json"
+    k.write_text(f'{{"uke": "{UKE}"}}', encoding="utf-8")
+    sett = {}
+
+    def kjor(*a, **kw):
+        sett.update(kw)
+        return []
+    monkeypatch.setattr(royktest, "kjor", kjor)
+    royktest.main(["--mappe", str(m), "--kvittering", str(k)])
+    assert sett["www"] == royktest.WWW
+    royktest.main(["--mappe", str(m), "--kvittering", str(k),
+                   "--base", "https://forhandsvisning.kystloggen.pages.dev"])
+    assert sett["www"] == ""

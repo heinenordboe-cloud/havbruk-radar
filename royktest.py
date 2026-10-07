@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Røyktest av kystloggen.no etter en publisering. Bare lesing.
 
-    python royktest.py --mappe NETTSTED --kvittering K [--base URL]
+    python royktest.py --mappe NETTSTED --kvittering K [--base URL] [--www URL]
 
 Kjøres til slutt i `publiser.yml`. Fem sider hentes fra den levende
 adressen og sammenlignes med byggemappa som nettopp ble lagt ut:
@@ -24,6 +24,20 @@ Ikke av en liste i denne fila. Hvilke lokaliteter som har kart, hva uka
 heter og hvilken CSP som gjelder, er alle ting bygget avgjør. En prøve
 med egne kopier av dem ville målt om nettstedet er slik det VAR da
 prøven ble skrevet.
+
+## www videresender til samme sti
+
+Fra 07.10.2026 svarer `www.kystloggen.no` med 301 til `kystloggen.no`
+og samme sti (en Redirect Rule hos Cloudflare). Før det svarte begge
+vertene 200 med samme side, og bare `<link rel="canonical">` sa hvilken
+som var den riktige. Røyktesten henter forsiden og den første
+lokaliteten fra `www`-verten UTEN å følge videresendingen, og krever
+status 301 og `Location` lik adressen på apex. Ikke 302 eller 308: en
+midlertidig videresending sier noe annet til den som lenker.
+
+Den måler bare `https://`. Over `http://www` er det to hopp — først til
+`https://www`, så til apex (MÅLT 07.10.2026) — og det første eies av
+Cloudflares «Always Use HTTPS», ikke av regelen.
 
 ## Hva den IKKE sammenligner: bytene
 
@@ -68,6 +82,7 @@ from pathlib import Path
 ROT = Path(__file__).resolve().parent
 
 BASE = "https://kystloggen.no"
+WWW = "https://www.kystloggen.no"
 
 # Setningen bunnteksten skriver der siden har kart. Samme verdi som
 # `nettsted.KARTVERKET`, prøvd i tests/test_royktest.py — her som kopi
@@ -158,6 +173,45 @@ def hent(url: str) -> tuple[int, dict[str, str], str, str]:
                 "", url)
 
 
+class _IkkeFolg(urllib.request.HTTPRedirectHandler):
+    """Lar en 3xx bli stående som svar i stedet for å følge den."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def hent_uten_videresending(url: str) -> tuple[int, dict[str, str], str, str]:
+    """Som `hent()`, men en 301 er svaret, ikke et mellomsteg."""
+    req = urllib.request.Request(url, method="HEAD",
+                                 headers={"User-Agent": UA})
+    try:
+        with urllib.request.build_opener(_IkkeFolg).open(req, timeout=30) as r:
+            return (r.status, {k.lower(): v for k, v in r.headers.items()},
+                    "", r.geturl())
+    except urllib.error.HTTPError as e:
+        return (e.code, {k.lower(): v for k, v in e.headers.items()},
+                "", url)
+
+
+def sjekk_www(www: str, base: str, sti: str,
+              henter=hent_uten_videresending) -> list[str]:
+    """Feilene for én sti på www-verten. Tom liste når den gir 301 til
+    samme sti på `base`."""
+    url = www.rstrip("/") + sti
+    navn = www.split("://", 1)[-1].rstrip("/") + sti
+    try:
+        status, hoder, _, _ = henter(url)
+    except (urllib.error.URLError, OSError) as e:
+        return [f"{navn}: kunne ikke hentes ({e})"]
+    maal = base.rstrip("/") + sti
+    if status != 301:
+        return [f"{navn}: status {status}, ikke 301 til {maal}"]
+    if hoder.get("location", "") != maal:
+        return [f"{navn}: 301 til «{hoder.get('location', '')}», ikke "
+                f"til {maal}"]
+    return []
+
+
 def sjekk(base: str, side: Side, forventet_csp: str, henter=hent,
           adresse: str = "") -> list[str]:
     """Feilene for én side. Tom liste når den er som bygget sier."""
@@ -195,14 +249,27 @@ def sjekk(base: str, side: Side, forventet_csp: str, henter=hent,
     return feil
 
 
+def www_stier(sider: list[Side]) -> list[str]:
+    """Forsiden og den første lokaliteten: roten og en dyp sti."""
+    return [sider[0].sti, next(s.sti for s in sider
+                               if s.sti.startswith("/lokalitet/"))]
+
+
 def kjor(base: str, sider: list[Side], forventet_csp: str,
          forsok: int, pause: float, henter=hent,
-         adresse: str = "") -> list[str]:
-    """Feilene fra siste forsøk. Tom liste når alt svarer."""
+         adresse: str = "", www: str = "",
+         www_henter=hent_uten_videresending) -> list[str]:
+    """Feilene fra siste forsøk. Tom liste når alt svarer.
+
+    `www` tom: videresendingen sjekkes ikke (en annen `--base` enn
+    produksjon har ingen www-vert å sjekke)."""
     feil: list[str] = []
     for n in range(1, forsok + 1):
         feil = [f for s in sider
                 for f in sjekk(base, s, forventet_csp, henter, adresse)]
+        if www:
+            feil += [f for sti in www_stier(sider)
+                     for f in sjekk_www(www, base, sti, www_henter)]
         if not feil:
             return []
         print(f"  forsøk {n}/{forsok}: {len(feil)} feil")
@@ -217,9 +284,13 @@ def main(argv: list[str] | None = None) -> int:
                     help="byggemappa som ble lagt ut")
     ap.add_argument("--kvittering", type=Path, required=True)
     ap.add_argument("--base", default=BASE)
+    ap.add_argument("--www", default=None,
+                    help=f"www-verten som skal gi 301 til --base. Standard "
+                         f"{WWW} når --base er {BASE}, ellers ingen")
     ap.add_argument("--forsok", type=int, default=4)
     ap.add_argument("--pause", type=float, default=20.0)
     a = ap.parse_args(argv)
+    www = a.www if a.www is not None else (WWW if a.base == BASE else "")
 
     uke = json.loads(a.kvittering.read_text(encoding="utf-8")).get("uke", "")
     forventet_csp = csp(a.mappe)
@@ -239,14 +310,21 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Røyktest av {a.base}, uke {uke}, kontakt {adresse}:")
     for s in sider:
         print(f"  {s.sti}")
+    if www:
+        for sti in www_stier(sider):
+            print(f"  {www}{sti} → 301")
     feil = kjor(a.base, sider, forventet_csp, a.forsok, a.pause,
-                adresse=adresse)
+                adresse=adresse, www=www)
 
     rader = ["## Røyktest", "", f"{a.base}, uke {uke}", "",
              "| side | |", "|---|---|"]
     for s in sider:
         egne = [f for f in feil if f.startswith(f"{s.sti}:")]
         rader.append(f"| `{s.sti}` | {'; '.join(egne) or 'ok'} |")
+    if www:
+        vert = www.split("://", 1)[-1].rstrip("/")
+        egne = [f for f in feil if f.startswith(f"{vert}/")]
+        rader.append(f"| `{vert}` → 301 | {'; '.join(egne) or 'ok'} |")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a",
                   encoding="utf-8") as f:
