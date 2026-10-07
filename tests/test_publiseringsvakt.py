@@ -1861,3 +1861,92 @@ def test_pushet_og_rent_gir_ingen_funn(tmp_path, monkeypatch):
 
     assert vakt.kodeproveniensfunn() == []
     assert vakt.kodeproveniens_ukjente() == []
+
+
+# ---- Pagefinds wasm: en regel, ikke en sum ----------------------------
+
+def _wasm_gz(navn: str,
+             wasm: bytes = b"pagefind_dcd\0asm\x01\0\0\0modul") -> bytes:
+    """gzip med FNAME i hodet rundt `pagefind_dcd` + wasm, slik Pagefind
+    pakker sine (MÅLT på den ekte fila 07.10.2026)."""
+    import gzip
+    import io
+    buf = io.BytesIO()
+    with gzip.GzipFile(filename=navn, mode="wb", fileobj=buf, mtime=0) as g:
+        g.write(wasm)
+    return buf.getvalue()
+
+
+def _binaer(tmp_path, versjon: str, innebakt: bytes) -> str:
+    """En «pagefind» som svarer på --version og bærer bytene etter seg —
+    der det ekte programmet bærer dem innebakt."""
+    sti = tmp_path / "pagefind"
+    sti.write_bytes(f'#!/bin/sh\necho "{versjon}"\nexit 0\n'.encode()
+                    + innebakt)
+    sti.chmod(0o755)
+    vakt._BINAERER.pop(str(sti), None)
+    return str(sti)
+
+
+NB = f"pagefind_web_bg.nb.{vakt.PAGEFIND_VERSJON}.wasm"
+
+
+def test_pagefinds_egen_wasm_godtas(tmp_path):
+    fil = _wasm_gz(NB)
+    b = _binaer(tmp_path, f"pagefind {vakt.PAGEFIND_VERSJON}", b"xx" + fil)
+    assert vakt.pagefind_wasm("pagefind/wasm.nb.pagefind", fil, b) == ""
+
+
+@pytest.mark.parametrize("hva,rel,fil,versjon,innebakt,ventet", [
+    ("ikke i binæren", "pagefind/wasm.nb.pagefind", _wasm_gz(NB),
+     None, b"annet", "står ikke i"),
+    ("annen versjon", "pagefind/wasm.nb.pagefind", _wasm_gz(NB),
+     "pagefind 1.5.0", "SAMME", "svarer «pagefind 1.5.0»"),
+    ("annet språk i hodet", "pagefind/wasm.nb.pagefind",
+     _wasm_gz(NB.replace(".nb.", ".sv.")), None, "SAMME", "gzip-hodet"),
+    ("ikke wasm", "pagefind/wasm.nb.pagefind",
+     _wasm_gz(NB, b"<html>hei</html>"), None, "SAMME", "ikke pagefind_dcd"),
+    ("wasm uten halen", "pagefind/wasm.nb.pagefind",
+     _wasm_gz(NB, b"\0asm\x01\0\0\0"), None, "SAMME", "ikke pagefind_dcd"),
+    ("ikke gzip", "pagefind/wasm.nb.pagefind", b"\0asm\x01\0\0\0",
+     None, "SAMME", "gzip-hodet"),
+])
+def test_wasm_som_ikke_er_pagefinds_egen_avvises(tmp_path, hva, rel, fil,
+                                                   versjon, innebakt, ventet):
+    b = _binaer(tmp_path, versjon or f"pagefind {vakt.PAGEFIND_VERSJON}",
+                fil if innebakt == "SAMME" else innebakt)
+    assert ventet in vakt.pagefind_wasm(rel, fil, b)
+
+
+def test_uten_binaer_lukker_regelen_seg():
+    assert "ingen pagefind-binær" in vakt.pagefind_wasm(
+        "pagefind/wasm.nb.pagefind", _wasm_gz(NB), "")
+
+
+def test_porten_bruker_regelen_paa_wasm_og_ikke_ellers(tmp_path, monkeypatch,
+                                                       snapshotmappe):
+    """Godkjent wasm er ingen funn. En wasm som feiler regelen er
+    `ugranska` MED grunnen. En annen binærfil berøres ikke av regelen."""
+    ut = tmp_path / "ut"
+    (ut / "pagefind").mkdir(parents=True)
+    god = _wasm_gz(NB)
+    (ut / "pagefind" / "wasm.nb.pagefind").write_bytes(god)
+    (ut / "pagefind" / "wasm.unknown.pagefind").write_bytes(
+        _wasm_gz(f"pagefind_web_bg.unknown.{vakt.PAGEFIND_VERSJON}.wasm",
+                 b"pagefind_dcd\0asm\x01\0\0\0annen"))
+    (ut / "data.parquet").write_bytes(b"PAR1binaertsoppel")
+    b = _binaer(tmp_path, f"pagefind {vakt.PAGEFIND_VERSJON}", god)
+    monkeypatch.setenv("HAVBRUK_PAGEFIND", b)
+    funn = {f.fil: f for f in vakt.gransk(ut)}
+    assert "pagefind/wasm.nb.pagefind" not in funn
+    assert funn["pagefind/wasm.unknown.pagefind"].slag == "ugranska"
+    assert "står ikke i" in funn["pagefind/wasm.unknown.pagefind"].utdrag
+    assert funn["data.parquet"].slag == "ugranska"
+
+
+def test_wasm_pinnes_ikke_lenger_paa_sum():
+    """Mac-summene sto i BINAERFILER_VERKTOY fram til 07.10.2026. En sum
+    kan bare stemme for én plattform; regelen dekker begge."""
+    assert not hasattr(vakt, "BINAERFILER_VERKTOY")
+    assert "2feab03d140476c959ca2b69830b84c8292403085d8280a381b140632e8a7274" \
+        not in vakt.BINAERFILER_ALLE

@@ -250,41 +250,119 @@ BINAERFILER = {
         "bilde/hero-2400.jpg — samme motiv, 2400x1600",
 }
 
-# BINÆRFILER ET VERKTØY LEGGER IGJEN, ikke filer vi sender fra `maler/`.
+# PAGEFINDS WEBASSEMBLY — en REGEL, ikke en pinning.
 #
-# Skillet er ikke kosmetisk: `test_hver_pinnet_sum_finnes_som_fil_i_maler`
-# er en driftvakt som feller en pinning uten fil — en kvittering for noe
-# som ikke finnes er støy som skjuler at den ekte fila er ukvittert. Den
-# prøven kan ikke se disse, fordi de først oppstår når bygget kjører.
+# `pagefind/wasm.<språk>.pagefind` er søkemotoren, lagt der av
+# pagefind-binæren. INNHOLDET ER MOTOREN, IKKE DATAENE VÅRE: det er
+# `.pf_fragment`- og `.pf_index`-filene som bærer sidenes tekst, og de
+# granskes for seg (se `AVLEDEDE_TYPER`).
 #
-# Proveniensen er derfor VERKTØYET, og den står her.
-BINAERFILER_VERKTOY = {
-    # SØKEMOTORENS WEBASSEMBLY. To filer, begge lagt der av
-    # pagefind-binæren og ingen av dem bygget av oss.
-    #
-    # INNHOLDET ER SØKEMOTOREN, IKKE DATAENE VÅRE. Det er
-    # `.pf_fragment`- og `.pf_index`-filene som bærer sidenes tekst;
-    # disse to er koden som leser dem. Utpakket (gzip, `pagefind`-hale)
-    # er de 116 631 og 112 482 byte Rust-kompilert wasm.
-    #
-    # Proveniensen er binæren de kom fra:
-    #
-    #   pagefind-v1.4.0-aarch64-apple-darwin.tar.gz
-    #   sha256 647fa1da25fefeb24348ed09cccfcbcdd1dcab75c83e146c9f50336a78efb290
-    #   github.com/CloudCannon/pagefind, MIT, hentet 22.09.2026
-    #
-    # En annen versjon av Pagefind gir andre summer, og porten faller
-    # til `ugranska` slik den skal. Se docs/design/PAGEFIND.md.
-    "2feab03d140476c959ca2b69830b84c8292403085d8280a381b140632e8a7274":
-        "pagefind/wasm.nb.pagefind — søkemotoren, norsk stemming. "
-        "Pagefind 1.4.0, se docs/design/PAGEFIND.md",
-    "c9f966c91edb839e017a11c745e63b0c828b55cd02abcd16a8a4fd5ff7c28172":
-        "pagefind/wasm.unknown.pagefind — samme motor, uten stemming",
-}
+# ## Hvorfor ikke sha256 per fil, som `BINAERFILER`
+#
+# Fram til 07.10.2026 sto de to filene pinnet på summene fra Mac-binæren
+# (`aarch64-apple-darwin`). Kjøring #1 av bygg.yml stoppet på dem: samme
+# Pagefind 1.4.0, men Linux-binæren (`x86_64-unknown-linux-musl`) bærer
+# en ANNEN KOMPILERING av wasm-modulen. MÅLT 07.10.2026, utpakket:
+#
+#     nb        Mac 116 631 byte   Linux 116 647 byte
+#     unknown   Mac 112 482 byte   Linux 112 506 byte
+#
+# Pagefind bygger wasm-en på nytt for hver plattform, og byggene er ikke
+# byte-like. En sum kan da bare stemme for én maskin, og en pinning per
+# plattform er en kvittering for noe vi ikke har sett i — bare målt.
+#
+# ## Regelen: spør om det vi vil vite
+#
+# Spørsmålet er «er dette Pagefinds egen fil, fra den versjonen vi har
+# valgt». Det svares av binæren som skrev den. MÅLT 07.10.2026 på Mac:
+# utdatafila står ORDRETT i binæren — Pagefind skriver ut de innebakte
+# gzip-bytene uendret. En fil godtas når alle fire holder:
+#
+#   1. stien er `pagefind/wasm.<språk>.pagefind`
+#   2. gzip-hodet navngir `pagefind_web_bg.<språk>.<PAGEFIND_VERSJON>.wasm`
+#   3. innholdet er Pagefinds hale `pagefind_dcd` og så en wasm-modul
+#      (`\0asm`) — samme hale som fragmentene har
+#   4. bytene står ordrett i pagefind-binæren på `HAVBRUK_PAGEFIND` eller
+#      `PATH`, og den binæren svarer `pagefind <PAGEFIND_VERSJON>`
+#
+# Binærens EGEN integritet hviler på sjekksummen ved installasjon:
+# `PAGEFIND_SHA256` i bygg.yml, og requirements-verktoy.md lokalt. Den
+# står ikke her — den er per plattform, og den sjekkes før utpakking.
+#
+# Finnes ingen binær, faller fila til `ugranska` med grunnen. Porten
+# lukker seg; den antar ikke.
+PAGEFIND_VERSJON = "1.4.0"
+PAGEFIND_WASM = re.compile(r"pagefind/wasm\.([a-z]+)\.pagefind")
 
-# Oppslaget porten gjør. To tabeller, ett spørsmål: «har vi sett i
-# denne fila?»
-BINAERFILER_ALLE = {**BINAERFILER, **BINAERFILER_VERKTOY}
+
+def _pagefind_binaer() -> str:
+    """Samme oppslag som `nettsted._pagefind_binaer()`. Kopi fordi
+    nettsted importerer denne modulen, ikke omvendt."""
+    import os
+    import shutil
+    satt = (os.environ.get("HAVBRUK_PAGEFIND") or "").strip()
+    if satt:
+        return satt if Path(satt).exists() else ""
+    return shutil.which("pagefind") or ""
+
+
+_BINAERER: dict[str, tuple[str, bytes]] = {}
+
+
+def _pagefind_innhold(sti: str) -> tuple[str, bytes]:
+    """(versjonslinja, bytene) for binæren på `sti`. Lest én gang per sti."""
+    if sti not in _BINAERER:
+        import subprocess
+        try:
+            versjon = subprocess.run([sti, "--version"], capture_output=True,
+                                     text=True, timeout=30).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            versjon = ""
+        _BINAERER[sti] = (versjon, Path(sti).read_bytes())
+    return _BINAERER[sti]
+
+
+def pagefind_wasm(rel: str, innhold: bytes, binaer: str | None = None) -> str:
+    """Tom streng når fila er Pagefinds egen wasm, ellers grunnen.
+
+    Kalles bare for stier som matcher `PAGEFIND_WASM`. Se regelen over.
+    """
+    import gzip
+    import zlib
+
+    m = PAGEFIND_WASM.fullmatch(rel.replace("\\", "/"))
+    if not m:
+        return "ikke en pagefind-wasm-sti"
+    sprak = m.group(1)
+
+    ventet = f"pagefind_web_bg.{sprak}.{PAGEFIND_VERSJON}.wasm"
+    navn = ""
+    if innhold[:3] == b"\x1f\x8b\x08" and innhold[3] & 0x08:
+        slutt = innhold.find(b"\0", 10)
+        navn = innhold[10:slutt].decode("latin-1") if slutt > 0 else ""
+    if navn != ventet:
+        return f"gzip-hodet navngir «{navn}», ikke «{ventet}»"
+    try:
+        if gzip.decompress(innhold)[:16] != b"pagefind_dcd\0asm":
+            return "innholdet er ikke pagefind_dcd + en wasm-modul"
+    except (OSError, EOFError, zlib.error):
+        return "fila lar seg ikke pakke ut"
+
+    binaer = _pagefind_binaer() if binaer is None else binaer
+    if not binaer:
+        return "ingen pagefind-binær å sammenligne med (HAVBRUK_PAGEFIND/PATH)"
+    versjon, bytene = _pagefind_innhold(binaer)
+    if versjon != f"pagefind {PAGEFIND_VERSJON}":
+        return (f"{binaer} svarer «{versjon}», ikke "
+                f"«pagefind {PAGEFIND_VERSJON}»")
+    if innhold not in bytene:
+        return f"bytene står ikke i {binaer}"
+    return ""
+
+
+# Oppslaget porten gjør: «har vi sett i denne fila?» Én tabell fra
+# 07.10.2026 — Pagefinds wasm, den andre, ble en regel (`pagefind_wasm()`).
+BINAERFILER_ALLE = dict(BINAERFILER)
 
 # Filtypene der KOLONNEOVERSKRIFTEN er merkingen, og der prøvene derfor
 # stilles per kolonne framfor på teksten. Se `gransk_csv`.
@@ -2090,6 +2168,13 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
             # er dette fila som ble inspisert og ingen annen.
             sum_ = hashlib.sha256(sti.read_bytes()).hexdigest()
             if sum_ in BINAERFILER_ALLE:
+                continue
+            # PAGEFINDS WASM: en regel, ikke en sum. Se `pagefind_wasm()`.
+            if PAGEFIND_WASM.fullmatch(rel.replace("\\", "/")):
+                grunn = pagefind_wasm(rel, sti.read_bytes())
+                if not grunn:
+                    continue
+                funn.append(Funn(rel, "ugranska", f".pagefind — {grunn}"))
                 continue
             # AVLEDET AV NOE SOM ER GRANSKET. Se `AVLEDEDE_TYPER` for
             # hele argumentet og for hvorfor de to andre veiene ikke

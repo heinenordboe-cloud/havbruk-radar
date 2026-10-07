@@ -150,12 +150,18 @@ grunnen til at dette ikke bare er en påstand.
 Samme form som ikonene: PNG-ene er rastret av `favicon.svg`, som vakten
 leser som tekst.
 
-### `wasm.*.pagefind` — PINNET på sha256
+### `wasm.*.pagefind` — en REGEL i porten, ikke en pinning
 
 Søkemotoren, ikke dataene våre. Innholdet kommer fra binæren og er
-uavhengig av hva som indekseres. Summene står i
-`publiseringsvakt.BINAERFILER`; en annen versjon av Pagefind gir andre
-summer, og porten faller til `ugranska`.
+uavhengig av hva som indekseres.
+
+Fram til 07.10.2026 var de pinnet på sha256 fra Mac-binæren. Linux-
+binæren av samme versjon bærer en annen kompilering av wasm-modulen
+(`nb`: 116 631 byte på Mac, 116 647 på Linux, utpakket), og bygg.yml
+stoppet på dem. Porten godtar dem nå når gzip-hodet navngir
+`pagefind_web_bg.<språk>.1.4.0.wasm`, innholdet er `pagefind_dcd` + en
+wasm-modul, og bytene står ordrett i pagefind-binæren som svarer
+`pagefind 1.4.0`. Se `publiseringsvakt.pagefind_wasm()`.
 
 ### `pagefind.js` og `pagefind-entry.json`
 
@@ -185,4 +191,6 @@ MÅLT 22.09.2026: 14 av 2 338 sider bar et slikt navn.
 ## Oppdatering
 
 Hent en ny binær, sammenlign sha256 mot tabellen over, kjør bygget, og
-skriv om wasm-summene her OG i `publiseringsvakt.BINAERFILER`.
+endre versjonen i `publiseringsvakt.PAGEFIND_VERSJON` OG
+`PAGEFIND_VERSJON`/`PAGEFIND_TARBALL`/`PAGEFIND_SHA256` i datarepoets
+bygg.yml. Står versjonene ulikt, faller porten på wasm-filene.
