@@ -841,8 +841,12 @@ du vet da hvilke felter som faktisk endrer seg, og slipper å gjette.
 Koden er offentlig: ubegrensede Actions-minutter, og commit-historikken
 er CV-en.
 
-Dataene er private: 2000 gratis Actions-minutter i måneden, mot et
-faktisk forbruk på under fem. Registerdataene i seg selv er åpne og kan
+Dataene er private: 2000 gratis Actions-minutter i måneden. Hvor mye
+som brukes, er ikke kjent etter at `bygg.yml` kom til 07.10.2026 — den
+bygger hele nettstedet etter hver innsamling, og byggetiden på en
+GitHub-maskin er ikke målt (lokalt 2 min 32 s). **Forbruket måles etter
+første uke med bygg**, under Settings → Billing → Usage, og skrives inn
+her. Registerdataene i seg selv er åpne og kan
 hentes av hvem som helst — det som ligger privat er tidsserien, fordi
 den ikke kan rekonstrueres i etterkant.
 
