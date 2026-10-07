@@ -113,12 +113,20 @@ ellers står innsamlingen stille.
 **4. Du ødelegger historikken selv.** `git push --force` etter en rebase.
 → Slå på branch protection på `main` i repo-innstillingene.
 
-**5. GitHub forsvinner.** Minst sannsynlig. Speilingen skal dekke det,
-men **den har ikke vist at den gjør det**: per 05.09.2026 var
-`SPEIL_URL` og `SPEIL_TOKEN` ikke satt, og jobben hadde aldri lyktes. Om
-de er satt siden, kan bare Actions-historikken til `speil.yml` i
-datarepoet svare på. Står den rød hver mandag, er det ikke støy — da
-finnes det ingen backup.
+**5. GitHub forsvinner.** Minst sannsynlig. Speilingen til GitLab dekker
+det. Heine bekreftet 06.10.2026 at den virker: siste commit, `66d88dc`, er
+lik på GitHub og GitLab, og det har kommet push jevnlig siden 29.09.2026.
+Fram til da var `SPEIL_URL` og `SPEIL_TOKEN` ikke satt, og jobben hadde
+aldri lyktes.
+
+**Gjenstår: én prøve på gjenoppretting.** Vi vet at commitene kommer fram,
+men ikke at en klone fra GitLab kan bære innsamlingen videre. Det har
+ingen prøvd ennå. Til det er gjort, er speilingen en kopi og ikke en
+bevist backup.
+
+Står `speil.yml` rød, er det ikke støy: da stopper backupen fra den
+dagen.
+
 Speilworkflowen hører hjemme i DATAREPOET, ikke her — koden er allerede
 offentlig og finnes i enhver klone, mens historikken er det eneste som
 ikke kan skaffes på nytt. Codeberg eller GitLab, begge gratis.
