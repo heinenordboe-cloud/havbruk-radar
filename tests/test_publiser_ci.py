@@ -181,3 +181,25 @@ def test_avvist_push_proves_igjen_og_linja_havner_paa_origin(datarepo):
 def test_ny_push_skriver_ikke_linja_to_ganger(datarepo):
     publiser_ci.logg(K, "produksjon")
     assert len(_pa_origin(datarepo).splitlines()) == 2
+
+
+# ---- summen mot kvitteringen (publiser.yml) ---------------------------
+
+def test_lik_sum_slipper_gjennom(tmp_path):
+    m = _mappe(tmp_path / "m")
+    sha = publiser.mappesum(m)[0]
+    assert publiser_ci.sjekk(m, dict(K, sha256=sha)) == sha
+
+
+def test_avvik_fra_kvitteringen_stopper(tmp_path):
+    """Én byte er nok. Mappa som passerte porten er den ENE mappa."""
+    m = _mappe(tmp_path / "m")
+    k = dict(K, sha256=publiser.mappesum(m)[0])
+    (m / "index.html").write_text("<p>forside.</p>", encoding="utf-8")
+    with pytest.raises(publiser.Stopp, match="avviker fra kvitteringen"):
+        publiser_ci.sjekk(m, k)
+
+
+def test_ingen_mappe_stopper(tmp_path):
+    with pytest.raises(publiser.Stopp, match="finnes ikke"):
+        publiser_ci.sjekk(tmp_path / "borte", K)

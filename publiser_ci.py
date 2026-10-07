@@ -2,6 +2,7 @@
 """Publiseringen fra GitHub Actions — `publiser.py` uten et menneske i steg 4.
 
     python publiser_ci.py bygg --kvittering K           bygg.yml: steg 1–4
+    python publiser_ci.py sjekk MAPPE --kvittering K    publiser.yml: summen
     python publiser_ci.py last-opp MAPPE --miljo M      steg 5
     python publiser_ci.py logg --kvittering K --miljo M steg 6
 
@@ -136,6 +137,31 @@ def les_kvittering(sti: Path) -> dict:
     return k
 
 
+# ------------------------------------------------------------ sjekk
+
+def sjekk(mappe: Path, k: dict) -> str:
+    """Summen over `mappe`, eller `Stopp` når den ikke er kvitteringens.
+
+    Dette er hele grunnen til at produksjon ikke bygger på nytt: porten
+    og søkeindeksen ble målt på en mappe i `bygg.yml`, og den mappa er
+    det eneste som har passert dem. En annen mappe — avkortet i
+    nedlastingen, fra et annet bygg, eller endret etterpå — har ikke det,
+    uansett hvor lik den er.
+    """
+    if not mappe.is_dir():
+        raise Stopp(f"\n  STOPPET: {mappe} finnes ikke.")
+    sha, filer, byte = publiser.mappesum(mappe)
+    if sha != k["sha256"]:
+        raise Stopp(
+            f"\n  STOPPET: sha256 over byggemappa avviker fra kvitteringen.\n"
+            f"    kvitteringen  {k['sha256']}  ({k.get('filer')} filer)\n"
+            f"    lastet ned    {sha}  ({filer} filer)\n"
+            f"  Dette er ikke mappa bygg.yml målte. Ingenting er lastet opp.")
+    print(f"  sha256 {sha} — lik kvitteringen ({filer} filer, "
+          f"{byte / 1e6:.1f} MB)")
+    return sha
+
+
 # ------------------------------------------------------------ steg 5
 
 def krev_cloudflare(miljo: dict | None = None) -> None:
@@ -199,6 +225,10 @@ def main(argv: list[str] | None = None) -> int:
     b = sub.add_parser("bygg", help="steg 1–4, skriv kvitteringen")
     b.add_argument("--kvittering", type=Path, required=True)
 
+    sj = sub.add_parser("sjekk", help="summen mot kvitteringen")
+    sj.add_argument("mappe", type=Path)
+    sj.add_argument("--kvittering", type=Path, required=True)
+
     o = sub.add_parser("last-opp", help="steg 5")
     o.add_argument("mappe", type=Path)
     o.add_argument("--miljo", choices=MILJOER, required=True)
@@ -210,6 +240,8 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     if a.kommando == "bygg":
         bygg(a.kvittering)
+    elif a.kommando == "sjekk":
+        sjekk(a.mappe, les_kvittering(a.kvittering))
     elif a.kommando == "last-opp":
         last_opp(a.mappe, a.miljo)
     elif a.kommando == "logg":
