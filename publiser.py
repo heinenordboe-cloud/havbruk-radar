@@ -194,19 +194,77 @@ def krev_sporbar(mappe: Path, navn: str) -> str:
 
 # ------------------------------------------------------------ steg 2
 
-def byggkommando() -> list[str]:
+def byggkommando(av: str = f"{Path(__file__).name} steg {PORTSTEG}"
+                 ) -> list[str]:
     """Kommandoen steg 2 kjører.
 
     Her og ikke inline, fordi den bærer ÉN opplysning på tvers av to
     filer: at porten kjøres av dette skriptet, i steg `PORTSTEG`.
     `nettsted.py` kan ikke vite det selv — og gjettet den, ville den
     gjettet feil hver gang bygget kjøres for hånd.
+
+    `av` er for `publiser_ci.py`, som kjører den samme porten fra et
+    annet skript. Meldingen skal navngi det som faktisk kjører den.
     """
-    return [sys.executable, "nettsted.py", "--alle",
-            "--vakt-kjores-av", f"{Path(__file__).name} steg {PORTSTEG}"]
+    return [sys.executable, "nettsted.py", "--alle", "--vakt-kjores-av", av]
+
+
+# ------------------------------------------------------------ steg 3
+
+def kjor_porten(ut: Path, produksjon: bool) -> list[str]:
+    """Linjene som skrives om porten. `Stopp` ved ett ukvittert funn.
+
+    Én funksjon for `main()` og `publiser_ci.py`: porten er det ene
+    steget ingen av de to veiene skal kunne gjøre litt annerledes.
+
+    PRODUKSJONSFLAGGET FØLGER MED. Én prøve gjelder bare produksjon:
+    et bygg uten kontaktadresse sier på hver side at det ikke finnes
+    en vei inn, og ber om rettelser i samme avsnitt. På en
+    forhåndsvisning ses det av den som ba om den — samme skille som
+    `krev_sokeindeks()` gjør.
+    """
+    import publiseringsvakt
+
+    funn = publiseringsvakt.gransk(ut, produksjon=produksjon)
+    igjen = publiseringsvakt.ukvittert(funn)
+    kvitterte = [f for f in funn if f.kvittert]
+    linjer = [f"      {f}" for f in publiseringsvakt.kodeproveniens_ukjente()]
+    if igjen:
+        raise Stopp("\n".join(linjer + [f"      {f}" for f in igjen])
+                    + f"\n\n  STOPPET: {len(igjen)} ukvitterte funn. "
+                      f"Ingenting er lastet opp.")
+    return linjer + [f"      rent — {len(kvitterte)} kvitterte funn står"]
 
 
 # ------------------------------------------------------------ steg 4
+
+def mappesum(ut: Path) -> tuple[str, int, int]:
+    """(sha256, filer, byte) over HELE mappa som lastes opp.
+
+    Summen er over en liste med én linje per fil, sortert på sti:
+    `<sha256 av innholdet>  <sti relativt til mappa>`. Da dekker den
+    både innholdet og hvilke filer som finnes — en fil som forsvinner
+    eller får nytt navn, endrer summen like mye som en endret byte.
+
+    Ikke over en zip eller en tarball: de bærer tidsstempler og
+    rekkefølge, og to pakker av samme mappe ville gitt ulike summer.
+    Spørsmålet er om det er DE SAMME FILENE, ikke den samme pakken.
+    """
+    import hashlib
+
+    linjer, byte = [], 0
+    filer = sorted((p for p in ut.rglob("*") if p.is_file()),
+                   key=lambda p: p.relative_to(ut).as_posix())
+    for p in filer:
+        h = hashlib.sha256()
+        with p.open("rb") as f:
+            for bit in iter(lambda: f.read(1 << 20), b""):
+                h.update(bit)
+        byte += p.stat().st_size
+        linjer.append(f"{h.hexdigest()}  {p.relative_to(ut).as_posix()}\n")
+    return (hashlib.sha256("".join(linjer).encode("utf-8")).hexdigest(),
+            len(filer), byte)
+
 
 # MODULEN NETTLESEREN LASTER. `maler/sok.js` henter den ved første
 # tastetrykk; er den ikke der, svarer søkefeltet ingenting uansett hvor
@@ -379,6 +437,18 @@ def spor(tekst: str) -> None:
         raise Stopp("\n  Avbrutt. Ingenting er lastet opp.")
 
 
+# ------------------------------------------------------------ steg 5
+
+def wranglerkommando(ut: Path, produksjon: bool) -> list[str]:
+    """Kommandoen steg 5 kjører, her og i `publiser_ci.py`.
+
+    GRENEN OPPGIS ALLTID, også for produksjon. Se `PRODUKSJONSGREN`.
+    """
+    gren = PRODUKSJONSGREN if produksjon else FORHANDSGREN
+    return ["npx", WRANGLER, "pages", "deploy", str(ut),
+            "--project-name", PROSJEKT, "--branch", gren]
+
+
 # ------------------------------------------------------------ steg 6
 
 def skriv_logg(kode: str, data: str, miljo: str, uke: str) -> None:
@@ -524,24 +594,7 @@ def main() -> int:
     # 3. Porten. Egen kjøring, også når bygget nettopp kjørte den:
     #    `--uten-bygg` skal ikke kunne hoppe over den.
     print(f"\n[{PORTSTEG}/6] publiseringsvakten")
-    import publiseringsvakt
-
-    # PRODUKSJONSFLAGGET FØLGER MED. Én prøve gjelder bare produksjon:
-    # et bygg uten kontaktadresse sier på hver side at det ikke finnes
-    # en vei inn, og ber om rettelser i samme avsnitt. På en
-    # forhåndsvisning ses det av den som ba om den — samme skille som
-    # `krev_sokeindeks()` gjør.
-    funn = publiseringsvakt.gransk(UT, produksjon=args.produksjon)
-    igjen = publiseringsvakt.ukvittert(funn)
-    kvitterte = [f for f in funn if f.kvittert]
-    for f in publiseringsvakt.kodeproveniens_ukjente():
-        print(f"      {f}")
-    if igjen:
-        for f in igjen:
-            print(f"      {f}")
-        raise Stopp(f"\n  STOPPET: {len(igjen)} ukvitterte funn. "
-                    f"Ingenting er lastet opp.")
-    print(f"      rent — {len(kvitterte)} kvitterte funn står")
+    print("\n".join(kjor_porten(UT, args.produksjon)))
 
     # 4. Hva er det jeg legger ut?
     print("\n[4/6] ukas endringer")
@@ -555,12 +608,9 @@ def main() -> int:
     spor(f'\n  Skriv «ja» for å laste opp til {miljo}: ')
 
     # 5. Ut.
-    # GRENEN OPPGIS ALLTID, også for produksjon. Se `PRODUKSJONSGREN`.
     gren = PRODUKSJONSGREN if args.produksjon else FORHANDSGREN
     print(f"\n[5/6] wrangler → {miljo} (gren {gren})")
-    wrangler = ["npx", WRANGLER, "pages", "deploy", str(UT),
-                "--project-name", PROSJEKT, "--branch", gren]
-    kjor(*wrangler, vis=True)
+    kjor(*wranglerkommando(UT, args.produksjon), vis=True)
 
     # 6. Logg.
     print("\n[6/6] logg")

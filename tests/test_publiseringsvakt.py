@@ -582,9 +582,26 @@ def test_produksjon_med_kontaktadresse_er_rent(tmp_path, snapshotmappe):
 def test_publiser_sender_produksjonsflagget_til_porten():
     """Prøven som binder de to filene: uten flagget ville
     produksjonsprøven aldri kjørt der den gjelder."""
-    kode = (pathlib.Path(vakt.__file__).parent / "publiser.py"
-            ).read_text(encoding="utf-8")
-    assert "gransk(UT, produksjon=args.produksjon)" in kode
+    rot = pathlib.Path(vakt.__file__).parent
+    kode = (rot / "publiser.py").read_text(encoding="utf-8")
+    assert "kjor_porten(UT, args.produksjon)" in kode
+    # Og byggene fra Actions er produksjonsbygg — se publiser_ci.py.
+    ci = (rot / "publiser_ci.py").read_text(encoding="utf-8")
+    assert "kjor_porten(ut, produksjon=True)" in ci
+
+
+def test_porten_faar_produksjonsflagget(monkeypatch, tmp_path):
+    """Det tekstprøven over ikke kan se: at `kjor_porten()` faktisk gir
+    flagget videre til `gransk()`."""
+    import publiser
+    sett = []
+    monkeypatch.setattr(vakt, "gransk",
+                        lambda ut, produksjon=False: sett.append(produksjon)
+                        or [])
+    monkeypatch.setattr(vakt, "kodeproveniens_ukjente", lambda: [])
+    publiser.kjor_porten(tmp_path, True)
+    publiser.kjor_porten(tmp_path, False)
+    assert sett == [True, False]
 
 
 # ---- filer vakten ikke kan lese ---------------------------------------
