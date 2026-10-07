@@ -113,16 +113,38 @@ ellers står innsamlingen stille.
 **4. Du ødelegger historikken selv.** `git push --force` etter en rebase.
 → Slå på branch protection på `main` i repo-innstillingene.
 
-**5. GitHub forsvinner.** Minst sannsynlig. Speilingen til GitLab dekker
-det. Heine bekreftet 06.10.2026 at den virker: siste commit, `66d88dc`, er
-lik på GitHub og GitLab, og det har kommet push jevnlig siden 29.09.2026.
-Fram til da var `SPEIL_URL` og `SPEIL_TOKEN` ikke satt, og jobben hadde
-aldri lyktes.
+**5. GitHub forsvinner.** Minst sannsynlig. Speilingen til GitLab
+(<https://gitlab.com/NordboeRadar-group/havbruk-radar-data>) er en
+**bevist backup** fra 06.10.2026. Speilingen har pushet jevnlig siden
+29.09.2026. Før det var `SPEIL_URL` og `SPEIL_TOKEN` ikke satt, og jobben
+hadde aldri lyktes.
 
-**Gjenstår: én prøve på gjenoppretting.** Vi vet at commitene kommer fram,
-men ikke at en klone fra GitLab kan bære innsamlingen videre. Det har
-ingen prøvd ennå. Til det er gjort, er speilingen en kopi og ikke en
-bevist backup.
+Gjenopprettingsprøven 06.10.2026 klonet fra GitLab til en tom mappe og
+sammenlignet med `origin/main` på GitHub. Den skrev ikke til noen remote.
+
+| Sjekk | Resultat |
+|---|---|
+| HEAD | `66d88dc` på begge |
+| Historikk | 125 commits, alle hasher like og i samme rekkefølge |
+| Rot-treet | likt (`a1e704c`), og `git fsck --full --strict` er ren |
+| `data/raw` | 1850 filer, like i git-treet og i sha256 på disk |
+| `data/arkiv` | 4858 filer, like i git-treet og i sha256 på disk |
+| `data/changelog` | 1774 filer, like i git-treet og i sha256 på disk |
+| `run.py --torrkjor` mot klonen | exit 0, alle 11 kilder ok, klonen urørt etterpå |
+| Lesesidene mot klonen | samme utfall som mot GitHub-kopien, linje for linje |
+
+`--torrkjor` hopper over frekvensvakten og `finnes_allerede()` og leser
+derfor nesten ikke datamappa. Lesesidene ble kjørt for seg for å dekke
+det. Mot kjøredato 2026-10-12 kjørte de `velg_forfalte`,
+`finnes_allerede`, `siste_dato`, `datoer`, `previous` (antall rader og
+hash), `dager_siden_ok`, `changelog.les_alt` (1 019 694 rader) og
+`kodeproveniens_per_fil`.
+
+Hva prøven IKKE dekker: at innsamlingen kan KJØRE fra GitLab. Datarepoets
+`.github/workflows/` følger med i klonen, men GitLab kjører ikke GitHub
+Actions. Forsvinner GitHub, er historikken trygg. Den ukentlige jobben
+må da settes opp på nytt, enten med Actions på et nytt GitHub-repo eller
+med GitLab CI. Til det er gjort, går det tapt én uke per uke (regel 5).
 
 Står `speil.yml` rød, er det ikke støy: da stopper backupen fra den
 dagen.
