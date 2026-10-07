@@ -2160,6 +2160,13 @@ def _avvik(kilde: str, dato: str) -> int | None:
 # som skal kuttes. MÅLT 23.09.2026: 9 005 filer, og veksten er 0–15
 # filer i uka. Det gir år, ikke uker — men tallet skal ses, ikke
 # oppdages.
+#
+# MÅLT 07.10.2026: 12 635 filer etter at hver lokalitet og hver
+# endringsuke fikk et regneark og en datapakke (+3 578, 9 057 før). Det
+# er 84 % av denne grensa. Veksten er nå rundt 30 filer i uka, pluss 6
+# per ny lokalitet: om lag halvannet år hit. Én ting til per lokalitet
+# er 1 782 filer — det er den typen endring som flytter tallet, ikke
+# ukene.
 FILTAK = 15_000
 
 
