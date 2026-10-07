@@ -843,7 +843,8 @@ def les_felles() -> Felles:
     lusedatoer = snapshot.datoer("lusetall")
     for dato in lusedatoer:
         aar, ukenr = _isouke(dato)
-        for _nr, ramme in snapshot.versjoner("lusetall", dato):
+        # SISTE VERSJON AV UKA, ikke alle. Se `_lusserie()`.
+        for _nr, ramme in snapshot.versjoner("lusetall", dato)[-1:]:
             hentet = snapshot.fetched_at_i(ramme) or ""
             per_lok: dict[str, dict[str, str]] = defaultdict(dict)
             for eid, felt, verdi in ramme.select(
@@ -1124,7 +1125,14 @@ def _lusserie(loknr: str) -> list[dict]:
     """
     rader = []
     for dato in snapshot.datoer("lusetall"):
-        for _nr, ramme in snapshot.versjoner("lusetall", dato):
+        # ÉN RAD PER UKE: bare den sist utgitte versjonen av uka. Med
+        # alle versjoner ville en uke med `.2` gitt to rader, og «764
+        # uker» i fila og på siden ville talt rader og ikke uker. MÅLT
+        # 07.10.2026: ingen lusetallsuke har mer enn én versjon i dag
+        # (767 filer, 767 datoer), så endringen flytter ingen tall —
+        # den holder invarianten `test_antall_uker_i_teksten_er_antall_rader`
+        # prøver. Samme valg som `_siste()`: nyeste påstand vinner.
+        for _nr, ramme in snapshot.versjoner("lusetall", dato)[-1:]:
             sub = ramme.filter(pl.col("entity_id") == loknr)
             if sub.is_empty():
                 continue
@@ -1141,6 +1149,54 @@ def _lusserie(loknr: str) -> list[dict]:
             uke["hentet"] = snapshot.fetched_at_i(ramme) or ""
             rader.append(uke)
     return rader
+
+
+def manglende_uker(serie: list[dict], datoer: list[str]) -> list[str]:
+    """Ukene MELLOM seriens første og siste rad som lokaliteten ikke
+    står i. Ukene før første og etter siste rad regnes ikke: de er der
+    lokaliteten ikke fantes ennå, eller ikke lenger.
+
+    MÅLT 07.10.2026 over alle 767 ukesnapshots: 115 av 2 706 lokaliteter
+    har slike hull, 4 369 (lokalitet, uke)-par i alt — og ALLE 4 369
+    mangler også i BarentsWatch sitt rå-svar i `data/arkiv/lusetall/`.
+    Hullene er kildens, ikke parserens. 20797 URDVIKA mangler
+    2018-11-26, 2018-12-03 og 2018-12-10, og serien sa «764 uker for
+    2012-01-02 til 2026-09-07» — 767 ISO-uker — uten å si hvilke.
+    """
+    if not serie:
+        return []
+    har = {u["dato"] for u in serie}
+    fra, til = serie[0]["dato"], serie[-1]["dato"]
+    return [d for d in datoer if fra < d < til and d not in har]
+
+
+def manglende_tekst(mangler: list[str]) -> str:
+    """Setningen som NAVNGIR de manglende ukene. Tom når ingen mangler.
+
+    Sammenhengende uker står som ett strekk. Et strekk på tre uker eller
+    færre navngis uke for uke; et lengre som «fra … til …, N uker» —
+    MÅLT har ingen lokalitet mer enn to strekk, men det lengste er 243
+    uker, og 243 datoer i en setning er ikke en opplysning noen leser.
+    """
+    if not mangler:
+        return ""
+    strekk: list[list[str]] = [[mangler[0]]]
+    for d in mangler[1:]:
+        forrige = dt.date.fromisoformat(strekk[-1][-1])
+        if dt.date.fromisoformat(d) - forrige == dt.timedelta(days=7):
+            strekk[-1].append(d)
+        else:
+            strekk.append([d])
+
+    def vist(d: str) -> str:
+        return f"{d} ({visningsord.uke(d)})"
+
+    deler = [", ".join(vist(d) for d in s) if len(s) <= 3
+             else f"fra {vist(s[0])} til {vist(s[-1])}, {len(s)} uker"
+             for s in strekk]
+    return (f"{visningsord.antall(len(mangler), 'uke', 'uker')} i perioden "
+            f"mangler fordi lokaliteten ikke står i kildens svar for dem: "
+            f"{'; '.join(deler)}. De har ingen rad.")
 
 
 def til_visning(rader: list[dict]) -> list[dict]:
@@ -4249,6 +4305,12 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "lus_fra": serie[0]["dato"] if serie else "",
         "lus_til": serie[-1]["dato"] if serie else "",
         "lus_uker": len(serie),
+        # UKENE SOM MANGLER mellom første og siste rad, og setningen som
+        # navngir dem. `lus_uker` + antallet her = ukesnapshotene i
+        # spennet. Se `manglende_uker()`.
+        "lus_mangler": manglende_uker(serie, lusedatoer),
+        "lus_mangler_tekst": manglende_tekst(
+            manglende_uker(serie, lusedatoer)),
         # Hvor mange ukesnapshots vi HAR. Uten det kan en side med null
         # uker ikke skille «vi har ikke sett etter» fra «vi har sett i
         # 764 uker og ikke funnet den».
@@ -4395,8 +4457,10 @@ def csv_kommentar(lok: dict, setninger: list[str], bygget: str) -> list[str]:
         linjer += [
             f"Ukentlig serie {lok['lus_fra']} til {lok['lus_til']}, "
             f"{lok['lus_uker']} uker. Datoen er MANDAG i ISO-uka.",
-            "",
         ]
+        if lok["lus_mangler_tekst"]:
+            linjer += [lok["lus_mangler_tekst"]]
+        linjer += [""]
     else:
         linjer += [
             f"INGEN UKER. Lokaliteten finnes ikke i noen av de "
@@ -4628,7 +4692,9 @@ def lusetall_datasett(lok: dict, setninger: list[str],
         hentet=_hentet_spenn((u.get("hentet", "") for u in lok["lus_serie"]),
                              "BarentsWatch"),
         bygget=bygget,
-        merknader=["Tallene er gjengitt uendret fra kilden."],
+        merknader=(["Tallene er gjengitt uendret fra kilden."]
+                   + ([f"Manglende uker: {lok['lus_mangler_tekst']}"]
+                      if lok["lus_mangler_tekst"] else [])),
         nokkel=("lokalitetsnummer", "dato"),
     )
 

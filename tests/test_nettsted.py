@@ -291,6 +291,7 @@ def _side(**overstyr) -> str:
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765,
+        "lus_mangler": [], "lus_mangler_tekst": "",
         "lus_fravaer": "",
         "xlsx_filnavn": _XLSX,
         "zip_filnavn": _ZIP,
@@ -1051,6 +1052,7 @@ def _csv(**overstyr) -> str:
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765,
+        "lus_mangler": [], "lus_mangler_tekst": "",
         "lus_serie": [_uke_raa()],
     }
     lok.update(overstyr)

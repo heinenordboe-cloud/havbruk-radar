@@ -188,6 +188,7 @@ def test_csv_beholder_kildens_verdier():
         }],
         "lus_uker": 1, "lus_fra": "2026-08-17", "lus_til": "2026-08-17",
         "lus_uten_tall": 0, "akva_dato": "2026-09-14",
+        "lus_mangler": [], "lus_mangler_tekst": "",
     }
     tekst = nettsted.csv_tekst(lok, ["Kilde: BarentsWatch"], "2026-09-20")
     assert "0.14" in tekst

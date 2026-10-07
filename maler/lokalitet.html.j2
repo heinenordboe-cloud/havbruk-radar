@@ -748,6 +748,7 @@
       Lokaliteten står i {{ tall(lok.lus_uker) }} av de
       {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
       BarentsWatch, men kilden oppgir ikke et tall i noen av dem.
+      {% if lok.lus_mangler_tekst %}{{ lok.lus_mangler_tekst }}{% endif %}
       {% else %}
       Lokaliteten finnes ikke i noen av de
       {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
@@ -833,7 +834,13 @@
         {% if lok.lus_uker %}
         Serien dekker
         <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
-        {{ antall(lok.lus_uker, "uke", "uker") }}. Datoen er mandag i ISO-uka, og tallet
+        {{ antall(lok.lus_uker, "uke", "uker") }}.
+        {# DE MANGLENDE UKENE NAVNGIS. «764 uker» for et spenn på 767
+            ISO-uker, uten å si hvilke tre, lar leseren tro at tallet er
+            feil — eller at de tre er tomme uker i fila. Se
+            `manglende_uker()`. #}
+        {% if lok.lus_mangler_tekst %}{{ lok.lus_mangler_tekst }}{% endif %}
+        Datoen er mandag i ISO-uka, og tallet
         hentes fire uker på etterskudd fordi ferskere uker er
         ufullstendige. <strong>«{{ "–" }}» betyr at kilden ikke oppgir
         noe tall</strong> — ikke at tallet var null.

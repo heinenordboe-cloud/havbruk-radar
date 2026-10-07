@@ -406,3 +406,147 @@ def test_ukesfila_heter_etter_uka_og_pakken_har_samme_navn():
     assert ds.zip_navn == uke["zip_filnavn"]
     pakket = zipfile.ZipFile(io.BytesIO(nedlasting.zip_bytes(ds)))
     assert pakket.namelist()[0] == "kystloggen-endringer-2026-41.csv"
+
+
+# ---- manglende uker (punkt 3) -------------------------------------------
+#
+# 20797 URDVIKA: «764 uker, 2012-01-02 til 2026-09-07» er 767 ISO-uker.
+# De tre som mangler — 2018-11-26, 2018-12-03 og 2018-12-10 — står ikke
+# i BarentsWatch sitt rå-svar for de ukene (målt i data/arkiv/lusetall/).
+# Hull i kilden, og fila og siden skal navngi dem.
+
+def test_manglende_uker_er_bare_dem_inne_i_spennet():
+    datoer = ["2018-11-12", "2018-11-19", "2018-11-26", "2018-12-03",
+              "2018-12-10", "2018-12-17", "2018-12-24"]
+    serie = [{"dato": d} for d in ("2018-11-19", "2018-12-17")]
+    # 2018-11-12 og 2018-12-24 ligger UTENFOR serien og er ikke hull.
+    assert nettsted.manglende_uker(serie, datoer) == [
+        "2018-11-26", "2018-12-03", "2018-12-10"]
+    assert nettsted.manglende_uker([], datoer) == []
+
+
+def test_tre_uker_navngis_en_for_en():
+    tekst = nettsted.manglende_tekst(["2018-11-26", "2018-12-03",
+                                      "2018-12-10"])
+    assert tekst.startswith("3 uker i perioden mangler")
+    for d, uke in (("2018-11-26", 48), ("2018-12-03", 49),
+                   ("2018-12-10", 50)):
+        assert f"{d} (uke {uke}, 2018)" in tekst
+    assert nettsted.manglende_tekst([]) == ""
+
+
+def test_et_langt_strekk_staar_som_fra_til_og_to_strekk_skilles():
+    import datetime as dt
+    lang = [(dt.date(2013, 11, 25) + dt.timedelta(weeks=i)).isoformat()
+            for i in range(6)]
+    tekst = nettsted.manglende_tekst(lang + ["2017-10-16"])
+    assert ("fra 2013-11-25 (uke 48, 2013) til 2013-12-30 (uke 1, 2014), "
+            "6 uker; 2017-10-16 (uke 42, 2017)") in tekst
+    assert tekst.startswith("7 uker i perioden")
+
+
+@pytest.fixture
+def med_hull(datamappe):
+    """datamappe, pluss lusetall slik at 10001 har et HULL og en uke med
+    TO versjoner.
+
+        2026-07-27  10001
+        2026-08-03  bare 10002   <- hull for 10001
+        2026-08-10  10001        (fra datamappe)
+        2026-08-17  10001        (fra datamappe) + en .2-versjon
+    """
+    from core import snapshot as snap
+    from core.contract import Observation
+
+    def obs(eid, felt, verdi, dato):
+        return Observation(entity_id=eid, entity_type="lokalitet",
+                           entity_name="TESTHOLMEN", field=felt, value=verdi,
+                           source="lusetall", observed_at=dato)
+
+    snap.write([obs("10001", "lus_er_rapportert", "True", "2026-07-27"),
+                obs("10001", "voksne_hunnlus", "0.30", "2026-07-27")],
+               "2026-07-27")
+    snap.write([obs("10002", "lus_er_rapportert", "False", "2026-08-03")],
+               "2026-08-03")
+    snap.write([obs("10001", "lus_er_rapportert", "True", "2026-08-17"),
+                obs("10001", "voksne_hunnlus", "0.50", "2026-08-17")],
+               "2026-08-17")
+    assert len(snap.versjoner("lusetall", "2026-08-17")) == 2
+    return datamappe
+
+
+def _datarader_i(tekst: str) -> list[str]:
+    return [l for l in tekst.splitlines() if l and not l.startswith("#")][1:]
+
+
+def test_antall_uker_i_teksten_er_antall_rader_og_hullet_navngis(
+        med_hull, tmp_path):
+    """Kravet, for hver lokalitet og hvert format: tallet «N uker» er
+    antallet rader, og ukene som mangler står med navn."""
+    import re
+    ut = tmp_path / "nettsted"
+    nettsted.skriv_alle(ut)
+    felles = nettsted.les_felles()
+
+    for loknr in ("10001", "10002"):
+        lok = nettsted.bygg_lokalitet(loknr, felles)
+        n = lok["lus_uker"]
+        assert n == len(lok["lus_serie"])
+        # ÉN RAD PER UKE, også der uka har to versjoner.
+        assert len({u["dato"] for u in lok["lus_serie"]}) == n
+        mappe = ut / "lokalitet" / loknr
+
+        csv_ = (mappe / nettsted.CSV_FILNAVN).read_text()
+        assert len(_datarader_i(csv_)) == n
+        if n:
+            assert f", {n} uker." in csv_ or f", {n} uke." in csv_
+
+        pakke = zipfile.ZipFile(mappe / lok["zip_filnavn"])
+        [csv_navn] = [x for x in pakke.namelist() if x.endswith(".csv")]
+        assert len(_datarader_i("#\n" + pakke.read(csv_navn).decode())) == n
+        readme = pakke.read("README.txt").decode()
+        assert re.search(rf"^Rader:\s+{n}$", readme, re.M)
+
+        om = dict(vakt.xlsx_ark((mappe / lok["xlsx_filnavn"]).read_bytes()))
+        assert len(om["Data"]) - 1 == n
+        assert ["Rader", str(n)] in om["Om dataene"]
+
+        html = " ".join((mappe / "index.html").read_text().split())
+        if n:
+            assert f"{n} uker." in html or f"{n} uke." in html
+
+    lok = nettsted.bygg_lokalitet("10001", felles)
+    assert lok["lus_mangler"] == ["2026-08-03"]
+    navngitt = "2026-08-03 (uke 32, 2026)"
+    mappe = ut / "lokalitet" / "10001"
+    assert navngitt in (mappe / nettsted.CSV_FILNAVN).read_text()
+    html = " ".join((mappe / "index.html").read_text().split())
+    assert navngitt in html
+    # MÅLT i første utgave: «2 uker.1 uke i perioden» — en `{#-` i malen
+    # spiste mellomrommet foran setningen.
+    assert not re.search(r"uker?\.\d", html)
+    pakke = zipfile.ZipFile(mappe / lok["zip_filnavn"])
+    assert navngitt in pakke.read("README.txt").decode()
+    assert navngitt in pakke.read("metadata.json").decode()
+    om = dict(vakt.xlsx_ark((mappe / lok["xlsx_filnavn"]).read_bytes()))
+    assert any(navngitt in celle for rad in om["Om dataene"] for celle in rad)
+
+    # Spennet går opp: rader + manglende = ukesnapshots mellom første
+    # og siste rad.
+    datoer = felles.lusetall_snapshots
+    spenn = [d for d in datoer if lok["lus_fra"] <= d <= lok["lus_til"]]
+    assert lok["lus_uker"] + len(lok["lus_mangler"]) == len(spenn)
+
+
+def test_uka_med_to_versjoner_gir_den_siste(med_hull):
+    """Samme valg som `_siste()`: nyeste påstand om uka vinner, og den
+    står én gang."""
+    for felles in (nettsted.les_felles(), None):
+        lok = nettsted.bygg_lokalitet("10001", felles)
+        uka = [u for u in lok["lus_serie"] if u["dato"] == "2026-08-17"]
+        assert [u["voksne_hunnlus"] for u in uka] == ["0.50"]
+
+
+def test_ingen_hull_gir_ingen_setning(datamappe):
+    lok = nettsted.bygg_lokalitet("10001", nettsted.les_felles())
+    assert lok["lus_mangler"] == [] and lok["lus_mangler_tekst"] == ""
