@@ -278,3 +278,18 @@ kilder:
     # samme parser, uansett vert.
     geojson_url: "https://ftp.nmdc.no/nmdc/IMR/Smittepress/regomr.geojson"
     rapport_url: "https://www.hi.no/hi/nettrapporter/rapport-fra-havforskningen-2026-28"
+
+nettsted:
+  # ADRESSEN PÅ NETTSTEDET, i bunnteksten på hver side og på /om/.
+  #
+  # Fast her fra 07.10.2026. Fram til da kom den fra miljøvariabelen
+  # HAVBRUK_KONTAKT, og et bygg der den ikke var satt sa «Ingen
+  # kontaktadresse er satt» på hver side — eller fikk en annen adresse
+  # enn forrige bygg, avhengig av hvilket skall som bygget. Med bygget
+  # flyttet til GitHub Actions ville siden ha båret den adressen som
+  # tilfeldigvis lå i Actions' secrets.
+  #
+  # HAVBRUK_KONTAKT brukes nå BARE til User-Agent (sources/_http.py).
+  # De to er ikke samme spørsmål: den ene er hvem leserne skriver til,
+  # den andre hvem en etat skal nå når vi henter for mye.
+  kontakt: "kontakt@kystloggen.no"

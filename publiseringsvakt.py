@@ -2026,7 +2026,8 @@ def utdrag_dekker_indeksen(katalog: Path) -> tuple[int, int]:
     return sider, utdrag
 
 
-# SETNINGEN BUNNTEKSTEN SKRIVER NÅR `HAVBRUK_KONTAKT` IKKE ER SATT.
+# SETNINGEN BUNNTEKSTEN SKRIVER NÅR `nettsted.kontakt` MANGLER I
+# config.yml. (Fram til 07.10.2026: når `HAVBRUK_KONTAKT` ikke var satt.)
 #
 # En påfunnet adresse ville vært verre enn ingen, så bygget sier det
 # heller høyt — og på en forhåndsvisning er det riktig. I PRODUKSJON er
@@ -2071,7 +2072,7 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
             funn.append(Funn(
                 "index.html", "uten_kontakt",
                 "bygget oppgir ingen kontaktadresse, og ber samtidig om "
-                "rettelser. Sett HAVBRUK_KONTAKT"))
+                "rettelser. Sett nettsted.kontakt i config.yml"))
 
     orgnr_ok, navn_ok = hviteliste(mappe)
     tvetydige = tvetydige_koder(_snapshotrammer())

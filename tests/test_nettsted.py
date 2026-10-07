@@ -2785,17 +2785,29 @@ def test_om_siden_har_ferdig_formatert_sitering():
     assert "må kildenes egen attribusjon følge med" in flat
 
 
-def test_kontaktadressen_er_ikke_hardkodet():
-    """Samme valg som `_http.brukeragent()`: adressen havner i hver
-    forespørsel til fire etater, og hvilken adresse som tåler det er
-    ikke et kodevalg."""
+def test_om_siden_uten_kontaktadresse_peker_til_github():
     uten = " ".join(_om(kontakt="").split())
     assert "Kontakt går via GitHub" in uten
-    assert "HAVBRUK_KONTAKT" in uten
     assert "mailto:" not in uten
 
     med = _om(kontakt="noen@eksempel.no")
     assert 'mailto:noen@eksempel.no' in med
+
+
+@pytest.mark.parametrize("miljo", [None, "", "noen-andre@eksempel.no"])
+def test_kontaktadressen_er_den_samme_med_og_uten_variabelen(monkeypatch,
+                                                              miljo):
+    """Adressen på siden står i config.yml. `HAVBRUK_KONTAKT` er
+    User-Agent og ingenting annet — fram til 07.10.2026 ga det samme
+    bygget ulike sider på Heines maskin og i Actions."""
+    if miljo is None:
+        monkeypatch.delenv("HAVBRUK_KONTAKT", raising=False)
+    else:
+        monkeypatch.setenv("HAVBRUK_KONTAKT", miljo)
+    assert nettsted._kontakt() == "kontakt@kystloggen.no"
+    side = _om(kontakt=nettsted._kontakt())
+    assert "mailto:kontakt@kystloggen.no" in side
+    assert "noen-andre" not in side
 
 
 def test_om_siden_sier_hva_som_bevisst_ikke_hentes():

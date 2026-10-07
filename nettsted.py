@@ -326,16 +326,20 @@ REPO = "https://github.com/heinenordboe-cloud/havbruk-radar"
 
 
 def _kontakt() -> str:
-    """Adressen folk melder feil til, fra `HAVBRUK_KONTAKT`.
+    """Adressen folk melder feil til, fra `nettsted.kontakt` i config.yml.
 
-    Tom streng når den ikke er satt, og bunnteksten SIER at den ikke er
+    Tom streng når den ikke står der, og bunnteksten SIER at den ikke er
     satt framfor å skrive en påfunnet adresse. Samme skille som
     `utvalg`: tom er fraværet av en verdi, ikke en verdi.
 
-    Leses av miljøet og ikke av en fil i repoet, fordi en e-postadresse
-    i et offentlig repo er en adresse høsteroboter finner.
+    IKKE fra miljøet. Fram til 07.10.2026 kom den fra `HAVBRUK_KONTAKT`,
+    og da var adressen på siden en egenskap ved skallet som bygget — det
+    samme bygget ga ulike sider på Heines maskin og i Actions. Variabelen
+    brukes nå bare til User-Agent (`sources/_http.py`). Se config.yml.
     """
-    return (os.environ.get("HAVBRUK_KONTAKT") or "").strip()
+    from core import config
+
+    return str(config.get("nettsted.kontakt", "") or "").strip()
 
 
 def proveniens(observed_at: str, fetched_at: str, tillegg: str = "") -> str:
@@ -675,8 +679,8 @@ class Felles:
     # Sjekksummen av nyeste akvakultur-snapshot. Står i arkivlinja på
     # forsiden og i siteringsboksen på hver lokalitetsside.
     sjekksum: str
-    # Adressen folk melder feil til. Tom når `HAVBRUK_KONTAKT` ikke er
-    # satt, og da SIER bunnteksten det framfor å finne på en.
+    # Adressen folk melder feil til. Tom når `nettsted.kontakt` ikke står
+    # i config.yml, og da SIER bunnteksten det framfor å finne på en.
     kontakt: str
     # HELE CHANGELOGGEN, filtrert av `diff.bevegelse()`. Ligger her og
     # ikke bak et nytt kall fordi lesingen koster 6 s, og fordi

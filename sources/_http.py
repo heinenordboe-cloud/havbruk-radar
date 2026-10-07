@@ -57,6 +57,9 @@ vi prosjektnavn og versjon uten kontaktledd — identifiserende, men uten
 en vei tilbake til oss. Adressen er BEVISST ikke hardkodet: den havner i
 hver eneste forespørsel til Fiskeridirektoratet, Lovdata, BarentsWatch,
 Brreg og HI, og hvilken adresse som tåler det er ikke et kodevalg.
+
+Variabelen gjelder BARE User-Agent. Adressen på nettstedet står fast i
+config.yml (`nettsted.kontakt`) fra 07.10.2026 — se `nettsted._kontakt()`.
 """
 
 from __future__ import annotations

@@ -225,10 +225,10 @@
       {% if kontakt %}
       <p><a href="mailto:{{ kontakt }}">{{ kontakt }}</a></p>
       {% else %}
-      {# TOM STRENG ER IKKE EN ADRESSE. `HAVBRUK_KONTAKT` er ikke satt i
-         denne kjøringen, og en påfunnet adresse ville vært verre enn
-         ingen — den ville sett ut som en vei inn som ikke finnes. Se
-         `bygg_om()`. #}
+      {# TOM STRENG ER IKKE EN ADRESSE. `nettsted.kontakt` står ikke i
+         config.yml, og en påfunnet adresse ville vært verre enn ingen —
+         den ville sett ut som en vei inn som ikke finnes. Se
+         `_kontakt()`. #}
       <p class="mangler">Ingen kontaktadresse er satt i denne
          byggingen.</p>
       {% endif %}
