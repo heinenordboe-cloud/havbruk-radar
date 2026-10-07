@@ -1,10 +1,12 @@
 # Åpne spørsmål
 
-Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Atten
+Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Sytten
 tekniske spørsmål står igjen: sju under, sortert etter hva som
-blokkerer mest, og elleve fra designimplementeringen 22.09.2026.
+blokkerer mest, og ti fra designimplementeringen 22.09.2026.
 Punkt 9 i den andre lista (auksjonsarkivenes kodeproveniens) ble avgjort
 06.10.2026 og er flyttet til docs/beslutninger/; de etter er rykket opp.
+Punkt 11 (www-verten) ble avgjort 07.10.2026 og er flyttet samme sted:
+docs/beslutninger/2026-10-07-www-videresendes.md.
 
 Tallet var «elleve» fram til 24.09.2026, og det var feil på samme måte
 som «to» var det før 23.09: den andre lista hadde elleve punkter, ikke
@@ -448,37 +450,13 @@ forhåndsvisning kan skilles fra produksjon, og hvor mange linjer i
 ny opplasting. Etter at domenet er knyttet, er den også en
 DNS-operasjon på en adresse noen har lenket til.
 
-### 11. www videresender ikke — to verter svarer 200 med samme side
-
-MÅLT 24.09.2026:
-
-    curl -sI https://www.kystloggen.no/    HTTP/2 200
-    curl -sI https://kystloggen.no/        HTTP/2 200
-
-Ingen 301, ingen 308. Begge kroppene er 149 543 byte, og de er identiske
-bortsett fra ÉN linje: Cloudflares `email-protection`-obfuskering av
-kontaktadressen, som får en ny nøkkel per forespørsel. Samme adresse,
-samme side.
-
-Begge sidene bærer samtidig
-
-    <link rel="canonical" href="https://kystloggen.no/">
-    <meta property="og:url" content="https://kystloggen.no/">
-
-**Spørsmålet: skal `www` videresendes i kanten, eller er kanonisk-tagget
-nok?** Det er ubesvart. Det vi VET er at siden selv navngir én vert mens
-tjeneren svarer på to, og at en leser som lenker til `www`-adressen
-lenker til en adresse ingenting i utputtet oppgir. Hva søkemotorer og
-delingsforhåndsvisninger gjør med det, er ikke målt her, og skal ikke
-gjettes — se CLAUDE.md regel 4.
-
-**Merk hva dette betyr for punkt 11 over.** Siste avsnitt der hviler på
-at `kystloggen.no` ikke er knyttet til prosjektet. Det stemmer ikke
-lenger: `npx wrangler@4.139.0 pages project list` oppgir 24.09.2026
+**Domenet ER knyttet til prosjektet.** Avsnittet over hviler på at
+`kystloggen.no` ikke er det, og det stemmer ikke lenger:
+`npx wrangler@4.139.0 pages project list` oppgir 24.09.2026
 
     kystloggen    kystloggen.pages.dev, kystloggen.no, www.kystloggen.no
 
-Flyttingen punkt 11 beskriver er altså ikke lenger «bare en ny
-opplasting» — den er også en DNS-operasjon på en adresse noen kan ha
-lenket til. Punktet står ellers urørt; det er dette avsnittet som er
-utdatert, ikke spørsmålet.
+Flyttingen er altså ikke lenger «bare en ny opplasting» — den er også
+en DNS-operasjon på en adresse noen kan ha lenket til, og fra
+07.10.2026 også en Redirect Rule (www → apex) som må følge med. Det er
+dette avsnittet som er utdatert, ikke spørsmålet.
