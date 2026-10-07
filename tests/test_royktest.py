@@ -14,6 +14,9 @@ import royktest
 
 CSP = "default-src 'self'; object-src 'none'"
 UKE = "2026-41"
+ADRESSE = "kontakt@kystloggen.no"
+# Bunnteksten står på hver side, kart eller ikke.
+BUNN = f'<p><a href="mailto:{ADRESSE}">{ADRESSE}</a></p>'
 
 
 def _bygg(rot: Path) -> Path:
@@ -22,18 +25,19 @@ def _bygg(rot: Path) -> Path:
         f"# kommentar\n\n/*\n  Content-Security-Policy: {CSP}\n"
         f"  X-Content-Type-Options: nosniff\n\n/*.xml\n"
         f"  Content-Security-Policy: noe annet\n", encoding="utf-8")
-    kart = f"<footer>{royktest.KARTVERKET}</footer>"
+    kart = f"<footer>{royktest.KARTVERKET}{BUNN}</footer>"
     (rot / "index.html").write_text(
         f'<title>Kystloggen</title><a href="/endringer/{UKE}/">uke</a>{kart}',
         encoding="utf-8")
     (rot / "endringer" / UKE / "index.html").write_text(
-        "<title>Endringer i uke 41, 2026 — Kystloggen</title>",
+        f"<title>Endringer i uke 41, 2026 — Kystloggen</title>{BUNN}",
         encoding="utf-8")
     for nr, med_kart in (("9", True), ("10", False), ("100", True),
                          ("11", True)):
         (rot / "lokalitet" / nr).mkdir(parents=True)
         (rot / "lokalitet" / nr / "index.html").write_text(
-            kart if med_kart else "<p>ingen posisjon</p>", encoding="utf-8")
+            kart if med_kart else f"<p>ingen posisjon</p>{BUNN}",
+            encoding="utf-8")
     for nr in ("2", "13"):
         (rot / "produksjonsomrade" / nr).mkdir(parents=True)
         (rot / "produksjonsomrade" / nr / "index.html").write_text(
@@ -82,8 +86,53 @@ def test_uke_bygget_ikke_har_kan_ikke_proves(tmp_path):
 
 def test_et_nettsted_som_er_bygget_er_rent(tmp_path):
     m = _bygg(tmp_path)
+    assert royktest.kontakt(m) == ADRESSE
     assert royktest.kjor("https://x.test", royktest.utvalg(m, UKE), CSP,
-                         forsok=1, pause=0, henter=_levende(m)) == []
+                         forsok=1, pause=0, henter=_levende(m),
+                         adresse=ADRESSE) == []
+
+
+# Slik Cloudflare skrev om forsiden, MÅLT 07.10.2026.
+OBFUSKERT = ('<a href="/cdn-cgi/l/email-protection#6e0501001a0f051a2e05171d'
+             '1a020109090b00400001">[email&#160;protected]</a>'
+             '<script src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/'
+             'email-decode.min.js"></script>')
+
+
+def test_obfuskert_adresse_er_rod(tmp_path):
+    """Heine har slått av Email Address Obfuscation. Står den på igjen,
+    skal røyktesten si det — og si hvor den slås av."""
+    m = _bygg(tmp_path)
+    forside = (m / "index.html").read_text(encoding="utf-8")
+    levende = forside.replace(BUNN, f"<p>{OBFUSKERT}</p>")
+    feil = royktest.kjor(
+        "https://x.test", royktest.utvalg(m, UKE), CSP, forsok=1, pause=0,
+        henter=_levende(m, overstyr={"": (
+            200, {"content-security-policy": CSP}, levende,
+            "https://x.test/")}), adresse=ADRESSE)
+    assert any("står ikke som klartekst" in f for f in feil), feil
+    assert any("Email Address Obfuscation" in f for f in feil), feil
+    assert all(f.startswith("/:") for f in feil), feil
+
+
+def test_en_annen_adresse_enn_bygget_er_rod(tmp_path):
+    m = _bygg(tmp_path)
+    feil = royktest.kjor("https://x.test", royktest.utvalg(m, UKE), CSP,
+                         forsok=1, pause=0, henter=_levende(m),
+                         adresse="noen@eksempel.no")
+    assert len(feil) == 5, feil                 # alle fem sidene
+
+
+def test_main_er_rod_naar_bygget_ikke_har_en_adresse(tmp_path, capsys):
+    m = _bygg(tmp_path / "m")
+    forside = m / "index.html"
+    forside.write_text(forside.read_text(encoding="utf-8").replace(BUNN, ""),
+                       encoding="utf-8")
+    k = tmp_path / "k.json"
+    k.write_text(f'{{"uke": "{UKE}"}}', encoding="utf-8")
+    assert royktest.main(["--mappe", str(m), "--kvittering", str(k),
+                          "--forsok", "1", "--pause", "0"]) == 1
+    assert "ingen mailto:-lenke" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("hva,overstyr,csp,ventet", [

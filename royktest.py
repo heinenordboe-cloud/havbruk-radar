@@ -13,7 +13,8 @@ adressen og sammenlignes med byggemappa som nettopp ble lagt ut:
     ett produksjonsområde     /produksjonsomrade/<nr>/, det første med kart
 
 For hver: status 200, `Content-Security-Policy` LIK den `_headers` i
-bygget oppgir, og `© Kartverket` der siden har kart. Forsiden skal lenke
+bygget oppgir, `© Kartverket` der siden har kart, og kontaktadressen fra
+bygget som klartekst i en `mailto:`-lenke. Forsiden skal lenke
 til nyeste uke, og ukesiden skal ha tittelen bygget ga den — det er det
 som sier at det er DETTE bygget som svarer, og ikke det forrige.
 
@@ -31,6 +32,18 @@ E-postlenken i bunnteksten blir til `/cdn-cgi/l/email-protection#…`, og
 et skript fra `/cdn-cgi/scripts/` legges til (Scrape Shield, «Email
 Address Obfuscation»). Den levende forsiden er derfor ikke byte-lik den
 som ble lastet opp, og en sha256-sammenligning ville feilet hver gang.
+
+## Adressen skal stå i klartekst
+
+Fra 07.10.2026 er omskrivingen over en FEIL, ikke en egenskap. Heine
+slår av Email Address Obfuscation for kystloggen.no, og røyktesten
+krever at adressen bygget skrev står som `mailto:<adresse>` i HTML-en
+som svarer, og at `/cdn-cgi/l/email-protection` ikke gjør det. Uten
+JavaScript viser den omskrevne lenken «[email protected]», og skriptet
+som dekoder den er kode porten aldri har sett.
+
+Bytene sammenlignes fortsatt ikke. At obfuskeringen er av, betyr ikke
+at Cloudflare ikke endrer noe annet — det er ikke målt.
 
 ## Nye forsøk
 
@@ -60,6 +73,10 @@ BASE = "https://kystloggen.no"
 # `nettsted.KARTVERKET`, prøvd i tests/test_royktest.py — her som kopi
 # fordi denne fila ikke skal trenge polars for å hente fem sider.
 KARTVERKET = "© Kartverket"
+
+# Det Cloudflare skriver e-postlenker om til. Står den i en side, er
+# adressen ikke lenger lesbar uten skriptet som dekoder den.
+OBFUSKERT = "/cdn-cgi/l/email-protection"
 
 UA = "kystloggen-royktest (+https://github.com/heinenordboe-cloud/havbruk-radar)"
 
@@ -91,6 +108,13 @@ def csp(mappe: Path) -> str:
                 "content-security-policy:"):
             return linje.split(":", 1)[1].strip()
     return ""
+
+
+def kontakt(mappe: Path) -> str:
+    """Adressen bygget skrev i bunnteksten på forsiden. Tom når ingen."""
+    m = re.search(r'href="mailto:([^"]+)"',
+                  (mappe / "index.html").read_text(encoding="utf-8"))
+    return m.group(1) if m else ""
 
 
 def utvalg(mappe: Path, uke: str) -> list[Side]:
@@ -134,7 +158,8 @@ def hent(url: str) -> tuple[int, dict[str, str], str, str]:
                 "", url)
 
 
-def sjekk(base: str, side: Side, forventet_csp: str, henter=hent) -> list[str]:
+def sjekk(base: str, side: Side, forventet_csp: str, henter=hent,
+          adresse: str = "") -> list[str]:
     """Feilene for én side. Tom liste når den er som bygget sier."""
     url = base.rstrip("/") + side.sti
     try:
@@ -157,6 +182,13 @@ def sjekk(base: str, side: Side, forventet_csp: str, henter=hent) -> list[str]:
     if side.lenke and f'href="{side.lenke}"' not in kropp:
         feil.append(f"{side.sti}: lenker ikke til nyeste uke {side.lenke} — "
                     f"svarer et eldre bygg?")
+    if adresse and f'href="mailto:{adresse}"' not in kropp:
+        feil.append(f"{side.sti}: kontaktadressen {adresse} står ikke som "
+                    f"klartekst i en mailto:-lenke")
+    if OBFUSKERT in kropp:
+        feil.append(f"{side.sti}: e-postadressen er skrevet om til "
+                    f"{OBFUSKERT} — Email Address Obfuscation er på hos "
+                    f"Cloudflare")
     if side.tittel and _tittel(kropp) != side.tittel:
         feil.append(f"{side.sti}: tittelen er «{_tittel(kropp)}», bygget "
                     f"skrev «{side.tittel}»")
@@ -164,11 +196,13 @@ def sjekk(base: str, side: Side, forventet_csp: str, henter=hent) -> list[str]:
 
 
 def kjor(base: str, sider: list[Side], forventet_csp: str,
-         forsok: int, pause: float, henter=hent) -> list[str]:
+         forsok: int, pause: float, henter=hent,
+         adresse: str = "") -> list[str]:
     """Feilene fra siste forsøk. Tom liste når alt svarer."""
     feil: list[str] = []
     for n in range(1, forsok + 1):
-        feil = [f for s in sider for f in sjekk(base, s, forventet_csp, henter)]
+        feil = [f for s in sider
+                for f in sjekk(base, s, forventet_csp, henter, adresse)]
         if not feil:
             return []
         print(f"  forsøk {n}/{forsok}: {len(feil)} feil")
@@ -193,15 +227,20 @@ def main(argv: list[str] | None = None) -> int:
         if not forventet_csp:
             raise ValueError("_headers i bygget oppgir ingen "
                              "Content-Security-Policy for /*")
+        adresse = kontakt(a.mappe)
+        if not adresse:
+            raise ValueError("forsiden i bygget har ingen mailto:-lenke — "
+                             "står nettsted.kontakt i config.yml?")
         sider = utvalg(a.mappe, uke)
     except (OSError, ValueError) as e:
         print(f"::error::Røyktesten kunne ikke settes opp: {e}")
         return 1
 
-    print(f"Røyktest av {a.base}, uke {uke}:")
+    print(f"Røyktest av {a.base}, uke {uke}, kontakt {adresse}:")
     for s in sider:
         print(f"  {s.sti}")
-    feil = kjor(a.base, sider, forventet_csp, a.forsok, a.pause)
+    feil = kjor(a.base, sider, forventet_csp, a.forsok, a.pause,
+                adresse=adresse)
 
     rader = ["## Røyktest", "", f"{a.base}, uke {uke}", "",
              "| side | |", "|---|---|"]

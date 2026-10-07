@@ -401,9 +401,12 @@ opp), en Cloudflare-nøkkel mangler (ingenting er lastet opp), eller
 røyktesten feilet (siden ER ute — da kommer issuen «Publiseringen
 trenger tilsyn», og den lukkes av neste røyktest som går).
 
-Røyktesten leser ikke bytene: Cloudflare skriver om e-postlenken i
-bunnteksten på veien ut (`/cdn-cgi/l/email-protection`, Scrape Shield),
-så den levende siden er aldri byte-lik bygget. Målt 07.10.2026.
+Røyktesten krever at kontaktadressen står som klartekst
+(`mailto:kontakt@kystloggen.no`) på alle fem sidene. Cloudflares **Email
+Address Obfuscation** skriver den om til `/cdn-cgi/l/email-protection`
+og gjør røyktesten rød — den skal være AV for kystloggen.no
+(dash.cloudflare.com → domenet → Scrape Shield). MÅLT 07.10.2026: den
+var på, og røyktesten var rød på alle fem sidene av den grunn.
 
 ### Cloudflare-tokenet, med minst mulig rett
 
