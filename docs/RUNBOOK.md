@@ -228,6 +228,15 @@ Den står derfor i secrets og ikke i workflowen.
 Nettstedet ligger på **Cloudflare Pages**, prosjekt `kystloggen`,
 domene `kystloggen.no`.
 
+**`www.kystloggen.no` videresender med 301 til `kystloggen.no`, med
+samme sti og spørrestreng.** Det er en Redirect Rule i Cloudflare-kontoen
+(dash.cloudflare.com → kystloggen.no → Rules), satt 07.10.2026 — ikke
+noe i bygget, og ikke noe i `_redirects`. Fram til da svarte begge
+vertene 200 med samme side. Over `http://www` er det to hopp: først til
+`https://www` («Always Use HTTPS»), så til apex. Røyktesten i
+`publiser.yml` sier fra om regelen forsvinner; ingenting annet gjør det.
+Se `docs/beslutninger/2026-10-07-www-videresendes.md`.
+
     python publiser.py                  # forhåndsvisning
     python publiser.py --produksjon     # kystloggen.no
     python publiser.py --uten-bygg      # bruk mappa som den er
@@ -389,7 +398,8 @@ i oppsummeringen, og jobben er grønn.
    adressen til kjøringen (`…/actions/runs/<run_id>`).
 5. **Run workflow**. Jobben laster ned bygget, sjekker sha256 mot det
    `bygg.yml` skrev, legger ut, skriver loggen og røyktester
-   forsiden, nyeste uke, to lokaliteter og ett produksjonsområde.
+   forsiden, nyeste uke, to lokaliteter og ett produksjonsområde — og
+   at `www.kystloggen.no` gir 301 til samme sti på apex.
 
 *Ikke prøvd herfra: at GitHub-appen viser input-feltene til
 `workflow_dispatch`. Gjør den ikke det, virker det samme fra
@@ -406,7 +416,13 @@ Røyktesten krever at kontaktadressen står som klartekst
 Address Obfuscation** skriver den om til `/cdn-cgi/l/email-protection`
 og gjør røyktesten rød — den skal være AV for kystloggen.no
 (dash.cloudflare.com → domenet → Scrape Shield). MÅLT 07.10.2026: den
-var på, og røyktesten var rød på alle fem sidene av den grunn.
+var på om ettermiddagen, og røyktesten var rød på alle fem sidene av den
+grunn. Samme kveld var den av, og hele røyktesten gikk grønt.
+
+Røyktesten krever også at `www.kystloggen.no/` og den første
+lokaliteten på `www` svarer **301** — ikke 302 eller 308 — med
+`Location` lik samme sti på `kystloggen.no`. Den følger ikke
+videresendingen; den leser svaret. Bare `https://` måles.
 
 ### Cloudflare-tokenet, med minst mulig rett
 
