@@ -170,6 +170,7 @@ Tre kanaler, og hver av dem svarer på sitt eget spørsmål:
 | Rød jobb | En kilde mangler i snapshotet, eller noe stoppet kjøringen | E-post fra GitHub |
 | Issuen «Innsamlingen trenger tilsyn» | Kjøringen endte DELVIS eller rød | Varsel fra GitHub når den opprettes eller kommenteres. Du nevnes med @ |
 | `HEARTBEAT_URL` | Kjøringen skjedde i det hele tatt | E-post fra overvåkingstjenesten når signalet uteblir |
+| Issuen «Publiseringen trenger tilsyn» | kystloggen.no svarte ikke som bygget sa, etter en publisering fra `publiser.yml` | Som innsamlingens issue. Se «Publisering fra GitHub» |
 
 Issuen lages og lukkes av `.github/varsel.py` i datarepoet, som siste
 steg i `samle.yml`. Den lukkes av seg selv når en kjøring som faktisk
@@ -326,14 +327,18 @@ dataene bor.
 
     tidspunkt  miljo  kode_commit  data_commit  uke
 
-Skriptet skriver linja. **Du committer og pusher den selv**, som del av
-neste datacommit.
+Skriptet skriver linja, og committer og pusher den selv (steg 6, fra
+23.09.2026). `bygg.yml` og `publiser.yml` skriver den samme linja for
+sine publiseringer, så loggen dekker begge veiene.
 
-### Ingen nøkler
+### Ingen nøkler — lokalt
 
 `wrangler` autentiserer i nettleseren og lagrer sin egen tilstand under
 `~/.config/.wrangler`. `publiser.py` leser den ikke, skriver den ikke,
 og ber ikke om den.
+
+Publiseringen fra GitHub bruker et API-token i datarepoets secrets. Det
+er en annen nøkkel, med smalere rett — se under.
 
 ### Vertsnavnet i en forhåndsvisning
 
@@ -346,6 +351,116 @@ Vil du ha en forhåndsvisning som oppgir SIN EGEN adresse:
 
     HAVBRUK_BASEURL=https://forhandsvisning.kystloggen.pages.dev \
         python publiser.py
+
+## Publisering fra GitHub
+
+Fra 07.10.2026 kan nettstedet bygges og legges ut fra GitHub Actions.
+To workflows i DATAREPOET, og koden de kjører ligger i kodrepoet
+(`publiser_ci.py`, `royktest.py`):
+
+| Workflow | Starter | Gjør |
+|---|---|---|
+| **Bygg nettstedet** (`bygg.yml`) | av seg selv når innsamlingen ender grønn (også DELVIS), eller for hånd | bygger, kjører porten, legger ut til **forhåndsvisning**, lagrer byggemappa i 14 dager |
+| **Publiser** (`publiser.yml`) | bare for hånd | legger et ferdig bygg ut på **kystloggen.no** og røyktester det |
+
+Godkjenningen er at du starter `Publiser` selv. Datarepoet er privat på
+GitHub Free, og der finnes ikke miljøer med påkrevd godkjenner.
+
+**`bygg.yml` endrer ikke innsamlingen.** Den starter først når
+`samle.yml` er ferdig, og den eneste skrivingen er logglinja. Bygger den
+ikke, er snapshotene uansett skrevet.
+
+Den bygger ikke når innsamlingen ikke skrev noe — tirsdagens
+gjenkjøring i en frisk uke. Da står «Innsamlingen skrev ingenting nytt»
+i oppsummeringen, og jobben er grønn.
+
+### Fra mobilen
+
+1. **Se på bygget først.** GitHub-appen → datarepoet → Actions →
+   **Bygg nettstedet** → siste kjøring. Oppsummeringen viser ukas tall
+   (de samme som steg 4 i `publiser.py`), sha256 over byggemappa og
+   størrelsen. Forhåndsvisningen ligger på
+   `https://forhandsvisning.kystloggen.pages.dev`.
+2. Actions → **Publiser** → **Run workflow**.
+3. `bekreft`: skriv `ja` — nøyaktig, med liten j. Pass på at telefonen
+   ikke gjør den stor.
+4. `run_id`: la stå tom. Da tas siste vellykkede bygg som har en
+   byggemappe. Vil du legge ut et bestemt bygg, er tallet det siste i
+   adressen til kjøringen (`…/actions/runs/<run_id>`).
+5. **Run workflow**. Jobben laster ned bygget, sjekker sha256 mot det
+   `bygg.yml` skrev, legger ut, skriver loggen og røyktester
+   forsiden, nyeste uke, to lokaliteter og ett produksjonsområde.
+
+*Ikke prøvd herfra: at GitHub-appen viser input-feltene til
+`workflow_dispatch`. Gjør den ikke det, virker det samme fra
+github.com i nettleseren på telefonen.*
+
+Rød i `Publiser` betyr én av fire ting, og steget som feilet sier
+hvilken: `bekreft` var ikke `ja`, summen avvek (ingenting er lastet
+opp), en Cloudflare-nøkkel mangler (ingenting er lastet opp), eller
+røyktesten feilet (siden ER ute — da kommer issuen «Publiseringen
+trenger tilsyn», og den lukkes av neste røyktest som går).
+
+Røyktesten leser ikke bytene: Cloudflare skriver om e-postlenken i
+bunnteksten på veien ut (`/cdn-cgi/l/email-protection`, Scrape Shield),
+så den levende siden er aldri byte-lik bygget. Målt 07.10.2026.
+
+### Cloudflare-tokenet, med minst mulig rett
+
+Én gang. *Ikke prøvd herfra: stegene følger Cloudflares beskrivelse av
+Direct Upload fra CI, ikke et oppsett noen har gjort. Rett dem når du
+har gjort det.*
+
+1. dash.cloudflare.com → profilikonet → **My Profile** → **API Tokens**
+   → **Create Token** → **Create Custom Token**.
+2. Navn: `kystloggen publiser.yml`.
+3. **Permissions**: én rad — `Account` · `Cloudflare Pages` · `Edit`.
+   Ingenting annet: ingen Zone-rettigheter, ingen DNS, ingen Workers.
+4. **Account Resources**: `Include` · kontoen der prosjektet
+   `kystloggen` ligger. Ikke «All accounts».
+5. **Client IP Address Filtering**: la stå tom. GitHubs maskiner har
+   ikke faste adresser.
+6. **TTL**: valgfritt. Setter du en sluttdato, blir både `bygg.yml` og
+   `Publiser` røde med en autentiseringsfeil den dagen — skriv den i
+   kalenderen.
+7. **Continue to summary** → **Create Token**. Kopier tokenet; det vises
+   bare én gang.
+8. Konto-ID-en: dash.cloudflare.com → **Workers & Pages**, eller
+   adressen når du står i kontoen (`dash.cloudflare.com/<konto-id>/…`).
+   Den er ikke hemmelig, men legges ved siden av tokenet.
+9. Datarepoet → Settings → Secrets and variables → Actions → **New
+   repository secret**, to ganger:
+
+       CLOUDFLARE_API_TOKEN     tokenet
+       CLOUDFLARE_ACCOUNT_ID    konto-ID-en
+
+Mangler én av dem, stopper `last-opp` før wrangler kalles og sier
+hvilken. Til de er satt, er `bygg.yml` rød i steget «Legg ut til
+forhåndsvisning» — byggemappa er da likevel lagret.
+
+Tokenet kan bare legge ut på Pages. Lekker det, kan noen bytte ut
+nettstedet — men ikke røre DNS, domenet eller noe annet i kontoen.
+Trekk det tilbake samme sted (My Profile → API Tokens → Roll eller
+Delete).
+
+### Lagring
+
+GitHub Free har 500 MB til artifacts. Byggemappa er ca. 67 MB komprimert
+(målt 07.10.2026: 338 MB, 9057 filer, 67,4 MB med zip -6), og lagres i 14
+dager. Med ett bygg i uka ligger to–tre ute samtidig. `bygg.yml` skriver
+størrelsen og summen av alt som ligger i oppsummeringen, og varsler over
+80 %. Gamle bygg slettes under Actions → Management → Artifacts.
+
+### `publiser.py` lokalt er fortsatt reserven
+
+Alt over kan gjøres for hånd som før — `python publiser.py
+--produksjon` fra maskinen, med `npx wrangler@4.139.0 login`. Bruk den
+når Actions er nede, når bygget er utløpt (14 dager), når tokenet er
+trukket, eller når du vil se steg 4 i terminalen før du svarer.
+
+De to veiene skriver i samme logg. Logglinja fra `bygg.yml` flytter
+datarepoets `main`; `publiser.py` tar det inn selv med `git pull
+--ff-only` i steg 1.
 
 ## Når innsamlingen NEKTER å kjøre
 
