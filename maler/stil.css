@@ -333,7 +333,8 @@ main {
   display: block;
   max-width: var(--maal-side);
   margin: 0 auto;
-  padding: var(--rom-seksjon) var(--marg-side) var(--rom-64);
+  /* 32 px over: sidehodet har sin egen luft under seg. */
+  padding: var(--rom-32) var(--marg-side) var(--rom-64);
 }
 
 /* En sidetype med egne fullbredde-seksjoner setter bredden selv. */
