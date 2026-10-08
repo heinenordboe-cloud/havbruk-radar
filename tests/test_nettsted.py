@@ -2589,32 +2589,12 @@ def _fargeregler(css: str) -> dict[tuple[str, str], str]:
 
 # `:visited`-REGLER SOM AVVIKER MED VITENDE OG VILJE.
 #
-# Alle tre ble funnet 27.09.2026, av prøven under, i samme runde som
-# `--besokt` ble ryddet bort. De bruker ikke `--besokt` og lå derfor
-# utenfor den oppryddingen — og hver av dem er et SYNLIG valg for en
-# leser med historikk, ikke en opprydding. De står oppført her framfor
-# å bli rettet i forbifarten.
-#
-#   .mork a                  hav-tegn -> rust-lys. Kystseksjonen på
-#                            forsiden: tretten områdelenker, der de
-#                            besøkte blir oransje. Samme farge som
-#                            `:hover`, så en besøkt lenke ser ut som en
-#                            lenke under peker.
-#   .om-innhold a            rust -> ink. Innholdslista på /om/.
-#                            Grunnregelen ble rettet til `--rust` med
-#                            begrunnelsen «en lenke skal se ut som en
-#                            lenke»; `:visited` ble stående på `--ink`,
-#                            altså brødtekst.
-#   .sokeliste > li > a      ink -> rust. Treffliste-titlene.
-#
-# Lista er en PRIS, ikke en løsning: CLAUDE.md sier at en regel med
-# unntak er en regel noen må huske. Den er her fordi alternativet var å
-# endre tre design stille i en commit som skulle fjerne én variabel.
-VISITED_UNNTAK = {
-    ".mork a:visited",
-    ".om-innhold a:visited",
-    ".sokeliste > li > a:visited",
-}
+# Tre sto her fra 27.09.2026 — `.mork a`, `.om-innhold a` og
+# `.sokeliste > li > a` — som synlige valg ingen hadde tatt stilling til.
+# Designrunden 08.10.2026 tok stilling: alle tre har nå samme farge
+# besøkt som ubesøkt, og lista er tom. Den står, fordi et nytt unntak
+# skal måtte skrives inn her med en grunn.
+VISITED_UNNTAK: set[str] = set()
 
 
 def test_ingen_visited_regel_endrer_farge():
@@ -2623,8 +2603,8 @@ def test_ingen_visited_regel_endrer_farge():
     `test_besokte_lenker_har_samme_farge_som_andre` leser den GLOBALE
     `a:visited` og sier god for stilarket på det grunnlaget. Den var
     grønn 27.09.2026 mens FIRE regler ga en besøkt lenke en annen farge
-    enn en ubesøkt. Den ene av dem brukte `--farge-lenke-besokt` og er
-    rettet; de tre andre står i `VISITED_UNNTAK` med hver sin grunn.
+    enn en ubesøkt. Den ene av dem brukte `--farge-lenke-besokt` og ble
+    rettet da; de tre andre sto i `VISITED_UNNTAK` til 08.10.2026.
 
     Det er formen fra CLAUDE.md 1b-2: en kontroll som måler noe som
     LIGNER det den skal måle — én regel der spørsmålet gjelder sytten.
@@ -2674,14 +2654,18 @@ def test_innholdslista_paa_om_ser_ut_som_lenker():
     assert "text-decoration-line: underline" in blokk
 
 
-def test_rammen_sitter_paa_de_klikkbare_brikkene():
-    """En ramme rundt alt sier ingenting om hva som fører et sted.
-    Brikker med rader har den; brikker med null har den ikke."""
+def test_flata_sitter_paa_de_klikkbare_brikkene():
+    """En markering rundt alt sier ingenting om hva som fører et sted.
+    Brikker med rader har en tonet flate; brikker med null har ingen
+    flate og ingen ramme. (Til 08.10.2026 var markeringen en ramme; den
+    er byttet mot flate, men skillet er det samme.)"""
     css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
            ).read_text(encoding="utf-8")
-    assert "box-shadow: inset 0 0 0 1px rgba(11, 36, 48, 0.25);" in css
+    brikke = re.search(r"\n\.typemerke \{([^}]*)\}", css).group(1)
+    assert "background: var(--papir2)" in brikke, brikke
     tom = re.search(r"\.typemerke--tom \{([^}]*)\}", css).group(1)
     assert "box-shadow: none" in tom, tom
+    assert "background: none" in tom, tom
 
 
 def test_ukesiden_har_brikker_og_ingen_avkrysningsbokser():
@@ -3301,21 +3285,23 @@ def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
 
 
 def test_nedlastingsknappene_vises_bare_naar_lokaliteten_har_hatt_et_lusetall():
-    """12325 står i alle ukene uten ett tall. Knappene vises ikke der;
-    filene og lenkene i teksten under grafen blir stående."""
+    """12325 står i alle ukene uten ett tall. Nedlastingene i
+    verktøylinja vises ikke der; filene og lenkene i teksten under grafen
+    blir stående. (Verktøylinja var en rad med omrissknapper fram til
+    08.10.2026 — det er de samme lenkene.)"""
     tom = [_uke_raa(voksne_hunnlus="", lus_er_rapportert="False",
                     brakklagt="True") for _ in range(3)]
     html = _side(lus_serie=tom, lus=nettsted.til_visning(tom),
                  lus_uker=3, lus_uten_tall=3, lus_med_tall=0, lusegraf=None,
                  lusetall_snapshots=767, lus_fravaer="paa_land")
-    assert 'class="knapp knapp--tynn" href="kystloggen-lusetall' not in html
+    assert 'class="handling handling--last" href="kystloggen-lusetall' not in html
     assert f'href="{_XLSX}"' in html, "lenka i teksten står"
     assert f'href="{_ZIP}"' in html, "lenka i teksten står"
 
     med = " ".join(_side(lus_med_tall=1).split())
-    assert (f'<a class="knapp knapp--tynn" href="{_XLSX}" download '
+    assert (f'<a class="handling handling--last" href="{_XLSX}" download '
             'aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>') in med
-    assert (f'<a class="knapp knapp--tynn" href="{_ZIP}" download '
+    assert (f'<a class="handling handling--last" href="{_ZIP}" download '
             'aria-label="Lusetall som Data (.zip)">Data (.zip)</a>') in med
 
 
@@ -3490,9 +3476,7 @@ def test_registerfeltene_er_lukket_som_standard():
 # Variabler stilarket bruker uten å definere, MED VILJE, og hvor det står
 # hvorfor. En ny udefinert variabel feller prøven; det gjør også en som
 # blir definert uten å bli strøket herfra.
-KJENTE_UDEFINERTE = {
-    "--farge-stripe": "docs/design/STILGUIDE.md",
-}
+KJENTE_UDEFINERTE: dict[str, str] = {}
 
 
 def test_hver_variabel_stilarket_bruker_er_definert():

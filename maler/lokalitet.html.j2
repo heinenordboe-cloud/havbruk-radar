@@ -74,10 +74,13 @@
       </p>
       {% endif %}
 
-      <p class="knapperad">
-        <a class="knapp knapp--tynn" href="feed.xml">Følg denne
-          lokaliteten (feed)</a>
-        <a class="knapp knapp--tynn" href="#siter">Siter</a>
+      {# VERKTØYLINJA, ikke en rad med knapper. Det er lenker — til en
+         feed, et anker og to filer — og de står som lenker. En knapp er
+         for en handling på siden (kopier, søk). Se docs/design/STILGUIDE.md. #}
+      <ul class="handlinger" aria-label="Følg, siter og last ned">
+        <li><a class="handling" href="feed.xml">Følg denne lokaliteten
+          (feed)</a></li>
+        <li><a class="handling" href="#siter">Siter</a></li>
         {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
             tomme uker lover noe den ikke holder. Filene ligger der, og
             teksten under lusegrafen lenker fortsatt til dem.
@@ -88,12 +91,12 @@
             «Excel (.xlsx)» står i den, så talegjenkjenning finner
             knappen på det den heter. #}
         {% if lok.lus_med_tall %}
-        <a class="knapp knapp--tynn" href="{{ lok.xlsx_filnavn }}" download
-           aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>
-        <a class="knapp knapp--tynn" href="{{ lok.zip_filnavn }}" download
-           aria-label="Lusetall som Data (.zip)">Data (.zip)</a>
+        <li><a class="handling handling--last" href="{{ lok.xlsx_filnavn }}" download
+           aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a></li>
+        <li><a class="handling handling--last" href="{{ lok.zip_filnavn }}" download
+           aria-label="Lusetall som Data (.zip)">Data (.zip)</a></li>
         {% endif %}
-      </p>
+      </ul>
   </div>
 </div>
 {% endblock %}

@@ -42,10 +42,10 @@
     {{ antall(po.selskaper_antall, "selskap", "selskaper") }}
   </p>
 
-  <p class="knapperad">
-    <a class="knapp knapp--tynn" href="feed.xml">Følg området (feed)</a>
-    <a class="knapp knapp--tynn" href="#siter">Siter</a>
-  </p>
+  <ul class="handlinger" aria-label="Følg og siter">
+    <li><a class="handling" href="feed.xml">Følg området (feed)</a></li>
+    <li><a class="handling" href="#siter">Siter</a></li>
+  </ul>
 
   {# TRAFIKKLYSET, STORT. Én blokk per runde, med fargeord, belegg og
      lenke til forskriften.

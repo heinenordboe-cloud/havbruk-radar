@@ -73,11 +73,11 @@
     {% endif %}
   </dl>
 
-  <p class="knapperad">
-    <a class="knapp knapp--tynn" href="feed.xml">Følg selskapet (feed)</a>
-    <a class="knapp knapp--tynn" href="#siter">Siter</a>
-    <a class="knapp knapp--tynn" href="{{ sel.enhetsregisteret_url }}">Enhetsregisteret ↗</a>
-  </p>
+  <ul class="handlinger" aria-label="Følg, siter og slå opp">
+    <li><a class="handling" href="feed.xml">Følg selskapet (feed)</a></li>
+    <li><a class="handling" href="#siter">Siter</a></li>
+    <li><a class="handling" href="{{ sel.enhetsregisteret_url }}">Enhetsregisteret ↗</a></li>
+  </ul>
 </div>
 {% endblock %}
 
