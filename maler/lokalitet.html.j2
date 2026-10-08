@@ -668,7 +668,9 @@
         {{ antall(g.uker, "uke", "uker") }}</title>
       <desc id="lusegraf-tekst">Én søyle per uke fra
         <time datetime="{{ g.fra }}">{{ g.fra }}</time> til
-        <time datetime="{{ g.til }}">{{ g.til }}</time>. Høyeste målte
+        <time datetime="{{ g.til }}">{{ g.til }}</time>.
+        {% if g.mangler %}{{ antall(g.mangler, "uke", "uker") }} der lokaliteten
+        ikke står i kildens svar, står som tomrom på sin plass i tiden.{% endif %} Høyeste målte
         verdi er {{ g.maks }}. {{ antall(g.uker_med_tall, "uke", "uker") }} har tall, og i
         {{ antall(g.uten_tall, "uke", "uker") }} oppgir kilden ingenting — de har ingen
         søyle. {{ antall(g.nuller, "uke", "uker") }} er målt til null og har en hårstrek
@@ -716,6 +718,13 @@
 
     <p class="tabellnote">
       Høyeste målte verdi {{ g.maks }}.
+      {#- HULLET SIES OGSÅ HER, ikke bare i `<desc>`: tomrommet ser likt
+          ut som en uke uten tall, og forskjellen står i teksten. #}
+      {% if g.mangler %}
+      {{ antall(g.mangler, "uke", "uker") }} på tidsaksen er tomme fordi
+      lokaliteten ikke står i kildens svar for dem — de har heller ingen
+      rad i tabellen.
+      {% endif %}
       {{ tall(g.uker_med_tall) }} av {{ antall(g.uker, "uke", "uker") }} har tall, og
       {{ g.nuller }} av dem er null.
       {% if g.uten_tall %}

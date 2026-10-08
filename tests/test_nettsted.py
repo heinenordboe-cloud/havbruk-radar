@@ -17,6 +17,7 @@ Den viktigste testen er `test_ubelagt_kilde_kan_ikke_publiseres`.
 antatt greit; uten en test er den setningen en hensikt.
 """
 
+import datetime as dt
 import json
 import re
 from pathlib import Path
@@ -3058,13 +3059,23 @@ def test_lagdelingen_i_kartet_er_rekkefolgen_i_markupen():
 # her handler derfor ikke om utseende, men om at tegningen sier det
 # samme som lista — og særlig om det ene den ikke får lov å si.
 
-def _uker(*verdier, brakk=()):
-    """Én uke per verdi. `None` = kilden oppgir ingenting."""
-    return [{"voksne_hunnlus": "" if v is None else str(v),
-             "brakklagt": "True" if i in brakk else "False",
-             "iso_aar": "2020", "iso_uke": f"{i + 1:02d}",
-             "dato": f"2020-01-{i + 1:02d}"}
-            for i, v in enumerate(verdier)]
+def _uker(*verdier, brakk=(), fra="2020-01-06"):
+    """Én uke per verdi, mandag for mandag. `None` = kilden oppgir
+    ingenting.
+
+    UKER, ikke dager. Fram til 08.10.2026 lagde denne `2020-01-01`,
+    `2020-01-02` …, og så lenge grafen plasserte søylene etter
+    radnummer, betydde datoen ingenting. Nå er den plassen."""
+    start = dt.date.fromisoformat(fra)
+    ut = []
+    for i, v in enumerate(verdier):
+        d = start + dt.timedelta(weeks=i)
+        aar, uke, _ = d.isocalendar()
+        ut.append({"voksne_hunnlus": "" if v is None else str(v),
+                   "brakklagt": "True" if i in brakk else "False",
+                   "iso_aar": str(aar), "iso_uke": f"{uke:02d}",
+                   "dato": d.isoformat()})
+    return ut
 
 
 def test_hullet_faar_ingen_soyle():
@@ -4864,3 +4875,110 @@ def test_grenen_oppgis_alltid_ogsaa_for_produksjon():
             / "publiser.py").read_text(encoding="utf-8")
     assert '"--project-name", PROSJEKT, "--branch", gren]' in kode
     assert "if not args.produksjon:\n        wrangler +=" not in kode
+
+
+# ---- lusegrafen plasserer søylene etter DATO (08.10.2026) -------------
+#
+# Fram til 08.10.2026 sto rad nummer i på plass i, og en uke lokaliteten
+# ikke står i hos kilden ble trykket bort fra tidsaksen. Formene under er
+# de EKTE hullene, målt i datarepoet 08.10.2026 over 767 ukesnapshots
+# (2012-01-02 til 2026-09-07):
+#
+#   20797 URDVIKA   3 uker borte, 2018-11-26 til 2018-12-10
+#   12020           243 uker borte, 2013-05-27 til 2018-01-15
+#
+# Ingen av de to har et eneste lusetall, så sidene deres har ingen graf.
+# Verdiene her er lagt inn for at det skal FINNES en graf å måle; det
+# som prøves er plasseringen, og den er de ekte datoene.
+
+_FORSTE, _SISTE = dt.date(2012, 1, 2), dt.date(2026, 9, 7)
+
+
+def _serie_med_hull(fra: str, til: str, verdi="0.1", brakk=()):
+    """Alle mandager 2012-01-02–2026-09-07 unntatt [fra, til]."""
+    ut, d = [], _FORSTE
+    a, b = dt.date.fromisoformat(fra), dt.date.fromisoformat(til)
+    while d <= _SISTE:
+        if not a <= d <= b:
+            aar, uke, _ = d.isocalendar()
+            ut.append({"dato": d.isoformat(), "iso_aar": str(aar),
+                       "iso_uke": f"{uke:02d}", "voksne_hunnlus": verdi,
+                       "brakklagt": "True" if d.isoformat() in brakk
+                       else "False"})
+        d += dt.timedelta(weeks=1)
+    return ut
+
+
+@pytest.mark.parametrize("fra,til,borte", [
+    ("2018-11-26", "2018-12-10", 3),       # 20797
+    ("2013-05-27", "2018-01-15", 243),     # 12020 (og 12023)
+])
+def test_hullet_er_et_tomrom_like_bredt_som_ukene_det_dekker(fra, til, borte):
+    serie = _serie_med_hull(fra, til)
+    assert len(serie) == 767 - borte, "formen er den målte"
+    g = nettsted.lusegraf(serie)
+    assert g["ukeplasser"] == 767
+    assert g["mangler"] == borte
+    assert g["uker"] == len(serie), "radene telles som før"
+
+    steg = g["plott_bredde"] / 767
+    xs = [s["x"] for s in g["soyler"]]
+    # Søylen før hullet og søylen etter står (borte + 1) uker fra
+    # hverandre — ikke én, som da radnummeret var plassen.
+    i = next(k for k, u in enumerate(serie) if u["dato"] > til)
+    assert xs[i] - xs[i - 1] == pytest.approx((borte + 1) * steg, abs=0.15)
+    # Og den siste søylen står på den siste uka, ikke `borte` uker for
+    # tidlig.
+    assert xs[-1] == pytest.approx(g["plott_x"] + 766 * steg, abs=0.1)
+
+
+def test_uten_hull_er_plasseringen_den_samme_som_foer():
+    """En serie uten hull skal se ut akkurat som før 08.10.2026: rad i
+    på plass i."""
+    serie = _uker(0.1, 0.2, None, 0.4)
+    g = nettsted.lusegraf(serie)
+    steg = g["plott_bredde"] / 4
+    assert [s["x"] for s in g["soyler"]] == [
+        round(g["plott_x"] + steg * i, 1) for i in (0, 1, 3)]
+    assert g["mangler"] == 0
+
+
+def test_aarsskiftene_staar_paa_sin_plass_ogsaa_inne_i_hullet():
+    """12020 mangler hele 2014–2017. Årsmerkene står likevel der årene
+    begynner — en akse med fire år borte og alle årstallene på rad ville
+    vært den samme løgnen som før, bare med etiketter."""
+    med = nettsted.lusegraf(_serie_med_hull("2013-05-27", "2018-01-15"))
+    uten = nettsted.lusegraf(_serie_med_hull("1999-01-01", "1999-01-02"))
+    assert [a["x"] for a in med["aar"]] == [a["x"] for a in uten["aar"]]
+
+
+def test_et_brakkband_brytes_av_et_hull():
+    """En uke lokaliteten ikke står i hos kilden, vet vi ikke om den var
+    brakklagt. Båndet skal ikke dekke den."""
+    brakk = {"2018-11-19", "2018-12-17"}    # uka før og uka etter 20797s hull
+    g = nettsted.lusegraf(_serie_med_hull("2018-11-26", "2018-12-10",
+                                          brakk=brakk))
+    assert len(g["baand"]) == 2
+    steg = g["plott_bredde"] / 767
+    for b in g["baand"]:
+        assert b["bredde"] == pytest.approx(max(steg, 1.0), abs=0.15)
+
+
+def test_en_serie_som_ikke_er_en_rad_per_uke_kaster():
+    """`_lusserie()` lover én rad per uke i stigende rekkefølge. En graf
+    som gjettet, ville tegnet to søyler oppå hverandre uten å si fra."""
+    serie = _uker(0.1, 0.2)
+    with pytest.raises(ValueError):
+        nettsted.lusegraf(serie + [dict(serie[-1])])
+
+
+def test_siden_sier_at_hullet_er_tomrom():
+    serie = _serie_med_hull("2013-05-27", "2018-01-15")
+    g = nettsted.lusegraf(serie)
+    html = " ".join(_side(lus_serie=serie, lusegraf=g).split())
+    assert ("243 uker på tidsaksen er tomme fordi lokaliteten ikke står i "
+            "kildens svar for dem") in html
+    assert "243 uker der lokaliteten ikke står i kildens svar" in html
+    # Uten hull: ingen slik setning.
+    g0 = nettsted.lusegraf(_uker(0.1, 0.2))
+    assert "på tidsaksen er tomme" not in _side(lusegraf=g0)
