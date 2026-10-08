@@ -424,8 +424,11 @@
       <tr>
         <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
         <td data-felt="{{ e.felt }}">{{ e.etikett }}</td>
-        <td data-felt="{{ feltmerke(e.fra, e.felt) }}">{{ e.fra or VERDI_MANGLER }}</td>
-        <td data-felt="{{ feltmerke(e.til, e.felt) }}">{{ e.til or VERDI_MANGLER }}</td>
+        {#- RUTA FØLGER VERDIEN, ikke feltet: «gul» får gul rute, og
+            Felt-cella, som sier HVILKET felt, får ingen. #}
+        {%- for v in (e.fra, e.til) %}
+        <td{% if fargeklasse(v) %} class="{{ fargeklasse(v) }}"{% endif %} data-felt="{{ feltmerke(v, e.felt) }}">{{ v or VERDI_MANGLER }}</td>
+        {%- endfor %}
         <td data-felt="source">{{ kilde(e.kilde) }}</td>
       </tr>
       {% endfor %}

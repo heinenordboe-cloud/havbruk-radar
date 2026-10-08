@@ -2422,6 +2422,17 @@ def _fargekode(raa: str) -> str:
     return _FARGEKODER.get(raa, "")
 
 
+def fargeklasse(verdi) -> str:
+    """`lys-*`-klassen til et fargeord, tom for alt annet.
+
+    For maler som får fargen som ORD og ikke som kode — fra- og
+    til-cellene i vedtakstabellen på områdesiden. Til 08.10.2026 sto de
+    uten klasse, og ruta foran «gul» var tom; se
+    `test_fargeruta_i_registertabellen_har_fyll` for hvorfor det er feil.
+    """
+    return FARGE_KLASSE.get(_fargekode(str(verdi or "").strip().lower()), "")
+
+
 def _datoord(datoer: list[str], med_aar: bool = True) -> str:
     """«21. september 2026», «14.–15. september» eller «14. og 20. mars».
 
@@ -5194,6 +5205,7 @@ def _miljo() -> Environment:
     # filter; `kilde()` som global kan ikke brukes av `map`.
     miljo.filters["kildenavn"] = visningsord.kilde
     miljo.globals["feltmerke"] = feltmerke
+    miljo.globals["fargeklasse"] = fargeklasse
     miljo.globals["personformnavn"] = personformnavn
     miljo.globals["attribusjonslenke"] = ATTRIBUSJONSLENKE
     miljo.globals["SKJULT_NAVN_FELT"] = publiseringsvakt.SKJULT_NAVN_FELT

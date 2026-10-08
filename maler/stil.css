@@ -1609,20 +1609,56 @@ td a:hover, th a:hover {
 
   .tabell--kort tbody td { margin-block-start: var(--rom-4); }
 
+  /* ETIKETTEN FLYTER I MARGEN, og cella vokser med den. Til 08.10.2026
+     sto den `position: absolute`, og en etikett på to linjer
+     («Nyeste øyeblikksbilde») la seg over neste rad. En `flow-root`-
+     celle rommer flyteren sin; den negative margen legger den i
+     polstringa til venstre, så verdien begynner der den alltid har
+     gjort. 61,29 % av innholdsboksen er 38 % av cella (38 / 62). */
   .tabell--kort tbody td[data-label] {
-    position: relative;
+    display: flow-root;
     padding-inline-start: 38%;
   }
 
   .tabell--kort tbody td[data-label]::before {
     content: attr(data-label);
-    position: absolute;
-    inset-inline-start: 0;
-    inline-size: calc(38% - var(--rom-12));
+    float: left;
+    margin-inline-start: -61.29%;
+    inline-size: calc(61.29% - var(--rom-12));
+    block-size: auto;
+    border: 0;
+    background: none;
+    text-indent: 0;
     font-size: var(--tekst-xs);
     line-height: 1.7;
     color: var(--ink-dempet);
   }
+
+  /* TRAFIKKLYSRUTA I ET KORT står på `::after`, fordi `::before` er
+     etiketten. Til 08.10.2026 delte de pseudoelementet, og etiketten
+     «Farge» ble tegnet som en 0,8 em høy stolpe i fargen. Ruta settes
+     der verdien begynner, og ordet rykkes inn bak den. */
+  .tabell--kort tbody td[data-label]:is([data-felt="farge"], [data-felt="prodomraade_status"]):is(.lys-rod, .lys-gul, .lys-gronn),
+  .tabell--kort tbody td[data-label][data-felt="farge_mangler"] {
+    position: relative;
+    text-indent: 1.35em;
+  }
+
+  .tabell--kort tbody td[data-label]:is([data-felt="farge"], [data-felt="prodomraade_status"]):is(.lys-rod, .lys-gul, .lys-gronn)::after,
+  .tabell--kort tbody td[data-label][data-felt="farge_mangler"]::after {
+    content: "";
+    position: absolute;
+    inset-inline-start: 38%;
+    inset-block-start: 0.38em;
+    inline-size: 0.8em;
+    block-size: 0.8em;
+    border: 1px solid var(--ink-ring);
+  }
+
+  .tabell--kort tbody td[data-label].lys-rod::after   { background: var(--lys-rod); }
+  .tabell--kort tbody td[data-label].lys-gul::after   { background: var(--lys-gul); }
+  .tabell--kort tbody td[data-label].lys-gronn::after { background: var(--lys-gronn); }
+  .tabell--kort tbody td[data-label][data-felt="farge_mangler"]::after { border-style: dashed; }
 
   .tabell--kort .tall { text-align: left; }
 
@@ -1847,8 +1883,12 @@ td[data-felt="registerdata_mangler"] {
  * igjen og siden er like sann (WCAG 1.4.1).
  * ---------------------------------------------------------------- */
 
-td[data-felt="farge"]::before,
-td[data-felt="prodomraade_status"]::before,
+/* RUTA TEGNES BARE DER DEN HAR FYLL — eller er bevisst tom (stiplet,
+   `farge_mangler`). En tom rute ved et fargeord leses som at fargen
+   mangler, og ved ordet «Farge» i en Felt-kolonne som en avkrysningsboks.
+   `:where()` holder vekta nede, så kortetiketten (seksjon 7) vinner over
+   ruta på smal skjerm og ruta flytter til `::after` der. */
+td:where([data-felt="farge"], [data-felt="prodomraade_status"]):where(.lys-rod, .lys-gul, .lys-gronn)::before,
 td[data-felt="farge_mangler"]::before {
   content: "";
   display: inline-block;
@@ -2697,7 +2737,7 @@ figcaption {
 
   table.selskapslogg tbody :is(th, td),
   table.selskapslogg tbody td[data-label] { margin: 0; padding-inline-start: 0; }
-  table.selskapslogg tbody td[data-label]::before { content: none; position: static; inline-size: auto; }
+  table.selskapslogg tbody td[data-label]::before { content: none; float: none; margin-inline-start: 0; inline-size: auto; }
 
   .selskapslogg tbody td:nth-child(2) { order: -1; flex-basis: 100%; font-weight: 600; }
   .selskapslogg tbody td:nth-child(3)::after { content: ":"; }
@@ -2741,7 +2781,8 @@ figcaption {
 
   :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) tbody td[data-label]::before {
     content: none;
-    position: static;
+    float: none;
+    margin-inline-start: 0;
     inline-size: auto;
   }
 

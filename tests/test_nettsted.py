@@ -1493,6 +1493,29 @@ def test_celle_uten_farge_SIER_det():
     assert len(nettsted.FARGE_MANGLER) < 20, "cellen setter kolonnebredden"
 
 
+def test_vedtakstabellen_gir_fargeordet_fyll_og_feltnavnet_ingen_rute():
+    """Fra og Til er farger og får fyll; Felt-cella sier HVILKET felt
+    («Farge») og får ingen rute. Til 08.10.2026 sto tre tomme ruter på
+    hver rad, og på 390 så de ut som avkrysningsbokser."""
+    html = _po()
+    tabell = html[html.index('id="trafikklysvedtak-endringer"'):]
+    tabell = tabell[:tabell.index("</table>")]
+    assert '<td class="lys-rod" data-felt="farge">rød</td>' in tabell
+    assert '<td class="lys-gul" data-felt="farge">gul</td>' in tabell
+    assert '<td data-felt="farge">Farge</td>' in tabell
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    assert ('td:where([data-felt="farge"], [data-felt="prodomraade_status"])'
+            ':where(.lys-rod, .lys-gul, .lys-gronn)::before') in css
+
+
+def test_fargeklasse_leser_ordet_i_begge_skrivemaater():
+    assert nettsted.fargeklasse("rød") == nettsted.fargeklasse("rod") == "lys-rod"
+    assert nettsted.fargeklasse("Grønn") == "lys-gronn"
+    assert nettsted.fargeklasse("ikke oppgitt") == ""
+    assert nettsted.fargeklasse(None) == ""
+
+
 def test_manglende_farge_merkes_med_ET_ANNET_FELT_enn_farge():
     """Samme konstruksjon som `eier_ukjent`: verdien er VÅR setning om
     fravær, ikke en farge fra forskriften. Blandes de to i markupen, kan
