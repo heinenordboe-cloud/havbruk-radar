@@ -932,10 +932,13 @@ a:hover {
   overflow: hidden;
   background: var(--hav9);
   color: var(--hav-tegn);
-  /* `svh`, ikke `vh`: på en telefon er `vh` høyden uten adresselinja.
+  /* LAVERE fra 08.10.2026 (briefen: ukas endringer over bretten på
+     1440 x 900). Var min(70svh, 760px), 630 px på 1440 x 900.
+
+     `svh`, ikke `vh`: på en telefon er `vh` høyden uten adresselinja.
      `min`, ikke `block-size`: teksten skal kunne vokse forbi taket ved
      200 % skriftstørrelse heller enn å bli klippet. */
-  min-block-size: min(70svh, 760px);
+  min-block-size: min(56svh, 560px);
 }
 
 /* `left center`: på 390 er heroen stående og fotoet liggende, og
@@ -950,11 +953,15 @@ a:hover {
 }
 
 /* TONINGEN. STOPPENE ER MÅLT, IKKE VALGT: for hver tekstblokk er den
- * lyseste pikselen under den funnet med toningen slått av, og alfaen
- * som trengs for at blokkens tekstfarge holder terskelen er regnet ut.
- * Vinduet fra 0 til 32 % står åpent — der står ingen tekst, og der er
- * anlegget. Interpolasjonen mellom stoppene holder kravet inne i hver
- * sone, ikke bare i stoppene. */
+ * lyseste pikselen under den funnet, og alfaen som trengs for at
+ * blokkens tekstfarge holder terskelen er regnet ut. Vinduet fra 0 til
+ * 32 % står åpent — der står ingen tekst, og der er anlegget.
+ * Interpolasjonen mellom stoppene holder kravet inne i hver sone, ikke
+ * bare i stoppene.
+ *
+ * FLYTTET 08.10.2026, da heroen ble lavere: taglinen havnet på 59–68 %
+ * av høyden på 390, der toningen var 0,48, og målte 4,37:1. Stoppet på
+ * 0,74 ligger nå på 60 % i stedet for 68 %. */
 .hero-slor {
   position: absolute;
   inset: 0;
@@ -962,9 +969,10 @@ a:hover {
   background: linear-gradient(180deg,
       rgba(6, 22, 29, 0) 0%,
       rgba(6, 22, 29, 0) 32%,
-      rgba(6, 22, 29, 0.46) 44%,
-      rgba(6, 22, 29, 0.48) 62%,
-      rgba(6, 22, 29, 0.76) 68%,
+      rgba(6, 22, 29, 0.46) 42%,
+      rgba(6, 22, 29, 0.52) 54%,
+      rgba(6, 22, 29, 0.74) 60%,
+      rgba(6, 22, 29, 0.80) 70%,
       rgba(6, 22, 29, 0.92) 100%);
 }
 
@@ -1016,13 +1024,16 @@ a:hover {
   max-width: 16em;
 }
 
-/* SETNINGEN OM HVA VI ER. Luft over: mottoet har lange underlengder. */
+/* SETNINGEN OM HVA VI ER — briefens «én setning om hva vi er». Den
+   var 13 px til 08.10.2026, mindre enn bildeteksten under; nå står den
+   som det den er, sidens første forklaring. Luft over: mottoet har
+   lange underlengder. */
 .hero-tagline {
   margin: var(--rom-12) 0 0;
-  font-size: var(--tekst-m);
+  font-size: clamp(1rem, 0.9rem + 0.4vw, 1.25rem);
   line-height: var(--lh-tett);
-  color: var(--hav-sekundaer);
-  max-width: none;
+  color: var(--hav-tegn);
+  max-width: 36em;
 }
 
 /* BILDETEKSTEN, nederst og dempet: en kreditering, ikke en opplysning. */
@@ -1068,10 +1079,62 @@ a:hover {
 
 .uke-topp {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: var(--rom-24) clamp(32px, 5vw, 80px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--rom-32) clamp(32px, 5vw, 96px);
   align-items: start;
 }
+
+@media (min-width: 56rem) {
+  .uke-topp { grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 1fr); }
+}
+
+.uke-sammendrag .uke-fakta { margin-block: var(--rom-16) var(--rom-24); }
+
+/* KAN JEG STOLE PÅ DET: øyeblikksbilde og sjekksum under ukas tall. */
+.arkivnote.uke-proveniens { margin-block-start: var(--rom-32); }
+
+/* TYPESTOLPENE. De største endringstypene, hver en lenke til
+   typesiden. Navn og tall på én linje, stolpen under: tallet er
+   svaret, stolpen er bare tegningen av det. */
+.typestolper { margin: 0; }
+
+.typestolper figcaption { margin: 0 0 var(--rom-12); max-width: none; }
+
+.typestolper ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  border-block-start: 1px solid var(--ink);
+}
+
+.typestolper li { margin: 0; border-block-end: 1px solid var(--papir3); }
+
+.typestolper a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--rom-4) var(--rom-12);
+  padding-block: var(--rom-8) var(--rom-12);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--tekst-s);
+}
+
+.typestolper a:visited { color: var(--ink); }
+.typestolper a:hover { color: var(--rust-moerk); }
+.typestolper a:hover .typestolpe-type { text-decoration: underline; }
+
+.typestolpe-tall { font-family: var(--skrift-tall); text-align: right; }
+
+.typestolpe {
+  grid-column: 1 / -1;
+  display: block;
+  inline-size: 100%;
+  block-size: 6px;
+}
+
+.typestolpe rect { fill: var(--hav5); }
+.typestolper a:hover .typestolpe rect { fill: var(--ink); }
 
 .uke-sammendrag p {
   margin: 0 0 var(--rom-12);
@@ -1215,8 +1278,8 @@ a:hover {
 /* ---- arkivlinja: tallene som sier at arkivet finnes ---- */
 
 .arkivlinje-flate {
-  border-block: 1px solid var(--papir3);
   margin-block-start: var(--rom-seksjon);
+  background: var(--papir2);
 }
 
 .arkivlinje { padding-block: var(--rom-24); }

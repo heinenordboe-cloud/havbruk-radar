@@ -1874,6 +1874,9 @@ def _forside(**overstyr) -> str:
         "typer": [dict(k, antall=(4 if k["id"] == "trafikklys" else 0))
                   for k in nettsted.ENDRINGSTYPER],
         "utenfor_uka": 32979,
+        # UKAS FAKTA, som `_ukefakta()` skriver dem.
+        "fakta": ["Ingen tillatelser fikk ny eier.",
+                  "Ingen lokaliteter endret status for fisk til stede."],
     }
     f = {
         "herofoto": {"sted": "Bømlo", "kommune": "BØMLO",
@@ -1896,6 +1899,8 @@ def _forside(**overstyr) -> str:
         "flere_rader": 804,
         "forrige_uke": "2026-38", "forrige_uke_vist": "uke 38, 2026",
         "uker_totalt": 5,
+        # Utledet av `ukas_typer()`, som i bygget.
+        "ukas_typer": nettsted.ukas_typer(uke),
 
         "snapshots": 6, "forste_snapshot": "2026-08-17",
         "siste_snapshot": "2026-09-21",
@@ -1940,6 +1945,39 @@ def _forside(**overstyr) -> str:
                  main_klasse="fullbredde"))
 
 
+def test_forsiden_viser_ukas_fakta_og_typene_med_lenke():
+    """Briefen: ukas viktigste endringer øverst. Faktasetningene er
+    ukesidens, og typene lenker til typesidene med brikkenes tall."""
+    flat = " ".join(_forside().split())
+    assert "Ingen tillatelser fikk ny eier." in flat
+    assert 'href="/endringer/2026-39/trafikklys/"' in flat
+    assert '<span class="typestolpe-tall">4</span>' in flat
+
+
+def test_forsiden_merker_ingenting_som_navn():
+    """Forsiden viser ingen selskapsnavn, og da skal vakten ikke finne
+    noe merket som navn heller. En klasse med ORDET «navn» eller «eier»
+    er en navnemerking for `publiseringsvakt.navn_i()`, også som ledd i
+    et sammensatt klassenavn. MÅLT 08.10.2026: `typestolpe-navn` på
+    typestolpene ga fem `ukjent_navn` («Tillatelse», «Fisk til stede» …)
+    og rød port."""
+    import publiseringsvakt as vakt
+    assert vakt.navn_i(_forside()) == []
+
+
+def test_ukas_typer_er_de_som_teller_storst_forst():
+    uke = {"slug": "2026-41", "typer": [
+        dict(k, antall={"tillatelse": 47, "biomasse": 12,
+                        "selskap": 59, "felt_ny": 80}.get(k["id"], 0))
+        for k in nettsted.ENDRINGSTYPER]}
+    typer = nettsted.ukas_typer(uke)
+    assert [k["id"] for k in typer] == ["tillatelse", "biomasse"], (
+        "selskapsdata er egen del, og felt som kom telles ikke")
+    assert typer[0]["andel"] == 100.0
+    assert typer[0]["url"] == "/endringer/2026-41/tillatelse/"
+    assert nettsted.ukas_typer(None) == []
+
+
 def test_forsiden_svarer_paa_de_tre_tingene():
     """Hva er dette, hva har skjedd, kan jeg stole på det."""
     html = " ".join(_forside().split())
@@ -1957,19 +1995,19 @@ def test_forsiden_svarer_paa_de_tre_tingene():
         assert f'href="{lenke}"' in html
 
 
-def test_forsiden_leder_med_uka_og_ender_med_arkivtallene():
+def test_forsiden_leder_med_uka_og_saa_arkivtallene():
     """Bevegelsen er produktet. «Denne uka» skal stå FØR alt annet
     innhold, over bretten på 1440x900.
 
-    REKKEFØLGEN ER ENDRET 27.09.2026: arkivlinja lå mellom uka og
-    kysten og sto da midt i lesingen med et tall om OSS. Nå er
-    rekkefølgen hero → uka → kysten → følg med → arkivtallene, og
-    tallene er det siste ordet framfor et avbrudd.
+    REKKEFØLGEN ER BRIEFENS TABELL fra 08.10.2026: hero → uka →
+    arkivtall → kysten → følg med. (Fra 27.09 sto arkivtallene sist;
+    tabellen «Sider og jobb» setter dem først av det som står lenger
+    ned, som svaret på «kan jeg stole på det».)
     """
     html = _forside()
-    assert html.index('id="uka"') < html.index('id="kysten"')
+    assert html.index('id="uka"') < html.index('arkivlinje')
+    assert html.index('arkivlinje') < html.index('id="kysten"')
     assert html.index('id="kysten"') < html.index('id="folg"')
-    assert html.index('id="folg"') < html.index('arkivlinje')
     flat = " ".join(html.split())
     # TRE TALL, OG DE ER IKKE DET SAMME. `antall` er overskriftstallet
     # UTENOM selskapsdata; `antall_rader` er alle radene i uka. De

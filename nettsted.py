@@ -7469,6 +7469,45 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
 FORSIDESETNINGER = 3
 
 
+def _ledede_typer(uke: dict) -> list[dict]:
+    """Ukas endringstyper som TELLER, størst først.
+
+    Bare slagene som er hendelser i havbruket: ikke selskapsdata (egen
+    del), og ikke slag som ikke teller («felt oppgitt første gang»).
+    Én funksjon for sammendraget og forsidens typestolper, så de to ikke
+    kan bli uenige om hvilke slag uka bestod av.
+    """
+    return sorted((k for k in uke["typer"]
+                   if k["antall"] and k.get("teller", True)
+                   and k["id"] not in EGEN_DEL),
+                  key=lambda k: -k["antall"])
+
+
+# HVOR MANGE TYPER FORSIDEN VISER som stolper. Briefen ber om ukas
+# viktigste tre til fem endringer øverst; de vesentlige står som
+# faktasetninger, og typene viser hvor resten av uka ligger.
+FORSIDETYPER = 5
+
+
+def ukas_typer(uke: dict | None, n: int = FORSIDETYPER) -> list[dict]:
+    """De største endringstypene i uka, med lenke til typesiden.
+
+    Tallene er de samme som brikkene på ukesiden viser, og lenkene går
+    til de samme sidene. `andel` er stolpens lengde i prosent av den
+    største — en tegning av tallet, ikke et nytt tall.
+    """
+    if not uke:
+        return []
+    typer = _ledede_typer(uke)[:n]
+    if not typer:
+        return []
+    storst = typer[0]["antall"]
+    return [{"id": k["id"], "navn": k["navn"], "antall": k["antall"],
+             "hva": k["hva"], "url": f"/endringer/{uke['slug']}/{k['id']}/",
+             "andel": round(100 * k["antall"] / storst, 1)}
+            for k in typer]
+
+
 def _sammendrag(uke: dict | None) -> list[dict]:
     """Én til fire setninger om uka, generert av tallene.
 
@@ -7513,10 +7552,7 @@ def _sammendrag(uke: dict | None) -> list[dict]:
     # seg — 402 av uke 39s 440 — og en oppsummering som ledet med dem
     # ville svart på «hvor mange felt endret seg i et register» framfor
     # på «hva skjedde i havbruket denne uka».
-    med_tall = sorted((k for k in uke["typer"]
-                       if k["antall"] and k.get("teller", True)
-                       and k["id"] not in EGEN_DEL),
-                      key=lambda k: -k["antall"])
+    med_tall = _ledede_typer(uke)
     if not med_tall:
         return [sak("Ingen endringer i lokaliteter, tillatelser eller "
                     "trafikklys denne uka. Alle felt står som de sto "
@@ -7844,6 +7880,9 @@ def bygg_forside(felles: Felles) -> dict:
         # ---- denne uka ----
         "uke": uke,
         "sammendrag": _sammendrag(uke)[:FORSIDESETNINGER],
+        # UKAS STØRSTE TYPER, som stolper med lenke til typesiden. Se
+        # `ukas_typer()`.
+        "ukas_typer": ukas_typer(uke),
         # `forskriftslinje` OG `rader` STO HER TIL 27.09.2026.
         #
         # Tidslinja er FLYTTET til ukessiden og ikke slettet — den sier
