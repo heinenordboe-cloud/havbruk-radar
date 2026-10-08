@@ -5270,7 +5270,12 @@ def stilsti(sti: Path, rot: Path) -> str:
 # navnet — det man leter etter — står i de to første kolonnene. Resten
 # ruller vannrett, som krysstabellen.
 UTEN_KORT = frozenset({"endringer-uker", "akvakultur-alle",
-                       "eierskap-selskaper"})
+                       "eierskap-selskaper",
+                       # LOKALITETSLISTA PÅ OMRÅDE- OG SELSKAPSSIDEN er en
+                       # indeks som de flate listene: én linje per rad, som
+                       # ruller vannrett på telefon. Som kort var områdesiden
+                       # med 137 lokaliteter 59 939 px høy på 390.
+                       "akvakultur-lokaliteter"})
 
 _TABELL = re.compile(r"(<table\b[^>]*>)(.*?)(</table>)", re.S)
 _TABELL_ID = re.compile(r'\bid="([^"]+)"')

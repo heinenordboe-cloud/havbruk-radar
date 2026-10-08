@@ -1654,6 +1654,7 @@ td[data-felt="registerdata_mangler"] {
    resten ruller vannrett i rammen. */
 @media (max-width: 61.99rem) {
   #akvakultur-alle td, #akvakultur-alle th,
+  #akvakultur-lokaliteter td, #akvakultur-lokaliteter th,
   #eierskap-selskaper td, #eierskap-selskaper th { white-space: nowrap; }
 }
 
@@ -2106,6 +2107,12 @@ figcaption {
   display: block;
   inline-size: 100%;
   block-size: auto;
+  /* TAK PÅ HØYDEN: et område som er høyere enn bredt ble 1 330 px høyt
+     på 1440 i full bredde, mer enn en skjerm. Med taket krymper bredden
+     i samme forhold, og kartet står ved venstrekanten som alt annet. */
+  max-block-size: min(80vh, 46rem);
+  inline-size: auto;
+  max-inline-size: 100%;
   background: var(--kart-hav);
   box-shadow: inset 0 0 0 1px var(--papir3);
 }
@@ -2446,7 +2453,36 @@ figcaption {
  *     ingen bestemmelse    skravur, samme mønster som overalt
  * ---------------------------------------------------------------- */
 
-.runder { margin-block-start: var(--rom-32); }
+/* FARGEN NÅ, i sidehodet: fargen i hver runde som en stripe, og noten
+   om hvor fargen som gjelder er lest fra. */
+.fargen-naa {
+  margin-block-start: var(--rom-24);
+  padding-block-start: var(--rom-16);
+  border-block-start: 1px solid var(--papir3);
+}
+
+.rundestripe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-12) var(--rom-24);
+  list-style: none;
+  margin: var(--rom-8) 0 var(--rom-16);
+  padding: 0;
+  max-width: none;
+}
+
+.rundestripe li {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 5.5rem;
+  margin: 0;
+}
+
+.rundestripe .runde-flate { display: block; block-size: 10px; margin-block-end: var(--rom-4); background: var(--papir2); }
+.rundestripe time { font-size: var(--tekst-xs); color: var(--ink-dempet); }
+.rundestripe-farge { font-family: var(--skrift-tittel); font-size: var(--tekst-h3); line-height: 1.1; }
+
+.rundenote + .rundenote { margin-block-start: var(--rom-8); }
 
 .rundeliste {
   display: grid;
@@ -2473,9 +2509,11 @@ figcaption {
   background: var(--papir2);
 }
 
-.runde.lys-rod   .runde-flate { background: var(--lys-rod); }
-.runde.lys-gul   .runde-flate { background: var(--lys-gul); }
-.runde.lys-gronn .runde-flate { background: var(--lys-gronn); }
+/* Flata leser runden fra klassen på forelderen: et rundekort lenger ned
+   eller et ledd i fargestripa øverst. Samme fyll begge steder. */
+.lys-rod   > .runde-flate { background: var(--lys-rod); }
+.lys-gul   > .runde-flate { background: var(--lys-gul); }
+.lys-gronn > .runde-flate { background: var(--lys-gronn); }
 
 .runde--kapittelhjemmel .runde-flate { opacity: 0.3; }
 .runde--kapittelhjemmel.lys-rod   .runde-flate { box-shadow: inset 0 0 0 2px var(--lys-rod); }
@@ -2683,57 +2721,57 @@ figcaption {
  * har verdien; i en linje med prikker mellom ville den sett ut som et
  * tegn som manglet. Tabellen på bred skjerm viser den som før. */
 @media (max-width: 39.99rem) {
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) tbody tr {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) tbody tr {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     column-gap: 0;
   }
 
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) tbody td {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) tbody td {
     margin: 0;
     padding-inline-start: 0;
   }
 
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) tbody td[data-label]::before {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) tbody td[data-label]::before {
     content: none;
     position: static;
     inline-size: auto;
   }
 
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td.gjelder {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) td.gjelder {
     order: -2;
     flex-basis: 100%;
     font-size: var(--tekst-m);
     font-weight: 600;
   }
 
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td.endring {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) td.endring {
     order: -1;
     flex-basis: 100%;
     margin-block: 2px var(--rom-4);
   }
 
   /* Fargeruta foran en ny trafikklysfarge står også på kortet. */
-  :is(#endringer-uke, #endringer-uke-tekniske) td.endring:is(.lys-rod, .lys-gul, .lys-gronn)::before {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-omraade) td.endring:is(.lys-rod, .lys-gul, .lys-gronn)::before {
     content: "";
   }
 
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td:not(.gjelder):not(.endring) {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) td:not(.gjelder):not(.endring) {
     font-size: var(--tekst-xs);
     color: var(--ink-dempet);
   }
 
   /* Skilletegnet står FORAN hver metacelle unntatt datoen, som alltid
      er den første. En celle som er skjult, tar skilletegnet sitt med. */
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td:not(.gjelder):not(.endring):not([data-felt="observed_at"])::before {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) td:not(.gjelder):not(.endring):not([data-felt="observed_at"])::before {
     content: "·";
     margin-inline: 0.45em;
     font-size: inherit;
     color: inherit;
   }
 
-  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td[data-felt="verdi_mangler"] {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata, #endringer-omraade) td[data-felt="verdi_mangler"] {
     display: none;
   }
 }
