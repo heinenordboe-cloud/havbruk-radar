@@ -5236,7 +5236,14 @@ def stilsti(sti: Path, rot: Path) -> str:
 # «Trafikklys: 4»-linjer under hverandre er ikke en tabell man kan
 # sammenligne uker i. Den beholder vannrett rulling, og første kolonne
 # (uka) låses med `position: sticky` så raden kan følges.
-UTEN_KORT = frozenset({"endringer-uker"})
+#
+# `akvakultur-alle` og `eierskap-selskaper` er INDEKSENE. Som kort er en
+# rad i lokalitetsindeksen 295 px høy på 390 (MÅLT 08.10.2026: 525 434 px
+# for 1 782 lokaliteter). Som tabell er den én linje, og nummeret og
+# navnet — det man leter etter — står i de to første kolonnene. Resten
+# ruller vannrett, som krysstabellen.
+UTEN_KORT = frozenset({"endringer-uker", "akvakultur-alle",
+                       "eierskap-selskaper"})
 
 _TABELL = re.compile(r"(<table\b[^>]*>)(.*?)(</table>)", re.S)
 _TABELL_ID = re.compile(r'\bid="([^"]+)"')
@@ -6414,8 +6421,9 @@ def bygg_sok(felles: Felles, uker: list[dict]) -> dict:
     omraader = len(felles.po_navn)
     endringsuker = len(uker)
     # DE ANDRE SIDENE, telt og ikke gjettet: forsiden, /om/, /sok/, de
-    # tre indeksene, endringsindeksen og typesidene.
-    andre = 1 + 1 + 1 + 3 + 1 + endringsuker * len(ENDRINGSTYPER)
+    # tre indeksene med sine sider, endringsindeksen og typesidene.
+    indekser = 1 + indekssider(lokaliteter) + indekssider(selskaper)
+    andre = 1 + 1 + 1 + indekser + 1 + endringsuker * len(ENDRINGSTYPER)
     return {
         "lokaliteter": lokaliteter,
         "produksjonsomraader": omraader,
@@ -6423,6 +6431,7 @@ def bygg_sok(felles: Felles, uker: list[dict]) -> dict:
         "endringsuker": endringsuker,
         "andre": andre,
         "sider": lokaliteter + omraader + selskaper + endringsuker + andre,
+        "per_side": INDEKS_PER_SIDE,
     }
 
 
@@ -6536,6 +6545,11 @@ def _urler(felles: Felles) -> list[str]:
     nedlastinger, og hver CSV er lenket fra sin egen lokalitetsside.
     """
     stier = ["/", "/om/", "/lokalitet/", "/produksjonsomrade/", "/selskap/"]
+    # INDEKSENES ØVRIGE SIDER. Samme deling som `skriv_indekser()`.
+    selskaper = sum(1 for o in felles.tillatelser_per_eier
+                    if not personeier(o, felles))
+    for sti, n in (("lokalitet", len(felles.akva)), ("selskap", selskaper)):
+        stier += [indekssti(sti, k) for k in range(2, indekssider(n) + 1)]
     stier += [f"/lokalitet/{loknr}/" for loknr in
               sorted(felles.akva, key=lambda e: int(e) if e.isdigit() else 0)]
     stier += [f"/produksjonsomrade/{po}/" for po in
@@ -7069,7 +7083,7 @@ def bygg_lokalitetsindeks(felles: Felles) -> dict:
     # står. Uenighetsregelen er den samme: et punkt som mangler skal
     # ikke bare forsvinne. Se docs/REGEL-UENIGE-KILDER.md.
     _punkter, uten, _hoyde, _gitter = kartpunkter(felles.akva)
-    return {"rader": rader, "antall": len(rader),
+    return {"rader": rader, "antall": len(rader), "side": None,
             "akva_dato": felles.akva_dato,
             "uten_po": sum(1 for r in rader if not r["po_kode"]),
             "uten_omraade": uten_omraade_tekst(felles.akva),
@@ -7132,35 +7146,99 @@ def bygg_selskapsindeks(felles: Felles) -> dict:
             "har_registerdata": orgnr in felles.enhet,
         })
     rader.sort(key=lambda r: (r["navn"] or "ÅÅÅ", r["orgnr"]))
-    return {"rader": rader, "antall": len(rader),
+    return {"rader": rader, "antall": len(rader), "side": None,
             "eierskap_dato": felles.eierskap_dato,
             "uten_registerdata": sum(1 for r in rader
                                      if not r["har_registerdata"]),
             "personeiere": personer}
 
 
+# RADER PER INDEKSSIDE. MÅLT 08.10.2026 på 390 px: en indeksrad som
+# tabell er ~45 px, og 100 rader med topp og bunntekst holder siden under
+# 10 000 px — kravet i docs/design/BRIEF.md.
+INDEKS_PER_SIDE = 100
+
+
+def indekssider(antall: int, per_side: int = INDEKS_PER_SIDE) -> int:
+    """Hvor mange sider en indeks med `antall` rader deles i. Minst én."""
+    return max(1, -(-antall // per_side))
+
+
+def indekssti(sti: str, nr: int) -> str:
+    """`lokalitet`, 1 -> `/lokalitet/`; 3 -> `/lokalitet/side/3/`.
+
+    SIDE 1 ER INDEKSENS EGEN ADRESSE. `/lokalitet/` har vært lenket til
+    fra menyen, søkesiden og områdesidene siden den ble bygget, og den
+    skal fortsatt være stedet man begynner — og ankeret
+    `#akvakultur-uten-koordinater` står der.
+    """
+    return f"/{sti}/" if nr == 1 else f"/{sti}/side/{nr}/"
+
+
+def _sidenavigasjon(sti: str, rader: list[dict], nokkel: str, nr: int,
+                    per_side: int) -> dict:
+    """Hvilken side dette er, og veien til hver av de andre.
+
+    HVER SIDE LENKER TIL ALLE DE ANDRE, med spennet den dekker — «10001–
+    11283» — og ikke bare til forrige og neste. En paginert liste der
+    side 14 bare nås gjennom 13 andre, er en liste der side 14 ikke
+    blir lest; to klikk unna er den ikke det.
+    """
+    n = indekssider(len(rader), per_side)
+    sider = []
+    for k in range(1, n + 1):
+        bit = rader[(k - 1) * per_side:k * per_side]
+        sider.append({"nr": k, "url": indekssti(sti, k),
+                      "fra": bit[0][nokkel] if bit else "",
+                      "til": bit[-1][nokkel] if bit else "",
+                      "gjeldende": k == nr})
+    return {"nr": nr, "antall": n, "sider": sider,
+            "forrige": indekssti(sti, nr - 1) if nr > 1 else "",
+            "neste": indekssti(sti, nr + 1) if nr < n else "",
+            "fra_rad": (nr - 1) * per_side + 1,
+            "til_rad": min(nr * per_side, len(rader))}
+
+
 def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
                   tittel: str, beskrivelse: str, kilder: tuple,
-                  felles: Felles) -> Path:
-    """Én indeksside. Samme form for alle tre."""
+                  felles: Felles, nokkel: str = "",
+                  per_side: int = INDEKS_PER_SIDE) -> list[Path]:
+    """Én indeks, på én eller flere sider. Samme form for alle tre.
+
+    Med `nokkel` deles radene i sider på `per_side`; uten står alt på
+    én. `nokkel` er feltet sidelenkene viser spennet i.
+    """
     mal = _miljo().get_template(mal_navn)
-    html = mal.render(
-        d=data,
-        **_grunnkontekst(
-            felles, rot, rot / sti / "index.html", kilder=kilder,
-            tittel=tittel, beskrivelse=beskrivelse,
-            jsonld=_script_trygg({
-                "@context": "https://schema.org",
-                "@type": "CollectionPage",
-                "name": tittel,
-                "description": beskrivelse,
-                "inLanguage": "nb",
-            }),
-            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
-            meny_aktiv=sti, sidetype="Liste",
-            undertittel=f"{data['antall']} oppføringer"),
-    )
-    return skriv_side(rot / sti / "index.html", html)
+    rader = data["rader"]
+    n = indekssider(len(rader), per_side) if nokkel else 1
+    ut = []
+    for nr in range(1, n + 1):
+        d = dict(data)
+        if nokkel:
+            d["rader"] = rader[(nr - 1) * per_side:nr * per_side]
+            d["side"] = _sidenavigasjon(sti, rader, nokkel, nr, per_side)
+        else:
+            d["side"] = None
+        fil = rot / indekssti(sti, nr).strip("/") / "index.html"
+        sidetittel = tittel if nr == 1 else f"{tittel} (side {nr} av {n})"
+        html = mal.render(
+            d=d,
+            **_grunnkontekst(
+                felles, rot, fil, kilder=kilder,
+                tittel=sidetittel, beskrivelse=beskrivelse,
+                jsonld=_script_trygg({
+                    "@context": "https://schema.org",
+                    "@type": "CollectionPage",
+                    "name": sidetittel,
+                    "description": beskrivelse,
+                    "inLanguage": "nb",
+                }),
+                proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+                meny_aktiv=sti, sidetype="Liste",
+                undertittel=f"{data['antall']} oppføringer"),
+        )
+        ut.append(skriv_side(fil, html))
+    return ut
 
 
 # INDEKSSIDENES KILDER. Navngitt og ikke inline, fordi `viste_kilder()`
@@ -7196,27 +7274,27 @@ def viste_kilder() -> frozenset[str]:
 def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
     """De tre indekssidene."""
     return [
-        _skriv_indeks(
+        *_skriv_indeks(
             rot, "lokalitet", "indeks-lokalitet.html.j2",
             bygg_lokalitetsindeks(felles),
             "Alle akvakulturlokaliteter — Kystloggen",
-            "Flat liste over alle norske akvakulturlokaliteter med "
+            "Liste over alle norske akvakulturlokaliteter med "
             "nummer, navn, kommune og produksjonsområde.",
-            INDEKS_LOKALITET_KILDER, felles),
-        _skriv_indeks(
+            INDEKS_LOKALITET_KILDER, felles, nokkel="loknr"),
+        *_skriv_indeks(
             rot, "produksjonsomrade", "indeks-produksjonsomrade.html.j2",
             bygg_poindeks(felles),
             "Alle produksjonsområder — Kystloggen",
             "De tretten produksjonsområdene med nyeste trafikklysfarge "
             "og antall lokaliteter.",
             INDEKS_OMRAADE_KILDER, felles),
-        _skriv_indeks(
+        *_skriv_indeks(
             rot, "selskap", "indeks-selskap.html.j2",
             bygg_selskapsindeks(felles),
             "Alle innehavere av akvakulturtillatelse — Kystloggen",
-            "Flat liste over innehaverne av minst én "
+            "Liste over innehaverne av minst én "
             "akvakulturtillatelse, med antall tillatelser og lokaliteter.",
-            INDEKS_SELSKAP_KILDER, felles),
+            INDEKS_SELSKAP_KILDER, felles, nokkel="navn"),
     ]
 
 

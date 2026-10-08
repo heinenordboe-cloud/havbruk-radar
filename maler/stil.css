@@ -2352,6 +2352,40 @@ td[data-felt="farge_mangler"]::before {
   max-width: none;
 }
 
+/* SIDENAVIGASJONEN I EN DELT INDEKS. Hver side lenker til alle de
+   andre, med spennet den dekker; lista brytes som tekst. */
+.sidenav {
+  margin: var(--rom-16) 0;
+  font-size: var(--fs-15);
+}
+.sidenav p { margin: 0 0 var(--rom-8); }
+.sidenav-steg a + a { margin-left: var(--rom-16); }
+.sidenav-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-8) var(--rom-16);
+  font-family: var(--skrift-tall);
+  font-size: var(--fs-13);
+}
+.sidenav-liste a, .sidenav-liste span {
+  display: inline-block;
+  min-height: 44px;
+  line-height: 44px;
+}
+.sidenav-liste [aria-current] { font-weight: 600; }
+
+/* INDEKSTABELLENE BRYTES IKKE PÅ SMAL SKJERM. De er ikke kort (se
+   `UTEN_KORT`), og en celle som brytes i en smal kolonne gjør raden tre
+   linjer høy. Én linje per rad; resten ruller vannrett i rammen. Over
+   62rem ruller ikke rammen, og der får cellene bryte som ellers. */
+@media (max-width: 61.99rem) {
+  #akvakultur-alle td, #akvakultur-alle th,
+  #eierskap-selskaper td, #eierskap-selskaper th { white-space: nowrap; }
+}
+
 /* OPPSUMMERINGEN PÅ LOKALITETSSIDEN. Innhold og ikke merkelapp, så
    samme tone som ukesidens ingress. Lenka arver båndets lenkefarge. */
 .lok-sammendrag {

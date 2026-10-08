@@ -1,0 +1,22 @@
+{# SIDENAVIGASJONEN PÅ EN DELT INDEKS. Lenker, ikke et skript: den
+   virker uten JavaScript, og hver side lenker til ALLE de andre med
+   spennet den dekker. Se `nettsted._sidenavigasjon()`.
+
+   `rel="prev"`/`rel="next"` på forrige og neste, slik at en leser og en
+   nettleser vet rekkefølgen. #}
+{% if d.side and d.side.antall > 1 %}
+<nav class="sidenav" aria-label="{{ sidenav_etikett }}">
+  <p class="sidenav-hvor">Side {{ d.side.nr }} av {{ d.side.antall }}
+    · rad {{ tall(d.side.fra_rad) }}–{{ tall(d.side.til_rad) }} av {{ tall(d.antall) }}</p>
+  <p class="sidenav-steg">
+    {% if d.side.forrige %}<a href="{{ d.side.forrige }}" rel="prev">← Forrige side</a>{% endif %}
+    {% if d.side.neste %}<a href="{{ d.side.neste }}" rel="next">Neste side →</a>{% endif %}
+  </p>
+  <ol class="sidenav-liste">
+    {% for s in d.side.sider %}
+    <li>{% if s.gjeldende %}<span aria-current="page">{{ s.fra }}–{{ s.til }}</span>
+      {%- else %}<a href="{{ s.url }}">{{ s.fra }}–{{ s.til }}</a>{% endif %}</li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endif %}

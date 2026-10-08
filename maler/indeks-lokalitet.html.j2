@@ -1,6 +1,16 @@
-{# Lokalitetsindeksen. Flat liste, ingen paginering: dette er siden en
-   crawler og en språkmodell følger for å finne de andre 1782, og en
-   paginert liste er en liste der side 14 aldri blir lest. #}
+{# Lokalitetsindeksen, delt i sider på 100.
+
+   DELT FRA 08.10.2026. Den flate lista var 525 434 px høy på 390 px, og
+   docs/design/BRIEF.md setter taket til 10 000. Innvendingen mot
+   paginering — at side 14 aldri blir lest — er møtt ved at hver side
+   lenker til alle de andre med nummerspennet de dekker, og ved at hver
+   lokalitetsside står i sitemap.xml uansett.
+
+   TABELLEN ER `data-pagefind-ignore`. Delt i sider ble en indeksside
+   med 100 rader fra samme kommune et bedre søketreff på kommunenavnet
+   enn lokalitetene selv (MÅLT: /lokalitet/side/7/ øverst for et
+   kommunenavn). Søket skal finne lokalitetssiden; lista finnes fra
+   menyen. #}
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
@@ -11,6 +21,15 @@
     <li aria-current="page">Lokaliteter</li>
   </ol>
 </nav>
+{# SØKET, øverst på hver side i lista. Samme skjema som /sok/: det
+   søker i hele nettstedet, ikke bare på denne siden, og uten
+   JavaScript viser /sok/ veien til lista. #}
+<form class="sok sok--side" action="/sok/" method="get" role="search">
+  <label for="q">Søk etter lokalitet, kommune eller selskap</label>
+  <input id="q" name="q" type="search" autocomplete="off"
+         placeholder="Søk etter lokalitet, kommune eller selskap">
+  <button class="knapp" type="submit">Søk</button>
+</form>
 </div>
 {% endblock %}
 
@@ -20,16 +39,23 @@
 <p>
   {{ antall(d.antall, "lokalitet", "lokaliteter") }} i Akvakulturregisteret, øyeblikksbilde
   <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
-  Hele lista står på denne siden.
+  {% if d.side and d.side.antall > 1 %}Lista er delt i {{ antall(d.side.antall, "side", "sider") }}
+  sortert på lokalitetsnummer. Søkefeltet øverst søker i alle.
+  {% else %}Hele lista står på denne siden.{% endif %}
   {{ tall(d.uten_po) }} av dem ligger utenfor
   produksjonsområdeinndelingen og har tom celle i PO-kolonnen, fordi
   registeret ikke oppgir noen. {{ d.uten_omraade }}
 </p>
 
-<p class="tabelltittel" id="akvakultur-alle-tittel">Alle lokaliteter, sortert på lokalitetsnummer.</p>
+{% set sidenav_etikett = "Sidene i lokalitetslista" %}
+{% include "sidenav.html.j2" %}
+
+<p class="tabelltittel" id="akvakultur-alle-tittel">{% if d.side and d.side.antall > 1 %}Lokalitetene
+  {{ d.side.sider[d.side.nr - 1].fra }}–{{ d.side.sider[d.side.nr - 1].til }}{% else %}Alle lokaliteter{% endif %},
+  sortert på lokalitetsnummer.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="akvakultur-alle-tittel" tabindex="0">
-<table id="akvakultur-alle" aria-labelledby="akvakultur-alle-tittel">
+<table id="akvakultur-alle" aria-labelledby="akvakultur-alle-tittel" data-pagefind-ignore>
   <thead>
     <tr>
       <th scope="col">Lokalitet</th>
@@ -56,12 +82,14 @@
   </tbody>
 </table>
 </div>
+{% include "sidenav.html.j2" %}
 <p class="tabellnote">
   Lokalitetsnummeret er Fiskeridirektoratets og er nøkkelen til
   lokalitetssiden. Artsnavnene er oversatt fra kildens koder; verdien i
   dataene er uendret.
 </p>
 
+{% if not d.side or d.side.nr == 1 %}
 {# LOKALITETER UTEN KOORDINATER. Lista lå på forsiden ved siden av
    punktkartet den forklarte; kartet er byttet ut med områdekartet
    22.09.2026, og regnskapet flyttet hit. Ankeret
@@ -109,5 +137,6 @@
 <p class="tabellnote">
   De har side som alle andre — det er bare kartet de ikke kan være på.
 </p>
+{% endif %}
 {% endif %}
 {% endblock %}

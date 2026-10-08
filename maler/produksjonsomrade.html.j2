@@ -424,7 +424,7 @@
       <p class="etikett">I området</p>
       <h2 id="lok-tittel">{{ antall(po.lokaliteter_antall, "lokalitet", "lokaliteter") }}</h2>
     </div>
-    <form class="omraadesok" action="/lokalitet/" method="get" role="search">
+    <form class="omraadesok" action="/sok/" method="get" role="search">
       <label for="omrq">Søk i området</label>
       <input id="omrq" name="q" type="search"
              data-filtrerer="akvakultur-lokaliteter"
@@ -484,8 +484,8 @@
   <p class="tabellnote">
     Hele lista står her — den er ikke paginert, og søkefeltet filtrerer
     den på stedet når JavaScript er på. Uten JavaScript sender skjemaet
-    til <a href="/lokalitet/">lokalitetslista</a>, som har alle
-    lokalitetene i landet.
+    til søkesiden, som viser veien til
+    <a href="/lokalitet/">lokalitetslista</a> over hele landet.
     «Kapasitet» er lokalitetens klarerte kapasitet fra registeret, ikke
     summen av tillatelsenes MTB — de to er ulike størrelser, og en
     tillatelse kan brukes på flere lokaliteter.

@@ -2246,30 +2246,60 @@ def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
     assert "954744469" not in html
 
 
-def test_indeksene_er_flate_uten_paginering():
-    """En paginert liste er en liste der de siste sidene ikke blir
-    lest."""
+def _indeksfelles(n):
     from types import SimpleNamespace
-
-    felles = SimpleNamespace(
+    return SimpleNamespace(
         akva={str(10000 + i): {"navn": f"L{i}", "kommune": "K",
                                "fylke": "F", "prodomraade_kode": "",
                                "arter": "SALMON",
                                "breddegrad": f"{60 + i / 100:.2f}",
-                               "lengdegrad": "5.0"} for i in range(50)},
-        akva_dato="2026-09-14")
-    d = nettsted.bygg_lokalitetsindeks(felles)
+                               "lengdegrad": "5.0"} for i in range(n)},
+        akva_dato="2026-09-14", akva_hentet="2026-09-14T04:00:00+00:00")
+
+
+def test_en_kort_indeks_staar_paa_en_side():
+    d = nettsted.bygg_lokalitetsindeks(_indeksfelles(50))
     assert d["antall"] == 50
     assert d["uten_po"] == 50
-
     html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
         d=d, **_grunn("lokalitet"))
-    # RADLENKENE, ikke alle lenker til /lokalitet/. Fra 20.09.2026 har
-    # hver side en topplinje som også lenker dit, og en telling av
-    # prefikset ga 51. Mønsteret spør om det prøven faktisk vil vite:
-    # én lenke per lokalitetsnummer.
+    # RADLENKENE, ikke alle lenker til /lokalitet/: én per nummer.
     assert len(re.findall(r'<a href="/lokalitet/\d+/"', html)) == 50
+    assert 'class="sidenav"' not in html
     assert d["uten_koordinater_antall"] == 0
+
+
+def test_indeksen_deles_og_hver_side_lenker_til_alle_de_andre(tmp_path, monkeypatch):
+    """BRIEF.md: ingen indeksside over 10 000 px på 390. Den flate lista
+    var 525 434. Innvendingen mot paginering — at de siste sidene ikke
+    blir lest — møtes ved at hver side lenker til ALLE de andre, med
+    spennet den dekker."""
+    felles = _indeksfelles(nettsted.INDEKS_PER_SIDE * 2 + 5)
+    data = nettsted.bygg_lokalitetsindeks(felles)
+    monkeypatch.setattr(nettsted, "_grunnkontekst",
+                        lambda *a, **k: _grunn("lokalitet"))
+    filer = nettsted._skriv_indeks(
+        tmp_path, "lokalitet", "indeks-lokalitet.html.j2", data,
+        "T", "B", ("akvakultur",), felles, nokkel="loknr")
+    assert [f.relative_to(tmp_path).as_posix() for f in filer] == [
+        "lokalitet/index.html", "lokalitet/side/2/index.html",
+        "lokalitet/side/3/index.html"]
+    sider = [f.read_text(encoding="utf-8") for f in filer]
+    rader = [len(re.findall(r'<th scope="row"><a href="/lokalitet/\d+/"', s))
+             for s in sider]
+    assert rader == [100, 100, 5]
+    urler = ["/lokalitet/", "/lokalitet/side/2/", "/lokalitet/side/3/"]
+    for i, s in enumerate(sider):
+        for j, url in enumerate(urler):
+            if i != j:
+                assert f'<a href="{url}">' in s, (i, url)
+        assert 'aria-current="page">' in s
+    assert 'rel="next"' in sider[0] and 'rel="prev"' not in sider[0]
+    assert "10200–10204" in sider[0]
+    # Regnskapet over lokaliteter uten koordinater står på første side,
+    # der ankeret alltid har stått.
+    assert 'id="uten-koordinater"' in sider[0]
+    assert 'id="uten-koordinater"' not in sider[1]
 
 
 def test_lokaliteter_uten_koordinater_star_paa_indeksen():
