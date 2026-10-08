@@ -340,6 +340,8 @@ def _side(**overstyr) -> str:
     # felter som beskriver samme uker og kan sies hver for seg, er
     # formen på F6 og F7.
     lok.setdefault("lusegraf", nettsted.lusegraf(lok["lus_serie"]))
+    # OPPSUMMERINGEN regnes av det samme, av samme grunn.
+    lok.setdefault("sammendrag", nettsted.lokalitetssammendrag(lok))
     lok["register"] = _visning(lok["register"])
     lok["endringer"] = _endringsrader(lok["endringer"])
     for t_ in lok["tillatelser"]:
@@ -4982,3 +4984,99 @@ def test_siden_sier_at_hullet_er_tomrom():
     # Uten hull: ingen slik setning.
     g0 = nettsted.lusegraf(_uker(0.1, 0.2))
     assert "på tidsaksen er tomme" not in _side(lusegraf=g0)
+
+
+# ==================================== oppsummeringssetningen
+#
+# Én setning øverst på lokalitetssiden, bare av målte fakta. Et ledd uten
+# data utelates. Se `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md.
+
+def _rute(dato, fisk, rapport="2026-08-31"):
+    return {"dato": dato, "har_fisk": fisk, "arter_tilstede": "",
+            "antall_arter": "", "siste_rapport": rapport,
+            "lokalitet_status": ""}
+
+
+def _tekst(ledd):
+    return "".join(b[1] if b[0] == "tekst" else b[2] for b in ledd)
+
+
+def test_fisk_siden_uka_tilstanden_skiftet():
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", "Nei"), _rute("2026-09-22", "Ja")],
+        ["2026-09-15", "2026-09-22"])
+    assert _tekst(nettsted._fiskeledd(biolag)) == \
+        "Fisk til stede siden uke 39, 2026"
+
+
+def test_fisk_uten_skifte_oppgir_maanedsrapporten_ikke_en_startdato():
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", "Ja"), _rute("2026-09-22", "Ja")],
+        ["2026-09-15", "2026-09-22"])
+    tekst = _tekst(nettsted._fiskeledd(biolag))
+    assert tekst == "Fisk til stede ifølge månedsrapporten for august 2026"
+
+
+def test_fisk_utelates_naar_lokaliteten_ikke_er_i_nyeste_uke():
+    """Laget dekker bare lokaliteter med innsendt rapport. En gammel rute
+    er ikke en påstand om i dag."""
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", "Ja")], ["2026-09-15", "2026-09-22"])
+    assert nettsted._fiskeledd(biolag) is None
+    assert nettsted._fiskeledd(None) is None
+
+
+def test_eier_utelates_for_personform_og_uten_navn():
+    assert nettsted._eierledd({"navn": nettsted.EIER_PERSONFORM,
+                               "personform": True}) is None
+    assert nettsted._eierledd({"navn": "", "personform": False}) is None
+    ledd = nettsted._eierledd({"navn": "SALMAR OPPDRETT AS",
+                               "url": "/selskap/928957489/",
+                               "siden": "2022-12-30", "flere": 0,
+                               "personform": False})
+    assert _tekst(ledd) == "eid av SALMAR OPPDRETT AS siden 2022"
+    assert ("tid", "2022-12-30", "2022") in ledd
+
+
+def _tidspost(dato, klasse=vesentlighet.VESENTLIG, forste=False):
+    return {"dato": dato, "klasse": klasse, "forste": forste}
+
+
+def test_endringer_telles_bare_vesentlige_i_vinduet():
+    poster = [_tidspost("2026-10-05"), _tidspost("2026-09-28"),
+              _tidspost("2026-09-28", vesentlighet.TEKNISK),
+              _tidspost("2026-06-01"),                       # utenfor vinduet
+              _tidspost("2026-01-01", forste=True)]
+    ledd = nettsted._endringsledd(
+        poster, [{"kilde": "akvakultur", "fra": "2026-01-01"}], "2026-10-05")
+    assert _tekst(ledd) == "2 vesentlige endringer siste 12 uker"
+
+
+def test_endringer_sier_fra_naar_vi_har_hentet_i_under_tolv_uker():
+    """«0 endringer siste 12 uker» ville påstått at vi så etter i uker vi
+    ikke så etter. Den seneste kildestarten avgrenser vinduet."""
+    ledd = nettsted._endringsledd(
+        [_tidspost("2026-08-24")],
+        [{"kilde": "akvakultur", "fra": "2026-08-17"},
+         {"kilde": "eierskap", "fra": "2026-09-02"}], "2026-10-05")
+    assert _tekst(ledd) == "ingen vesentlige endringer siden 2. september 2026"
+    assert ("tid", "2026-09-02", "2. september 2026") in ledd
+
+
+def test_oppsummeringen_staar_oeverst_med_time_og_stor_forbokstav():
+    html = _side(selskap={"navn": "", "orgnr": "", "url": "", "siden": "",
+                          "antall": 0, "flere": 0, "personform": False})
+    m = re.search(r'<p class="lok-sammendrag">(.*?)</p>', html, re.S)
+    assert m, "oppsummeringen mangler"
+    setning = m.group(1)
+    assert setning.startswith("Fisk til stede")
+    assert '<time datetime="2026-08">august 2026</time>' in setning
+    # Står over tilstanden, altså før faktalista.
+    assert html.index("lok-sammendrag") < html.index('class="fakta"')
+
+
+def test_ingen_ledd_gir_ingen_setning():
+    html = _side(biolag=None, dekning_fra=[],
+                 selskap={"navn": "", "orgnr": "", "url": "", "siden": "",
+                          "antall": 0, "flere": 0, "personform": False})
+    assert "lok-sammendrag" not in html

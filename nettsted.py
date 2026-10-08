@@ -4152,7 +4152,129 @@ def _biolagstripe(serie: list[dict], alle_uker: list[str]) -> dict | None:
         "med_fisk": sum(1 for r in ruter if r["ja"]),
         "siste_rapport": ruter[-1]["siste_rapport"],
         "arter": ruter[-1]["arter"],
+        # DEN NYESTE UKA I LAGET, for alle lokaliteter. Står lokaliteten
+        # ikke i den, er siste rute en gammel påstand — se
+        # `lokalitetssammendrag()`.
+        "siste_uke": alle_uker[-1] if alle_uker else "",
     }
+
+
+# ---------------------------------------------------- oppsummeringen
+#
+# ÉN SETNING ØVERST på lokalitetssiden, satt sammen av leddene under.
+# Hvert ledd er en målt opplysning som også står lenger ned på siden —
+# setningen er en annen vei til dem, aldri den eneste. Mangler et ledd
+# dataene, utelates det; det gjettes ikke. Se docs/design/BRIEF.md.
+#
+# Et ledd er en liste av biter: ("tekst", s), ("lenke", url, s) eller
+# ("tid", iso, s). Datoene må være `<time datetime>` (markupkontrakten),
+# og det kan bare malen skrive.
+
+SAMMENDRAG_UKER = 12
+
+
+def _fiskeledd(biolag: dict | None) -> list[tuple] | None:
+    """«Fisk til stede siden uke 40, 2026», eller tilsvarende.
+
+    BARE NÅR LOKALITETEN STÅR I DEN NYESTE UKA AV LAGET. Laget dekker
+    lokaliteter med innsendt månedsrapport; en lokalitet som har falt ut,
+    har ingen påstand om i dag, og den forrige er ikke en.
+
+    «SIDEN» ER UKA VI FØRST SÅ DEN NYE TILSTANDEN, etter en observasjon
+    av den motsatte. Uten et slikt skifte i serien vet vi ikke når
+    tilstanden begynte, og da står månedsrapporten kilden oppgir i
+    stedet — den er det kilden selv sier at påstanden gjelder for.
+    """
+    if not biolag or not biolag.get("ruter"):
+        return None
+    ruter = biolag["ruter"]
+    siste = ruter[-1]
+    if not siste.get("har_fisk") or siste["dato"] != biolag.get("siste_uke"):
+        return None
+    ledd: list[tuple] = [("tekst", "Fisk til stede" if siste["ja"]
+                          else "Ingen fisk til stede")]
+    skifte = next((ruter[i] for i in range(len(ruter) - 1, 0, -1)
+                   if ruter[i]["ja"] != ruter[i - 1]["ja"]
+                   and ruter[i - 1].get("har_fisk")), None)
+    if skifte:
+        ledd += [("tekst", " siden "),
+                 ("tid", skifte["dato"], visningsord.uke(skifte["dato"]))]
+    elif siste.get("siste_rapport"):
+        ledd += [("tekst", " ifølge månedsrapporten for "),
+                 ("tid", siste["siste_rapport"][:7],
+                  visningsord.maaned(siste["siste_rapport"]))]
+    return ledd
+
+
+def _eierledd(selskap: dict) -> list[tuple] | None:
+    """«eid av X siden 2022». Datoen er den siste overføringen til
+    selskapet som er journalført — samme dato som faktalista viser.
+
+    INGEN PERSONFORM og intet navn vi ikke har. Regel 3."""
+    if not selskap or selskap.get("personform") or not selskap.get("navn"):
+        return None
+    navn = selskap["navn"]
+    ledd: list[tuple] = [("tekst", "eid av "),
+                         ("lenke", selskap["url"], navn) if selskap.get("url")
+                         else ("tekst", navn)]
+    if selskap.get("flere"):
+        ledd.append(("tekst", f" og {visningsord.antall(selskap['flere'], 'innehaver', 'innehavere')} til"))
+    elif selskap.get("siden"):
+        ledd += [("tekst", " siden "),
+                 ("tid", selskap["siden"], selskap["siden"][:4])]
+    return ledd
+
+
+def _endringsledd(observert: list[dict], dekning_fra: list[dict],
+                  referanse: str) -> list[tuple] | None:
+    """«2 vesentlige endringer siste 12 uker».
+
+    VINDUET ER AVGRENSET AV VÅR EGEN DEKNING. Har vi hentet i færre enn
+    tolv uker, ville «0 endringer siste 12 uker» påstått at vi så etter i
+    uker vi ikke så etter. Da står datoen vi begynte i stedet — den
+    seneste av registerkildenes første henting, så hver kilde som teller
+    har vært med hele vinduet.
+
+    REFERANSEN ER DATAENES, ikke klokka: datoen til øyeblikksbildet
+    siden er bygget av. CLAUDE.md 1b.
+    """
+    try:
+        ref = dt.date.fromisoformat(referanse[:10])
+    except ValueError:
+        return None
+    start = ref - dt.timedelta(weeks=SAMMENDRAG_UKER)
+    dekket = max((d["fra"] for d in dekning_fra), default="")
+    if not dekket:
+        return None
+    hele_vinduet = dekket <= start.isoformat()
+    fra = start.isoformat() if hele_vinduet else dekket
+    n = sum(1 for p in observert
+            if not p.get("forste")
+            and p.get("klasse", vesentlighet.VESENTLIG) == vesentlighet.VESENTLIG
+            and fra < str(p.get("dato", ""))[:10] <= ref.isoformat())
+    tekst = visningsord.antall(n, "vesentlig endring", "vesentlige endringer")
+    if n == 0:
+        tekst = "ingen vesentlige endringer"
+    if hele_vinduet:
+        return [("tekst", f"{tekst} siste {SAMMENDRAG_UKER} uker")]
+    return [("tekst", f"{tekst} siden "), ("tid", fra, visningsord.dato(fra))]
+
+
+def lokalitetssammendrag(lok: dict) -> list[list[tuple]]:
+    """Leddene i oppsummeringssetningen, i rekkefølge. Tom liste: ingen
+    setning."""
+    ledd = [
+        _fiskeledd(lok.get("biolag")),
+        _eierledd(lok.get("selskap") or {}),
+        _endringsledd(lok.get("observert") or [], lok.get("dekning_fra") or [],
+                      lok.get("akva_dato") or ""),
+    ]
+    ledd = [l for l in ledd if l]
+    # STOR FORBOKSTAV på det første leddet, hvilket det enn er.
+    if ledd and ledd[0][0][0] == "tekst":
+        s = ledd[0][0][1]
+        ledd[0][0] = ("tekst", s[:1].upper() + s[1:])
+    return ledd
 
 
 # NABOLISTA, bygget én gang per `Felles`.
@@ -4282,7 +4404,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     tillatelsesrader = _tillatelsesrader(mine_till, uten_eier, former)
     dekning = felles.dekning_fra if felles else _dekning_fra()
 
-    return {
+    lok = {
         "loknr": loknr,
         "navn": a.get("navn", ""),
         # REGISTERETS VERSALER GJORT OM TIL TITTELFORM, for H1.
@@ -4440,6 +4562,9 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
             "sjekksum": (felles.sjekksum if felles else _sjekksum("akvakultur")),
         },
     }
+    # REGNES AV DET SIDEN ALLEREDE VISER, ikke slått opp på nytt.
+    lok["sammendrag"] = lokalitetssammendrag(lok)
+    return lok
 
 
 # ---------------------------------------------------- den siterbare CSV-en

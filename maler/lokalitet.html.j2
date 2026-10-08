@@ -58,6 +58,22 @@
         {% if lok.arter %} · {{ lok.arter }}{% endif %}
       </p>
 
+      {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
+         ned. Et ledd uten data er utelatt, ikke gjettet — se
+         `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md. #}
+      {% if lok.sammendrag %}
+      <p class="lok-sammendrag">
+        {%- for ledd in lok.sammendrag -%}
+        {%- if not loop.first %} · {% endif -%}
+        {%- for bit in ledd -%}
+        {%- if bit[0] == "tid" -%}<time datetime="{{ bit[1] }}">{{ bit[2] }}</time>
+        {%- elif bit[0] == "lenke" -%}<a href="{{ bit[1] }}">{{ bit[2] }}</a>
+        {%- else -%}{{ bit[1] }}{%- endif -%}
+        {%- endfor -%}
+        {%- endfor -%}.
+      </p>
+      {% endif %}
+
       <p class="knapperad">
         <a class="knapp knapp--tynn" href="feed.xml">Følg denne
           lokaliteten (feed)</a>

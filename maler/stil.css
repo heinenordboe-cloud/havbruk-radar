@@ -2352,6 +2352,16 @@ td[data-felt="farge_mangler"]::before {
   max-width: none;
 }
 
+/* OPPSUMMERINGEN PÅ LOKALITETSSIDEN. Innhold og ikke merkelapp, så
+   samme tone som ukesidens ingress. Lenka arver båndets lenkefarge. */
+.lok-sammendrag {
+  margin: calc(-1 * var(--rom-14)) 0 var(--rom-28);
+  max-width: var(--maal-tekst);
+  font-size: var(--fs-15);
+  line-height: var(--lh-brod);
+  color: var(--hav-tegn);
+}
+
 /* EN SETNING UNDER OVERSKRIFTEN PÅ UKESIDEN, i båndet. Lysere enn
    undertittelen under den: den er innhold, undertittelen er merkelapp. */
 .uke-ingress {
