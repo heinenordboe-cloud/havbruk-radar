@@ -2016,7 +2016,8 @@ td[data-felt="farge_mangler"]::before {
 /* SØYLENE ER ÉN FARGE. Ingen tiltaksgrense: den er ikke samlet inn, og
    en søyle farget etter en strek vi fant på ville vært en vurdering. */
 .lusegraf .soyler rect { fill: var(--hav5); }
-.lusegraf .soyler rect:hover { fill: var(--ink); }
+.lusegraf .soyler rect:hover,
+.lusegraf .soyler rect.aktiv { fill: var(--ink); }
 .lusegraf .brakk rect { fill: var(--ink-dempet); opacity: 0.45; }
 
 .lusegraf .akse line {

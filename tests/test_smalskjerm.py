@@ -853,3 +853,97 @@ def test_moerk_modus_i_systemet_gir_den_samme_lyse_siden(side, tjener):
             " getComputedStyle(document.body).color]")
     side.emulate_media(color_scheme="light")
     assert farger["dark"] == farger["light"]
+
+
+# ---- verktøytipset på kart og grafer ----------------------------------
+#
+# Tegnet av `maler/kystloggen.js`. Prøvene måler det leseren klaget på
+# 08.10.2026 — tipset la seg over bildeteksten — og det regelen krever:
+# alt som kan holdes over med mus, kan nås med tastatur.
+
+def _boks(side, velger):
+    return side.evaluate(
+        "v => { const b = document.querySelector(v).getBoundingClientRect();"
+        " return [b.left, b.top, b.right, b.bottom]; }", velger)
+
+
+def _innenfor(indre, ytre, slakk=1):
+    return (indre[0] >= ytre[0] - slakk and indre[1] >= ytre[1] - slakk
+            and indre[2] <= ytre[2] + slakk and indre[3] <= ytre[3] + slakk)
+
+
+def _overlapper(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+KARTPUNKT = (
+    ("/lokalitet/31397/", "svg.posisjonskart", ".kart-naboer a"),
+    ("/produksjonsomrade/4/", "svg.omraadekart", ".kart-naboer a"),
+    ("/", "svg.kystkart", ".kart-omraader a"),
+)
+
+
+@pytest.mark.parametrize("bredde", (BREDDE, 1440))
+@pytest.mark.parametrize("sti,kart,punkt", KARTPUNKT)
+def test_tipset_staar_i_kartet_og_aldri_over_bildeteksten(
+        side, tjener, sti, kart, punkt, bredde):
+    side.set_viewport_size({"width": bredde, "height": 844})
+    side.goto(tjener + sti, wait_until="load")
+    lenker = side.locator(f"{kart} {punkt}")
+    assert lenker.count() > 0, f"{sti}: ingen punkter i {kart}"
+    # NETTLESERENS EGET TIPS ER BORTE, NAVNET ER IKKE: `<title>` er
+    # flyttet til `aria-label` på lenka.
+    assert side.locator(f"{kart} {punkt} > title").count() == 0
+    navn = lenker.first.get_attribute("aria-label")
+    assert navn
+    # Midt i det midterste punktet: et område kan være en ring, og
+    # midten av boksen ligger da utenfor den.
+    lenker.nth(lenker.count() // 2).hover()
+    tips = side.locator(".verktoytips:visible")
+    assert tips.count() == 1, f"{sti}: tipset vises ikke under pekeren"
+    tb = _boks(side, ".verktoytips:not([hidden])")
+    assert _innenfor(tb, _boks(side, kart)), f"{sti}: tipset er utenfor kartet"
+    ramme = side.locator(kart).locator("xpath=ancestor::figure[1]")
+    if ramme.locator("figcaption").count():
+        fb = ramme.locator("figcaption").first.bounding_box()
+        assert not _overlapper(tb, [fb["x"], fb["y"], fb["x"] + fb["width"],
+                                    fb["y"] + fb["height"]]), (
+            f"{sti}: tipset dekker bildeteksten")
+    side.mouse.move(0, 0)
+    assert side.locator(".verktoytips:visible").count() == 0
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+
+
+@pytest.mark.parametrize("sti,kart,punkt", KARTPUNKT)
+def test_kartpunktet_gir_tipset_ogsaa_med_tastaturet(side, tjener, sti, kart, punkt):
+    side.goto(tjener + sti, wait_until="load")
+    lenke = side.locator(f"{kart} {punkt}").first
+    lenke.focus()
+    tips = side.locator(".verktoytips:visible")
+    assert tips.count() == 1, f"{sti}: fokus gir ikke tips"
+    assert tips.inner_text() == lenke.get_attribute("aria-label")
+    side.evaluate("document.activeElement.blur()")
+    assert side.locator(".verktoytips:visible").count() == 0
+
+
+@pytest.mark.parametrize("sti", ("/lokalitet/31397/", "/produksjonsomrade/4/"))
+def test_grafen_kan_leses_soyle_for_soyle_med_piltastene(side, tjener, sti):
+    """Søylene er ikke tabulatorstopp — 765 av dem ville vært en felle.
+    Grafen er ett stopp, og piltastene går gjennom søylene. Verdien står
+    i en statuslinje som en skjermleser leser."""
+    side.goto(tjener + sti, wait_until="load")
+    graf = side.locator("svg.lusegraf").first
+    assert graf.get_attribute("tabindex") == "0"
+    graf.focus()
+    aktiv = side.locator("svg.lusegraf rect.aktiv")
+    assert aktiv.count() == 1
+    siste = aktiv.get_attribute("data-tips")
+    status = graf.locator("xpath=ancestor::figure[1]").locator('[role="status"]')
+    assert status.inner_text() == siste
+    side.keyboard.press("ArrowLeft")
+    assert aktiv.count() == 1
+    forrige = aktiv.get_attribute("data-tips")
+    assert forrige != siste and status.inner_text() == forrige
+    assert side.locator(".verktoytips:visible").inner_text() == forrige
+    side.keyboard.press("End")
+    assert aktiv.get_attribute("data-tips") == siste
