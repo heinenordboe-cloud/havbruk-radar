@@ -8249,6 +8249,7 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
         "endringer": endringer,
         "endringsvindu": vindu,
         "aapen_liste": SELSKAP_AAPEN_LISTE,
+        "nyeste_endringer": SELSKAP_NYESTE_ENDRINGER,
         "i_arkivet_siden": min((o["dato"] for o in overforinger), default=""),
         "eierskapslinje": eierskapslinje,
         "kom_til": sum(1 for o in eierskapslinje if o["retning"] == "inn"),
@@ -8272,6 +8273,11 @@ SELSKAP_UKER = 13
 # 390 px: selskapet med flest lokaliteter (158) var 150 018 px høyt med
 # alle listene åpne.
 SELSKAP_AAPEN_LISTE = 10
+
+# Når endringslista er lukket, står de NYESTE likevel åpent over den —
+# briefen setter vesentlige endringer øverst på selskapssiden. Fem, så
+# siden holder seg under 5 000 px på 390 også for de største selskapene.
+SELSKAP_NYESTE_ENDRINGER = 5
 
 # (felles, {orgnr: tillatelser selskapet har GITT FRA SEG}). Bygget én
 # gang per batch. Selve objektet holdes og sammenlignes med `is`, ikke

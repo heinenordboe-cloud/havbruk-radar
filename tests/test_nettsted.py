@@ -1604,6 +1604,7 @@ def _selskap(**overstyr) -> str:
         "kapasitet_per_enhet": ["780 tonn"],
         "i_arkivet_siden": "2018-03-13",
         "endringer": [], "aapen_liste": nettsted.SELSKAP_AAPEN_LISTE,
+        "nyeste_endringer": nettsted.SELSKAP_NYESTE_ENDRINGER,
         "endringsvindu": {"fra": "2026-09-02", "til": "2026-09-14",
                           "hele": False, "uker": 13},
         # «Gikk ut» er UTLEDET — registeret journalfører bare ankomster.
@@ -5276,3 +5277,15 @@ def test_er_null_skiller_null_fra_tomt():
     assert nettsted._er_null("0") and nettsted._er_null("0.0")
     assert not nettsted._er_null("") and not nettsted._er_null(None)
     assert not nettsted._er_null("375")
+
+
+def test_selskapets_nyeste_endringer_staar_aapent_og_resten_bak_et_klikk():
+    """Briefen: vesentlige endringer øverst på selskapssiden. Til
+    08.10.2026 sto alle bak «Vis alle 83». Nå står de nyeste åpent, og de
+    eldre i sin egen tabell bak et klikk — ingen rad står to ganger."""
+    mal = (Path(__file__).resolve().parents[1] / "maler"
+           / "selskap.html.j2").read_text(encoding="utf-8")
+    assert "sel.endringer[:sel.nyeste_endringer]" in mal
+    assert "sel.endringer[sel.nyeste_endringer:]" in mal
+    assert 'endringstabell("endringer-selskap-eldre", eldre)' in mal
+    assert nettsted.SELSKAP_NYESTE_ENDRINGER < nettsted.SELSKAP_AAPEN_LISTE

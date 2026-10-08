@@ -675,6 +675,14 @@ main.fullbredde {
 .nokkeltall dd a { color: var(--ink); text-decoration-color: var(--rust); }
 .nokkeltall dd a:visited { color: var(--ink); }
 
+/* EN NOTE I SIDEHODET: forbeholdet som hører til tallene rett over. */
+.sidehode-note {
+  margin: var(--rom-16) 0 0;
+  max-width: var(--maal-note);
+  font-size: var(--tekst-xs);
+  color: var(--ink-dempet);
+}
+
 /* UKENAVIGASJONEN over H1 på ukesiden. */
 .ukenav {
   display: flex;
@@ -1743,6 +1751,18 @@ td[data-felt="registerdata_mangler"] {
 .feedmonstre > summary::before { inset-block-start: 1.05em; }
 
 .egen-del-tall { font-weight: 500; }
+
+/* EN OVERSKRIFT I EN SUMMARY er lov i HTML, og den holder delen i
+   overskriftsnavigasjonen til en skjermleser selv når den er lukket. */
+.tallboks > summary > h2 {
+  display: inline;
+  margin: 0;
+  font: inherit;
+  letter-spacing: normal;
+}
+
+.forbehold > summary { font-family: var(--skrift-tittel); font-size: var(--tekst-h3); font-weight: 400; }
+.forbehold > summary::before { inset-block-start: 1.05em; }
 .egen-del > .tabellnote { margin-block-start: var(--rom-12); }
 
 /* ---- siteringen ----
@@ -2620,6 +2640,34 @@ figcaption {
  * ---------------------------------------------------------------- */
 
 #endringer-uker td.mangler { color: var(--ink-dempet); }
+
+/* SELSKAPETS ENDRINGSLOGG SOM KORT, under 640 px: navnet, så «hva: fra
+   → til» på én linje, så datoen dempet. Samme grep som ukesidens. */
+@media (max-width: 39.99rem) {
+  .selskapslogg tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.4em;
+  }
+
+  table.selskapslogg tbody :is(th, td),
+  table.selskapslogg tbody td[data-label] { margin: 0; padding-inline-start: 0; }
+  table.selskapslogg tbody td[data-label]::before { content: none; position: static; inline-size: auto; }
+
+  .selskapslogg tbody td:nth-child(2) { order: -1; flex-basis: 100%; font-weight: 600; }
+  .selskapslogg tbody td:nth-child(3)::after { content: ":"; }
+  .selskapslogg tbody td:nth-child(4) { color: var(--ink-dempet); }
+  table.selskapslogg tbody td:nth-child(5)::before { content: "→"; color: var(--ink-dempet); margin-inline-end: 0.4em; }
+  .selskapslogg tbody th[scope="row"] {
+    order: 9;
+    flex-basis: 100%;
+    margin: 2px 0 0;
+    font-size: var(--tekst-xs);
+    font-weight: 400;
+    color: var(--ink-dempet);
+  }
+}
 
 /* ENDRINGSLOGGENE SOM KORT, under 640 px.
  *
