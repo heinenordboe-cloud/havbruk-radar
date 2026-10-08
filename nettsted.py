@@ -3668,6 +3668,30 @@ def lusegraf(serie: list[dict]) -> dict | None:
     maks = max(v for v in verdier if v is not None)
     tak, trinn = _grafskala(maks)
     n = len(serie)
+
+    # PLASSEN ER UKA, ikke radnummeret (08.10.2026).
+    #
+    # Fram til i dag sto rad nummer i på plass i. En uke lokaliteten ikke
+    # står i hos kilden har ingen rad, så hullet ble TRYKKET SAMMEN: 24615
+    # mangler 211 uker fra 2012-11-12 til 2016-11-21, og fire år forsvant
+    # fra tidsaksen uten at noe på grafen viste det. 12020 og 12023
+    # mangler 243. Se `manglende_uker()`.
+    #
+    # Nå står hver rad på uka den gjelder, talt fra første rad, og aksen
+    # har plass til ALLE ukene i spennet. Et hull er et tomrom med samme
+    # bredde som ukene det dekker — samme tegn som en uke uten tall, og
+    # det er riktig: i begge tilfeller har kilden ikke sagt noe.
+    #
+    # En serie som ikke er én rad per uke i stigende rekkefølge, kaster.
+    # `_lusserie()` lover det, og en graf som gjettet ville tegnet to
+    # søyler oppå hverandre uten å si fra.
+    forste = dt.date.fromisoformat(serie[0]["dato"])
+    plass = [(dt.date.fromisoformat(u["dato"]) - forste).days // 7
+             for u in serie]
+    if any(b <= a for a, b in zip(plass, plass[1:])):
+        raise ValueError("lusegraf: serien er ikke én rad per uke i "
+                         "stigende rekkefølge")
+    ukeplasser = plass[-1] + 1
     v, h, o, u_ = (GRAF_MARG["v"], GRAF_MARG["h"],
                    GRAF_MARG["o"], GRAF_MARG["u"])
     plott_b = GRAF_BREDDE - v - h
@@ -3679,7 +3703,7 @@ def lusegraf(serie: list[dict]) -> dict | None:
     # halvparten av søylene forsvant. Tettheten ER formen: en serie på
     # femten år skal leses som en tidsakse, ikke som femten år med
     # tellbare pinner.
-    steg = plott_b / n
+    steg = plott_b / ukeplasser
     bredde = round(max(steg, 0.8), 2)
 
     def x(i: int) -> float:
@@ -3702,22 +3726,27 @@ def lusegraf(serie: list[dict]) -> dict | None:
     # forveksles med en verdi. At den betyr NULL og ikke «litt», står i
     # bildeteksten.
     gulv = 1.2
-    soyler = [{"x": x(i), "y": round(min(y(verdi), bunn - gulv), 1),
+    soyler = [{"x": x(plass[i]), "y": round(min(y(verdi), bunn - gulv), 1),
                "h": round(max(bunn - y(verdi), gulv), 1),
                "uke": f"{serie[i]['iso_aar']} uke {serie[i]['iso_uke']}",
                "verdi": visningsord.tall(verdi)}
               for i, verdi in enumerate(verdier) if verdi is not None]
 
-    # Brakkleggingsstrekkene, slått sammen til sammenhengende bånd.
-    baand, start = [], None
+    # Brakkleggingsstrekkene, slått sammen til sammenhengende bånd. Et
+    # bånd BRYTES av et hull: en uke lokaliteten ikke står i hos kilden,
+    # vet vi ikke om den var brakklagt.
+    baand, start, forrige = [], None, None
     for i, rad in enumerate(serie + [{}]):
+        her = plass[i] if i < n else None
         er_brakk = str(rad.get("brakklagt")) == "True"
-        if er_brakk and start is None:
-            start = i
-        elif not er_brakk and start is not None:
+        if start is not None and (not er_brakk or her != forrige + 1):
             baand.append({"x": x(start),
-                          "bredde": round(max(x(i) - x(start), 1.0), 1)})
+                          "bredde": round(max(x(forrige + 1) - x(start),
+                                              1.0), 1)})
             start = None
+        if er_brakk and start is None:
+            start = her
+        forrige = her
 
     linjer = []
     verdi = 0.0
@@ -3730,9 +3759,14 @@ def lusegraf(serie: list[dict]) -> dict | None:
     # Årstallene. Ett merke per årsskifte, og bare hvert n-te når serien
     # er lang nok til at de ellers ville stått oppå hverandre. Tallet er
     # regnet av PLASSEN og ikke valgt: en etikett trenger ~34 px.
-    aar = [{"x": x(i), "etikett": rad.get("iso_aar", "")}
-           for i, rad in enumerate(serie)
-           if i and rad.get("iso_aar") != serie[i - 1].get("iso_aar")]
+    #
+    # Årsskiftet regnes av UKENE på aksen, ikke av radene: et årsskifte
+    # inne i et hull skal stå der det er, ikke ved første rad etter.
+    def isoaar(k: int) -> int:
+        return (forste + dt.timedelta(weeks=k)).isocalendar()[0]
+
+    aar = [{"x": x(k), "etikett": str(isoaar(k))}
+           for k in range(1, ukeplasser) if isoaar(k) != isoaar(k - 1)]
     if aar:
         hver = max(1, math.ceil(len(aar) * 34 / plott_b))
         aar = aar[::hver]
@@ -3759,6 +3793,11 @@ def lusegraf(serie: list[dict]) -> dict | None:
         # hvordan et tall ser ut på norsk.
         "maks": visningsord.tall(maks),
         "uker": n,
+        # UKENE PÅ AKSEN, og de av dem lokaliteten ikke står i hos
+        # kilden. `uker` er radene, som før: «N av M uker har tall»
+        # handler om ukene kilden har uttalt seg om.
+        "ukeplasser": ukeplasser,
+        "mangler": ukeplasser - n,
         "uker_med_tall": n - uten_tall,
         "uten_tall": uten_tall,
         "brakklagt": brakk,
@@ -5548,6 +5587,27 @@ def _hentet_snapshot(kilde: str, dato: str) -> str:
     return (snapshot.fetched_at_i(versjoner[-1][1]) or "") if versjoner else ""
 
 
+def _ukens_hentet(uke: dict) -> str:
+    """Da VI hentet øyeblikksbildet en endringsuke er bygget fra.
+
+    Øyeblikksbildet er ukas SISTE observasjonsdato — den samme datoen
+    `proveniens()` navngir. Har flere kilder et snapshot den dagen, er
+    det den siste av hentingene. Tom når ingen er stemplet, og da
+    utelates leddet framfor å låne et annet tidspunkt.
+
+    ## Feilen dette er rettingen av (08.10.2026)
+
+    Ukesiden sa `felles.akva_hentet` — hentetidspunktet til det NYESTE
+    akvakultur-snapshotet. MÅLT i bygget 07.10.2026: /endringer/2026-35/
+    og /endringer/2026-41/ sa begge «hentet 5. oktober 2026 kl. 12.07
+    UTC». Uke 35 ble hentet 24. august. Et tidspunkt som handler om OSS,
+    slått opp på feil sted — CLAUDE.md 1b, samme familie som F6 og F7.
+    """
+    stempler = [_hentet_snapshot(h["kilde"], h["dato"])
+                for h in uke["hendelser"] if h["dato"] == uke["siste_dato"]]
+    return max((x for x in stempler if x), default="")
+
+
 def endringer_datasett(uke: dict, vilkaar=None,
                        bygget: str | None = None) -> nedlasting.Datasett:
     """Ukas hendelser som regneark og datapakke. Samme rader som CSV-en.
@@ -5727,7 +5787,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
                     beskrivelse=_ukebeskrivelse(uke, valgt, ledet),
                     jsonld=_jsonld_uke(uke, hendelser, felles.vilkaar, url),
                     proveniens_tekst=proveniens(
-                        uke["siste_dato"], felles.akva_hentet,
+                        uke["siste_dato"], _ukens_hentet(uke),
                         f"Sammenligning av øyeblikksbildene for "
                         f"{uke['vist']} og uka før."),
                     meny_aktiv="endringer",
