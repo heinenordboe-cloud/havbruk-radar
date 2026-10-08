@@ -5203,6 +5203,33 @@ def test_selskapets_endringer_teller_en_tillatelse_paa_to_lokaliteter_en_gang():
     assert poster[0]["lokalitetsnavn"] == "Testholmen"
 
 
+def test_selskapssiden_viser_en_koordinatflytting_bare_fra_100_meter():
+    """Sjekket 08.10.2026, etter spørsmål: koordinatradene som står som
+    vesentlige på 921668236 er Brudevikas (12237) flytting 05.10.2026,
+    190,5 m — over terskelen, og riktig. Alle tolv endrede koordinatrader
+    i changeloggen er klassifisert etter avstanden.
+
+    `test_vesentlighet` låser regelen i modulen. Denne låser at
+    selskapssiden får det samme svaret: radene kommer fra flere av
+    selskapets lokaliteter i én liste, og bredde og lengde skal likevel
+    leses som ett par per lokalitet. Leses de hver for seg, regnes
+    lengdegraden ved ekvator, og en flytting på 24 m kan havne over.
+    Koordinatene er de ekte, fra changeloggen."""
+    def flytting(eid, fra, til):
+        return [_crad(eid, "breddegrad", fra[0], til[0], "2026-10-05"),
+                _crad(eid, "lengdegrad", fra[1], til[1], "2026-10-05")]
+    felles = _selskapsfelles({
+        # Brudevika, 190,5 m
+        "10001": flytting("10001", ("62.116567", "5.420717"), ("62.11595", "5.4173")),
+        # 45140, 24 m
+        "10002": flytting("10002", ("66.629683", "13.10985"), ("66.629483", "13.110067")),
+    })
+    poster, _ = nettsted._selskapsendringer(
+        "912345678", ["10001", "10002"], [], felles)
+    assert sorted((p["entity_id"], p["felt"]) for p in poster) == [
+        ("10001", "breddegrad"), ("10001", "lengdegrad")]
+
+
 def test_selskapets_endringer_tar_med_tillatelser_det_har_gitt_fra_seg():
     """Et salg skal ikke være usynlig på selgerens side."""
     felles = _selskapsfelles({
