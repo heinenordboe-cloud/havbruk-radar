@@ -1500,6 +1500,254 @@ def gransk_csv(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     return funn
 
 
+# --------------------------------------------------- PAKKEDE NEDLASTINGER
+#
+# Fra 07.10.2026 legger lokalitetssidene og ukesidene ut nedlastinger som
+# `.xlsx` og `.zip`. Begge er ZIP-arkiver, og ingen av dem er tekst. Uten
+# dette faller de til `ugranska`, og det er riktig oppførsel — men en port
+# som stopper på 3 578 filer hver uke blir slått av.
+#
+# De tre veiene `.pf_fragment` fikk vurdert (se `_pakket_tekst()`) gjelder
+# her også, og svaret er det samme: PAKK DEM UT og still de samme prøvene
+# på det som faktisk ligger inni. En sha256-pinning går ikke — innholdet
+# er dataene og endres hver uke — og å erklære dem trygge fordi VI skrev
+# dem, er å gjøre generatoren til sin egen kontrollør.
+#
+# ## Samme regel som for de utpakkede formene
+#
+#   * Et medlem i en `.zip` granskes som om det lå ved siden av sida:
+#     `.csv` med kolonneoverskriften som merking, `.json` og `.txt` som
+#     tekst. Et medlem av en type vakten ikke kan lese, er `ugranska` —
+#     inni et arkiv akkurat som utenfor.
+#   * Et ark i en `.xlsx` er en CSV: første rad er overskriften, og den er
+#     merkingen. Arket granskes med `gransk_csv`, og ALL celletekst får i
+#     tillegg den entydige personformprøven HTML får på hele teksten.
+#     Grunnen: «Om dataene»-arket er fritekst i celler, ikke kommentar-
+#     linjer, og en CSV-prøve alene ville bare sett på kolonnene.
+#   * Synlig tekst (cellene og arknavnene) får de tre hygieneprøvene:
+#     uferdig tekst, rå tidsstempler og repo-stier. Dokumentegenskapene
+#     (`docProps/`) er maskinfelt, som `<updated>` i en feed — et
+#     `dcterms:created` med klokkeslett er formatet, ikke en lekkasje.
+#     De får persondataprøvene, men ikke tidsstempelprøven.
+#   * En del av en `.xlsx` som ikke er XML (et innebygd bilde, et
+#     makroprosjekt) er `ugranska`. Vi skriver ingen slike, og en som
+#     dukker opp skal vakten si at den ikke har lest.
+#
+# Stien i funnet er `<fil>!/<medlem>`, så et funn kan finnes igjen uten å
+# pakke ut arkivet for hånd.
+PAKKEDE_ARKIV = {".zip", ".xlsx"}
+
+# Hvor dypt et arkiv i et arkiv følges. Vi pakker ingen i dag; grensa er
+# der så en rekursiv fil ikke kan henge porten.
+ARKIVDYBDE = 3
+
+_XLSX_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_REL_NS = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+_PKG_REL_NS = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+_XLSX_DELER = {".xml", ".rels"}
+
+
+def _endelse(medlem: str) -> str:
+    """Endelsen på et arkivmedlem, også for et punktfilnavn.
+
+    `Path("_rels/.rels").suffix` er TOM: for pathlib er `.rels` et navn
+    uten endelse. Hver `.xlsx` har nettopp den fila, og MÅLT 07.10.2026
+    stoppet den første ekte byggingen på `_rels/.rels: ugranska`.
+    """
+    navn = medlem.rsplit("/", 1)[-1]
+    return "." + navn.rsplit(".", 1)[1].lower() if "." in navn else ""
+
+
+def _kolonneindeks(ref: str) -> int:
+    """`AB12` -> 27 (nullbasert). Tom ref gir -1."""
+    n = 0
+    for tegn in ref:
+        if not tegn.isalpha():
+            break
+        n = n * 26 + (ord(tegn.upper()) - 64)
+    return n - 1
+
+
+def _xml_tekst(data: bytes) -> str:
+    """All tekst i et XML-dokument, én node per linje. Tom ved feil."""
+    import xml.etree.ElementTree as ET
+    try:
+        rot = ET.fromstring(data)
+    except ET.ParseError:
+        return ""
+    return "\n".join(t for t in rot.itertext() if t and t.strip())
+
+
+def xlsx_ark(data: bytes) -> list[tuple[str, list[list[str]]]] | None:
+    """[(arknavn, rader)] fra en `.xlsx`. None hvis den ikke lar seg lese.
+
+    Leser XML-en direkte og ikke via et regnearkbibliotek: vakten skal se
+    det som STÅR i fila, og et bibliotek som tolker datoformater og
+    formler ville vist oss sin lesning av den. Verdiene kommer ut som de
+    er lagret — en dato er et serietall, et tall er sifrene.
+    """
+    import io
+    import xml.etree.ElementTree as ET
+    import zipfile
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+        navn = set(z.namelist())
+        delte: list[str] = []
+        if "xl/sharedStrings.xml" in navn:
+            for si in ET.fromstring(z.read("xl/sharedStrings.xml")):
+                delte.append("".join(t.text or "" for t in si.iter(f"{_XLSX_NS}t")))
+        bok = ET.fromstring(z.read("xl/workbook.xml"))
+        rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+        maal = {r.get("Id"): r.get("Target") for r in rels.iter(f"{_PKG_REL_NS}Relationship")}
+        ut = []
+        for ark in bok.iter(f"{_XLSX_NS}sheet"):
+            mal = maal.get(ark.get(f"{_REL_NS}id"), "")
+            sti = mal.lstrip("/") if mal.startswith("/") else f"xl/{mal}"
+            rader: list[list[str]] = []
+            for rad in ET.fromstring(z.read(sti)).iter(f"{_XLSX_NS}row"):
+                celler: dict[int, str] = {}
+                for c in rad.iter(f"{_XLSX_NS}c"):
+                    t = c.get("t", "n")
+                    v = c.find(f"{_XLSX_NS}v")
+                    if t == "s" and v is not None and v.text is not None:
+                        verdi = delte[int(v.text)]
+                    elif t == "inlineStr":
+                        verdi = "".join(x.text or "" for x in c.iter(f"{_XLSX_NS}t"))
+                    else:
+                        verdi = v.text if v is not None and v.text else ""
+                    celler[_kolonneindeks(c.get("r", ""))] = verdi
+                if celler:
+                    bredde = max(celler) + 1
+                    rader.append([celler.get(i, "") for i in range(bredde)])
+            ut.append((ark.get("name", ""), rader))
+        return ut
+    except (zipfile.BadZipFile, KeyError, ET.ParseError, ValueError,
+            IndexError, OSError):
+        return None
+
+
+def _som_csv(rader: list[list[str]]) -> str:
+    import io
+    ut = io.StringIO()
+    csv.writer(ut, lineterminator="\n").writerows(rader)
+    return ut.getvalue()
+
+
+def _hygiene(tekst: str, fil: str) -> list[Funn]:
+    """De tre prøvene på synlig tekst. Felles for alle formater."""
+    return (uferdig_tekst(tekst, fil=fil) + raa_tidsstempler(tekst, fil=fil)
+            + repostier(tekst, fil=fil))
+
+
+def gransk_xlsx(data: bytes, fil: str, orgnr_ok: set[str],
+                navn_ok: set[str], tvetydige: Iterable[str] = (),
+                kvittert: dict | None = None) -> list[Funn]:
+    """Prøvene på en `.xlsx`. Se kommentaren over `PAKKEDE_ARKIV`."""
+    import io
+    import zipfile
+    ark = xlsx_ark(data)
+    if ark is None:
+        return [Funn(fil, "ugranska", ".xlsx — lar seg ikke lese som regneark")]
+    funn: list[Funn] = []
+    entydig = _personformmonster(persondata.PERSONFORMER
+                                 - {k.strip().upper() for k in tvetydige})
+    for navn, rader in ark:
+        rel = f"{fil}!/{navn}"
+        synlig = navn + "\n" + "\n".join(v for rad in rader for v in rad)
+        funn += _hygiene(synlig, rel)
+        funn += gransk_csv(_som_csv(rader), orgnr_ok, navn_ok, fil=rel)
+        treff = entydig.findall(synlig) if entydig else []
+        if treff:
+            funn.append(Funn(rel, "personform", f"{sorted(set(treff))}",
+                             len(treff)))
+    # RESTEN AV PAKKEN: alt som ikke er et ark. XML får persondata-
+    # prøvene og `uferdig`; alt annet er ugranska.
+    z = zipfile.ZipFile(io.BytesIO(data))
+    for medlem in z.namelist():
+        if medlem.endswith("/"):
+            continue
+        rel = f"{fil}!/{medlem}"
+        if _endelse(medlem) not in _XLSX_DELER:
+            funn.append(Funn(rel, "ugranska",
+                             _endelse(medlem) or "(uten endelse)"))
+            continue
+        if medlem.startswith("xl/worksheets/") or medlem == "xl/sharedStrings.xml":
+            continue  # lest som ark over
+        tekst = _xml_tekst(z.read(medlem))
+        if not tekst:
+            continue
+        funn += uferdig_tekst(tekst, fil=rel)
+        funn += gransk_tekst(tekst, orgnr_ok, navn_ok, fil=rel,
+                             tvetydige=tvetydige, kvittert=kvittert)
+    return funn
+
+
+def gransk_zip(data: bytes, fil: str, orgnr_ok: set[str],
+               navn_ok: set[str], tvetydige: Iterable[str] = (),
+               kvittert: dict | None = None, dybde: int = 0) -> list[Funn]:
+    """Prøvene på hvert medlem av en `.zip`, som om det lå utpakket."""
+    import io
+    import zipfile
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+        medlemmer = [m for m in z.infolist() if not m.is_dir()]
+    except (zipfile.BadZipFile, OSError):
+        return [Funn(fil, "ugranska", ".zip — lar seg ikke pakke ut")]
+    funn: list[Funn] = []
+    for m in medlemmer:
+        rel = f"{fil}!/{m.filename}"
+        funn += gransk_innhold(rel, z.read(m), orgnr_ok, navn_ok,
+                               tvetydige, kvittert, dybde + 1)
+    return funn
+
+
+def gransk_innhold(rel: str, data: bytes, orgnr_ok: set[str],
+                   navn_ok: set[str], tvetydige: Iterable[str] = (),
+                   kvittert: dict | None = None, dybde: int = 0
+                   ) -> list[Funn]:
+    """Prøvene på ÉN fil gitt som bytes — et arkivmedlem eller en fil
+    på disk. Binærfiler som ikke er arkiv, er `ugranska` her; pinningene
+    i `BINAERFILER` gjelder filer i mappa, ikke inni et arkiv."""
+    endelse = _endelse(rel.rsplit("!/", 1)[-1])
+    if endelse in PAKKEDE_ARKIV:
+        if dybde > ARKIVDYBDE:
+            return [Funn(rel, "ugranska", f"arkiv dypere enn {ARKIVDYBDE}")]
+        if endelse == ".xlsx":
+            return gransk_xlsx(data, rel, orgnr_ok, navn_ok, tvetydige,
+                               kvittert)
+        return gransk_zip(data, rel, orgnr_ok, navn_ok, tvetydige,
+                          kvittert, dybde)
+    if endelse not in TEKSTTYPER:
+        return [Funn(rel, "ugranska", endelse or "(uten endelse)")]
+    tekst = data.decode("utf-8", errors="replace")
+    return tekstfunn(rel, endelse, tekst, orgnr_ok, navn_ok, tvetydige,
+                     kvittert)
+
+
+def tekstfunn(rel: str, endelse: str, tekst: str, orgnr_ok: set[str],
+              navn_ok: set[str], tvetydige: Iterable[str] = (),
+              kvittert: dict | None = None) -> list[Funn]:
+    """Alle prøvene en tekstfil får, uansett om den ligger i mappa eller
+    i et arkiv. Én funksjon, så de to veiene ikke kan gjøre det ulikt."""
+    funn: list[Funn] = []
+    # UFERDIG TEKST, på hver tekstfil uansett type. Se
+    # `UFERDIGMARKORER`.
+    funn.extend(uferdig_tekst(tekst, fil=rel))
+    # RÅ TIDSSTEMPLER i synlig tekst. Se `raa_tidsstempler()`.
+    funn.extend(raa_tidsstempler(tekst, fil=rel))
+    # REPO-STIER i synlig tekst. Se `repostier()`.
+    funn.extend(repostier(tekst, fil=rel))
+    # KART UTEN KARTVERKETS NAVN. Et lisensvilkår, ikke hygiene.
+    funn.extend(kart_uten_attribusjon(tekst, fil=rel))
+    if endelse in KOLONNETYPER:
+        funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
+                               avgrenser=KOLONNETYPER[endelse]))
+    else:
+        funn.extend(gransk_tekst(tekst, orgnr_ok, navn_ok, fil=rel,
+                                 tvetydige=tvetydige, kvittert=kvittert))
+    return funn
+
+
 # Navn slik en generator plausibelt skriver dem: i et element merket som
 # eier- eller navnefelt. Mønsteret er bevisst SMALT — det leter etter en
 # merking generatoren selv må sette, ikke etter «ord som ligner et navn».
@@ -1912,6 +2160,13 @@ def _avvik(kilde: str, dato: str) -> int | None:
 # som skal kuttes. MÅLT 23.09.2026: 9 005 filer, og veksten er 0–15
 # filer i uka. Det gir år, ikke uker — men tallet skal ses, ikke
 # oppdages.
+#
+# MÅLT 07.10.2026: 12 635 filer etter at hver lokalitet og hver
+# endringsuke fikk et regneark og en datapakke (+3 578, 9 057 før). Det
+# er 84 % av denne grensa. Veksten er nå rundt 30 filer i uka, pluss 6
+# per ny lokalitet: om lag halvannet år hit. Én ting til per lokalitet
+# er 1 782 filer — det er den typen endring som flytter tallet, ikke
+# ukene.
 FILTAK = 15_000
 
 
@@ -2168,9 +2423,14 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     kvittert = kvitteringer()
     for sti in sorted(p for p in mappe.rglob("*") if p.is_file()):
         rel = str(sti.relative_to(mappe))
+        # ARKIVENE pakkes ut og granskes per medlem. Se `PAKKEDE_ARKIV`.
+        if sti.suffix.lower() in PAKKEDE_ARKIV:
+            funn.extend(gransk_innhold(rel, sti.read_bytes(), orgnr_ok,
+                                       navn_ok, tvetydige, kvittert))
+            continue
         tekst = _tekst(sti)
         if tekst is None:
-            # Ikke antatt trygg. En .parquet eller .xlsx ved siden av
+            # Ikke antatt trygg. En .parquet ved siden av
             # sida er like publisert som HTML-en, og vakten sier at den
             # ikke har lest den framfor å tie.
             #
@@ -2195,21 +2455,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
                 continue
             funn.append(Funn(rel, "ugranska", sti.suffix or "(uten endelse)"))
             continue
-        # UFERDIG TEKST, på hver tekstfil uansett type. Se
-        # `UFERDIGMARKORER`.
-        funn.extend(uferdig_tekst(tekst, fil=rel))
-        # RÅ TIDSSTEMPLER i synlig tekst. Se `raa_tidsstempler()`.
-        funn.extend(raa_tidsstempler(tekst, fil=rel))
-        # REPO-STIER i synlig tekst. Se `repostier()`.
-        funn.extend(repostier(tekst, fil=rel))
-        # KART UTEN KARTVERKETS NAVN. Et lisensvilkår, ikke hygiene.
-        funn.extend(kart_uten_attribusjon(tekst, fil=rel))
-        if sti.suffix.lower() in KOLONNETYPER:
-            funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
-                                   avgrenser=KOLONNETYPER[sti.suffix.lower()]))
-        else:
-            funn.extend(gransk_tekst(tekst, orgnr_ok, navn_ok, fil=rel,
-                                     tvetydige=tvetydige, kvittert=kvittert))
+        funn.extend(tekstfunn(rel, sti.suffix.lower(), tekst, orgnr_ok,
+                              navn_ok, tvetydige, kvittert))
     return funn
 
 

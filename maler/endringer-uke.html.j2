@@ -369,10 +369,11 @@
 
   <p class="nedlasting">
     Last ned uka:
-    <a href="/endringer/{{ u.slug }}/endringer.csv">CSV</a> ·
+    <a href="/endringer/{{ u.slug }}/{{ u.xlsx_filnavn }}" download>Excel (.xlsx)</a> ·
+    <a href="/endringer/{{ u.slug }}/{{ u.zip_filnavn }}" download>Data (.zip)</a> ·
     <a href="/endringer/{{ u.slug }}/endringer.json">JSON</a> ·
     <a href="/endringer/feed.xml">Atom-feed</a>
-    <span class="nedlasting-note">Begge filene har alle
+    <span class="nedlasting-note">Filene har alle
       {{ antall(u.antall_i_fila, "raden", "radene") }} i uka, ikke bare de som vises her.</span>
   </p>
 </section>

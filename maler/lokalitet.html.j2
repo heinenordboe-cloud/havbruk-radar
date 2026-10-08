@@ -63,11 +63,19 @@
           lokaliteten (feed)</a>
         <a class="knapp knapp--tynn" href="#siter">Siter</a>
         {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
-            tomme uker lover noe den ikke holder. Fila ligger der, og
-            teksten under lusegrafen lenker fortsatt til den. #}
+            tomme uker lover noe den ikke holder. Filene ligger der, og
+            teksten under lusegrafen lenker fortsatt til dem.
+
+            TO FORMATER der det før var én CSV: regnearket for den som
+            vil åpne tallene, datapakken for den som vil lese dem med et
+            verktøy. `aria-label` sier HVA som lastes ned; det synlige
+            «Excel (.xlsx)» står i den, så talegjenkjenning finner
+            knappen på det den heter. #}
         {% if lok.lus_med_tall %}
-        <a class="knapp knapp--tynn" href="{{ lok.csv_filnavn }}">Lusetall
-          som CSV</a>
+        <a class="knapp knapp--tynn" href="{{ lok.xlsx_filnavn }}" download
+           aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>
+        <a class="knapp knapp--tynn" href="{{ lok.zip_filnavn }}" download
+           aria-label="Lusetall som Data (.zip)">Data (.zip)</a>
         {% endif %}
       </p>
   </div>
@@ -740,6 +748,7 @@
       Lokaliteten står i {{ tall(lok.lus_uker) }} av de
       {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
       BarentsWatch, men kilden oppgir ikke et tall i noen av dem.
+      {% if lok.lus_mangler_tekst %}{{ lok.lus_mangler_tekst }}{% endif %}
       {% else %}
       Lokaliteten finnes ikke i noen av de
       {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
@@ -757,12 +766,14 @@
       i sjø.
       {% endif %}
       {% if lok.lus_uker %}
-      <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> har alle
-      ukene, med tomt tall der kilden ikke oppgir noe.
+      Nedlastingene har alle ukene, med tom celle der kilden ikke oppgir
+      noe: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a> og
+      <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>.
       {% else %}
-      <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a> finnes
-      likevel, med hode og null rader — «vi har sett etter og ikke
-      funnet noe» er et svar, og 404 er det ikke.
+      Nedlastingene finnes likevel, med overskrift og null rader — «vi
+      har sett etter og ikke funnet noe» er et svar, og 404 er det ikke:
+      <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a> og
+      <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>.
       {% endif %}
     </p>
     {% endif %}
@@ -823,13 +834,20 @@
         {% if lok.lus_uker %}
         Serien dekker
         <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
-        {{ antall(lok.lus_uker, "uke", "uker") }}. Datoen er mandag i ISO-uka, og tallet
+        {{ antall(lok.lus_uker, "uke", "uker") }}.
+        {# DE MANGLENDE UKENE NAVNGIS. «764 uker» for et spenn på 767
+            ISO-uker, uten å si hvilke tre, lar leseren tro at tallet er
+            feil — eller at de tre er tomme uker i fila. Se
+            `manglende_uker()`. #}
+        {% if lok.lus_mangler_tekst %}{{ lok.lus_mangler_tekst }}{% endif %}
+        Datoen er mandag i ISO-uka, og tallet
         hentes fire uker på etterskudd fordi ferskere uker er
         ufullstendige. <strong>«{{ "–" }}» betyr at kilden ikke oppgir
         noe tall</strong> — ikke at tallet var null.
         {% endif %}
-        Hele serien: <a href="{{ lok.csv_filnavn }}">{{ lok.csv_filnavn }}</a>,
-        med kildens egne verdier og attribusjonen i et kommentarhode.
+        Hele serien: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a>
+        eller <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>, med kildens
+        egne verdier og et eget ark om kilde, lisens og kolonner.
       </p>
     </details>
   </section>

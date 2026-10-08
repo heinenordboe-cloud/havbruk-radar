@@ -464,11 +464,33 @@ Delete).
 
 ### Lagring
 
-GitHub Free har 500 MB til artifacts. Byggemappa er ca. 67 MB komprimert
-(målt 07.10.2026: 338 MB, 9057 filer, 67,4 MB med zip -6), og lagres i 14
-dager. Med ett bygg i uka ligger to–tre ute samtidig. `bygg.yml` skriver
-størrelsen og summen av alt som ligger i oppsummeringen, og varsler over
-80 %. Gamle bygg slettes under Actions → Management → Artifacts.
+GitHub Free har 500 MB til artifacts. Byggemappa er ca. 124 MB komprimert,
+og lagres i 14 dager. `bygg.yml` skriver størrelsen og summen av alt som
+ligger i oppsummeringen, og varsler over 80 %. Gamle bygg slettes under
+Actions → Management → Artifacts.
+
+MÅLT 07.10.2026, samme datarepo (e75827c), zip -6 som i `bygg.yml`:
+
+| | filer | på disk | zip -6 |
+|---|---|---|---|
+| før nedlastingene | 9 057 | 337,7 MB | 67,4 MB |
+| med .xlsx og .zip | 12 635 | 408,0 MB | 124,4 MB |
+
+Regnearkene og datapakkene er allerede komprimert (54,4 + 14,1 MB på
+disk) og krymper ikke i artifacten. **Med ett bygg i uka ligger to–tre
+ute samtidig: 249–373 MB, 50–75 % av kvoten.** Et fjerde bygg — et
+startet for hånd i samme fjortendagersvindu — gir 498 MB, og
+«Lagre byggemappa» feiler da av seg selv. Senk `retention-days` i
+`bygg.yml` (i datarepoet) til 7 om det skjer; publiser.yml trenger bare
+det nyeste bygget.
+
+### Filtaket hos Cloudflare Pages
+
+20 000 filer per utrulling på gratisplanen. Porten varsler fra 15 000
+(`FILTAK` i `publiseringsvakt.py`). 12 635 filer er 63 % av taket og 84 %
+av varslingsgrensa. Veksten er rundt 30 filer i uka (en endringsuke er 17
+filer pluss ett søkeutdrag per side, 13), pluss 6 per ny lokalitet — om
+lag halvannet år til 15 000, med mindre noe nytt per lokalitet kommer til.
 
 ### `publiser.py` lokalt er fortsatt reserven
 

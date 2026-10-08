@@ -241,6 +241,11 @@ def _uke_raa(**overstyr) -> dict:
     return uke
 
 
+# Filnavnene `_side()` bruker. Uke 34 er fiksturens nyeste lusetallsuke.
+_XLSX = "kystloggen-lusetall-31397-2026-34.xlsx"
+_ZIP = "kystloggen-lusetall-31397-2026-34.zip"
+
+
 def _side(**overstyr) -> str:
     """En rendret lokalitetsside av konstruerte data.
 
@@ -286,8 +291,10 @@ def _side(**overstyr) -> str:
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765,
+        "lus_mangler": [], "lus_mangler_tekst": "",
         "lus_fravaer": "",
-        "csv_filnavn": nettsted.CSV_FILNAVN,
+        "xlsx_filnavn": _XLSX,
+        "zip_filnavn": _ZIP,
         "endringer": [{
             "dato": "2026-08-31", "gjelder": "lokaliteten",
             "kilde": "akvakultur", "felt": "tillatelser_antall",
@@ -1045,6 +1052,7 @@ def _csv(**overstyr) -> str:
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765,
+        "lus_mangler": [], "lus_mangler_tekst": "",
         "lus_serie": [_uke_raa()],
     }
     lok.update(overstyr)
@@ -1144,38 +1152,49 @@ def test_csv_kolonnene_er_en_kontrakt():
         "har_rensefisk")
 
 
-def test_csv_filnavnet_staar_ett_sted():
-    """Navnet står på disk, i lenka fra sida og i `contentUrl`. Tre
+def test_filnavnene_staar_ett_sted():
+    """Navnene står på disk, i lenkene fra sida og i `contentUrl`. Tre
     strenger som skal si det samme er formen F6 og F7 hadde."""
     html = _side()
-    assert f'href="{nettsted.CSV_FILNAVN}"' in html
-    assert _jsonld_av(html)["distribution"][0]["contentUrl"] == \
-        nettsted.CSV_FILNAVN
+    for navn in (_XLSX, _ZIP):
+        assert f'href="{navn}"' in html
+    assert [d["contentUrl"] for d in _jsonld_av(html)["distribution"]] == [
+        _XLSX, _ZIP]
 
 
 def test_jsonld_distribution_peker_paa_hele_serien():
-    d = _jsonld_av(_side())
-    [dist] = d["distribution"]
-    assert dist["@type"] == "DataDownload"
-    assert dist["encodingFormat"] == "text/csv"
-    assert dist["creditText"] == "Data levert av BarentsWatch"
-    assert "764 uker" in dist["description"]
+    xlsx, zip_ = _jsonld_av(_side())["distribution"]
+    assert xlsx["@type"] == zip_["@type"] == "DataDownload"
+    assert xlsx["encodingFormat"] == nettsted.XLSX_MIME
+    assert zip_["encodingFormat"] == "application/zip"
+    for d in (xlsx, zip_):
+        assert d["creditText"] == "Data levert av BarentsWatch"
+        assert "764 uker" in d["description"]
 
 
 def test_jsonld_contentUrl_er_relativ():
     """Domenet finnes ikke ennå. JSON-LD løser relative IRI-er mot
-    dokumentets egen adresse, så «lusetall.csv» peker riktig uansett
+    dokumentets egen adresse, så et relativt filnavn peker riktig uansett
     hvilket vertsnavn siden havner på — og et påfunnet domene ville vært
     en påstand om noe som ikke er avgjort."""
-    url = _jsonld_av(_side())["distribution"][0]["contentUrl"]
-    assert not url.startswith(("http://", "https://", "/"))
+    for d in _jsonld_av(_side())["distribution"]:
+        assert not d["contentUrl"].startswith(("http://", "https://", "/"))
 
 
-def test_siden_lenker_til_csv_en():
-    """Fila er ikke siterbar hvis ingen finner den."""
+def test_siden_lenker_til_nedlastingene():
+    """Filene er ikke siterbare hvis ingen finner dem."""
     html = _side()
-    assert f'<a href="{nettsted.CSV_FILNAVN}">' in html
+    assert f'<a href="{_XLSX}">' in html
+    assert f'<a href="{_ZIP}">' in html
     assert "764 uker" in html
+
+
+def test_den_gamle_csv_en_er_ikke_lenger_et_tilbud():
+    """`lusetall.csv` svarer fortsatt på sin gamle adresse, men den er
+    ikke knappen og står ikke i JSON-LD-en. Fram til 07.10.2026 var den
+    begge deler."""
+    html = _side()
+    assert nettsted.CSV_FILNAVN not in html
 
 
 def test_serien_og_tabellen_kommer_fra_samme_liste():
@@ -3232,20 +3251,23 @@ def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
     assert "Lokaliteten ligger på land" in flat
 
 
-def test_csv_knappen_vises_bare_naar_lokaliteten_har_hatt_et_lusetall():
-    """12325 står i alle ukene uten ett tall. Knappen «Lusetall som CSV»
-    vises ikke der; fila og lenka i teksten under grafen blir stående."""
+def test_nedlastingsknappene_vises_bare_naar_lokaliteten_har_hatt_et_lusetall():
+    """12325 står i alle ukene uten ett tall. Knappene vises ikke der;
+    filene og lenkene i teksten under grafen blir stående."""
     tom = [_uke_raa(voksne_hunnlus="", lus_er_rapportert="False",
                     brakklagt="True") for _ in range(3)]
     html = _side(lus_serie=tom, lus=nettsted.til_visning(tom),
                  lus_uker=3, lus_uten_tall=3, lus_med_tall=0, lusegraf=None,
                  lusetall_snapshots=767, lus_fravaer="paa_land")
-    flat = " ".join(html.split())
-    assert "Lusetall som CSV" not in flat
-    assert f'href="{nettsted.CSV_FILNAVN}"' in html, "lenka i teksten står"
+    assert 'class="knapp knapp--tynn" href="kystloggen-lusetall' not in html
+    assert f'href="{_XLSX}"' in html, "lenka i teksten står"
+    assert f'href="{_ZIP}"' in html, "lenka i teksten står"
 
-    med = _side(lus_med_tall=1)
-    assert "Lusetall som CSV" in " ".join(med.split())
+    med = " ".join(_side(lus_med_tall=1).split())
+    assert (f'<a class="knapp knapp--tynn" href="{_XLSX}" download '
+            'aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>') in med
+    assert (f'<a class="knapp knapp--tynn" href="{_ZIP}" download '
+            'aria-label="Lusetall som Data (.zip)">Data (.zip)</a>') in med
 
 
 def test_omraadesiden_sier_ikke_at_den_mangler_begrunnelsen_den_siterer():
