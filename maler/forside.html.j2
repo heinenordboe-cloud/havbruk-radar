@@ -1,4 +1,4 @@
-{# Forsiden. Rekkefølgen er overleveringens:
+{# Forsiden. Rekkefølgen er briefens tabell «Sider og jobb»:
    hero → denne uka → arkivtall → kysten → følg med → bunntekst.
 
    Den skal svare en fremmed på tre ting: hva er dette, hva har skjedd,
@@ -152,36 +152,128 @@
     {% endif %}
   </div>
 
-  {# HØYST TRE SETNINGER, og kuttet skjer i `bygg_forside()` — se
-     `FORSIDESETNINGER`. Et `[:3]` her ville vært et tall ingen kan
-     teste. #}
-  <div class="uke-sammendrag uke-sammendrag--bred">
-    {#- SETNINGEN OM SELSKAPSDATA ER BRØDTEKST. Den sier hvor noe IKKE
-        er, og satt i den samme 29-pikslers overskriftsskriften som ukas
-        sak leste den som ukas sak. Hvilken setning det er, vet
-        `_sammendrag()` — ikke malen. #}
-    {% for setning in f.sammendrag %}
-    <p{% if setning.brod %} class="sammendrag-bi"{% endif %}>{{ setning.tekst }}</p>
-    {% endfor %}
+  {# UKAS VIKTIGSTE ENDRINGER, i to deler fra 08.10.2026 (briefen: «ukas
+     viktigste 3–5 endringer» øverst):
+
+       til venstre   ingressen, og UKAS FAKTA — de samme tre setningene
+                     om eierskifter, fisk til stede og kapasitet som står
+                     øverst på ukesiden. Det er de endringene som er
+                     definert som vesentlige; ingen rangering er gjort
+                     her.
+       til høyre     de største endringstypene som stolper, hver med
+                     lenke til typesiden. Tallene er brikkenes på
+                     ukesiden.
+
+     HØYST TRE SETNINGER i sammendraget, og kuttet skjer i
+     `bygg_forside()` — se `FORSIDESETNINGER`. Setningen om
+     selskapsdata er brødtekst: den sier hvor noe IKKE er. #}
+  <div class="uke-topp">
+    <div class="uke-sammendrag">
+      {% for setning in f.sammendrag %}
+      {% if loop.first %}
+      <p>{{ setning.tekst }}</p>
+      {% if f.uke and f.uke.fakta %}
+      <ul class="uke-fakta">
+        {% for s in f.uke.fakta %}<li>{{ s }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% else %}
+      <p class="sammendrag-bi">{{ setning.tekst }}</p>
+      {% endif %}
+      {% endfor %}
+      {% if f.uke %}
+      <a class="videre" href="/endringer/{{ f.uke.slug }}/">Se alle
+        endringer i {{ f.uke.vist }} →</a>
+      {% endif %}
+    </div>
+
+    {% if f.ukas_typer %}
+    <figure class="typestolper">
+      <figcaption class="etikett">Etter type</figcaption>
+      <ol>
+        {% for k in f.ukas_typer %}
+        <li>
+          <a href="{{ k.url }}" title="{{ k.hva }}">
+            <span class="typestolpe-type">{{ k.navn }}</span>
+            <span class="typestolpe-tall">{{ tall(k.antall) }}</span>
+            <svg class="typestolpe" viewBox="0 0 100 6" preserveAspectRatio="none"
+                 aria-hidden="true"><rect width="{{ k.andel }}" height="6"/></svg>
+          </a>
+        </li>
+        {% endfor %}
+      </ol>
+    </figure>
+    {% endif %}
   </div>
 
-  {% if f.uke %}
-  <p class="tabellnote">
-    <a class="videre" href="/endringer/{{ f.uke.slug }}/">Se alle
-      endringer i {{ f.uke.vist }} →</a>
+  {# KAN JEG STOLE PÅ DET. Øyeblikksbildet, sjekksummen og veien til
+     metoden, rett under ukas tall — samme linje som stod nederst i
+     arkivlinja til 08.10.2026. Arkivtallene står i sin egen rad under. #}
+  <p class="arkivnote uke-proveniens">
+    Siste øyeblikksbilde:
+    <time datetime="{{ f.siste_snapshot }}">{{ f.siste_snapshot|dato }}</time>
+    · sjekksum <code>{{ f.sjekksum[:8] }}…{{ f.sjekksum[-4:] }}</code>
+    · <a href="/om/#innsamling">Slik samler vi inn</a>
   </p>
-  {% endif %}
 </section>
 
 {# ---------------------------------------------------------------- 3
-   KYSTEN. Mørk seksjon: kart til venstre, de tretten til høyre.
+   ARKIVTALLENE. Én rad med fire tall, rett under uka.
+
+   FLYTTET OPP IGJEN 08.10.2026, etter briefens tabell: forsiden svarer
+   på «hva er dette, hva skjedde nå, kan jeg stole på det», og tallene
+   om arkivet er det korteste svaret på det tredje. De lå til slutt fra
+   27.09, med den begrunnelsen at et tall om OSS avbrøt lesingen mellom
+   to avsnitt om havbruket. Nå står de etter uka og før kysten, som én
+   rad tall og ikke som et avsnitt — og linja om øyeblikksbilde og
+   sjekksum står under ukas tall, der spørsmålet stilles.
+
+   TALLET ER LITE, OG DET SKJULES IKKE. Seks øyeblikksbilder er seks
+   uker, og et arkiv som later som det er eldre enn det er, er verdiløst
+   den dagen noen sjekker. Se avviket i oppdraget, punkt 9. #}
+<section class="arkivlinje-flate" aria-labelledby="arkiv-tittel">
+<div class="ark arkivlinje">
+  <h2 class="visuelt-skjult" id="arkiv-tittel">Arkivet</h2>
+  <p class="arkivtall">
+    {# TALLET STÅR I <strong>, SUBSTANTIVET UTENFOR — derfor ikke
+       `antall()`, som gir begge som én streng. Formen velges på samme
+       måte, og `|tall` gir samme tusenskille som resten av siden. #}
+    <span><strong>{{ f.lokaliteter|tall }}</strong>
+      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</span>
+    <span><strong>{{ f.selskaper|tall }}</strong>
+      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</span>
+    <span><strong>{{ f.snapshots|tall }}</strong>
+      {{ "ukentlig øyeblikksbilde" if f.snapshots == 1
+         else "ukentlige øyeblikksbilder" }}
+      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
+    {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
+        lar leseren regne seg til at serien går til i dag, og det gjør den
+        ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
+        har er uke 35. Begge datoene kommer fra `felles.lusetall_snapshots`
+        ved bygging. #}
+    <span><strong>{{ f.luke_uker|tall }}</strong>
+      {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall, fra
+      <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time>
+      til og med
+      <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></span>
+  </p>
+</div>
+</section>
+
+{# ---------------------------------------------------------------- 4
+   KYSTEN. Kart til venstre, de tretten til høyre.
+
+   PÅ PAPIR fra 08.10.2026, ikke på mørk flate. Trafikklyset er DATA,
+   og data står på papir på dette nettstedet; den mørke flata er
+   fotografiet og bunnteksten.
 
    KARTET ER STATISK SVG, tegnet ved bygging av Fiskeridirektoratets
    egne polygoner og Natural Earths kystlinje. Ingen flis, ingen
    karttjeneste, ingen JavaScript — se kart.py.
 
    Områdene er `<a>`-lenker i SVG-en, så kartet virker uten JS. #}
-<section class="fullbredde mork kysten" id="kysten"
+<section class="ark seksjon kysten" id="kysten"
          aria-labelledby="kyst-tittel">
   <div class="ark">
     <div class="seksjonshode">
@@ -354,7 +446,7 @@
   </div>
 </section>
 
-{# ---------------------------------------------------------------- 4
+{# ---------------------------------------------------------------- 5
    FØLG MED. Feeds, og bare feeds.
 
    ETT AVSNITT OG ÉN LENKE. Adressene til de tre andre feedtypene er
@@ -426,53 +518,6 @@
       <a href="/om/#sitering">Slik siterer du</a>.
     </p>
   </details>
-</section>
-
-{# ---------------------------------------------------------------- 5
-   ARKIVTALLENE. Én innfelt linje, og sidens siste ord.
-
-   LÅ MELLOM UKA OG KYSTEN til 27.09.2026. Der avbrøt den lesingen
-   med et tall om OSS — hvor mange øyeblikksbilder vi har — midt
-   mellom to avsnitt om havbruket. Den hører hjemme til slutt: det
-   er svaret på «kan jeg stole på dette», og det spørsmålet stilles
-   etter at man har sett hva som står her, ikke før.
-
-   TALLET ER LITE, OG DET SKJULES IKKE. Seks øyeblikksbilder er seks
-   uker, og et arkiv som later som det er eldre enn det er, er verdiløst
-   den dagen noen sjekker. Se avviket i oppdraget, punkt 9. #}
-<section class="arkivlinje-flate" aria-labelledby="arkiv-tittel">
-<div class="ark arkivlinje">
-  <h2 class="visuelt-skjult" id="arkiv-tittel">Arkivet</h2>
-  <p class="arkivtall">
-    {# TALLET STÅR I <strong>, SUBSTANTIVET UTENFOR — derfor ikke
-       `antall()`, som gir begge som én streng. Formen velges på samme
-       måte, og `|tall` gir samme tusenskille som resten av siden. #}
-    <span><strong>{{ f.lokaliteter|tall }}</strong>
-      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</span>
-    <span><strong>{{ f.selskaper|tall }}</strong>
-      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</span>
-    <span><strong>{{ f.snapshots|tall }}</strong>
-      {{ "ukentlig øyeblikksbilde" if f.snapshots == 1
-         else "ukentlige øyeblikksbilder" }}
-      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
-    {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
-        lar leseren regne seg til at serien går til i dag, og det gjør den
-        ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
-        har er uke 35. Begge datoene kommer fra `felles.lusetall_snapshots`
-        ved bygging. #}
-    <span><strong>{{ f.luke_uker|tall }}</strong>
-      {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall, fra
-      <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time>
-      til og med
-      <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></span>
-  </p>
-  <p class="arkivnote">
-    Siste øyeblikksbilde:
-    <time datetime="{{ f.siste_snapshot }}">{{ f.siste_snapshot|dato }}</time>
-    · sjekksum <code>{{ f.sjekksum[:8] }}…{{ f.sjekksum[-4:] }}</code>
-    · <a href="/om/#innsamling">Slik samler vi inn</a>
-  </p>
-</div>
 </section>
 
 {% endblock %}

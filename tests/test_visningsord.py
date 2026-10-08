@@ -437,3 +437,49 @@ def test_tidspunkt_regner_IKKE_om():
     å regne det om ville vært en andre påstand om når vi hentet."""
     assert visningsord.tidspunkt("2026-09-21T10:29:00+00:00") == (
         "21. september 2026 kl. 10.29 UTC")
+
+
+# ---- selskapsnavn og kommunenavn i visningen ---------------------------
+
+
+def test_selskapsnavn_i_menneskelig_form():
+    """«MOWI SEAWATER NORWAY AS» -> «Mowi Seawater Norway AS». Den rå
+    verdien står i registerfeltene; dette er bare visningen."""
+    s = visningsord.selskapsnavn
+    assert s("MOWI SEAWATER NORWAY AS") == "Mowi Seawater Norway AS"
+    assert s("VILLA SMOLT AS") == "Villa Smolt AS"
+    assert s("E. KARSTENSEN FISKEOPPDRETT AS") == "E. Karstensen Fiskeoppdrett AS"
+    assert s("NRS FARMING AS") == "NRS Farming AS", "ord uten vokal er initialord"
+    assert s("OFS MÅLØY AS") == "OFS Måløy AS", "målt initialord med vokal"
+    assert s("GRIEG MATURITAS II AS") == "Grieg Maturitas II AS"
+    assert s("XY123AB AS") == "XY123AB AS", "et ord med siffer røres ikke"
+    assert s("SALTEN FOU AS") == "Salten FoU AS"
+    assert s("BIZERBA GMBH & CO. KG") == "Bizerba GmbH & Co. KG"
+    assert s("NORSK INSTITUTT FOR VANNFORSKNING STI") == (
+        "Norsk Institutt for Vannforskning STI")
+
+
+def test_selskapsnavn_rorer_ikke_et_navn_som_ikke_er_versaler():
+    assert visningsord.selskapsnavn("Firda Canning Co. A/S") == "Firda Canning Co. A/S"
+    assert visningsord.selskapsnavn("") == ""
+    assert visningsord.selskapsnavn(None) == ""
+
+
+def test_organisasjonsformen_staar_i_versaler_saa_vakten_ser_den():
+    """Publiseringsvaktens personformprøve leser kodene som hele ord i
+    VERSALER. Et «Da» der det sto «DA» ville vært et navn vakten ikke
+    lenger kunne se formen på — visningen skal aldri gjøre vakten blind."""
+    from core import persondata
+    assert persondata.PERSONFORMER <= visningsord.ORGFORMER
+    for kode in persondata.PERSONFORMER:
+        assert visningsord.selskapsnavn(f"HANSEN OG OLSEN {kode}").endswith(f" {kode}")
+
+
+def test_kommunenavn_med_fylke():
+    k = visningsord.kommunenavn
+    assert k("HERØY I MØRE OG ROMSDAL", "MØRE OG ROMSDAL") == "Herøy, Møre og Romsdal"
+    assert k("RØDØY", "NORDLAND") == "Rødøy, Nordland"
+    assert k("SØR-VARANGER", "FINNMARK") == "Sør-Varanger, Finnmark"
+    assert k("BØMLO") == "Bømlo"
+    assert k("Indre Fosen", "TRØNDELAG") == "Indre Fosen, Trøndelag"
+    assert k("", "") == ""

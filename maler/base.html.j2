@@ -30,17 +30,25 @@
 
    ## TRE BLOKKER, OG HVA DE ER TIL
 
-     topp         hele den mørke toppen. Standarden er båndet med meny
-                  og det sidetypen legger i `toppinnhold`. Forsiden
-                  OVERSTYRER den i sin helhet, fordi heroen der er et
-                  fotografi som menyen ligger oppå.
-     toppinnhold  det sidetypen legger inne i båndet: brødsmule, H1,
-                  faktaliste, knapper.
-     innhold      alt under båndet.
+     topp         hele toppen. Standarden er menylinja og det sidetypen
+                  legger i `toppinnhold`. Forsiden OVERSTYRER den i sin
+                  helhet, fordi heroen der er et fotografi som menyen
+                  ligger oppå.
+     toppinnhold  sidehodet under menylinja: brødsmule, H1, metalinje,
+                  oppsummering, nøkkeltall og verktøylinje.
+     innhold      alt under sidehodet.
 
-   Hvorfor headeren ikke er én blokk per del: en underside har
-   brødsmule OG H1 OG fakta inne i den samme mørke flata, og tre blokker
-   ville betydd tre steder en sidetype kunne glemme flata. #}
+   ## TOPPEN ER LYS fra 08.10.2026
+
+   Undersidene hadde et mørkt bånd i `--hav9` over hele sidehodet. Det
+   veide mer enn innholdet under, og det gjorde hver side til to sider:
+   en mørk og en lys. Toppen står nå på papiret, med en hårlinje under
+   menylinja, og mørk flate er forbeholdt fotografiet på forsiden og
+   bunnteksten. Se docs/design/STILGUIDE.md.
+
+   Hvorfor headeren likevel er én blokk og ikke tre: brødsmule, H1 og
+   fakta hører til det samme sidehodet, og tre blokker ville betydd tre
+   steder en sidetype kunne glemme det. #}
 <!doctype html>
 <html lang="nb">
 <head>
@@ -109,8 +117,10 @@
 
 {% block topp %}
 <header class="sidetopp">
-  <div class="ark">
-    {% include "meny.html.j2" %}
+  <div class="toppbar">
+    <div class="ark">
+      {% include "meny.html.j2" %}
+    </div>
   </div>
   {% block toppinnhold %}{% endblock %}
 </header>

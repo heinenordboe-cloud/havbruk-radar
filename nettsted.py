@@ -2422,6 +2422,17 @@ def _fargekode(raa: str) -> str:
     return _FARGEKODER.get(raa, "")
 
 
+def fargeklasse(verdi) -> str:
+    """`lys-*`-klassen til et fargeord, tom for alt annet.
+
+    For maler som får fargen som ORD og ikke som kode — fra- og
+    til-cellene i vedtakstabellen på områdesiden. Til 08.10.2026 sto de
+    uten klasse, og ruta foran «gul» var tom; se
+    `test_fargeruta_i_registertabellen_har_fyll` for hvorfor det er feil.
+    """
+    return FARGE_KLASSE.get(_fargekode(str(verdi or "").strip().lower()), "")
+
+
 def _datoord(datoer: list[str], med_aar: bool = True) -> str:
     """«21. september 2026», «14.–15. september» eller «14. og 20. mars».
 
@@ -3593,6 +3604,14 @@ def _navn_eller_skjult(navn: str, felt: str, orgnr: str = "",
             publiseringsvakt.SKJULT_NAVN_FELT, "")
 
 
+def _er_null(verdi: object) -> bool:
+    """Sant når registerets tall er 0 — «0», «0.0». Tomt er ikke 0."""
+    try:
+        return float(str(verdi).strip()) == 0
+    except ValueError:
+        return False
+
+
 def _tildelt(d: dict, former: dict | None = None) -> dict:
     """Hvem tillatelsen ble tildelt — eller at navnet ikke vises.
 
@@ -4298,10 +4317,14 @@ def _eierledd(selskap: dict) -> list[tuple] | None:
     """«eid av X siden 2022». Datoen er den siste overføringen til
     selskapet som er journalført — samme dato som faktalista viser.
 
-    INGEN PERSONFORM og intet navn vi ikke har. Regel 3."""
+    INGEN PERSONFORM og intet navn vi ikke har. Regel 3.
+
+    Navnet står i menneskelig form — «Salmar Oppdrett AS» — fordi
+    setningen er en ingress og ikke en registertabell. Den rå verdien
+    står i registerfeltene. Se `visningsord.selskapsnavn()`."""
     if not selskap or selskap.get("personform") or not selskap.get("navn"):
         return None
-    navn = selskap["navn"]
+    navn = visningsord.selskapsnavn(selskap["navn"])
     ledd: list[tuple] = [("tekst", "eid av "),
                          ("lenke", selskap["url"], navn) if selskap.get("url")
                          else ("tekst", navn)]
@@ -4565,6 +4588,13 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "tillatelser": tillatelsesrader,
         "tillatelser_oppgitt": len(oppgitt),
         "tillatelser_uten_eier": len(uten_eier),
+        # TILLATELSER DER REGISTERET OPPGIR KAPASITET 0. «0 stykk» i en
+        # tabellcelle, uten et ord, leses som en feil hos oss. Malen sier
+        # hva det er — registerets verdi — og stiller den ved siden av
+        # lokalitetens egen kapasitet. Den tolker den ikke.
+        "tillatelser_null_kapasitet": sum(
+            1 for r in tillatelsesrader
+            if _er_null((eierskap.get(r["nr"]) or {}).get("kapasitet"))),
         # Teksten sendes INN og står ikke i malen: to steder som skal si
         # det samme om hva vi ikke vet, er formen F6 og F7 hadde.
         "eier_ukjent": EIER_UKJENT,
@@ -5141,6 +5171,14 @@ def _miljo() -> Environment:
     miljo.filters["maaned"] = visningsord.maaned
     miljo.filters["tidspunkt"] = visningsord.tidspunkt
     miljo.filters["tall"] = visningsord.tall
+    # NAVN I VISNINGEN. Registrene skriver navn i versaler; sidene viser
+    # dem i menneskelig form, og den rå verdien står i registerfeltene,
+    # siteringen og nedlastingene. Filtre og ikke Python, fordi det er
+    # MALEN som vet om en verdi står i en overskrift eller i en
+    # registertabell. Se `visningsord.selskapsnavn()`.
+    miljo.filters["tittelform"] = visningsord.tittelform
+    miljo.filters["selskapsnavn"] = visningsord.selskapsnavn
+    miljo.globals["kommunenavn"] = visningsord.kommunenavn
     # `feltmerke` er en GLOBAL og ikke et filter: den tar to argumenter
     # der rekkefølgen betyr noe, og `{{ "kommune"|feltmerke(r.kommune) }}`
     # leser baklengs. Se `feltmerke()`.
@@ -5167,6 +5205,7 @@ def _miljo() -> Environment:
     # filter; `kilde()` som global kan ikke brukes av `map`.
     miljo.filters["kildenavn"] = visningsord.kilde
     miljo.globals["feltmerke"] = feltmerke
+    miljo.globals["fargeklasse"] = fargeklasse
     miljo.globals["personformnavn"] = personformnavn
     miljo.globals["attribusjonslenke"] = ATTRIBUSJONSLENKE
     miljo.globals["SKJULT_NAVN_FELT"] = publiseringsvakt.SKJULT_NAVN_FELT
@@ -5243,7 +5282,12 @@ def stilsti(sti: Path, rot: Path) -> str:
 # navnet — det man leter etter — står i de to første kolonnene. Resten
 # ruller vannrett, som krysstabellen.
 UTEN_KORT = frozenset({"endringer-uker", "akvakultur-alle",
-                       "eierskap-selskaper"})
+                       "eierskap-selskaper",
+                       # LOKALITETSLISTA PÅ OMRÅDE- OG SELSKAPSSIDEN er en
+                       # indeks som de flate listene: én linje per rad, som
+                       # ruller vannrett på telefon. Som kort var områdesiden
+                       # med 137 lokaliteter 59 939 px høy på 390.
+                       "akvakultur-lokaliteter"})
 
 _TABELL = re.compile(r"(<table\b[^>]*>)(.*?)(</table>)", re.S)
 _TABELL_ID = re.compile(r'\bid="([^"]+)"')
@@ -5374,8 +5418,8 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
             tittel=f"{lok['tittelnavn']}, lokalitet {lok['loknr']} — Kystloggen",
             beskrivelse=(
                 f"Registerdata, eierskap og ukentlige lusetall for "
-                f"akvakulturlokalitet {lok['loknr']} {lok['navn']} i "
-                f"{lok['kommune']}, med endringslogg."),
+                f"akvakulturlokalitet {lok['loknr']} {lok['tittelnavn']} i "
+                f"{visningsord.tittelform(lok['kommune'])}, med endringslogg."),
             jsonld=jsonld(lok),
             proveniens_tekst=proveniens(
                 lok["akva_dato"], lok["akva_hentet"],
@@ -5392,11 +5436,12 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
             # personform, og da er den «eieren er en personform».
             sidetype="Lokalitet",
             undertittel=SKILLE.join(
-                x for x in (lok["kommune"],
+                x for x in (visningsord.tittelform(lok["kommune"]),
                             (f"{lok['po_kode']} {lok['po_navn']}"
                              if lok["po_kode"] else ""),
-                            lok["selskap"]["navn"]) if x),
-            soketekst=f"{lok['tittelnavn']} {lok['kommune']}",
+                            visningsord.selskapsnavn(lok["selskap"]["navn"]))
+                if x),
+            soketekst=f"{lok['tittelnavn']} {visningsord.tittelform(lok['kommune'])}",
             main_klasse="fullbredde",
             feed=f"/lokalitet/{loknr}/feed.xml",
             feed_tittel=f"Kystloggen: endringer for lokalitet {loknr}"),
@@ -7456,6 +7501,45 @@ def kartpunkter(akva: dict[str, dict[str, str]]) -> tuple[list[dict], list[str],
 FORSIDESETNINGER = 3
 
 
+def _ledede_typer(uke: dict) -> list[dict]:
+    """Ukas endringstyper som TELLER, størst først.
+
+    Bare slagene som er hendelser i havbruket: ikke selskapsdata (egen
+    del), og ikke slag som ikke teller («felt oppgitt første gang»).
+    Én funksjon for sammendraget og forsidens typestolper, så de to ikke
+    kan bli uenige om hvilke slag uka bestod av.
+    """
+    return sorted((k for k in uke["typer"]
+                   if k["antall"] and k.get("teller", True)
+                   and k["id"] not in EGEN_DEL),
+                  key=lambda k: -k["antall"])
+
+
+# HVOR MANGE TYPER FORSIDEN VISER som stolper. Briefen ber om ukas
+# viktigste tre til fem endringer øverst; de vesentlige står som
+# faktasetninger, og typene viser hvor resten av uka ligger.
+FORSIDETYPER = 5
+
+
+def ukas_typer(uke: dict | None, n: int = FORSIDETYPER) -> list[dict]:
+    """De største endringstypene i uka, med lenke til typesiden.
+
+    Tallene er de samme som brikkene på ukesiden viser, og lenkene går
+    til de samme sidene. `andel` er stolpens lengde i prosent av den
+    største — en tegning av tallet, ikke et nytt tall.
+    """
+    if not uke:
+        return []
+    typer = _ledede_typer(uke)[:n]
+    if not typer:
+        return []
+    storst = typer[0]["antall"]
+    return [{"id": k["id"], "navn": k["navn"], "antall": k["antall"],
+             "hva": k["hva"], "url": f"/endringer/{uke['slug']}/{k['id']}/",
+             "andel": round(100 * k["antall"] / storst, 1)}
+            for k in typer]
+
+
 def _sammendrag(uke: dict | None) -> list[dict]:
     """Én til fire setninger om uka, generert av tallene.
 
@@ -7500,10 +7584,7 @@ def _sammendrag(uke: dict | None) -> list[dict]:
     # seg — 402 av uke 39s 440 — og en oppsummering som ledet med dem
     # ville svart på «hvor mange felt endret seg i et register» framfor
     # på «hva skjedde i havbruket denne uka».
-    med_tall = sorted((k for k in uke["typer"]
-                       if k["antall"] and k.get("teller", True)
-                       and k["id"] not in EGEN_DEL),
-                      key=lambda k: -k["antall"])
+    med_tall = _ledede_typer(uke)
     if not med_tall:
         return [sak("Ingen endringer i lokaliteter, tillatelser eller "
                     "trafikklys denne uka. Alle felt står som de sto "
@@ -7831,6 +7912,9 @@ def bygg_forside(felles: Felles) -> dict:
         # ---- denne uka ----
         "uke": uke,
         "sammendrag": _sammendrag(uke)[:FORSIDESETNINGER],
+        # UKAS STØRSTE TYPER, som stolper med lenke til typesiden. Se
+        # `ukas_typer()`.
+        "ukas_typer": ukas_typer(uke),
         # `forskriftslinje` OG `rader` STO HER TIL 27.09.2026.
         #
         # Tidslinja er FLYTTET til ukessiden og ikke slettet — den sier
@@ -8182,6 +8266,7 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
         "endringer": endringer,
         "endringsvindu": vindu,
         "aapen_liste": SELSKAP_AAPEN_LISTE,
+        "nyeste_endringer": SELSKAP_NYESTE_ENDRINGER,
         "i_arkivet_siden": min((o["dato"] for o in overforinger), default=""),
         "eierskapslinje": eierskapslinje,
         "kom_til": sum(1 for o in eierskapslinje if o["retning"] == "inn"),
@@ -8205,6 +8290,11 @@ SELSKAP_UKER = 13
 # 390 px: selskapet med flest lokaliteter (158) var 150 018 px høyt med
 # alle listene åpne.
 SELSKAP_AAPEN_LISTE = 10
+
+# Når endringslista er lukket, står de NYESTE likevel åpent over den —
+# briefen setter vesentlige endringer øverst på selskapssiden. Fem, så
+# siden holder seg under 5 000 px på 390 også for de største selskapene.
+SELSKAP_NYESTE_ENDRINGER = 5
 
 # (felles, {orgnr: tillatelser selskapet har GITT FRA SEG}). Bygget én
 # gang per batch. Selve objektet holdes og sammenlignes med `is`, ikke
@@ -8341,17 +8431,21 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
 def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
     """Rendrer og skriver én selskapsside."""
     sel = bygg_selskap(orgnr, felles)
+    vist_navn = visningsord.selskapsnavn(sel["navn"])
     mal = mal or _miljo().get_template("selskap.html.j2")
     html = mal.render(
         sel=sel,
         **_grunnkontekst(
             felles, rot, rot / "selskap" / orgnr / "index.html",
             kilder=SELSKAPSKILDER,
-            tittel=f"{sel['navn'] or sel['orgnr']} — Kystloggen",
+            # NAVNET I MENNESKELIG FORM i tittel, beskrivelse og
+            # søketekst — det er det en søkemotor og en treffliste viser.
+            # JSON-LD og siteringen bærer den rå verdien.
+            tittel=f"{vist_navn or sel['orgnr']} — Kystloggen",
             beskrivelse=(
                 f"Akvakulturtillatelser, lokaliteter og overføringer for "
                 f"organisasjonsnummer {sel['orgnr']}"
-                f"{' (' + sel['navn'] + ')' if sel['navn'] else ''}."),
+                f"{' (' + vist_navn + ')' if vist_navn else ''}."),
             jsonld=jsonld_selskap(sel, felles.vilkaar),
             proveniens_tekst=proveniens(
                 felles.eierskap_dato, _hentet("eierskap"),
@@ -8365,10 +8459,10 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
             sidetype="Selskap",
             undertittel=(f"{orgnr}{SKILLE}"
                          f"{visningsord.antall(sel['lokaliteter_antall'], 'lokalitet', 'lokaliteter')}"),
-            soketekst=sel["navn"] or orgnr,
+            soketekst=vist_navn or orgnr,
             main_klasse="fullbredde",
             feed=f"/selskap/{orgnr}/feed.xml",
-            feed_tittel=f"Kystloggen: endringer for {sel['navn'] or orgnr}"),
+            feed_tittel=f"Kystloggen: endringer for {vist_navn or orgnr}"),
     )
     return skriv_side(rot / "selskap" / orgnr / "index.html", html)
 

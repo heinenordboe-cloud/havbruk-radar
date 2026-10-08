@@ -24,7 +24,9 @@
     </ol>
   </nav>
 
-  <h1><span data-navn>{{ sel.navn or sel.orgnr }}</span></h1>
+  {# Navnet i menneskelig form. Den rå verdien står i registerfeltene
+     og i siteringen nederst — se `visningsord.selskapsnavn()`. #}
+  <h1><span data-navn>{{ sel.navn|selskapsnavn or sel.orgnr }}</span></h1>
   <p class="lok-undertittel">
     {# ORGANISASJONSNUMMERET GRUPPERES ALDRI. `NI_SIFFER` i
        publiseringsvakten er «ni siffer på rad», og «912 345 678» ville
@@ -73,18 +75,10 @@
     {% endif %}
   </dl>
 
-  <p class="knapperad">
-    <a class="knapp knapp--tynn" href="feed.xml">Følg selskapet (feed)</a>
-    <a class="knapp knapp--tynn" href="#siter">Siter</a>
-    <a class="knapp knapp--tynn" href="{{ sel.enhetsregisteret_url }}">Enhetsregisteret ↗</a>
-  </p>
-</div>
-{% endblock %}
-
-{% block innhold %}
-
-<section class="ark seksjon">
-  <p class="historikk-forklaring">
+  {# HVA TALLENE OVER GJELDER. Forbeholdet sto som første avsnitt i
+     innholdet til 08.10.2026; det hører til tallene, og står nå rett
+     under dem. #}
+  <p class="sidehode-note">
     Siden viser bare tillatelser der <strong>dette</strong>
     organisasjonsnummeret står som eier i registeret, etter
     eierskapsøyeblikksbildet
@@ -92,7 +86,16 @@
     En tillatelse der kilden ikke oppgir eier havner ikke her — den står
     på lokalitetssiden sin, merket som ugjort rede for.
   </p>
-</section>
+
+  <ul class="handlinger" aria-label="Følg, siter og slå opp">
+    <li><a class="handling" href="feed.xml">Følg selskapet (feed)</a></li>
+    <li><a class="handling" href="#siter">Siter</a></li>
+    <li><a class="handling" href="{{ sel.enhetsregisteret_url }}">Enhetsregisteret ↗</a></li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block innhold %}
 
 {# ---------------------------------------------------------------- 0
    VESENTLIGE ENDRINGER, de samme som tallet i overskriften teller.
@@ -106,17 +109,29 @@
     </div>
   </div>
   {% if sel.endringer %}
+  {# DE NYESTE STÅR ÅPENT, resten bak et klikk. Briefen setter
+     «vesentlige endringer» øverst på selskapssiden, og til 08.10.2026
+     sto alle bak «Vis alle 83» — siden svarte ikke på spørsmålet uten
+     et klikk. Lista er DELT, ikke gjentatt: de eldre står i sin egen
+     tabell under, og ingen rad står to ganger. #}
   {% set lang = sel.endringer|length > sel.aapen_liste %}
-  {% if lang %}<details class="tallboks liste-lukket">
-    <summary>Vis {{ alle(sel.endringer|length, "endringen", "endringene")|lower }}</summary>{% endif %}
-  <p class="tabelltittel" id="endringer-selskap-liste-tittel">{{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
-      på selskapets lokaliteter og tillatelser
-      {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
-      <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %},
-      nyest først.</p>
+  {% set forste = sel.endringer[:sel.nyeste_endringer] if lang else sel.endringer %}
+  {% set eldre = sel.endringer[sel.nyeste_endringer:] if lang else [] %}
+  {% macro endringsrad(e) %}
+      <tr>
+        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
+        <td data-felt="entity_id">
+          {%- if e.lokalitet %}<a href="/lokalitet/{{ e.lokalitet }}/">{{ e.lokalitetsnavn or e.gjelder }}</a>
+          {%- else %}{{ e.gjelder }}{% endif %}</td>
+        <td data-felt="endringstekst">{{ e.etikett }}</td>
+        <td data-felt="{{ e.fra_felt }}">{{ e.fra or VERDI_MANGLER }}</td>
+        <td data-felt="{{ e.til_felt }}">{{ e.til or VERDI_MANGLER }}</td>
+      </tr>
+  {% endmacro %}
+  {% macro endringstabell(id, rader) %}
   <div class="tabellramme" role="region"
-       aria-labelledby="endringer-selskap-liste-tittel" tabindex="0">
-  <table id="endringer-selskap-liste" aria-labelledby="endringer-selskap-liste-tittel">
+       aria-labelledby="{{ id }}-tittel" tabindex="0">
+  <table id="{{ id }}" class="selskapslogg" aria-labelledby="{{ id }}-tittel">
     <thead>
       <tr>
         <th scope="col">Observert</th>
@@ -127,21 +142,30 @@
       </tr>
     </thead>
     <tbody>
-      {% for e in sel.endringer %}
-      <tr>
-        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
-        <td data-felt="entity_id">
-          {%- if e.lokalitet %}<a href="/lokalitet/{{ e.lokalitet }}/">{{ e.lokalitetsnavn or e.gjelder }}</a>
-          {%- else %}{{ e.gjelder }}{% endif %}</td>
-        <td data-felt="endringstekst">{{ e.etikett }}</td>
-        <td data-felt="{{ e.fra_felt }}">{{ e.fra or VERDI_MANGLER }}</td>
-        <td data-felt="{{ e.til_felt }}">{{ e.til or VERDI_MANGLER }}</td>
-      </tr>
-      {% endfor %}
+      {% for e in rader %}{{ endringsrad(e) }}{% endfor %}
     </tbody>
   </table>
   </div>
-  {% if lang %}</details>{% endif %}
+  {% endmacro %}
+  <p class="tabelltittel" id="endringer-selskap-liste-tittel">
+      {#- INGEN NYE TALL. «De 5 nyeste» og «de 78 eldre» ville vært tall
+          siden ikke hadde fra før — regnet av oss, ikke lest av kilden.
+          Tabellen viser hvor mange som står åpent; summaryen viser til
+          det samlede tallet som alt står i nøkkeltallene. #}
+      {%- if lang %}De nyeste av {{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
+      {%- else %}{{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}{% endif %}
+      på selskapets lokaliteter og tillatelser
+      {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
+      <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %},
+      nyest først.</p>
+  {{ endringstabell("endringer-selskap-liste", forste) }}
+  {% if eldre %}
+  <details class="tallboks liste-lukket">
+    <summary>Vis resten av de {{ antall(sel.endringer|length, "vesentlige endringen", "vesentlige endringene") }}</summary>
+    <p class="tabelltittel" id="endringer-selskap-eldre-tittel">De eldre vesentlige endringene, nyest først.</p>
+    {{ endringstabell("endringer-selskap-eldre", eldre) }}
+  </details>
+  {% endif %}
   {% else %}
   <p class="tomt">
     Ingen vesentlige endringer på selskapets lokaliteter og tillatelser
@@ -189,9 +213,9 @@
         <tr>
           <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
           <td data-felt="navn">
-            <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn }}</a>
+            <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn|tittelform }}</a>
           </td>
-          <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune|tittelform or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(l.po_kode, 'prodomraade_kode') }}">
             {%- if l.po_kode %}<a href="/produksjonsomrade/{{ l.po_kode }}/">{{ l.po_kode }} {{ l.po_navn }}</a>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
@@ -322,7 +346,7 @@
         {# Se lokalitetssiden: et navn med personform-endelse vises,
            men gjøres ikke søkbart. #}
         <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"
-            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
+            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn|selskapsnavn }}</td>
         {% else %}
         <td>—</td>
         {% endif %}
@@ -411,8 +435,12 @@
   {% endif %}
 </section>
 
+{# FORBEHOLDENE BAK ET KLIKK, ikke borte. Briefen: et forbehold kan
+   legges ett klikk unna, men det skal finnes på siden. Tittelen sier hva
+   som ligger bak. #}
 <section class="ark seksjon" aria-labelledby="hva-siden-ikke-sier">
-  <h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
+  <details class="tallboks forbehold">
+  <summary><h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2></summary>
   <p>
     <strong>Ingenting om konsern.</strong> At to selskaper har samme
     mor, er ikke noe eierskapsregisteret oppgir, og å utlede det av
@@ -434,6 +462,7 @@
     sjøen. Hvor mye fisk som faktisk er der, finnes offentlig bare per
     produksjonsområde — se områdesidene.
   </p>
+  </details>
 </section>
 
 <section class="ark" id="siter" aria-labelledby="siter-tittel">

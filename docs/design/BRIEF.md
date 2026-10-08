@@ -97,21 +97,16 @@ kapasitet som flytter seg — blir en egen post med beskrivende adresse:
 
 ## Sider og jobb
 
-> Tabellen fra planleggingen var ikke med i oppdraget da denne fila ble
-> skrevet. Det under er satt opp etter sidene slik de er bygget
-> 08.10.2026 og punktene i oppdraget; Heine bør lese den over og rette
-> der planleggingen sa noe annet.
-
-| Side | Jobben | Øverst | Lenger ned |
+| Side | Svarer på | Øverst | Lenger ned |
 |---|---|---|---|
-| Forside | Bevis + inngang | Hero med ekte anlegg, ukas endringer over bretten | Arkivtall, kart over kysten, følg med (feed), kontakt |
-| Uke `/endringer/<år>-<uke>/` | Hva skjedde denne uka | Tre faktasetninger om ukas vesentlige endringer (eierskifter, fisk til stede, kapasitet) | Endringene gruppert etter type, tekniske endringer, nedlasting, siter |
-| Lokalitet | Inngang: «hva har skjedd her» | Navn, én oppsummeringssetning av målte fakta, tilstand nå | Endringer vi har sett, lusetall, fisk til stede, tillatelser, registerfelt, registerets egen historikk, siter |
-| Selskap | Inngang: «hva eier de, hva har endret seg» | Sammendrag: antall lokaliteter, samlet kapasitet per enhet, vesentlige endringer siste kvartal | Endringer, lokalitetslista (lukket eller paginert), tillatelser, registerfelt, siter |
-| Område | Hva gjelder her | Trafikklysfargen nå og når den ble satt | Fargehistorikk, forskrift, lokaliteter i området, endringer |
-| Indekser (lokaliteter, selskaper, områder) | Finne fram | Søk / filter | Lista, paginert slik at ingen side er over 10 000 px på 390 |
-| Søk | Finne fram | Søkefeltet | Treff |
-| Om | Bevis: metode og kilder | Hva Kystloggen er, i én setning | Kilder og vilkår, metode, forbehold, kontakt |
+| Forside | Hva er dette, hva skjedde nå, kan jeg stole på det? | Én setning om hva vi er, ukas viktigste 3–5 endringer, søk | Arkivtall, kart, følg med |
+| Uke | Hva skjedde denne uka? | Sammendrag, vesentlige endringer | Tekniske endringer, selskapsdata, nedlasting, sitering |
+| Lokalitet | Tilstand, og hva har skjedd? | Oppsummering, tilstand, kart, siste vesentlige endringer | Lus, tillatelser, registerfelt, kildens historikk |
+| Selskap | Hva eier de, hva har endret seg? | Sammendrag, vesentlige endringer | Lokalitetsliste, historikk |
+| Område | Hvordan ser området ut, hvem er der? | Farge, kapasitet per selskap, beholdningsgraf | Kilder for fargen, runder |
+| Indekser | Finn det jeg leter etter | Søk og filter | Tabell med sider |
+| Søk | Finn alt | Søkefelt | — |
+| Om | Hvem, hvordan, kan jeg stole på det? | Hva og hvem i tre avsnitt | Metode, kilder, lisens, sitering, kontakt |
 
 ## Lengde
 

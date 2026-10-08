@@ -853,3 +853,168 @@ def test_moerk_modus_i_systemet_gir_den_samme_lyse_siden(side, tjener):
             " getComputedStyle(document.body).color]")
     side.emulate_media(color_scheme="light")
     assert farger["dark"] == farger["light"]
+
+
+# ---- verktøytipset på kart og grafer ----------------------------------
+#
+# Tegnet av `maler/kystloggen.js`. Prøvene måler det leseren klaget på
+# 08.10.2026 — tipset la seg over bildeteksten — og det regelen krever:
+# alt som kan holdes over med mus, kan nås med tastatur.
+
+def _boks(side, velger):
+    return side.evaluate(
+        "v => { const b = document.querySelector(v).getBoundingClientRect();"
+        " return [b.left, b.top, b.right, b.bottom]; }", velger)
+
+
+def _innenfor(indre, ytre, slakk=1):
+    return (indre[0] >= ytre[0] - slakk and indre[1] >= ytre[1] - slakk
+            and indre[2] <= ytre[2] + slakk and indre[3] <= ytre[3] + slakk)
+
+
+def _overlapper(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+KARTPUNKT = (
+    ("/lokalitet/31397/", "svg.posisjonskart", ".kart-naboer a"),
+    ("/produksjonsomrade/4/", "svg.omraadekart", ".kart-naboer a"),
+    ("/", "svg.kystkart", ".kart-omraader a"),
+)
+
+
+@pytest.mark.parametrize("bredde", (BREDDE, 1440))
+@pytest.mark.parametrize("sti,kart,punkt", KARTPUNKT)
+def test_tipset_staar_i_kartet_og_aldri_over_bildeteksten(
+        side, tjener, sti, kart, punkt, bredde):
+    side.set_viewport_size({"width": bredde, "height": 844})
+    side.goto(tjener + sti, wait_until="load")
+    lenker = side.locator(f"{kart} {punkt}")
+    assert lenker.count() > 0, f"{sti}: ingen punkter i {kart}"
+    # NETTLESERENS EGET TIPS ER BORTE, NAVNET ER IKKE: `<title>` er
+    # flyttet til `aria-label` på lenka.
+    assert side.locator(f"{kart} {punkt} > title").count() == 0
+    navn = lenker.first.get_attribute("aria-label")
+    assert navn
+    # Midt i det midterste punktet: et område kan være en ring, og
+    # midten av boksen ligger da utenfor den.
+    lenker.nth(lenker.count() // 2).hover()
+    tips = side.locator(".verktoytips:visible")
+    assert tips.count() == 1, f"{sti}: tipset vises ikke under pekeren"
+    tb = _boks(side, ".verktoytips:not([hidden])")
+    assert _innenfor(tb, _boks(side, kart)), f"{sti}: tipset er utenfor kartet"
+    ramme = side.locator(kart).locator("xpath=ancestor::figure[1]")
+    if ramme.locator("figcaption").count():
+        fb = ramme.locator("figcaption").first.bounding_box()
+        assert not _overlapper(tb, [fb["x"], fb["y"], fb["x"] + fb["width"],
+                                    fb["y"] + fb["height"]]), (
+            f"{sti}: tipset dekker bildeteksten")
+    side.mouse.move(0, 0)
+    assert side.locator(".verktoytips:visible").count() == 0
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+
+
+@pytest.mark.parametrize("sti,kart,punkt", KARTPUNKT)
+def test_kartpunktet_gir_tipset_ogsaa_med_tastaturet(side, tjener, sti, kart, punkt):
+    side.goto(tjener + sti, wait_until="load")
+    lenke = side.locator(f"{kart} {punkt}").first
+    lenke.focus()
+    tips = side.locator(".verktoytips:visible")
+    assert tips.count() == 1, f"{sti}: fokus gir ikke tips"
+    assert tips.inner_text() == lenke.get_attribute("aria-label")
+    side.evaluate("document.activeElement.blur()")
+    assert side.locator(".verktoytips:visible").count() == 0
+
+
+@pytest.mark.parametrize("sti", ("/lokalitet/31397/", "/produksjonsomrade/4/"))
+def test_grafen_kan_leses_soyle_for_soyle_med_piltastene(side, tjener, sti):
+    """Søylene er ikke tabulatorstopp — 765 av dem ville vært en felle.
+    Grafen er ett stopp, og piltastene går gjennom søylene. Verdien står
+    i en statuslinje som en skjermleser leser."""
+    side.goto(tjener + sti, wait_until="load")
+    graf = side.locator("svg.lusegraf").first
+    assert graf.get_attribute("tabindex") == "0"
+    graf.focus()
+    aktiv = side.locator("svg.lusegraf rect.aktiv")
+    assert aktiv.count() == 1
+    siste = aktiv.get_attribute("data-tips")
+    status = graf.locator("xpath=ancestor::figure[1]").locator('[role="status"]')
+    assert status.inner_text() == siste
+    side.keyboard.press("ArrowLeft")
+    assert aktiv.count() == 1
+    forrige = aktiv.get_attribute("data-tips")
+    assert forrige != siste and status.inner_text() == forrige
+    assert side.locator(".verktoytips:visible").inner_text() == forrige
+    side.keyboard.press("End")
+    assert aktiv.get_attribute("data-tips") == siste
+
+
+# ---- lenkeradene på 390 -------------------------------------------------
+
+_LINJER_I = """sel => [...document.querySelectorAll(sel)].map(e => {
+  const topp = [];
+  const tw = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+  for (let t = tw.nextNode(); t; t = tw.nextNode()) {
+    if (!t.textContent.trim()) continue;
+    const r = document.createRange(); r.selectNodeContents(t);
+    for (const x of r.getClientRects()) if (x.width > 1) topp.push(x.top);
+  }
+  topp.sort((a, b) => a - b);
+  const terskel = parseFloat(getComputedStyle(e).fontSize) * 0.8;
+  let linjer = topp.length ? 1 : 0;
+  for (let i = 1; i < topp.length; i++) if (topp[i] - topp[i - 1] > terskel) linjer++;
+  const b = e.getBoundingClientRect();
+  return [e.textContent.trim().replace(/\\s+/g, ' '), linjer, b.right <= innerWidth + 0.5];
+})"""
+
+
+@pytest.mark.parametrize("sti", ("/lokalitet/45140/", "/selskap/921668236/",
+                                 "/produksjonsomrade/4/", "/endringer/2026-41/",
+                                 "/selskap/", "/lokalitet/"))
+def test_lenkeradene_brytes_mellom_lenkene_ikke_inni_dem(side, tjener, sti):
+    """Gjennomgangen 08.10.2026: på 390 skal en lenkerad brytes per lenke,
+    ikke midt i en. Verktøylinja, hvert ytterpunkt i sidenavigasjonens
+    spenn og hvert ledd i brødsmula er én linje, og ingen stikker ut av
+    skjermen."""
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + sti, wait_until="load")
+    for velger in (".handling", ".sidenav-ende", ".sti li"):
+        for tekst, linjer, innenfor in side.evaluate(_LINJER_I, velger):
+            assert linjer == 1, f"{sti}: «{tekst}» er brutt over {linjer} linjer"
+            assert innenfor, f"{sti}: «{tekst}» stikker ut av skjermen"
+
+
+def test_filene_paa_lokalitetssiden_brytes_ned_sammen(side, tjener):
+    """«Excel» og «Data» er én gruppe: står de ikke på linja med «Følg»,
+    står de på neste linje sammen, ikke én og én."""
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + "/lokalitet/45140/", wait_until="load")
+    topper = side.evaluate("""() => [...document.querySelectorAll(
+        '.handlinger .handling--last')].map(e => Math.round(e.getBoundingClientRect().top))""")
+    assert len(topper) == 2 and topper[0] == topper[1], topper
+
+
+
+def test_tilstanden_staar_ved_siden_av_navnet_paa_bred_skjerm(side, tjener):
+    """Gjennomgangen 08.10.2026: på 1440 sto det et tomrom til høyre for
+    navn og oppsummering, og tilstanden begynte først under. Nå står den
+    i høyre spalte fra toppen. På telefon står den under tittelblokken."""
+    def boks(velger):
+        return side.locator(velger).first.bounding_box()
+    side.set_viewport_size({"width": 1440, "height": 900})
+    side.goto(tjener + "/lokalitet/45140/", wait_until="load")
+    h1, tilstand = boks("h1"), boks(".lok-tilstand")
+    assert tilstand["y"] < h1["y"] + h1["height"], (h1, tilstand)
+    assert tilstand["x"] > h1["x"] + h1["width"], (h1, tilstand)
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + "/lokalitet/45140/", wait_until="load")
+    rad, tilstand = boks(".lok-hode .handlinger"), boks(".lok-tilstand")
+    assert tilstand["y"] >= rad["y"] + rad["height"], (rad, tilstand)
+
+
+def test_ukesidens_hovedsetning_staar_over_faktalista(side, tjener):
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + "/endringer/2026-41/", wait_until="load")
+    hoved = side.locator(".uke-sammendrag > p").first.bounding_box()
+    fakta = side.locator(".uke-fakta").first.bounding_box()
+    assert hoved["y"] + hoved["height"] <= fakta["y"], (hoved, fakta)

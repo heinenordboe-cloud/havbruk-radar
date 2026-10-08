@@ -10,6 +10,16 @@
     <li aria-current="page">Selskaper</li>
   </ol>
 </nav>
+{# «INNEHAVERE», IKKE «SELSKAPER». Lista er bygget av hvem som EIER en
+   tillatelse i eierskapsregisteret, ikke av hvem som er et selskap: et
+   selskap i næringskodeuttrekket vårt uten tillatelse står ikke her.
+   Menyen sier fortsatt «Selskaper» — det er navnet på rommet, og en
+   meny som byttet ord ville flyttet en URL i leserens hode. #}
+<h1>Alle innehavere av akvakulturtillatelse</h1>
+<p class="lok-undertittel">
+  {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse i eierskapsøyeblikksbildet
+  <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato }}</time>.
+</p>
 {# SØKET, øverst på hver side i lista. Samme skjema som /sok/: det
    søker i hele nettstedet, ikke bare på denne siden, og uten
    JavaScript viser /sok/ veien til lista. #}
@@ -23,27 +33,21 @@
 {% endblock %}
 
 {% block innhold %}
-{# «INNEHAVERE», IKKE «SELSKAPER». Lista er bygget av hvem som EIER en
-   tillatelse i eierskapsregisteret, ikke av hvem som er et selskap: et
-   selskap i næringskodeuttrekket vårt uten tillatelse står ikke her.
-   Menyen sier fortsatt «Selskaper» — det er navnet på rommet, og en
-   meny som byttet ord ville flyttet en URL i leserens hode. #}
-<h1>Alle innehavere av akvakulturtillatelse</h1>
 
-<p>
-  {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse i eierskapsøyeblikksbildet
-  <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato }}</time>.
-  {% if d.side and d.side.antall > 1 %}Lista er delt i {{ antall(d.side.antall, "side", "sider") }},
-  sortert på navn. Søkefeltet øverst søker i alle.{% endif %}
+{% if d.side and d.side.antall > 1 %}
+<p class="historikk-forklaring">
+  Lista er delt i {{ antall(d.side.antall, "side", "sider") }},
+  sortert på navn. Søkefeltet øverst søker i alle.
 </p>
-<p>
+{% endif %}
+<p class="historikk-forklaring">
   {{ d.uten_registerdata }} av dem har vi ingen registerdata
   for. Uttrekket vårt fra Enhetsregisteret er avgrenset til et
   sett næringskoder, og et selskap som eier en tillatelse uten å ha en av
   dem faller utenfor. De har side likevel, og siden sier hva som mangler.
 </p>
 {% if d.personeiere %}
-<p>
+<p class="historikk-forklaring">
   {{ d.personeiere }} eier(e) står ikke i lista og har ingen
   side. Kilden klassifiserer dem som person — et partrederi
   eller en annen personlig sammenslutning — og verken dette nettstedet
@@ -72,7 +76,7 @@
     {% for r in d.rader %}
     <tr>
       <th scope="row"><a href="/selskap/{{ r.orgnr }}/">{{ r.orgnr }}</a></th>
-      <td class="eier" data-felt="eier_navn">{{ r.navn }}</td>
+      <td class="eier" data-felt="eier_navn">{{ r.navn|selskapsnavn }}</td>
       <td class="tall" data-felt="tillatelser_antall">{{ r.tillatelser }}</td>
       <td class="tall" data-felt="lokaliteter_antall">{{ tall(r.lokaliteter) }}</td>
       <td data-felt="har_registerdata">{{ "ja" if r.har_registerdata else "nei" }}</td>

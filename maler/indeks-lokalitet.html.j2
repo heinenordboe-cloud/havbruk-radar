@@ -21,9 +21,16 @@
     <li aria-current="page">Lokaliteter</li>
   </ol>
 </nav>
-{# SØKET, øverst på hver side i lista. Samme skjema som /sok/: det
-   søker i hele nettstedet, ikke bare på denne siden, og uten
-   JavaScript viser /sok/ veien til lista. #}
+{# TITTELEN, TALLET OG SØKET I SIDEHODET. Til 08.10.2026 sto søkefeltet
+   over tittelen og tittelen i innholdet under det: siden begynte med et
+   skjema uten å si hva den var. Briefen: «søk og filter» øverst. #}
+<h1>Alle akvakulturlokaliteter</h1>
+<p class="lok-undertittel">
+  {{ antall(d.antall, "lokalitet", "lokaliteter") }} i Akvakulturregisteret, øyeblikksbilde
+  <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
+</p>
+{# SØKET. Samme skjema som /sok/: det søker i hele nettstedet, ikke bare
+   på denne siden, og uten JavaScript viser /sok/ veien til lista. #}
 <form class="sok sok--side" action="/sok/" method="get" role="search">
   <label for="q">Søk etter lokalitet, kommune eller selskap</label>
   <input id="q" name="q" type="search" autocomplete="off"
@@ -34,11 +41,7 @@
 {% endblock %}
 
 {% block innhold %}
-<h1>Alle akvakulturlokaliteter</h1>
-
-<p>
-  {{ antall(d.antall, "lokalitet", "lokaliteter") }} i Akvakulturregisteret, øyeblikksbilde
-  <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
+<p class="historikk-forklaring">
   {% if d.side and d.side.antall > 1 %}Lista er delt i {{ antall(d.side.antall, "side", "sider") }}
   sortert på lokalitetsnummer. Søkefeltet øverst søker i alle.
   {% else %}Hele lista står på denne siden.{% endif %}
@@ -70,9 +73,9 @@
     {% for r in d.rader %}
     <tr>
       <th scope="row"><a href="/lokalitet/{{ r.loknr }}/">{{ r.loknr }}</a></th>
-      <td class="eier" data-felt="navn">{{ r.navn }}</td>
-      <td data-felt="kommune">{{ r.kommune }}</td>
-      <td data-felt="fylke">{{ r.fylke }}</td>
+      <td class="eier" data-felt="navn">{{ r.navn|tittelform }}</td>
+      <td data-felt="kommune">{{ r.kommune|tittelform }}</td>
+      <td data-felt="fylke">{{ r.fylke|tittelform }}</td>
       <td data-felt="prodomraade_kode">
         {% if r.po_kode %}<a href="/produksjonsomrade/{{ r.po_kode }}/">{{ r.po_kode }}</a>{% endif %}
       </td>
@@ -127,8 +130,8 @@
     {% for l in d.uten_koordinater %}
     <tr>
       <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
-      <td class="eier" data-felt="navn">{{ l.navn }}</td>
-      <td data-felt="kommune">{{ l.kommune }}</td>
+      <td class="eier" data-felt="navn">{{ l.navn|tittelform }}</td>
+      <td data-felt="kommune">{{ l.kommune|tittelform }}</td>
     </tr>
     {% endfor %}
   </tbody>

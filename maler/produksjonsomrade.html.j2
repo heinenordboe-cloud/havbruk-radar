@@ -42,142 +42,31 @@
     {{ antall(po.selskaper_antall, "selskap", "selskaper") }}
   </p>
 
-  <p class="knapperad">
-    <a class="knapp knapp--tynn" href="feed.xml">Følg området (feed)</a>
-    <a class="knapp knapp--tynn" href="#siter">Siter</a>
-  </p>
+  <ul class="handlinger" aria-label="Følg og siter">
+    <li><a class="handling" href="feed.xml">Følg området (feed)</a></li>
+    <li><a class="handling" href="#siter">Siter</a></li>
+  </ul>
 
-  {# TRAFIKKLYSET, STORT. Én blokk per runde, med fargeord, belegg og
-     lenke til forskriften.
-
-     FYLLET SIER BELEGGET: heltrukket når fargeordet står i
-     bestemmelsen, tonet med kant når fargen er utledet av
-     kapittelplasseringen, stiplet underkant når fargen står i
-     departementets kunngjøring og ikke i forskriften, skravert når
-     ingen av dem sier noe. MÅLT 23.09.2026: den siste finnes ikke
-     lenger — alle 65 cellene har en farge — men ruta blir stående,
-     fordi en 2028-runde som ikke er lest ennå skal se ut som det.
-     ORDET STÅR UANSETT — farge bærer aldri mening alene. #}
-  <section class="runder" aria-labelledby="runder-tittel">
-    <h2 class="etikett" id="runder-tittel">
+  {# FARGEN NÅ, kompakt. Briefens tabell setter «farge» øverst på
+     områdesiden og «kilder for fargen, runder» lenger ned. Til
+     08.10.2026 sto hele trafikklyset — fem rundekort, tegnforklaring
+     per runde, departementets særskilte vurderinger og fyllnøkkelen — i
+     sidehodet, og grafen begynte etter en skjermhøyde. Her står fargen
+     som gjelder nå, fargen i hver runde, og noten om hvor fargen er lest
+     fra. Kildene, runde for runde, står i «Kildene for fargen» under. #}
+  <section class="fargen-naa" aria-labelledby="fargen-tittel">
+    <h2 class="etikett" id="fargen-tittel">
       Trafikklys {{ po.runder[0].aar }}–{{ po.runder[-1].aar }}
     </h2>
-    <ol class="rundeliste">
+    <ol class="rundestripe">
       {% for r in po.runder %}
-      <li class="runde runde--{{ r.lesemaate or 'ingen' }} {{ r.farge_klasse }}">
+      <li class="runde--{{ r.lesemaate or 'ingen' }} {{ r.farge_klasse }}">
         <span class="runde-flate" aria-hidden="true"></span>
-        <p class="runde-aar"><time datetime="{{ r.aar }}">{{ r.aar }}</time></p>
-        {# MERKINGEN SKILLER «rød» fra «ikke oppgitt», og den står her
-           selv om dette ikke er en tabellcelle: `FELTMERKE` leser
-           `data-felt` på hvilket som helst element. Blandes de to i
-           markupen, kan ingen maskin se forskjell på en farge og
-           fraværet av en. Samme konstruksjon som `eier_ukjent`. #}
-        <p class="runde-farge" data-felt="{{ r.farge_felt }}">{{ r.farge }}</p>
-        <p class="runde-belegg">{{ r.lesemaate_tekst }}</p>
-        {# DE ANDRE KILDENE SOM SIER DET SAMME.
-           En celle der to uavhengige dokumenter er enige, er bedre
-           belagt enn en der bare ett sier noe — og det er nettopp den
-           opplysningen en rangering uten liste ville kastet.
-           En UENIGHET vises som en uenighet; MÅLT 23.09.2026 finnes
-           ingen. #}
-        {% for e in r.ellers %}
-        <p class="runde-ellers{% if not e.enig %} runde-ellers--uenig{% endif %}">
-          {% if e.enig %}også{% else %}men{% endif %}
-          {{ e.kilde }}:
-          <span data-felt="farge">{{ e.farge }}</span>,
-          {{ e.lesemaate_tekst }}
-        </p>
-        {% endfor %}
-        {% if r.sitat %}
-        {# SITATET STÅR PÅ SIDEN, ikke bare i koden. En farge som ikke
-           kan slås opp i Lovtidend må kunne etterprøves her, og da er
-           setningen som bærer den det eneste belegget. #}
-        <details class="runde-sitat">
-          <summary>Fra kunngjøringen
-            <time datetime="{{ r.sitat_dato }}">{{ r.sitat_dato|dato }}</time>
-          </summary>
-          <blockquote data-felt="beslutningssitat">{{ r.sitat }}</blockquote>
-          {% if r.sitat_url %}
-          <p class="runde-kilde"><a href="{{ r.sitat_url }}">regjeringen.no ↗</a></p>
-          {% endif %}
-        </details>
-        {% elif r.forskrift %}
-        <p class="runde-kilde">
-          <a href="{{ r.forskrift.url }}">{{ r.forskrift.id }} ↗</a>
-        </p>
-        {% endif %}
+        <time datetime="{{ r.aar }}">{{ r.aar }}</time>
+        <span class="rundestripe-farge">{{ r.farge }}</span>
       </li>
       {% endfor %}
     </ol>
-
-    {# TEGNFORKLARING PER RUNDE, og det er ikke pedanteri.
-       I 2018 ble de RØDE områdene ikke trukket ned: «Det er tidligere
-       besluttet at kapasiteten i de røde områdene ikke skal reduseres i
-       denne runden.» En felles forklaring med «rød = ned 6 %» ville
-       vært en påstand om et forvaltningsvedtak.
-
-       Der faktaboksen i samme melding sier noe ANNET, står begge —
-       merket med hvor de står. Se `beslutning.tegnforklaring()`. #}
-    <div class="rundefakta">
-      <h3 class="etikett">Hva fargen betød i hver runde</h3>
-      <dl class="rundefakta-liste">
-        {% for r in po.rundeopplysninger %}
-        {% if r.tegn %}
-        <dt>
-          <time datetime="{{ r.aar }}">{{ r.aar }}</time>
-          <span class="rundefakta-kilde">{{ r.type|lower }}
-            <time datetime="{{ r.dato }}">{{ r.dato|dato }}</time>
-            {% if r.url %}· <a href="{{ r.url }}">regjeringen.no ↗</a>{% endif %}
-          </span>
-        </dt>
-        <dd>
-          <ul class="tegnforklaring">
-            {% for t in r.tegn %}
-            <li>
-              <span class="rute rute--ordrett {{ t.klasse }}"></span>
-              <span data-felt="farge">{{ t.farge_vist }}</span> —
-              {{ t.tekst }}
-              <span class="rundefakta-hvor">({{ t.hvor }})</span>
-              {% if t.avvik %}
-              <span class="rundefakta-avvik">{{ t.avvik_hvor }} i samme
-                melding sier <strong>{{ t.avvik }}</strong>; runden
-                fulgte beslutningsavsnittet.</span>
-              {% endif %}
-            </li>
-            {% endfor %}
-          </ul>
-        </dd>
-        {% endif %}
-        {% endfor %}
-      </dl>
-    </div>
-
-    <ul class="tegnforklaring" aria-label="Hva fyllet betyr">
-      <li><span class="rute rute--ordrett"></span>fargeordet står i
-        forskriften</li>
-      <li><span class="rute rute--utledet"></span>utledet av
-        kapittelplasseringen</li>
-      <li><span class="rute rute--beslutning"></span>fra departementets
-        kunngjøring, ikke fra forskriften</li>
-      <li><span class="rute rute--skravert"></span>ikke oppgitt</li>
-    </ul>
-
-    {# DEPARTEMENTETS EGEN MERKNAD om dette området. Står ordrett, med
-       dato og lenke, og uten et sammendrag foran: hvorfor en farge ble
-       som den ble, er ikke vår sak å veie. #}
-    {% for m in po.saerskilt %}
-    <div class="saerskilt">
-      <p class="etikett">Departementet vurderte området særskilt i
-        <time datetime="{{ m.aar }}">{{ m.aar }}</time></p>
-      <blockquote data-felt="beslutningssitat">{{ m.sitat }}</blockquote>
-      <p class="runde-kilde">
-        Nærings- og fiskeridepartementet,
-        <time datetime="{{ m.dato }}">{{ m.dato|dato }}</time> ·
-        <a href="{{ m.url }}">regjeringen.no ↗</a>
-      </p>
-    </div>
-    {% endfor %}
-
     <p class="rundenote">
       Fargen som <strong>gjelder nå</strong> er
       <span class="rute-foran {{ po.naa.klasse }}">{{ po.naa.farge }}</span>,
@@ -192,6 +81,7 @@
       vinner ved et sammentreff.
       {% endif %}
     </p>
+    <p class="rundenote"><a href="#kilder-for-fargen">Kildene for fargen, runde for runde</a></p>
   </section>
 </div>
 {% endblock %}
@@ -394,7 +284,7 @@
       <g class="kart-naboer" data-pagefind-ignore>
         {% for l in po.kart.lokaliteter %}
         <a href="/lokalitet/{{ l.loknr }}/">
-          <title>{{ l.navn }} — lokalitet {{ l.loknr }}</title>
+          <title>{{ l.navn|tittelform }} — lokalitet {{ l.loknr }}</title>
           <circle cx="{{ l.x }}" cy="{{ l.y }}" r="3.5"/>
         </a>
         {% endfor %}
@@ -455,9 +345,9 @@
       <tr data-sok="{{ l.sok }}">
         <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
         <td data-felt="navn">
-          <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn }}</a>
+          <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn|tittelform }}</a>
         </td>
-        <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune|tittelform or VERDI_MANGLER }}</td>
         {# INNEHAVEREN: navnet står bare der kilden ikke klassifiserer
            den som en personform. Samme regel og samme tekst som på
            lokalitetssiden — `_lokalitetens_selskap()` er det ene
@@ -466,11 +356,11 @@
         <td class="mangler" data-felt="eier_personform">{{ l.selskap.navn }}</td>
         {% elif l.selskap.url %}
         <td class="eier" data-felt="eier_navn">
-          <a href="{{ l.selskap.url }}" data-felt="eier_navn">{{ l.selskap.navn }}</a>
+          <a href="{{ l.selskap.url }}" data-felt="eier_navn">{{ l.selskap.navn|selskapsnavn }}</a>
         </td>
         {% elif l.selskap.navn %}
         <td class="eier" data-felt="eier_navn"
-            {%- if personformnavn(l.selskap.navn) %} data-pagefind-ignore{% endif %}>{{ l.selskap.navn }}</td>
+            {%- if personformnavn(l.selskap.navn) %} data-pagefind-ignore{% endif %}>{{ l.selskap.navn|selskapsnavn }}</td>
         {% else %}
         <td class="mangler" data-felt="eier_ukjent">ikke oppgitt av kilden</td>
         {% endif %}
@@ -534,8 +424,11 @@
       <tr>
         <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
         <td data-felt="{{ e.felt }}">{{ e.etikett }}</td>
-        <td data-felt="{{ feltmerke(e.fra, e.felt) }}">{{ e.fra or VERDI_MANGLER }}</td>
-        <td data-felt="{{ feltmerke(e.til, e.felt) }}">{{ e.til or VERDI_MANGLER }}</td>
+        {#- RUTA FØLGER VERDIEN, ikke feltet: «gul» får gul rute, og
+            Felt-cella, som sier HVILKET felt, får ingen. #}
+        {%- for v in (e.fra, e.til) %}
+        <td{% if fargeklasse(v) %} class="{{ fargeklasse(v) }}"{% endif %} data-felt="{{ feltmerke(v, e.felt) }}">{{ v or VERDI_MANGLER }}</td>
+        {%- endfor %}
         <td data-felt="source">{{ kilde(e.kilde) }}</td>
       </tr>
       {% endfor %}
@@ -568,7 +461,7 @@
       {% for h in po.i_omraadet %}
       <tr>
         <td data-felt="observed_at"><time datetime="{{ h.dato }}">{{ h.dato }}</time></td>
-        <td data-felt="{{ h.gjelder_felt }}">
+        <td class="gjelder" data-felt="{{ h.gjelder_felt }}">
           {%- if h.gjelder_url %}<a href="{{ h.gjelder_url }}" data-felt="{{ h.gjelder_felt }}">{{ h.gjelder }}</a>
           {%- else %}{{ h.gjelder or VERDI_MANGLER }}{% endif %}
         </td>
@@ -604,9 +497,141 @@
 </section>
 
 {# ---------------------------------------------------------------- 4
-   FORBEHOLDENE, og siteringen. #}
-<section class="ark seksjon" aria-labelledby="hvor-sterkt">
-  <h2 id="hvor-sterkt">Hvor sterkt fargen er belagt</h2>
+   KILDENE FOR FARGEN. Én blokk per runde, med fargeord, belegg og
+     lenke til forskriften. Sto i sidehodet til 08.10.2026.
+
+     FYLLET SIER BELEGGET: heltrukket når fargeordet står i
+     bestemmelsen, tonet med kant når fargen er utledet av
+     kapittelplasseringen, stiplet underkant når fargen står i
+     departementets kunngjøring og ikke i forskriften, skravert når
+     ingen av dem sier noe. MÅLT 23.09.2026: den siste finnes ikke
+     lenger — alle 65 cellene har en farge — men ruta blir stående,
+     fordi en 2028-runde som ikke er lest ennå skal se ut som det.
+     ORDET STÅR UANSETT — farge bærer aldri mening alene. #}
+<section class="ark seksjon runder" id="kilder-for-fargen" aria-labelledby="runder-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Trafikklys {{ po.runder[0].aar }}–{{ po.runder[-1].aar }}</p>
+      <h2 id="runder-tittel">Kildene for fargen</h2>
+    </div>
+  </div>
+    <ol class="rundeliste">
+      {% for r in po.runder %}
+      <li class="runde runde--{{ r.lesemaate or 'ingen' }} {{ r.farge_klasse }}">
+        <span class="runde-flate" aria-hidden="true"></span>
+        <p class="runde-aar"><time datetime="{{ r.aar }}">{{ r.aar }}</time></p>
+        {# MERKINGEN SKILLER «rød» fra «ikke oppgitt», og den står her
+           selv om dette ikke er en tabellcelle: `FELTMERKE` leser
+           `data-felt` på hvilket som helst element. Blandes de to i
+           markupen, kan ingen maskin se forskjell på en farge og
+           fraværet av en. Samme konstruksjon som `eier_ukjent`. #}
+        <p class="runde-farge" data-felt="{{ r.farge_felt }}">{{ r.farge }}</p>
+        <p class="runde-belegg">{{ r.lesemaate_tekst }}</p>
+        {# DE ANDRE KILDENE SOM SIER DET SAMME.
+           En celle der to uavhengige dokumenter er enige, er bedre
+           belagt enn en der bare ett sier noe — og det er nettopp den
+           opplysningen en rangering uten liste ville kastet.
+           En UENIGHET vises som en uenighet; MÅLT 23.09.2026 finnes
+           ingen. #}
+        {% for e in r.ellers %}
+        <p class="runde-ellers{% if not e.enig %} runde-ellers--uenig{% endif %}">
+          {% if e.enig %}også{% else %}men{% endif %}
+          {{ e.kilde }}:
+          <span data-felt="farge">{{ e.farge }}</span>,
+          {{ e.lesemaate_tekst }}
+        </p>
+        {% endfor %}
+        {% if r.sitat %}
+        {# SITATET STÅR PÅ SIDEN, ikke bare i koden. En farge som ikke
+           kan slås opp i Lovtidend må kunne etterprøves her, og da er
+           setningen som bærer den det eneste belegget. #}
+        <details class="runde-sitat">
+          <summary>Fra kunngjøringen
+            <time datetime="{{ r.sitat_dato }}">{{ r.sitat_dato|dato }}</time>
+          </summary>
+          <blockquote data-felt="beslutningssitat">{{ r.sitat }}</blockquote>
+          {% if r.sitat_url %}
+          <p class="runde-kilde"><a href="{{ r.sitat_url }}">regjeringen.no ↗</a></p>
+          {% endif %}
+        </details>
+        {% elif r.forskrift %}
+        <p class="runde-kilde">
+          <a href="{{ r.forskrift.url }}">{{ r.forskrift.id }} ↗</a>
+        </p>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+
+    {# TEGNFORKLARING PER RUNDE, og det er ikke pedanteri.
+       I 2018 ble de RØDE områdene ikke trukket ned: «Det er tidligere
+       besluttet at kapasiteten i de røde områdene ikke skal reduseres i
+       denne runden.» En felles forklaring med «rød = ned 6 %» ville
+       vært en påstand om et forvaltningsvedtak.
+
+       Der faktaboksen i samme melding sier noe ANNET, står begge —
+       merket med hvor de står. Se `beslutning.tegnforklaring()`. #}
+    <div class="rundefakta">
+      <h3 class="etikett">Hva fargen betød i hver runde</h3>
+      <dl class="rundefakta-liste">
+        {% for r in po.rundeopplysninger %}
+        {% if r.tegn %}
+        <dt>
+          <time datetime="{{ r.aar }}">{{ r.aar }}</time>
+          <span class="rundefakta-kilde">{{ r.type|lower }}
+            <time datetime="{{ r.dato }}">{{ r.dato|dato }}</time>
+            {% if r.url %}· <a href="{{ r.url }}">regjeringen.no ↗</a>{% endif %}
+          </span>
+        </dt>
+        <dd>
+          <ul class="tegnforklaring">
+            {% for t in r.tegn %}
+            <li>
+              <span class="rute rute--ordrett {{ t.klasse }}"></span>
+              <span data-felt="farge">{{ t.farge_vist }}</span> —
+              {{ t.tekst }}
+              <span class="rundefakta-hvor">({{ t.hvor }})</span>
+              {% if t.avvik %}
+              <span class="rundefakta-avvik">{{ t.avvik_hvor }} i samme
+                melding sier <strong>{{ t.avvik }}</strong>; runden
+                fulgte beslutningsavsnittet.</span>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </dd>
+        {% endif %}
+        {% endfor %}
+      </dl>
+    </div>
+
+    <ul class="tegnforklaring" aria-label="Hva fyllet betyr">
+      <li><span class="rute rute--ordrett"></span>fargeordet står i
+        forskriften</li>
+      <li><span class="rute rute--utledet"></span>utledet av
+        kapittelplasseringen</li>
+      <li><span class="rute rute--beslutning"></span>fra departementets
+        kunngjøring, ikke fra forskriften</li>
+      <li><span class="rute rute--skravert"></span>ikke oppgitt</li>
+    </ul>
+
+    {# DEPARTEMENTETS EGEN MERKNAD om dette området. Står ordrett, med
+       dato og lenke, og uten et sammendrag foran: hvorfor en farge ble
+       som den ble, er ikke vår sak å veie. #}
+    {% for m in po.saerskilt %}
+    <div class="saerskilt">
+      <p class="etikett">Departementet vurderte området særskilt i
+        <time datetime="{{ m.aar }}">{{ m.aar }}</time></p>
+      <blockquote data-felt="beslutningssitat">{{ m.sitat }}</blockquote>
+      <p class="runde-kilde">
+        Nærings- og fiskeridepartementet,
+        <time datetime="{{ m.dato }}">{{ m.dato|dato }}</time> ·
+        <a href="{{ m.url }}">regjeringen.no ↗</a>
+      </p>
+    </div>
+    {% endfor %}
+
+  <h3 id="hvor-sterkt">Hvor sterkt fargen er belagt</h3>
   <p>
     Fargen har tre ulike grader av belegg, og hver runde over sier
     hvilken som gjelder. De tre er ikke like sterke, og forskjellen er
@@ -624,8 +649,12 @@
         kapittel området er plassert i — det eneste leddet der vi tar
         et steg kilden ikke tar.</dd>
   </dl>
+</section>
 
-  <h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2>
+{# FORBEHOLDENE BAK ET KLIKK, ikke borte. Se briefen. #}
+<section class="ark seksjon" aria-labelledby="hva-siden-ikke-sier">
+  <details class="tallboks forbehold">
+  <summary><h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2></summary>
   <p>
     <strong>Ingenting om at inndelingen blir værende.</strong> Området
     er en regulatorisk inndeling, ikke en naturgitt grense. Den kan tas
@@ -651,9 +680,10 @@
     ikke blandet inn her: denne siden handler om den inndelingen som
     gjelder.
   </p>
+  </details>
 </section>
 
-<section class="ark" id="siter" aria-labelledby="siter-tittel">
+<section class="ark seksjon" id="siter" aria-labelledby="siter-tittel">
   <div class="siterboks">
     <div class="siterboks-hode">
       <h2 id="siter-tittel">Siter denne siden</h2>

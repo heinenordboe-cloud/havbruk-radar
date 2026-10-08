@@ -277,6 +277,7 @@ def _side(**overstyr) -> str:
         # er gjort rede for i eierskap. Testene under overstyrer.
         "tillatelser_oppgitt": 1,
         "tillatelser_uten_eier": 0,
+        "tillatelser_null_kapasitet": 0,
         "eier_ukjent": nettsted.EIER_UKJENT,
         "overforinger": [{
             "dato": "2018-03-13", "tillatelse": "T-D-0009",
@@ -602,10 +603,15 @@ def test_navn_er_merket_slik_publiseringsvakten_kan_se_dem():
     ja."""
     import publiseringsvakt as vakt
 
-    funnet = set(vakt.navn_i(_side()))
-    assert "SALMAR OPPDRETT AS" in funnet
-    assert "SALMAR NORD AS" in funnet
-    assert "SALMAR FARMING AS" in funnet
+    # NAVNENE STÅR I MENNESKELIG FORM på siden fra 08.10.2026 —
+    # «Salmar Oppdrett AS» — og vakten slår dem opp i sitt eget
+    # nøkkelalfabet (`navnenoekkel()`), der store og små bokstaver er det
+    # samme. Prøven spør derfor i det alfabetet: at vakten SER navnet, og
+    # at det den ser, er nøkkelen til kildens versalnavn.
+    funnet = {vakt.navnenoekkel(n) for n in vakt.navn_i(_side())}
+    assert vakt.navnenoekkel("SALMAR OPPDRETT AS") in funnet
+    assert vakt.navnenoekkel("SALMAR NORD AS") in funnet
+    assert vakt.navnenoekkel("SALMAR FARMING AS") in funnet
 
 
 def test_lokalitetsnavnet_er_merket():
@@ -1487,6 +1493,29 @@ def test_celle_uten_farge_SIER_det():
     assert len(nettsted.FARGE_MANGLER) < 20, "cellen setter kolonnebredden"
 
 
+def test_vedtakstabellen_gir_fargeordet_fyll_og_feltnavnet_ingen_rute():
+    """Fra og Til er farger og får fyll; Felt-cella sier HVILKET felt
+    («Farge») og får ingen rute. Til 08.10.2026 sto tre tomme ruter på
+    hver rad, og på 390 så de ut som avkrysningsbokser."""
+    html = _po()
+    tabell = html[html.index('id="trafikklysvedtak-endringer"'):]
+    tabell = tabell[:tabell.index("</table>")]
+    assert '<td class="lys-rod" data-felt="farge">rød</td>' in tabell
+    assert '<td class="lys-gul" data-felt="farge">gul</td>' in tabell
+    assert '<td data-felt="farge">Farge</td>' in tabell
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    assert ('td:where([data-felt="farge"], [data-felt="prodomraade_status"])'
+            ':where(.lys-rod, .lys-gul, .lys-gronn)::before') in css
+
+
+def test_fargeklasse_leser_ordet_i_begge_skrivemaater():
+    assert nettsted.fargeklasse("rød") == nettsted.fargeklasse("rod") == "lys-rod"
+    assert nettsted.fargeklasse("Grønn") == "lys-gronn"
+    assert nettsted.fargeklasse("ikke oppgitt") == ""
+    assert nettsted.fargeklasse(None) == ""
+
+
 def test_manglende_farge_merkes_med_ET_ANNET_FELT_enn_farge():
     """Samme konstruksjon som `eier_ukjent`: verdien er VÅR setning om
     fravær, ikke en farge fra forskriften. Blandes de to i markupen, kan
@@ -1598,6 +1627,7 @@ def _selskap(**overstyr) -> str:
         "kapasitet_per_enhet": ["780 tonn"],
         "i_arkivet_siden": "2018-03-13",
         "endringer": [], "aapen_liste": nettsted.SELSKAP_AAPEN_LISTE,
+        "nyeste_endringer": nettsted.SELSKAP_NYESTE_ENDRINGER,
         "endringsvindu": {"fra": "2026-09-02", "til": "2026-09-14",
                           "hele": False, "uker": 13},
         # «Gikk ut» er UTLEDET — registeret journalfører bare ankomster.
@@ -1869,6 +1899,9 @@ def _forside(**overstyr) -> str:
         "typer": [dict(k, antall=(4 if k["id"] == "trafikklys" else 0))
                   for k in nettsted.ENDRINGSTYPER],
         "utenfor_uka": 32979,
+        # UKAS FAKTA, som `_ukefakta()` skriver dem.
+        "fakta": ["Ingen tillatelser fikk ny eier.",
+                  "Ingen lokaliteter endret status for fisk til stede."],
     }
     f = {
         "herofoto": {"sted": "Bømlo", "kommune": "BØMLO",
@@ -1891,6 +1924,8 @@ def _forside(**overstyr) -> str:
         "flere_rader": 804,
         "forrige_uke": "2026-38", "forrige_uke_vist": "uke 38, 2026",
         "uker_totalt": 5,
+        # Utledet av `ukas_typer()`, som i bygget.
+        "ukas_typer": nettsted.ukas_typer(uke),
 
         "snapshots": 6, "forste_snapshot": "2026-08-17",
         "siste_snapshot": "2026-09-21",
@@ -1935,6 +1970,39 @@ def _forside(**overstyr) -> str:
                  main_klasse="fullbredde"))
 
 
+def test_forsiden_viser_ukas_fakta_og_typene_med_lenke():
+    """Briefen: ukas viktigste endringer øverst. Faktasetningene er
+    ukesidens, og typene lenker til typesidene med brikkenes tall."""
+    flat = " ".join(_forside().split())
+    assert "Ingen tillatelser fikk ny eier." in flat
+    assert 'href="/endringer/2026-39/trafikklys/"' in flat
+    assert '<span class="typestolpe-tall">4</span>' in flat
+
+
+def test_forsiden_merker_ingenting_som_navn():
+    """Forsiden viser ingen selskapsnavn, og da skal vakten ikke finne
+    noe merket som navn heller. En klasse med ORDET «navn» eller «eier»
+    er en navnemerking for `publiseringsvakt.navn_i()`, også som ledd i
+    et sammensatt klassenavn. MÅLT 08.10.2026: `typestolpe-navn` på
+    typestolpene ga fem `ukjent_navn` («Tillatelse», «Fisk til stede» …)
+    og rød port."""
+    import publiseringsvakt as vakt
+    assert vakt.navn_i(_forside()) == []
+
+
+def test_ukas_typer_er_de_som_teller_storst_forst():
+    uke = {"slug": "2026-41", "typer": [
+        dict(k, antall={"tillatelse": 47, "biomasse": 12,
+                        "selskap": 59, "felt_ny": 80}.get(k["id"], 0))
+        for k in nettsted.ENDRINGSTYPER]}
+    typer = nettsted.ukas_typer(uke)
+    assert [k["id"] for k in typer] == ["tillatelse", "biomasse"], (
+        "selskapsdata er egen del, og felt som kom telles ikke")
+    assert typer[0]["andel"] == 100.0
+    assert typer[0]["url"] == "/endringer/2026-41/tillatelse/"
+    assert nettsted.ukas_typer(None) == []
+
+
 def test_forsiden_svarer_paa_de_tre_tingene():
     """Hva er dette, hva har skjedd, kan jeg stole på det."""
     html = " ".join(_forside().split())
@@ -1952,19 +2020,19 @@ def test_forsiden_svarer_paa_de_tre_tingene():
         assert f'href="{lenke}"' in html
 
 
-def test_forsiden_leder_med_uka_og_ender_med_arkivtallene():
+def test_forsiden_leder_med_uka_og_saa_arkivtallene():
     """Bevegelsen er produktet. «Denne uka» skal stå FØR alt annet
     innhold, over bretten på 1440x900.
 
-    REKKEFØLGEN ER ENDRET 27.09.2026: arkivlinja lå mellom uka og
-    kysten og sto da midt i lesingen med et tall om OSS. Nå er
-    rekkefølgen hero → uka → kysten → følg med → arkivtallene, og
-    tallene er det siste ordet framfor et avbrudd.
+    REKKEFØLGEN ER BRIEFENS TABELL fra 08.10.2026: hero → uka →
+    arkivtall → kysten → følg med. (Fra 27.09 sto arkivtallene sist;
+    tabellen «Sider og jobb» setter dem først av det som står lenger
+    ned, som svaret på «kan jeg stole på det».)
     """
     html = _forside()
-    assert html.index('id="uka"') < html.index('id="kysten"')
+    assert html.index('id="uka"') < html.index('arkivlinje')
+    assert html.index('arkivlinje') < html.index('id="kysten"')
     assert html.index('id="kysten"') < html.index('id="folg"')
-    assert html.index('id="folg"') < html.index('arkivlinje')
     flat = " ".join(html.split())
     # TRE TALL, OG DE ER IKKE DET SAMME. `antall` er overskriftstallet
     # UTENOM selskapsdata; `antall_rader` er alle radene i uka. De
@@ -2295,7 +2363,9 @@ def test_indeksen_deles_og_hver_side_lenker_til_alle_de_andre(tmp_path, monkeypa
                 assert f'<a href="{url}">' in s, (i, url)
         assert 'aria-current="page">' in s
     assert 'rel="next"' in sider[0] and 'rel="prev"' not in sider[0]
-    assert "10200–10204" in sider[0]
+    # Teksten, ikke markupen: hvert ytterpunkt i spennet har sitt eget
+    # element, så spennet bare brytes ved tankestreken.
+    assert "10200–10204" in re.sub(r"<[^>]+>", "", sider[0])
     # Regnskapet over lokaliteter uten koordinater står på første side,
     # der ankeret alltid har stått.
     assert 'id="uten-koordinater"' in sider[0]
@@ -2589,32 +2659,12 @@ def _fargeregler(css: str) -> dict[tuple[str, str], str]:
 
 # `:visited`-REGLER SOM AVVIKER MED VITENDE OG VILJE.
 #
-# Alle tre ble funnet 27.09.2026, av prøven under, i samme runde som
-# `--besokt` ble ryddet bort. De bruker ikke `--besokt` og lå derfor
-# utenfor den oppryddingen — og hver av dem er et SYNLIG valg for en
-# leser med historikk, ikke en opprydding. De står oppført her framfor
-# å bli rettet i forbifarten.
-#
-#   .mork a                  hav-tegn -> rust-lys. Kystseksjonen på
-#                            forsiden: tretten områdelenker, der de
-#                            besøkte blir oransje. Samme farge som
-#                            `:hover`, så en besøkt lenke ser ut som en
-#                            lenke under peker.
-#   .om-innhold a            rust -> ink. Innholdslista på /om/.
-#                            Grunnregelen ble rettet til `--rust` med
-#                            begrunnelsen «en lenke skal se ut som en
-#                            lenke»; `:visited` ble stående på `--ink`,
-#                            altså brødtekst.
-#   .sokeliste > li > a      ink -> rust. Treffliste-titlene.
-#
-# Lista er en PRIS, ikke en løsning: CLAUDE.md sier at en regel med
-# unntak er en regel noen må huske. Den er her fordi alternativet var å
-# endre tre design stille i en commit som skulle fjerne én variabel.
-VISITED_UNNTAK = {
-    ".mork a:visited",
-    ".om-innhold a:visited",
-    ".sokeliste > li > a:visited",
-}
+# Tre sto her fra 27.09.2026 — `.mork a`, `.om-innhold a` og
+# `.sokeliste > li > a` — som synlige valg ingen hadde tatt stilling til.
+# Designrunden 08.10.2026 tok stilling: alle tre har nå samme farge
+# besøkt som ubesøkt, og lista er tom. Den står, fordi et nytt unntak
+# skal måtte skrives inn her med en grunn.
+VISITED_UNNTAK: set[str] = set()
 
 
 def test_ingen_visited_regel_endrer_farge():
@@ -2623,8 +2673,8 @@ def test_ingen_visited_regel_endrer_farge():
     `test_besokte_lenker_har_samme_farge_som_andre` leser den GLOBALE
     `a:visited` og sier god for stilarket på det grunnlaget. Den var
     grønn 27.09.2026 mens FIRE regler ga en besøkt lenke en annen farge
-    enn en ubesøkt. Den ene av dem brukte `--farge-lenke-besokt` og er
-    rettet; de tre andre står i `VISITED_UNNTAK` med hver sin grunn.
+    enn en ubesøkt. Den ene av dem brukte `--farge-lenke-besokt` og ble
+    rettet da; de tre andre sto i `VISITED_UNNTAK` til 08.10.2026.
 
     Det er formen fra CLAUDE.md 1b-2: en kontroll som måler noe som
     LIGNER det den skal måle — én regel der spørsmålet gjelder sytten.
@@ -2674,14 +2724,18 @@ def test_innholdslista_paa_om_ser_ut_som_lenker():
     assert "text-decoration-line: underline" in blokk
 
 
-def test_rammen_sitter_paa_de_klikkbare_brikkene():
-    """En ramme rundt alt sier ingenting om hva som fører et sted.
-    Brikker med rader har den; brikker med null har den ikke."""
+def test_flata_sitter_paa_de_klikkbare_brikkene():
+    """En markering rundt alt sier ingenting om hva som fører et sted.
+    Brikker med rader har en tonet flate; brikker med null har ingen
+    flate og ingen ramme. (Til 08.10.2026 var markeringen en ramme; den
+    er byttet mot flate, men skillet er det samme.)"""
     css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
            ).read_text(encoding="utf-8")
-    assert "box-shadow: inset 0 0 0 1px rgba(11, 36, 48, 0.25);" in css
+    brikke = re.search(r"\n\.typemerke \{([^}]*)\}", css).group(1)
+    assert "background: var(--papir2)" in brikke, brikke
     tom = re.search(r"\.typemerke--tom \{([^}]*)\}", css).group(1)
     assert "box-shadow: none" in tom, tom
+    assert "background: none" in tom, tom
 
 
 def test_ukesiden_har_brikker_og_ingen_avkrysningsbokser():
@@ -3301,21 +3355,23 @@ def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
 
 
 def test_nedlastingsknappene_vises_bare_naar_lokaliteten_har_hatt_et_lusetall():
-    """12325 står i alle ukene uten ett tall. Knappene vises ikke der;
-    filene og lenkene i teksten under grafen blir stående."""
+    """12325 står i alle ukene uten ett tall. Nedlastingene i
+    verktøylinja vises ikke der; filene og lenkene i teksten under grafen
+    blir stående. (Verktøylinja var en rad med omrissknapper fram til
+    08.10.2026 — det er de samme lenkene.)"""
     tom = [_uke_raa(voksne_hunnlus="", lus_er_rapportert="False",
                     brakklagt="True") for _ in range(3)]
     html = _side(lus_serie=tom, lus=nettsted.til_visning(tom),
                  lus_uker=3, lus_uten_tall=3, lus_med_tall=0, lusegraf=None,
                  lusetall_snapshots=767, lus_fravaer="paa_land")
-    assert 'class="knapp knapp--tynn" href="kystloggen-lusetall' not in html
+    assert 'class="handling handling--last" href="kystloggen-lusetall' not in html
     assert f'href="{_XLSX}"' in html, "lenka i teksten står"
     assert f'href="{_ZIP}"' in html, "lenka i teksten står"
 
     med = " ".join(_side(lus_med_tall=1).split())
-    assert (f'<a class="knapp knapp--tynn" href="{_XLSX}" download '
+    assert (f'<a class="handling handling--last" href="{_XLSX}" download '
             'aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>') in med
-    assert (f'<a class="knapp knapp--tynn" href="{_ZIP}" download '
+    assert (f'<a class="handling handling--last" href="{_ZIP}" download '
             'aria-label="Lusetall som Data (.zip)">Data (.zip)</a>') in med
 
 
@@ -3490,9 +3546,7 @@ def test_registerfeltene_er_lukket_som_standard():
 # Variabler stilarket bruker uten å definere, MED VILJE, og hvor det står
 # hvorfor. En ny udefinert variabel feller prøven; det gjør også en som
 # blir definert uten å bli strøket herfra.
-KJENTE_UDEFINERTE = {
-    "--farge-stripe": "docs/design/STILGUIDE.md",
-}
+KJENTE_UDEFINERTE: dict[str, str] = {}
 
 
 def test_hver_variabel_stilarket_bruker_er_definert():
@@ -5070,7 +5124,7 @@ def test_eier_utelates_for_personform_og_uten_navn():
                                "url": "/selskap/928957489/",
                                "siden": "2022-12-30", "flere": 0,
                                "personform": False})
-    assert _tekst(ledd) == "eid av SALMAR OPPDRETT AS siden 2022"
+    assert _tekst(ledd) == "eid av Salmar Oppdrett AS siden 2022"
     assert ("tid", "2022-12-30", "2022") in ledd
 
 
@@ -5149,6 +5203,33 @@ def test_selskapets_endringer_teller_en_tillatelse_paa_to_lokaliteter_en_gang():
     assert [(p["dato"], p["gjelder"]) for p in poster] == [
         ("2026-09-28", "lokalitet 10001"), ("2026-09-21", "tillatelse N-T-0001")]
     assert poster[0]["lokalitetsnavn"] == "Testholmen"
+
+
+def test_selskapssiden_viser_en_koordinatflytting_bare_fra_100_meter():
+    """Sjekket 08.10.2026, etter spørsmål: koordinatradene som står som
+    vesentlige på 921668236 er Brudevikas (12237) flytting 05.10.2026,
+    190,5 m — over terskelen, og riktig. Alle tolv endrede koordinatrader
+    i changeloggen er klassifisert etter avstanden.
+
+    `test_vesentlighet` låser regelen i modulen. Denne låser at
+    selskapssiden får det samme svaret: radene kommer fra flere av
+    selskapets lokaliteter i én liste, og bredde og lengde skal likevel
+    leses som ett par per lokalitet. Leses de hver for seg, regnes
+    lengdegraden ved ekvator, og en flytting på 24 m kan havne over.
+    Koordinatene er de ekte, fra changeloggen."""
+    def flytting(eid, fra, til):
+        return [_crad(eid, "breddegrad", fra[0], til[0], "2026-10-05"),
+                _crad(eid, "lengdegrad", fra[1], til[1], "2026-10-05")]
+    felles = _selskapsfelles({
+        # Brudevika, 190,5 m
+        "10001": flytting("10001", ("62.116567", "5.420717"), ("62.11595", "5.4173")),
+        # 45140, 24 m
+        "10002": flytting("10002", ("66.629683", "13.10985"), ("66.629483", "13.110067")),
+    })
+    poster, _ = nettsted._selskapsendringer(
+        "912345678", ["10001", "10002"], [], felles)
+    assert sorted((p["entity_id"], p["felt"]) for p in poster) == [
+        ("10001", "breddegrad"), ("10001", "lengdegrad")]
 
 
 def test_selskapets_endringer_tar_med_tillatelser_det_har_gitt_fra_seg():
@@ -5230,3 +5311,58 @@ def test_ukefakta_kapasitet_paa_lokalitet_staar_selv_uten_eierskap():
     ledet = [_h("lokalitet", "kapasitet", "1"), _h("lokalitet", "kapasitet", "2")]
     assert nettsted._ukefakta(ledet, frozenset({"akvakultur"})) == [
         "Kapasiteten endret seg på 2 lokaliteter."]
+
+
+def test_kapasitet_null_staar_med_registerets_ord_og_lokalitetens_tall():
+    """«0 stykk» per tillatelse sto uten et ord til 08.10.2026, og ble
+    lest som en feil hos oss. Noten sier at 0 er registerets verdi og
+    viser lokalitetens kapasitet ved siden av — uten å si hvorfor."""
+    flat = " ".join(_side(tillatelser_null_kapasitet=2,
+                          kapasitet="5 000 000 stykk").split())
+    assert "«0» er registerets egen verdi" in flat
+    assert "5 000 000 stykk" in flat
+    uten = " ".join(_side().split())
+    assert "registerets egen verdi" not in uten
+
+
+def test_er_null_skiller_null_fra_tomt():
+    assert nettsted._er_null("0") and nettsted._er_null("0.0")
+    assert not nettsted._er_null("") and not nettsted._er_null(None)
+    assert not nettsted._er_null("375")
+
+
+def test_selskapets_nyeste_endringer_staar_aapent_og_resten_bak_et_klikk():
+    """Briefen: vesentlige endringer øverst på selskapssiden. Til
+    08.10.2026 sto alle bak «Vis alle 83». Nå står de nyeste åpent, og de
+    eldre i sin egen tabell bak et klikk — ingen rad står to ganger."""
+    mal = (Path(__file__).resolve().parents[1] / "maler"
+           / "selskap.html.j2").read_text(encoding="utf-8")
+    assert "sel.endringer[:sel.nyeste_endringer]" in mal
+    assert "sel.endringer[sel.nyeste_endringer:]" in mal
+    assert 'endringstabell("endringer-selskap-eldre", eldre)' in mal
+    assert nettsted.SELSKAP_NYESTE_ENDRINGER < nettsted.SELSKAP_AAPEN_LISTE
+    # INGEN NYE TALL: delingen skal ikke skrive «de 78 eldre», som er et
+    # tall siden ikke hadde — bare det samlede antallet, som alt står.
+    assert "eldre|length" not in mal
+    assert "forste|length" not in mal
+
+
+def test_brodsmula_begynner_aldri_en_linje_med_skraastreken():
+    """Skråstreken står etter leddet. Brytes brødsmula, slutter linja
+    med «/», og den neste begynner med et navn."""
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    assert ".sti li:not(:last-child)::after" in css
+    assert ".sti li + li::before" not in css
+
+
+def test_ukesidens_hovedsetning_staar_foer_faktalista():
+    """Gjennomgangen 08.10.2026: hovedsetningen — hvor mange endringer, og
+    hva slags — skal leses før de tre faktasetningene, som på forsiden.
+    Til da sto faktalista i sidehodet, og hovedsetningen kom etter den."""
+    mal = (Path(__file__).resolve().parents[1] / "maler"
+           / "endringer-uke.html.j2").read_text(encoding="utf-8")
+    hoved = mal.index('"endring", "endringer") }} observert i {{ u.vist }}')
+    fakta = mal.index('<ul class="uke-fakta">')
+    assert hoved < fakta
+    assert mal.index("{% block innhold %}") < fakta, "faktalista står i sidehodet"

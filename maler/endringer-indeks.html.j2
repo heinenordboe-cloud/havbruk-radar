@@ -21,10 +21,10 @@
     {{ antall(uker|length, "uke", "uker") }} med observerte endringer ·
     {{ antall(totalt, "hendelse", "hendelser") }} til sammen
   </p>
-  <p class="knapperad">
-    <a class="knapp knapp--tynn" href="/endringer/feed.xml">Følg alle
-      endringer (feed)</a>
-  </p>
+  <ul class="handlinger" aria-label="Følg">
+    <li><a class="handling" href="/endringer/feed.xml">Følg alle
+      endringer (feed)</a></li>
+  </ul>
 </div>
 {% endblock %}
 

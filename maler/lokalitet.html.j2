@@ -27,9 +27,10 @@
 {% from "verdiendring.html.j2" import verdiendring %}
 
 {# ---------------------------------------------------------------- 1
-   HEADEREN. Mørk flate: brødsmule, navn, fakta og posisjonskart. #}
+   SIDEHODET: bare brødsmula. Navnet og resten av toppen står i
+   gitteret under, ved siden av tilstanden — se `.lok-hode`. #}
 {% block toppinnhold %}
-<div data-pagefind-body class="ark sidehode sidehode--lokalitet">
+<div data-pagefind-body class="ark sidehode">
   <nav class="sti" aria-label="Du er her">
     <ol>
       <li><a href="/">Forside</a></li>
@@ -40,92 +41,108 @@
       <li aria-current="page">Lokalitet {{ lok.loknr }}</li>
     </ol>
   </nav>
-
-  {# HEADEREN ER ÉN SPALTE fra 25.09.2026. Faktalista og kartet lå her
-     og er flyttet til tilstandsspalta under — se `.lok-to`. Det som
-     blir igjen er det som IDENTIFISERER lokaliteten: navnet, nummeret,
-     og veiene ut av siden. #}
-  <div class="sidehode-en">
-      {# NAVNET I TITTELFORM. Registerets versaler er en egenskap ved
-         inntastingsfeltet, ikke en opplysning om navnet. Originalen
-         står uendret i registerfelt-tabellen lenger nede, og DEN er
-         den siterbare. Se `visningsord.tittelform`. #}
-      <h1 class="lok-tittel"><span data-navn>{{ lok.tittelnavn }}</span></h1>
-      <p class="lok-undertittel">
-        Lokalitet {{ lok.loknr }}
-        {% if lok.klareringstype %} · {{ lok.klareringstype }} klarering{% endif %}
-        {% if lok.plassering %} · {{ lok.plassering }}{% endif %}
-        {% if lok.arter %} · {{ lok.arter }}{% endif %}
-      </p>
-
-      {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
-         ned. Et ledd uten data er utelatt, ikke gjettet — se
-         `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md. #}
-      {% if lok.sammendrag %}
-      <p class="lok-sammendrag">
-        {%- for ledd in lok.sammendrag -%}
-        {%- if not loop.first %} · {% endif -%}
-        {%- for bit in ledd -%}
-        {%- if bit[0] == "tid" -%}<time datetime="{{ bit[1] }}">{{ bit[2] }}</time>
-        {%- elif bit[0] == "lenke" -%}<a href="{{ bit[1] }}">{{ bit[2] }}</a>
-        {%- else -%}{{ bit[1] }}{%- endif -%}
-        {%- endfor -%}
-        {%- endfor -%}.
-      </p>
-      {% endif %}
-
-      <p class="knapperad">
-        <a class="knapp knapp--tynn" href="feed.xml">Følg denne
-          lokaliteten (feed)</a>
-        <a class="knapp knapp--tynn" href="#siter">Siter</a>
-        {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
-            tomme uker lover noe den ikke holder. Filene ligger der, og
-            teksten under lusegrafen lenker fortsatt til dem.
-
-            TO FORMATER der det før var én CSV: regnearket for den som
-            vil åpne tallene, datapakken for den som vil lese dem med et
-            verktøy. `aria-label` sier HVA som lastes ned; det synlige
-            «Excel (.xlsx)» står i den, så talegjenkjenning finner
-            knappen på det den heter. #}
-        {% if lok.lus_med_tall %}
-        <a class="knapp knapp--tynn" href="{{ lok.xlsx_filnavn }}" download
-           aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>
-        <a class="knapp knapp--tynn" href="{{ lok.zip_filnavn }}" download
-           aria-label="Lusetall som Data (.zip)">Data (.zip)</a>
-        {% endif %}
-      </p>
-  </div>
 </div>
 {% endblock %}
 
 {% block innhold %}
 
 {# ---------------------------------------------------------------- 2
-   TO SPALTER FRA 1024 PIKSLER: tilstanden og tidslinja.
+   TO SPALTER FRA 1024 PIKSLER: tilstanden og resten av siden.
 
-   VENSTRE, omtrent 2/3, er TIDSLINJA — hva som har skjedd. HØYRE er
-   TILSTANDEN nå: nøkkeltallene og kartet. Fisk til stede og
-   siteringen står under, over hele bredden. Høyrespalta er klebrig, så tilstanden står stille mens
-   man leser seg nedover historikken.
+   HØYRE er TILSTANDEN nå: faktalista og kartet, klebrig, så den står
+   stille mens man leser seg nedover. VENSTRE er alt annet, i briefens
+   rekkefølge: siste vesentlige endringer, fisk til stede, lus,
+   tillatelser, registerfelt, kildens egen historikk og siteringen.
 
-   DOM-REKKEFØLGEN ER TILSTAND FØRST, og det er ikke tilfeldig: under
-   1024px faller spaltene sammen til én, og da skal «hva er dette
-   stedet nå» komme før «hva har skjedd her». På brede skjermer bytter
-   `order` dem om. Rekkefølgen i markupen er den en skjermleser og en
-   telefon får, og den er den viktigste av de to.
+   ALT I VENSTRESPALTA fra 08.10.2026. Til da sluttet venstrespalta
+   etter tidslinja, og resten sto over hele bredden under begge — og
+   når tidslinja var kort, sto kartet alene med et tomrom ved siden av.
+   Nå er venstrespalta alltid den lengste.
 
-   Lusegrafen, tillatelsene, registerfeltene og historikken står under,
-   over hele bredden — de er tabeller og en graf, og de trenger
-   plassen. #}
+   DOM-REKKEFØLGEN ER TITTEL, TILSTAND, RESTEN, og det er ikke
+   tilfeldig: under 1024px faller spaltene sammen til én, og da skal
+   «hva er dette stedet nå» komme før «hva har skjedd her». På brede
+   skjermer plasserer gitteret tilstanden i høyre spalte, over begge
+   radene. Rekkefølgen i markupen er den en skjermleser og en telefon
+   får, og den er den viktigste av de to.
+
+   #}
 <div class="ark lok-to">
+
+{# TITTELEN STÅR I GITTERET fra 08.10.2026: navnet, metalinja,
+   oppsummeringen og verktøylinja er første celle i venstrespalta, og
+   tilstand og kart starter på høyde med navnet. Til da sto tittelen i
+   sidehodet over hele bredden, og på 1440 sto det et tomrom til høyre
+   for den — tilstandsspalta begynte først under. I sidehodet står nå
+   bare brødsmula. Tittelen er i `main`, som har sin egen
+   `data-pagefind-body`, så søket indekserer den som før. #}
+<div class="lok-hode">
+    {# NAVNET I TITTELFORM. Registerets versaler er en egenskap ved
+       inntastingsfeltet, ikke en opplysning om navnet. Originalen
+       står uendret i registerfelt-tabellen lenger nede, og DEN er
+       den siterbare. Se `visningsord.tittelform`. #}
+    <h1><span data-navn>{{ lok.tittelnavn }}</span></h1>
+    <p class="lok-undertittel">
+      Lokalitet {{ lok.loknr }}
+      {% if lok.klareringstype %} · {{ lok.klareringstype }} klarering{% endif %}
+      {% if lok.plassering %} · {{ lok.plassering }}{% endif %}
+      {% if lok.arter %} · {{ lok.arter }}{% endif %}
+    </p>
+
+    {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
+       ned. Et ledd uten data er utelatt, ikke gjettet — se
+       `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md. #}
+    {% if lok.sammendrag %}
+    <p class="lok-sammendrag">
+      {%- for ledd in lok.sammendrag -%}
+      {%- if not loop.first %} · {% endif -%}
+      {%- for bit in ledd -%}
+      {%- if bit[0] == "tid" -%}<time datetime="{{ bit[1] }}">{{ bit[2] }}</time>
+      {%- elif bit[0] == "lenke" -%}<a href="{{ bit[1] }}">{{ bit[2] }}</a>
+      {%- else -%}{{ bit[1] }}{%- endif -%}
+      {%- endfor -%}
+      {%- endfor -%}.
+    </p>
+    {% endif %}
+
+    {# VERKTØYLINJA, ikke en rad med knapper. Det er lenker — til en
+       feed, et anker og to filer — og de står som lenker. En knapp er
+       for en handling på siden (kopier, søk). Se docs/design/STILGUIDE.md. #}
+    <ul class="handlinger" aria-label="Følg, siter og last ned">
+      {#- «FØLG LOKALITETEN», som «Følg selskapet» og «Følg området». Til
+          08.10.2026 «Følg denne lokaliteten», som var lenka som gjorde
+          rada for lang på 390. #}
+      <li><a class="handling" href="feed.xml">Følg lokaliteten (feed)</a></li>
+      <li><a class="handling" href="#siter">Siter</a></li>
+      {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
+          tomme uker lover noe den ikke holder. Filene ligger der, og
+          teksten under lusegrafen lenker fortsatt til dem.
+
+          TO FORMATER der det før var én CSV: regnearket for den som
+          vil åpne tallene, datapakken for den som vil lese dem med et
+          verktøy. `aria-label` sier HVA som lastes ned; det synlige
+          «Excel (.xlsx)» står i den, så talegjenkjenning finner
+          knappen på det den heter. #}
+      {#- DE TO FILENE ER ÉN GRUPPE: får de ikke plass på linja, går
+          de ned sammen, ikke én og én. Til 08.10.2026 sto «Data (.zip)»
+          alene på en linje på 390. #}
+      {% if lok.lus_med_tall %}
+      <li class="handlinger-gruppe"><a class="handling handling--last" href="{{ lok.xlsx_filnavn }}" download
+         aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>
+        <a class="handling handling--last" href="{{ lok.zip_filnavn }}" download
+         aria-label="Lusetall som Data (.zip)">Data (.zip)</a></li>
+      {% endif %}
+    </ul>
+</div>
+
 
 <div class="lok-tilstand">
   <section aria-labelledby="tilstand-tittel">
-    <h2 class="visuelt-skjult" id="tilstand-tittel">Tilstanden nå</h2>
+    <h2 class="etikett" id="tilstand-tittel">Tilstanden nå</h2>
   <dl class="fakta">
     <div>
       <dt>Kommune</dt>
-      <dd>{{ lok.kommune or "—" }}{% if lok.fylke %}, {{ lok.fylke }}{% endif %}</dd>
+      <dd>{{ kommunenavn(lok.kommune, lok.fylke) or "—" }}</dd>
     </div>
     <div>
       <dt>Produksjonsområde</dt>
@@ -149,9 +166,9 @@
         <span class="mangler">{{ lok.selskap.navn }}</span>
         {% elif lok.selskap.navn %}
           {% if lok.selskap.url %}
-          <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn }}</a>
+          <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn|selskapsnavn }}</a>
           {% else %}
-          <span class="eier">{{ lok.selskap.navn }}</span>
+          <span class="eier">{{ lok.selskap.navn|selskapsnavn }}</span>
           {% endif %}
           {% if lok.selskap.siden %}
           {#- HVA DATOEN ER, i tre ord istedenfor ett. «senest siden»
@@ -335,7 +352,7 @@
    `/lokalitet/31397/#endringer-register`. En designrunde flytter ikke
    en adresse; det ville gjort hver eksisterende lenke til en død
    fragmentreferanse. #}
-<section class="ark seksjon" id="endringer-register"
+<section class="seksjon" id="endringer-register"
          aria-labelledby="observert-tittel">
   <div class="seksjonshode">
     <div>
@@ -550,22 +567,18 @@
   </details>
 
 </section>
-</div>
 
-</div>
-
-{# ---------------------------------------------------------------- 2b
-   FISK TIL STEDE OG SITERINGEN, i hovedflyten under tidslinja og over
-   hele bredden. De sto i høyrespalta til 06.10.2026, og spalta fikk da
-   et høydetak og egen rulling for at siteringen nederst skulle nås på
-   en 900 piksler høy skjerm. Spalta har nå bare tilstanden og kartet,
-   og ingen egen rulling. #}
-<div class="ark seksjon to-spalter">
+{# ---------------------------------------------------------------- 3
+   FISK TIL STEDE, rett under endringene: det er tilstand, uke for uke.
+   Fram til 08.10.2026 sto den under to-spalteoppsettet over hele
+   bredden, og venstrespalta sluttet før høyrespalta — det ga et tomrom
+   ved siden av kartet. Nå går ALT innhold i venstrespalta, og den er
+   alltid den lengste. #}
   {# FISK TIL STEDE. Erstatter overleveringens biomassegraf, fordi
      mengdetallene per lokalitet ikke er offentlige — se
      `_biolagstripe()`. Mengden per produksjonsområde står på
      områdesiden. #}
-  <section class="blokk" aria-labelledby="fisk-tittel">
+  <section class="seksjon blokk" id="fisk-til-stede" aria-labelledby="fisk-tittel">
     <h2 id="fisk-tittel">Fisk til stede</h2>
     {% if lok.biolag %}
     {% set b = lok.biolag %}
@@ -630,39 +643,11 @@
     </p>
     {% endif %}
   </section>
-</div>
 
-<div class="ark seksjon">
-<section id="siter" aria-labelledby="siter-tittel">
-  <div class="siterboks">
-    <div class="siterboks-hode">
-      <h2 id="siter-tittel">Siter denne siden</h2>
-      {# KNAPPEN SKJULES TIL JS HAR LASTET. Uten skript er teksten
-         markerbar og kan kopieres med tastaturet; en knapp som ikke
-         gjør noe er verre enn ingen knapp. Se `/kopier.js`. #}
-      <button class="knapp kopierknapp" type="button"
-              data-kopier="siterbar" hidden>Kopier</button>
-    </div>
-    {# URL-EN ER DEN FASTE ID-URL-EN. Uka, datoen og sjekksummen står i
-       TEKSTEN, ikke som en `?uke=`-parameter: en parameter gjør
-       identiteten til et argument på en side som ikke har noe som
-       leser den. Se 2026-09-16-url-struktur.md punkt 3. #}
-    <p class="siterbar" id="siterbar">Kystloggen ({{ lok.siter.aar }}).
-      <i>{{ lok.tittelnavn }}, lokalitet {{ lok.loknr }}.</i>
-      Øyeblikksbilde {{ lok.siter.uke }}, {{ lok.siter.dato }},
-      sjekksum {{ lok.siter.sjekksum[:8] }}…{{ lok.siter.sjekksum[-4:] }}.
-      {{ lok.siter.url }}</p>
-  </div>
-</section>
-</div>
-
-{# ---------------------------------------------------------------- 3
-   LAKSELUS, over hele bredden. Fisk til stede sto her til 25.09.2026,
-   i tilstandsspalta til 06.10.2026, og står nå rett over. Grafen blir da alene i
-   `to-spalter`, og regelen for en enslig blokk gir den hele bredden —
-   se `.to-spalter > .blokk:first-child:last-child`. #}
-<div class="ark seksjon to-spalter">
-  <section class="blokk" aria-labelledby="lus-tittel">
+{# ---------------------------------------------------------------- 4
+   LAKSELUS. Grafen er 2/3 av siden bred på 1440 — nok for 765 uker,
+   og tilstanden står ved siden av mens man leser den. #}
+  <section class="seksjon blokk" id="lakselus" aria-labelledby="lus-tittel">
     <h2 id="lus-tittel">Lakselus, voksne hunnlus per fisk</h2>
     {% if lok.lusegraf %}
     {% set g = lok.lusegraf %}
@@ -877,12 +862,10 @@
     </details>
   </section>
 
-</div>
-
-{# ---------------------------------------------------------------- 4
-   TILLATELSER OG REGISTERFELT. #}
-<div class="ark seksjon to-spalter">
-  <section class="blokk" aria-labelledby="till-tittel">
+{# ---------------------------------------------------------------- 5
+   TILLATELSER OG REGISTERFELT, under hverandre. Ved siden av hverandre
+   i en spalte på 2/3 ville begge tabellene vært for smale. #}
+  <section class="seksjon blokk" id="tillatelser" aria-labelledby="till-tittel">
     <h2 id="till-tittel">Tillatelser</h2>
     <p class="tabelltittel" id="eierskap-tillatelser-tittel">Hvem som eier tillatelsene nå. {{ antall(lok.tillatelser|length, "tillatelse", "tillatelser") }}, øyeblikksbilde
         <time datetime="{{ lok.eierskap_dato }}">{{ lok.eierskap_dato }}</time>.</p>
@@ -903,7 +886,7 @@
         <tr>
           <th scope="row">{{ t.nr }}</th>
           <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}"
-              {%- if personformnavn(t.eier_navn) %} data-pagefind-ignore{% endif %}>{{ t.eier_navn }}</td>
+              {%- if personformnavn(t.eier_navn) %} data-pagefind-ignore{% endif %}>{{ t.eier_navn|selskapsnavn }}</td>
           <td data-felt="{{ feltmerke(t.type, 'tillatelse_type') }}">{{ t.type or VERDI_MANGLER }}</td>
           <td class="tall" data-felt="{{ feltmerke(t.kapasitet, 'kapasitet') }}">{{ t.kapasitet or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(t.tildelt_dato, 'tildelt_tid') }}">
@@ -928,9 +911,26 @@
       <a href="/om/#dekning">hva dekningen er</a>.
     </p>
     {% endif %}
+    {# KAPASITET 0. Registeret oppgir 0 for noen tillatelser — særlig
+       der lokaliteten er klarert i stykk. Uten et ord ble «0 stykk» lest
+       som en feil hos oss. Noten sier hva tallet er, registerets verdi,
+       og stiller det ved siden av lokalitetens egen kapasitet. Den sier
+       ikke hvorfor: det oppgir ikke registeret. Setningen om at de to
+       er ulike størrelser står også på områdesidene. #}
+    {% if lok.tillatelser_null_kapasitet %}
+    <p class="tabellnote">
+      <strong>«0» er registerets egen verdi</strong> for
+      {% if lok.tillatelser_null_kapasitet == lok.tillatelser|length %}alle
+      tillatelsene{% else %}{{ lok.tillatelser_null_kapasitet }} av
+      tillatelsene{% endif %} her. Lokalitetens klarerte kapasitet
+      {%- if lok.kapasitet %}, {{ lok.kapasitet }},{% endif %} står i
+      tilstanden øverst. Den er ikke summen av tillatelsenes — de to er
+      ulike størrelser, og en tillatelse kan brukes på flere lokaliteter.
+    </p>
+    {% endif %}
   </section>
 
-  <section class="blokk" aria-labelledby="felt-tittel">
+  <section class="seksjon blokk" id="registerfelt" aria-labelledby="felt-tittel">
     <h2 id="felt-tittel">Registerfeltene</h2>
     <p class="blokk-ingress">
       Slik Akvakulturregisteret viser lokaliteten i siste
@@ -989,13 +989,12 @@
     </p>
     </details>
   </section>
-</div>
 
-{# ---------------------------------------------------------------- 5
+{# ---------------------------------------------------------------- 6
    HISTORIKKEN REGISTERET SELV OPPGIR. Den ANDRE av de to, og den har
    en annen visuell form med vilje: datoene her er kildens påstander om
    hendelser, ikke våre observasjoner. #}
-<section class="ark seksjon" id="oppgitt" aria-labelledby="oppgitt-tittel">
+<section class="seksjon" id="oppgitt" aria-labelledby="oppgitt-tittel">
   <div class="seksjonshode">
     <div>
       <p class="etikett">Oppgitt av registeret</p>
@@ -1048,11 +1047,11 @@
               verdi fra kilden — se `VERDI_MANGLER_FELT`. #}
           <span data-felt="{{ feltmerke(o.orgnr, 'tildelt_orgnr') }}">{{ o.orgnr or VERDI_MANGLER }}</span>
           <span class="dempet">(i dag:
-            <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</span>)</span>
+            <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>)</span>
         </td>
         {%- else %}
         <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"
-            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
+            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn|selskapsnavn }}</td>
         {%- endif %}
         {% else %}
         <td>—</td>
@@ -1072,6 +1071,31 @@
   {% endif %}
 </section>
 
-{# ---------------------------------------------------------------- 6
-   SITER DENNE SIDEN. #}
+{# ---------------------------------------------------------------- 7
+   SITER DENNE SIDEN, sist. Den sto midt på siden, mellom fisk og lus,
+   til 08.10.2026; den er det siste man trenger, ikke det første. #}
+<section class="seksjon" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      {# KNAPPEN SKJULES TIL JS HAR LASTET. Uten skript er teksten
+         markerbar og kan kopieres med tastaturet; en knapp som ikke
+         gjør noe er verre enn ingen knapp. Se `/kopier.js`. #}
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    {# URL-EN ER DEN FASTE ID-URL-EN. Uka, datoen og sjekksummen står i
+       TEKSTEN, ikke som en `?uke=`-parameter: en parameter gjør
+       identiteten til et argument på en side som ikke har noe som
+       leser den. Se 2026-09-16-url-struktur.md punkt 3. #}
+    <p class="siterbar" id="siterbar">Kystloggen ({{ lok.siter.aar }}).
+      <i>{{ lok.tittelnavn }}, lokalitet {{ lok.loknr }}.</i>
+      Øyeblikksbilde {{ lok.siter.uke }}, {{ lok.siter.dato }},
+      sjekksum {{ lok.siter.sjekksum[:8] }}…{{ lok.siter.sjekksum[-4:] }}.
+      {{ lok.siter.url }}</p>
+  </div>
+</section>
+</div>
+
+</div>
 {% endblock %}

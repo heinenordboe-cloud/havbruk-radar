@@ -53,16 +53,6 @@
     {% if valgt %}{{ valgt.navn }} i {{ u.vist }}
     {% else %}Endringer i {{ u.vist }}{% endif %}
   </h1>
-  {#- TRE FAKTASETNINGER om ukas vesentlige endringer: eierskifter, fisk
-      til stede og kapasitet. Bygget av radene i tabellen under — se
-      `nettsted._ukefakta()`. Bare på siden for hele uka; en typeside
-      handler om én av dem. #}
-  {% if not valgt and u.fakta %}
-  <ul class="uke-fakta">
-    {% for setning in u.fakta %}<li>{{ setning }}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
   {#- ARTSBEGRENSNINGENE, rett under overskriften og ikke inne i de
       tekniske, som er lukket: setningen sier hva det store trinnet i
       uka var. Tallene fra radene, og ingen grunn. Bare i ukene
@@ -97,10 +87,11 @@
       <tr data-type="{{ r.type }}" data-klasse="{{ r.klasse }}">
         <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
         <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
-          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
-          {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
+          {%- set vist = r.gjelder|selskapsnavn if r.gjelder_slag == "selskap" else r.gjelder %}
+          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ vist }}</a>
+          {%- else %}{{ vist or VERDI_MANGLER }}{% endif %}
         </td>
-        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune|tittelform or VERDI_MANGLER }}</td>
         <td data-felt="{{ feltmerke(r.po, 'prodomraade_kode') }}">
           {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
           {%- else %}{{ VERDI_MANGLER }}{% endif %}
@@ -118,7 +109,7 @@
      tidslinja hit; uten den ville `.uke-topp` vært en regel i
      stilarket uten et element. #}
   <div class="uke-topp">
-  <div class="uke-sammendrag uke-sammendrag--bred">
+  <div class="uke-sammendrag">
     {% if valgt %}
     {#- `overskriftstall` OG IKKE ET EGET UTTRYKK HER. Metabeskrivelsen
         bruker samme tall — se `_ukens_overskriftstall()`. #}
@@ -127,6 +118,20 @@
     {% else %}
     <p>{{ antall(overskriftstall, "endring", "endringer") }} observert i {{ u.vist }}:
       {{ u.ledet_slag }}.</p>
+    {% endif %}
+    {#- TRE FAKTASETNINGER om ukas vesentlige endringer: eierskifter, fisk
+        til stede og kapasitet. Bygget av radene i tabellen under — se
+        `nettsted._ukefakta()`. Bare på siden for hele uka; en typeside
+        handler om én av dem.
+
+        ETTER HOVEDSETNINGEN fra 08.10.2026, som på forsiden. Til da sto
+        de i sidehodet rett under H1, og hovedsetningen — hvor mange
+        endringer, og hva slags — kom først etter dem. #}
+    {% if not valgt and u.fakta %}
+    <ul class="uke-fakta">
+      {% for setning in u.fakta %}<li>{{ setning }}</li>
+      {% endfor %}
+    </ul>
     {% endif %}
     {# DE TO TALLENE ER IKKE DET SAMME, og forskjellen skjules ikke.
        «Felt oppgitt første gang» og «Felt ikke lenger oppgitt» er
@@ -350,10 +355,11 @@
         <tr data-type="{{ r.type }}">
           <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
           <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
-            {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
-            {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
+            {%- set vist = r.gjelder|selskapsnavn if r.gjelder_slag == "selskap" else r.gjelder %}
+            {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ vist }}</a>
+            {%- else %}{{ vist or VERDI_MANGLER }}{% endif %}
           </td>
-          <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune|tittelform or VERDI_MANGLER }}</td>
           <td class="endring" data-felt="endringstekst">{{ r.etikett }}:
             {{ verdiendring(r) }}</td>
         </tr>
@@ -377,15 +383,19 @@
     {% endif %}
   </p>
 
-  <p class="nedlasting">
-    Last ned uka:
-    <a href="/endringer/{{ u.slug }}/{{ u.xlsx_filnavn }}" download>Excel (.xlsx)</a> ·
-    <a href="/endringer/{{ u.slug }}/{{ u.zip_filnavn }}" download>Data (.zip)</a> ·
-    <a href="/endringer/{{ u.slug }}/endringer.json">JSON</a> ·
-    <a href="/endringer/feed.xml">Atom-feed</a>
-    <span class="nedlasting-note">Filene har alle
-      {{ antall(u.antall_i_fila, "raden", "radene") }} i uka, ikke bare de som vises her.</span>
-  </p>
+  {# NEDLASTINGEN STÅR SOM VERKTØYLINJA i sidehodet: lenker med ↓ for
+     det som lastes ned. Notaten sier hva filene inneholder. #}
+  <div class="nedlasting">
+    <h2 class="etikett" id="nedlasting-tittel">Last ned uka</h2>
+    <ul class="handlinger" aria-labelledby="nedlasting-tittel">
+      <li><a class="handling handling--last" href="/endringer/{{ u.slug }}/{{ u.xlsx_filnavn }}" download>Excel (.xlsx)</a></li>
+      <li><a class="handling handling--last" href="/endringer/{{ u.slug }}/{{ u.zip_filnavn }}" download>Data (.zip)</a></li>
+      <li><a class="handling handling--last" href="/endringer/{{ u.slug }}/endringer.json">JSON</a></li>
+      <li><a class="handling" href="/endringer/feed.xml">Atom-feed</a></li>
+    </ul>
+    <p class="nedlasting-note">Filene har alle
+      {{ antall(u.antall_i_fila, "raden", "radene") }} i uka, ikke bare de som vises her.</p>
+  </div>
 </section>
 
 <section class="ark" id="siter" aria-labelledby="siter-tittel">
