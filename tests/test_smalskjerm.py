@@ -1010,3 +1010,11 @@ def test_tilstanden_staar_ved_siden_av_navnet_paa_bred_skjerm(side, tjener):
     side.goto(tjener + "/lokalitet/45140/", wait_until="load")
     rad, tilstand = boks(".lok-hode .handlinger"), boks(".lok-tilstand")
     assert tilstand["y"] >= rad["y"] + rad["height"], (rad, tilstand)
+
+
+def test_ukesidens_hovedsetning_staar_over_faktalista(side, tjener):
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + "/endringer/2026-41/", wait_until="load")
+    hoved = side.locator(".uke-sammendrag > p").first.bounding_box()
+    fakta = side.locator(".uke-fakta").first.bounding_box()
+    assert hoved["y"] + hoved["height"] <= fakta["y"], (hoved, fakta)

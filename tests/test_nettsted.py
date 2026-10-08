@@ -5354,3 +5354,15 @@ def test_brodsmula_begynner_aldri_en_linje_med_skraastreken():
            ).read_text(encoding="utf-8")
     assert ".sti li:not(:last-child)::after" in css
     assert ".sti li + li::before" not in css
+
+
+def test_ukesidens_hovedsetning_staar_foer_faktalista():
+    """Gjennomgangen 08.10.2026: hovedsetningen — hvor mange endringer, og
+    hva slags — skal leses før de tre faktasetningene, som på forsiden.
+    Til da sto faktalista i sidehodet, og hovedsetningen kom etter den."""
+    mal = (Path(__file__).resolve().parents[1] / "maler"
+           / "endringer-uke.html.j2").read_text(encoding="utf-8")
+    hoved = mal.index('"endring", "endringer") }} observert i {{ u.vist }}')
+    fakta = mal.index('<ul class="uke-fakta">')
+    assert hoved < fakta
+    assert mal.index("{% block innhold %}") < fakta, "faktalista står i sidehodet"

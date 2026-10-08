@@ -53,16 +53,6 @@
     {% if valgt %}{{ valgt.navn }} i {{ u.vist }}
     {% else %}Endringer i {{ u.vist }}{% endif %}
   </h1>
-  {#- TRE FAKTASETNINGER om ukas vesentlige endringer: eierskifter, fisk
-      til stede og kapasitet. Bygget av radene i tabellen under — se
-      `nettsted._ukefakta()`. Bare på siden for hele uka; en typeside
-      handler om én av dem. #}
-  {% if not valgt and u.fakta %}
-  <ul class="uke-fakta">
-    {% for setning in u.fakta %}<li>{{ setning }}</li>
-    {% endfor %}
-  </ul>
-  {% endif %}
   {#- ARTSBEGRENSNINGENE, rett under overskriften og ikke inne i de
       tekniske, som er lukket: setningen sier hva det store trinnet i
       uka var. Tallene fra radene, og ingen grunn. Bare i ukene
@@ -128,6 +118,20 @@
     {% else %}
     <p>{{ antall(overskriftstall, "endring", "endringer") }} observert i {{ u.vist }}:
       {{ u.ledet_slag }}.</p>
+    {% endif %}
+    {#- TRE FAKTASETNINGER om ukas vesentlige endringer: eierskifter, fisk
+        til stede og kapasitet. Bygget av radene i tabellen under — se
+        `nettsted._ukefakta()`. Bare på siden for hele uka; en typeside
+        handler om én av dem.
+
+        ETTER HOVEDSETNINGEN fra 08.10.2026, som på forsiden. Til da sto
+        de i sidehodet rett under H1, og hovedsetningen — hvor mange
+        endringer, og hva slags — kom først etter dem. #}
+    {% if not valgt and u.fakta %}
+    <ul class="uke-fakta">
+      {% for setning in u.fakta %}<li>{{ setning }}</li>
+      {% endfor %}
+    </ul>
     {% endif %}
     {# DE TO TALLENE ER IKKE DET SAMME, og forskjellen skjules ikke.
        «Felt oppgitt første gang» og «Felt ikke lenger oppgitt» er
