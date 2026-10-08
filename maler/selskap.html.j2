@@ -148,7 +148,11 @@
   </div>
   {% endmacro %}
   <p class="tabelltittel" id="endringer-selskap-liste-tittel">
-      {%- if lang %}De {{ forste|length }} nyeste av {{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
+      {#- INGEN NYE TALL. «De 5 nyeste» og «de 78 eldre» ville vært tall
+          siden ikke hadde fra før — regnet av oss, ikke lest av kilden.
+          Tabellen viser hvor mange som står åpent; summaryen viser til
+          det samlede tallet som alt står i nøkkeltallene. #}
+      {%- if lang %}De nyeste av {{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
       {%- else %}{{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}{% endif %}
       på selskapets lokaliteter og tillatelser
       {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
@@ -157,8 +161,8 @@
   {{ endringstabell("endringer-selskap-liste", forste) }}
   {% if eldre %}
   <details class="tallboks liste-lukket">
-    <summary>Vis de {{ antall(eldre|length, "eldre endringen", "eldre endringene") }}</summary>
-    <p class="tabelltittel" id="endringer-selskap-eldre-tittel">De {{ antall(eldre|length, "eldre vesentlige endringen", "eldre vesentlige endringene") }}, nyest først.</p>
+    <summary>Vis resten av de {{ antall(sel.endringer|length, "vesentlige endringen", "vesentlige endringene") }}</summary>
+    <p class="tabelltittel" id="endringer-selskap-eldre-tittel">De eldre vesentlige endringene, nyest først.</p>
     {{ endringstabell("endringer-selskap-eldre", eldre) }}
   </details>
   {% endif %}

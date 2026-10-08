@@ -5312,3 +5312,7 @@ def test_selskapets_nyeste_endringer_staar_aapent_og_resten_bak_et_klikk():
     assert "sel.endringer[sel.nyeste_endringer:]" in mal
     assert 'endringstabell("endringer-selskap-eldre", eldre)' in mal
     assert nettsted.SELSKAP_NYESTE_ENDRINGER < nettsted.SELSKAP_AAPEN_LISTE
+    # INGEN NYE TALL: delingen skal ikke skrive «de 78 eldre», som er et
+    # tall siden ikke hadde — bare det samlede antallet, som alt står.
+    assert "eldre|length" not in mal
+    assert "forste|length" not in mal
