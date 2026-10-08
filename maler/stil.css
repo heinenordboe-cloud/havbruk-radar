@@ -2162,7 +2162,8 @@ figcaption {
   display: grid;
   gap: var(--rom-48) clamp(32px, 4vw, 72px);
   align-items: start;
-  padding-block-start: var(--rom-48);
+  /* 32 px, som første seksjon på de andre sidene. */
+  padding-block-start: var(--rom-32);
 }
 
 @media (min-width: 64rem) {
@@ -3050,7 +3051,11 @@ figcaption {
 
   main { padding-block: var(--rom-24) var(--rom-48); }
 
-  .sidehode { padding-block: var(--rom-24) var(--rom-32); }
+  /* SAMME LUFT UNDER SIDEHODET SOM PÅ BRED SKJERM. Til 08.10.2026 var
+     den dobbelt så stor på telefon (32 mot 16), og første seksjon kom
+     100 px under verktøylinja — mer luft på den smale skjermen enn på
+     den brede. */
+  .sidehode { padding-block: var(--rom-24) var(--rom-16); }
 
   /* En bred tabell bruker hele skjermen: ramma går ut i margen. */
   .tabellramme {
