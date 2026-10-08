@@ -57,8 +57,9 @@ det på samme måte:
    sans. *Brukt i `.sidehode`.*
 2. **Så én setning som sier hva siden viser nå.** OWIDs undertittel er
    en setning, ikke en etikett. Her: oppsummeringssetningen som allerede
-   bygges av data på lokalitets-, selskaps- og ukessiden, satt som
-   ingress i Newsreader. *`.ingress`.*
+   bygges av data på lokalitets- og ukessiden, satt som ingress i
+   Newsreader. *`.lok-sammendrag` og `.uke-ingress`. Selskapssiden har
+   ingen slik setning; der står nøkkeltallene rett under metalinja.*
 3. **Nøkkeltall er tall og etikett, uten boks.** SSBs nøkkeltall er et
    stort tall, en kort etikett under og perioden. Her: en rad med
    2–5 slike par under ingressen, skilt med luft og en hårlinje over.
