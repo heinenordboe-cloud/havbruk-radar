@@ -90,9 +90,6 @@
   --hav-sekundaer:  #9fb9c4;   /* sekundærtekst på mørk flate */
   --hav-tegn:       #c9d6dc;   /* brødtekst på mørk flate */
   --hav-tittel:     #ffffff;   /* overskrift på mørk flate */
-  --hav:            var(--hav9);
-  --hav-tekst:      var(--hav-tegn);
-  --hav-dempet:     var(--hav3);
 
   /* ---- papiret ----
      papir    flata alt står på
@@ -154,9 +151,7 @@
 /* Rollenavnene prøvene og eldre regler bruker. STÅR FØR `@media`:
    `tests/test_kontrast.py` leser paletten ut av denne fila. */
 :root {
-  --farge-bunn:         var(--papir);
   --farge-ark:          var(--papir);
-  --farge-innfelt:      var(--papir2);
   --farge-kant-svak:    var(--papir3);
   --farge-kant:         var(--ink-ring);
   --farge-kant-sterk:   var(--ink);
@@ -164,7 +159,6 @@
   --farge-tekst-svak:   var(--ink-dempet);
   --farge-lenke:        var(--rust);
   --farge-lenke-aktiv:  var(--rust-moerk);
-  --farge-merke:        var(--ink);
   --farge-fokus:        var(--fokus);
   --farge-kart-punkt:   var(--kart-punkt);
 }
@@ -241,7 +235,6 @@
   --tekst-h2:      clamp(1.5rem, 1.2rem + 1.1vw, 2rem);
   --tekst-h1:      clamp(2.125rem, 1.5rem + 2.6vw, 3.5rem);
   --tekst-tall:    clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem);
-  --tekst-hero:    clamp(2rem, 1.2rem + 3.3vw, 3.75rem);
 
   --lh-tett:   1.25;
   --lh-normal: 1.45;
@@ -260,9 +253,6 @@
 
   /* Luften mellom seksjoner, som klemmes på smal skjerm. */
   --rom-seksjon: clamp(3rem, 2rem + 3vw, 4.5rem);
-
-  /* Hjørner er 0 overalt. */
-  --hjorne: 0;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -1070,28 +1060,6 @@ main > .visuelt-skjult + .seksjon { padding-block-start: var(--rom-32); }
 
 /* Søkefeltet på fotografiet: papirflate med mørk tekst. */
 .hero .sok input { box-shadow: none; background: var(--papir); }
-
-/* MØRK SEKSJON i full bredde. */
-.mork {
-  background: var(--hav9);
-  color: var(--hav-tegn);
-  padding-block: var(--rom-seksjon);
-}
-
-.mork h2 { color: var(--hav-tittel); }
-.mork a { color: var(--hav-tegn); }
-.mork a:visited { color: var(--hav-tegn); }
-.mork a:hover { color: var(--rust-lys); }
-.mork .etikett { color: var(--rust-lys); }
-.mork .seksjonshode { border-block-start-color: rgba(231, 219, 208, 0.4); }
-.mork .tabellnote, .mork figcaption, .mork p { color: var(--hav-sekundaer); }
-.mork .tabelltittel { color: var(--hav-tegn); }
-.mork thead th { color: var(--hav3); background: var(--hav9); border-block-end-color: rgba(231,219,208,.45); }
-.mork tbody th, .mork tbody td { border-block-end-color: rgba(231,219,208,.13); }
-.mork tbody tr:hover { background: rgba(231, 219, 208, 0.05); }
-.mork td a, .mork th a { color: var(--hav-tegn); text-decoration-color: rgba(231,219,208,.4); }
-.mork td a:visited, .mork th a:visited { color: var(--hav-tegn); }
-.mork :focus-visible { outline-color: var(--rust-lys); }
 
 /* ---- denne uka ---- */
 
@@ -1904,11 +1872,6 @@ td.lys-rod::before   { background: var(--lys-rod); }
 td.lys-gul::before   { background: var(--lys-gul); }
 td.lys-gronn::before { background: var(--lys-gronn); }
 
-.mork td[data-felt="prodomraade_status"]::before,
-.mork td[data-felt="farge"]::before {
-  border-color: rgba(231, 219, 208, 0.45);
-}
-
 /* BEVISST TOM: samme rute, stiplet og uten fyll. */
 td[data-felt="farge_mangler"]::before {
   background: none;
@@ -1932,15 +1895,11 @@ td[data-felt="farge_mangler"]::before {
 .rute.lys-gronn { background: var(--lys-gronn); }
 .rute--skravert { background-image: var(--skravur-papir); }
 
-.mork .rute { box-shadow: inset 0 0 0 1px rgba(231, 219, 208, 0.4); }
-
 .historie {
   display: block;
   font-size: var(--tekst-xs);
   color: var(--ink-dempet);
 }
-
-.mork .historie { color: var(--hav3); }
 
 .tegnforklaring {
   display: flex;
@@ -1953,8 +1912,6 @@ td[data-felt="farge_mangler"]::before {
   font-size: var(--tekst-xs);
   color: var(--ink-dempet);
 }
-
-.mork .tegnforklaring { color: var(--hav-tegn); }
 
 .tegnforklaring li {
   display: flex;

@@ -29,7 +29,7 @@
 {# ---------------------------------------------------------------- 1
    HEADEREN. Mørk flate: brødsmule, navn, fakta og posisjonskart. #}
 {% block toppinnhold %}
-<div data-pagefind-body class="ark sidehode sidehode--lokalitet">
+<div data-pagefind-body class="ark sidehode">
   <nav class="sti" aria-label="Du er her">
     <ol>
       <li><a href="/">Forside</a></li>
@@ -50,7 +50,7 @@
          inntastingsfeltet, ikke en opplysning om navnet. Originalen
          står uendret i registerfelt-tabellen lenger nede, og DEN er
          den siterbare. Se `visningsord.tittelform`. #}
-      <h1 class="lok-tittel"><span data-navn>{{ lok.tittelnavn }}</span></h1>
+      <h1><span data-navn>{{ lok.tittelnavn }}</span></h1>
       <p class="lok-undertittel">
         Lokalitet {{ lok.loknr }}
         {% if lok.klareringstype %} · {{ lok.klareringstype }} klarering{% endif %}
