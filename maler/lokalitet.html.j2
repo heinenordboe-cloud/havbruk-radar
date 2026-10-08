@@ -27,7 +27,8 @@
 {% from "verdiendring.html.j2" import verdiendring %}
 
 {# ---------------------------------------------------------------- 1
-   HEADEREN. Mørk flate: brødsmule, navn, fakta og posisjonskart. #}
+   SIDEHODET: bare brødsmula. Navnet og resten av toppen står i
+   gitteret under, ved siden av tilstanden — se `.lok-hode`. #}
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
   <nav class="sti" aria-label="Du er her">
@@ -40,64 +41,6 @@
       <li aria-current="page">Lokalitet {{ lok.loknr }}</li>
     </ol>
   </nav>
-
-  {# HEADEREN ER ÉN SPALTE fra 25.09.2026. Faktalista og kartet lå her
-     og er flyttet til tilstandsspalta under — se `.lok-to`. Det som
-     blir igjen er det som IDENTIFISERER lokaliteten: navnet, nummeret,
-     og veiene ut av siden. #}
-  <div class="sidehode-en">
-      {# NAVNET I TITTELFORM. Registerets versaler er en egenskap ved
-         inntastingsfeltet, ikke en opplysning om navnet. Originalen
-         står uendret i registerfelt-tabellen lenger nede, og DEN er
-         den siterbare. Se `visningsord.tittelform`. #}
-      <h1><span data-navn>{{ lok.tittelnavn }}</span></h1>
-      <p class="lok-undertittel">
-        Lokalitet {{ lok.loknr }}
-        {% if lok.klareringstype %} · {{ lok.klareringstype }} klarering{% endif %}
-        {% if lok.plassering %} · {{ lok.plassering }}{% endif %}
-        {% if lok.arter %} · {{ lok.arter }}{% endif %}
-      </p>
-
-      {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
-         ned. Et ledd uten data er utelatt, ikke gjettet — se
-         `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md. #}
-      {% if lok.sammendrag %}
-      <p class="lok-sammendrag">
-        {%- for ledd in lok.sammendrag -%}
-        {%- if not loop.first %} · {% endif -%}
-        {%- for bit in ledd -%}
-        {%- if bit[0] == "tid" -%}<time datetime="{{ bit[1] }}">{{ bit[2] }}</time>
-        {%- elif bit[0] == "lenke" -%}<a href="{{ bit[1] }}">{{ bit[2] }}</a>
-        {%- else -%}{{ bit[1] }}{%- endif -%}
-        {%- endfor -%}
-        {%- endfor -%}.
-      </p>
-      {% endif %}
-
-      {# VERKTØYLINJA, ikke en rad med knapper. Det er lenker — til en
-         feed, et anker og to filer — og de står som lenker. En knapp er
-         for en handling på siden (kopier, søk). Se docs/design/STILGUIDE.md. #}
-      <ul class="handlinger" aria-label="Følg, siter og last ned">
-        <li><a class="handling" href="feed.xml">Følg denne lokaliteten
-          (feed)</a></li>
-        <li><a class="handling" href="#siter">Siter</a></li>
-        {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
-            tomme uker lover noe den ikke holder. Filene ligger der, og
-            teksten under lusegrafen lenker fortsatt til dem.
-
-            TO FORMATER der det før var én CSV: regnearket for den som
-            vil åpne tallene, datapakken for den som vil lese dem med et
-            verktøy. `aria-label` sier HVA som lastes ned; det synlige
-            «Excel (.xlsx)» står i den, så talegjenkjenning finner
-            knappen på det den heter. #}
-        {% if lok.lus_med_tall %}
-        <li><a class="handling handling--last" href="{{ lok.xlsx_filnavn }}" download
-           aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a></li>
-        <li><a class="handling handling--last" href="{{ lok.zip_filnavn }}" download
-           aria-label="Lusetall som Data (.zip)">Data (.zip)</a></li>
-        {% endif %}
-      </ul>
-  </div>
 </div>
 {% endblock %}
 
@@ -116,14 +59,77 @@
    når tidslinja var kort, sto kartet alene med et tomrom ved siden av.
    Nå er venstrespalta alltid den lengste.
 
-   DOM-REKKEFØLGEN ER TILSTAND FØRST, og det er ikke tilfeldig: under
-   1024px faller spaltene sammen til én, og da skal «hva er dette
-   stedet nå» komme før «hva har skjedd her». På brede skjermer bytter
-   `order` dem om. Rekkefølgen i markupen er den en skjermleser og en
-   telefon får, og den er den viktigste av de to.
+   DOM-REKKEFØLGEN ER TITTEL, TILSTAND, RESTEN, og det er ikke
+   tilfeldig: under 1024px faller spaltene sammen til én, og da skal
+   «hva er dette stedet nå» komme før «hva har skjedd her». På brede
+   skjermer plasserer gitteret tilstanden i høyre spalte, over begge
+   radene. Rekkefølgen i markupen er den en skjermleser og en telefon
+   får, og den er den viktigste av de to.
 
    #}
 <div class="ark lok-to">
+
+{# TITTELEN STÅR I GITTERET fra 08.10.2026: navnet, metalinja,
+   oppsummeringen og verktøylinja er første celle i venstrespalta, og
+   tilstand og kart starter på høyde med navnet. Til da sto tittelen i
+   sidehodet over hele bredden, og på 1440 sto det et tomrom til høyre
+   for den — tilstandsspalta begynte først under. I sidehodet står nå
+   bare brødsmula. Tittelen er i `main`, som har sin egen
+   `data-pagefind-body`, så søket indekserer den som før. #}
+<div class="lok-hode">
+    {# NAVNET I TITTELFORM. Registerets versaler er en egenskap ved
+       inntastingsfeltet, ikke en opplysning om navnet. Originalen
+       står uendret i registerfelt-tabellen lenger nede, og DEN er
+       den siterbare. Se `visningsord.tittelform`. #}
+    <h1><span data-navn>{{ lok.tittelnavn }}</span></h1>
+    <p class="lok-undertittel">
+      Lokalitet {{ lok.loknr }}
+      {% if lok.klareringstype %} · {{ lok.klareringstype }} klarering{% endif %}
+      {% if lok.plassering %} · {{ lok.plassering }}{% endif %}
+      {% if lok.arter %} · {{ lok.arter }}{% endif %}
+    </p>
+
+    {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
+       ned. Et ledd uten data er utelatt, ikke gjettet — se
+       `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md. #}
+    {% if lok.sammendrag %}
+    <p class="lok-sammendrag">
+      {%- for ledd in lok.sammendrag -%}
+      {%- if not loop.first %} · {% endif -%}
+      {%- for bit in ledd -%}
+      {%- if bit[0] == "tid" -%}<time datetime="{{ bit[1] }}">{{ bit[2] }}</time>
+      {%- elif bit[0] == "lenke" -%}<a href="{{ bit[1] }}">{{ bit[2] }}</a>
+      {%- else -%}{{ bit[1] }}{%- endif -%}
+      {%- endfor -%}
+      {%- endfor -%}.
+    </p>
+    {% endif %}
+
+    {# VERKTØYLINJA, ikke en rad med knapper. Det er lenker — til en
+       feed, et anker og to filer — og de står som lenker. En knapp er
+       for en handling på siden (kopier, søk). Se docs/design/STILGUIDE.md. #}
+    <ul class="handlinger" aria-label="Følg, siter og last ned">
+      <li><a class="handling" href="feed.xml">Følg denne lokaliteten
+        (feed)</a></li>
+      <li><a class="handling" href="#siter">Siter</a></li>
+      {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
+          tomme uker lover noe den ikke holder. Filene ligger der, og
+          teksten under lusegrafen lenker fortsatt til dem.
+
+          TO FORMATER der det før var én CSV: regnearket for den som
+          vil åpne tallene, datapakken for den som vil lese dem med et
+          verktøy. `aria-label` sier HVA som lastes ned; det synlige
+          «Excel (.xlsx)» står i den, så talegjenkjenning finner
+          knappen på det den heter. #}
+      {% if lok.lus_med_tall %}
+      <li><a class="handling handling--last" href="{{ lok.xlsx_filnavn }}" download
+         aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a></li>
+      <li><a class="handling handling--last" href="{{ lok.zip_filnavn }}" download
+         aria-label="Lusetall som Data (.zip)">Data (.zip)</a></li>
+      {% endif %}
+    </ul>
+</div>
+
 
 <div class="lok-tilstand">
   <section aria-labelledby="tilstand-tittel">

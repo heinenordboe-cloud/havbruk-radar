@@ -947,3 +947,20 @@ def test_grafen_kan_leses_soyle_for_soyle_med_piltastene(side, tjener, sti):
     assert side.locator(".verktoytips:visible").inner_text() == forrige
     side.keyboard.press("End")
     assert aktiv.get_attribute("data-tips") == siste
+
+
+def test_tilstanden_staar_ved_siden_av_navnet_paa_bred_skjerm(side, tjener):
+    """Gjennomgangen 08.10.2026: på 1440 sto det et tomrom til høyre for
+    navn og oppsummering, og tilstanden begynte først under. Nå står den
+    i høyre spalte fra toppen. På telefon står den under tittelblokken."""
+    def boks(velger):
+        return side.locator(velger).first.bounding_box()
+    side.set_viewport_size({"width": 1440, "height": 900})
+    side.goto(tjener + "/lokalitet/45140/", wait_until="load")
+    h1, tilstand = boks("h1"), boks(".lok-tilstand")
+    assert tilstand["y"] < h1["y"] + h1["height"], (h1, tilstand)
+    assert tilstand["x"] > h1["x"] + h1["width"], (h1, tilstand)
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + "/lokalitet/45140/", wait_until="load")
+    rad, tilstand = boks(".lok-hode .handlinger"), boks(".lok-tilstand")
+    assert tilstand["y"] >= rad["y"] + rad["height"], (rad, tilstand)

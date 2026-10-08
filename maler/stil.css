@@ -2154,27 +2154,46 @@ figcaption {
  * alltid den lengste — det er det som gjør at siden aldri får et tomrom
  * ved siden av en høy høyrespalte.
  *
- * DOM-REKKEFØLGEN ER TILSTAND FØRST: under 1024 px er det én spalte, og
- * da kommer «hva er dette stedet nå» før «hva har skjedd her».
+ * DOM-REKKEFØLGEN ER TITTEL, TILSTAND, RESTEN: under 1024 px er det én
+ * spalte, og da kommer «hva er dette stedet nå» før «hva har skjedd her».
+ *
+ * TITTELEN ER FØRSTE CELLE I GITTERET fra 08.10.2026. Til da sto den i
+ * sidehodet over hele bredden, og tilstandsspalta begynte under den: på
+ * 1440 sto det et tomrom til høyre for navn og oppsummering. Nå står
+ * tilstand og kart i høyre spalte fra toppen, over begge radene.
  * ---------------------------------------------------------------- */
+
+/* Sidehodet har bare brødsmula; luften under den er brødsmulas egen,
+   som på de andre sidene der tittelen følger rett etter. */
+.sidehode:not(:has(h1)) { padding-block-end: 0; }
 
 .lok-to {
   display: grid;
   gap: var(--rom-48) clamp(32px, 4vw, 72px);
   align-items: start;
-  /* 32 px, som første seksjon på de andre sidene. */
-  padding-block-start: var(--rom-32);
 }
 
+.lok-hode { min-inline-size: 0; }
+
 @media (min-width: 64rem) {
-  .lok-to { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); }
-  .lok-tidslinje { order: 1; min-inline-size: 0; }
+  /* `auto 1fr`: tilstanden spenner over begge radene, og den fleksible
+     raden tar høyden dens. Med to `auto`-rader ville den høye
+     tilstandsspalta presset første rad høyere og laget et hull mellom
+     tittelen og tidslinja. */
+  .lok-to {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    grid-template-rows: auto 1fr;
+  }
+
+  .lok-hode { grid-column: 1; grid-row: 1; }
+  .lok-tidslinje { grid-column: 1; grid-row: 2; min-inline-size: 0; }
 
   /* KLEBRIG, UTEN TAK OG UTEN EGEN RULLING. Ingen element på siden har
      egen loddrett rulling — `test_lokalitetssiden_har_ingen_egen_
      loddrett_rulling` måler det. */
   .lok-tilstand {
-    order: 2;
+    grid-column: 2;
+    grid-row: 1 / span 2;
     position: sticky;
     inset-block-start: var(--rom-24);
     align-self: start;
