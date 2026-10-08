@@ -277,6 +277,7 @@ def _side(**overstyr) -> str:
         # er gjort rede for i eierskap. Testene under overstyrer.
         "tillatelser_oppgitt": 1,
         "tillatelser_uten_eier": 0,
+        "tillatelser_null_kapasitet": 0,
         "eier_ukjent": nettsted.EIER_UKJENT,
         "overforinger": [{
             "dato": "2018-03-13", "tillatelse": "T-D-0009",
@@ -5257,3 +5258,21 @@ def test_ukefakta_kapasitet_paa_lokalitet_staar_selv_uten_eierskap():
     ledet = [_h("lokalitet", "kapasitet", "1"), _h("lokalitet", "kapasitet", "2")]
     assert nettsted._ukefakta(ledet, frozenset({"akvakultur"})) == [
         "Kapasiteten endret seg på 2 lokaliteter."]
+
+
+def test_kapasitet_null_staar_med_registerets_ord_og_lokalitetens_tall():
+    """«0 stykk» per tillatelse sto uten et ord til 08.10.2026, og ble
+    lest som en feil hos oss. Noten sier at 0 er registerets verdi og
+    viser lokalitetens kapasitet ved siden av — uten å si hvorfor."""
+    flat = " ".join(_side(tillatelser_null_kapasitet=2,
+                          kapasitet="5 000 000 stykk").split())
+    assert "«0» er registerets egen verdi" in flat
+    assert "5 000 000 stykk" in flat
+    uten = " ".join(_side().split())
+    assert "registerets egen verdi" not in uten
+
+
+def test_er_null_skiller_null_fra_tomt():
+    assert nettsted._er_null("0") and nettsted._er_null("0.0")
+    assert not nettsted._er_null("") and not nettsted._er_null(None)
+    assert not nettsted._er_null("375")

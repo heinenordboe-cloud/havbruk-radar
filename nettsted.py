@@ -3593,6 +3593,14 @@ def _navn_eller_skjult(navn: str, felt: str, orgnr: str = "",
             publiseringsvakt.SKJULT_NAVN_FELT, "")
 
 
+def _er_null(verdi: object) -> bool:
+    """Sant når registerets tall er 0 — «0», «0.0». Tomt er ikke 0."""
+    try:
+        return float(str(verdi).strip()) == 0
+    except ValueError:
+        return False
+
+
 def _tildelt(d: dict, former: dict | None = None) -> dict:
     """Hvem tillatelsen ble tildelt — eller at navnet ikke vises.
 
@@ -4569,6 +4577,13 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "tillatelser": tillatelsesrader,
         "tillatelser_oppgitt": len(oppgitt),
         "tillatelser_uten_eier": len(uten_eier),
+        # TILLATELSER DER REGISTERET OPPGIR KAPASITET 0. «0 stykk» i en
+        # tabellcelle, uten et ord, leses som en feil hos oss. Malen sier
+        # hva det er — registerets verdi — og stiller den ved siden av
+        # lokalitetens egen kapasitet. Den tolker den ikke.
+        "tillatelser_null_kapasitet": sum(
+            1 for r in tillatelsesrader
+            if _er_null((eierskap.get(r["nr"]) or {}).get("kapasitet"))),
         # Teksten sendes INN og står ikke i malen: to steder som skal si
         # det samme om hva vi ikke vet, er formen F6 og F7 hadde.
         "eier_ukjent": EIER_UKJENT,

@@ -1757,6 +1757,9 @@ td[data-felt="registerdata_mangler"] {
   border-block-start: 1px solid var(--ink);
 }
 
+/* I en seksjon har seksjonen alt luften. */
+.seksjon > .siterboks:first-child { margin-block-start: 0; }
+
 .siterboks-hode {
   display: flex;
   flex-wrap: wrap;
@@ -2150,6 +2153,28 @@ figcaption {
 
 /* Den første seksjonen i venstrespalta står i flukt med høyrespalta. */
 .lok-tidslinje > .seksjon:first-child { padding-block-start: 0; }
+
+/* EN SEKSJON I VENSTRESPALTA har samme hode enten den har etikett
+   eller ikke: en strek i blekk over, og tittelen på seksjonsnivå. Til
+   08.10.2026 var «Fisk til stede» og «Tillatelser» blokktitler i 20 px
+   med en lys strek, mens «Endringer vi har sett» var en seksjonstittel —
+   to nivåer for det samme. */
+.seksjon.blokk > h2:first-child {
+  font-size: var(--tekst-h2);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  padding-block-start: var(--rom-16);
+  margin-block-end: var(--rom-16);
+  border-block-start-color: var(--ink);
+}
+
+/* TILSTANDSPANELET: etiketten og en strek over, som en seksjon. */
+.lok-tilstand > section {
+  padding-block-start: var(--rom-16);
+  border-block-start: 1px solid var(--ink);
+}
+
+.lok-tilstand .etikett { margin-block-end: var(--rom-16); }
 
 /* FAKTALISTA. `dl`: fire etikett/verdi-par er en beskrivelsesliste. */
 .fakta {
