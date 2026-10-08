@@ -10,12 +10,10 @@ rapporter eller tjenester.
 Grenen er `claude/charming-mayer-arhkot`, én commit per komponent eller
 side. Datarepoet er ikke rørt.
 
-Bildene ligger i `for/` og `etter/` ved siden av denne fila, i 390 og
-1440 px. En side som er lavere enn tre skjermhøyder er tatt hel; en
-høyere side er tatt som øverste skjermhøyde pluss ett utsnitt per
-seksjon (hver synlige H2 i innholdet, og bunnteksten). Begge settene er
-tatt av fulle bygg mot det samme datasnapshotet (datarepoet
-`e244429`), med `deviceScaleFactor 1`. Parene står nederst.
+Før- og etter-bilder av de åtte sidene i 390 og 1440 px ble tatt av
+fulle bygg mot det samme datasnapshotet (datarepoet `e244429`) og vist
+i økta 08.10.2026. De er tatt ut av repoet før merge; høydetabellen
+under er målt av det samme skriptet.
 
 ## Kort
 
@@ -28,8 +26,8 @@ tatt av fulle bygg mot det samme datasnapshotet (datarepoet
   og Romsdal». De rå versalene står uendret der de siteres og lastes ned.
 - **Hver side følger briefens tabell «Sider og jobb»**: det siden svarer
   på står øverst, metode og forbehold lenger ned eller bak et klikk.
-- **Sidene er kortere**, mest på telefon: ukesiden 28 077 → 10 873 px,
-  områdesiden 59 939 → 17 323 px på 390.
+- **Sidene er kortere**, mest på telefon: ukesiden 28 077 → 10 881 px,
+  områdesiden 59 939 → 17 326 px på 390.
 - **Kart og grafer** har et verktøytips som står inne i figuren og aldri
   over bildeteksten, og tastaturet når alt pekeren når.
 - **Stilguiden er skrevet om** (`docs/design/STILGUIDE.md`) og
@@ -96,7 +94,7 @@ De nyeste vesentlige endringene står åpent; resten i sin egen tabell bak
 «Vis resten av de 83 vesentlige endringene». Til nå sto alle bak ett
 klikk, og siden svarte ikke på «hva har endret seg». Forbeholdet om hva
 tallene gjelder står rett under nøkkeltallene, og «Hva denne siden ikke
-sier» bak et klikk. Mowi Seawater Norway AS: 4 061 px på 390 (briefen:
+sier» bak et klikk. Mowi Seawater Norway AS: 4 064 px på 390 (briefen:
 under 5 000).
 
 ### Områdesiden (`6753822`)
@@ -153,18 +151,45 @@ samme på telefon som på bred skjerm. `STILGUIDE.md` er den gjeldende
 stilguiden: prinsipper, tokens, komponenter, når og hvorfor, og det som
 bevisst ikke brukes.
 
+### Etter gjennomgangen (`de7c0a4`, `9d00a02`, `c3aafd0`, `5a3ee98`)
+
+Fem punkter fra gjennomgangen av PR-en, hver for seg:
+
+- **Koordinatradene på selskapssiden** (`de7c0a4`). Radene som står som
+  vesentlige på `/selskap/921668236/`, er Brudevikas (12237) flytting
+  05.10.2026: bredde og lengde samme dag, 190,5 m. Det er over
+  terskelen, og klassifiseringen er riktig — ingen kode er endret. Alle
+  tolv endrede koordinatrader i changeloggen er seks par, klassifisert
+  etter avstanden: 190, 153 (vesentlig), 31, 24, 23 og 19 m (teknisk).
+  En ny prøve låser at selskapssiden får det samme svaret som
+  `vesentlighet`: leses bredde og lengde hver for seg, blir Brudevikas
+  breddegrad 69 m og teknisk.
+- **Lokalitetssiden på 1440** (`9d00a02`). Tilstand og kart står i høyre
+  spalte fra toppen, ved siden av navn og oppsummering. Tittelblokken er
+  første celle i gitteret; på telefon er rekkefølgen den samme som før.
+- **Lenkeradene på 390** (`c3aafd0`). En lenke brytes aldri inni seg; de
+  to filene på lokalitetssiden går ned sammen; pila har ikke egen
+  understrek; brødsmula begynner aldri en linje med skråstreken; og
+  sidenavigasjonen på selskapsindeksen viser navnespennene i menneskelig
+  form og deler dem bare ved tankestreken.
+- **Ukesiden** (`5a3ee98`). Hovedsetningen står før faktalista, som på
+  forsiden.
+- **Bildene** er tatt ut av repoet, og denne rapporten viser ikke til
+  dem.
+
 ## Høyder før og etter
 
-Målt av skjermbildeskriptet på de samme sidene, i piksler.
+Målt av skjermbildeskriptet på de samme sidene, i piksler. Før er
+`origin/main` (`74b17cf`), etter er siste kodecommit (`5a3ee98`).
 
 | Side | 390 før | 390 etter | 1440 før | 1440 etter |
 |---|---:|---:|---:|---:|
 | Forsiden | 7 673 | 6 617 | 3 764 | 3 297 |
-| Uke 41 | 28 077 | 10 873 | 5 987 | 5 376 |
-| Lokalitet 45140 | 8 918 | 7 337 | 4 769 | 4 143 |
-| Lokalitet 12325 | 5 747 | 5 016 | 3 674 | 3 073 |
-| Selskap 921668236 | 4 284 | 4 061 | 3 427 | 2 909 |
-| Område 4 | 59 939 | 17 323 | 15 160 | 12 806 |
+| Uke 41 | 28 077 | 10 881 | 5 987 | 5 382 |
+| Lokalitet 45140 | 8 918 | 7 342 | 4 769 | 4 146 |
+| Lokalitet 12325 | 5 747 | 5 018 | 3 674 | 3 076 |
+| Selskap 921668236 | 4 284 | 4 064 | 3 427 | 2 911 |
+| Område 4 | 59 939 | 17 326 | 15 160 | 12 808 |
 | Lokalitetsindeksen | 6 974 | 6 475 | 6 598 | 5 526 |
 | Om | 12 448 | 9 777 | 6 214 | 5 445 |
 
@@ -201,6 +226,10 @@ Målt av skjermbildeskriptet på de samme sidene, i piksler.
    utviklingsbygget lager er sammenlignet med `origin/main`: det
    eneste nye er «33» på forsiden, i ukas faktasetning, som står
    ordrett på ukesiden.
+9. **Tittelen på lokalitetssiden står i `main`**, ikke i sidehodet, så
+   tilstand og kart kan stå ved siden av den. Hopp-lenka til innholdet
+   lander dermed på navnet. Søket indekserer den som før; `main` har sin
+   egen `data-pagefind-body`.
 
 ## Vurdert og latt være
 
@@ -259,190 +288,35 @@ prøvesettet mot det bygget (`HAVBRUK_NETTSTED`).
 | `44b4ad2` | grønn | 1 701 bestått |
 | `91a97e6` | grønn | 1 701 bestått |
 | `43c1b08` | grønn | 1 701 bestått |
+| `de7c0a4` | grønn | 1 702 bestått |
+| `9d00a02` | grønn | 1 703 bestått |
+| `c3aafd0` | grønn | 1 711 bestått |
+| `5a3ee98` | grønn | 1 713 bestått |
 
 Commitene som bare endrer dokumenter (`d3901cb` briefen, `08c7a5c`
-referansene, `89d7a81` stilguiden, og den med denne rapporten og
-bildene) endrer ikke bygget og er ikke bygget for seg.
+referansene, `89d7a81` stilguiden, `55158e5` rapporten med bildene, og
+den som tar bildene ut igjen) endrer ikke bygget og er ikke bygget for
+seg.
 
 `f121604` ble verifisert med samme bygg og port, men før skriptet som
 lager sammendragsfilene fantes; tallene er lest av portloggen og
 pytest-utskriften fra den kjøringen.
 
+## Merge
+
+Bildene (242 PNG, 16,6 MB) ble lagt inn i `55158e5` og tatt ut igjen i
+en senere commit, uten å skrive om historikken. De ligger derfor
+fortsatt i grenens historikk. Med en vanlig merge eller en rebase-merge
+følger den historikken med inn i `main`, og hver klone av repoet henter
+de 16,6 MB for alltid.
+
+**Squash-merge anbefales for akkurat denne PR-en**: `main` får én commit
+med sluttresultatet, uten bildene. Slett grenen etterpå — en klone
+henter alle grener, og så lenge grenen finnes, følger bildene med.
+Prisen er at commitene per komponent ikke blir egne commits i `main`.
+Meldingene står fortsatt i PR-en og bør limes inn i squash-meldingen;
+de er beslutningsloggen for runden.
+
 ## Bildene
 
-### Forsiden — `/`
-
-**390 px** — før 7 673 px, etter 6 617 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/forside-390-00-topp.png) | ![etter](etter/forside-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Endringer i uke 41, 2026](for/forside-390-01-endringer-i-uke-41-2026.png) · [13 produksjonsområder](for/forside-390-02-13-produksjonsomrader.png) · [Få beskjed når noe endrer seg](for/forside-390-03-fa-beskjed-nar-noe-endrer-seg.png) · [Arkivet](for/forside-390-04-arkivet.png) · [Bunnteksten](for/forside-390-05-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Endringer i uke 41, 2026](etter/forside-390-01-endringer-i-uke-41-2026.png) · [Arkivet](etter/forside-390-02-arkivet.png) · [13 produksjonsområder](etter/forside-390-03-13-produksjonsomrader.png) · [Få beskjed når noe endrer seg](etter/forside-390-04-fa-beskjed-nar-noe-endrer-seg.png) · [Bunnteksten](etter/forside-390-05-bunnteksten.png)
-
-**1440 px** — før 3 764 px, etter 3 297 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/forside-1440-00-topp.png) | ![etter](etter/forside-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Endringer i uke 41, 2026](for/forside-1440-01-endringer-i-uke-41-2026.png) · [13 produksjonsområder](for/forside-1440-02-13-produksjonsomrader.png) · [Få beskjed når noe endrer seg](for/forside-1440-03-fa-beskjed-nar-noe-endrer-seg.png) · [Arkivet](for/forside-1440-04-arkivet.png) · [Bunnteksten](for/forside-1440-05-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Endringer i uke 41, 2026](etter/forside-1440-01-endringer-i-uke-41-2026.png) · [Arkivet](etter/forside-1440-02-arkivet.png) · [13 produksjonsområder](etter/forside-1440-03-13-produksjonsomrader.png) · [Få beskjed når noe endrer seg](etter/forside-1440-04-fa-beskjed-nar-noe-endrer-seg.png) · [Bunnteksten](etter/forside-1440-05-bunnteksten.png)
-
-### Uke 41 — `/endringer/2026-41/`
-
-**390 px** — før 28 077 px, etter 10 873 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/uke-41-390-00-topp.png) | ![etter](etter/uke-41-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Siter denne uka](for/uke-41-390-01-siter-denne-uka.png) · [Bunnteksten](for/uke-41-390-02-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Last ned uka](etter/uke-41-390-01-last-ned-uka.png) · [Siter denne uka](etter/uke-41-390-02-siter-denne-uka.png) · [Bunnteksten](etter/uke-41-390-03-bunnteksten.png)
-
-**1440 px** — før 5 987 px, etter 5 376 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/uke-41-1440-00-topp.png) | ![etter](etter/uke-41-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Siter denne uka](for/uke-41-1440-01-siter-denne-uka.png) · [Bunnteksten](for/uke-41-1440-02-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Last ned uka](etter/uke-41-1440-01-last-ned-uka.png) · [Siter denne uka](etter/uke-41-1440-02-siter-denne-uka.png) · [Bunnteksten](etter/uke-41-1440-03-bunnteksten.png)
-
-### Lokalitet 45140 — `/lokalitet/45140/`
-
-**390 px** — før 8 918 px, etter 7 337 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/lokalitet-45140-390-00-topp.png) | ![etter](etter/lokalitet-45140-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Tilstanden nå](for/lokalitet-45140-390-01-tilstanden-na.png) · [Endringer vi har sett](for/lokalitet-45140-390-02-endringer-vi-har-sett.png) · [Fisk til stede](for/lokalitet-45140-390-03-fisk-til-stede.png) · [Siter denne siden](for/lokalitet-45140-390-04-siter-denne-siden.png) · [Lakselus, voksne hunnlus per fisk](for/lokalitet-45140-390-05-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](for/lokalitet-45140-390-06-tillatelser.png) · [Registerfeltene](for/lokalitet-45140-390-07-registerfeltene.png) · [Historikk kildene selv fører](for/lokalitet-45140-390-08-historikk-kildene-selv-forer.png) · [Bunnteksten](for/lokalitet-45140-390-09-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Tilstanden nå](etter/lokalitet-45140-390-01-tilstanden-na.png) · [Endringer vi har sett](etter/lokalitet-45140-390-02-endringer-vi-har-sett.png) · [Fisk til stede](etter/lokalitet-45140-390-03-fisk-til-stede.png) · [Lakselus, voksne hunnlus per fisk](etter/lokalitet-45140-390-04-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](etter/lokalitet-45140-390-05-tillatelser.png) · [Registerfeltene](etter/lokalitet-45140-390-06-registerfeltene.png) · [Historikk kildene selv fører](etter/lokalitet-45140-390-07-historikk-kildene-selv-forer.png) · [Siter denne siden](etter/lokalitet-45140-390-08-siter-denne-siden.png) · [Bunnteksten](etter/lokalitet-45140-390-09-bunnteksten.png)
-
-**1440 px** — før 4 769 px, etter 4 143 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/lokalitet-45140-1440-00-topp.png) | ![etter](etter/lokalitet-45140-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Tilstanden nå](for/lokalitet-45140-1440-01-tilstanden-na.png) · [Endringer vi har sett](for/lokalitet-45140-1440-02-endringer-vi-har-sett.png) · [Fisk til stede](for/lokalitet-45140-1440-03-fisk-til-stede.png) · [Siter denne siden](for/lokalitet-45140-1440-04-siter-denne-siden.png) · [Lakselus, voksne hunnlus per fisk](for/lokalitet-45140-1440-05-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](for/lokalitet-45140-1440-06-tillatelser.png) · [Registerfeltene](for/lokalitet-45140-1440-07-registerfeltene.png) · [Historikk kildene selv fører](for/lokalitet-45140-1440-08-historikk-kildene-selv-forer.png) · [Bunnteksten](for/lokalitet-45140-1440-09-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Tilstanden nå](etter/lokalitet-45140-1440-01-tilstanden-na.png) · [Endringer vi har sett](etter/lokalitet-45140-1440-02-endringer-vi-har-sett.png) · [Fisk til stede](etter/lokalitet-45140-1440-03-fisk-til-stede.png) · [Lakselus, voksne hunnlus per fisk](etter/lokalitet-45140-1440-04-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](etter/lokalitet-45140-1440-05-tillatelser.png) · [Registerfeltene](etter/lokalitet-45140-1440-06-registerfeltene.png) · [Historikk kildene selv fører](etter/lokalitet-45140-1440-07-historikk-kildene-selv-forer.png) · [Siter denne siden](etter/lokalitet-45140-1440-08-siter-denne-siden.png) · [Bunnteksten](etter/lokalitet-45140-1440-09-bunnteksten.png)
-
-### Lokalitet 12325 — `/lokalitet/12325/`
-
-**390 px** — før 5 747 px, etter 5 016 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/lokalitet-12325-390-00-topp.png) | ![etter](etter/lokalitet-12325-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Tilstanden nå](for/lokalitet-12325-390-01-tilstanden-na.png) · [Endringer vi har sett](for/lokalitet-12325-390-02-endringer-vi-har-sett.png) · [Fisk til stede](for/lokalitet-12325-390-03-fisk-til-stede.png) · [Siter denne siden](for/lokalitet-12325-390-04-siter-denne-siden.png) · [Lakselus, voksne hunnlus per fisk](for/lokalitet-12325-390-05-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](for/lokalitet-12325-390-06-tillatelser.png) · [Registerfeltene](for/lokalitet-12325-390-07-registerfeltene.png) · [Historikk kildene selv fører](for/lokalitet-12325-390-08-historikk-kildene-selv-forer.png) · [Bunnteksten](for/lokalitet-12325-390-09-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Tilstanden nå](etter/lokalitet-12325-390-01-tilstanden-na.png) · [Endringer vi har sett](etter/lokalitet-12325-390-02-endringer-vi-har-sett.png) · [Fisk til stede](etter/lokalitet-12325-390-03-fisk-til-stede.png) · [Lakselus, voksne hunnlus per fisk](etter/lokalitet-12325-390-04-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](etter/lokalitet-12325-390-05-tillatelser.png) · [Registerfeltene](etter/lokalitet-12325-390-06-registerfeltene.png) · [Historikk kildene selv fører](etter/lokalitet-12325-390-07-historikk-kildene-selv-forer.png) · [Siter denne siden](etter/lokalitet-12325-390-08-siter-denne-siden.png) · [Bunnteksten](etter/lokalitet-12325-390-09-bunnteksten.png)
-
-**1440 px** — før 3 674 px, etter 3 073 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/lokalitet-12325-1440-00-topp.png) | ![etter](etter/lokalitet-12325-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Tilstanden nå](for/lokalitet-12325-1440-01-tilstanden-na.png) · [Endringer vi har sett](for/lokalitet-12325-1440-02-endringer-vi-har-sett.png) · [Fisk til stede](for/lokalitet-12325-1440-03-fisk-til-stede.png) · [Siter denne siden](for/lokalitet-12325-1440-04-siter-denne-siden.png) · [Lakselus, voksne hunnlus per fisk](for/lokalitet-12325-1440-05-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](for/lokalitet-12325-1440-06-tillatelser.png) · [Registerfeltene](for/lokalitet-12325-1440-07-registerfeltene.png) · [Historikk kildene selv fører](for/lokalitet-12325-1440-08-historikk-kildene-selv-forer.png) · [Bunnteksten](for/lokalitet-12325-1440-09-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Tilstanden nå](etter/lokalitet-12325-1440-01-tilstanden-na.png) · [Endringer vi har sett](etter/lokalitet-12325-1440-02-endringer-vi-har-sett.png) · [Fisk til stede](etter/lokalitet-12325-1440-03-fisk-til-stede.png) · [Lakselus, voksne hunnlus per fisk](etter/lokalitet-12325-1440-04-lakselus-voksne-hunnlus-per-fisk.png) · [Tillatelser](etter/lokalitet-12325-1440-05-tillatelser.png) · [Registerfeltene](etter/lokalitet-12325-1440-06-registerfeltene.png) · [Historikk kildene selv fører](etter/lokalitet-12325-1440-07-historikk-kildene-selv-forer.png) · [Siter denne siden](etter/lokalitet-12325-1440-08-siter-denne-siden.png) · [Bunnteksten](etter/lokalitet-12325-1440-09-bunnteksten.png)
-
-### Selskap 921668236 — `/selskap/921668236/`
-
-**390 px** — før 4 284 px, etter 4 061 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/selskap-921668236-390-00-topp.png) | ![etter](etter/selskap-921668236-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Vesentlige endringer](for/selskap-921668236-390-01-vesentlige-endringer.png) · [Lokaliteter](for/selskap-921668236-390-02-lokaliteter.png) · [Tillatelser](for/selskap-921668236-390-03-tillatelser.png) · [Eierskap over tid](for/selskap-921668236-390-04-eierskap-over-tid.png) · [Hva Enhetsregisteret sier](for/selskap-921668236-390-05-hva-enhetsregisteret-sier.png) · [Hva denne siden ikke sier](for/selskap-921668236-390-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](for/selskap-921668236-390-07-siter-denne-siden.png) · [Bunnteksten](for/selskap-921668236-390-08-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Vesentlige endringer](etter/selskap-921668236-390-01-vesentlige-endringer.png) · [Lokaliteter](etter/selskap-921668236-390-02-lokaliteter.png) · [Tillatelser](etter/selskap-921668236-390-03-tillatelser.png) · [Eierskap over tid](etter/selskap-921668236-390-04-eierskap-over-tid.png) · [Hva Enhetsregisteret sier](etter/selskap-921668236-390-05-hva-enhetsregisteret-sier.png) · [Hva denne siden ikke sier](etter/selskap-921668236-390-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](etter/selskap-921668236-390-07-siter-denne-siden.png) · [Bunnteksten](etter/selskap-921668236-390-08-bunnteksten.png)
-
-**1440 px** — før 3 427 px, etter 2 909 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/selskap-921668236-1440-00-topp.png) | ![etter](etter/selskap-921668236-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Vesentlige endringer](for/selskap-921668236-1440-01-vesentlige-endringer.png) · [Lokaliteter](for/selskap-921668236-1440-02-lokaliteter.png) · [Tillatelser](for/selskap-921668236-1440-03-tillatelser.png) · [Eierskap over tid](for/selskap-921668236-1440-04-eierskap-over-tid.png) · [Hva Enhetsregisteret sier](for/selskap-921668236-1440-05-hva-enhetsregisteret-sier.png) · [Hva denne siden ikke sier](for/selskap-921668236-1440-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](for/selskap-921668236-1440-07-siter-denne-siden.png) · [Bunnteksten](for/selskap-921668236-1440-08-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Vesentlige endringer](etter/selskap-921668236-1440-01-vesentlige-endringer.png) · [Lokaliteter](etter/selskap-921668236-1440-02-lokaliteter.png) · [Tillatelser](etter/selskap-921668236-1440-03-tillatelser.png) · [Eierskap over tid](etter/selskap-921668236-1440-04-eierskap-over-tid.png) · [Hva Enhetsregisteret sier](etter/selskap-921668236-1440-05-hva-enhetsregisteret-sier.png) · [Hva denne siden ikke sier](etter/selskap-921668236-1440-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](etter/selskap-921668236-1440-07-siter-denne-siden.png) · [Bunnteksten](etter/selskap-921668236-1440-08-bunnteksten.png)
-
-### Område 4 — `/produksjonsomrade/4/`
-
-**390 px** — før 59 939 px, etter 17 323 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/omrade-4-390-00-topp.png) | ![etter](etter/omrade-4-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Beholdning måned for måned](for/omrade-4-390-01-beholdning-maned-for-maned.png) · [Kart over området](for/omrade-4-390-02-kart-over-omradet.png) · [137 lokaliteter](for/omrade-4-390-03-137-lokaliteter.png) · [Endringer](for/omrade-4-390-04-endringer.png) · [Hvor sterkt fargen er belagt](for/omrade-4-390-05-hvor-sterkt-fargen-er-belagt.png) · [Hva denne siden ikke sier](for/omrade-4-390-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](for/omrade-4-390-07-siter-denne-siden.png) · [Bunnteksten](for/omrade-4-390-08-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Beholdning måned for måned](etter/omrade-4-390-01-beholdning-maned-for-maned.png) · [Kart over området](etter/omrade-4-390-02-kart-over-omradet.png) · [137 lokaliteter](etter/omrade-4-390-03-137-lokaliteter.png) · [Endringer](etter/omrade-4-390-04-endringer.png) · [Kildene for fargen](etter/omrade-4-390-05-kildene-for-fargen.png) · [Hva denne siden ikke sier](etter/omrade-4-390-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](etter/omrade-4-390-07-siter-denne-siden.png) · [Bunnteksten](etter/omrade-4-390-08-bunnteksten.png)
-
-**1440 px** — før 15 160 px, etter 12 806 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/omrade-4-1440-00-topp.png) | ![etter](etter/omrade-4-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Beholdning måned for måned](for/omrade-4-1440-01-beholdning-maned-for-maned.png) · [Kart over området](for/omrade-4-1440-02-kart-over-omradet.png) · [137 lokaliteter](for/omrade-4-1440-03-137-lokaliteter.png) · [Endringer](for/omrade-4-1440-04-endringer.png) · [Hvor sterkt fargen er belagt](for/omrade-4-1440-05-hvor-sterkt-fargen-er-belagt.png) · [Hva denne siden ikke sier](for/omrade-4-1440-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](for/omrade-4-1440-07-siter-denne-siden.png) · [Bunnteksten](for/omrade-4-1440-08-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Beholdning måned for måned](etter/omrade-4-1440-01-beholdning-maned-for-maned.png) · [Kart over området](etter/omrade-4-1440-02-kart-over-omradet.png) · [137 lokaliteter](etter/omrade-4-1440-03-137-lokaliteter.png) · [Endringer](etter/omrade-4-1440-04-endringer.png) · [Kildene for fargen](etter/omrade-4-1440-05-kildene-for-fargen.png) · [Hva denne siden ikke sier](etter/omrade-4-1440-06-hva-denne-siden-ikke-sier.png) · [Siter denne siden](etter/omrade-4-1440-07-siter-denne-siden.png) · [Bunnteksten](etter/omrade-4-1440-08-bunnteksten.png)
-
-### Lokalitetsindeksen — `/lokalitet/`
-
-**390 px** — før 6 974 px, etter 6 475 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/lokalitetsindeks-390-00-topp.png) | ![etter](etter/lokalitetsindeks-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Lokaliteter uten koordinater](for/lokalitetsindeks-390-01-lokaliteter-uten-koordinater.png) · [Bunnteksten](for/lokalitetsindeks-390-02-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Lokaliteter uten koordinater](etter/lokalitetsindeks-390-01-lokaliteter-uten-koordinater.png) · [Bunnteksten](etter/lokalitetsindeks-390-02-bunnteksten.png)
-
-**1440 px** — før 6 598 px, etter 5 526 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/lokalitetsindeks-1440-00-topp.png) | ![etter](etter/lokalitetsindeks-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Lokaliteter uten koordinater](for/lokalitetsindeks-1440-01-lokaliteter-uten-koordinater.png) · [Bunnteksten](for/lokalitetsindeks-1440-02-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Lokaliteter uten koordinater](etter/lokalitetsindeks-1440-01-lokaliteter-uten-koordinater.png) · [Bunnteksten](etter/lokalitetsindeks-1440-02-bunnteksten.png)
-
-### Om — `/om/`
-
-**390 px** — før 12 448 px, etter 9 777 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/om-390-00-topp.png) | ![etter](etter/om-390-00-topp.png) |
-
-Utsnitt per seksjon, før: [Hva dette er](for/om-390-01-hva-dette-er.png) · [Hvordan det samles inn, og hvor ofte](for/om-390-02-hvordan-det-samles-inn-og-hvor-ofte.png) · [Hva dekningen er](for/om-390-03-hva-dekningen-er.png) · [Kildene, med lisens og attribusjon](for/om-390-04-kildene-med-lisens-og-attribusjon.png) · [Hva som bevisst ikke hentes](for/om-390-05-hva-som-bevisst-ikke-hentes.png) · [Hvem som står bak](for/om-390-06-hvem-som-star-bak.png) · [Sitering](for/om-390-07-sitering.png) · [Hva nettstedet selv låner](for/om-390-08-hva-nettstedet-selv-laner.png) · [Bunnteksten](for/om-390-09-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Hva dette er](etter/om-390-01-hva-dette-er.png) · [Hvem som står bak](etter/om-390-02-hvem-som-star-bak.png) · [Hvordan det samles inn, og hvor ofte](etter/om-390-03-hvordan-det-samles-inn-og-hvor-ofte.png) · [Hva dekningen er](etter/om-390-04-hva-dekningen-er.png) · [Kildene, med lisens og attribusjon](etter/om-390-05-kildene-med-lisens-og-attribusjon.png) · [Hva som bevisst ikke hentes](etter/om-390-06-hva-som-bevisst-ikke-hentes.png) · [Sitering](etter/om-390-07-sitering.png) · [Hva nettstedet selv låner](etter/om-390-08-hva-nettstedet-selv-laner.png) · [Bunnteksten](etter/om-390-09-bunnteksten.png)
-
-**1440 px** — før 6 214 px, etter 5 445 px
-
-| Før | Etter |
-|---|---|
-| ![før](for/om-1440-00-topp.png) | ![etter](etter/om-1440-00-topp.png) |
-
-Utsnitt per seksjon, før: [Hva dette er](for/om-1440-01-hva-dette-er.png) · [Hvordan det samles inn, og hvor ofte](for/om-1440-02-hvordan-det-samles-inn-og-hvor-ofte.png) · [Hva dekningen er](for/om-1440-03-hva-dekningen-er.png) · [Kildene, med lisens og attribusjon](for/om-1440-04-kildene-med-lisens-og-attribusjon.png) · [Hva som bevisst ikke hentes](for/om-1440-05-hva-som-bevisst-ikke-hentes.png) · [Hvem som står bak](for/om-1440-06-hvem-som-star-bak.png) · [Sitering](for/om-1440-07-sitering.png) · [Hva nettstedet selv låner](for/om-1440-08-hva-nettstedet-selv-laner.png) · [Bunnteksten](for/om-1440-09-bunnteksten.png)
-
-Utsnitt per seksjon, etter: [Hva dette er](etter/om-1440-01-hva-dette-er.png) · [Hvem som står bak](etter/om-1440-02-hvem-som-star-bak.png) · [Hvordan det samles inn, og hvor ofte](etter/om-1440-03-hvordan-det-samles-inn-og-hvor-ofte.png) · [Hva dekningen er](etter/om-1440-04-hva-dekningen-er.png) · [Kildene, med lisens og attribusjon](etter/om-1440-05-kildene-med-lisens-og-attribusjon.png) · [Hva som bevisst ikke hentes](etter/om-1440-06-hva-som-bevisst-ikke-hentes.png) · [Sitering](etter/om-1440-07-sitering.png) · [Hva nettstedet selv låner](etter/om-1440-08-hva-nettstedet-selv-laner.png) · [Bunnteksten](etter/om-1440-09-bunnteksten.png)
-
+Bildene ble vist i økta 08.10.2026 og ligger ikke i repoet.
