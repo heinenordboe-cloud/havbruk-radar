@@ -379,15 +379,19 @@
     {% endif %}
   </p>
 
-  <p class="nedlasting">
-    Last ned uka:
-    <a href="/endringer/{{ u.slug }}/{{ u.xlsx_filnavn }}" download>Excel (.xlsx)</a> ·
-    <a href="/endringer/{{ u.slug }}/{{ u.zip_filnavn }}" download>Data (.zip)</a> ·
-    <a href="/endringer/{{ u.slug }}/endringer.json">JSON</a> ·
-    <a href="/endringer/feed.xml">Atom-feed</a>
-    <span class="nedlasting-note">Filene har alle
-      {{ antall(u.antall_i_fila, "raden", "radene") }} i uka, ikke bare de som vises her.</span>
-  </p>
+  {# NEDLASTINGEN STÅR SOM VERKTØYLINJA i sidehodet: lenker med ↓ for
+     det som lastes ned. Notaten sier hva filene inneholder. #}
+  <div class="nedlasting">
+    <h2 class="etikett" id="nedlasting-tittel">Last ned uka</h2>
+    <ul class="handlinger" aria-labelledby="nedlasting-tittel">
+      <li><a class="handling handling--last" href="/endringer/{{ u.slug }}/{{ u.xlsx_filnavn }}" download>Excel (.xlsx)</a></li>
+      <li><a class="handling handling--last" href="/endringer/{{ u.slug }}/{{ u.zip_filnavn }}" download>Data (.zip)</a></li>
+      <li><a class="handling handling--last" href="/endringer/{{ u.slug }}/endringer.json">JSON</a></li>
+      <li><a class="handling" href="/endringer/feed.xml">Atom-feed</a></li>
+    </ul>
+    <p class="nedlasting-note">Filene har alle
+      {{ antall(u.antall_i_fila, "raden", "radene") }} i uka, ikke bare de som vises her.</p>
+  </div>
 </section>
 
 <section class="ark" id="siter" aria-labelledby="siter-tittel">

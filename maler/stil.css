@@ -842,6 +842,12 @@ a:hover {
 
 .seksjon { padding-block: var(--rom-seksjon) 0; }
 
+/* DEN FØRSTE SEKSJONEN rett under sidehodet trenger ikke seksjonsluft:
+   sidehodet har sin egen, og to lag luft over hverandre leses som et
+   hull. (`main` begynner med søkemetadataene i en skjult `div`.) */
+main > .seksjon:first-child,
+main > .visuelt-skjult + .seksjon { padding-block-start: var(--rom-32); }
+
 /* ---------------------------------------------------------------- *
  * 5. KNAPPER OG SKJEMAFELT
  *
@@ -1787,14 +1793,16 @@ td[data-felt="registerdata_mangler"] {
 /* ---- nedlastingslinja ---- */
 
 .nedlasting {
-  margin-block-start: var(--rom-24);
-  max-width: none;
-  font-size: var(--tekst-s);
+  margin-block-start: var(--rom-48);
+  padding-block-start: var(--rom-16);
+  border-block-start: 1px solid var(--papir3);
 }
 
+.nedlasting h2 { margin: 0; }
+.nedlasting .handlinger { margin-block-start: var(--rom-8); }
+
 .nedlasting-note {
-  display: block;
-  margin-block-start: var(--rom-4);
+  margin: var(--rom-8) 0 0;
   font-size: var(--tekst-xs);
   color: var(--ink-dempet);
 }
@@ -2587,6 +2595,75 @@ figcaption {
  * ---------------------------------------------------------------- */
 
 #endringer-uker td.mangler { color: var(--ink-dempet); }
+
+/* ENDRINGSLOGGENE SOM KORT, under 640 px.
+ *
+ * En endringsrad har seks kolonner, og som vanlig kort ble den seks
+ * linjer med etikett — 75 rader i uke 41 var 16 000 px på 390. Her er
+ * kortet det en leser ser etter: HVA (navnet, i halvfet) og HVORDAN
+ * (endringen), og så dato · kommune · område · type på én dempet
+ * linje under. Etikettene trengs ikke der: en dato, et stedsnavn og et
+ * områdenummer kjennes igjen uten dem, og tabellhodet står for
+ * skjermlesere som før.
+ *
+ * En celle uten verdi («—») står ikke i metalinja. Den sier at vi ikke
+ * har verdien; i en linje med prikker mellom ville den sett ut som et
+ * tegn som manglet. Tabellen på bred skjerm viser den som før. */
+@media (max-width: 39.99rem) {
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0;
+  }
+
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) tbody td {
+    margin: 0;
+    padding-inline-start: 0;
+  }
+
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) tbody td[data-label]::before {
+    content: none;
+    position: static;
+    inline-size: auto;
+  }
+
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td.gjelder {
+    order: -2;
+    flex-basis: 100%;
+    font-size: var(--tekst-m);
+    font-weight: 600;
+  }
+
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td.endring {
+    order: -1;
+    flex-basis: 100%;
+    margin-block: 2px var(--rom-4);
+  }
+
+  /* Fargeruta foran en ny trafikklysfarge står også på kortet. */
+  :is(#endringer-uke, #endringer-uke-tekniske) td.endring:is(.lys-rod, .lys-gul, .lys-gronn)::before {
+    content: "";
+  }
+
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td:not(.gjelder):not(.endring) {
+    font-size: var(--tekst-xs);
+    color: var(--ink-dempet);
+  }
+
+  /* Skilletegnet står FORAN hver metacelle unntatt datoen, som alltid
+     er den første. En celle som er skjult, tar skilletegnet sitt med. */
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td:not(.gjelder):not(.endring):not([data-felt="observed_at"])::before {
+    content: "·";
+    margin-inline: 0.45em;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  :is(#endringer-uke, #endringer-uke-tekniske, #endringer-selskapsdata) td[data-felt="verdi_mangler"] {
+    display: none;
+  }
+}
 
 /* ---------------------------------------------------------------- *
  * 15. OM-SIDEN
