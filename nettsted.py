@@ -5587,6 +5587,27 @@ def _hentet_snapshot(kilde: str, dato: str) -> str:
     return (snapshot.fetched_at_i(versjoner[-1][1]) or "") if versjoner else ""
 
 
+def _ukens_hentet(uke: dict) -> str:
+    """Da VI hentet øyeblikksbildet en endringsuke er bygget fra.
+
+    Øyeblikksbildet er ukas SISTE observasjonsdato — den samme datoen
+    `proveniens()` navngir. Har flere kilder et snapshot den dagen, er
+    det den siste av hentingene. Tom når ingen er stemplet, og da
+    utelates leddet framfor å låne et annet tidspunkt.
+
+    ## Feilen dette er rettingen av (08.10.2026)
+
+    Ukesiden sa `felles.akva_hentet` — hentetidspunktet til det NYESTE
+    akvakultur-snapshotet. MÅLT i bygget 07.10.2026: /endringer/2026-35/
+    og /endringer/2026-41/ sa begge «hentet 5. oktober 2026 kl. 12.07
+    UTC». Uke 35 ble hentet 24. august. Et tidspunkt som handler om OSS,
+    slått opp på feil sted — CLAUDE.md 1b, samme familie som F6 og F7.
+    """
+    stempler = [_hentet_snapshot(h["kilde"], h["dato"])
+                for h in uke["hendelser"] if h["dato"] == uke["siste_dato"]]
+    return max((x for x in stempler if x), default="")
+
+
 def endringer_datasett(uke: dict, vilkaar=None,
                        bygget: str | None = None) -> nedlasting.Datasett:
     """Ukas hendelser som regneark og datapakke. Samme rader som CSV-en.
@@ -5766,7 +5787,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
                     beskrivelse=_ukebeskrivelse(uke, valgt, ledet),
                     jsonld=_jsonld_uke(uke, hendelser, felles.vilkaar, url),
                     proveniens_tekst=proveniens(
-                        uke["siste_dato"], felles.akva_hentet,
+                        uke["siste_dato"], _ukens_hentet(uke),
                         f"Sammenligning av øyeblikksbildene for "
                         f"{uke['vist']} og uka før."),
                     meny_aktiv="endringer",

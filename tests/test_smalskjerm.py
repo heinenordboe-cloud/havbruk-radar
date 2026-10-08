@@ -796,3 +796,45 @@ def test_ingen_celle_er_kuttet_paa_390(side, tjener, sti):
       return ut.slice(0, 5);
     }""")
     assert not kuttet, f"{sti}: celler utenfor egen kant: {kuttet}"
+
+
+# ---- ukesidenes hentetidspunkt -----------------------------------------
+
+def _proveniens(uke: str) -> str:
+    import html as _html
+    raa = Path(ROT, "endringer", uke, "index.html").read_text(encoding="utf-8")
+    m = re.search(r'<div class="ark bunn-proveniens">\s*<p>(.*?)</p>', raa, re.S)
+    assert m, f"ingen proveniens på {uke}"
+    return " ".join(_html.unescape(m.group(1)).split())
+
+
+def test_uke_35_og_uke_41_oppgir_hver_sin_henting():
+    """MÅLT 07.10.2026: begge sa «hentet 5. oktober 2026 kl. 12.07 UTC»,
+    det nyeste snapshotets tidspunkt. Uke 35 ble hentet 24. august.
+
+    Tidspunktene er datarepoets (fetched_at i snapshotene for 2026-08-24
+    og 2026-10-05), lest 08.10.2026."""
+    u35, u41 = _proveniens("2026-35"), _proveniens("2026-41")
+    assert "hentet 24. august 2026 kl. 19.48 UTC" in u35, u35
+    assert "hentet 5. oktober 2026 kl. 12.07 UTC" in u41, u41
+    hentet = lambda t: t.split("hentet ", 1)[1].split(".", 1)[0]
+    assert hentet(u35) != hentet(u41)
+
+
+def test_ingen_ukeside_er_hentet_foer_sin_egen_uke():
+    """For hver ukeside i bygget: hentingen er ikke eldre enn uka den
+    sier den er bygget fra. Fanger at en uke låner et annet snapshots
+    tidspunkt i begge retninger, så langt dato-delen kan si det."""
+    import datetime as dt
+    maaneder = ["januar", "februar", "mars", "april", "mai", "juni", "juli",
+                "august", "september", "oktober", "november", "desember"]
+    tider = {}
+    for mappe in sorted(Path(ROT, "endringer").glob("20??-??")):
+        t = _proveniens(mappe.name)
+        m = re.search(r"hentet (\d+)\. (\w+) (\d{4})", t)
+        assert m, t
+        d = dt.date(int(m[3]), maaneder.index(m[2]) + 1, int(m[1]))
+        aar, uke, _ = d.isocalendar()
+        assert (aar, uke) >= tuple(int(x) for x in mappe.name.split("-")), t
+        tider[mappe.name] = d
+    assert len(set(tider.values())) == len(tider), tider

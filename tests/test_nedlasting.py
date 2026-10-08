@@ -550,3 +550,33 @@ def test_uka_med_to_versjoner_gir_den_siste(med_hull):
 def test_ingen_hull_gir_ingen_setning(datamappe):
     lok = nettsted.bygg_lokalitet("10001", nettsted.les_felles())
     assert lok["lus_mangler"] == [] and lok["lus_mangler_tekst"] == ""
+
+
+# ---- ukesidens hentetidspunkt (08.10.2026) ------------------------------
+
+def test_ukesiden_oppgir_sitt_eget_hentetidspunkt(monkeypatch):
+    """Ikke `akva_hentet`, som er det nyeste snapshotets. Den siste
+    hentingen blant ukas snapshots på ukas siste observasjonsdato."""
+    stemplet = {
+        ("akvakultur", "2026-09-14"): "2026-09-14T10:23:57+00:00",
+        ("eierskap", "2026-09-14"): "2026-09-14T10:24:07+00:00",
+        ("biomasselag", "2026-09-15"): "2026-09-15T21:58:06+00:00",
+    }
+    monkeypatch.setattr(nettsted, "_hentet_snapshot",
+                        lambda k, d: stemplet.get((k, d), ""))
+    uke = {"siste_dato": "2026-09-15", "hendelser": [
+        {"kilde": "akvakultur", "dato": "2026-09-14"},
+        {"kilde": "eierskap", "dato": "2026-09-14"},
+        {"kilde": "biomasselag", "dato": "2026-09-15"}]}
+    assert nettsted._ukens_hentet(uke) == "2026-09-15T21:58:06+00:00"
+    uke["siste_dato"] = "2026-09-14"
+    assert nettsted._ukens_hentet(uke) == "2026-09-14T10:24:07+00:00"
+
+
+def test_uten_stemplet_henting_sier_ukesiden_ingenting_om_den(monkeypatch):
+    monkeypatch.setattr(nettsted, "_hentet_snapshot", lambda k, d: "")
+    uke = {"siste_dato": "2026-08-24",
+           "hendelser": [{"kilde": "akvakultur", "dato": "2026-08-24"}]}
+    assert nettsted._ukens_hentet(uke) == ""
+    assert "hentet" not in nettsted.proveniens("2026-08-24",
+                                               nettsted._ukens_hentet(uke))
