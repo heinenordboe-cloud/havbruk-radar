@@ -369,8 +369,8 @@ To workflows i DATAREPOET, og koden de kjører ligger i kodrepoet
 
 | Workflow | Starter | Gjør |
 |---|---|---|
-| **Bygg nettstedet** (`bygg.yml`) | av seg selv når innsamlingen ender grønn (også DELVIS), eller for hånd | bygger, kjører porten, legger ut til **forhåndsvisning**, lagrer byggemappa i 14 dager |
-| **Publiser** (`publiser.yml`) | bare for hånd | legger et ferdig bygg ut på **kystloggen.no** og røyktester det |
+| **Bygg nettstedet** (`bygg.yml`) | av seg selv når innsamlingen ender grønn (også DELVIS), eller for hånd | bygger, kjører porten, legger ut til **forhåndsvisning**, lagrer byggemappa i 7 dager |
+| **Publiser** (`publiser.yml`) | bare for hånd | legger et ferdig bygg ut på **kystloggen.no**, røyktester det, og sletter eldre bygg når alt er grønt |
 
 Godkjenningen er at du starter `Publiser` selv. Datarepoet er privat på
 GitHub Free, og der finnes ikke miljøer med påkrevd godkjenner.
@@ -464,10 +464,21 @@ Delete).
 
 ### Lagring
 
-GitHub Free har 500 MB til artifacts. Byggemappa er ca. 124 MB komprimert,
-og lagres i 14 dager. `bygg.yml` skriver størrelsen og summen av alt som
-ligger i oppsummeringen, og varsler over 80 %. Gamle bygg slettes under
-Actions → Management → Artifacts.
+GitHub Free har 500 MB til artifacts, delt av hele kontoen. Byggemappa er
+ca. 124 MB komprimert. Fra 08.10.2026 holdes den nede på to måter, begge i
+datarepoet:
+
+- **`bygg.yml` lagrer i 7 dager**, ikke 14 — både `nettsted` og
+  `kvittering`.
+- **`publiser.yml` sletter eldre bygg** i steget «Rydd eldre bygg», etter
+  røyktesten og bare når hele publiseringen er grønn
+  (`.github/rydd_bygg.py`). Det publiserte bygget og alle NYERE står —
+  de er ikke lagt ut ennå. «Eldre» er artifactens tidspunkt, ikke run_id.
+  En feil der er en advarsel, ikke rødt: siden er allerede ute.
+
+`bygg.yml` skriver størrelsen og summen av alt som ligger i
+oppsummeringen, og varsler over 80 %. `publiser.yml` skriver hva den
+ryddet og hva som står igjen. For hånd: Actions → Management → Artifacts.
 
 MÅLT 07.10.2026, samme datarepo (e75827c), zip -6 som i `bygg.yml`:
 
@@ -477,12 +488,23 @@ MÅLT 07.10.2026, samme datarepo (e75827c), zip -6 som i `bygg.yml`:
 | med .xlsx og .zip | 12 635 | 408,0 MB | 124,4 MB |
 
 Regnearkene og datapakkene er allerede komprimert (54,4 + 14,1 MB på
-disk) og krymper ikke i artifacten. **Med ett bygg i uka ligger to–tre
-ute samtidig: 249–373 MB, 50–75 % av kvoten.** Et fjerde bygg — et
-startet for hånd i samme fjortendagersvindu — gir 498 MB, og
-«Lagre byggemappa» feiler da av seg selv. Senk `retention-days` i
-`bygg.yml` (i datarepoet) til 7 om det skjer; publiser.yml trenger bare
-det nyeste bygget.
+disk) og krymper ikke i artifacten. Det som ligger ute 08.10.2026 er ett
+bygg fra før nedlastingene: `nettsted` 66 974 390 byte ifølge API-et —
+samme mål som zip -6 lokalt, innenfor 0,6 %.
+
+**Samlet lagring etter to bygg**, REGNET av tallene over — ikke avlest,
+fordi `bygg.yml` legger ut forhåndsvisning med wrangler og ikke kjøres
+for en måling:
+
+| | før 08.10 (14 dager, ingen rydding) | etter |
+|---|---|---|
+| to bygg i samme uke, ingen publisering | 249 MB + det fra før | 249 MB, til det eldste er 7 dager |
+| to ukentlige bygg, den nyeste publisert | 249–373 MB (to–tre ute) | 124 MB |
+| verste: fire bygg innen 14 dager | 498 MB | to innen 7 dager: 249 MB |
+
+Bygget som ligger ute nå ble lastet opp med 14 dager og utløper 21.10.
+Retensjonen gjelder bare nye opplastinger, men neste grønne publisering
+sletter det.
 
 ### Filtaket hos Cloudflare Pages
 
@@ -496,7 +518,7 @@ lag halvannet år til 15 000, med mindre noe nytt per lokalitet kommer til.
 
 Alt over kan gjøres for hånd som før — `python publiser.py
 --produksjon` fra maskinen, med `npx wrangler@4.139.0 login`. Bruk den
-når Actions er nede, når bygget er utløpt (14 dager), når tokenet er
+når Actions er nede, når bygget er utløpt (7 dager), når tokenet er
 trukket, eller når du vil se steg 4 i terminalen før du svarer.
 
 De to veiene skriver i samme logg. Logglinja fra `bygg.yml` flytter
