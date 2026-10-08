@@ -39,11 +39,11 @@
     <p class="etikett">På denne siden</p>
     <ol>
       <li><a href="#hva">Hva dette er</a></li>
+      <li><a href="#hvem">Hvem som står bak</a></li>
       <li><a href="#innsamling">Innsamling og metode</a></li>
       <li><a href="#dekning">Dekning og begrensninger</a></li>
       <li><a href="#kilder">Kildene, med lisens</a></li>
       <li><a href="#hva-vi-ikke-gjor">Hva som bevisst ikke hentes</a></li>
-      <li><a href="#hvem">Hvem som står bak</a></li>
       <li><a href="#sitering">Slik siterer du</a></li>
       <li><a href="#hva-nettstedet-laaner">Hva nettstedet selv låner</a></li>
     </ol>
@@ -65,6 +65,22 @@
   Brønnøysundregistrene, BarentsWatch og Lovdata. Sammenstillingen og
   historikken er min. Tallene er gjengitt uendret; ingen av etatene går
   god for hvordan de er satt sammen.
+</p>
+
+{# HVEM STÅR BAK, rett etter hva dette er. Briefens tabell: «hva og hvem
+   i tre avsnitt» øverst, metode, kilder og sitering under. Sto som
+   sjette del til 08.10.2026. #}
+<h2 id="hvem">Hvem som står bak</h2>
+<p>
+  {{ om.forfatter }}. Koden, beslutningsloggen og målingene ligger åpent:
+  <a href="{{ om.repo }}">{{ om.repo }}</a>.
+</p>
+<p>
+  {% if om.kontakt %}
+  Kontakt: <a href="mailto:{{ om.kontakt }}">{{ om.kontakt }}</a>.
+  {% else %}
+  Kontakt går via GitHub — opprett en sak i repoet over.
+  {% endif %}
 </p>
 
 <h2 id="innsamling">Hvordan det samles inn, og hvor ofte</h2>
@@ -209,19 +225,6 @@
   av registeret. Det autoriserte API-et med rolledata er en annen lisens
   og en grense vi ikke krysser — det betyr også at siden ikke kan si noe
   om konsernstruktur eller hvem som sitter i styrene.
-</p>
-
-<h2 id="hvem">Hvem som står bak</h2>
-<p>
-  {{ om.forfatter }}. Koden, beslutningsloggen og målingene ligger åpent:
-  <a href="{{ om.repo }}">{{ om.repo }}</a>.
-</p>
-<p>
-  {% if om.kontakt %}
-  Kontakt: <a href="mailto:{{ om.kontakt }}">{{ om.kontakt }}</a>.
-  {% else %}
-  Kontakt går via GitHub — opprett en sak i repoet over.
-  {% endif %}
 </p>
 
 <h2 id="sitering">Sitering</h2>

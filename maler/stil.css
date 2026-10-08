@@ -297,8 +297,13 @@ body {
    Til 08.10.2026 sto «Endringer vi har sett» på lokalitetssiden i en
    `.ark` inne i en `.ark`, og venstrekanten lå 56 px lenger inn enn
    resten av siden på 1440. Én venstrekant for hele siden er en regel,
-   ikke noe hver mal skal huske. */
-.ark .ark {
+   ikke noe hver mal skal huske.
+
+   En `main` uten `.fullbredde` ER en `.ark` — samme bredde, samme
+   marg — og samme regel gjelder der. Til 08.10.2026 lå innholdslista på
+   om-siden og trefflista på søkesiden 56 px innenfor tittelen. */
+.ark .ark,
+main:not(.fullbredde) .ark {
   max-width: none;
   padding-inline: 0;
 }
@@ -2836,16 +2841,20 @@ figcaption {
 .om-innhold a:visited { color: var(--rust); }
 .om-innhold a:hover { color: var(--rust-moerk); text-decoration-color: currentColor; }
 
-.om-tekst { min-inline-size: 0; max-inline-size: var(--maal-om); }
+/* TEKSTEN HAR MÅLEBÅND, TABELLENE HAR SPALTA. Til 08.10.2026 var hele
+   artikkelen 44rem bred, og lisenstabellen med ordrett attribusjon ble
+   kuttet på 1440 og måtte rulles sidelengs. Brødteksten holder seg på
+   lesebredden; tabellene får hele spalta til høyre for innholdslista. */
+.om-tekst { min-inline-size: 0; }
 
-.om-tekst p, .om-tekst ul, .om-tekst ol, .om-tekst dl { max-width: var(--maal-om); }
+.om-tekst :is(p, ul, ol, dl, h3) { max-width: var(--maal-om); }
 .om-tekst .tabellnote { max-width: var(--maal-note); }
 
 .om-tekst h2 {
   margin-block-start: var(--rom-seksjon);
   padding-block-start: var(--rom-16);
   border-block-start: 1px solid var(--ink);
-  max-width: var(--maal-om);
+  max-width: none;
 }
 
 .om-tekst h2:first-child { margin-block-start: 0; }
@@ -2866,6 +2875,7 @@ figcaption {
 .sok--side { margin-block-start: var(--rom-24); }
 
 .sokeresultat { min-block-size: 2em; }
+.sokeresultat:empty { min-block-size: 0; }
 
 .sok-melding {
   font-size: var(--tekst-s);
@@ -2930,10 +2940,17 @@ figcaption {
   color: var(--ink-dempet);
 }
 
-.sok-uten {
-  padding-block-start: var(--rom-32);
-  border-block-start: 1px solid var(--papir3);
+/* VEIVISEREN er en seksjon som alle andre: overskrift under en
+   blekkstrek. Til 08.10.2026 sto en hårlinje over en tom treffliste,
+   og overskriften kom 120 px under den. */
+.sok-uten > h2 {
+  margin-block-start: 0;
+  padding-block-start: var(--rom-16);
+  border-block-start: 1px solid var(--ink);
+  max-width: none;
 }
+
+.sokeresultat:not(:empty) + .sok-uten { margin-block-start: var(--rom-seksjon); }
 
 /* ---------------------------------------------------------------- *
  * 17. BUNNTEKSTEN
