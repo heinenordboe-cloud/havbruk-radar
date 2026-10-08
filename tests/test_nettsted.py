@@ -1595,7 +1595,11 @@ def _selskap(**overstyr) -> str:
         "enhetsregisteret_url":
             "https://virksomhet.brreg.no/nb/oppslag/enheter/912345678",
         "samlet_kapasitet": "780 tonn", "kapasitetsenheter": 1,
+        "kapasitet_per_enhet": ["780 tonn"],
         "i_arkivet_siden": "2018-03-13",
+        "endringer": [], "aapen_liste": nettsted.SELSKAP_AAPEN_LISTE,
+        "endringsvindu": {"fra": "2026-09-02", "til": "2026-09-14",
+                          "hele": False, "uker": 13},
         # «Gikk ut» er UTLEDET — registeret journalfører bare ankomster.
         # Se `bygg_selskap()`.
         "eierskapslinje": [
@@ -1680,7 +1684,8 @@ def test_en_tillatelse_uten_eier_kan_ikke_havne_paa_en_selskapsside():
         enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
         akva_dato="2026-09-14",
         akva={"10001": {"navn": "TESTHOLMEN"}, "11517": {"navn": "TRETTØY"}},
-        former={}, overforinger_per_tillatelse={})
+        former={}, overforinger_per_tillatelse={},
+        dekning_fra=[], registerendringer={})
 
     sel = nettsted.bygg_selskap("912345678", felles)
     numre = [t["nr"] for t in sel["tillatelser"]]
@@ -1703,6 +1708,7 @@ def test_gikk_ut_overskriver_ikke_selskapets_navn():
                                "lokaliteter": "10001"}},
         enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
         akva_dato="2026-09-14", akva={"10001": {"navn": "TESTHOLMEN"}},
+        dekning_fra=[], registerendringer={},
         former={}, overforinger_per_tillatelse={"N-T-0002": [
             {"journal_dato": "2018-01-01", "rekkefolge": "1",
              "mottaker_orgnr": "912345678", "mottaker_navn": "TESTLAKS AS"},
@@ -5080,3 +5086,65 @@ def test_ingen_ledd_gir_ingen_setning():
                  selskap={"navn": "", "orgnr": "", "url": "", "siden": "",
                           "antall": 0, "flere": 0, "personform": False})
     assert "lok-sammendrag" not in html
+
+
+# ==================================== selskapssidens sammendrag
+
+def _crad(eid, felt, fra, til, dato, kilde="akvakultur", slag="endret"):
+    return {"entity_id": eid, "field": felt, "old_value": fra,
+            "new_value": til, "change_type": slag, "source": kilde,
+            "observed_at": dato, "forrige_observed_at": ""}
+
+
+def _selskapsfelles(endringer):
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        akva_dato="2026-10-05", eierskap_dato="2026-10-05",
+        dekning_fra=[{"kilde": "akvakultur", "fra": "2026-01-05"}],
+        akva={"10001": {"navn": "TESTHOLMEN"}, "10002": {"navn": "TESTVIKA"}},
+        registerendringer=endringer)
+
+
+def test_selskapets_endringer_teller_en_tillatelse_paa_to_lokaliteter_en_gang():
+    felles = _selskapsfelles({
+        "10001": [_crad("10001", "har_samdrift", "True", "False", "2026-09-28")],
+        "10002": [_crad("10002", "har_samdrift", "True", "False", "2026-06-01")],
+        "N-T-0001": [_crad("N-T-0001", "kapasitet", "780", "900",
+                           "2026-09-21", kilde="eierskap")],
+    })
+    poster, vindu = nettsted._selskapsendringer(
+        "912345678", ["10001", "10002"], ["N-T-0001"], felles)
+    assert vindu["hele"] and vindu["uker"] == nettsted.SELSKAP_UKER
+    # 10002 er utenfor vinduet; tillatelsen telles én gang.
+    assert [(p["dato"], p["gjelder"]) for p in poster] == [
+        ("2026-09-28", "lokalitet 10001"), ("2026-09-21", "tillatelse N-T-0001")]
+    assert poster[0]["lokalitetsnavn"] == "Testholmen"
+
+
+def test_selskapets_endringer_tar_med_tillatelser_det_har_gitt_fra_seg():
+    """Et salg skal ikke være usynlig på selgerens side."""
+    felles = _selskapsfelles({
+        "N-T-0009": [_crad("N-T-0009", "eier_orgnr", "912345678",
+                           "987654321", "2026-09-28", kilde="eierskap")],
+    })
+    poster, _ = nettsted._selskapsendringer("912345678", [], [], felles)
+    assert [p["entity_id"] for p in poster] == ["N-T-0009"]
+
+
+def test_selskapssiden_lukker_lange_lister_og_viser_tallet_oeverst():
+    lokaliteter = [{"loknr": str(10000 + i), "navn": f"Lok {i}",
+                    "original": f"LOK {i}", "kommune": "BODØ", "po_kode": "8",
+                    "po_navn": "Helgeland til Bodø", "status": "gul",
+                    "status_klasse": "lys-gul", "kapasitet": "780 tonn",
+                    "siden": "", "tillatelser": []}
+                   for i in range(nettsted.SELSKAP_AAPEN_LISTE + 1)]
+    html = _selskap(lokaliteter=lokaliteter,
+                    lokaliteter_antall=len(lokaliteter))
+    flat = " ".join(html.split())
+    assert "Vis alle 11 lokalitetene" in flat
+    i = html.index('id="akvakultur-lokaliteter"')
+    assert html.rfind("<details", 0, i) > html.rfind("</details>", 0, i)
+    # Kort liste: ingen lukking.
+    assert "Vis den ene" not in " ".join(_selskap().split())
+    assert '<a href="#endringer-selskap">0</a>' in html
+    assert "vesentlige endringer siden" in flat

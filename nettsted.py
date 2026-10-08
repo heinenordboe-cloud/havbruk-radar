@@ -4225,39 +4225,57 @@ def _eierledd(selskap: dict) -> list[tuple] | None:
     return ledd
 
 
-def _endringsledd(observert: list[dict], dekning_fra: list[dict],
-                  referanse: str) -> list[tuple] | None:
-    """«2 vesentlige endringer siste 12 uker».
+def endringsvindu(referanse: str, dekning_fra: list[dict], uker: int
+                  ) -> dict | None:
+    """Vinduet «siste N uker», avgrenset av vår egen dekning.
 
-    VINDUET ER AVGRENSET AV VÅR EGEN DEKNING. Har vi hentet i færre enn
-    tolv uker, ville «0 endringer siste 12 uker» påstått at vi så etter i
-    uker vi ikke så etter. Da står datoen vi begynte i stedet — den
-    seneste av registerkildenes første henting, så hver kilde som teller
-    har vært med hele vinduet.
+    Har vi hentet i færre enn N uker, ville «0 endringer siste N uker»
+    påstått at vi så etter i uker vi ikke så etter. Da begynner vinduet
+    på den SENESTE av registerkildenes første henting, så hver kilde som
+    teller har vært med hele vinduet, og `hele` er usann.
 
     REFERANSEN ER DATAENES, ikke klokka: datoen til øyeblikksbildet
     siden er bygget av. CLAUDE.md 1b.
+
+        {"fra": iso (eksklusiv), "til": iso (inklusiv), "hele": bool,
+         "uker": N}
     """
     try:
         ref = dt.date.fromisoformat(referanse[:10])
     except ValueError:
         return None
-    start = ref - dt.timedelta(weeks=SAMMENDRAG_UKER)
     dekket = max((d["fra"] for d in dekning_fra), default="")
     if not dekket:
         return None
-    hele_vinduet = dekket <= start.isoformat()
-    fra = start.isoformat() if hele_vinduet else dekket
-    n = sum(1 for p in observert
+    start = (ref - dt.timedelta(weeks=uker)).isoformat()
+    hele = dekket <= start
+    return {"fra": start if hele else dekket, "til": ref.isoformat(),
+            "hele": hele, "uker": uker}
+
+
+def vesentlige_i_vinduet(poster: list[dict], vindu: dict) -> list[dict]:
+    """Tidslinjepostene som er vesentlige og ligger i vinduet. «Første
+    øyeblikksbilde» er ikke en endring."""
+    return [p for p in poster
             if not p.get("forste")
             and p.get("klasse", vesentlighet.VESENTLIG) == vesentlighet.VESENTLIG
-            and fra < str(p.get("dato", ""))[:10] <= ref.isoformat())
-    tekst = visningsord.antall(n, "vesentlig endring", "vesentlige endringer")
-    if n == 0:
-        tekst = "ingen vesentlige endringer"
-    if hele_vinduet:
+            and vindu["fra"] < str(p.get("dato", ""))[:10] <= vindu["til"]]
+
+
+def _endringsledd(observert: list[dict], dekning_fra: list[dict],
+                  referanse: str) -> list[tuple] | None:
+    """«2 vesentlige endringer siste 12 uker», eller «… siden <dato>»
+    når vi har hentet i kortere tid. Se `endringsvindu()`."""
+    vindu = endringsvindu(referanse, dekning_fra, SAMMENDRAG_UKER)
+    if not vindu:
+        return None
+    n = len(vesentlige_i_vinduet(observert, vindu))
+    tekst = (visningsord.antall(n, "vesentlig endring", "vesentlige endringer")
+             if n else "ingen vesentlige endringer")
+    if vindu["hele"]:
         return [("tekst", f"{tekst} siste {SAMMENDRAG_UKER} uker")]
-    return [("tekst", f"{tekst} siden "), ("tid", fra, visningsord.dato(fra))]
+    return [("tekst", f"{tekst} siden "),
+            ("tid", vindu["fra"], visningsord.dato(vindu["fra"]))]
 
 
 def lokalitetssammendrag(lok: dict) -> list[list[tuple]]:
@@ -4267,7 +4285,8 @@ def lokalitetssammendrag(lok: dict) -> list[list[tuple]]:
         _fiskeledd(lok.get("biolag")),
         _eierledd(lok.get("selskap") or {}),
         _endringsledd(lok.get("observert") or [], lok.get("dekning_fra") or [],
-                      lok.get("akva_dato") or ""),
+                      max(lok.get("akva_dato") or "",
+                          lok.get("eierskap_dato") or "")),
     ]
     ledd = [l for l in ledd if l]
     # STOR FORBOKSTAV på det første leddet, hvilket det enn er.
@@ -7962,6 +7981,8 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
     lokalitetsrader = [lokaliteter[k] for k in
                        sorted(lokaliteter, key=lambda e: int(e) if e.isdigit() else 0)]
     samlet = _samlet_kapasitet(mine)
+    endringer, vindu = _selskapsendringer(orgnr, sorted(lokaliteter),
+                                          tillatelser, felles)
 
     return {
         "orgnr": orgnr,
@@ -7988,7 +8009,13 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
 
         # ---- nøkkeltallene i overskriften ----
         "samlet_kapasitet": samlet["vist"],
+        "kapasitet_per_enhet": samlet["biter"],
         "kapasitetsenheter": samlet["enheter"],
+        # VESENTLIGE ENDRINGER SISTE KVARTAL, og vinduet de er talt i.
+        # Se `_selskapsendringer()` og `endringsvindu()`.
+        "endringer": endringer,
+        "endringsvindu": vindu,
+        "aapen_liste": SELSKAP_AAPEN_LISTE,
         "i_arkivet_siden": min((o["dato"] for o in overforinger), default=""),
         "eierskapslinje": eierskapslinje,
         "kom_til": sum(1 for o in eierskapslinje if o["retning"] == "inn"),
@@ -8002,6 +8029,81 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             "sjekksum": _sjekksum("eierskap"),
         },
     }
+
+
+# SELSKAPSSIDENS ENDRINGSVINDU: et kvartal, regnet i hele uker.
+SELSKAP_UKER = 13
+
+# En liste med flere rader enn dette står LUKKET på selskapssiden. Under
+# grensa er en lukket liste bare et ekstra klikk. MÅLT 08.10.2026 på
+# 390 px: selskapet med flest lokaliteter (158) var 150 018 px høyt med
+# alle listene åpne.
+SELSKAP_AAPEN_LISTE = 10
+
+# (felles, {orgnr: tillatelser selskapet har GITT FRA SEG}). Bygget én
+# gang per batch. Selve objektet holdes og sammenlignes med `is`, ikke
+# `id()`: en id kan gjenbrukes etter at objektet er borte.
+_AVGITT: list = [None, {}]
+
+
+def _avgitte_tillatelser(orgnr: str, felles: Felles) -> set[str]:
+    """Tillatelser der changeloggen viser at eieren GIKK FRA dette
+    organisasjonsnummeret. De eies av noen andre nå, og står derfor ikke
+    i `tillatelser_per_eier` — men at selskapet ga slipp på dem, er en
+    endring for selskapet. Uten dem ville et salg vært usynlig på
+    selgerens side."""
+    if _AVGITT[0] is not felles:
+        avgitt: dict[str, set[str]] = defaultdict(set)
+        for eid, rader in felles.registerendringer.items():
+            for r in rader:
+                if (r["source"] == "eierskap" and r["field"] == "eier_orgnr"
+                        and r["old_value"]):
+                    avgitt[str(r["old_value"]).strip()].add(eid)
+        _AVGITT[:] = [felles, dict(avgitt)]
+    return _AVGITT[1].get(orgnr, set())
+
+
+def _selskapsendringer(orgnr: str, lokaliteter: list[str],
+                       tillatelser: list[str], felles: Felles
+                       ) -> tuple[list[dict], dict | None]:
+    """(vesentlige endringer i vinduet, nyest først; vinduet).
+
+    SAMME REGLER SOM LOKALITETSSIDENS TIDSLINJE, fra det samme stedet:
+    `_lokalitetsendringer()` klassifiserer og slår sammen. Radene er
+    endringer på selskapets lokaliteter, på tillatelsene det eier, og på
+    tillatelsene det har gitt fra seg. En tillatelse som ligger på flere
+    av lokalitetene, telles én gang.
+    """
+    vindu = endringsvindu(max(felles.akva_dato, felles.eierskap_dato),
+                          felles.dekning_fra, SELSKAP_UKER)
+    if not vindu:
+        return [], None
+    rader: list[dict] = []
+    for loknr in lokaliteter:
+        rader += [r for r in felles.registerendringer.get(loknr, ())
+                  if r["source"] not in ENDRINGER_VIA_TILLATELSE]
+    for nr in sorted(set(tillatelser) | _avgitte_tillatelser(orgnr, felles)):
+        rader += [r for r in felles.registerendringer.get(nr, ())
+                  if r["source"] in ENDRINGER_VIA_TILLATELSE]
+    rader = [r for r in rader
+             if vindu["fra"] < str(r["observed_at"])[:10] <= vindu["til"]]
+    rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
+    poster = slaa_sammen_trukne(_lokalitetsendringer(rader, ""))
+    poster = vesentlige_i_vinduet(poster, vindu)
+    for p in poster:
+        eid = p["entity_id"]
+        a = felles.akva.get(eid)
+        p["gjelder"] = (f"tillatelse {eid}" if a is None
+                        else f"lokalitet {eid}")
+        p["lokalitet"] = eid if a is not None else ""
+        p["lokalitetsnavn"] = (visningsord.tittelform(a.get("navn", ""))
+                               if a is not None else "")
+        # EN TOM VERDI MERKES IKKE MED KILDENS FELTNAVN — som i
+        # `_observert_historikk()`.
+        p["fra_felt"] = feltmerke(p["fra"], p["felt"])
+        p["til_felt"] = feltmerke(p["til"], p["felt"])
+    poster.sort(key=lambda r: _omvendt(r["dato"]))
+    return poster, vindu
 
 
 def _samlet_kapasitet(mine_till: dict) -> dict:
@@ -8029,7 +8131,8 @@ def _samlet_kapasitet(mine_till: dict) -> dict:
     biter = [visningsord.maalt(verdi, enhet)
              for enhet, verdi in sorted(per_enhet.items(),
                                         key=lambda kv: -kv[1])]
-    return {"vist": " + ".join(biter), "enheter": len(per_enhet)}
+    return {"vist": " + ".join(biter), "biter": biter,
+            "enheter": len(per_enhet)}
 
 
 def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
