@@ -5148,3 +5148,55 @@ def test_selskapssiden_lukker_lange_lister_og_viser_tallet_oeverst():
     assert "Vis den ene" not in " ".join(_selskap().split())
     assert '<a href="#endringer-selskap">0</a>' in html
     assert "vesentlige endringer siden" in flat
+
+
+# ==================================== ukas tre faktasetninger
+
+def _h(slag, felt, eid, til=""):
+    return {"type": slag, "kildefelt": felt, "entity_id": eid, "til": til}
+
+
+def test_ukefakta_teller_ulike_entiteter_ikke_rader():
+    ledet = [_h("eierskap", "eier_orgnr", "A-1"),
+             _h("eierskap", "eier_navn", "A-1"),     # samme skifte, navnet
+             _h("eierskap", "eier_orgnr", "A-2"),
+             _h("ny", "eier_orgnr", "A-3"),          # ny i utvalget, ikke skifte
+             _h("biomasse", "har_fisk", "1", "Ja"),
+             _h("biomasse", "har_fisk", "2", "Nei"),
+             _h("biomasse", "har_fisk", "3", "Nei"),
+             _h("tillatelse", "kapasitet", "A-1"),
+             _h("lokalitet", "kapasitet_midlertidig", "1")]
+    alle = frozenset({"eierskap", "biomasselag", "akvakultur"})
+    assert nettsted._ukefakta(ledet, alle) == [
+        "2 tillatelser fikk ny eier.",
+        "Fisk til stede: 1 lokalitet gikk fra nei til ja, 2 fra ja til nei.",
+        "Kapasiteten endret seg på 1 tillatelse, og den midlertidige "
+        "kapasiteten på 1 lokalitet.",
+    ]
+
+
+def test_ukefakta_sier_ingen_naar_ingenting_skjedde():
+    alle = frozenset({"eierskap", "biomasselag", "akvakultur"})
+    assert nettsted._ukefakta([], alle) == [
+        "Ingen tillatelser fikk ny eier.",
+        "Ingen lokaliteter endret status for fisk til stede.",
+        "Ingen kapasitet endret seg.",
+    ]
+
+
+def test_ukefakta_utelater_setningen_naar_kilden_ikke_ble_sammenlignet():
+    """«Ingen» er en måling bare når vi så etter. Uka før biomasselaget
+    kom, sier siden ingenting om fisk til stede."""
+    assert nettsted._ukefakta([], frozenset({"eierskap", "akvakultur"})) == [
+        "Ingen tillatelser fikk ny eier.",
+        "Ingen kapasitet endret seg.",
+    ]
+    # Kapasitet bygger på to kilder; mangler én, står ikke setningen.
+    assert nettsted._ukefakta([], frozenset({"eierskap"})) == [
+        "Ingen tillatelser fikk ny eier."]
+
+
+def test_ukefakta_kapasitet_paa_lokalitet_staar_selv_uten_eierskap():
+    ledet = [_h("lokalitet", "kapasitet", "1"), _h("lokalitet", "kapasitet", "2")]
+    assert nettsted._ukefakta(ledet, frozenset({"akvakultur"})) == [
+        "Kapasiteten endret seg på 2 lokaliteter."]

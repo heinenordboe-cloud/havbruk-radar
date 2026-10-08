@@ -2511,6 +2511,91 @@ def _artsbegrensninger(tekniske: list[dict]) -> list[dict]:
             for dato, d in sorted(per_dato.items())]
 
 
+# Kildene hver faktasetning bygger på. En setning står bare når HVER av
+# dem ble sammenlignet med et tidligere øyeblikksbilde i uka.
+UKEFAKTA_KILDER = {
+    "eier": ("eierskap",),
+    "fisk": ("biomasselag",),
+    "kapasitet": ("eierskap", "akvakultur"),
+}
+
+
+def sammenlignet_per_uke() -> dict[str, frozenset[str]]:
+    """{ukeslug: kildene som ble SAMMENLIGNET den uka}.
+
+    En kilde er sammenlignet når den har et øyeblikksbilde i uka OG et
+    tidligere å sammenligne det med. Det første øyeblikksbildet gir ingen
+    endringer, og en uke uten henting heller ikke — i begge tilfeller
+    ville «ingen» vært en påstand om noe vi ikke så etter.
+    """
+    ut: dict[str, set[str]] = defaultdict(set)
+    for kilde in {k for ks in UKEFAKTA_KILDER.values() for k in ks}:
+        for dato in snapshot.datoer(kilde)[1:]:
+            ut[_ukeslug(dato)].add(kilde)
+    return {k: frozenset(v) for k, v in ut.items()}
+
+
+def _ukefakta(ledet: list[dict], sammenlignet: frozenset[str]) -> list[str]:
+    """Tre faktasetninger om ukas vesentlige endringer, bygget av radene.
+
+    Eierskifter, fisk til stede og kapasitet — i den rekkefølgen, og også
+    når tallet er null: «ingen» er en måling når kilden ble sammenlignet
+    den uka. Ble den ikke det, utelates setningen. Tallene er antall
+    ULIKE tillatelser og lokaliteter, ikke antall rader, og ingen setning
+    sier hvorfor noe skjedde.
+
+    `ledet` er ukas vesentlige rader utenfor selskapsdelen, de samme som
+    tabellen viser. En oppføring som kom eller gikk, telles ikke som et
+    eierskifte: den er «ny i vårt utvalg» eller «ute av vårt utvalg», og
+    står slik i tabellen.
+    """
+    def ulike(slag: str, felt: str, til: str | None = None) -> int:
+        return len({h["entity_id"] for h in ledet
+                    if h["type"] == slag and h["kildefelt"] == felt
+                    and (til is None or str(h["til"]).lower() == til)})
+
+    def dekket(setning: str) -> bool:
+        return all(k in sammenlignet for k in UKEFAKTA_KILDER[setning])
+
+    fakta: list[str] = []
+    eier = ulike("eierskap", "eier_orgnr")
+    if dekket("eier"):
+        fakta.append((visningsord.antall(eier, "tillatelse", "tillatelser")
+                      + " fikk ny eier.") if eier
+                     else "Ingen tillatelser fikk ny eier.")
+
+    inn, ut = ulike("biomasse", "har_fisk", "ja"), ulike("biomasse", "har_fisk", "nei")
+    if dekket("fisk"):
+        fakta.append(
+            f"Fisk til stede: {visningsord.antall(inn, 'lokalitet', 'lokaliteter')} "
+            f"gikk fra nei til ja, {visningsord.tall(ut)} fra ja til nei."
+            if inn or ut else
+            "Ingen lokaliteter endret status for fisk til stede.")
+    # KAPASITET BYGGER PÅ TO KILDER, og hver del står for seg: en
+    # endring på en lokalitet er observert selv om eierskapet ikke ble
+    # sammenlignet den uka. «Ingen» krever at begge ble det.
+    till = ulike("tillatelse", "kapasitet") if "eierskap" in sammenlignet else 0
+    akva = "akvakultur" in sammenlignet
+    lok = ulike("lokalitet", "kapasitet") if akva else 0
+    midl = ulike("lokalitet", "kapasitet_midlertidig") if akva else 0
+    deler = [visningsord.antall(n, entall, flertall)
+             for n, entall, flertall in ((till, "tillatelse", "tillatelser"),
+                                         (lok, "lokalitet", "lokaliteter")) if n]
+    if deler:
+        setning = f"Kapasiteten endret seg på {visningsord.liste(deler)}"
+    elif dekket("kapasitet"):
+        setning = "Ingen kapasitet endret seg"
+    else:
+        setning = ""
+    if midl:
+        setning = (f"{setning}, og den midlertidige kapasiteten på "
+                   if setning else "Den midlertidige kapasiteten endret seg på ")
+        setning += visningsord.antall(midl, "lokalitet", "lokaliteter")
+    if setning:
+        fakta.append(setning + ".")
+    return fakta
+
+
 def les_endringsuker(felles: Felles) -> list[dict]:
     """Én post per ISO-uke vi har observert endringer i, nyest først.
 
@@ -2614,6 +2699,7 @@ def les_endringsuker(felles: Felles) -> list[dict]:
     per_uke: dict[str, list[dict]] = defaultdict(list)
     for h in rader:
         per_uke[h["uke"]].append(h)
+    sammenlignet = sammenlignet_per_uke()
 
     uker = []
     for slug in sorted(per_uke, reverse=True):
@@ -2756,6 +2842,8 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "utenfor_tellingen": ikke_telt,
             # DE TEKNISKE, i sin egen del. Telles ikke i noe tall over.
             "tekniske_rader": tekniske,
+            # TRE FAKTASETNINGER øverst på ukesiden. Se `_ukefakta()`.
+            "fakta": _ukefakta(ledet, sammenlignet.get(slug, frozenset())),
             "artsbegrensninger": (_artsbegrensninger(tekniske)
                                   if slug in ARTSBEGRENSNING_SETNING_UKER
                                   else []),

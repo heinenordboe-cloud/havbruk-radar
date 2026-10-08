@@ -2362,6 +2362,17 @@ td[data-felt="farge_mangler"]::before {
   color: var(--hav-tegn);
 }
 
+/* UKAS TRE FAKTASETNINGER, under overskriften på ukesiden. Samme tone
+   som ingressen; en liste fordi de er tre opplysninger, ikke ett avsnitt. */
+.uke-fakta {
+  margin: 0 0 var(--rom-14);
+  padding-left: 1.1em;
+  max-width: var(--maal-tekst);
+  font-size: var(--fs-15);
+  line-height: var(--lh-brod);
+  color: var(--hav-tegn);
+}
+
 /* EN SETNING UNDER OVERSKRIFTEN PÅ UKESIDEN, i båndet. Lysere enn
    undertittelen under den: den er innhold, undertittelen er merkelapp. */
 .uke-ingress {
