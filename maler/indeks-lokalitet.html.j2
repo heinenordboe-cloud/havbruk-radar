@@ -70,9 +70,9 @@
     {% for r in d.rader %}
     <tr>
       <th scope="row"><a href="/lokalitet/{{ r.loknr }}/">{{ r.loknr }}</a></th>
-      <td class="eier" data-felt="navn">{{ r.navn }}</td>
-      <td data-felt="kommune">{{ r.kommune }}</td>
-      <td data-felt="fylke">{{ r.fylke }}</td>
+      <td class="eier" data-felt="navn">{{ r.navn|tittelform }}</td>
+      <td data-felt="kommune">{{ r.kommune|tittelform }}</td>
+      <td data-felt="fylke">{{ r.fylke|tittelform }}</td>
       <td data-felt="prodomraade_kode">
         {% if r.po_kode %}<a href="/produksjonsomrade/{{ r.po_kode }}/">{{ r.po_kode }}</a>{% endif %}
       </td>
@@ -127,8 +127,8 @@
     {% for l in d.uten_koordinater %}
     <tr>
       <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
-      <td class="eier" data-felt="navn">{{ l.navn }}</td>
-      <td data-felt="kommune">{{ l.kommune }}</td>
+      <td class="eier" data-felt="navn">{{ l.navn|tittelform }}</td>
+      <td data-felt="kommune">{{ l.kommune|tittelform }}</td>
     </tr>
     {% endfor %}
   </tbody>

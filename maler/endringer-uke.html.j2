@@ -97,10 +97,11 @@
       <tr data-type="{{ r.type }}" data-klasse="{{ r.klasse }}">
         <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
         <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
-          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
-          {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
+          {%- set vist = r.gjelder|selskapsnavn if r.gjelder_slag == "selskap" else r.gjelder %}
+          {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ vist }}</a>
+          {%- else %}{{ vist or VERDI_MANGLER }}{% endif %}
         </td>
-        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune|tittelform or VERDI_MANGLER }}</td>
         <td data-felt="{{ feltmerke(r.po, 'prodomraade_kode') }}">
           {%- if r.po %}<a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }} {{ r.po_navn }}</a>
           {%- else %}{{ VERDI_MANGLER }}{% endif %}
@@ -350,10 +351,11 @@
         <tr data-type="{{ r.type }}">
           <td data-felt="observed_at"><time datetime="{{ r.dato }}">{{ r.dato }}</time></td>
           <td class="gjelder" data-felt="{{ r.gjelder_felt }}">
-            {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ r.gjelder }}</a>
-            {%- else %}{{ r.gjelder or VERDI_MANGLER }}{% endif %}
+            {%- set vist = r.gjelder|selskapsnavn if r.gjelder_slag == "selskap" else r.gjelder %}
+            {%- if r.gjelder_url %}<a href="{{ r.gjelder_url }}" data-felt="{{ r.gjelder_felt }}">{{ vist }}</a>
+            {%- else %}{{ vist or VERDI_MANGLER }}{% endif %}
           </td>
-          <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(r.kommune, 'kommune') }}">{{ r.kommune|tittelform or VERDI_MANGLER }}</td>
           <td class="endring" data-felt="endringstekst">{{ r.etikett }}:
             {{ verdiendring(r) }}</td>
         </tr>

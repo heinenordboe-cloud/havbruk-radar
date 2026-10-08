@@ -850,6 +850,102 @@ def tittelform(navn: object) -> str:
     return "".join(ut)
 
 
+# ---------------------------------------------------- SELSKAPSNAVN
+#
+# Brønnøysund og Fiskeridirektoratet skriver selskapsnavn i VERSALER.
+# MÅLT 08.10.2026: 2 129 av 2 139 navn i eierskap og enhetsregisteret.
+# «MOWI SEAWATER NORWAY AS» øverst på en side er samme sak som
+# «OTERNESET» i en H1: en egenskap ved registerets inntastingsfelt, ikke
+# en opplysning om selskapet. Visningen er «Mowi Seawater Norway AS»; den
+# RÅ verdien står i registerfeltene, i siteringen og i nedlastingene.
+#
+# ## Regelen er tittelformens, med fire tillegg for selskaper
+#
+# 1. Er navnet ikke heilt i versaler, RØRES DET IKKE (10 navn, som
+#    «Firda Canning Co. A/S»).
+# 2. ORGANISASJONSFORMEN STÅR I VERSALER — AS, ASA, NUF, DA, ENK og
+#    resten. Det er ikke pynt: publiseringsvaktens personformprøve leser
+#    kodene som hele ord i VERSALER, og et «Da» der det sto «DA» ville
+#    vært et navn vakten ikke lenger kunne se formen på.
+# 3. ORD UTEN VOKAL er initialord: NRS, SMS, LTD, GMBH. Ingen av dem er
+#    et ord som kan uttales.
+# 4. INITIALORD MED VOKAL er en MÅLT liste, som for lokalitetsnavnene: et
+#    gjett på «korte ord» ville tatt SEA, COD, NOR og ODE med seg, og de
+#    er ord. Lista er for kort heller enn for bred — en for kort liste gir
+#    «Afc Analytics AS», som synes; et for bredt gjett gir «SEA», som
+#    ikke synes som en feil.
+# 5. Enkeltbokstaver er initialer og står i versaler: «E. Karstensen».
+
+ORGFORMER = frozenset({
+    "AS", "ASA", "DA", "ANS", "SA", "BA", "NUF", "KS", "IKS", "FKF", "SF",
+    "STI", "FLI", "PRE", "AL", "KBO", "SÆR", "ENK", "SE", "AB", "EHF",
+    "INC", "LTD", "LLC", "GMBH", "KG", "CV", "SIA",
+})
+
+# MÅLT i dagens 2 139 navn: initialord som har en vokal i seg.
+INITIALORD_SELSKAP = frozenset({
+    "AFC", "ABP", "JDA", "GTO", "ILF", "OHS", "OFS", "CIT", "MME", "KIJ",
+    "VAQ", "RIA", "EB", "TY", "AF", "RAS",
+})
+
+# Initialord med egen skrivemåte.
+EGEN_SKRIVEMAATE = {"FOU": "FoU", "GMBH": "GmbH"}
+
+_VOKALER = frozenset("AEIOUYÆØÅÁÀÂÄÉÈÊËÍÌÎÏÓÒÔÖÚÙÛÜ")
+
+
+def selskapsnavn(navn: object) -> str:
+    """«MOWI SEAWATER NORWAY AS» -> «Mowi Seawater Norway AS».
+
+    Rører ikke et navn som ikke er versaler. Organisasjonsformen,
+    initialord og initialer står i versaler — se regelen over.
+    """
+    tekst = "" if navn is None else str(navn).strip()
+    if not tekst or tekst != tekst.upper() or not any(c.isalpha() for c in tekst):
+        return tekst
+
+    biter = _ORDDELER.split(tekst)
+    ut, er_forste = [], True
+    for i, bit in enumerate(biter):
+        if i % 2 == 0:          # skilletegn og siffer
+            ut.append(bit)
+            continue
+        # Et ord som henger sammen med et siffer («XY123AB», «3X») står
+        # uendret, som i tittelformen.
+        foran = biter[i - 1][-1:] if i else ""
+        etter = biter[i + 1][:1] if i + 1 < len(biter) else ""
+        if foran.isdigit() or etter.isdigit():
+            ut.append(bit)
+        elif bit in EGEN_SKRIVEMAATE:
+            ut.append(EGEN_SKRIVEMAATE[bit])
+        elif (bit in ORGFORMER or bit in INITIALORD_SELSKAP
+              or len(bit) == 1
+              or not set(bit) & _VOKALER
+              or (len(bit) <= 4 and _ROMERTALL.fullmatch(bit))):
+            ut.append(bit)
+        elif not er_forste and bit.lower() in SMAAORD:
+            ut.append(bit.lower())
+        else:
+            ut.append(bit[:1] + bit[1:].lower())
+        er_forste = False
+    return "".join(ut)
+
+
+def kommunenavn(kommune: object, fylke: object = "") -> str:
+    """«HERØY I MØRE OG ROMSDAL», «MØRE OG ROMSDAL» -> «Herøy, Møre og Romsdal».
+
+    Kommunen i tittelform, og fylket etter et komma når det er oppgitt.
+    Registeret skiller like kommunenavn med «I <fylke>» i selve
+    kommunenavnet; står fylket rett etter, sier det samme to ganger, og
+    tillegget tas bort i visningen. Den rå verdien står i registerfeltene.
+    """
+    k = tittelform(kommune)
+    f = tittelform(fylke)
+    if f and k.lower().endswith(" i " + f.lower()):
+        k = k[: -len(" i " + f)]
+    return f"{k}, {f}" if k and f else (k or f)
+
+
 def liste(ord_: list[str], bindeord: str = "og") -> str:
     """«a», «a og b», «a, b og c». Norsk, uten Oxford-komma.
 

@@ -128,7 +128,7 @@
   <dl class="fakta">
     <div>
       <dt>Kommune</dt>
-      <dd>{{ lok.kommune or "—" }}{% if lok.fylke %}, {{ lok.fylke }}{% endif %}</dd>
+      <dd>{{ kommunenavn(lok.kommune, lok.fylke) or "—" }}</dd>
     </div>
     <div>
       <dt>Produksjonsområde</dt>
@@ -152,9 +152,9 @@
         <span class="mangler">{{ lok.selskap.navn }}</span>
         {% elif lok.selskap.navn %}
           {% if lok.selskap.url %}
-          <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn }}</a>
+          <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn|selskapsnavn }}</a>
           {% else %}
-          <span class="eier">{{ lok.selskap.navn }}</span>
+          <span class="eier">{{ lok.selskap.navn|selskapsnavn }}</span>
           {% endif %}
           {% if lok.selskap.siden %}
           {#- HVA DATOEN ER, i tre ord istedenfor ett. «senest siden»
@@ -906,7 +906,7 @@
         <tr>
           <th scope="row">{{ t.nr }}</th>
           <td{% if t.eier_felt == "eier_navn" %} class="eier"{% endif %} data-felt="{{ t.eier_felt }}"
-              {%- if personformnavn(t.eier_navn) %} data-pagefind-ignore{% endif %}>{{ t.eier_navn }}</td>
+              {%- if personformnavn(t.eier_navn) %} data-pagefind-ignore{% endif %}>{{ t.eier_navn|selskapsnavn }}</td>
           <td data-felt="{{ feltmerke(t.type, 'tillatelse_type') }}">{{ t.type or VERDI_MANGLER }}</td>
           <td class="tall" data-felt="{{ feltmerke(t.kapasitet, 'kapasitet') }}">{{ t.kapasitet or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(t.tildelt_dato, 'tildelt_tid') }}">
@@ -1051,11 +1051,11 @@
               verdi fra kilden — se `VERDI_MANGLER_FELT`. #}
           <span data-felt="{{ feltmerke(o.orgnr, 'tildelt_orgnr') }}">{{ o.orgnr or VERDI_MANGLER }}</span>
           <span class="dempet">(i dag:
-            <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn }}</span>)</span>
+            <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>)</span>
         </td>
         {%- else %}
         <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"
-            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
+            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn|selskapsnavn }}</td>
         {%- endif %}
         {% else %}
         <td>—</td>

@@ -24,7 +24,9 @@
     </ol>
   </nav>
 
-  <h1><span data-navn>{{ sel.navn or sel.orgnr }}</span></h1>
+  {# Navnet i menneskelig form. Den rå verdien står i registerfeltene
+     og i siteringen nederst — se `visningsord.selskapsnavn()`. #}
+  <h1><span data-navn>{{ sel.navn|selskapsnavn or sel.orgnr }}</span></h1>
   <p class="lok-undertittel">
     {# ORGANISASJONSNUMMERET GRUPPERES ALDRI. `NI_SIFFER` i
        publiseringsvakten er «ni siffer på rad», og «912 345 678» ville
@@ -189,9 +191,9 @@
         <tr>
           <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
           <td data-felt="navn">
-            <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn }}</a>
+            <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn|tittelform }}</a>
           </td>
-          <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune|tittelform or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(l.po_kode, 'prodomraade_kode') }}">
             {%- if l.po_kode %}<a href="/produksjonsomrade/{{ l.po_kode }}/">{{ l.po_kode }} {{ l.po_navn }}</a>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
@@ -322,7 +324,7 @@
         {# Se lokalitetssiden: et navn med personform-endelse vises,
            men gjøres ikke søkbart. #}
         <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"
-            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn }}</td>
+            {%- if personformnavn(o.navn) or o.navn_felt == SKJULT_NAVN_FELT %} data-pagefind-ignore{% endif %}>{{ o.navn|selskapsnavn }}</td>
         {% else %}
         <td>—</td>
         {% endif %}

@@ -4298,10 +4298,14 @@ def _eierledd(selskap: dict) -> list[tuple] | None:
     """«eid av X siden 2022». Datoen er den siste overføringen til
     selskapet som er journalført — samme dato som faktalista viser.
 
-    INGEN PERSONFORM og intet navn vi ikke har. Regel 3."""
+    INGEN PERSONFORM og intet navn vi ikke har. Regel 3.
+
+    Navnet står i menneskelig form — «Salmar Oppdrett AS» — fordi
+    setningen er en ingress og ikke en registertabell. Den rå verdien
+    står i registerfeltene. Se `visningsord.selskapsnavn()`."""
     if not selskap or selskap.get("personform") or not selskap.get("navn"):
         return None
-    navn = selskap["navn"]
+    navn = visningsord.selskapsnavn(selskap["navn"])
     ledd: list[tuple] = [("tekst", "eid av "),
                          ("lenke", selskap["url"], navn) if selskap.get("url")
                          else ("tekst", navn)]
@@ -5141,6 +5145,14 @@ def _miljo() -> Environment:
     miljo.filters["maaned"] = visningsord.maaned
     miljo.filters["tidspunkt"] = visningsord.tidspunkt
     miljo.filters["tall"] = visningsord.tall
+    # NAVN I VISNINGEN. Registrene skriver navn i versaler; sidene viser
+    # dem i menneskelig form, og den rå verdien står i registerfeltene,
+    # siteringen og nedlastingene. Filtre og ikke Python, fordi det er
+    # MALEN som vet om en verdi står i en overskrift eller i en
+    # registertabell. Se `visningsord.selskapsnavn()`.
+    miljo.filters["tittelform"] = visningsord.tittelform
+    miljo.filters["selskapsnavn"] = visningsord.selskapsnavn
+    miljo.globals["kommunenavn"] = visningsord.kommunenavn
     # `feltmerke` er en GLOBAL og ikke et filter: den tar to argumenter
     # der rekkefølgen betyr noe, og `{{ "kommune"|feltmerke(r.kommune) }}`
     # leser baklengs. Se `feltmerke()`.
@@ -5374,8 +5386,8 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
             tittel=f"{lok['tittelnavn']}, lokalitet {lok['loknr']} — Kystloggen",
             beskrivelse=(
                 f"Registerdata, eierskap og ukentlige lusetall for "
-                f"akvakulturlokalitet {lok['loknr']} {lok['navn']} i "
-                f"{lok['kommune']}, med endringslogg."),
+                f"akvakulturlokalitet {lok['loknr']} {lok['tittelnavn']} i "
+                f"{visningsord.tittelform(lok['kommune'])}, med endringslogg."),
             jsonld=jsonld(lok),
             proveniens_tekst=proveniens(
                 lok["akva_dato"], lok["akva_hentet"],
@@ -5392,11 +5404,12 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
             # personform, og da er den «eieren er en personform».
             sidetype="Lokalitet",
             undertittel=SKILLE.join(
-                x for x in (lok["kommune"],
+                x for x in (visningsord.tittelform(lok["kommune"]),
                             (f"{lok['po_kode']} {lok['po_navn']}"
                              if lok["po_kode"] else ""),
-                            lok["selskap"]["navn"]) if x),
-            soketekst=f"{lok['tittelnavn']} {lok['kommune']}",
+                            visningsord.selskapsnavn(lok["selskap"]["navn"]))
+                if x),
+            soketekst=f"{lok['tittelnavn']} {visningsord.tittelform(lok['kommune'])}",
             main_klasse="fullbredde",
             feed=f"/lokalitet/{loknr}/feed.xml",
             feed_tittel=f"Kystloggen: endringer for lokalitet {loknr}"),
@@ -8341,17 +8354,21 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
 def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
     """Rendrer og skriver én selskapsside."""
     sel = bygg_selskap(orgnr, felles)
+    vist_navn = visningsord.selskapsnavn(sel["navn"])
     mal = mal or _miljo().get_template("selskap.html.j2")
     html = mal.render(
         sel=sel,
         **_grunnkontekst(
             felles, rot, rot / "selskap" / orgnr / "index.html",
             kilder=SELSKAPSKILDER,
-            tittel=f"{sel['navn'] or sel['orgnr']} — Kystloggen",
+            # NAVNET I MENNESKELIG FORM i tittel, beskrivelse og
+            # søketekst — det er det en søkemotor og en treffliste viser.
+            # JSON-LD og siteringen bærer den rå verdien.
+            tittel=f"{vist_navn or sel['orgnr']} — Kystloggen",
             beskrivelse=(
                 f"Akvakulturtillatelser, lokaliteter og overføringer for "
                 f"organisasjonsnummer {sel['orgnr']}"
-                f"{' (' + sel['navn'] + ')' if sel['navn'] else ''}."),
+                f"{' (' + vist_navn + ')' if vist_navn else ''}."),
             jsonld=jsonld_selskap(sel, felles.vilkaar),
             proveniens_tekst=proveniens(
                 felles.eierskap_dato, _hentet("eierskap"),
@@ -8365,10 +8382,10 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
             sidetype="Selskap",
             undertittel=(f"{orgnr}{SKILLE}"
                          f"{visningsord.antall(sel['lokaliteter_antall'], 'lokalitet', 'lokaliteter')}"),
-            soketekst=sel["navn"] or orgnr,
+            soketekst=vist_navn or orgnr,
             main_klasse="fullbredde",
             feed=f"/selskap/{orgnr}/feed.xml",
-            feed_tittel=f"Kystloggen: endringer for {sel['navn'] or orgnr}"),
+            feed_tittel=f"Kystloggen: endringer for {vist_navn or orgnr}"),
     )
     return skriv_side(rot / "selskap" / orgnr / "index.html", html)
 

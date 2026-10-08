@@ -394,7 +394,7 @@
       <g class="kart-naboer" data-pagefind-ignore>
         {% for l in po.kart.lokaliteter %}
         <a href="/lokalitet/{{ l.loknr }}/">
-          <title>{{ l.navn }} — lokalitet {{ l.loknr }}</title>
+          <title>{{ l.navn|tittelform }} — lokalitet {{ l.loknr }}</title>
           <circle cx="{{ l.x }}" cy="{{ l.y }}" r="3.5"/>
         </a>
         {% endfor %}
@@ -455,9 +455,9 @@
       <tr data-sok="{{ l.sok }}">
         <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
         <td data-felt="navn">
-          <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn }}</a>
+          <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn|tittelform }}</a>
         </td>
-        <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune or VERDI_MANGLER }}</td>
+        <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune|tittelform or VERDI_MANGLER }}</td>
         {# INNEHAVEREN: navnet står bare der kilden ikke klassifiserer
            den som en personform. Samme regel og samme tekst som på
            lokalitetssiden — `_lokalitetens_selskap()` er det ene
@@ -466,11 +466,11 @@
         <td class="mangler" data-felt="eier_personform">{{ l.selskap.navn }}</td>
         {% elif l.selskap.url %}
         <td class="eier" data-felt="eier_navn">
-          <a href="{{ l.selskap.url }}" data-felt="eier_navn">{{ l.selskap.navn }}</a>
+          <a href="{{ l.selskap.url }}" data-felt="eier_navn">{{ l.selskap.navn|selskapsnavn }}</a>
         </td>
         {% elif l.selskap.navn %}
         <td class="eier" data-felt="eier_navn"
-            {%- if personformnavn(l.selskap.navn) %} data-pagefind-ignore{% endif %}>{{ l.selskap.navn }}</td>
+            {%- if personformnavn(l.selskap.navn) %} data-pagefind-ignore{% endif %}>{{ l.selskap.navn|selskapsnavn }}</td>
         {% else %}
         <td class="mangler" data-felt="eier_ukjent">ikke oppgitt av kilden</td>
         {% endif %}

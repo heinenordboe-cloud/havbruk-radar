@@ -602,10 +602,15 @@ def test_navn_er_merket_slik_publiseringsvakten_kan_se_dem():
     ja."""
     import publiseringsvakt as vakt
 
-    funnet = set(vakt.navn_i(_side()))
-    assert "SALMAR OPPDRETT AS" in funnet
-    assert "SALMAR NORD AS" in funnet
-    assert "SALMAR FARMING AS" in funnet
+    # NAVNENE STÅR I MENNESKELIG FORM på siden fra 08.10.2026 —
+    # «Salmar Oppdrett AS» — og vakten slår dem opp i sitt eget
+    # nøkkelalfabet (`navnenoekkel()`), der store og små bokstaver er det
+    # samme. Prøven spør derfor i det alfabetet: at vakten SER navnet, og
+    # at det den ser, er nøkkelen til kildens versalnavn.
+    funnet = {vakt.navnenoekkel(n) for n in vakt.navn_i(_side())}
+    assert vakt.navnenoekkel("SALMAR OPPDRETT AS") in funnet
+    assert vakt.navnenoekkel("SALMAR NORD AS") in funnet
+    assert vakt.navnenoekkel("SALMAR FARMING AS") in funnet
 
 
 def test_lokalitetsnavnet_er_merket():
@@ -5054,7 +5059,7 @@ def test_eier_utelates_for_personform_og_uten_navn():
                                "url": "/selskap/928957489/",
                                "siden": "2022-12-30", "flere": 0,
                                "personform": False})
-    assert _tekst(ledd) == "eid av SALMAR OPPDRETT AS siden 2022"
+    assert _tekst(ledd) == "eid av Salmar Oppdrett AS siden 2022"
     assert ("tid", "2022-12-30", "2022") in ledd
 
 
