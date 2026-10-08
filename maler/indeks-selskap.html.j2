@@ -1,4 +1,5 @@
-{# Selskapsindeksen. Flat liste, sortert på navn. #}
+{# Selskapsindeksen, sortert på navn og delt i sider på 100 — se
+   indeks-lokalitet.html.j2 for hvorfor. #}
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
@@ -9,6 +10,15 @@
     <li aria-current="page">Selskaper</li>
   </ol>
 </nav>
+{# SØKET, øverst på hver side i lista. Samme skjema som /sok/: det
+   søker i hele nettstedet, ikke bare på denne siden, og uten
+   JavaScript viser /sok/ veien til lista. #}
+<form class="sok sok--side" action="/sok/" method="get" role="search">
+  <label for="q">Søk etter selskap, lokalitet eller kommune</label>
+  <input id="q" name="q" type="search" autocomplete="off"
+         placeholder="Søk etter selskap, lokalitet eller kommune">
+  <button class="knapp" type="submit">Søk</button>
+</form>
 </div>
 {% endblock %}
 
@@ -23,7 +33,8 @@
 <p>
   {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse i eierskapsøyeblikksbildet
   <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato }}</time>.
-  Lista er ikke paginert.
+  {% if d.side and d.side.antall > 1 %}Lista er delt i {{ antall(d.side.antall, "side", "sider") }},
+  sortert på navn. Søkefeltet øverst søker i alle.{% endif %}
 </p>
 <p>
   {{ d.uten_registerdata }} av dem har vi ingen registerdata
@@ -41,10 +52,13 @@
 </p>
 {% endif %}
 
+{% set sidenav_etikett = "Sidene i selskapslista" %}
+{% include "sidenav.html.j2" %}
+
 <p class="tabelltittel" id="eierskap-selskaper-tittel">Selskapene, sortert på navn.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="eierskap-selskaper-tittel" tabindex="0">
-<table id="eierskap-selskaper" aria-labelledby="eierskap-selskaper-tittel">
+<table id="eierskap-selskaper" aria-labelledby="eierskap-selskaper-tittel" data-pagefind-ignore>
   <thead>
     <tr>
       <th scope="col">Organisasjonsnummer</th>
@@ -67,6 +81,7 @@
   </tbody>
 </table>
 </div>
+{% include "sidenav.html.j2" %}
 <p class="tabellnote">
   Organisasjonsnummeret er Brønnøysundregistrenes og er nøkkelen til
   selskapssiden.

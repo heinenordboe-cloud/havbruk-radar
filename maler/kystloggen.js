@@ -132,7 +132,25 @@
     Array.prototype.forEach.call(deler, function (d) { d.open = false; });
   }
 
-  [kopier, omraadesok, selskapsdel].forEach(function (del) {
+  /* --------------------------------------------- anker i lukket liste
+   *
+   * Lange lister står i en lukket `<details>`. Peker adressen på noe
+   * inne i en, åpnes den — også når nettleseren ikke gjør det selv.
+   */
+  function aapneAnker() {
+    function aapne() {
+      var id = decodeURIComponent(location.hash.slice(1));
+      var maal = id && document.getElementById(id);
+      for (var e = maal; e; e = e.parentElement) {
+        if (e.tagName === "DETAILS") e.open = true;
+      }
+      if (maal) maal.scrollIntoView();
+    }
+    window.addEventListener("hashchange", aapne);
+    if (location.hash) aapne();
+  }
+
+  [kopier, omraadesok, selskapsdel, aapneAnker].forEach(function (del) {
     try {
       del();
     } catch (e) {

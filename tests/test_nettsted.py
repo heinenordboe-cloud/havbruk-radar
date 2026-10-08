@@ -340,6 +340,8 @@ def _side(**overstyr) -> str:
     # felter som beskriver samme uker og kan sies hver for seg, er
     # formen på F6 og F7.
     lok.setdefault("lusegraf", nettsted.lusegraf(lok["lus_serie"]))
+    # OPPSUMMERINGEN regnes av det samme, av samme grunn.
+    lok.setdefault("sammendrag", nettsted.lokalitetssammendrag(lok))
     lok["register"] = _visning(lok["register"])
     lok["endringer"] = _endringsrader(lok["endringer"])
     for t_ in lok["tillatelser"]:
@@ -1593,7 +1595,11 @@ def _selskap(**overstyr) -> str:
         "enhetsregisteret_url":
             "https://virksomhet.brreg.no/nb/oppslag/enheter/912345678",
         "samlet_kapasitet": "780 tonn", "kapasitetsenheter": 1,
+        "kapasitet_per_enhet": ["780 tonn"],
         "i_arkivet_siden": "2018-03-13",
+        "endringer": [], "aapen_liste": nettsted.SELSKAP_AAPEN_LISTE,
+        "endringsvindu": {"fra": "2026-09-02", "til": "2026-09-14",
+                          "hele": False, "uker": 13},
         # «Gikk ut» er UTLEDET — registeret journalfører bare ankomster.
         # Se `bygg_selskap()`.
         "eierskapslinje": [
@@ -1678,7 +1684,8 @@ def test_en_tillatelse_uten_eier_kan_ikke_havne_paa_en_selskapsside():
         enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
         akva_dato="2026-09-14",
         akva={"10001": {"navn": "TESTHOLMEN"}, "11517": {"navn": "TRETTØY"}},
-        former={}, overforinger_per_tillatelse={})
+        former={}, overforinger_per_tillatelse={},
+        dekning_fra=[], registerendringer={})
 
     sel = nettsted.bygg_selskap("912345678", felles)
     numre = [t["nr"] for t in sel["tillatelser"]]
@@ -1701,6 +1708,7 @@ def test_gikk_ut_overskriver_ikke_selskapets_navn():
                                "lokaliteter": "10001"}},
         enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
         akva_dato="2026-09-14", akva={"10001": {"navn": "TESTHOLMEN"}},
+        dekning_fra=[], registerendringer={},
         former={}, overforinger_per_tillatelse={"N-T-0002": [
             {"journal_dato": "2018-01-01", "rekkefolge": "1",
              "mottaker_orgnr": "912345678", "mottaker_navn": "TESTLAKS AS"},
@@ -2238,30 +2246,60 @@ def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
     assert "954744469" not in html
 
 
-def test_indeksene_er_flate_uten_paginering():
-    """En paginert liste er en liste der de siste sidene ikke blir
-    lest."""
+def _indeksfelles(n):
     from types import SimpleNamespace
-
-    felles = SimpleNamespace(
+    return SimpleNamespace(
         akva={str(10000 + i): {"navn": f"L{i}", "kommune": "K",
                                "fylke": "F", "prodomraade_kode": "",
                                "arter": "SALMON",
                                "breddegrad": f"{60 + i / 100:.2f}",
-                               "lengdegrad": "5.0"} for i in range(50)},
-        akva_dato="2026-09-14")
-    d = nettsted.bygg_lokalitetsindeks(felles)
+                               "lengdegrad": "5.0"} for i in range(n)},
+        akva_dato="2026-09-14", akva_hentet="2026-09-14T04:00:00+00:00")
+
+
+def test_en_kort_indeks_staar_paa_en_side():
+    d = nettsted.bygg_lokalitetsindeks(_indeksfelles(50))
     assert d["antall"] == 50
     assert d["uten_po"] == 50
-
     html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
         d=d, **_grunn("lokalitet"))
-    # RADLENKENE, ikke alle lenker til /lokalitet/. Fra 20.09.2026 har
-    # hver side en topplinje som også lenker dit, og en telling av
-    # prefikset ga 51. Mønsteret spør om det prøven faktisk vil vite:
-    # én lenke per lokalitetsnummer.
+    # RADLENKENE, ikke alle lenker til /lokalitet/: én per nummer.
     assert len(re.findall(r'<a href="/lokalitet/\d+/"', html)) == 50
+    assert 'class="sidenav"' not in html
     assert d["uten_koordinater_antall"] == 0
+
+
+def test_indeksen_deles_og_hver_side_lenker_til_alle_de_andre(tmp_path, monkeypatch):
+    """BRIEF.md: ingen indeksside over 10 000 px på 390. Den flate lista
+    var 525 434. Innvendingen mot paginering — at de siste sidene ikke
+    blir lest — møtes ved at hver side lenker til ALLE de andre, med
+    spennet den dekker."""
+    felles = _indeksfelles(nettsted.INDEKS_PER_SIDE * 2 + 5)
+    data = nettsted.bygg_lokalitetsindeks(felles)
+    monkeypatch.setattr(nettsted, "_grunnkontekst",
+                        lambda *a, **k: _grunn("lokalitet"))
+    filer = nettsted._skriv_indeks(
+        tmp_path, "lokalitet", "indeks-lokalitet.html.j2", data,
+        "T", "B", ("akvakultur",), felles, nokkel="loknr")
+    assert [f.relative_to(tmp_path).as_posix() for f in filer] == [
+        "lokalitet/index.html", "lokalitet/side/2/index.html",
+        "lokalitet/side/3/index.html"]
+    sider = [f.read_text(encoding="utf-8") for f in filer]
+    rader = [len(re.findall(r'<th scope="row"><a href="/lokalitet/\d+/"', s))
+             for s in sider]
+    assert rader == [100, 100, 5]
+    urler = ["/lokalitet/", "/lokalitet/side/2/", "/lokalitet/side/3/"]
+    for i, s in enumerate(sider):
+        for j, url in enumerate(urler):
+            if i != j:
+                assert f'<a href="{url}">' in s, (i, url)
+        assert 'aria-current="page">' in s
+    assert 'rel="next"' in sider[0] and 'rel="prev"' not in sider[0]
+    assert "10200–10204" in sider[0]
+    # Regnskapet over lokaliteter uten koordinater står på første side,
+    # der ankeret alltid har stått.
+    assert 'id="uten-koordinater"' in sider[0]
+    assert 'id="uten-koordinater"' not in sider[1]
 
 
 def test_lokaliteter_uten_koordinater_star_paa_indeksen():
@@ -4982,3 +5020,213 @@ def test_siden_sier_at_hullet_er_tomrom():
     # Uten hull: ingen slik setning.
     g0 = nettsted.lusegraf(_uker(0.1, 0.2))
     assert "på tidsaksen er tomme" not in _side(lusegraf=g0)
+
+
+# ==================================== oppsummeringssetningen
+#
+# Én setning øverst på lokalitetssiden, bare av målte fakta. Et ledd uten
+# data utelates. Se `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md.
+
+def _rute(dato, fisk, rapport="2026-08-31"):
+    return {"dato": dato, "har_fisk": fisk, "arter_tilstede": "",
+            "antall_arter": "", "siste_rapport": rapport,
+            "lokalitet_status": ""}
+
+
+def _tekst(ledd):
+    return "".join(b[1] if b[0] == "tekst" else b[2] for b in ledd)
+
+
+def test_fisk_siden_uka_tilstanden_skiftet():
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", "Nei"), _rute("2026-09-22", "Ja")],
+        ["2026-09-15", "2026-09-22"])
+    assert _tekst(nettsted._fiskeledd(biolag)) == \
+        "Fisk til stede siden uke 39, 2026"
+
+
+def test_fisk_uten_skifte_oppgir_maanedsrapporten_ikke_en_startdato():
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", "Ja"), _rute("2026-09-22", "Ja")],
+        ["2026-09-15", "2026-09-22"])
+    tekst = _tekst(nettsted._fiskeledd(biolag))
+    assert tekst == "Fisk til stede ifølge månedsrapporten for august 2026"
+
+
+def test_fisk_utelates_naar_lokaliteten_ikke_er_i_nyeste_uke():
+    """Laget dekker bare lokaliteter med innsendt rapport. En gammel rute
+    er ikke en påstand om i dag."""
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", "Ja")], ["2026-09-15", "2026-09-22"])
+    assert nettsted._fiskeledd(biolag) is None
+    assert nettsted._fiskeledd(None) is None
+
+
+def test_eier_utelates_for_personform_og_uten_navn():
+    assert nettsted._eierledd({"navn": nettsted.EIER_PERSONFORM,
+                               "personform": True}) is None
+    assert nettsted._eierledd({"navn": "", "personform": False}) is None
+    ledd = nettsted._eierledd({"navn": "SALMAR OPPDRETT AS",
+                               "url": "/selskap/928957489/",
+                               "siden": "2022-12-30", "flere": 0,
+                               "personform": False})
+    assert _tekst(ledd) == "eid av SALMAR OPPDRETT AS siden 2022"
+    assert ("tid", "2022-12-30", "2022") in ledd
+
+
+def _tidspost(dato, klasse=vesentlighet.VESENTLIG, forste=False):
+    return {"dato": dato, "klasse": klasse, "forste": forste}
+
+
+def test_endringer_telles_bare_vesentlige_i_vinduet():
+    poster = [_tidspost("2026-10-05"), _tidspost("2026-09-28"),
+              _tidspost("2026-09-28", vesentlighet.TEKNISK),
+              _tidspost("2026-06-01"),                       # utenfor vinduet
+              _tidspost("2026-01-01", forste=True)]
+    ledd = nettsted._endringsledd(
+        poster, [{"kilde": "akvakultur", "fra": "2026-01-01"}], "2026-10-05")
+    assert _tekst(ledd) == "2 vesentlige endringer siste 12 uker"
+
+
+def test_endringer_sier_fra_naar_vi_har_hentet_i_under_tolv_uker():
+    """«0 endringer siste 12 uker» ville påstått at vi så etter i uker vi
+    ikke så etter. Den seneste kildestarten avgrenser vinduet."""
+    ledd = nettsted._endringsledd(
+        [_tidspost("2026-08-24")],
+        [{"kilde": "akvakultur", "fra": "2026-08-17"},
+         {"kilde": "eierskap", "fra": "2026-09-02"}], "2026-10-05")
+    assert _tekst(ledd) == "ingen vesentlige endringer siden 2. september 2026"
+    assert ("tid", "2026-09-02", "2. september 2026") in ledd
+
+
+def test_oppsummeringen_staar_oeverst_med_time_og_stor_forbokstav():
+    html = _side(selskap={"navn": "", "orgnr": "", "url": "", "siden": "",
+                          "antall": 0, "flere": 0, "personform": False})
+    m = re.search(r'<p class="lok-sammendrag">(.*?)</p>', html, re.S)
+    assert m, "oppsummeringen mangler"
+    setning = m.group(1)
+    assert setning.startswith("Fisk til stede")
+    assert '<time datetime="2026-08">august 2026</time>' in setning
+    # Står over tilstanden, altså før faktalista.
+    assert html.index("lok-sammendrag") < html.index('class="fakta"')
+
+
+def test_ingen_ledd_gir_ingen_setning():
+    html = _side(biolag=None, dekning_fra=[],
+                 selskap={"navn": "", "orgnr": "", "url": "", "siden": "",
+                          "antall": 0, "flere": 0, "personform": False})
+    assert "lok-sammendrag" not in html
+
+
+# ==================================== selskapssidens sammendrag
+
+def _crad(eid, felt, fra, til, dato, kilde="akvakultur", slag="endret"):
+    return {"entity_id": eid, "field": felt, "old_value": fra,
+            "new_value": til, "change_type": slag, "source": kilde,
+            "observed_at": dato, "forrige_observed_at": ""}
+
+
+def _selskapsfelles(endringer):
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        akva_dato="2026-10-05", eierskap_dato="2026-10-05",
+        dekning_fra=[{"kilde": "akvakultur", "fra": "2026-01-05"}],
+        akva={"10001": {"navn": "TESTHOLMEN"}, "10002": {"navn": "TESTVIKA"}},
+        registerendringer=endringer)
+
+
+def test_selskapets_endringer_teller_en_tillatelse_paa_to_lokaliteter_en_gang():
+    felles = _selskapsfelles({
+        "10001": [_crad("10001", "har_samdrift", "True", "False", "2026-09-28")],
+        "10002": [_crad("10002", "har_samdrift", "True", "False", "2026-06-01")],
+        "N-T-0001": [_crad("N-T-0001", "kapasitet", "780", "900",
+                           "2026-09-21", kilde="eierskap")],
+    })
+    poster, vindu = nettsted._selskapsendringer(
+        "912345678", ["10001", "10002"], ["N-T-0001"], felles)
+    assert vindu["hele"] and vindu["uker"] == nettsted.SELSKAP_UKER
+    # 10002 er utenfor vinduet; tillatelsen telles én gang.
+    assert [(p["dato"], p["gjelder"]) for p in poster] == [
+        ("2026-09-28", "lokalitet 10001"), ("2026-09-21", "tillatelse N-T-0001")]
+    assert poster[0]["lokalitetsnavn"] == "Testholmen"
+
+
+def test_selskapets_endringer_tar_med_tillatelser_det_har_gitt_fra_seg():
+    """Et salg skal ikke være usynlig på selgerens side."""
+    felles = _selskapsfelles({
+        "N-T-0009": [_crad("N-T-0009", "eier_orgnr", "912345678",
+                           "987654321", "2026-09-28", kilde="eierskap")],
+    })
+    poster, _ = nettsted._selskapsendringer("912345678", [], [], felles)
+    assert [p["entity_id"] for p in poster] == ["N-T-0009"]
+
+
+def test_selskapssiden_lukker_lange_lister_og_viser_tallet_oeverst():
+    lokaliteter = [{"loknr": str(10000 + i), "navn": f"Lok {i}",
+                    "original": f"LOK {i}", "kommune": "BODØ", "po_kode": "8",
+                    "po_navn": "Helgeland til Bodø", "status": "gul",
+                    "status_klasse": "lys-gul", "kapasitet": "780 tonn",
+                    "siden": "", "tillatelser": []}
+                   for i in range(nettsted.SELSKAP_AAPEN_LISTE + 1)]
+    html = _selskap(lokaliteter=lokaliteter,
+                    lokaliteter_antall=len(lokaliteter))
+    flat = " ".join(html.split())
+    assert "Vis alle 11 lokalitetene" in flat
+    i = html.index('id="akvakultur-lokaliteter"')
+    assert html.rfind("<details", 0, i) > html.rfind("</details>", 0, i)
+    # Kort liste: ingen lukking.
+    assert "Vis den ene" not in " ".join(_selskap().split())
+    assert '<a href="#endringer-selskap">0</a>' in html
+    assert "vesentlige endringer siden" in flat
+
+
+# ==================================== ukas tre faktasetninger
+
+def _h(slag, felt, eid, til=""):
+    return {"type": slag, "kildefelt": felt, "entity_id": eid, "til": til}
+
+
+def test_ukefakta_teller_ulike_entiteter_ikke_rader():
+    ledet = [_h("eierskap", "eier_orgnr", "A-1"),
+             _h("eierskap", "eier_navn", "A-1"),     # samme skifte, navnet
+             _h("eierskap", "eier_orgnr", "A-2"),
+             _h("ny", "eier_orgnr", "A-3"),          # ny i utvalget, ikke skifte
+             _h("biomasse", "har_fisk", "1", "Ja"),
+             _h("biomasse", "har_fisk", "2", "Nei"),
+             _h("biomasse", "har_fisk", "3", "Nei"),
+             _h("tillatelse", "kapasitet", "A-1"),
+             _h("lokalitet", "kapasitet_midlertidig", "1")]
+    alle = frozenset({"eierskap", "biomasselag", "akvakultur"})
+    assert nettsted._ukefakta(ledet, alle) == [
+        "2 tillatelser fikk ny eier.",
+        "Fisk til stede: 1 lokalitet gikk fra nei til ja, 2 fra ja til nei.",
+        "Kapasiteten endret seg på 1 tillatelse, og den midlertidige "
+        "kapasiteten på 1 lokalitet.",
+    ]
+
+
+def test_ukefakta_sier_ingen_naar_ingenting_skjedde():
+    alle = frozenset({"eierskap", "biomasselag", "akvakultur"})
+    assert nettsted._ukefakta([], alle) == [
+        "Ingen tillatelser fikk ny eier.",
+        "Ingen lokaliteter endret status for fisk til stede.",
+        "Ingen kapasitet endret seg.",
+    ]
+
+
+def test_ukefakta_utelater_setningen_naar_kilden_ikke_ble_sammenlignet():
+    """«Ingen» er en måling bare når vi så etter. Uka før biomasselaget
+    kom, sier siden ingenting om fisk til stede."""
+    assert nettsted._ukefakta([], frozenset({"eierskap", "akvakultur"})) == [
+        "Ingen tillatelser fikk ny eier.",
+        "Ingen kapasitet endret seg.",
+    ]
+    # Kapasitet bygger på to kilder; mangler én, står ikke setningen.
+    assert nettsted._ukefakta([], frozenset({"eierskap"})) == [
+        "Ingen tillatelser fikk ny eier."]
+
+
+def test_ukefakta_kapasitet_paa_lokalitet_staar_selv_uten_eierskap():
+    ledet = [_h("lokalitet", "kapasitet", "1"), _h("lokalitet", "kapasitet", "2")]
+    assert nettsted._ukefakta(ledet, frozenset({"akvakultur"})) == [
+        "Kapasiteten endret seg på 2 lokaliteter."]

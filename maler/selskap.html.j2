@@ -60,6 +60,17 @@
         {%- else %}—{% endif %}</dd>
       <dt>eldste journalførte overføring hit</dt>
     </div>
+    {# VESENTLIGE ENDRINGER SISTE KVARTAL. Vinduet er avgrenset av vår
+       egen dekning: har vi hentet i kortere tid, står datoen vi begynte.
+       Endringene står i lista under — se `_selskapsendringer()`. #}
+    {% if sel.endringsvindu %}
+    <div>
+      <dd><a href="#endringer-selskap">{{ tall(sel.endringer|length) }}</a></dd>
+      <dt>vesentlige endringer
+        {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}
+        {%- else %}siden <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %}</dt>
+    </div>
+    {% endif %}
   </dl>
 
   <p class="knapperad">
@@ -83,11 +94,81 @@
   </p>
 </section>
 
+{# ---------------------------------------------------------------- 0
+   VESENTLIGE ENDRINGER, de samme som tallet i overskriften teller.
+   Samme klassifisering som lokalitetssidens tidslinje. #}
+{% if sel.endringsvindu %}
+<section class="ark seksjon" id="endringer-selskap" aria-labelledby="endr-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Observert av Kystloggen</p>
+      <h2 id="endr-tittel">Vesentlige endringer</h2>
+    </div>
+  </div>
+  {% if sel.endringer %}
+  {% set lang = sel.endringer|length > sel.aapen_liste %}
+  {% if lang %}<details class="tallboks liste-lukket">
+    <summary>Vis {{ alle(sel.endringer|length, "endringen", "endringene")|lower }}</summary>{% endif %}
+  <p class="tabelltittel" id="endringer-selskap-liste-tittel">{{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
+      på selskapets lokaliteter og tillatelser
+      {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
+      <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %},
+      nyest først.</p>
+  <div class="tabellramme" role="region"
+       aria-labelledby="endringer-selskap-liste-tittel" tabindex="0">
+  <table id="endringer-selskap-liste" aria-labelledby="endringer-selskap-liste-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Observert</th>
+        <th scope="col">Gjelder</th>
+        <th scope="col">Hva</th>
+        <th scope="col">Fra</th>
+        <th scope="col">Til</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in sel.endringer %}
+      <tr>
+        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
+        <td data-felt="entity_id">
+          {%- if e.lokalitet %}<a href="/lokalitet/{{ e.lokalitet }}/">{{ e.lokalitetsnavn or e.gjelder }}</a>
+          {%- else %}{{ e.gjelder }}{% endif %}</td>
+        <td data-felt="endringstekst">{{ e.etikett }}</td>
+        <td data-felt="{{ e.fra_felt }}">{{ e.fra or VERDI_MANGLER }}</td>
+        <td data-felt="{{ e.til_felt }}">{{ e.til or VERDI_MANGLER }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if lang %}</details>{% endif %}
+  {% else %}
+  <p class="tomt">
+    Ingen vesentlige endringer på selskapets lokaliteter og tillatelser
+    {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
+    <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %}.
+  </p>
+  {% endif %}
+  <p class="tabellnote">
+    Vesentlig og teknisk skilles etter samme regel som på
+    lokalitetssidene; de tekniske står der. Datoen er når vi så
+    endringen, ikke når registeret gjorde den.
+  </p>
+</section>
+{% endif %}
+
 {# ---------------------------------------------------------------- 1
-   LOKALITETENE OG TILLATELSENE, side om side. #}
+   LOKALITETENE OG TILLATELSENE, side om side.
+
+   LUKKET NÅR LISTA ER LANG. `<details>` virker uten JavaScript, og
+   innholdet er ett klikk unna. Et anker inne i en lukket `<details>`
+   åpner den når man navigerer dit. #}
 <div class="ark seksjon to-spalter">
   <section class="blokk" aria-labelledby="lok-tittel">
     <h2 id="lok-tittel">Lokaliteter</h2>
+    {% set lang = sel.lokaliteter|length > sel.aapen_liste %}
+    {% if lang %}<details class="tallboks liste-lukket">
+      <summary>Vis {{ alle(sel.lokaliteter_antall, "lokaliteten", "lokalitetene")|lower }}</summary>{% endif %}
     <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">De {{ antall(sel.lokaliteter_antall, "lokaliteten", "lokalitetene") }} selskapets
         tillatelser ligger på, øyeblikksbilde
         <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.</p>
@@ -135,10 +216,14 @@
       betyr at ingen overføring er journalført; tillatelsen kan ha vært
       selskapets siden den ble tildelt.
     </p>
+    {% if lang %}</details>{% endif %}
   </section>
 
   <section class="blokk" aria-labelledby="till-tittel">
     <h2 id="till-tittel">Tillatelser</h2>
+    {% set lang = sel.tillatelser|length > sel.aapen_liste %}
+    {% if lang %}<details class="tallboks liste-lukket">
+      <summary>Vis {{ alle(sel.tillatelser_antall, "tillatelsen", "tillatelsene")|lower }}</summary>{% endif %}
     <p class="tabelltittel" id="eierskap-tillatelser-tittel">De {{ antall(sel.tillatelser_antall, "tillatelsen", "tillatelsene") }} selskapet eier,
         øyeblikksbilde
         <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.</p>
@@ -178,6 +263,7 @@
       ikke nødvendigvis til dette selskapet. Hvem den ble gitt til står
       på lokalitetssidene.
     </p>
+    {% if lang %}</details>{% endif %}
   </section>
 </div>
 
@@ -209,6 +295,9 @@
   </p>
 
   {% if sel.eierskapslinje %}
+  {% set lang = sel.eierskapslinje|length > sel.aapen_liste %}
+  {% if lang %}<details class="tallboks liste-lukket">
+    <summary>Vis {{ alle(sel.eierskapslinje|length, "overføringen", "overføringene")|lower }}</summary>{% endif %}
   <p class="tabelltittel" id="eierskapslinje-tittel">{{ antall(sel.kom_til, "tillatelse", "tillatelser") }} kommet til og {{ sel.gikk_ut }} gått
       ut, nyeste først.</p>
   <div class="tabellramme" role="region"
@@ -250,6 +339,7 @@
     konserninterne flyttinger fra ekte oppkjøp; det lar seg ikke gjøre
     med offentlige data.
   </p>
+  {% if lang %}</details>{% endif %}
   {% else %}
   <p class="tomt">
     Ingen journalførte overføringer til dette selskapet.
@@ -269,6 +359,9 @@
       <h2 id="reg-tittel">Hva Enhetsregisteret sier</h2>
     </div>
   </div>
+  {% set lang = sel.register|length > sel.aapen_liste %}
+  {% if lang %}<details class="tallboks liste-lukket">
+    <summary>Vis {{ alle(sel.register|length, "registerfeltet", "registerfeltene")|lower }}</summary>{% endif %}
   <p class="tabelltittel" id="enhetsregisteret-selskap-tittel">Registerfeltene om selskapet, øyeblikksbilde
       <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.</p>
   <div class="tabellramme" role="region"
@@ -306,6 +399,7 @@
     </tbody>
   </table>
   </div>
+  {% if lang %}</details>{% endif %}
   {% if not sel.har_registerdata %}
   <p class="tabellnote">
     Vi har ingen registerdata for dette selskapet.

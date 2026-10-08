@@ -144,17 +144,18 @@
  * gul, nettopp fordi synligheten da ville hengt på fargen som ikke kan
  * bære den. Samme løsning som sto her fra 20.09, med nye tall.
  *
- * ## Lys er standard, mørk er en OVERSETTELSE
+ * ## Én palett, bare lys modus
  *
- * Papiret er hovedmodus. Mørk modus finnes og er målt, men den er en
- * oversettelse av identiteten og ikke en likeverdig tvilling: havet er
- * allerede mørkt, så i mørk modus må båndet være LYSERE enn flata det
- * ligger på for i det hele tatt å være en flate. Forholdet er bevart
- * (1,34:1), utførelsen er speilvendt.
+ * Mørk modus er fjernet 08.10.2026 (docs/design/BRIEF.md). Hver farge
+ * måtte velges, måles og vedlikeholdes to ganger, og feilene kom i den
+ * modusen ingen så på: h1 på 1,34:1, båndet på 1,04:1. En leser med
+ * mørk modus i systemet får den samme lyse siden, og
+ * `color-scheme: light` sier det til nettleseren, så skjemafelt og
+ * rullefelt ikke tegnes mørke på papiret.
  * ---------------------------------------------------------------- */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   /* ---- havet: den mettede flaten ----
      Navnene er overleveringens egne (`--hav9` … `--hav3`), og det er
@@ -287,60 +288,6 @@
   --farge-fokus:        var(--fokus);
   --farge-kart-punkt:   var(--kart-punkt);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* MØRK MODUS SNUR HVA BÅNDET GJØR. I lys modus er havet den
-       mørkeste flaten på en lys side, og det er dét som gjør det til en
-       flate. En enda mørkere verdi her ville gitt 1,04:1 mot det mørke
-       papiret: båndet ville ikke finnes, og det eneste man SÅ var at
-       flata under begynte.
-
-       Verdiene under er lysere enn papiret, ikke mørkere, og forholdet
-       (1,34:1) er nøyaktig det samme som papir/papir2 har … nei:
-       som papir/hav har i lys modus. Rollen er bevart; utførelsen er
-       speilvendt. Det er forskjellen på å oversette en identitet og å
-       invertere heksverdiene i den. */
-    --hav9:           #13343f;
-    --hav8:           #1b4453;
-    --hav7:           #24566a;
-    --hav5:           #7fb2c9;
-    --hav3:           #9fb3b4;
-    --hav-sekundaer:  #b4c6c7;
-    --hav-tegn:       #dfe7e6;
-    --hav-tittel:     #fbf7ef;
-    --hav-dis:        #1b4453;
-
-    --papir:          #121a1d;
-    --papir2:         #1b2429;
-    --papir3:         #2f3b40;
-    --ink:            #e9e4d8;
-    --ink-dempet:     #a3aeaf;
-    --ink-ring:       #7d8a8c;
-
-    --rust:           #f0955a;
-    --rust-moerk:     #f5ae7d;
-    --rust-lys:       #f0955a;
-
-    --soyle-tekst:    #10191c;
-
-    --lys-rod:   #e06070;
-    --lys-gul:   #ffdc3d;
-    --lys-gronn: #4fc98c;
-
-    --skravur-papir: repeating-linear-gradient(45deg,
-        rgba(233,228,216,.5) 0 1.3px, transparent 1.3px 4.5px);
-
-    --kart-punkt:   #a8bcbd;
-    --kart-gitter:  #7c898b;
-    --kart-land:    #1c262a;
-    --kart-kyst:    #6b7a7e;   /* 3,46:1 mot landflata i mørk modus */
-    --kart-hav:     #10303c;
-    --graf-linje:   #9ec6d4;
-    --graf-brakk:   #1e2a2f;
-  }
-}
-
 
 /* ---------------------------------------------------------------- *
  * 2. SKRIFTENE, SKALAEN OG AVSTANDENE
@@ -2350,6 +2297,61 @@ td[data-felt="farge_mangler"]::before {
   font-size: var(--fs-15);
   color: var(--hav-sekundaer);
   max-width: none;
+}
+
+/* SIDENAVIGASJONEN I EN DELT INDEKS. Hver side lenker til alle de
+   andre, med spennet den dekker; lista brytes som tekst. */
+.sidenav {
+  margin: var(--rom-16) 0;
+  font-size: var(--fs-15);
+}
+.sidenav p { margin: 0 0 var(--rom-8); }
+.sidenav-steg a + a { margin-left: var(--rom-16); }
+.sidenav-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-8) var(--rom-16);
+  font-family: var(--skrift-tall);
+  font-size: var(--fs-13);
+}
+.sidenav-liste a, .sidenav-liste span {
+  display: inline-block;
+  min-height: 44px;
+  line-height: 44px;
+}
+.sidenav-liste [aria-current] { font-weight: 600; }
+
+/* INDEKSTABELLENE BRYTES IKKE PÅ SMAL SKJERM. De er ikke kort (se
+   `UTEN_KORT`), og en celle som brytes i en smal kolonne gjør raden tre
+   linjer høy. Én linje per rad; resten ruller vannrett i rammen. Over
+   62rem ruller ikke rammen, og der får cellene bryte som ellers. */
+@media (max-width: 61.99rem) {
+  #akvakultur-alle td, #akvakultur-alle th,
+  #eierskap-selskaper td, #eierskap-selskaper th { white-space: nowrap; }
+}
+
+/* OPPSUMMERINGEN PÅ LOKALITETSSIDEN. Innhold og ikke merkelapp, så
+   samme tone som ukesidens ingress. Lenka arver båndets lenkefarge. */
+.lok-sammendrag {
+  margin: calc(-1 * var(--rom-14)) 0 var(--rom-28);
+  max-width: var(--maal-tekst);
+  font-size: var(--fs-15);
+  line-height: var(--lh-brod);
+  color: var(--hav-tegn);
+}
+
+/* UKAS TRE FAKTASETNINGER, under overskriften på ukesiden. Samme tone
+   som ingressen; en liste fordi de er tre opplysninger, ikke ett avsnitt. */
+.uke-fakta {
+  margin: 0 0 var(--rom-14);
+  padding-left: 1.1em;
+  max-width: var(--maal-tekst);
+  font-size: var(--fs-15);
+  line-height: var(--lh-brod);
+  color: var(--hav-tegn);
 }
 
 /* EN SETNING UNDER OVERSKRIFTEN PÅ UKESIDEN, i båndet. Lysere enn

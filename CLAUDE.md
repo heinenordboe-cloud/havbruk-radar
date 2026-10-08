@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 Harde regler for dette repoet. Se `docs/ARKITEKTUR.md` for hvorfor.
+All design (sider, tekst, farger) følger `docs/design/BRIEF.md`.
 
 ## 1. `core/` endres ikke for å legge til en kilde
 

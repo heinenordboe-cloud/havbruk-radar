@@ -6,11 +6,12 @@
    ikke være noe annet: et søk over 2 337 sider som skal svare uten en
    server, må kjøre i nettleseren.
 
-   Men siden er ikke tom uten. Nettstedet har tre FLATE indekser —
-   alle lokalitetene, alle områdene, alle selskapene, hver på én side
-   uten paginering — og de er laget nettopp for at «finn dette» skal
-   være mulig med nettleserens egen søkefunksjon. Uten skript peker
-   siden dit, og søkeordet følger med i teksten så det kan limes inn.
+   Men siden er ikke tom uten. Nettstedet har tre indekser — alle
+   lokalitetene, alle områdene, alle selskapene — og de er laget for at
+   «finn dette» skal være mulig med nettleserens egen søkefunksjon. Fra
+   08.10.2026 er lokalitetene og selskapene delt i sider (BRIEF.md:
+   ingen side over 10 000 px på 390), og hver side lenker til alle de
+   andre med spennet den dekker. Uten skript peker siden dit.
 
    Se avvik 5 i oppdraget: «Uten JS peker søkeskjemaet til /lokalitet/
    (flat indeks).»
@@ -76,8 +77,10 @@
     <h2>Uten søk: hele lista</h2>
     <p>
       Søkefeltet over krever JavaScript. Er det slått av, eller vil du
-      heller bla, står alt på tre flate sider uten paginering — bruk
-      nettleserens egen søkefunksjon i dem:
+      heller bla, står alt i listene under. Lokalitetene og selskapene
+      er delt i sider på {{ d.per_side }}, og hver side lenker til alle
+      de andre med spennet den dekker — bruk nettleserens egen
+      søkefunksjon på siden:
     </p>
     <ul>
       <li><a href="/lokalitet/">{{ alle(d.lokaliteter, "lokaliteten", "lokalitetene") }}</a>

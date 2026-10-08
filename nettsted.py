@@ -2511,6 +2511,91 @@ def _artsbegrensninger(tekniske: list[dict]) -> list[dict]:
             for dato, d in sorted(per_dato.items())]
 
 
+# Kildene hver faktasetning bygger på. En setning står bare når HVER av
+# dem ble sammenlignet med et tidligere øyeblikksbilde i uka.
+UKEFAKTA_KILDER = {
+    "eier": ("eierskap",),
+    "fisk": ("biomasselag",),
+    "kapasitet": ("eierskap", "akvakultur"),
+}
+
+
+def sammenlignet_per_uke() -> dict[str, frozenset[str]]:
+    """{ukeslug: kildene som ble SAMMENLIGNET den uka}.
+
+    En kilde er sammenlignet når den har et øyeblikksbilde i uka OG et
+    tidligere å sammenligne det med. Det første øyeblikksbildet gir ingen
+    endringer, og en uke uten henting heller ikke — i begge tilfeller
+    ville «ingen» vært en påstand om noe vi ikke så etter.
+    """
+    ut: dict[str, set[str]] = defaultdict(set)
+    for kilde in {k for ks in UKEFAKTA_KILDER.values() for k in ks}:
+        for dato in snapshot.datoer(kilde)[1:]:
+            ut[_ukeslug(dato)].add(kilde)
+    return {k: frozenset(v) for k, v in ut.items()}
+
+
+def _ukefakta(ledet: list[dict], sammenlignet: frozenset[str]) -> list[str]:
+    """Tre faktasetninger om ukas vesentlige endringer, bygget av radene.
+
+    Eierskifter, fisk til stede og kapasitet — i den rekkefølgen, og også
+    når tallet er null: «ingen» er en måling når kilden ble sammenlignet
+    den uka. Ble den ikke det, utelates setningen. Tallene er antall
+    ULIKE tillatelser og lokaliteter, ikke antall rader, og ingen setning
+    sier hvorfor noe skjedde.
+
+    `ledet` er ukas vesentlige rader utenfor selskapsdelen, de samme som
+    tabellen viser. En oppføring som kom eller gikk, telles ikke som et
+    eierskifte: den er «ny i vårt utvalg» eller «ute av vårt utvalg», og
+    står slik i tabellen.
+    """
+    def ulike(slag: str, felt: str, til: str | None = None) -> int:
+        return len({h["entity_id"] for h in ledet
+                    if h["type"] == slag and h["kildefelt"] == felt
+                    and (til is None or str(h["til"]).lower() == til)})
+
+    def dekket(setning: str) -> bool:
+        return all(k in sammenlignet for k in UKEFAKTA_KILDER[setning])
+
+    fakta: list[str] = []
+    eier = ulike("eierskap", "eier_orgnr")
+    if dekket("eier"):
+        fakta.append((visningsord.antall(eier, "tillatelse", "tillatelser")
+                      + " fikk ny eier.") if eier
+                     else "Ingen tillatelser fikk ny eier.")
+
+    inn, ut = ulike("biomasse", "har_fisk", "ja"), ulike("biomasse", "har_fisk", "nei")
+    if dekket("fisk"):
+        fakta.append(
+            f"Fisk til stede: {visningsord.antall(inn, 'lokalitet', 'lokaliteter')} "
+            f"gikk fra nei til ja, {visningsord.tall(ut)} fra ja til nei."
+            if inn or ut else
+            "Ingen lokaliteter endret status for fisk til stede.")
+    # KAPASITET BYGGER PÅ TO KILDER, og hver del står for seg: en
+    # endring på en lokalitet er observert selv om eierskapet ikke ble
+    # sammenlignet den uka. «Ingen» krever at begge ble det.
+    till = ulike("tillatelse", "kapasitet") if "eierskap" in sammenlignet else 0
+    akva = "akvakultur" in sammenlignet
+    lok = ulike("lokalitet", "kapasitet") if akva else 0
+    midl = ulike("lokalitet", "kapasitet_midlertidig") if akva else 0
+    deler = [visningsord.antall(n, entall, flertall)
+             for n, entall, flertall in ((till, "tillatelse", "tillatelser"),
+                                         (lok, "lokalitet", "lokaliteter")) if n]
+    if deler:
+        setning = f"Kapasiteten endret seg på {visningsord.liste(deler)}"
+    elif dekket("kapasitet"):
+        setning = "Ingen kapasitet endret seg"
+    else:
+        setning = ""
+    if midl:
+        setning = (f"{setning}, og den midlertidige kapasiteten på "
+                   if setning else "Den midlertidige kapasiteten endret seg på ")
+        setning += visningsord.antall(midl, "lokalitet", "lokaliteter")
+    if setning:
+        fakta.append(setning + ".")
+    return fakta
+
+
 def les_endringsuker(felles: Felles) -> list[dict]:
     """Én post per ISO-uke vi har observert endringer i, nyest først.
 
@@ -2614,6 +2699,7 @@ def les_endringsuker(felles: Felles) -> list[dict]:
     per_uke: dict[str, list[dict]] = defaultdict(list)
     for h in rader:
         per_uke[h["uke"]].append(h)
+    sammenlignet = sammenlignet_per_uke()
 
     uker = []
     for slug in sorted(per_uke, reverse=True):
@@ -2756,6 +2842,8 @@ def les_endringsuker(felles: Felles) -> list[dict]:
             "utenfor_tellingen": ikke_telt,
             # DE TEKNISKE, i sin egen del. Telles ikke i noe tall over.
             "tekniske_rader": tekniske,
+            # TRE FAKTASETNINGER øverst på ukesiden. Se `_ukefakta()`.
+            "fakta": _ukefakta(ledet, sammenlignet.get(slug, frozenset())),
             "artsbegrensninger": (_artsbegrensninger(tekniske)
                                   if slug in ARTSBEGRENSNING_SETNING_UKER
                                   else []),
@@ -4152,7 +4240,148 @@ def _biolagstripe(serie: list[dict], alle_uker: list[str]) -> dict | None:
         "med_fisk": sum(1 for r in ruter if r["ja"]),
         "siste_rapport": ruter[-1]["siste_rapport"],
         "arter": ruter[-1]["arter"],
+        # DEN NYESTE UKA I LAGET, for alle lokaliteter. Står lokaliteten
+        # ikke i den, er siste rute en gammel påstand — se
+        # `lokalitetssammendrag()`.
+        "siste_uke": alle_uker[-1] if alle_uker else "",
     }
+
+
+# ---------------------------------------------------- oppsummeringen
+#
+# ÉN SETNING ØVERST på lokalitetssiden, satt sammen av leddene under.
+# Hvert ledd er en målt opplysning som også står lenger ned på siden —
+# setningen er en annen vei til dem, aldri den eneste. Mangler et ledd
+# dataene, utelates det; det gjettes ikke. Se docs/design/BRIEF.md.
+#
+# Et ledd er en liste av biter: ("tekst", s), ("lenke", url, s) eller
+# ("tid", iso, s). Datoene må være `<time datetime>` (markupkontrakten),
+# og det kan bare malen skrive.
+
+SAMMENDRAG_UKER = 12
+
+
+def _fiskeledd(biolag: dict | None) -> list[tuple] | None:
+    """«Fisk til stede siden uke 40, 2026», eller tilsvarende.
+
+    BARE NÅR LOKALITETEN STÅR I DEN NYESTE UKA AV LAGET. Laget dekker
+    lokaliteter med innsendt månedsrapport; en lokalitet som har falt ut,
+    har ingen påstand om i dag, og den forrige er ikke en.
+
+    «SIDEN» ER UKA VI FØRST SÅ DEN NYE TILSTANDEN, etter en observasjon
+    av den motsatte. Uten et slikt skifte i serien vet vi ikke når
+    tilstanden begynte, og da står månedsrapporten kilden oppgir i
+    stedet — den er det kilden selv sier at påstanden gjelder for.
+    """
+    if not biolag or not biolag.get("ruter"):
+        return None
+    ruter = biolag["ruter"]
+    siste = ruter[-1]
+    if not siste.get("har_fisk") or siste["dato"] != biolag.get("siste_uke"):
+        return None
+    ledd: list[tuple] = [("tekst", "Fisk til stede" if siste["ja"]
+                          else "Ingen fisk til stede")]
+    skifte = next((ruter[i] for i in range(len(ruter) - 1, 0, -1)
+                   if ruter[i]["ja"] != ruter[i - 1]["ja"]
+                   and ruter[i - 1].get("har_fisk")), None)
+    if skifte:
+        ledd += [("tekst", " siden "),
+                 ("tid", skifte["dato"], visningsord.uke(skifte["dato"]))]
+    elif siste.get("siste_rapport"):
+        ledd += [("tekst", " ifølge månedsrapporten for "),
+                 ("tid", siste["siste_rapport"][:7],
+                  visningsord.maaned(siste["siste_rapport"]))]
+    return ledd
+
+
+def _eierledd(selskap: dict) -> list[tuple] | None:
+    """«eid av X siden 2022». Datoen er den siste overføringen til
+    selskapet som er journalført — samme dato som faktalista viser.
+
+    INGEN PERSONFORM og intet navn vi ikke har. Regel 3."""
+    if not selskap or selskap.get("personform") or not selskap.get("navn"):
+        return None
+    navn = selskap["navn"]
+    ledd: list[tuple] = [("tekst", "eid av "),
+                         ("lenke", selskap["url"], navn) if selskap.get("url")
+                         else ("tekst", navn)]
+    if selskap.get("flere"):
+        ledd.append(("tekst", f" og {visningsord.antall(selskap['flere'], 'innehaver', 'innehavere')} til"))
+    elif selskap.get("siden"):
+        ledd += [("tekst", " siden "),
+                 ("tid", selskap["siden"], selskap["siden"][:4])]
+    return ledd
+
+
+def endringsvindu(referanse: str, dekning_fra: list[dict], uker: int
+                  ) -> dict | None:
+    """Vinduet «siste N uker», avgrenset av vår egen dekning.
+
+    Har vi hentet i færre enn N uker, ville «0 endringer siste N uker»
+    påstått at vi så etter i uker vi ikke så etter. Da begynner vinduet
+    på den SENESTE av registerkildenes første henting, så hver kilde som
+    teller har vært med hele vinduet, og `hele` er usann.
+
+    REFERANSEN ER DATAENES, ikke klokka: datoen til øyeblikksbildet
+    siden er bygget av. CLAUDE.md 1b.
+
+        {"fra": iso (eksklusiv), "til": iso (inklusiv), "hele": bool,
+         "uker": N}
+    """
+    try:
+        ref = dt.date.fromisoformat(referanse[:10])
+    except ValueError:
+        return None
+    dekket = max((d["fra"] for d in dekning_fra), default="")
+    if not dekket:
+        return None
+    start = (ref - dt.timedelta(weeks=uker)).isoformat()
+    hele = dekket <= start
+    return {"fra": start if hele else dekket, "til": ref.isoformat(),
+            "hele": hele, "uker": uker}
+
+
+def vesentlige_i_vinduet(poster: list[dict], vindu: dict) -> list[dict]:
+    """Tidslinjepostene som er vesentlige og ligger i vinduet. «Første
+    øyeblikksbilde» er ikke en endring."""
+    return [p for p in poster
+            if not p.get("forste")
+            and p.get("klasse", vesentlighet.VESENTLIG) == vesentlighet.VESENTLIG
+            and vindu["fra"] < str(p.get("dato", ""))[:10] <= vindu["til"]]
+
+
+def _endringsledd(observert: list[dict], dekning_fra: list[dict],
+                  referanse: str) -> list[tuple] | None:
+    """«2 vesentlige endringer siste 12 uker», eller «… siden <dato>»
+    når vi har hentet i kortere tid. Se `endringsvindu()`."""
+    vindu = endringsvindu(referanse, dekning_fra, SAMMENDRAG_UKER)
+    if not vindu:
+        return None
+    n = len(vesentlige_i_vinduet(observert, vindu))
+    tekst = (visningsord.antall(n, "vesentlig endring", "vesentlige endringer")
+             if n else "ingen vesentlige endringer")
+    if vindu["hele"]:
+        return [("tekst", f"{tekst} siste {SAMMENDRAG_UKER} uker")]
+    return [("tekst", f"{tekst} siden "),
+            ("tid", vindu["fra"], visningsord.dato(vindu["fra"]))]
+
+
+def lokalitetssammendrag(lok: dict) -> list[list[tuple]]:
+    """Leddene i oppsummeringssetningen, i rekkefølge. Tom liste: ingen
+    setning."""
+    ledd = [
+        _fiskeledd(lok.get("biolag")),
+        _eierledd(lok.get("selskap") or {}),
+        _endringsledd(lok.get("observert") or [], lok.get("dekning_fra") or [],
+                      max(lok.get("akva_dato") or "",
+                          lok.get("eierskap_dato") or "")),
+    ]
+    ledd = [l for l in ledd if l]
+    # STOR FORBOKSTAV på det første leddet, hvilket det enn er.
+    if ledd and ledd[0][0][0] == "tekst":
+        s = ledd[0][0][1]
+        ledd[0][0] = ("tekst", s[:1].upper() + s[1:])
+    return ledd
 
 
 # NABOLISTA, bygget én gang per `Felles`.
@@ -4282,7 +4511,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     tillatelsesrader = _tillatelsesrader(mine_till, uten_eier, former)
     dekning = felles.dekning_fra if felles else _dekning_fra()
 
-    return {
+    lok = {
         "loknr": loknr,
         "navn": a.get("navn", ""),
         # REGISTERETS VERSALER GJORT OM TIL TITTELFORM, for H1.
@@ -4440,6 +4669,9 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
             "sjekksum": (felles.sjekksum if felles else _sjekksum("akvakultur")),
         },
     }
+    # REGNES AV DET SIDEN ALLEREDE VISER, ikke slått opp på nytt.
+    lok["sammendrag"] = lokalitetssammendrag(lok)
+    return lok
 
 
 # ---------------------------------------------------- den siterbare CSV-en
@@ -5004,7 +5236,14 @@ def stilsti(sti: Path, rot: Path) -> str:
 # «Trafikklys: 4»-linjer under hverandre er ikke en tabell man kan
 # sammenligne uker i. Den beholder vannrett rulling, og første kolonne
 # (uka) låses med `position: sticky` så raden kan følges.
-UTEN_KORT = frozenset({"endringer-uker"})
+#
+# `akvakultur-alle` og `eierskap-selskaper` er INDEKSENE. Som kort er en
+# rad i lokalitetsindeksen 295 px høy på 390 (MÅLT 08.10.2026: 525 434 px
+# for 1 782 lokaliteter). Som tabell er den én linje, og nummeret og
+# navnet — det man leter etter — står i de to første kolonnene. Resten
+# ruller vannrett, som krysstabellen.
+UTEN_KORT = frozenset({"endringer-uker", "akvakultur-alle",
+                       "eierskap-selskaper"})
 
 _TABELL = re.compile(r"(<table\b[^>]*>)(.*?)(</table>)", re.S)
 _TABELL_ID = re.compile(r'\bid="([^"]+)"')
@@ -6182,8 +6421,9 @@ def bygg_sok(felles: Felles, uker: list[dict]) -> dict:
     omraader = len(felles.po_navn)
     endringsuker = len(uker)
     # DE ANDRE SIDENE, telt og ikke gjettet: forsiden, /om/, /sok/, de
-    # tre indeksene, endringsindeksen og typesidene.
-    andre = 1 + 1 + 1 + 3 + 1 + endringsuker * len(ENDRINGSTYPER)
+    # tre indeksene med sine sider, endringsindeksen og typesidene.
+    indekser = 1 + indekssider(lokaliteter) + indekssider(selskaper)
+    andre = 1 + 1 + 1 + indekser + 1 + endringsuker * len(ENDRINGSTYPER)
     return {
         "lokaliteter": lokaliteter,
         "produksjonsomraader": omraader,
@@ -6191,6 +6431,7 @@ def bygg_sok(felles: Felles, uker: list[dict]) -> dict:
         "endringsuker": endringsuker,
         "andre": andre,
         "sider": lokaliteter + omraader + selskaper + endringsuker + andre,
+        "per_side": INDEKS_PER_SIDE,
     }
 
 
@@ -6304,6 +6545,11 @@ def _urler(felles: Felles) -> list[str]:
     nedlastinger, og hver CSV er lenket fra sin egen lokalitetsside.
     """
     stier = ["/", "/om/", "/lokalitet/", "/produksjonsomrade/", "/selskap/"]
+    # INDEKSENES ØVRIGE SIDER. Samme deling som `skriv_indekser()`.
+    selskaper = sum(1 for o in felles.tillatelser_per_eier
+                    if not personeier(o, felles))
+    for sti, n in (("lokalitet", len(felles.akva)), ("selskap", selskaper)):
+        stier += [indekssti(sti, k) for k in range(2, indekssider(n) + 1)]
     stier += [f"/lokalitet/{loknr}/" for loknr in
               sorted(felles.akva, key=lambda e: int(e) if e.isdigit() else 0)]
     stier += [f"/produksjonsomrade/{po}/" for po in
@@ -6837,7 +7083,7 @@ def bygg_lokalitetsindeks(felles: Felles) -> dict:
     # står. Uenighetsregelen er den samme: et punkt som mangler skal
     # ikke bare forsvinne. Se docs/REGEL-UENIGE-KILDER.md.
     _punkter, uten, _hoyde, _gitter = kartpunkter(felles.akva)
-    return {"rader": rader, "antall": len(rader),
+    return {"rader": rader, "antall": len(rader), "side": None,
             "akva_dato": felles.akva_dato,
             "uten_po": sum(1 for r in rader if not r["po_kode"]),
             "uten_omraade": uten_omraade_tekst(felles.akva),
@@ -6900,35 +7146,99 @@ def bygg_selskapsindeks(felles: Felles) -> dict:
             "har_registerdata": orgnr in felles.enhet,
         })
     rader.sort(key=lambda r: (r["navn"] or "ÅÅÅ", r["orgnr"]))
-    return {"rader": rader, "antall": len(rader),
+    return {"rader": rader, "antall": len(rader), "side": None,
             "eierskap_dato": felles.eierskap_dato,
             "uten_registerdata": sum(1 for r in rader
                                      if not r["har_registerdata"]),
             "personeiere": personer}
 
 
+# RADER PER INDEKSSIDE. MÅLT 08.10.2026 på 390 px: en indeksrad som
+# tabell er ~45 px, og 100 rader med topp og bunntekst holder siden under
+# 10 000 px — kravet i docs/design/BRIEF.md.
+INDEKS_PER_SIDE = 100
+
+
+def indekssider(antall: int, per_side: int = INDEKS_PER_SIDE) -> int:
+    """Hvor mange sider en indeks med `antall` rader deles i. Minst én."""
+    return max(1, -(-antall // per_side))
+
+
+def indekssti(sti: str, nr: int) -> str:
+    """`lokalitet`, 1 -> `/lokalitet/`; 3 -> `/lokalitet/side/3/`.
+
+    SIDE 1 ER INDEKSENS EGEN ADRESSE. `/lokalitet/` har vært lenket til
+    fra menyen, søkesiden og områdesidene siden den ble bygget, og den
+    skal fortsatt være stedet man begynner — og ankeret
+    `#akvakultur-uten-koordinater` står der.
+    """
+    return f"/{sti}/" if nr == 1 else f"/{sti}/side/{nr}/"
+
+
+def _sidenavigasjon(sti: str, rader: list[dict], nokkel: str, nr: int,
+                    per_side: int) -> dict:
+    """Hvilken side dette er, og veien til hver av de andre.
+
+    HVER SIDE LENKER TIL ALLE DE ANDRE, med spennet den dekker — «10001–
+    11283» — og ikke bare til forrige og neste. En paginert liste der
+    side 14 bare nås gjennom 13 andre, er en liste der side 14 ikke
+    blir lest; to klikk unna er den ikke det.
+    """
+    n = indekssider(len(rader), per_side)
+    sider = []
+    for k in range(1, n + 1):
+        bit = rader[(k - 1) * per_side:k * per_side]
+        sider.append({"nr": k, "url": indekssti(sti, k),
+                      "fra": bit[0][nokkel] if bit else "",
+                      "til": bit[-1][nokkel] if bit else "",
+                      "gjeldende": k == nr})
+    return {"nr": nr, "antall": n, "sider": sider,
+            "forrige": indekssti(sti, nr - 1) if nr > 1 else "",
+            "neste": indekssti(sti, nr + 1) if nr < n else "",
+            "fra_rad": (nr - 1) * per_side + 1,
+            "til_rad": min(nr * per_side, len(rader))}
+
+
 def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
                   tittel: str, beskrivelse: str, kilder: tuple,
-                  felles: Felles) -> Path:
-    """Én indeksside. Samme form for alle tre."""
+                  felles: Felles, nokkel: str = "",
+                  per_side: int = INDEKS_PER_SIDE) -> list[Path]:
+    """Én indeks, på én eller flere sider. Samme form for alle tre.
+
+    Med `nokkel` deles radene i sider på `per_side`; uten står alt på
+    én. `nokkel` er feltet sidelenkene viser spennet i.
+    """
     mal = _miljo().get_template(mal_navn)
-    html = mal.render(
-        d=data,
-        **_grunnkontekst(
-            felles, rot, rot / sti / "index.html", kilder=kilder,
-            tittel=tittel, beskrivelse=beskrivelse,
-            jsonld=_script_trygg({
-                "@context": "https://schema.org",
-                "@type": "CollectionPage",
-                "name": tittel,
-                "description": beskrivelse,
-                "inLanguage": "nb",
-            }),
-            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
-            meny_aktiv=sti, sidetype="Liste",
-            undertittel=f"{data['antall']} oppføringer"),
-    )
-    return skriv_side(rot / sti / "index.html", html)
+    rader = data["rader"]
+    n = indekssider(len(rader), per_side) if nokkel else 1
+    ut = []
+    for nr in range(1, n + 1):
+        d = dict(data)
+        if nokkel:
+            d["rader"] = rader[(nr - 1) * per_side:nr * per_side]
+            d["side"] = _sidenavigasjon(sti, rader, nokkel, nr, per_side)
+        else:
+            d["side"] = None
+        fil = rot / indekssti(sti, nr).strip("/") / "index.html"
+        sidetittel = tittel if nr == 1 else f"{tittel} (side {nr} av {n})"
+        html = mal.render(
+            d=d,
+            **_grunnkontekst(
+                felles, rot, fil, kilder=kilder,
+                tittel=sidetittel, beskrivelse=beskrivelse,
+                jsonld=_script_trygg({
+                    "@context": "https://schema.org",
+                    "@type": "CollectionPage",
+                    "name": sidetittel,
+                    "description": beskrivelse,
+                    "inLanguage": "nb",
+                }),
+                proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+                meny_aktiv=sti, sidetype="Liste",
+                undertittel=f"{data['antall']} oppføringer"),
+        )
+        ut.append(skriv_side(fil, html))
+    return ut
 
 
 # INDEKSSIDENES KILDER. Navngitt og ikke inline, fordi `viste_kilder()`
@@ -6964,27 +7274,27 @@ def viste_kilder() -> frozenset[str]:
 def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
     """De tre indekssidene."""
     return [
-        _skriv_indeks(
+        *_skriv_indeks(
             rot, "lokalitet", "indeks-lokalitet.html.j2",
             bygg_lokalitetsindeks(felles),
             "Alle akvakulturlokaliteter — Kystloggen",
-            "Flat liste over alle norske akvakulturlokaliteter med "
+            "Liste over alle norske akvakulturlokaliteter med "
             "nummer, navn, kommune og produksjonsområde.",
-            INDEKS_LOKALITET_KILDER, felles),
-        _skriv_indeks(
+            INDEKS_LOKALITET_KILDER, felles, nokkel="loknr"),
+        *_skriv_indeks(
             rot, "produksjonsomrade", "indeks-produksjonsomrade.html.j2",
             bygg_poindeks(felles),
             "Alle produksjonsområder — Kystloggen",
             "De tretten produksjonsområdene med nyeste trafikklysfarge "
             "og antall lokaliteter.",
             INDEKS_OMRAADE_KILDER, felles),
-        _skriv_indeks(
+        *_skriv_indeks(
             rot, "selskap", "indeks-selskap.html.j2",
             bygg_selskapsindeks(felles),
             "Alle innehavere av akvakulturtillatelse — Kystloggen",
-            "Flat liste over innehaverne av minst én "
+            "Liste over innehaverne av minst én "
             "akvakulturtillatelse, med antall tillatelser og lokaliteter.",
-            INDEKS_SELSKAP_KILDER, felles),
+            INDEKS_SELSKAP_KILDER, felles, nokkel="navn"),
     ]
 
 
@@ -7837,6 +8147,8 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
     lokalitetsrader = [lokaliteter[k] for k in
                        sorted(lokaliteter, key=lambda e: int(e) if e.isdigit() else 0)]
     samlet = _samlet_kapasitet(mine)
+    endringer, vindu = _selskapsendringer(orgnr, sorted(lokaliteter),
+                                          tillatelser, felles)
 
     return {
         "orgnr": orgnr,
@@ -7863,7 +8175,13 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
 
         # ---- nøkkeltallene i overskriften ----
         "samlet_kapasitet": samlet["vist"],
+        "kapasitet_per_enhet": samlet["biter"],
         "kapasitetsenheter": samlet["enheter"],
+        # VESENTLIGE ENDRINGER SISTE KVARTAL, og vinduet de er talt i.
+        # Se `_selskapsendringer()` og `endringsvindu()`.
+        "endringer": endringer,
+        "endringsvindu": vindu,
+        "aapen_liste": SELSKAP_AAPEN_LISTE,
         "i_arkivet_siden": min((o["dato"] for o in overforinger), default=""),
         "eierskapslinje": eierskapslinje,
         "kom_til": sum(1 for o in eierskapslinje if o["retning"] == "inn"),
@@ -7877,6 +8195,81 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             "sjekksum": _sjekksum("eierskap"),
         },
     }
+
+
+# SELSKAPSSIDENS ENDRINGSVINDU: et kvartal, regnet i hele uker.
+SELSKAP_UKER = 13
+
+# En liste med flere rader enn dette står LUKKET på selskapssiden. Under
+# grensa er en lukket liste bare et ekstra klikk. MÅLT 08.10.2026 på
+# 390 px: selskapet med flest lokaliteter (158) var 150 018 px høyt med
+# alle listene åpne.
+SELSKAP_AAPEN_LISTE = 10
+
+# (felles, {orgnr: tillatelser selskapet har GITT FRA SEG}). Bygget én
+# gang per batch. Selve objektet holdes og sammenlignes med `is`, ikke
+# `id()`: en id kan gjenbrukes etter at objektet er borte.
+_AVGITT: list = [None, {}]
+
+
+def _avgitte_tillatelser(orgnr: str, felles: Felles) -> set[str]:
+    """Tillatelser der changeloggen viser at eieren GIKK FRA dette
+    organisasjonsnummeret. De eies av noen andre nå, og står derfor ikke
+    i `tillatelser_per_eier` — men at selskapet ga slipp på dem, er en
+    endring for selskapet. Uten dem ville et salg vært usynlig på
+    selgerens side."""
+    if _AVGITT[0] is not felles:
+        avgitt: dict[str, set[str]] = defaultdict(set)
+        for eid, rader in felles.registerendringer.items():
+            for r in rader:
+                if (r["source"] == "eierskap" and r["field"] == "eier_orgnr"
+                        and r["old_value"]):
+                    avgitt[str(r["old_value"]).strip()].add(eid)
+        _AVGITT[:] = [felles, dict(avgitt)]
+    return _AVGITT[1].get(orgnr, set())
+
+
+def _selskapsendringer(orgnr: str, lokaliteter: list[str],
+                       tillatelser: list[str], felles: Felles
+                       ) -> tuple[list[dict], dict | None]:
+    """(vesentlige endringer i vinduet, nyest først; vinduet).
+
+    SAMME REGLER SOM LOKALITETSSIDENS TIDSLINJE, fra det samme stedet:
+    `_lokalitetsendringer()` klassifiserer og slår sammen. Radene er
+    endringer på selskapets lokaliteter, på tillatelsene det eier, og på
+    tillatelsene det har gitt fra seg. En tillatelse som ligger på flere
+    av lokalitetene, telles én gang.
+    """
+    vindu = endringsvindu(max(felles.akva_dato, felles.eierskap_dato),
+                          felles.dekning_fra, SELSKAP_UKER)
+    if not vindu:
+        return [], None
+    rader: list[dict] = []
+    for loknr in lokaliteter:
+        rader += [r for r in felles.registerendringer.get(loknr, ())
+                  if r["source"] not in ENDRINGER_VIA_TILLATELSE]
+    for nr in sorted(set(tillatelser) | _avgitte_tillatelser(orgnr, felles)):
+        rader += [r for r in felles.registerendringer.get(nr, ())
+                  if r["source"] in ENDRINGER_VIA_TILLATELSE]
+    rader = [r for r in rader
+             if vindu["fra"] < str(r["observed_at"])[:10] <= vindu["til"]]
+    rader.sort(key=lambda r: str(r["observed_at"]), reverse=True)
+    poster = slaa_sammen_trukne(_lokalitetsendringer(rader, ""))
+    poster = vesentlige_i_vinduet(poster, vindu)
+    for p in poster:
+        eid = p["entity_id"]
+        a = felles.akva.get(eid)
+        p["gjelder"] = (f"tillatelse {eid}" if a is None
+                        else f"lokalitet {eid}")
+        p["lokalitet"] = eid if a is not None else ""
+        p["lokalitetsnavn"] = (visningsord.tittelform(a.get("navn", ""))
+                               if a is not None else "")
+        # EN TOM VERDI MERKES IKKE MED KILDENS FELTNAVN — som i
+        # `_observert_historikk()`.
+        p["fra_felt"] = feltmerke(p["fra"], p["felt"])
+        p["til_felt"] = feltmerke(p["til"], p["felt"])
+    poster.sort(key=lambda r: _omvendt(r["dato"]))
+    return poster, vindu
 
 
 def _samlet_kapasitet(mine_till: dict) -> dict:
@@ -7904,7 +8297,8 @@ def _samlet_kapasitet(mine_till: dict) -> dict:
     biter = [visningsord.maalt(verdi, enhet)
              for enhet, verdi in sorted(per_enhet.items(),
                                         key=lambda kv: -kv[1])]
-    return {"vist": " + ".join(biter), "enheter": len(per_enhet)}
+    return {"vist": " + ".join(biter), "biter": biter,
+            "enheter": len(per_enhet)}
 
 
 def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
