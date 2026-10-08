@@ -60,7 +60,14 @@ fra. «Kontakt» holder.
 ## Språk og modus
 
 - **Bare norsk.**
-- **Bare lys modus.** Én palett.
+- **Bare lys modus.** Én palett. Det finnes ingen
+  `prefers-color-scheme: dark`-blokk i `maler/stil.css`, og både
+  stilarket og `<meta name="color-scheme">` sier `light`. En leser med
+  mørk modus i systemet får den samme lyse siden. Kontrastprøven
+  (`tests/test_kontrast.py`) måler den ene paletten og feller en
+  mørkblokk om den kommer tilbake. Mørk modus ble fjernet 08.10.2026:
+  hver farge måtte velges, måles og vedlikeholdes to ganger, og feilene
+  sto i den modusen ingen så på (h1 på 1,34:1, båndet på 1,04:1).
 
 ## Typografi
 

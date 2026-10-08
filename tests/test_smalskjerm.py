@@ -838,3 +838,18 @@ def test_ingen_ukeside_er_hentet_foer_sin_egen_uke():
         assert (aar, uke) >= tuple(int(x) for x in mappe.name.split("-")), t
         tider[mappe.name] = d
     assert len(set(tider.values())) == len(tider), tider
+
+
+def test_moerk_modus_i_systemet_gir_den_samme_lyse_siden(side, tjener):
+    """Bare lys modus — docs/design/BRIEF.md. En leser med mørk modus i
+    systemet skal få nøyaktig den samme paletten, ikke en halvveis
+    oversatt side."""
+    farger = {}
+    for modus in ("light", "dark"):
+        side.emulate_media(color_scheme=modus)
+        side.goto(tjener + "/lokalitet/31397/", wait_until="load")
+        farger[modus] = side.evaluate(
+            "[getComputedStyle(document.body).backgroundColor,"
+            " getComputedStyle(document.body).color]")
+    side.emulate_media(color_scheme="light")
+    assert farger["dark"] == farger["light"]

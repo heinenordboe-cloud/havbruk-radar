@@ -81,57 +81,31 @@ def over(forgrunn: str, bakgrunn: str, alfa: float) -> str:
 
 # ---- fargene, lest ut av CSS-en ---------------------------------------
 
-def _blokker(tekst: str) -> tuple[str, str]:
-    """(lys, mørk) — teksten utenfor og inne i prefers-color-scheme.
+def test_det_finnes_bare_en_palett():
+    """Bare lys modus, fra 08.10.2026 — docs/design/BRIEF.md.
 
-    SLUTTEN TELLES MED KLAMMER, ikke søkes etter som tekst. Fram til
-    21.09.2026 lette denne etter strengen `\n}\n}` — mediespørringens
-    slutt slik den tilfeldigvis var skrevet. Da `stil.css` fikk et
-    innrykk (`\n  }\n}`), fant `find` ingenting og returnerte -1:
-
-        lys  = tekst[:i] + tekst[-1:]     alt ETTER blokka forsvant
-        mørk = tekst[i:-1]                alt etter blokka ble MØRKT
-
-    Følgen var stille og nøyaktig gal vei. Aliasene `--farge-*` lå
-    etter mediespørringen; i lys modus fantes de ikke, og prøven falt
-    med KeyError framfor å måle. Hadde de ligget før, ville prøven vært
-    grønn og samtidig målt mørke verdier som lyse.
-
-    Det er samme feilform som CLAUDE.md 1b-2 beskriver: en mekanisme
-    som måler noe som LIGNER det den skal måle, og som er riktig helt
-    til formateringen endrer seg."""
-    i = tekst.find("@media (prefers-color-scheme: dark)")
-    if i < 0:
-        return tekst, ""
-    dybde = 0
-    for j in range(tekst.index("{", i), len(tekst)):
-        if tekst[j] == "{":
-            dybde += 1
-        elif tekst[j] == "}":
-            dybde -= 1
-            if dybde == 0:
-                slutt = j + 1
-                break
-    else:
-        raise AssertionError("mediespørringen lukkes aldri")
-    return tekst[:i] + tekst[slutt:], tekst[i:slutt]
+    En `prefers-color-scheme: dark`-blokk ville vært en palett denne
+    prøven ikke måler, og mørk modus var nettopp der feilene sto uten at
+    noen så dem (h1 på 1,34:1, båndet på 1,04:1)."""
+    css = STIL.read_text(encoding="utf-8")
+    assert "prefers-color-scheme" not in css
+    assert re.search(r"color-scheme:\s*light;", css)
+    base = (ROT / "maler" / "base.html.j2").read_text(encoding="utf-8")
+    assert '<meta name="color-scheme" content="light">' in base
 
 
 def _deklarasjoner(tekst: str) -> dict[str, str]:
     return dict(re.findall(r"(--[a-z0-9-]+):\s*([^;]+);", tekst))
 
 
-def palett(mork: bool) -> dict[str, str]:
+def palett() -> dict[str, str]:
     """Hvert variabelnavn løst helt ned til en hex-verdi.
 
     Følger `var()`-kjeden: `--farge-tekst` peker på `--ink`, som peker
     på en hex. Løses den ikke opp, måler prøven på strengen «var(--…)»
     og er grønn uansett."""
     ut: dict[str, str] = {}
-    lys_del, mork_del = _blokker(STIL.read_text(encoding="utf-8"))
-    ut.update(_deklarasjoner(lys_del))
-    if mork:
-        ut.update(_deklarasjoner(mork_del))
+    ut.update(_deklarasjoner(STIL.read_text(encoding="utf-8")))
 
     def los(navn: str, dybde: int = 0) -> str:
         verdi = ut[navn].strip()
@@ -227,12 +201,8 @@ RUTER = ["--lys-rod", "--lys-gul", "--lys-gronn"]
 # 22.09.2026 ikke i noen fil i repoet heller — `tokens.css` er borte.
 # De står som literaler HER, som målestokken trafikklyset måles mot:
 # hvor langt en datafarge ligger fra en varselfarge.
-DS_STATUS = {
-    False: {"--lys-rod": "#c01b1b", "--lys-gul": "#ea9b1b",
-            "--lys-gronn": "#068718"},
-    True: {"--lys-rod": "#d76e6e", "--lys-gul": "#60400b",
-           "--lys-gronn": "#138d24"},
-}
+DS_STATUS = {"--lys-rod": "#c01b1b", "--lys-gul": "#ea9b1b",
+            "--lys-gronn": "#068718"}
 
 
 # ---- prøvene ----------------------------------------------------------
@@ -251,36 +221,16 @@ def test_blandingen_stemmer():
     assert over("#123456", "#ffffff", 0.0) == "#ffffff"
 
 
-def test_blokkdelingen_taaler_innrykk():
-    """Driftvakten for `_blokker`. En variabel som står ETTER
-    mediespørringen skal havne i lys-halvdelen uansett hvordan blokka
-    er rykket inn — det var nøyaktig det som sviktet 21.09.2026."""
-    css = ("""\
-:root { --a: #111111; }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --a: #eeeeee;
-  }
-}
-:root { --b: var(--a); }
-""")
-    lys, mork = _blokker(css)
-    assert "--b" in lys, "variabel etter mediespørringen falt ut av lys modus"
-    assert "--b" not in mork, "variabel etter mediespørringen ble lest som mørk"
-    assert "#eeeeee" in mork and "#eeeeee" not in lys
-
-
 def test_hvert_navn_i_lista_finnes_i_css():
     """Driftvakten. Et par som viser til en variabel som er slettet,
     skal felle — ikke hoppes stille over."""
-    p = palett(mork=False)
+    p = palett()
     for navn in {n for par in PAR for n in par[:2]} | set(RUTER):
         assert navn in p, f"{navn} finnes ikke i CSS-en lenger"
 
 
-@pytest.mark.parametrize("mork", [False, True], ids=["lys", "mørk"])
-def test_aa_paa_hvert_par(mork):
-    p = palett(mork)
+def test_aa_paa_hvert_par():
+    p = palett()
     feil = []
     for fg, bg, krav, hvor, alfa in PAR:
         farge = over(p[fg], p[bg], alfa) if alfa < 1 else p[fg]
@@ -290,24 +240,22 @@ def test_aa_paa_hvert_par(mork):
     assert not feil, "\n".join(feil)
 
 
-@pytest.mark.parametrize("mork", [False, True], ids=["lys", "mørk"])
-def test_baandet_er_en_flate_i_begge_moduser(mork):
+def test_baandet_er_en_flate():
     """Hero-båndet er den eneste mettede flaten på nettstedet, og en
-    flate ingen ser er ingen flate. I lys modus er havet mørkere enn
-    papiret; i mørk modus må det være LYSERE, ellers forsvinner det i
-    bunnen. Forholdet måles, retningen ikke."""
-    p = palett(mork)
+    flate ingen ser er ingen flate. Havet er mørkere enn papiret, og
+    forholdet måles. (Mørk modus, der retningen måtte snus, er fjernet
+    08.10.2026.)"""
+    p = palett()
     k = kontrast(p["--hav9"], p["--papir"])
     assert k >= BAND_MOT_SIDE, (
         f"båndet {p['--hav9']} mot siden {p['--papir']} = {k:.2f}:1")
 
 
-@pytest.mark.parametrize("mork", [False, True], ids=["lys", "mørk"])
-def test_rutene_skilles_fra_hverandre_i_lyshet(mork):
+def test_rutene_skilles_fra_hverandre_i_lyshet():
     """Rød og grønn er den klassiske forvekslingen. Ordet står i cellen
     og bærer betydningen uansett — men to ruter som er like LYSE er to
     ruter ingen kan skille i gråtone heller. Luminansen skal skille."""
-    p = palett(mork)
+    p = palett()
     lys = sorted(luminans(p[r]) for r in RUTER)
     for a, b in zip(lys, lys[1:]):
         forhold = (b + 0.05) / (a + 0.05)
@@ -320,9 +268,8 @@ def test_rapport(capsys):
         pytest tests/test_kontrast.py -k rapport -s
     """
     linjer = []
-    for mork in (False, True):
-        p = palett(mork)
-        linjer.append(f"\n=== {'MØRK' if mork else 'LYS'} MODUS ===")
+    for p in (palett(),):
+        linjer.append("\n=== PALETTEN ===")
         linjer.append(f"{'par':34} {'forgrunn':9} {'bakgrunn':9} {'målt':>7}  krav")
         for fg, bg, krav, hvor, alfa in PAR:
             farge = over(p[fg], p[bg], alfa) if alfa < 1 else p[fg]
@@ -336,8 +283,8 @@ def test_rapport(capsys):
             linjer.append(
                 f"{r:34} {p[r]:9} {kontrast(p[r], p['--farge-ark']):6.2f}:1 "
                 f"{luminans(p[r]):7.3f}  "
-                f"{kontrast(p[r], DS_STATUS[mork][r]):.2f}:1 mot "
-                f"{DS_STATUS[mork][r]}")
+                f"{kontrast(p[r], DS_STATUS[r]):.2f}:1 mot "
+                f"{DS_STATUS[r]}")
     print("\n".join(linjer))
     assert capsys.readouterr().out
 
@@ -435,7 +382,7 @@ def test_menyflata_holder_45_mot_hvitt():
         assert k >= 4.5, f"alfa {alfa} gir {k:.2f}:1 mot hvitt"
 
 
-def test_heroteksten_bruker_tokener_som_er_lyse_i_BEGGE_moduser():
+def test_heroteksten_bruker_tokener_som_er_lyse():
     """Heroen er mørk uansett modus, og tokenene må si det.
 
     FEILEN SOM BLE FUNNET 27.09.2026: heroteksten sto i `var(--papir)`,
@@ -462,13 +409,11 @@ def test_heroteksten_bruker_tokener_som_er_lyse_i_BEGGE_moduser():
                                 ("--hav-tegn", 4.5, "bildetekstens lenke"),
                                 ("--hav-sekundaer", 4.5,
                                  "taglinen og bildeteksten")):
-        lys, mork = _blokker(css)
-        for modus, kilde in (("lys", lys), ("mørk", mork)):
-            m = re.search(rf"{token}:\s*(#[0-9a-fA-F]{{3,8}})", kilde)
-            assert m, f"{token} mangler i {modus} modus"
-            k = kontrast(m.group(1), flate)
-            assert k >= terskel, (
-                f"{hva} ({token}) i {modus} modus: {k:.2f}:1 mot heroflata")
+        m = re.search(rf"{token}:\s*(#[0-9a-fA-F]{{3,8}})", css)
+        assert m, f"{token} mangler"
+        k = kontrast(m.group(1), flate)
+        assert k >= terskel, (
+            f"{hva} ({token}): {k:.2f}:1 mot heroflata")
 
 
 def farge(css: str, token: str) -> str:
