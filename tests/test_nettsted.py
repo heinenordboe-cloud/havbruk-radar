@@ -2363,7 +2363,9 @@ def test_indeksen_deles_og_hver_side_lenker_til_alle_de_andre(tmp_path, monkeypa
                 assert f'<a href="{url}">' in s, (i, url)
         assert 'aria-current="page">' in s
     assert 'rel="next"' in sider[0] and 'rel="prev"' not in sider[0]
-    assert "10200–10204" in sider[0]
+    # Teksten, ikke markupen: hvert ytterpunkt i spennet har sitt eget
+    # element, så spennet bare brytes ved tankestreken.
+    assert "10200–10204" in re.sub(r"<[^>]+>", "", sider[0])
     # Regnskapet over lokaliteter uten koordinater står på første side,
     # der ankeret alltid har stått.
     assert 'id="uten-koordinater"' in sider[0]
@@ -5343,3 +5345,12 @@ def test_selskapets_nyeste_endringer_staar_aapent_og_resten_bak_et_klikk():
     # tall siden ikke hadde — bare det samlede antallet, som alt står.
     assert "eldre|length" not in mal
     assert "forste|length" not in mal
+
+
+def test_brodsmula_begynner_aldri_en_linje_med_skraastreken():
+    """Skråstreken står etter leddet. Brytes brødsmula, slutter linja
+    med «/», og den neste begynner med et navn."""
+    css = (Path(__file__).resolve().parents[1] / "maler" / "stil.css"
+           ).read_text(encoding="utf-8")
+    assert ".sti li:not(:last-child)::after" in css
+    assert ".sti li + li::before" not in css

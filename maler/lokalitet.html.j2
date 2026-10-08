@@ -109,8 +109,10 @@
        feed, et anker og to filer — og de står som lenker. En knapp er
        for en handling på siden (kopier, søk). Se docs/design/STILGUIDE.md. #}
     <ul class="handlinger" aria-label="Følg, siter og last ned">
-      <li><a class="handling" href="feed.xml">Følg denne lokaliteten
-        (feed)</a></li>
+      {#- «FØLG LOKALITETEN», som «Følg selskapet» og «Følg området». Til
+          08.10.2026 «Følg denne lokaliteten», som var lenka som gjorde
+          rada for lang på 390. #}
+      <li><a class="handling" href="feed.xml">Følg lokaliteten (feed)</a></li>
       <li><a class="handling" href="#siter">Siter</a></li>
       {#- BARE NÅR DET FINNES ET TALL. En knapp til en fil med bare
           tomme uker lover noe den ikke holder. Filene ligger der, og
@@ -121,10 +123,13 @@
           verktøy. `aria-label` sier HVA som lastes ned; det synlige
           «Excel (.xlsx)» står i den, så talegjenkjenning finner
           knappen på det den heter. #}
+      {#- DE TO FILENE ER ÉN GRUPPE: får de ikke plass på linja, går
+          de ned sammen, ikke én og én. Til 08.10.2026 sto «Data (.zip)»
+          alene på en linje på 390. #}
       {% if lok.lus_med_tall %}
-      <li><a class="handling handling--last" href="{{ lok.xlsx_filnavn }}" download
-         aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a></li>
-      <li><a class="handling handling--last" href="{{ lok.zip_filnavn }}" download
+      <li class="handlinger-gruppe"><a class="handling handling--last" href="{{ lok.xlsx_filnavn }}" download
+         aria-label="Lusetall som Excel (.xlsx)">Excel (.xlsx)</a>
+        <a class="handling handling--last" href="{{ lok.zip_filnavn }}" download
          aria-label="Lusetall som Data (.zip)">Data (.zip)</a></li>
       {% endif %}
     </ul>

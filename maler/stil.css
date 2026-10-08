@@ -474,7 +474,11 @@ main.fullbredde {
 }
 
 /* BRØDSMULA. `<ol>`: rekkefølgen ER informasjonen. Skilletegnet er et
-   `::before`, så en skjermleser leser navnene og ikke skråstrekene. */
+   pseudoelement, så en skjermleser leser navnene og ikke skråstrekene.
+
+   SKRÅSTREKEN STÅR ETTER LEDDET, ikke foran det neste. Brytes brødsmula
+   på telefon, slutter linja med «/» og den neste begynner med et navn.
+   Til 08.10.2026 begynte den nye linja med skråstreken. */
 .sti {
   margin: 0 0 var(--rom-16);
   font-size: var(--tekst-xs);
@@ -492,7 +496,7 @@ main.fullbredde {
 
 .sti li { margin: 0; }
 
-.sti li + li::before {
+.sti li:not(:last-child)::after {
   content: "/";
   margin-inline: 0.5em;
   color: var(--papir3);
@@ -592,11 +596,21 @@ main.fullbredde {
 
 .handlinger li { margin: 0; }
 
+/* EN LENKE BRYTES ALDRI INNI SEG. Rada brytes mellom lenkene, og en
+   gruppe (de to filene på lokalitetssiden) går ned samlet. */
+.handlinger-gruppe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rom-8) var(--rom-24);
+}
+
+/* `inline-block` OG IKKE `inline-flex`: i en flex-boks ble pila et eget
+   flex-element med sin egen understrek, og et hull mellom den og
+   teksten. Nå er pila et atomisk element som ikke arver streken. */
 .handling {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-  min-block-size: 2.25rem;
+  display: inline-block;
+  padding-block: var(--rom-8);
+  white-space: nowrap;
   color: var(--ink);
   font-weight: 500;
   text-decoration-line: underline;
@@ -616,6 +630,8 @@ main.fullbredde {
 /* En fil som lastes ned, sier det før man klikker. */
 .handling--last::before {
   content: "↓";
+  display: inline-block;
+  margin-inline-end: 0.4em;
   font-weight: 400;
   color: var(--rust);
   text-decoration: none;
@@ -2446,13 +2462,15 @@ figcaption {
   flex-wrap: wrap;
   gap: 0 var(--rom-16);
   max-width: none;
-  font-family: var(--skrift-tall);
   font-size: var(--tekst-xs);
 }
 
-.sidenav-liste li { margin: 0; }
+/* Lokalitetsnumrene står i tallskrift; navnene på selskapsindeksen i
+   brødskrift, som navn ellers. Spennet brytes bare ved tankestreken. */
+.sidenav-liste li { margin: 0; font-variant-numeric: tabular-nums; }
+.sidenav-ende { white-space: nowrap; }
 
-.sidenav-liste a, .sidenav-liste span {
+.sidenav-liste > li > a, .sidenav-liste > li > span {
   display: inline-block;
   min-height: 44px;
   line-height: 44px;

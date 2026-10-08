@@ -949,6 +949,52 @@ def test_grafen_kan_leses_soyle_for_soyle_med_piltastene(side, tjener, sti):
     assert aktiv.get_attribute("data-tips") == siste
 
 
+# ---- lenkeradene på 390 -------------------------------------------------
+
+_LINJER_I = """sel => [...document.querySelectorAll(sel)].map(e => {
+  const topp = [];
+  const tw = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+  for (let t = tw.nextNode(); t; t = tw.nextNode()) {
+    if (!t.textContent.trim()) continue;
+    const r = document.createRange(); r.selectNodeContents(t);
+    for (const x of r.getClientRects()) if (x.width > 1) topp.push(x.top);
+  }
+  topp.sort((a, b) => a - b);
+  const terskel = parseFloat(getComputedStyle(e).fontSize) * 0.8;
+  let linjer = topp.length ? 1 : 0;
+  for (let i = 1; i < topp.length; i++) if (topp[i] - topp[i - 1] > terskel) linjer++;
+  const b = e.getBoundingClientRect();
+  return [e.textContent.trim().replace(/\\s+/g, ' '), linjer, b.right <= innerWidth + 0.5];
+})"""
+
+
+@pytest.mark.parametrize("sti", ("/lokalitet/45140/", "/selskap/921668236/",
+                                 "/produksjonsomrade/4/", "/endringer/2026-41/",
+                                 "/selskap/", "/lokalitet/"))
+def test_lenkeradene_brytes_mellom_lenkene_ikke_inni_dem(side, tjener, sti):
+    """Gjennomgangen 08.10.2026: på 390 skal en lenkerad brytes per lenke,
+    ikke midt i en. Verktøylinja, hvert ytterpunkt i sidenavigasjonens
+    spenn og hvert ledd i brødsmula er én linje, og ingen stikker ut av
+    skjermen."""
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + sti, wait_until="load")
+    for velger in (".handling", ".sidenav-ende", ".sti li"):
+        for tekst, linjer, innenfor in side.evaluate(_LINJER_I, velger):
+            assert linjer == 1, f"{sti}: «{tekst}» er brutt over {linjer} linjer"
+            assert innenfor, f"{sti}: «{tekst}» stikker ut av skjermen"
+
+
+def test_filene_paa_lokalitetssiden_brytes_ned_sammen(side, tjener):
+    """«Excel» og «Data» er én gruppe: står de ikke på linja med «Følg»,
+    står de på neste linje sammen, ikke én og én."""
+    side.set_viewport_size({"width": BREDDE, "height": 844})
+    side.goto(tjener + "/lokalitet/45140/", wait_until="load")
+    topper = side.evaluate("""() => [...document.querySelectorAll(
+        '.handlinger .handling--last')].map(e => Math.round(e.getBoundingClientRect().top))""")
+    assert len(topper) == 2 and topper[0] == topper[1], topper
+
+
+
 def test_tilstanden_staar_ved_siden_av_navnet_paa_bred_skjerm(side, tjener):
     """Gjennomgangen 08.10.2026: på 1440 sto det et tomrom til høyre for
     navn og oppsummering, og tilstanden begynte først under. Nå står den

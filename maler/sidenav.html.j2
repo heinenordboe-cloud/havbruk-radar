@@ -14,8 +14,15 @@
   </p>
   <ol class="sidenav-liste">
     {% for s in d.side.sider %}
-    <li>{% if s.gjeldende %}<span aria-current="page">{{ s.fra }}–{{ s.til }}</span>
-      {%- else %}<a href="{{ s.url }}">{{ s.fra }}–{{ s.til }}</a>{% endif %}</li>
+    {#- NAVNESPENNENE I MENNESKELIG FORM, som navnene ellers på siden.
+        Et lokalitetsnummer går uendret gjennom `selskapsnavn`. Til
+        08.10.2026 sto de i versaler og mono, og det lengste ble delt
+        midt i på 390. #}
+    {%- set spenn -%}
+      <span class="sidenav-ende">{{ s.fra|selskapsnavn }}</span>–<span class="sidenav-ende">{{ s.til|selskapsnavn }}</span>
+    {%- endset %}
+    <li>{% if s.gjeldende %}<span aria-current="page">{{ spenn }}</span>
+      {%- else %}<a href="{{ s.url }}">{{ spenn }}</a>{% endif %}</li>
     {% endfor %}
   </ol>
 </nav>
