@@ -1,0 +1,634 @@
+[
+ {
+  "side": "forside",
+  "sti": "/",
+  "bredde": 1440,
+  "hoyde_px": 3297,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "forside-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "forside-1440-01-endringer-i-uke-41-2026.png",
+    "Endringer i uke 41, 2026"
+   ],
+   [
+    "forside-1440-02-arkivet.png",
+    "Arkivet"
+   ],
+   [
+    "forside-1440-03-13-produksjonsomrader.png",
+    "13 produksjonsområder"
+   ],
+   [
+    "forside-1440-04-fa-beskjed-nar-noe-endrer-seg.png",
+    "Få beskjed når noe endrer seg"
+   ],
+   [
+    "forside-1440-05-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "uke-41",
+  "sti": "/endringer/2026-41/",
+  "bredde": 1440,
+  "hoyde_px": 5376,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "uke-41-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "uke-41-1440-01-last-ned-uka.png",
+    "Last ned uka"
+   ],
+   [
+    "uke-41-1440-02-siter-denne-uka.png",
+    "Siter denne uka"
+   ],
+   [
+    "uke-41-1440-03-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "lokalitet-45140",
+  "sti": "/lokalitet/45140/",
+  "bredde": 1440,
+  "hoyde_px": 4143,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "lokalitet-45140-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "lokalitet-45140-1440-01-tilstanden-na.png",
+    "Tilstanden nå"
+   ],
+   [
+    "lokalitet-45140-1440-02-endringer-vi-har-sett.png",
+    "Endringer vi har sett"
+   ],
+   [
+    "lokalitet-45140-1440-03-fisk-til-stede.png",
+    "Fisk til stede"
+   ],
+   [
+    "lokalitet-45140-1440-04-lakselus-voksne-hunnlus-per-fisk.png",
+    "Lakselus, voksne hunnlus per fisk"
+   ],
+   [
+    "lokalitet-45140-1440-05-tillatelser.png",
+    "Tillatelser"
+   ],
+   [
+    "lokalitet-45140-1440-06-registerfeltene.png",
+    "Registerfeltene"
+   ],
+   [
+    "lokalitet-45140-1440-07-historikk-kildene-selv-forer.png",
+    "Historikk kildene selv fører"
+   ],
+   [
+    "lokalitet-45140-1440-08-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "lokalitet-45140-1440-09-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "lokalitet-12325",
+  "sti": "/lokalitet/12325/",
+  "bredde": 1440,
+  "hoyde_px": 3073,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "lokalitet-12325-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "lokalitet-12325-1440-01-tilstanden-na.png",
+    "Tilstanden nå"
+   ],
+   [
+    "lokalitet-12325-1440-02-endringer-vi-har-sett.png",
+    "Endringer vi har sett"
+   ],
+   [
+    "lokalitet-12325-1440-03-fisk-til-stede.png",
+    "Fisk til stede"
+   ],
+   [
+    "lokalitet-12325-1440-04-lakselus-voksne-hunnlus-per-fisk.png",
+    "Lakselus, voksne hunnlus per fisk"
+   ],
+   [
+    "lokalitet-12325-1440-05-tillatelser.png",
+    "Tillatelser"
+   ],
+   [
+    "lokalitet-12325-1440-06-registerfeltene.png",
+    "Registerfeltene"
+   ],
+   [
+    "lokalitet-12325-1440-07-historikk-kildene-selv-forer.png",
+    "Historikk kildene selv fører"
+   ],
+   [
+    "lokalitet-12325-1440-08-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "lokalitet-12325-1440-09-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "selskap-921668236",
+  "sti": "/selskap/921668236/",
+  "bredde": 1440,
+  "hoyde_px": 2909,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "selskap-921668236-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "selskap-921668236-1440-01-vesentlige-endringer.png",
+    "Vesentlige endringer"
+   ],
+   [
+    "selskap-921668236-1440-02-lokaliteter.png",
+    "Lokaliteter"
+   ],
+   [
+    "selskap-921668236-1440-03-tillatelser.png",
+    "Tillatelser"
+   ],
+   [
+    "selskap-921668236-1440-04-eierskap-over-tid.png",
+    "Eierskap over tid"
+   ],
+   [
+    "selskap-921668236-1440-05-hva-enhetsregisteret-sier.png",
+    "Hva Enhetsregisteret sier"
+   ],
+   [
+    "selskap-921668236-1440-06-hva-denne-siden-ikke-sier.png",
+    "Hva denne siden ikke sier"
+   ],
+   [
+    "selskap-921668236-1440-07-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "selskap-921668236-1440-08-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "omrade-4",
+  "sti": "/produksjonsomrade/4/",
+  "bredde": 1440,
+  "hoyde_px": 12806,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "omrade-4-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "omrade-4-1440-01-beholdning-maned-for-maned.png",
+    "Beholdning måned for måned"
+   ],
+   [
+    "omrade-4-1440-02-kart-over-omradet.png",
+    "Kart over området"
+   ],
+   [
+    "omrade-4-1440-03-137-lokaliteter.png",
+    "137 lokaliteter"
+   ],
+   [
+    "omrade-4-1440-04-endringer.png",
+    "Endringer"
+   ],
+   [
+    "omrade-4-1440-05-kildene-for-fargen.png",
+    "Kildene for fargen"
+   ],
+   [
+    "omrade-4-1440-06-hva-denne-siden-ikke-sier.png",
+    "Hva denne siden ikke sier"
+   ],
+   [
+    "omrade-4-1440-07-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "omrade-4-1440-08-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "lokalitetsindeks",
+  "sti": "/lokalitet/",
+  "bredde": 1440,
+  "hoyde_px": 5526,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "lokalitetsindeks-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "lokalitetsindeks-1440-01-lokaliteter-uten-koordinater.png",
+    "Lokaliteter uten koordinater"
+   ],
+   [
+    "lokalitetsindeks-1440-02-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "om",
+  "sti": "/om/",
+  "bredde": 1440,
+  "hoyde_px": 5445,
+  "bredde_px": 1440,
+  "filer": [
+   [
+    "om-1440-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "om-1440-01-hva-dette-er.png",
+    "Hva dette er"
+   ],
+   [
+    "om-1440-02-hvem-som-star-bak.png",
+    "Hvem som står bak"
+   ],
+   [
+    "om-1440-03-hvordan-det-samles-inn-og-hvor-ofte.png",
+    "Hvordan det samles inn, og hvor ofte"
+   ],
+   [
+    "om-1440-04-hva-dekningen-er.png",
+    "Hva dekningen er"
+   ],
+   [
+    "om-1440-05-kildene-med-lisens-og-attribusjon.png",
+    "Kildene, med lisens og attribusjon"
+   ],
+   [
+    "om-1440-06-hva-som-bevisst-ikke-hentes.png",
+    "Hva som bevisst ikke hentes"
+   ],
+   [
+    "om-1440-07-sitering.png",
+    "Sitering"
+   ],
+   [
+    "om-1440-08-hva-nettstedet-selv-laner.png",
+    "Hva nettstedet selv låner"
+   ],
+   [
+    "om-1440-09-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "forside",
+  "sti": "/",
+  "bredde": 390,
+  "hoyde_px": 6617,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "forside-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "forside-390-01-endringer-i-uke-41-2026.png",
+    "Endringer i uke 41, 2026"
+   ],
+   [
+    "forside-390-02-arkivet.png",
+    "Arkivet"
+   ],
+   [
+    "forside-390-03-13-produksjonsomrader.png",
+    "13 produksjonsområder"
+   ],
+   [
+    "forside-390-04-fa-beskjed-nar-noe-endrer-seg.png",
+    "Få beskjed når noe endrer seg"
+   ],
+   [
+    "forside-390-05-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "uke-41",
+  "sti": "/endringer/2026-41/",
+  "bredde": 390,
+  "hoyde_px": 10873,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "uke-41-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "uke-41-390-01-last-ned-uka.png",
+    "Last ned uka"
+   ],
+   [
+    "uke-41-390-02-siter-denne-uka.png",
+    "Siter denne uka"
+   ],
+   [
+    "uke-41-390-03-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "lokalitet-45140",
+  "sti": "/lokalitet/45140/",
+  "bredde": 390,
+  "hoyde_px": 7337,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "lokalitet-45140-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "lokalitet-45140-390-01-tilstanden-na.png",
+    "Tilstanden nå"
+   ],
+   [
+    "lokalitet-45140-390-02-endringer-vi-har-sett.png",
+    "Endringer vi har sett"
+   ],
+   [
+    "lokalitet-45140-390-03-fisk-til-stede.png",
+    "Fisk til stede"
+   ],
+   [
+    "lokalitet-45140-390-04-lakselus-voksne-hunnlus-per-fisk.png",
+    "Lakselus, voksne hunnlus per fisk"
+   ],
+   [
+    "lokalitet-45140-390-05-tillatelser.png",
+    "Tillatelser"
+   ],
+   [
+    "lokalitet-45140-390-06-registerfeltene.png",
+    "Registerfeltene"
+   ],
+   [
+    "lokalitet-45140-390-07-historikk-kildene-selv-forer.png",
+    "Historikk kildene selv fører"
+   ],
+   [
+    "lokalitet-45140-390-08-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "lokalitet-45140-390-09-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "lokalitet-12325",
+  "sti": "/lokalitet/12325/",
+  "bredde": 390,
+  "hoyde_px": 5016,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "lokalitet-12325-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "lokalitet-12325-390-01-tilstanden-na.png",
+    "Tilstanden nå"
+   ],
+   [
+    "lokalitet-12325-390-02-endringer-vi-har-sett.png",
+    "Endringer vi har sett"
+   ],
+   [
+    "lokalitet-12325-390-03-fisk-til-stede.png",
+    "Fisk til stede"
+   ],
+   [
+    "lokalitet-12325-390-04-lakselus-voksne-hunnlus-per-fisk.png",
+    "Lakselus, voksne hunnlus per fisk"
+   ],
+   [
+    "lokalitet-12325-390-05-tillatelser.png",
+    "Tillatelser"
+   ],
+   [
+    "lokalitet-12325-390-06-registerfeltene.png",
+    "Registerfeltene"
+   ],
+   [
+    "lokalitet-12325-390-07-historikk-kildene-selv-forer.png",
+    "Historikk kildene selv fører"
+   ],
+   [
+    "lokalitet-12325-390-08-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "lokalitet-12325-390-09-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "selskap-921668236",
+  "sti": "/selskap/921668236/",
+  "bredde": 390,
+  "hoyde_px": 4061,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "selskap-921668236-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "selskap-921668236-390-01-vesentlige-endringer.png",
+    "Vesentlige endringer"
+   ],
+   [
+    "selskap-921668236-390-02-lokaliteter.png",
+    "Lokaliteter"
+   ],
+   [
+    "selskap-921668236-390-03-tillatelser.png",
+    "Tillatelser"
+   ],
+   [
+    "selskap-921668236-390-04-eierskap-over-tid.png",
+    "Eierskap over tid"
+   ],
+   [
+    "selskap-921668236-390-05-hva-enhetsregisteret-sier.png",
+    "Hva Enhetsregisteret sier"
+   ],
+   [
+    "selskap-921668236-390-06-hva-denne-siden-ikke-sier.png",
+    "Hva denne siden ikke sier"
+   ],
+   [
+    "selskap-921668236-390-07-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "selskap-921668236-390-08-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "omrade-4",
+  "sti": "/produksjonsomrade/4/",
+  "bredde": 390,
+  "hoyde_px": 17323,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "omrade-4-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "omrade-4-390-01-beholdning-maned-for-maned.png",
+    "Beholdning måned for måned"
+   ],
+   [
+    "omrade-4-390-02-kart-over-omradet.png",
+    "Kart over området"
+   ],
+   [
+    "omrade-4-390-03-137-lokaliteter.png",
+    "137 lokaliteter"
+   ],
+   [
+    "omrade-4-390-04-endringer.png",
+    "Endringer"
+   ],
+   [
+    "omrade-4-390-05-kildene-for-fargen.png",
+    "Kildene for fargen"
+   ],
+   [
+    "omrade-4-390-06-hva-denne-siden-ikke-sier.png",
+    "Hva denne siden ikke sier"
+   ],
+   [
+    "omrade-4-390-07-siter-denne-siden.png",
+    "Siter denne siden"
+   ],
+   [
+    "omrade-4-390-08-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "lokalitetsindeks",
+  "sti": "/lokalitet/",
+  "bredde": 390,
+  "hoyde_px": 6475,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "lokalitetsindeks-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "lokalitetsindeks-390-01-lokaliteter-uten-koordinater.png",
+    "Lokaliteter uten koordinater"
+   ],
+   [
+    "lokalitetsindeks-390-02-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ },
+ {
+  "side": "om",
+  "sti": "/om/",
+  "bredde": 390,
+  "hoyde_px": 9777,
+  "bredde_px": 390,
+  "filer": [
+   [
+    "om-390-00-topp.png",
+    "øverste skjermhøyde"
+   ],
+   [
+    "om-390-01-hva-dette-er.png",
+    "Hva dette er"
+   ],
+   [
+    "om-390-02-hvem-som-star-bak.png",
+    "Hvem som står bak"
+   ],
+   [
+    "om-390-03-hvordan-det-samles-inn-og-hvor-ofte.png",
+    "Hvordan det samles inn, og hvor ofte"
+   ],
+   [
+    "om-390-04-hva-dekningen-er.png",
+    "Hva dekningen er"
+   ],
+   [
+    "om-390-05-kildene-med-lisens-og-attribusjon.png",
+    "Kildene, med lisens og attribusjon"
+   ],
+   [
+    "om-390-06-hva-som-bevisst-ikke-hentes.png",
+    "Hva som bevisst ikke hentes"
+   ],
+   [
+    "om-390-07-sitering.png",
+    "Sitering"
+   ],
+   [
+    "om-390-08-hva-nettstedet-selv-laner.png",
+    "Hva nettstedet selv låner"
+   ],
+   [
+    "om-390-09-bunnteksten.png",
+    "Bunnteksten"
+   ]
+  ]
+ }
+]
