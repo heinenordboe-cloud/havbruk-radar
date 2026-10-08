@@ -396,3 +396,29 @@ Det er samme familie som 1b: en tilstand som handler om OSS (koden er
 skrevet) forvekslet med en som handler om VERDEN (koden kjører). En
 commit på din maskin er ikke en endring i systemet. Push er det som
 gjør den til én.
+
+## 8. Arbeidsform
+
+**Rapporten er maks 10 linjer**, i tre deler: hva endret seg, hva er
+verifisert (og hvordan), hva må Heine bestemme. Det som ikke passer,
+står i commit-meldingen eller PR-beskrivelsen.
+
+**Full bygging og verifisering kjøres ÉN gang, rett før PR-en åpnes** —
+ikke per commit. Per commit holder det å kjøre testene som berører det
+som ble endret. Full verifisering er:
+
+    .venv/bin/python -m pytest tests/ -q
+    HAVBRUK_DATA_DIR=../havbruk-radar-data/data \
+        .venv/bin/python nettsted.py --alle --ut <scratch>
+
+Målt 08.10.2026: pytest 15 s, bygging med vakt 3 min 31 s — under
+fire minutter til sammen. Regel 6 gjelder fortsatt: det som er
+verifisert, er det som er kjørt.
+
+**Ingen nye beslutningsnotater** i `docs/beslutninger/`. Begrunnelsen
+hører hjemme i commit-meldingen og PR-en.
+
+**`.claude/settings.json` sperrer** wrangler, `publiser.py --produksjon`,
+`git push --force` og endringer i `.github/workflows/`. Sperren er det
+som gjør Auto-modus trygg. Skal en workflow endres, fjerner Heine
+regelen selv for den oppgaven — den skal ikke omgås.
