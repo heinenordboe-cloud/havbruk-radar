@@ -9269,8 +9269,10 @@ SELSKAP_UKER = 13
 SELSKAP_AAPEN_LISTE = 10
 
 # Når endringslista er lukket, står de NYESTE likevel åpent over den —
-# briefen setter vesentlige endringer øverst på selskapssiden. Fem, så
-# siden holder seg under 5 000 px på 390 også for de største selskapene.
+# briefen setter vesentlige endringer øverst på selskapssiden. Fem ble
+# valgt mot briefens tak på 5 000 px på 390; taket er erstattet
+# 09.10.2026 av «første skjermbilde svarer på hva som har skjedd», og
+# tallet står fordi ingen har målt at et annet er bedre.
 SELSKAP_NYESTE_ENDRINGER = 5
 
 # (felles, {orgnr: tillatelser selskapet har GITT FRA SEG}). Bygget én

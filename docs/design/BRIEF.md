@@ -112,7 +112,13 @@ kapasitet som flytter seg — blir en egen post med beskrivende adresse:
 
 Målt på 390 px bredde:
 
-- **Selskapssiden** skal være under 5 000 px.
+- **Selskapssiden:** første skjermbilde på 390 svarer på hva som har
+  skjedd her; lengden under er fri. Til 09.10.2026 sto det «under
+  5 000 px», men det var en tommelfingerregel: Mowi og SalMar har over
+  100 lokaliteter, og en side som svarer øverst kan godt være lang
+  under. «Svarer» betyr at nøkkeltallene med antallet vesentlige
+  endringer og toppen av endringslista står innenfor 390×844
+  (`test_smalskjerm.py`).
 - **Ingen indeksside** skal være over 10 000 px.
 
 ## Referanser for designet

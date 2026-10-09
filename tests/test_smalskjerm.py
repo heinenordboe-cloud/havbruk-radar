@@ -1018,3 +1018,28 @@ def test_ukesidens_hovedsetning_staar_over_faktalista(side, tjener):
     hoved = side.locator(".uke-sammendrag > p").first.bounding_box()
     fakta = side.locator(".uke-fakta").first.bounding_box()
     assert hoved["y"] + hoved["height"] <= fakta["y"], (hoved, fakta)
+
+
+def test_forste_skjermbilde_paa_selskapssiden_svarer_paa_hva_som_har_skjedd(side, tjener):
+    """BRIEF.md, «Lengde»: første skjermbilde på 390 svarer på hva som
+    har skjedd her; lengden under er fri. Erstattet taket på 5 000 px
+    09.10.2026 — Mowi og SalMar har over 100 lokaliteter, og en side som
+    svarer øverst kan godt være lang under.
+
+    «Svarer» er MÅLT som to ting innenfor 390×844, på HVER selskapsside:
+    nøkkeltallene, der antallet vesentlige endringer står og lenker ned,
+    og toppen av endringsseksjonen. 09.10.2026 var de lavest på 584 og
+    767 px av 844, på alle 480 sider."""
+    sider = sorted(p.parent.name for p in (Path(ROT) / "selskap").glob("*/index.html"))
+    assert sider, "fant ingen selskapssider"
+    for_lave = []
+    for orgnr in sider:
+        side.goto(f"{tjener}/selskap/{orgnr}/", wait_until="load")
+        tall, seksjon = side.evaluate("""() => {
+            const n = document.querySelector('dl.nokkeltall');
+            const e = document.querySelector('#endringer-selskap');
+            return [n ? n.getBoundingClientRect().bottom + scrollY : null,
+                    e ? e.getBoundingClientRect().top + scrollY : null]; }""")
+        if tall is None or tall > 844 or (seksjon is not None and seksjon >= 844):
+            for_lave.append((orgnr, tall, seksjon))
+    assert not for_lave, f"{len(for_lave)} sider svarer ikke øverst: {for_lave[:5]}"
