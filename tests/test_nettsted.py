@@ -4022,6 +4022,17 @@ def test_en_omradebeslutning_blir_en_hendelse(monkeypatch):
     assert {h["omfang"] for h in trafikk} == {2, 1}
 
 
+def test_ubelagt_ukentlig_kilde_staar_ikke_i_ukesendringene():
+    """En UBELAGT kilde med `partisjonering = "henting"` er ukentlig OG
+    uten vilkår. Den skal ikke stå i uka — `unntaksvekst` gjorde det
+    før 08.10.2026."""
+    rad = dict(_po_rad("1", "ROD", "GUL"), source="unntaksvekst",
+               field="resultat", entity_id="2025/1|ANDAL|PO3")
+    felles = _felles_stubb(vilkaar={"unntaksvekst": None},
+                           bevegelse=pl.DataFrame([rad]))
+    uker = nettsted.les_endringsuker(felles)
+    assert not any(h for u in uker for h in u["hendelser"]), uker
+
 def test_ulik_overgang_i_samme_omrade_er_to_hendelser():
     """Nøkkelen er (område, fra, til). To områder som begge gikk til
     gult fra hver sin farge, er to vedtak — og to lokaliteter i samme

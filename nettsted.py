@@ -2635,7 +2635,13 @@ def les_endringsuker(felles: Felles) -> list[dict]:
         & ~pl.col("source").is_in(sorted(MAALESERIER))
         & ~pl.col("source").is_in(sorted(ubelagt))).height
 
-    mine = beveg.filter(pl.col("source").is_in(ukentlige))
+    # UBELAGTE kilder holdes ute HER, ikke bare av tellingen over. Fram
+    # til 08.10.2026 var ingen UBELAGT kilde «henting», så `ukentlige`
+    # ekskluderte dem allerede; `unntaksvekst` er den første, og uten
+    # denne linja sto søknadene i uke 41 på ukessiden, i CSV-en og i
+    # feeden. MÅLT mot en kopi av datarepoet med to snapshots.
+    mine = beveg.filter(pl.col("source").is_in(ukentlige)
+                        & ~pl.col("source").is_in(sorted(ubelagt)))
 
     # TO SLAGS SAMMENSLÅING, og de har hver sin nøkkel fordi de svarer
     # på hver sin «hva skjedde egentlig én gang her».
