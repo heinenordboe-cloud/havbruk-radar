@@ -3135,13 +3135,23 @@ figcaption {
 
 .analyse-hode { margin-block-end: var(--rom-24); }
 .analyse-hode h1 { margin-block-end: var(--rom-16); }
-.analyse-ingress {
+/* Funn 1 og 2 øverst: sidens svar, før metoden. */
+.analyse-funn {
   margin: 0 0 var(--rom-24);
+  padding-inline-start: 1.4em;
   max-width: 38em;
   font-family: var(--skrift-tittel);
   font-size: var(--tekst-ingress);
   line-height: 1.35;
   color: var(--ink);
+}
+.analyse-funn li { margin-block-end: var(--rom-12); }
+.analyse-funn a { font-family: var(--skrift-tekst); font-size: var(--tekst-s); }
+.analyse-ingress {
+  margin: 0 0 var(--rom-16);
+  max-width: 46em;
+  font-size: var(--tekst-s);
+  color: var(--ink-dempet);
   text-wrap: pretty;
 }
 

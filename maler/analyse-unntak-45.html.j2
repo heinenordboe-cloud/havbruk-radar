@@ -1,0 +1,9 @@
+{#- HVORFOR KONTROLLEN TELLER FÆRRE GODKJENTE ENN TABELLEN. Én setning,
+    brukt to steder på analysesiden — øverst og ved kontrollen — så de
+    ikke kan si det ulikt. Lokaliteter uten én telling i
+    kvalifikasjonsperioden har ingen tall å ligge innenfor eller utenfor,
+    og holdes utenfor kontrollen. -#}
+{% if a.uten_tellinger_lok %}Tabellen har {{ antall(a.godkjent, "godkjent lokalitet", "godkjente lokaliteter") }} og kontrollen
+{{ a.kontroll.n.Godkjent }}, fordi
+{% for l in a.uten_tellinger_lok %}{% if l.url %}<a href="{{ l.url }}">{{ l.navn }}</a>{% else %}{{ l.navn }}{% endif %} ({{ l.nr }}){% if not loop.last %}, {% endif %}{% endfor %} ikke har én telling hos Mattilsynet i kvalifikasjonsperioden og derfor
+er holdt utenfor kontrollen.{% endif %}

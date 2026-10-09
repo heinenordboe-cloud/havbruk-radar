@@ -7605,6 +7605,14 @@ def bygg_unntaksvekst(felles: Felles) -> dict | None:
         "kap_endret_avslag": sum(1 for nr in endret
                                  if per_lok.get(nr) == {"Avslag"}),
         "kap_alle_en_prosent": alle_en_prosent,
+        "kap_po": sorted({str(rad["po"]) for rad in rader
+                          if rad["kap_endret"]}, key=int),
+        # Lokalitetene kontrollen holder utenfor fordi de ikke har én
+        # telling i kvalifikasjonsperioden. Forklarer at tabellen teller
+        # flere godkjente enn kontrollen.
+        "uten_tellinger_lok": [
+            _lokalitetslenke(nr, felles, nr) for nr in sorted(per_lok, key=int)
+            if nr not in blandet and not drifter[nr].kvalifikasjon["talte"]],
         "rader": rader, "usikre": usikre, "uloste": uloste,
         "perioder": perioder,
         "kontroll": kontroll, "laveste_p": laveste_p,

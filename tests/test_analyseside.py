@@ -195,3 +195,51 @@ def test_analysesidens_kilder_er_belagt_og_vist():
     assert set(nettsted.ANALYSE_KILDER).isdisjoint(
         nettsted.ubelagte(nettsted.kildevilkaar()))
     assert nettsted.ANSVARLIG_FOR[nettsted.MATTILSYNET_API] == ("Mattilsynet",)
+
+
+# ---- rettelsene 09.10.2026 ---------------------------------------------
+
+def _html(arkiv, tmp_path):
+    rot = tmp_path / "ut"
+    nettsted.skriv_unntaksvekst(rot, _felles())
+    return (rot / "analyse" / "unntaksvekst" / "index.html").read_text()
+
+
+def test_toppen_er_funn_1_og_2(arkiv, tmp_path):
+    html = _html(arkiv, tmp_path)
+    topp = html[html.index("<h1>"):html.index('id="lokalitetene"')]
+    funn = re.search(r'<ol class="analyse-funn">(.*?)</ol>', topp, re.S).group(1)
+    assert funn.count("<li>") == 2
+    assert "mer enn 1 %" in funn and "produksjonsområde 3" in funn
+    assert "p-verdien" in funn
+    assert topp.index("analyse-funn") < topp.index("analyse-ingress")
+
+
+def test_drift_foer_mot_etter_staar_ikke_paa_siden(arkiv, tmp_path):
+    """F3.4 er tatt ut: periodene er ikke sammenlignbare."""
+    tekst = re.sub(r"<[^>]+>", " ", _html(arkiv, tmp_path))
+    assert "oppføringer på" not in tekst
+    assert "sum etter" not in tekst and "sum før" not in tekst
+
+
+def test_46_mot_45_forklares_oeverst_og_ved_kontrollen(tmp_path, monkeypatch, arkiv):
+    """Uten én telling i kvalifikasjonsperioden holdes lokaliteten utenfor
+    kontrollen. Her: 10002 har bare en telling i 2024 — gjør den tom."""
+    _legg(arkiv, "mattilsynet-lakselus/10001", "2026-10-09.2.json.gz",
+          json.dumps({"rapporter": [_rapp(2025, 41, 0.05)]}).encode())
+    html = _html(arkiv, tmp_path)
+    setning = "ikke har én telling hos Mattilsynet i kvalifikasjonsperioden"
+    assert html.count(setning) == 2
+    assert "Tabellen har 1 godkjent lokalitet og kontrollen\n0" in html
+
+
+def test_hovedtabellen_merker_ingen_celle_innenfor_eller_utenfor(arkiv, tmp_path):
+    """Driftstall og vilkårets tall, men ingen farge eller klasse som kan
+    leses som en dom, og rekkefølgen er produksjonsområde og navn — ikke
+    avvik."""
+    html = _html(arkiv, tmp_path)
+    tabell = re.search(r'<table id="unntak-lokaliteter".*?</table>', html, re.S).group(0)
+    klasser = set(re.findall(r'<td\b[^>]*class="([^"]+)"', tabell))
+    assert klasser <= {"tall", "endret"}, klasser
+    navn = re.findall(r'data-felt="lokalitet_navn" href="[^"]+">([^<]+)<', tabell)
+    assert navn == sorted(navn)

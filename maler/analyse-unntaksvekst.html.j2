@@ -34,8 +34,42 @@
 
 <div class="analyse-hode">
   <h1>Unntaksvekst 2025/2026: fra søknad til drift</h1>
-  {# DEN ENE SETNINGEN. Hvert tall i den er regnet i denne byggingen og
-     står igjen lenger ned. #}
+  {# TOPPEN ER FUNN 1 OG 2, bestilt 09.10.2026: kapasiteten og
+     kontrollen. Begge settes sammen av tall som regnes i denne
+     byggingen og står igjen lenger ned; et ledd uten tall utelates.
+     Drift før mot etter er IKKE her — periodene er ikke sammenlignbare,
+     se docs/ANALYSE-UNNTAKSVEKST.md, «Ikke publisert». #}
+  <ol class="analyse-funn">
+    <li>
+      {% if a.kap_endret and a.kap_alle_en_prosent %}
+      Ingen tillatelse på lokalitetene fikk mer enn 1 % kapasitet i
+      registeret mellom <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time>
+      og <time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time>. 1 % fikk
+      tillatelsene på {{ antall(a.kap_endret|length, "lokalitet", "lokaliteter") }} i
+      produksjonsområde {{ a.kap_po|join(" og ") }}{% if a.kap_endret_avslag %},
+      også {{ antall(a.kap_endret_avslag, "lokalitet", "lokaliteter") }} Mattilsynet avslo{% endif %}.
+      {% elif not a.kap_endret %}
+      Ingen tillatelse på lokalitetene endret kapasitet i registeret mellom
+      <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time> og
+      <time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time>.
+      {% else %}
+      Tillatelsene på {{ antall(a.kap_endret|length, "lokalitet", "lokaliteter") }}
+      endret kapasitet i registeret mellom
+      <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time> og
+      <time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time>; se
+      <a href="#kapasitet">kapasiteten</a>.
+      {% endif %}
+    </li>
+    <li>
+      {% if a.laveste_p >= 0.05 %}Ingen av tallene vi kan regne skiller{% else %}Kontrollen
+      sammenligner{% endif %} de {{ a.kontroll.n.Godkjent }} godkjente fra de
+      {{ a.kontroll.n.Avslag }} avslåtte lokalitetene i kvalifikasjonsperioden
+      før søknaden{% if a.laveste_p >= 0.05 %}: den laveste p-verdien er
+      {{ "%.2f"|format(a.laveste_p)|replace(".", ",") }}{% endif %}.
+      <a href="#kontroll">Se kontrollen</a>.
+    </li>
+  </ol>
+  {# HVA SOM ER MÅLT, i én setning. #}
   <p class="analyse-ingress">
     For {{ antall(a.n_lok, "lokalitet", "lokaliteter") }} Mattilsynet har godkjent
     ({{ a.godkjent }}) eller avslått ({{ a.avslag }}) for unntaksvekst
@@ -47,6 +81,7 @@
     registeret fra <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time>
     til <time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time>.
   </p>
+  <p class="blokk-ingress">{% include "analyse-unntak-45.html.j2" %}</p>
   <ul class="handlinger" aria-label="Last ned">
     <li class="handlinger-gruppe"><a class="handling handling--last" href="{{ xlsx }}" download
        aria-label="Tabellen som Excel (.xlsx)">Excel (.xlsx)</a>
@@ -339,11 +374,7 @@
   </div>
   <p class="tabellnote">
     Bare sikre koblinger, én rad per lokalitet.
-    {% if a.uten_tellinger_kv.Godkjent or a.uten_tellinger_kv.Avslag %}
-    {{ antall(a.uten_tellinger_kv.Godkjent + a.uten_tellinger_kv.Avslag, "lokalitet", "lokaliteter") }}
-    uten én eneste telling i perioden er holdt utenfor: uten tall er det
-    ingenting å ligge innenfor.
-    {% endif %}
+    {% include "analyse-unntak-45.html.j2" %}
     Annet ledd bokstav b står to ganger fordi forskriften ikke sier om den
     gjelder uke 13–39 slik nr. 1 og bokstav a gjør.
   </p>
