@@ -110,3 +110,55 @@ tilsvarende økningen i 2020, 2022 og 2024 ligger før eierskapsserien
 starter og kan ikke måles med våre data.
 
 `analyse/maling_okt/p1_kapasitet_uke41.py`
+
+---
+
+## 2. BarentsWatch `liceTreatments/{year}`: IKKE MÅLT, bare kartlagt i dokumentasjonen
+
+**Kroppene er ikke hentet.** `BARENTSWATCH_CLIENT_ID` og `-SECRET` finnes
+bare som Actions-secrets i datarepoet og er ikke satt i dette skallet.
+Skriptet `analyse/maling_okt/p2_licetreatments.py` er klart og feiler
+rødt på manglende nøkkel, slik `Tilgang` skal. Med nøklene i miljøet
+henter det 2025 for 11116, 13284 og 45087 til `/tmp/maling-okt/p2/` og
+skriver ut sha256 og hver feltsti som har verdi. Lokalitetene er de med
+flest uker `har_mekanisk_fjerning=True` i 2025 (33, 29 og 25).
+
+**F2.1 — MÅLT, men bare mot dokumentasjonen.** BarentsWatchs egen
+OpenAPI-spesifikasjon dokumenterer at `liceTreatments/{year}` svarer med
+`AllTreatmentsGraphDataDto`: `localityNo`, `year` og `data[]` per
+**uke**. Hvert ukeelement har:
+
+| felt | innhold ifølge spesifikasjonen |
+|---|---|
+| `week` | ukenummer. **Ingen dato innen uka.** |
+| `medicinalTreatments[]` | `name` (virkestoff eller «Other»), `substanceId`, `type` («InFeed»/«Bath»), `entireLocality`, `numberOfCages` |
+| `nonMedicinalTreatments[]` | `type` ∈ TERMISK / MEKANISK / FERSKVANNS / ANNEN_BEHANDLING, `doneBeforeLiceCount`, `entireLocality`, `numberOfCages` |
+| `combinationTreatments[]` | lister av begge typene over |
+| `cleanerFishTreatments[]` | `name` (art), `quantity`, `entireLocality` |
+| `mechanicalRemoval`, `mechanicalRemovalEntireLocality` | boolske |
+| `version` | heltall |
+
+`liceMedicationEvents/{year}` peker på samme skjema. Det finnes også et
+skjema `LiceReport.Treatment` med `startDate`/`endDate` (date-time) og
+`TreatmentDetail` med `quantity`, `concentration` og `substance`. Ifølge
+spesifikasjonen brukes det **ikke** av `liceTreatments`.
+Kilde: `https://www.barentswatch.no/bwapi/openapi/fishhealth/openapi.json`,
+hentet 09.10.2026 00:10 UTC, 682 325 byte,
+sha256 `0ee19dc69687b7bd00694333ee34b58f91d632524d5088427804f819fa78a8fc`
+(i `/tmp/maling-okt/p2/`).
+Feil hvis: svaret avviker fra spesifikasjonen. Responsen er dokumentert
+som `text/plain`, og det er nettopp et felt som må sees i en kropp
+(CLAUDE.md regel 4).
+
+**Svaret på spørsmålet, så langt det kan gis uten kropp:** etter
+dokumentasjonen gir endepunktet **behandlingstype** (termisk, mekanisk,
+ferskvann, fôr eller bad, og virkestoff), **antall merder** og
+**rensefiskart med antall**. Det gir **ikke dato** utover uke og år.
+Den finere datoen (`startDate`) finnes bare i et skjema endepunktet ikke
+bruker.
+
+Det er relevant fordi flaggene vi har, er døde: i 2025 er
+`har_medikamentell_behandling` og `har_rensefisk` `True` i **0** uker for
+alle lokaliteter, mens `har_mekanisk_fjerning` lever (MÅLBAR, lest i
+snapshotene `lusetall/2025-*.parquet`; se også
+`docs/beslutninger/2026-09-01-lusetall-to-felter-er-datatap.md`).
