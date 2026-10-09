@@ -400,13 +400,20 @@ gjør den til én.
 
 ## 8. Arbeidsform
 
-**Rapporten er maks 10 linjer**, i tre deler: hva endret seg, hva er
-verifisert (og hvordan), hva må Heine bestemme. Det som ikke passer,
-står i commit-meldingen eller PR-beskrivelsen.
+**Ingen PR og ingen worktree.** Arbeidet gjøres direkte på `main` i
+`~/havbruk-radar`, med `../havbruk-radar-data` ved siden av.
 
-**Full bygging og verifisering kjøres ÉN gang, rett før PR-en åpnes** —
-ikke per commit. Per commit holder det å kjøre testene som berører det
-som ble endret. Full verifisering er:
+**Start hver økt med `git pull` i begge repoene.** Innsamlingen skriver
+til datarepoet hver uke, og en måling eller endring mot en gammel kopi
+er en måling av noe som ikke lenger er sant.
+
+**Commit per punkt, og push rett til `origin/main`** når testene og
+porten er grønne. Porten er den fulle verifiseringen under. Aldri
+force-push. Avvises en push fordi `main` har flyttet seg: stopp og si
+fra, ikke tving den. Aldri publiser (`publiser.py`).
+
+**Full verifisering (porten)** kjøres før hver push til `main`. Per
+commit holder det å kjøre testene som berører det som ble endret.
 
     .venv/bin/python -m pytest tests/ -q
     HAVBRUK_DATA_DIR=../havbruk-radar-data/data \
@@ -416,14 +423,17 @@ Målt 08.10.2026: pytest 15 s, bygging med vakt 3 min 31 s — under
 fire minutter til sammen. Regel 6 gjelder fortsatt: det som er
 verifisert, er det som er kjørt.
 
+**Rapporten er maks 10 linjer**, i tre deler: hva endret seg, hva er
+verifisert (og hvordan), hva må Heine bestemme. Den slutter med hashene
+til commitene. Det som ikke passer, står i commit-meldingen.
+
 **Ingen nye beslutningsnotater** i `docs/beslutninger/`. Begrunnelsen
-hører hjemme i commit-meldingen og PR-en.
+hører hjemme i commit-meldingen.
 
 **`.claude/settings.json` sperrer** wrangler, `publiser.py --produksjon`,
 `git push --force` og endringer i `.github/workflows/`. Sperren er det
 som gjør Auto-modus trygg. Skal en workflow endres, fjerner Heine
-regelen selv for den oppgaven — den skal ikke omgås.
-
-**PR-er åpnes med `--body-file`, aldri `--body`.** Sperrene leser hele
-kommandolinja, så en PR-tekst som bare NEVNER det som er sperret, blir
-avvist sammen med kommandoen. Mønstrene beholdes brede med vilje.
+regelen selv for den oppgaven — den skal ikke omgås. Sperrene leser hele
+kommandolinja, så en commit-melding gitt med `-m` som bare NEVNER noe
+sperret, blir avvist sammen med kommandoen. Bruk da `-F <fil>`.
+Mønstrene beholdes brede med vilje.
