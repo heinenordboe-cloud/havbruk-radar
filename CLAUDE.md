@@ -422,3 +422,7 @@ hører hjemme i commit-meldingen og PR-en.
 `git push --force` og endringer i `.github/workflows/`. Sperren er det
 som gjør Auto-modus trygg. Skal en workflow endres, fjerner Heine
 regelen selv for den oppgaven — den skal ikke omgås.
+
+**PR-er åpnes med `--body-file`, aldri `--body`.** Sperrene leser hele
+kommandolinja, så en PR-tekst som bare NEVNER det som er sperret, blir
+avvist sammen med kommandoen. Mønstrene beholdes brede med vilje.
