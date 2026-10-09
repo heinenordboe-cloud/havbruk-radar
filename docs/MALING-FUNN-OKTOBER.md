@@ -162,3 +162,112 @@ Det er relevant fordi flaggene vi har, er døde: i 2025 er
 alle lokaliteter, mens `har_mekanisk_fjerning` lever (MÅLBAR, lest i
 snapshotene `lusetall/2025-*.parquet`; se også
 `docs/beslutninger/2026-09-01-lusetall-to-felter-er-datatap.md`).
+
+---
+
+## 3. Tillatelseshandel 08.10.2025–08.10.2026 per produksjonsområde
+
+**Vinduet er journalføringsdato i [2025-10-08, 2026-10-08).** Bare
+overføringer der **både kjøper og selger** er AS eller ASA
+(`LimitedLiabilityCompany`, `PublicLimitedCompany`, `AS`, `ASA`) er med.
+Persondatafilteret går på begge parter. En part med personform, uten
+ni-sifret nummer eller med ukjent form holder hele overføringen utenfor,
+og navnet skrives aldri ut. Selgeren er forrige mottaker i kjeden, eller
+den opprinnelig tildelte for kjedens første overføring. Kildene har
+ingen avgiver, så selger er avledet (se `docs/KILDE-EIERSKAP.md` punkt 4).
+
+### Dekning per ledd
+
+| ledd | kilde | dekker | inn | ut |
+|---|---|---|---:|---:|
+| A | `arkiv/eierskap-overforinger/` (3029 kropper) | journalført til `ajourDate` 31.08.–02.09.2026 | 134 | 2 (selger uten ni-sifret nummer/person) |
+| B | `arkiv/eierskap/` 02.09 → 05.10.2026 | eierskifte mellom ukekropper | 1 | 20 nye tillatelser uten selger |
+| — | ingenting | 05.10–08.10.2026 | — | — |
+
+* **Ledd A:** 136 overføringer i vinduet, 134 med. 7 parter manglet
+  form i våre kropper. De ble slått opp hos Brreg **i minnet** med
+  kildens egen `brreg_form()`, og alle 7 svarte `ok` med selskapsform.
+  Ingenting ble skrevet.
+* **Ledd B** ser bare tillatelser som står i begge kroppene. Kroppene er
+  allerede personfiltrert, så et skifte fra eller til en personeier er
+  usynlig.
+* **Kapasitet og PO er DAGENS** (eierskapskroppen 05.10.2026), ikke
+  verdien på overføringsdagen. PO er tillatelsens egen `prodAreaCode`.
+  For 4 overføringer er PO tatt via aktiv lokalitet i akvakultur
+  05.10.2026 (sha256 `b415394a…`), merket «via lokalitet». 80 overføringer
+  har ingen PO. Det er torsk, settefisk, stamfisk, slakt og andre arter
+  utenfor PO-ordningen (se 3.3). 1 tillatelse (SF-H_-0019) står ikke i
+  noen eierskapskropp og mangler kapasitet.
+
+**F3.1 — MÅLT.** I vinduet ble **135 overføringer** mellom selskaper
+journalført, fordelt på **40 journalnumre**, **33 kjøpere** og
+**34 selgere**. Av dem gjelder **55 overføringer (9 journalnumre)**
+tillatelser i et produksjonsområde.
+Kilde: Fiskeridirektoratet pub-aqua `/licenses/{nr}/transfers`. 3029
+kropper, sha256 for hver i `/tmp/maling-okt/p3/overforinger-sha256.txt`,
+sha256 over den lista
+`19f8473a52888ceed8343a6125a98b273b6cfeef3fb28740743b7eeef4a8eda4`.
+Pluss eierskapskroppene `6b22413510b5…` (02.09) til `581bca616e7d…`
+(05.10).
+Feil hvis: `journalDate` ligger langt fra overdragelsen. Datoen er
+udokumentert og skal leses «senest da». Eller hvis en kjede mangler et
+ledd, slik at «forrige mottaker» ikke er den som faktisk solgte.
+
+### 3.1 Per produksjonsområde (laks, ørret, regnbueørret i sjø)
+
+Kapasitet i tonn MTB (TN), dagens verdi, summert bare innen PO og enhet.
+
+| PO | overf. | journalnr | kjøper ← selger | tillatelser | TN |
+|---|---:|---:|---|---:|---:|
+| 2 | 10 | 1 | NORDSJØ FJORDBRUK AS ← ROGALAND FJORDBRUK AS | 10 | 7 661 |
+| 5 | 1 | 1 | SALMAR OPPDRETT AS ← ØYLAKS MTB AS | 1 | 733 |
+| 6 | 2 | 1 | SALMAR OPPDRETT AS ← HITRAMAT FARMING AS | 2 | 888 |
+| 8 (via lok.) | 2 | 1 | BENCHMARK GENETICS NORWAY AS ← BENCHMARK GENETICS SALTEN AS (stamfisk) | 2 | 1 140 |
+| 9 | 1 | 1 | ELLINGSEN SEAFOOD AS ← NORDLY INNOVATION AS | 1 | 100 |
+| 10 | 5 | 2 | SALMAR OPPDRETT AS ← WILSGÅRD FARMING AS (3) / NOR SEAFOOD AS (2) | 5 | 4 870 |
+| 11 | 5 | 2 | SALMAR OPPDRETT AS ← WILSGÅRD FARMING AS (3) / NOR SEAFOOD AS (2) | 5 | 4 890 |
+| 12 | 27 | 1 | CERMAQ NORWAY SALMON AS ← CERMAQ FINNMARK FARMING AS | 27 | 26 249 |
+| 12 (via lok.) | 2 | 2 | CERMAQ FINNMARK AS → CERMAQ FINNMARK FARMING AS → CERMAQ NORWAY SALMON AS (visning) | 1 | 780 |
+
+PO 1, 3, 4, 7 og 13: ingen overføring mellom selskaper i vinduet.
+
+**F3.2 — MÅLT.** **SalMar Oppdrett AS er kjøper i 4 av 9 områder**
+(PO 5, 6, 10, 11): 13 tillatelser i fire transaksjoner. Wilsgård og
+Nor Seafood går hver over både PO 10 og 11 under samme journalnummer
+(2026000006 og 2025000214).
+Kilde: som F3.1.
+Feil hvis: journalnummeret ikke identifiserer én transaksjon.
+
+**F3.3 — MÅLT, men ikke tolkbart som handel.** Den største flyttingen
+(PO 12: 27 tillatelser og 26 249 TN, journalført 11.05.2026) går
+mellom to selskaper med samme navnestamme, CERMAQ. Det samme gjelder
+Benchmark Genetics i PO 8. Om dette er konserninternt, kan **ikke**
+avgjøres med offentlige data (`docs/KILDE-EIERSKAP.md` punkt 6), og
+tallet skal ikke stå alene som «kapasitet som skiftet eier».
+Feil hvis: noen leser 26 249 TN som et oppkjøp.
+
+### 3.2 Månedsfordeling (alle 135)
+
+    2025-10   4    2026-01  32    2026-04   1    2026-07   3
+    2025-11   5    2026-02   2    2026-05  36    2026-08   3
+    2025-12  36    2026-03   5    2026-06   7    2026-09   1  (ledd B)
+
+### 3.3 Utenfor PO-ordningen (80 overføringer, 32 journalnumre)
+
+| type | enhet | overf. | kapasitet | kjøpere | selgere |
+|---|---|---:|---:|---:|---:|
+| KOMM-MATF (andre arter, mest torsk) | TN | 32 | 26 189,5 | 13 | 11 |
+| KOMM-ALTKO | DA | 24 | 363 | 2 | 2 |
+| KOMM-SETT | TN | 8 | 6 184,6 | 7 | 7 |
+| KOMM-SETT | STK | 4 | 14 500 000 | 3 | 4 |
+| KOMM-SETT | KG | 1 | 0 | 1 | 1 |
+| SLAK-MATF | TN | 5 | 3 466 | 3 | 3 |
+| KOMM-STAM | TN / KG | 3 / 1 | 490 / 500 | 2 / 1 | 2 / 1 |
+| KOMM-AKRAS | DA | 1 | 11 | 1 | 1 |
+| ukjent | — | 1 | — | 1 | 1 |
+
+Største kjøpere i KOMM-MATF uten PO: ODE AS 10 (7 800 TN), NORCOD AS 5
+(3 599 TN), CODLIFE AS 4 (3 120 TN). Full liste i
+`/tmp/maling-okt/p3/kjopere.csv` og `selgere.csv`.
+
+`analyse/maling_okt/p3_tillatelseshandel.py --brreg`
