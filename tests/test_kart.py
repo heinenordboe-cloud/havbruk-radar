@@ -339,3 +339,41 @@ def test_setningen_om_kystbeltet_star_null_steder():
             for sti in pathlib.Path(NETTSTED).rglob("*.html")
             if "utenfor kystbeltet" in sti.read_text(encoding="utf-8")]
     assert not funn, f"setningen står fortsatt på: {funn[:5]}"
+
+
+# ------------------------------------------------------------ minikartet
+
+def test_minikartet_tegner_punktene_som_en_path_og_teller_hvert():
+    """Ni byte per prikk i én `path`, ikke én `circle` hver. To punkter
+    på samme piksel er én prikk, men to lokaliteter: `tegnet` er det
+    bildeteksten sier, og den skal ikke underslå noen."""
+    mk = kart.minikart([(60.0, 5.0), (60.0, 5.0), (70.0, 25.0)])
+    assert mk["tegnet"] == 3
+    assert mk["prikker"].count("h0") == 2
+    assert re.fullmatch(r"(M\d+ \d+h0)+", mk["prikker"])
+
+
+def test_minikartet_sier_hvor_mange_det_ikke_kunne_tegne():
+    """Uenighetsregelen: et punkt som mangler, forsvinner ikke stille."""
+    mk = kart.minikart([("", ""), ("x", "5"), (40.0, 5.0)])
+    assert (mk["tegnet"], mk["uten_koordinater"], mk["utenfor"]) == (0, 2, 1)
+    assert mk["prikker"] == ""
+
+
+def test_minikartet_er_lite_nok_til_hver_selskapsside():
+    """MÅLT 09.10.2026: 10 328 byte land og områder ved 320 px og to
+    pikslers toleranse, mot 62 229 for forsidens kystkart. Taket har
+    luft, men et minikart på 30 kB ville doblet en snittside."""
+    mk = kart.minikart()
+    byte = (sum(len(d) for d in mk["land"])
+            + sum(len(d) for o in mk["omraader"] for d in o["baner"]))
+    assert byte < 14_000, byte
+    assert [o["nr"] for o in mk["omraader"]] == [str(i) for i in range(1, 14)]
+
+
+def test_minikartet_har_kystkartets_ramme():
+    """Samme `_kystramme()`: to kart over samme kyst med hver sin ramme
+    ville vært to svar på hvor kysten er."""
+    mk = kart.minikart(bredde=760)
+    kk = kart.kystkart([{"nr": "1", "navn": "x"}])
+    assert (mk["bredde"], mk["hoyde"]) == (kk["bredde"], kk["hoyde"])

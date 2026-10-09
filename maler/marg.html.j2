@@ -1,0 +1,62 @@
+{# Høyrespalta: byggeklossene sidetypene setter sammen. Se stil.css
+   avsnitt 11b for oppsettet og docs/design/STILGUIDE.md for når hver av
+   dem brukes.
+
+   BARE MÅLTE TALL, og ingenting som står i venstrespalta fra før. En
+   blokk her er et svar på et spørsmål siden ellers ikke svarer på:
+   hvor på kysten, hvor mange per område, hvem er størst. #}
+
+{# ---------------------------------------------------------------- 1
+   FORDELINGEN: tekst, stolpe, tall. `rader` er fra `nettsted.fordeling()`
+   — `andel` er prosent av den største raden, regnet der og ikke her. #}
+{% macro fordeling(rader, etikett_id) %}
+<ol class="fordeling" aria-labelledby="{{ etikett_id }}">
+  {% for r in rader %}
+  <li>
+    {% if r.url %}<a href="{{ r.url }}">{{ r.tekst }}</a>{% else %}<span>{{ r.tekst }}</span>{% endif %}
+    <svg class="fordeling-stolpe" viewBox="0 0 100 6" preserveAspectRatio="none"
+         aria-hidden="true"><rect width="{{ r.andel }}" height="6"/></svg>
+    <span class="fordeling-tall">{{ r.vist }}</span>
+  </li>
+  {% endfor %}
+</ol>
+{% endmacro %}
+
+{# ---------------------------------------------------------------- 2
+   MINIKARTET: kysten, de tretten områdene og et sett punkter.
+
+   `klasser` er {områdenummer: fargeklasse}; et område uten oppslag står
+   i den nøytrale havfargen. `lenker` gjør områdene til lenker til
+   områdesidene, `gjeldende` merker det siden handler om.
+
+   INGEN `data-kart`: merket betyr «her er Kartverkets kystkontur», og
+   den er ikke med. Landet er Natural Earth, grensene Fiskeridirektoratets
+   polygoner (NLOD), og begge står i bildeteksten.
+
+   BILDETEKSTEN er `caller()`: det kartet viser, sagt med sidens egne
+   tall. #}
+{% macro minikart(mk, id, tittel, beskrivelse, klasser={}, lenker=False, gjeldende="", navn={}) %}
+<figure class="minikart">
+  <svg viewBox="0 0 {{ mk.bredde }} {{ mk.hoyde }}"
+       width="{{ mk.bredde }}" height="{{ mk.hoyde }}"
+       role="img" aria-labelledby="{{ id }}-tittel {{ id }}-tekst">
+    <title id="{{ id }}-tittel">{{ tittel }}</title>
+    <desc id="{{ id }}-tekst">{{ beskrivelse }}</desc>
+    <g class="mini-omraader"{% if not lenker %} aria-hidden="true"{% else %} data-pagefind-ignore{% endif %}>
+      {% for o in mk.omraader %}
+      {% if lenker %}<a href="/produksjonsomrade/{{ o.nr }}/"
+         {%- if o.nr == gjeldende %} aria-current="page"{% endif %}
+         aria-label="Produksjonsområde {{ o.nr }}{% if navn.get(o.nr) %} {{ navn[o.nr] }}{% endif %}"><title>{{ o.nr }}{% if navn.get(o.nr) %} {{ navn[o.nr] }}{% endif %}</title>{% endif %}
+      {%- for d in o.baner %}<path{% if klasser.get(o.nr) %} class="{{ klasser[o.nr] }}"{% endif %} d="{{ d }}"/>{% endfor -%}
+      {% if lenker %}</a>{% endif %}
+      {% endfor %}
+    </g>
+    <g class="mini-land" aria-hidden="true">
+      {%- for d in mk.land %}<path d="{{ d }}"/>{% endfor -%}
+    </g>
+    {% if mk.prikker %}<path class="mini-prikker" aria-hidden="true" d="{{ mk.prikker }}"/>{% endif %}
+  </svg>
+  <figcaption>{{ caller() }} Områdegrensene er Fiskeridirektoratets, landet
+    Natural Earth.</figcaption>
+</figure>
+{% endmacro %}

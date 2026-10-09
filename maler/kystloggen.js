@@ -174,7 +174,10 @@
    * under figuren.
    */
   function verktoytips() {
-    var figurer = document.querySelectorAll("svg[data-kart], svg.lusegraf");
+    /* `.minikart svg` fra 09.10.2026: områdelenkene i høyrespaltas
+       minikart har `<title>` som kystkartets, og skal få samme tips. */
+    var figurer = document.querySelectorAll(
+      "svg[data-kart], svg.lusegraf, .minikart svg");
 
     Array.prototype.forEach.call(figurer, function (svg) {
       var ramme = svg.closest("figure") || svg.parentElement;

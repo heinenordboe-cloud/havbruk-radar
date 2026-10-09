@@ -7812,6 +7812,77 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
 # enn én med forgreninger.
 
 
+# ------------------------------------------------------- høyrespalta
+#
+# Tallene i høyrespalta på indeks-, selskaps- og områdesidene. Se
+# maler/marg.html.j2 og stil.css avsnitt 11b. Alt her er TELT av de
+# samme snapshotene sidene ellers leser; ingenting er anslått.
+
+
+def fordeling(rader: list[tuple[str, str, float, str]]) -> list[dict]:
+    """[(tekst, url, antall, vist)] -> rader med `andel` i prosent av den
+    største. Rekkefølgen er den som kommer inn: den velger sidetypen.
+
+    `vist` er tallet slik det skal stå, fordi «79 260 tonn» og «158» er
+    ulike former av det samme feltet."""
+    storst = max((r[2] for r in rader), default=0) or 1
+    return [{"tekst": tekst, "url": url, "antall": antall, "vist": vist,
+             "andel": round(100 * antall / storst, 1)}
+            for tekst, url, antall, vist in rader]
+
+
+def _po_sortert(koder) -> list[str]:
+    return sorted(koder, key=lambda k: int(k) if k.isdigit() else 0)
+
+
+def _po_fordeling(felles: Felles, loknr) -> list[dict]:
+    """Lokalitetene i `loknr` per produksjonsområde, i områdenes egen
+    rekkefølge — sør til nord, som på kartet. Bare områder med minst én.
+    Lokaliteter utenfor inndelingen er ikke en rad: de er ikke et
+    område, og en stolpe for dem ville vært en stolpe for et fravær."""
+    per = Counter((felles.akva[nr].get("prodomraade_kode") or "").strip()
+                  for nr in loknr if nr in felles.akva)
+    return fordeling([(f"{po} {felles.po_navn.get(po, '')}".strip(),
+                       f"/produksjonsomrade/{po}/", per[po],
+                       visningsord.tall(per[po]))
+                      for po in _po_sortert(k for k in per if k)])
+
+
+def _koordinater(felles: Felles, loknr) -> list[tuple[str, str]]:
+    return [(felles.akva[nr].get("breddegrad", ""),
+             felles.akva[nr].get("lengdegrad", ""))
+            for nr in loknr if nr in felles.akva]
+
+
+def _lokalitetsmarg(felles: Felles) -> dict:
+    """Høyrespalta på lokalitetsindeksen: kartet, per område, per art.
+
+    PER ART TELLES EN LOKALITET UNDER HVER ART DEN HAR. «OTHER_FISH;
+    SALMON» er to koder (se visningsord), og 201 lokaliteter har mer
+    enn én (MÅLT 09.10.2026) — summen av radene er derfor større enn
+    antallet lokaliteter, og noten under sier det."""
+    arter: Counter = Counter()
+    for a in felles.akva.values():
+        for kode in (a.get("arter") or "").split(";"):
+            if kode.strip():
+                arter[kode.strip()] += 1
+    flere = sum(1 for a in felles.akva.values()
+                if len([k for k in (a.get("arter") or "").split(";")
+                        if k.strip()]) > 1)
+    per_po = _po_fordeling(felles, felles.akva)
+    return {
+        "kart": kart.minikart(_koordinater(felles, felles.akva)),
+        "per_po": per_po,
+        # Summen av radene den står under, ikke et nytt oppslag.
+        "i_po": sum(r["antall"] for r in per_po),
+        "per_art": fordeling([
+            (visningsord.verdi("arter", kode).capitalize(), "", n,
+             visningsord.tall(n))
+            for kode, n in arter.most_common()]),
+        "flere_arter": flere,
+    }
+
+
 def bygg_lokalitetsindeks(felles: Felles) -> dict:
     """Alle lokaliteter, sortert på nummer."""
     rader = [{
@@ -7831,6 +7902,7 @@ def bygg_lokalitetsindeks(felles: Felles) -> dict:
     # ikke bare forsvinne. Se docs/REGEL-UENIGE-KILDER.md.
     _punkter, uten, _hoyde, _gitter = kartpunkter(felles.akva)
     return {"rader": rader, "antall": len(rader), "side": None,
+            "marg": _lokalitetsmarg(felles),
             "akva_dato": felles.akva_dato,
             "uten_po": sum(1 for r in rader if not r["po_kode"]),
             "uten_omraade": uten_omraade_tekst(felles.akva),

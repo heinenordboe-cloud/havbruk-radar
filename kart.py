@@ -691,18 +691,13 @@ KYSTKART_BREDDE = 760
 KYSTKART_TOLERANSE = 0.7     # piksler
 
 
-def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
-    """Geometrien til forsidens kart.
+def _kystramme(bredde: int):
+    """(projeksjon, {nr: feature}, {nr: ringer i meter}, utstrekning i
+    grader) for kystkartet. Rammen er områdenes egen utstrekning.
 
-    `omraader` er radene fra `nettsted`: nr, navn, farge_klasse,
-    farge (ordet), antall lokaliteter. Fargen kommer UTENFRA — se
-    modulens docstring om hvorfor kartfilas eget `status`-felt ikke
-    brukes.
-
-    Utsnittet regnes av POLYGONENE og ikke av lokalitetene. To grunner:
-    et område uten en eneste lokalitet skal likevel være på kartet, og
-    utsnittet skal ikke flytte seg den uka en lokalitet i ytterkant
-    legges ned.
+    Trukket ut av `kystkart()` 09.10.2026 da `minikart()` trengte den
+    samme rammen: to kart over den samme kysten med hver sin utregning
+    av rammen ville vært to svar på hvor kysten er.
     """
     po = _les(OMRAADER)
     per_nr = {}
@@ -729,6 +724,23 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
                 nord_min, nord_maks = min(nord_min, n), max(nord_maks, n)
 
     proj = Projeksjon(ost_min, nord_min, ost_maks, nord_maks, bredde=bredde)
+    return proj, per_nr, ringer_i_meter, (lon_min, lat_min, lon_maks, lat_maks)
+
+
+def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
+    """Geometrien til forsidens kart.
+
+    `omraader` er radene fra `nettsted`: nr, navn, farge_klasse,
+    farge (ordet), antall lokaliteter. Fargen kommer UTENFRA — se
+    modulens docstring om hvorfor kartfilas eget `status`-felt ikke
+    brukes.
+
+    Utsnittet regnes av POLYGONENE og ikke av lokalitetene. To grunner:
+    et område uten en eneste lokalitet skal likevel være på kartet, og
+    utsnittet skal ikke flytte seg den uka en lokalitet i ytterkant
+    legges ned.
+    """
+    proj, per_nr, ringer_i_meter, geo = _kystramme(bredde)
 
     flater = []
     for rad in omraader:
@@ -762,7 +774,82 @@ def kystkart(omraader: list[dict], bredde: int = KYSTKART_BREDDE) -> dict:
         "mangler_geometri": [r["nr"] for r in omraader
                              if str(r["nr"]) not in per_nr],
         "land": land,
-        "gitter": gradnett(proj, (lon_min, lat_min, lon_maks, lat_maks)),
+        "gitter": gradnett(proj, geo),
+    }
+
+# ------------------------------------------------------ minikartet
+#
+# Hele kysten i en høyrespalte: landet, de tretten områdene og et sett
+# punkter. Samme ramme som kystkartet, i en åttendedel av bytene.
+#
+# MÅLT 09.10.2026, land og områder til sammen:
+#
+#     bredde  toleranse   byte
+#     760     0,7         62 229   forsidens kystkart
+#     360     1,0         24 443
+#     320     1,2         17 880
+#     320     2,0         10 328   <- valgt
+#     320     3,0          6 199
+#
+# Ved 320 piksler er Norge 394 høyt, og to pikslers avvik er under det
+# øyet skiller på et kart som står 18–24rem bredt. Taket betyr noe: kartet
+# står på hver selskapsside, og de er 31 kB i snitt (MÅLT, 482 sider).
+
+MINIKART_BREDDE = 320
+MINIKART_TOLERANSE = 2.0    # piksler
+
+
+@lru_cache(maxsize=2)
+def _minikartgrunn(bredde: int) -> tuple:
+    """(projeksjon, land, {nr: baner}) — det som er likt på hvert
+    minikart, regnet én gang per bygg."""
+    proj, _per_nr, ringer, _geo = _kystramme(bredde)
+    land = tuple(_tegn([til_meter(r) for r in
+                        _linjer(_les(LAND)["features"][0]["geometry"])],
+                       proj, MINIKART_TOLERANSE, lukket=True, klipp=False))
+    omraader = {nr: tuple(_tegn(r, proj, MINIKART_TOLERANSE, lukket=True,
+                                klipp=False))
+                for nr, r in ringer.items()}
+    return proj, land, omraader
+
+
+def minikart(punkter=(), bredde: int = MINIKART_BREDDE) -> dict:
+    """Kysten med `punkter` — (breddegrad, lengdegrad) — som prikker.
+
+    PUNKTENE ER ÉN `path`, ikke én `circle` hver. «M12 40h0» med runde
+    linjeender tegner en prikk i ni byte; en sirkel koster fire ganger
+    det, og lokalitetslista har 1 782 av dem. Punkter som faller på samme
+    piksel tegnes én gang, men TELLES hver for seg: `tegnet` er hvor
+    mange lokaliteter kartet viser, ikke hvor mange prikker.
+
+    Et punkt uten koordinater eller utenfor rammen forsvinner ikke
+    stille: `uten_koordinater` og `utenfor` sier hvor mange.
+    """
+    proj, land, omraader = _minikartgrunn(bredde)
+    prikker: set[tuple[int, int]] = set()
+    tegnet = utenfor = uten = 0
+    for lat, lon in punkter:
+        try:
+            e, n = utm33(float(lat), float(lon))
+        except (TypeError, ValueError):
+            uten += 1
+            continue
+        if not proj.synlig(e, n):
+            utenfor += 1
+            continue
+        tegnet += 1
+        prikker.add((round(proj.x(e)), round(proj.y(n))))
+    return {
+        "bredde": proj.bredde,
+        "hoyde": proj.hoyde,
+        "land": list(land),
+        "omraader": [{"nr": nr, "baner": list(b)}
+                     for nr, b in sorted(omraader.items(),
+                                         key=lambda kv: int(kv[0]))],
+        "prikker": "".join(f"M{x} {y}h0" for x, y in sorted(prikker)),
+        "tegnet": tegnet,
+        "utenfor": utenfor,
+        "uten_koordinater": uten,
     }
 
 # ------------------------------------------ Norge som fil: BORTE

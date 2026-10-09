@@ -12,6 +12,7 @@
    kommunenavn). Søket skal finne lokalitetssiden; lista finnes fra
    menyen. #}
 {% extends "base.html.j2" %}
+{% import "marg.html.j2" as marg %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -21,6 +22,20 @@
     <li aria-current="page">Lokaliteter</li>
   </ol>
 </nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+{# TO SPALTER FRA 64rem: lista til venstre, høyrespalta med kartet og
+   fordelingene til høyre — lokalitetssidens mønster, se stil.css
+   avsnitt 11b. Tittelen står i gitteret, så kartet starter på høyde med
+   den; i sidehodet står bare brødsmula. `main` har sin egen
+   `data-pagefind-body`, så søket indekserer tittelen som før.
+
+   Under 64rem kommer høyrespalta etter lista: den som leter etter én
+   lokalitet, skal ha søket og tabellen først. #}
+<div class="med-marg">
+<div class="med-marg-hoved">
 {# TITTELEN, TALLET OG SØKET I SIDEHODET. Til 08.10.2026 sto søkefeltet
    over tittelen og tittelen i innholdet under det: siden begynte med et
    skjema uten å si hva den var. Briefen: «søk og filter» øverst. #}
@@ -37,10 +52,7 @@
          placeholder="Søk etter lokalitet, kommune eller selskap">
   <button class="knapp" type="submit">Søk</button>
 </form>
-</div>
-{% endblock %}
 
-{% block innhold %}
 <p class="historikk-forklaring">
   {% if d.side and d.side.antall > 1 %}Lista er delt i {{ antall(d.side.antall, "side", "sider") }}
   sortert på lokalitetsnummer. Søkefeltet øverst søker i alle.
@@ -142,4 +154,41 @@
 </p>
 {% endif %}
 {% endif %}
+</div>
+
+{# HØYRESPALTA. Kartet først: det er den ene tingen tabellen ikke kan si
+   — hvor langs kysten de 1 782 ligger. Så fordelingene, som er tellinger
+   av de samme radene. Like på hver side av lista: de gjelder hele
+   registeret, ikke de hundre på denne siden. #}
+{% set m = d.marg %}
+<div class="marg">
+  <section class="marg-blokk" aria-labelledby="marg-kart">
+    <h2 class="etikett" id="marg-kart">Langs kysten</h2>
+    {% call marg.minikart(m.kart, "minikart-lok",
+         "Kart over alle " ~ tall(m.kart.tegnet) ~ " lokalitetene",
+         "Hver lokalitet med koordinater i Akvakulturregisteret er en prikk.
+          Produksjonsområdene er tegnet under. Alle lokalitetene står i
+          tabellen.") -%}
+      {{ tall(m.kart.tegnet) }} av {{ antall(d.antall, "lokalitet", "lokaliteter") }}
+      har koordinater og er tegnet; to på samme sted blir én prikk.
+    {%- endcall %}
+  </section>
+
+  {% if m.per_po %}
+  <section class="marg-blokk" aria-labelledby="marg-po">
+    <h2 class="etikett" id="marg-po">Per produksjonsområde</h2>
+    {{ marg.fordeling(m.per_po, "marg-po") }}
+    <p class="marg-note">{{ antall(m.i_po, "lokalitet", "lokaliteter") }} i alt; de øvrige
+      ligger utenfor inndelingen.</p>
+  </section>
+  {% endif %}
+
+  <section class="marg-blokk" aria-labelledby="marg-art">
+    <h2 class="etikett" id="marg-art">Per art</h2>
+    {{ marg.fordeling(m.per_art, "marg-art") }}
+    <p class="marg-note">En lokalitet med flere arter telles under hver av
+      dem; {{ tall(m.flere_arter) }} har mer enn én.</p>
+  </section>
+</div>
+</div>
 {% endblock %}

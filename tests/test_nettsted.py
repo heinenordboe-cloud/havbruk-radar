@@ -2343,6 +2343,35 @@ def test_en_kort_indeks_staar_paa_en_side():
     assert d["uten_koordinater_antall"] == 0
 
 
+def test_fordelingen_maaler_stolpen_mot_den_storste():
+    rader = nettsted.fordeling([("a", "", 50, "50"), ("b", "/b/", 200, "200"),
+                                ("c", "", 0, "0")])
+    assert [r["andel"] for r in rader] == [25.0, 100.0, 0.0]
+    assert [r["tekst"] for r in rader] == ["a", "b", "c"], "rekkefølgen er sidens"
+    assert nettsted.fordeling([]) == []
+
+
+def test_lokalitetsindeksen_har_hoyrespalta_med_kart_og_arter():
+    """Høyrespalta, stil.css avsnitt 11b: minikartet med hver lokalitet,
+    og fordelingen per art. Ingen per område når ingen ligger i et."""
+    felles = _indeksfelles(5)
+    felles.akva["10000"]["arter"] = "OTHER_FISH; SALMON"
+    d = nettsted.bygg_lokalitetsindeks(felles)
+    assert d["marg"]["kart"]["tegnet"] == 5
+    assert [(r["tekst"], r["antall"]) for r in d["marg"]["per_art"]] == [
+        ("Laks", 5), ("Annen fisk", 1)]
+    assert d["marg"]["flere_arter"] == 1
+    html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
+        d=d, **_grunn("lokalitet"))
+    flat = " ".join(html.split())
+    assert 'class="med-marg"' in html and 'class="marg"' in html
+    assert 'class="mini-prikker"' in html
+    assert "5 av 5 lokaliteter har koordinater og er tegnet" in flat
+    assert "Per produksjonsområde" not in html
+    # Hovedspalta før høyrespalta: på telefon kommer lista først.
+    assert html.index('id="akvakultur-alle"') < html.index('class="marg"')
+
+
 def test_indeksen_deles_og_hver_side_lenker_til_alle_de_andre(tmp_path, monkeypatch):
     """BRIEF.md: ingen indeksside over 10 000 px på 390. Den flate lista
     var 525 434. Innvendingen mot paginering — at de siste sidene ikke

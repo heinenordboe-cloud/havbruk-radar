@@ -2501,6 +2501,158 @@ figcaption {
 .sidenav-liste [aria-current] { font-weight: 600; color: var(--ink); box-shadow: inset 0 -2px 0 var(--rust); line-height: 40px; }
 
 /* ---------------------------------------------------------------- *
+ * 11b. HØYRESPALTA
+ *
+ * Lokalitetssidens mønster, gjort felles 09.10.2026: en lesespalte til
+ * venstre og en smal spalte til høyre med tall som hører til siden —
+ * nøkkeltall, et minikart, en fordeling. Til da sto teksten i en smal
+ * spalte på 1440 og bredere, og høyre halvdel var tom på syv sidetyper.
+ *
+ * LESESPALTA BLIR IKKE BREDERE. `--maal-tekst` gjelder som før;
+ * tomrommet fylles med innhold, ikke med lengre linjer.
+ *
+ * TO BARN, ALLTID: `.med-marg-hoved` og `.marg`. Under 64rem er det én
+ * spalte, og da kommer høyrespalta ETTER hovedinnholdet — DOM-rekkefølgen
+ * er den en telefon og en skjermleser får. Hva som står i hovedspalta,
+ * velger hver sidetype: på indeksene hele tabellen, på selskaps- og
+ * områdesiden bare toppen, slik at resten kan gå i full bredde.
+ * ---------------------------------------------------------------- */
+
+.med-marg {
+  display: grid;
+  gap: var(--rom-48) clamp(32px, 4vw, 72px);
+  align-items: start;
+}
+
+.med-marg > * { min-inline-size: 0; }
+
+@media (min-width: 64rem) {
+  .med-marg { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); }
+}
+
+/* EN BLOKK I HØYRESPALTA: blekkstrek og etikett over, som «Tilstanden
+   nå» på lokalitetssiden. */
+.marg-blokk {
+  padding-block-start: var(--rom-16);
+  border-block-start: 1px solid var(--ink);
+}
+
+.marg-blokk + .marg-blokk { margin-block-start: var(--rom-32); }
+
+.marg-blokk > .etikett { margin: 0 0 var(--rom-12); }
+
+.marg-note {
+  margin: var(--rom-8) 0 0;
+  max-width: none;
+  font-size: var(--tekst-xs);
+  line-height: var(--lh-tett);
+  color: var(--ink-dempet);
+}
+
+.marg .fakta { margin-block-end: 0; }
+
+/* SØKET I HOVEDSPALTA. I sidehodet var luften under det sidehodets egen;
+   i gitteret må den stå her. */
+.med-marg-hoved > .sok--side { margin-block-end: var(--rom-32); }
+
+/* FORDELINGEN. Typestolpene fra forsiden, på én linje per rad så tretten
+   områder får plass: tekst, stolpe, tall. Stolpen er en SVG-`rect` med
+   bredde i prosent av den største — ikke en inline-stil, så CSP-en kan
+   stå som den er. Én farge, som søylene i grafene. */
+.fordeling {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+.fordeling li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(3rem, 5rem) minmax(3.5rem, auto);
+  align-items: center;
+  gap: var(--rom-12);
+  margin: 0;
+  padding-block: var(--rom-4);
+  border-block-end: 1px solid var(--papir3);
+  font-size: var(--tekst-s);
+  line-height: var(--lh-tett);
+}
+
+.fordeling a { color: var(--ink); text-decoration-color: rgba(11, 36, 48, 0.32); }
+.fordeling a:visited { color: var(--ink); }
+.fordeling a:hover { color: var(--rust-moerk); text-decoration-color: var(--rust); }
+
+.fordeling-stolpe { display: block; inline-size: 100%; block-size: 6px; }
+.fordeling-stolpe rect { fill: var(--hav5); }
+
+.fordeling-tall {
+  font-family: var(--skrift-tall);
+  font-size: var(--tekst-xs);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* MINIKARTET. Hele kysten: områdene, landet og punktene. Bredden følger
+   spalta, men et kart som er høyere enn en skjerm, er et kart man ikke
+   ser på én gang — derfor taket. */
+.minikart { margin: 0; }
+
+.minikart svg {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 22rem;
+  block-size: auto;
+}
+
+.minikart figcaption {
+  margin-block-start: var(--rom-8);
+  max-width: none;
+  font-size: var(--tekst-xs);
+  line-height: var(--lh-tett);
+  color: var(--ink-dempet);
+}
+
+.mini-omraader path {
+  fill: var(--kart-hav);
+  stroke: var(--papir);
+  stroke-width: 0.8;
+}
+
+.mini-omraader .lys-rod   { fill: var(--lys-rod); }
+.mini-omraader .lys-gul   { fill: var(--lys-gul); }
+.mini-omraader .lys-gronn { fill: var(--lys-gronn); }
+
+/* «Ikke oppgitt»: samme stiplede, nesten tomme flate som kystkartet. */
+.mini-omraader .omraade--skravert {
+  fill: #6f8a95;
+  fill-opacity: 0.16;
+  stroke: #6f8a95;
+  stroke-dasharray: 3 3;
+}
+
+/* Områdene som lenker: samme framheving som på kystkartet. */
+.mini-omraader a:hover path,
+.mini-omraader a:focus-visible path { stroke: var(--ink); stroke-width: 1.4; }
+
+.mini-land { pointer-events: none; }
+
+.mini-land path {
+  fill: rgba(11, 36, 48, 0.05);
+  stroke: var(--ink-dempet);
+  stroke-width: 0.5;
+  stroke-opacity: 0.55;
+}
+
+/* PUNKTENE ER ÉN `path`: «M x y h0» med runde ender er en prikk. */
+.mini-prikker {
+  fill: none;
+  stroke: var(--hav5);
+  stroke-width: 3;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- *
  * 12. OMRÅDESIDEN
  *
  * FYLLET SIER BELEGGET, og ordet står uansett:

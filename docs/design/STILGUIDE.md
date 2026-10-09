@@ -136,6 +136,23 @@ tilstanden (`.lok-tilstand`) i en smal høyrespalte som følger med
 nedover. Høyrespalta er kort med vilje — står den lenger enn venstre,
 blir det tomrom ved siden av.
 
+**`.med-marg`** er det samme mønsteret gjort felles (09.10.2026): to
+barn, `.med-marg-hoved` og `.marg`, i to spalter fra 64rem. Høyrespalta
+er `.marg-blokk`-er — blekkstrek, etikett, innhold — og innholdet er
+ett av tre: nøkkeltall (`dl.fakta`), en fordeling (`.fordeling`) eller
+et minikart (`.minikart`). Byggeklossene står i `maler/marg.html.j2`.
+Lesespalta blir ikke bredere; tomrommet på brede skjermer fylles med
+tall som hører til siden, aldri med pynt og aldri med det som står til
+venstre. Under 64rem kommer høyrespalta etter hovedinnholdet.
+
+| Side | Hovedspalta | Høyrespalta |
+|---|---|---|
+| Lokalitetsindeksen | tittel, søk, lista | minikart med alle, per område, per art |
+
+**Minikartet** er hele kysten på 320 px: land, de tretten områdene og
+punktene som én `path` (`kart.minikart()`). Det har ikke `data-kart`,
+fordi det ikke bruker Kartverkets kontur.
+
 ## Komponenter
 
 ### Toppen (avsnitt 3)
