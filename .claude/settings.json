@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(wrangler*)",
+      "Bash(npx wrangler*)",
+      "Bash(npx --yes wrangler*)",
+      "Bash(npx -y wrangler*)",
+      "Bash(npm exec wrangler*)",
+      "Bash(* wrangler *)",
+      "Bash(*publiser.py*--produksjon*)",
+      "Bash(git push*--force*)",
+      "Bash(git push* -f*)",
+      "Bash(git push* +*)",
+      "Edit(.github/workflows/**)",
+      "Bash(*.github/workflows*)"
+    ]
+  }
+}

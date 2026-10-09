@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nettsted",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "set -e; ut=.claude/forhandsvisning; HAVBRUK_DATA_DIR=../havbruk-radar-data/data .venv/bin/python nettsted.py --alle --uten-vakt --ut \"$ut\"; exec .venv/bin/python -m http.server 8765 --bind 127.0.0.1 --directory \"$ut\""
+      ],
+      "port": 8765
+    }
+  ]
+}

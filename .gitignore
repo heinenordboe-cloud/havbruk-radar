@@ -17,7 +17,13 @@ dashboard/.evidence/
 # den er lokal — den følger ikke med en klone, en ny maskin eller en ny
 # sjekkut. Den har allerede sviktet to ganger. En regel som skal gjelde
 # repoet må ligge i repoet.
-/.claude/
+#
+# Unntaket er de to filene som er REGLER, ikke notater: sperrene for
+# Auto-modus og oppsettet for forhåndsvisningen. De skal følge repoet av
+# nøyaktig samme grunn.
+/.claude/*
+!/.claude/settings.json
+!/.claude/launch.json
 
 # Generert av analyse/. Ren funksjon av snapshots + fasit, kan alltid
 # regenereres — og en generert fil som skrives om hver kjøring er
