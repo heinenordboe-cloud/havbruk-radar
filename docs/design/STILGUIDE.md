@@ -261,8 +261,10 @@ kan stå som den er. Typene er lenker til typesidene.
 
 ### Grafer (avsnitt 10)
 
-- Søylene er `--hav5`, én farge. Ingen tiltaksgrense: den er ikke samlet
-  inn, og en farge etter en strek vi fant på ville vært en vurdering.
+- Søylene er `--hav5`, én farge.
+- Tiltaksgrensa er en stiplet `--rust`-linje i trapper: BarentsWatchs
+  «Lusegrense uke» for lokaliteten, uke for uke (`sjotemperatur.lusegrense`).
+  Brudd der kilden ikke oppgir noen; aldri en konstant vi har satt.
 - Brakklagte uker er et grått bånd. Tomrom er ingen rapport, ikke null.
 - Svake vannrette hjelpelinjer, ingen ramme.
 - Grafen er ett tabulatorstopp. Piltastene, Home og End går gjennom

@@ -288,6 +288,12 @@ påstand om regelverket, ikke en gjengivelse av en kilde.
 **Hva som ville løst det:** forskriften som kilde, på samme måte som
 `trafikklysvedtak` — med uttrekk, lesemåte og belegg per verdi.
 
+**Løst 09.10.2026, uten forskriften.** Premisset var feil: grensa HAR
+vært samlet inn hele tiden, som `Lusegrense uke` i hver
+sjøtemperaturkropp i `data/arkiv/` (docs/MALING-FUNN-OKTOBER.md F4.5).
+Den leses nå som `sjotemperatur.lusegrense` og tegnes som en stiplet
+linje uke for uke. Søylene over grensa er fortsatt ikke farget rust.
+
 ### 5. En `borte`-oppføring kan ikke navngis
 
 `hviteliste()` bygges av NYESTE øyeblikksbilde for hver
