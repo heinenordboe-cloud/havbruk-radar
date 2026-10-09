@@ -48,20 +48,48 @@ Datoen på en endring er kroppen den ble SETT i. Registeret oppgir ikke
 når kapasiteten ble endret, så «mellom 28.09 og 05.10» er alt som kan
 sies — samme skille som `nettsted.py` gjør mellom observert og oppgitt
 historikk.
+
+## 3. Drift: Mattilsynets rapporter, BarentsWatchs perioder
+
+Lus og behandlinger er Mattilsynets, fra `data/arkiv/mattilsynet-
+lakselus/<lokalitet>/`, skrevet av `arkiver_mattilsynet.py lakselus`.
+Tiltaksgrensa og periodegrensa er BarentsWatchs, fra snapshotene
+`sjotemperatur.lusegrense` og `lusetall.brakklagt`: en produksjons-
+periode er det `nettsted.del_i_perioder()` sier, og den bygger på
+BarentsWatchs vurdering «trolig uten fisk» (docs/MALING-FUNN-OKTOBER.md
+F4.2). Det står på siden.
+
+TRE REGLER VI HAR VALGT, og som står fordi et annet valg gir andre tall:
+
+  * ÉN VERDI PER UKE. 4 533 (lokalitet, uke)-par har mer enn én rapport
+    i hele API-et (MÅLT 09.10.2026); ved samdrift rapporterer hver
+    innehaver. Lusetallet for uka er det HØYESTE rapporterte, og en
+    behandling som står likt i to rapporter, telles én gang.
+  * En rapport for en uke som ligger ETTER uka den ble levert i, kan ikke
+    være en telling av den uka. Den holdes utenfor og listes.
+  * 0,10 og 0,17 sammenlignes med tallet slik Mattilsynet oppgir det,
+    uten avrunding: «færre enn 0,1». Tiltaksgrensa sammenlignes slik
+    BarentsWatch gjør, med halv-opp til to desimaler
+    (`nettsted._over_grensen`).
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import gzip
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
+from decimal import Decimal
 from html.parser import HTMLParser
 from pathlib import Path
 
+import polars as pl
+
 import arkiver_lovdata
-from core import paths
+from core import paths, snapshot
 
 
 # ---------------------------------------------------------------- kropper
@@ -281,7 +309,8 @@ MAALING = {
     "ledd2.b": ("DELVIS",
                 "Lengste rekke av påfølgende tellinger med 0,10 eller flere. "
                 "Forskriften sier ikke om bokstav b gjelder uke 13–39 slik "
-                "nr. 1 gjør; rekka regnes over hele perioden."),
+                "bokstav a og nr. 1 gjør. Rekka regnes BEGGE veier — over hele "
+                "perioden og innen uke 13–39 — og begge står."),
 }
 
 
@@ -469,6 +498,230 @@ def _halv_opp(x: float) -> float:
     return float(int(x + 0.5))
 
 
+# ------------------------------------------------- 3. drift per lokalitet
+
+# Kvalifikasjonsperioden for søknadene i lista: uke 40/2023 til og med
+# uke 39/2025. LEST, ikke valgt: § 12 b sier «fra og med uke 40 i et
+# oddetallsår til og med uke 39 i neste oddetallsår», § 12a sier at
+# søknaden sendes «innen 1. september i oddetallsår», og lista er runden
+# «2025/2026». Kapasitetsjusteringsforskriften 2026 § 20 regner vekst
+# over «1. oktober 2023–30. september 2025» — samme to år, fra en annen
+# kropp.
+KVALIFIKASJON = ((2023, 40), (2025, 39))
+ETTER = ((2025, 40), (9999, 53))
+
+GRENSE_01 = Decimal("0.1")
+GRENSE_017 = Decimal("0.17")
+
+
+@dataclass
+class Uke:
+    """Én lokalitetsuke hos Mattilsynet, slått sammen over rapportene."""
+    aar: int
+    uke: int
+    lus: Decimal | None = None
+    medikamentelle: int = 0
+    ikke_medikamentelle: int = 0
+    rapporter: int = 0
+    ulike: bool = False
+
+    @property
+    def dato(self) -> str:
+        """Mandagen i ISO-uka — samme dato som lusetall bruker."""
+        return dt.date.fromisocalendar(self.aar, self.uke, 1).isoformat()
+
+
+def _behandlinger(r: dict) -> tuple[Counter, Counter]:
+    med = Counter(json.dumps(b, sort_keys=True)
+                  for b in r.get("medikamentelleBehandlinger") or [])
+    ikke = Counter(json.dumps(b, sort_keys=True)
+                   for b in r.get("ikkeMedikamentelleBehandlinger") or [])
+    for k in r.get("kombinasjonsbehandlinger") or []:
+        med += Counter(json.dumps(b, sort_keys=True)
+                       for b in k.get("medikamentelleBehandlinger") or [])
+        ikke += Counter(json.dumps(b, sort_keys=True)
+                        for b in k.get("ikkeMedikamentelleBehandlinger") or [])
+    return med, ikke
+
+
+def mattilsynet_uker(loknr: str) -> tuple[Kropp, dict, list[dict]]:
+    """(kropp, {(år, uke): Uke}, holdt_utenfor) for én lokalitet."""
+    k = siste_kropp(f"mattilsynet-lakselus/{loknr}")
+    post = json.loads(k.data)
+    grupper: dict[tuple[int, int], list[dict]] = {}
+    utenfor = []
+    for r in post["rapporter"]:
+        aar, uke = int(r["år"]), int(r["uke"])
+        levert = dt.date.fromisoformat(r["rapporteringstidspunkt"][:10])
+        if (aar, uke) > tuple(levert.isocalendar()[:2]) or aar < 2000:
+            utenfor.append({"aar": aar, "uke": uke,
+                            "levert": levert.isoformat()})
+            continue
+        grupper.setdefault((aar, uke), []).append(r)
+
+    uker = {}
+    for (aar, uke), rr in grupper.items():
+        u = Uke(aar, uke, rapporter=len(rr))
+        verdier = [Decimal(str(r["lusetelling"]["voksneHunnlus"]))
+                   for r in rr if (r.get("lusetelling") or {})
+                   .get("voksneHunnlus") is not None]
+        u.lus = max(verdier) if verdier else None
+        med, ikke = Counter(), Counter()
+        for r in rr:
+            m, i = _behandlinger(r)
+            med |= m           # samme oppføring i to rapporter: én gang
+            ikke |= i
+        u.medikamentelle = sum(med.values())
+        u.ikke_medikamentelle = sum(ikke.values())
+        u.ulike = len({json.dumps({k_: r.get(k_) for k_ in (
+            "lusetelling", "medikamentelleBehandlinger",
+            "ikkeMedikamentelleBehandlinger", "kombinasjonsbehandlinger")},
+            sort_keys=True) for r in rr}) > 1
+        uker[(aar, uke)] = u
+    return k, uker, utenfor
+
+
+def barentswatch_uker(numre, fra: str) -> dict[str, dict[str, dict]]:
+    """{lokalitet: {mandag: {brakklagt, lusegrense}}} fra snapshotene.
+
+    Leser hver ukesfil fra `fra` én gang, siste versjon av datoen, og
+    plukker lokalitetene i `numre`."""
+    numre = set(numre)
+    ut: dict[str, dict[str, dict]] = {n: {} for n in numre}
+    for kilde, felt in (("lusetall", "brakklagt"),
+                        ("sjotemperatur", "lusegrense")):
+        for dato in snapshot.datoer(kilde):
+            if dato < fra:
+                continue
+            for _nr, ramme in snapshot.versjoner(kilde, dato)[-1:]:
+                sub = ramme.filter((pl.col("field") == felt)
+                                   & pl.col("entity_id").is_in(sorted(numre)))
+                for eid, verdi in sub.select(["entity_id", "value"]).iter_rows():
+                    ut[str(eid)].setdefault(dato, {"dato": dato})[felt] = str(verdi)
+    return ut
+
+
+def _i_uker(uke: int, fra: int, til: int) -> bool:
+    """Uke i et ukevindu som kan gå over nyttår (40–12)."""
+    return fra <= uke <= til if fra <= til else (uke >= fra or uke <= til)
+
+
+def _lengste_rekke(uker: list[Uke], grense: Decimal) -> int:
+    """Lengste rekke påfølgende ISO-uker med telling ≥ grense. En uke
+    uten telling bryter rekka."""
+    beste = n = 0
+    forrige = None
+    for u in sorted(uker, key=lambda x: (x.aar, x.uke)):
+        paa_rad = forrige is not None and (
+            dt.date.fromisoformat(u.dato)
+            - dt.date.fromisoformat(forrige.dato)).days == 7
+        if u.lus is not None and u.lus >= grense:
+            n = n + 1 if paa_rad and forrige.lus is not None \
+                and forrige.lus >= grense else 1
+            beste = max(beste, n)
+        else:
+            n = 0
+        forrige = u
+    return beste
+
+
+def maal(uker: list[Uke], bw: dict[str, dict], perioder: list[list[dict]],
+         siste_bw: str) -> dict:
+    """Tallene ved siden av vilkårene, for ukene i ett vindu.
+
+    Nøklene følger `MAALING`. Ingen av dem sier OPPFYLT.
+    """
+    from nettsted import _over_grensen
+
+    talte = [u for u in uker if u.lus is not None]
+    i_13_39 = [u for u in talte if _i_uker(u.uke, 13, 39)]
+    per_aar: dict[int, int] = {}
+    for u in i_13_39:
+        if u.lus >= GRENSE_017:
+            per_aar[u.aar] = per_aar.get(u.aar, 0) + 1
+    over = uten_grense = over_40_12 = uten_grense_40_12 = 0
+    for u in talte:
+        grense = (bw.get(u.dato) or {}).get("lusegrense", "")
+        o = _over_grensen(str(u.lus), grense)
+        if o is None:
+            uten_grense += 1
+            uten_grense_40_12 += _i_uker(u.uke, 40, 12)
+        elif o:
+            over += 1
+            over_40_12 += _i_uker(u.uke, 40, 12)
+    datoer = {u.dato for u in uker}
+    sluttet = [p for p in perioder
+               if p[-1]["dato"] in datoer and p[-1]["dato"] < siste_bw
+               and _neste_er_brakk(p[-1]["dato"], bw)]
+    return {
+        "uker": len(uker), "talte": len(talte),
+        "maks": max((u.lus for u in talte), default=None),
+        "b1_over_01": sum(1 for u in i_13_39 if u.lus >= GRENSE_01),
+        "b1_talte": len(i_13_39),
+        "b1_maks": max((u.lus for u in i_13_39), default=None),
+        "ledd2a_017_per_aar": per_aar,
+        "ledd2b_rekke": _lengste_rekke(uker, GRENSE_01),
+        "ledd2b_rekke_13_39": _lengste_rekke(
+            [u for u in uker if _i_uker(u.uke, 13, 39)], GRENSE_01),
+        "b2_over": over_40_12, "b2_uten_grense": uten_grense_40_12,
+        "over": over, "uten_grense": uten_grense,
+        "b3_medikamentelle": sum(u.medikamentelle for u in uker),
+        "b3_uker": sum(1 for u in uker if u.medikamentelle),
+        "b4_ikke_medikamentelle": sum(u.ikke_medikamentelle for u in uker),
+        "b5_sluttet": len(sluttet),
+        "ulike_uker": sum(1 for u in uker if u.ulike),
+    }
+
+
+def _neste_er_brakk(dato: str, bw: dict[str, dict]) -> bool:
+    neste = (dt.date.fromisoformat(dato) + dt.timedelta(weeks=1)).isoformat()
+    return (bw.get(neste) or {}).get("brakklagt") == "True"
+
+
+@dataclass
+class Drift:
+    """Alt analysen vet om driften på én lokalitet."""
+    loknr: str
+    kropp: Kropp
+    uker: dict
+    utenfor: list
+    perioder: list = field(default_factory=list)
+    kvalifikasjon: dict = field(default_factory=dict)
+    etter: dict = field(default_factory=dict)
+    per_periode: list = field(default_factory=list)
+    etter_bw: dict = field(default_factory=dict)
+
+
+def drift(loknr: str, bw: dict[str, dict], siste_bw: str) -> Drift:
+    """Driften i kvalifikasjonsperioden, etter den, og per periode."""
+    from nettsted import del_i_perioder
+
+    k, uker, utenfor = mattilsynet_uker(loknr)
+    serie = [bw[d] for d in sorted(bw) if "brakklagt" in bw[d]]
+    perioder = del_i_perioder(serie)
+
+    def vindu(fra, til, liste=None):
+        return [u for u in (liste or uker.values())
+                if fra <= (u.aar, u.uke) <= til]
+
+    d = Drift(loknr, k, uker, utenfor, perioder)
+    d.kvalifikasjon = maal(vindu(*KVALIFIKASJON), bw, perioder, siste_bw)
+    d.etter = maal(vindu(*ETTER), bw, perioder, siste_bw)
+    fra_kval = dt.date.fromisocalendar(*KVALIFIKASJON[0], 1).isoformat()
+    for p in perioder:
+        if p[-1]["dato"] < fra_kval:
+            continue
+        datoer = {u["dato"] for u in p}
+        i_p = [u for u in uker.values() if u.dato in datoer]
+        m = maal(i_p, bw, [p], siste_bw)
+        d.per_periode.append({
+            "fra": p[0]["dato"], "til": p[-1]["dato"], "bw_uker": len(p),
+            "aapen": p[-1]["dato"] == siste_bw, **m})
+    etter_siste = [u for u in uker.values() if u.dato > siste_bw]
+    d.etter_bw = maal(etter_siste, bw, [], siste_bw)
+    return d
+
+
 # ------------------------------------------------------------------ CLI
 
 def _skriv_vilkaar(v: dict) -> None:
@@ -517,9 +770,38 @@ def _skriv_kapasitet() -> None:
                       f"ut {[i['tillatelse'] for i in kap['ut']]}")
 
 
+def _skriv_drift() -> None:
+    _k, svar = soknader()
+    deler = del_rader(svar["rader"])
+    numre = sorted({r["lokalitet_nr"] for n in ("sikre", "usikre")
+                    for r in deler[n]}, key=int)
+    fra = dt.date.fromisocalendar(*KVALIFIKASJON[0], 1).isoformat()
+    bw = barentswatch_uker(numre, fra)
+    siste_bw = max(d for s in bw.values() for d in s)
+    print(f"\nDRIFT — {len(numre)} lokaliteter, BarentsWatch {fra} – {siste_bw}")
+    for navn in ("sikre", "usikre"):
+        res: dict[str, set] = {}
+        for r in deler[navn]:
+            res.setdefault(r["lokalitet_nr"], set()).add(r["resultat"])
+        for nr in sorted(res, key=int):
+            d = drift(nr, bw[nr], siste_bw)
+            kv, et = d.kvalifikasjon, d.etter
+            print(f"  [{navn}] {nr:>5} {'/'.join(sorted(res[nr])):8} "
+                  f"KV: {kv['talte']:>3}t b1 {kv['b1_over_01']:>2}/{kv['b1_talte']:<3}"
+                  f" 2a {max(kv['ledd2a_017_per_aar'].values(), default=0)}"
+                  f" 2b {kv['ledd2b_rekke']}/{kv['ledd2b_rekke_13_39']} b2 {kv['b2_over']}"
+                  f" med {kv['b3_medikamentelle']} ikke {kv['b4_ikke_medikamentelle']}"
+                  f" slutt {kv['b5_sluttet']} | ETTER: {et['talte']:>3}t"
+                  f" ≥0,1(13–39) {et['b1_over_01']} over {et['over']}"
+                  f" (u/gr {et['uten_grense']}) med {et['b3_medikamentelle']}"
+                  f" ikke {et['b4_ikke_medikamentelle']}"
+                  f"  perioder {len(d.per_periode)}  utenfor {d.utenfor}")
+
+
 def main() -> int:
     _skriv_vilkaar(vilkaar())
     _skriv_kapasitet()
+    _skriv_drift()
     return 0
 
 

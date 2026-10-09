@@ -4014,6 +4014,32 @@ def _over_grensen(lus: str, grense: str) -> bool | None:
         return None
 
 
+def del_i_perioder(serie: list[dict]) -> list[list[dict]]:
+    """Ukene i `serie` delt i produksjonsperioder, eldst først.
+
+    En periode er sammenhengende uker der `brakklagt` er `False`. En uke
+    BarentsWatch kaller brakklagt, eller en uke lokaliteten mangler i hos
+    kilden, avslutter den. Se `produksjonsperioder()` for hvorfor.
+
+    Ett sted, brukt av lokalitetssiden og av `unntaksanalyse`: to regler
+    for hva en periode er, ville gitt to svar på samme spørsmål.
+    """
+    perioder: list[list[dict]] = []
+    aapen: list[dict] | None = None
+    for u in serie:
+        if str(u.get("brakklagt")) != "False":
+            aapen = None                    # brakk avslutter
+            continue
+        sammenheng = aapen is not None and (
+            dt.date.fromisoformat(u["dato"])
+            - dt.date.fromisoformat(aapen[-1]["dato"])).days == 7
+        if not sammenheng:                  # første, eller etter et hull
+            aapen = []
+            perioder.append(aapen)
+        aapen.append(u)
+    return perioder
+
+
 def produksjonsperioder(serie: list[dict], siste_dato: str) -> dict:
     """Uker over tiltaksgrensa i inneværende og forrige produksjonsperiode.
 
@@ -4038,19 +4064,7 @@ def produksjonsperioder(serie: list[dict], siste_dato: str) -> dict:
     uker over grensa, og uker med tall men uten grense hos kilden. De
     siste telles for seg: en uke uten grense er ikke en uke under den.
     """
-    perioder: list[list[dict]] = []
-    aapen: list[dict] | None = None
-    for u in serie:
-        if str(u.get("brakklagt")) != "False":
-            aapen = None                    # brakk avslutter
-            continue
-        sammenheng = aapen is not None and (
-            dt.date.fromisoformat(u["dato"])
-            - dt.date.fromisoformat(aapen[-1]["dato"])).days == 7
-        if not sammenheng:                  # første, eller etter et hull
-            aapen = []
-            perioder.append(aapen)
-        aapen.append(u)
+    perioder = del_i_perioder(serie)
 
     def tall_for(p: list[dict]) -> dict:
         med_tall = [u for u in p if (u.get("voksne_hunnlus") or "").strip()]

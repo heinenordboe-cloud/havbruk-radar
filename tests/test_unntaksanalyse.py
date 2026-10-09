@@ -232,3 +232,129 @@ def test_soknadene_er_kildens_arkiverte_svar(arkiv):
           json.dumps(svar).encode())
     k, lest = u.soknader()
     assert lest == svar and k.navn == "unntaksvekst/2026-10-09.json.gz"
+
+
+# ------------------------------------------------- 3. drift per lokalitet
+
+from decimal import Decimal  # noqa: E402
+
+
+def _rapp(aar, uke, lus, levert=None, med=(), ikke=(), komb=(), org="1"):
+    levert = levert or dt.date.fromisocalendar(aar, uke, 5).isoformat()
+    return {"år": aar, "uke": uke, "rapporteringstidspunkt": f"{levert}T08:00:00Z",
+            "organisasjonsnummer": org,
+            "lusetelling": {"voksneHunnlus": lus},
+            "medikamentelleBehandlinger": list(med),
+            "ikkeMedikamentelleBehandlinger": list(ikke),
+            "kombinasjonsbehandlinger": list(komb)}
+
+
+def _lus(arkiv, loknr, *rapporter):
+    _legg(arkiv, f"mattilsynet-lakselus/{loknr}", "2026-10-09.json.gz",
+          json.dumps({"rapporter": list(rapporter)}).encode())
+
+
+import datetime as dt  # noqa: E402
+
+BAD = {"type": "BADEBEHANDLING", "virkestoff": {"type": "AZAMETHIPHOS"}}
+MEK = {"type": "MEKANISK_BEHANDLING"}
+
+
+def test_samdrift_samme_behandling_i_to_rapporter_telles_en_gang(arkiv):
+    _lus(arkiv, "100", _rapp(2024, 20, 0.05, med=[BAD], org="1"),
+         _rapp(2024, 20, 0.08, med=[BAD], ikke=[MEK], org="2"))
+    _k, uker, _ = u.mattilsynet_uker("100")
+    uke = uker[(2024, 20)]
+    assert uke.medikamentelle == 1 and uke.ikke_medikamentelle == 1
+    assert uke.lus == Decimal("0.08"), "det høyeste rapporterte"
+    assert uke.rapporter == 2 and uke.ulike
+
+
+def test_to_ulike_behandlinger_i_samme_rapport_er_to(arkiv):
+    annen = {**BAD, "antallMerder": 3}
+    _lus(arkiv, "100", _rapp(2024, 20, 0.05, med=[BAD, annen],
+                             komb=[{"medikamentelleBehandlinger": [BAD],
+                                    "ikkeMedikamentelleBehandlinger": [MEK]}]))
+    uke = u.mattilsynet_uker("100")[1][(2024, 20)]
+    assert uke.medikamentelle == 3, "kombinasjonens oppføring kommer i tillegg"
+    assert uke.ikke_medikamentelle == 1
+
+
+def test_en_rapport_for_en_uke_etter_leveringen_holdes_utenfor(arkiv):
+    """MÅLT: 11272 har «2025 uke 52» levert 03.01.2025."""
+    _lus(arkiv, "100", _rapp(2025, 52, 0.3, levert="2025-01-03"),
+         _rapp(2025, 1, 0.01))
+    _k, uker, utenfor = u.mattilsynet_uker("100")
+    assert list(uker) == [(2025, 1)]
+    assert utenfor == [{"aar": 2025, "uke": 52, "levert": "2025-01-03"}]
+
+
+def test_lengste_rekke_brytes_av_en_uke_uten_telling():
+    uker = [u.Uke(2024, w, Decimal(x)) for w, x in
+            ((14, "0.1"), (15, "0.2"), (17, "0.3"), (18, "0.1"), (19, "0.12"))]
+    assert u._lengste_rekke(uker, u.GRENSE_01) == 3
+
+
+def test_ukevindu_over_nyttaar():
+    assert u._i_uker(40, 40, 12) and u._i_uker(12, 40, 12)
+    assert not u._i_uker(13, 40, 12) and not u._i_uker(39, 40, 12)
+
+
+def _bw(*uker, grense="0.5"):
+    """{mandag: {dato, brakklagt, lusegrense}} for (år, uke, brakklagt)."""
+    ut = {}
+    for aar, uke, brakk in uker:
+        d = dt.date.fromisocalendar(aar, uke, 1).isoformat()
+        ut[d] = {"dato": d, "brakklagt": brakk, "lusegrense": grense}
+    return ut
+
+
+def test_drift_deler_i_vinduer_og_perioder(arkiv):
+    _lus(arkiv, "100",
+         _rapp(2024, 20, 0.11), _rapp(2024, 21, 0.18, med=[BAD]),
+         _rapp(2024, 22, 0.05), _rapp(2024, 45, 0.6),
+         _rapp(2025, 41, 0.12, ikke=[MEK]), _rapp(2025, 42, 0.02))
+    bw = _bw((2024, 20, "False"), (2024, 21, "False"), (2024, 22, "False"),
+             (2024, 23, "True"),
+             (2024, 45, "False"),
+             (2025, 41, "False"), (2025, 42, "False"))
+    siste = max(bw)
+    d = u.drift("100", bw, siste)
+    kv, et = d.kvalifikasjon, d.etter
+    assert kv["talte"] == 4 and et["talte"] == 2
+    assert (kv["b1_over_01"], kv["b1_talte"]) == (2, 3), "uke 45 er utenfor 13–39"
+    assert kv["ledd2a_017_per_aar"] == {2024: 1}
+    assert kv["ledd2b_rekke"] == 2
+    assert kv["b2_over"] == 1, "0,6 i uke 45 er over 0,5 i uke 40–12"
+    assert kv["b3_medikamentelle"] == 1 and et["b4_ikke_medikamentelle"] == 1
+    assert kv["b5_sluttet"] == 1, "perioden 20–22 endte med en brakkuke"
+    assert [p["fra"] for p in d.per_periode] == \
+           ["2024-05-13", "2024-11-04", "2025-10-06"]
+    assert d.per_periode[-1]["aapen"] is True
+
+
+def test_en_uke_uten_grense_hos_barentswatch_er_ikke_under_grensa(arkiv):
+    _lus(arkiv, "100", _rapp(2026, 40, 0.7))
+    d = u.drift("100", {}, "2026-09-07")
+    assert (d.etter["over"], d.etter["uten_grense"]) == (0, 1)
+    assert d.etter_bw["talte"] == 1, "uka ligger etter siste BarentsWatch-uke"
+
+
+def test_barentswatch_ukene_leses_av_snapshotene(tmp_path, monkeypatch):
+    from core import snapshot as snap
+    from core.contract import Observation
+    monkeypatch.setattr(snap, "RAW_DIR", tmp_path / "raw")
+
+    def obs(kilde, felt, verdi, dato, eid="100"):
+        return Observation(entity_id=eid, entity_type="lokalitet",
+                           entity_name="X", field=felt, value=verdi,
+                           source=kilde, observed_at=dato)
+
+    for dato in ("2023-09-25", "2023-10-02"):
+        snap.write([obs("lusetall", "brakklagt", "False", dato),
+                    obs("lusetall", "brakklagt", "True", dato, eid="999")], dato)
+        snap.write([obs("sjotemperatur", "lusegrense", "0.5", dato)], dato)
+    bw = u.barentswatch_uker(["100"], "2023-10-02")
+    assert bw == {"100": {"2023-10-02": {"dato": "2023-10-02",
+                                         "brakklagt": "False",
+                                         "lusegrense": "0.5"}}}
