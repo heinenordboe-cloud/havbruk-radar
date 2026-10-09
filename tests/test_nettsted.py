@@ -341,6 +341,9 @@ def _side(**overstyr) -> str:
     # felter som beskriver samme uker og kan sies hver for seg, er
     # formen på F6 og F7.
     lok.setdefault("lusegraf", nettsted.lusegraf(lok["lus_serie"]))
+    lok.setdefault("lusperioder", nettsted.produksjonsperioder(
+        lok["lus_serie"],
+        lok["lus_serie"][-1]["dato"] if lok["lus_serie"] else ""))
     # OPPSUMMERINGEN regnes av det samme, av samme grunn.
     lok.setdefault("sammendrag", nettsted.lokalitetssammendrag(lok))
     lok["register"] = _visning(lok["register"])
@@ -5413,3 +5416,67 @@ def test_ukesidens_hovedsetning_staar_foer_faktalista():
     fakta = mal.index('<ul class="uke-fakta">')
     assert hoved < fakta
     assert mal.index("{% block innhold %}") < fakta, "faktalista står i sidehodet"
+
+
+
+# ------------------------------------- uker over grensen per periode (3d)
+
+def _perioder(*uker, siste=None, grense="0.5"):
+    """`uker` er (lus, brakk) per uke; None for lus = ingen telling."""
+    serie = _uker(*(v for v, _ in uker),
+                  brakk={i for i, (_, b) in enumerate(uker) if b},
+                  grense=(grense,) * len(uker))
+    return nettsted.produksjonsperioder(serie, siste or serie[-1]["dato"]), serie
+
+
+def test_brakk_deler_periodene_og_siste_er_inneværende():
+    pp, _ = _perioder((0.6, False), (0.1, False), (None, True),
+                      (0.2, False), (0.5, False), (0.7, False))
+    assert pp["innevaerende"]["uker"] == 3
+    assert pp["innevaerende"]["over"] == 2, "0,5 er PÅ grensa, og teller"
+    assert pp["forrige"]["uker"] == 2 and pp["forrige"]["over"] == 1
+
+
+def test_brakklagt_naa_gir_ingen_inneværende():
+    pp, _ = _perioder((0.6, False), (0.1, False), (None, True))
+    assert pp["innevaerende"] is None
+    assert pp["forrige"]["over"] == 1
+
+
+def test_borte_fra_kildens_siste_uke_gir_ingen_inneværende():
+    pp, serie = _perioder((0.6, False), (0.1, False), siste="2030-01-07")
+    assert pp["innevaerende"] is None and pp["forrige"]["uker"] == 2
+
+
+def test_et_hull_avslutter_perioden():
+    """En uke lokaliteten mangler i hos kilden: vi vet ikke om fisken
+    sto der."""
+    _, serie = _perioder((0.6, False), (0.1, False), (0.7, False))
+    del serie[1]
+    pp = nettsted.produksjonsperioder(serie, serie[-1]["dato"])
+    assert pp["innevaerende"]["uker"] == 1
+    assert pp["forrige"]["uker"] == 1
+
+
+def test_halv_opp_som_barentswatch():
+    """0,495 er over 0,5 hos BarentsWatch. MÅLT: tre lokalitetsuker der
+    Pythons round() ville sagt nei."""
+    assert nettsted._over_grensen("0.495", "0.5") is True
+    assert nettsted._over_grensen("0.494", "0.5") is False
+    assert nettsted._over_grensen("0.3", "") is None
+
+
+def test_uke_uten_grense_er_ikke_under_den():
+    pp, _ = _perioder((0.6, False), (0.6, False), grense="")
+    assert pp["innevaerende"]["over"] == 0
+    assert pp["innevaerende"]["uten_grense"] == 2
+
+
+def test_siden_sier_at_periodegrensen_er_barentswatchs():
+    serie = _uker(0.6, 0.1, None, 0.2, brakk={2}, grense=("0.5",) * 4)
+    html = _side(lus_serie=serie, lusegraf=nettsted.lusegraf(serie))
+    tekst = " ".join(html.split())
+    assert "Inneværende produksjonsperiode" in tekst
+    assert "Forrige produksjonsperiode" in tekst
+    assert "BarentsWatchs vurdering «Trolig uten fisk»" in tekst
+    assert "1 av 2 uker med lusetall" in tekst

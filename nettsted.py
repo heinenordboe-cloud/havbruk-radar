@@ -91,6 +91,7 @@ import sys
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from functools import lru_cache
 from html import escape
 from pathlib import Path
@@ -3997,6 +3998,82 @@ def lusegraf(serie: list[dict]) -> dict | None:
     }
 
 
+def _over_grensen(lus: str, grense: str) -> bool | None:
+    """Er uka over tiltaksgrensa, regnet slik BarentsWatch regner?
+    None når en av de to mangler.
+
+    Lusetallet avrundes til to desimaler HALV OPP før det sammenlignes.
+    MÅLT 09.10.2026 mot BarentsWatchs eget «Over lusegrense uke»: 409 118
+    av 409 118 lokalitetsuker. Med Pythons `round()`, som gir 0,49 for
+    0,495, er det tre avvik — alle 0,495 mot 0,5.
+    """
+    try:
+        verdi = Decimal(lus.strip()).quantize(Decimal("0.01"), ROUND_HALF_UP)
+        return verdi >= Decimal(grense.strip())
+    except (InvalidOperation, AttributeError):
+        return None
+
+
+def produksjonsperioder(serie: list[dict], siste_dato: str) -> dict:
+    """Uker over tiltaksgrensa i inneværende og forrige produksjonsperiode.
+
+    ## Periodegrensa er BarentsWatchs, ikke vår
+
+    En periode er sammenhengende uker der `brakklagt` er `False` — altså
+    der BarentsWatch IKKE regner lokaliteten som «Trolig uten fisk».
+    Feltet er deres slutning og ikke en innrapportert opplysning
+    (docs/MALING-FUNN-OKTOBER.md F4.2), og siden sier det. Vi bygger ikke
+    over korte brakkavbrudd og trimmer ikke kanter, slik analysen i F4
+    gjør: en uke BarentsWatch kaller brakklagt, avslutter perioden.
+
+    En uke lokaliteten MANGLER i hos kilden avslutter den også. Vi vet
+    ikke hva som skjedde den uka, og å trekke perioden over hullet ville
+    vært en påstand om at fisken sto der.
+
+    INNEVÆRENDE finnes bare når perioden når den siste uka vi har fra
+    BarentsWatch (`siste_dato`). Er lokaliteten brakklagt nå, eller borte
+    fra kilden, er det ingen inneværende periode — bare en forrige.
+
+    Per periode: første og siste uke, antall uker, uker med lusetall,
+    uker over grensa, og uker med tall men uten grense hos kilden. De
+    siste telles for seg: en uke uten grense er ikke en uke under den.
+    """
+    perioder: list[list[dict]] = []
+    aapen: list[dict] | None = None
+    for u in serie:
+        if str(u.get("brakklagt")) != "False":
+            aapen = None                    # brakk avslutter
+            continue
+        sammenheng = aapen is not None and (
+            dt.date.fromisoformat(u["dato"])
+            - dt.date.fromisoformat(aapen[-1]["dato"])).days == 7
+        if not sammenheng:                  # første, eller etter et hull
+            aapen = []
+            perioder.append(aapen)
+        aapen.append(u)
+
+    def tall_for(p: list[dict]) -> dict:
+        med_tall = [u for u in p if (u.get("voksne_hunnlus") or "").strip()]
+        over = [u for u in med_tall
+                if _over_grensen(u["voksne_hunnlus"], u.get("lusegrense") or "")]
+        uten_grense = [u for u in med_tall
+                       if _over_grensen(u["voksne_hunnlus"],
+                                        u.get("lusegrense") or "") is None]
+        return {"fra": p[0]["dato"], "til": p[-1]["dato"],
+                "uker": len(p), "med_tall": len(med_tall),
+                "over": len(over), "uten_grense": len(uten_grense)}
+
+    innevaerende = forrige = None
+    if perioder:
+        if perioder[-1][-1]["dato"] == siste_dato:
+            innevaerende = tall_for(perioder[-1])
+            if len(perioder) > 1:
+                forrige = tall_for(perioder[-2])
+        else:
+            forrige = tall_for(perioder[-1])
+    return {"innevaerende": innevaerende, "forrige": forrige}
+
+
 # ------------------------------------------------- DE TO HISTORIKKENE
 #
 # En lokalitetsside har to slags fortid, og de er IKKE det samme:
@@ -4709,6 +4786,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # gjør at de ikke kan bli uenige.
         "lus_serie": serie,
         "lusegraf": lusegraf(serie),
+        "lusperioder": produksjonsperioder(
+            serie, lusedatoer[-1] if lusedatoer else ""),
         # Nedlastingene. `lusetall.csv` er ikke lenger blant dem, men
         # skrives fortsatt. Navnet bærer dataversjonen — se
         # `lusetall_stamme()`.

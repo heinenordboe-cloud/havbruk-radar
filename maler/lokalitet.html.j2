@@ -767,6 +767,45 @@
       {% endif %}
     </p>
 
+    {#- UKER OVER GRENSEN PER PRODUKSJONSPERIODE. Periodegrensa er
+        BarentsWatchs «Trolig uten fisk», og det står — se
+        `produksjonsperioder()`. #}
+    {% set pp = lok.lusperioder %}
+    {% if pp.innevaerende or pp.forrige %}
+    <p class="tabelltittel" id="lusperioder-tittel">Uker over tiltaksgrensen,
+      per produksjonsperiode</p>
+    <dl class="fakta" aria-labelledby="lusperioder-tittel">
+      {% for etikett, p in [("Inneværende produksjonsperiode", pp.innevaerende),
+                            ("Forrige produksjonsperiode", pp.forrige)] %}
+      <div>
+        <dt>{{ etikett }}</dt>
+        <dd>
+          {% if p %}
+          {{ tall(p.over) }} av {{ antall(p.med_tall, "uke", "uker") }} med lusetall
+          <span class="fakta-bi">{{ p.fra|uke }}{% if p.til != p.fra %} til
+            {{ p.til|uke }}{% endif %}, {{ antall(p.uker, "uke", "uker") }}{% if p.uten_grense %};
+            {{ antall(p.uten_grense, "uke", "uker") }} med tall har ingen grense
+            hos kilden og er ikke talt{% endif %}</span>
+          {% else %}
+          <span class="mangler">ingen — lokaliteten er brakklagt eller ikke i
+            kildens siste uke</span>
+          {% endif %}
+        </dd>
+      </div>
+      {% endfor %}
+    </dl>
+    <p class="tabellnote">
+      Periodene avgrenses av <strong>BarentsWatchs vurdering «Trolig uten
+      fisk»</strong>: en periode er sammenhengende uker der BarentsWatch
+      ikke regner lokaliteten som brakklagt. Det er deres slutning, ikke
+      noe oppdretteren har rapportert, og en enkelt uke de kaller
+      brakklagt deler en periode i to. En uke lokaliteten mangler i hos
+      kilden avslutter også perioden. Over grensen betyr voksne hunnlus
+      per fisk, avrundet til to desimaler, på eller over grensa for uka —
+      slik BarentsWatch selv regner.
+    </p>
+    {% endif %}
+
     {% else %}
     {#- TO TILSTANDER UTEN GRAF, og de er ikke den samme. `lusegraf` er
         `None` både når lokaliteten MANGLER hos BarentsWatch og når den
