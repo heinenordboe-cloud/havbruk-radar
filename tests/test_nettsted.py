@@ -3152,7 +3152,7 @@ def test_lagdelingen_i_kartet_er_rekkefolgen_i_markupen():
 # her handler derfor ikke om utseende, men om at tegningen sier det
 # samme som lista — og særlig om det ene den ikke får lov å si.
 
-def _uker(*verdier, brakk=(), fra="2020-01-06"):
+def _uker(*verdier, brakk=(), fra="2020-01-06", grense=()):
     """Én uke per verdi, mandag for mandag. `None` = kilden oppgir
     ingenting.
 
@@ -3167,7 +3167,8 @@ def _uker(*verdier, brakk=(), fra="2020-01-06"):
         ut.append({"voksne_hunnlus": "" if v is None else str(v),
                    "brakklagt": "True" if i in brakk else "False",
                    "iso_aar": str(aar), "iso_uke": f"{uke:02d}",
-                   "dato": d.isoformat()})
+                   "dato": d.isoformat(),
+                   "lusegrense": (grense[i] or "") if i < len(grense) else ""})
     return ut
 
 
@@ -3216,17 +3217,55 @@ def test_grafen_finnes_ikke_naar_det_ikke_er_noe_aa_tegne():
     assert nettsted.lusegraf(_uker(None, None)) is None
 
 
-def test_ingen_tiltaksgrense_er_tegnet():
+def test_uten_kildens_grense_tegnes_ingen_strek():
     """En strek på 0,5 tegnet av oss ville vært en påstand om
-    regelverket, ikke en gjengivelse av en kilde. Grensa ER samlet inn
-    (sjotemperatur.lusegrense), og teksten skal ikke si noe annet."""
+    regelverket, ikke en gjengivelse av en kilde. Oppgir ikke
+    BarentsWatch en grense, er det ingen linje — ikke en standardverdi."""
     g = nettsted.lusegraf(_uker(0.1, 0.9))
-    assert "tiltaksgrense" not in g
+    assert g["grense"] is None
     # Og ingen søyle bærer en egen farge.
     assert all(set(s) == {"x", "y", "h", "uke", "verdi"} for s in g["soyler"])
     html = _side(lusegraf=g)
     assert "ikke samlet inn" not in html
     assert "Ingen tiltaksgrense er tegnet" in html
+    assert 'class="grense"' not in html
+
+
+def test_grenselinja_er_kildens_verdi_uke_for_uke():
+    """Trapper: vannrett for hver uke, loddrett der grensa skifter.
+    0,5 → 0,2 er vårukene fra 2017."""
+    g = nettsted.lusegraf(_uker(0.1, 0.1, 0.3, 0.3,
+                                grense=("0.5", "0.5", "0.2", "0.2")))
+    d = g["grense"]["d"]
+    assert d.count("M") == 1 and d.count("V") == 1, d
+    assert d.count("H") == 2, "bare knekkpunktene, ikke én bit per uke"
+    # Skiftet står ved ukeskiftet mellom uke 2 og 3, og linja slutter
+    # ved slutten av uke 4.
+    s3 = next(s for s in g["soyler"] if s["uke"].endswith("uke 04"))
+    assert f"H{s3['x']} V" in d
+    assert g["grense"]["verdier"] == "0,5 og 0,2"
+    assert g["grense"]["uten"] == 0
+
+
+def test_grenselinja_brytes_der_kilden_ikke_oppgir_grense():
+    g = nettsted.lusegraf(_uker(0.1, 0.1, 0.1, grense=("0.5", None, "0.5")))
+    assert g["grense"]["d"].count("M") == 2
+    assert g["grense"]["uten"] == 1
+
+
+def test_aksen_tar_med_grensa():
+    """Med lave tall ville linja ellers ligget over plottet."""
+    g = nettsted.lusegraf(_uker(0.05, 0.1, grense=("0.5", "0.5")))
+    assert g["tak"] >= 0.5
+
+
+def test_grenselinja_staar_paa_siden_med_tegnforklaring():
+    g = nettsted.lusegraf(_uker(0.1, 0.6, grense=("0.5", "0.5")))
+    html = _side(lusegraf=g)
+    assert f'<path d="{g["grense"]["d"]}"/>' in html
+    assert "tiltaksgrense, slik" in html
+    assert "Ingen tiltaksgrense er tegnet" not in html
+    assert "ikke en strek vi har satt" in html
 
 
 def test_baandene_dekker_brakklagte_uker_og_bare_dem():

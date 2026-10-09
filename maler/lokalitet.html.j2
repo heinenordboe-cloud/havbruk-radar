@@ -676,7 +676,9 @@
         {{ antall(g.uten_tall, "uke", "uker") }} oppgir kilden ingenting — de har ingen
         søyle. {{ antall(g.nuller, "uke", "uker") }} er målt til null og har en hårstrek
         på nullinja. Den lave stripa under aksen er uker lokaliteten var
-        brakklagt. Alle tallene står i tabellen under.</desc>
+        brakklagt.{% if g.grense %} Den stiplede linja er tiltaksgrensa
+        BarentsWatch oppgir for lokaliteten hver uke, {{ g.grense.verdier }}.{% endif %}
+        Alle tallene står i tabellen under.</desc>
 
       <g class="akse" aria-hidden="true">
         {% for l in g.linjer %}
@@ -698,6 +700,14 @@
         {% endfor %}
       </g>
 
+      {# TILTAKSGRENSA ER KILDENS, uke for uke — se `lusegraf()`. Over
+         søylene, så den ikke skjules av en høy uke. #}
+      {% if g.grense %}
+      <g class="grense" aria-hidden="true">
+        <path d="{{ g.grense.d }}"/>
+      </g>
+      {% endif %}
+
       {# BRAKKLEGGING ER EN LAV STRIPE UNDER NULLINJA, ikke et bånd
          over hele plottet. Et bånd i plottet leses som en verdi på
          y-aksen, og brakklegging er ikke en luseverdi. #}
@@ -712,6 +722,10 @@
       <span class="tegn"><span class="tegn-rute tegn-soyle"></span>voksne
         hunnlus per fisk</span>
       <span class="tegn"><span class="tegn-rute tegn-brakk"></span>brakklagt</span>
+      {% if g.grense %}
+      <span class="tegn"><span class="tegn-strek"></span>tiltaksgrense, slik
+        BarentsWatch oppgir den</span>
+      {% endif %}
       <span class="tegn">tomrom = ingen rapport, ikke null</span>
       <span class="tegn">hårstrek på nullinja = målt til null</span>
     </figcaption>
@@ -739,9 +753,18 @@
       forklarer det.
       {% endif %}
       {% endif %}
-      <strong>Ingen tiltaksgrense er tegnet.</strong> Grensa er samlet
-      inn fra BarentsWatch uke for uke («Lusegrense uke»: 0,5, og 0,2 i
-      vårukene fra 2017), men er ikke tegnet i grafen.
+      {% if g.grense %}
+      Den stiplede linja er tiltaksgrensa slik BarentsWatch oppgir den
+      for lokaliteten uke for uke («Lusegrense uke»), her
+      {{ g.grense.verdier }} — ikke en strek vi har satt.
+      {% if g.grense.uten %}
+      {{ antall(g.grense.uten, "uke", "uker") }} har ingen grense hos kilden,
+      og der har linja et brudd.
+      {% endif %}
+      {% else %}
+      <strong>Ingen tiltaksgrense er tegnet:</strong> BarentsWatch oppgir
+      ingen for lokaliteten i ukene over.
+      {% endif %}
     </p>
 
     {% else %}

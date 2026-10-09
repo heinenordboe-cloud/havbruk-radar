@@ -1993,6 +1993,15 @@ td[data-felt="farge_mangler"]::before {
 .lusegraf .soyler rect.aktiv { fill: var(--ink); }
 .lusegraf .brakk rect { fill: var(--ink-dempet); opacity: 0.45; }
 
+/* Tiltaksgrensa: stiplet rust, som i overleveringen. Fargen er
+   nettstedets ene aksent, og streken er kildens verdi per uke. */
+.lusegraf .grense path {
+  fill: none;
+  stroke: var(--rust);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
 .lusegraf .akse line {
   stroke: var(--graf-gitter);
   stroke-width: 1;
@@ -2025,6 +2034,7 @@ figcaption {
 .tegn-rute { inline-size: 12px; block-size: 12px; flex: none; }
 .tegn-soyle { background: var(--hav5); }
 .tegn-brakk { background: var(--ink-dempet); opacity: 0.45; block-size: 4px; }
+.tegn-strek { inline-size: 16px; flex: none; border-block-start: 1.5px dashed var(--rust); }
 
 .tall-mono {
   font-family: var(--skrift-tall);

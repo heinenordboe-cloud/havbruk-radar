@@ -841,6 +841,7 @@ def les_felles() -> Felles:
 
     serier: dict[str, list[dict]] = defaultdict(list)
     lusedatoer = snapshot.datoer("lusetall")
+    grenser = _lusegrenser()
     for dato in lusedatoer:
         aar, ukenr = _isouke(dato)
         # SISTE VERSJON AV UKA, ikke alle. Se `_lusserie()`.
@@ -855,6 +856,7 @@ def les_felles() -> Felles:
                 uke["dato"] = dato
                 uke["iso_aar"] = str(aar)
                 uke["iso_uke"] = f"{ukenr:02d}"
+                uke["lusegrense"] = grenser.get(eid, {}).get(dato, "")
                 uke["hentet"] = hentet
                 serier[eid].append(uke)
 
@@ -1102,6 +1104,28 @@ INGEN_VERDI = "–"
 JANEI = {"True": "ja", "False": "nei"}
 
 
+def _lusegrenser(loknr: str | None = None) -> dict[str, dict[str, str]]:
+    """{lokalitet: {dato: grense}} fra `sjotemperatur.lusegrense`.
+
+    Siste versjon av hver uke, som `_lusserie()`. Grensa er BarentsWatchs
+    «Lusegrense uke» for lokaliteten den uka — 0,5, og 0,2 i vårukene fra
+    2017 — og ALDRI en konstant her. Mangler den, er svaret tom streng og
+    linja får et brudd, på samme måte som en uke uten tall får et tomrom.
+
+    `loknr` begrenser til én lokalitet, for siden som bygges alene.
+    """
+    ut: dict[str, dict[str, str]] = defaultdict(dict)
+    for dato in snapshot.datoer("sjotemperatur"):
+        for _nr, ramme in snapshot.versjoner("sjotemperatur", dato)[-1:]:
+            sub = ramme.filter(pl.col("field") == "lusegrense")
+            if loknr is not None:
+                sub = sub.filter(pl.col("entity_id") == loknr)
+            for eid, verdi in sub.select(["entity_id", "value"]).iter_rows():
+                # sys.intern: 800 000 verdier, to ulike strenger.
+                ut[str(eid)][dato] = sys.intern(str(verdi))
+    return ut
+
+
 def _lusserie(loknr: str) -> list[dict]:
     """Hele lusetallserien for én lokalitet, eldst først.
 
@@ -1124,6 +1148,7 @@ def _lusserie(loknr: str) -> list[dict]:
     skal endres.
     """
     rader = []
+    grenser = _lusegrenser(loknr).get(loknr, {})
     for dato in snapshot.datoer("lusetall"):
         # ÉN RAD PER UKE: bare den sist utgitte versjonen av uka. Med
         # alle versjoner ville en uke med `.2` gitt to rader, og «764
@@ -1143,6 +1168,9 @@ def _lusserie(loknr: str) -> list[dict]:
             uke["dato"] = dato
             uke["iso_aar"] = str(aar)
             uke["iso_uke"] = f"{ukenr:02d}"
+            # Ikke i LUSEFELT: grensa kommer fra en annen kilde og står
+            # ikke i tabellen eller nedlastingene. Grafen tegner den.
+            uke["lusegrense"] = grenser.get(dato, "")
             # NÅR VI HENTET UKA — `fetched_at`, oss. Står i nedlastingenes
             # «Om dataene», og er ikke en kolonne: den sier noe om
             # snapshotet, ikke om lokaliteten.
@@ -3764,6 +3792,12 @@ def lusegraf(serie: list[dict]) -> dict | None:
     Grensa er derfor kildens verdi for akkurat den uka, aldri en
     konstant i koden.
 
+    Linja er TRAPPER, ikke en skrå strek: grensa gjelder hele uka og
+    skifter ved ukeskiftet. Der kilden ikke oppgir en grense — eller
+    lokaliteten mangler i uka — har linja et brudd, av samme grunn som en
+    uke uten tall har et tomrom. Y-aksen tar med grensa, ellers ville en
+    lokalitet med lave tall fått linja utenfor plottet.
+
     Søylene står i `--hav5`, én farge.
     """
     if not serie:
@@ -3778,8 +3812,16 @@ def lusegraf(serie: list[dict]) -> dict | None:
     if not any(v is not None for v in verdier):
         return None
 
+    grenser: list[float | None] = []
+    for u in serie:
+        try:
+            grenser.append(float((u.get("lusegrense") or "").strip()))
+        except ValueError:
+            grenser.append(None)
+
     maks = max(v for v in verdier if v is not None)
-    tak, trinn = _grafskala(maks)
+    tak, trinn = _grafskala(max([maks] + [g_ for g_ in grenser
+                                          if g_ is not None]))
     n = len(serie)
 
     # PLASSEN ER UKA, ikke radnummeret (08.10.2026).
@@ -3861,6 +3903,38 @@ def lusegraf(serie: list[dict]) -> dict | None:
             start = her
         forrige = her
 
+    # Grenselinja som én SVG-sti. Et løp er sammenhengende uker med en
+    # grense; innenfor løpet er det vannrett for hver uke og loddrett der
+    # verdien skifter. Et nytt løp begynner med en ny `M`.
+    # Bare knekkpunktene skrives: 767 uker med samme grense er én `H`,
+    # ikke 767.
+    sti: list[str] = []
+    forrige_plass = None
+    forrige_y = None
+    for i, g_ in enumerate(grenser + [None]):
+        her = plass[i] if g_ is not None else None
+        if forrige_plass is not None and (her is None
+                                          or her != forrige_plass + 1):
+            sti.append(f"H{x(forrige_plass + 1)}")      # løpet slutter
+            forrige_plass = None
+        if g_ is None:
+            continue
+        gy = y(g_)
+        if forrige_plass is None:
+            sti.append(f"M{x(her)} {gy}")
+        elif gy != forrige_y:
+            sti.append(f"H{x(her)} V{gy}")
+        forrige_plass, forrige_y = her, gy
+    med_grense = sum(1 for g_ in grenser if g_ is not None)
+    grense = ({"d": " ".join(sti),
+               "uker": med_grense,
+               "uten": n - med_grense,
+               "verdier": " og ".join(visningsord.tall(g_) for g_ in
+                                      sorted({g_ for g_ in grenser
+                                              if g_ is not None},
+                                             reverse=True))}
+              if med_grense else None)
+
     linjer = []
     verdi = 0.0
     while verdi <= tak + 1e-9:
@@ -3898,6 +3972,7 @@ def lusegraf(serie: list[dict]) -> dict | None:
         "soyler": soyler,
         "soylebredde": bredde,
         "baand": baand,
+        "grense": grense,
         "linjer": linjer,
         "aar": aar,
         "tak": tak,
