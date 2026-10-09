@@ -1288,10 +1288,14 @@ main > .visuelt-skjult + .seksjon { padding-block-start: var(--rom-32); }
 
 .arkivlinje { padding-block: var(--rom-24); }
 
+/* JEVNT OVER HELE BREDDEN fra 09.10.2026. Til da sto de fire tallene
+   etter hverandre med 48 px mellom, og på 1440 sluttet raden ved 60 %
+   av bredden — resten av flata var tom. `auto-fit` lar de fire spaltene
+   dele hele raden: fire på bred skjerm, to på 390. */
 .arkivtall {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rom-12) var(--rom-48);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: var(--rom-16) var(--rom-32);
   margin: 0 0 var(--rom-12);
   max-width: none;
   font-size: var(--tekst-s);
