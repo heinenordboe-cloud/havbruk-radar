@@ -3260,8 +3260,6 @@ def biomassegraf(serie: list[dict]) -> dict | None:
         "plott_bredde": plott_b, "plott_hoyde": plott_h,
         "bunn": round(bunn, 1),
         "soyler": soyler,
-        # Søylene på eller over grensa — de som står i rust.
-        "over": sum(1 for s in soyler if s["over"]),
         "soylebredde": bredde,
         "linjer": linjer,
         "aar": aar,

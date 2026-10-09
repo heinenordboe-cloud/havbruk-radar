@@ -3276,6 +3276,18 @@ def test_soylene_over_grensa_er_rust():
     assert "tegn-over" in html and "3 uker på eller over grensa står i rust" in html
 
 
+def test_biomassegrafen_har_ingen_tiltaksgrense():
+    """REGRESJON 09.10.2026: rustfargen kom ved et tekstbytte også inn i
+    `biomassegraf()`, som ikke har noen grense — og alle tretten
+    områdesidene feilet med KeyError i porten, ikke i suiten. Det fantes
+    ingen prøve for biomassegrafen."""
+    g = nettsted.biomassegraf([{"maaned": "2026-07", "tonn": "1200"},
+                               {"maaned": "2026-08", "tonn": ""},
+                               {"maaned": "2026-09", "tonn": "1500"}])
+    assert len(g["soyler"]) == 2
+    assert "over" not in g and not any("over" in s for s in g["soyler"])
+
+
 def test_uten_soyler_over_grensa_ingen_rust_i_tegnforklaringen():
     g = nettsted.lusegraf(_uker(0.1, 0.2, grense=("0.5", "0.5")))
     html = _side(lusegraf=g)
