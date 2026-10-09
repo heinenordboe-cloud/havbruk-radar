@@ -1585,7 +1585,8 @@ def test_po_siden_bruker_ikke_UBELAGT_kilde_i_bunnteksten():
 
 def test_ubelagte_utledes_av_kilden_ikke_listet():
     """En liste her ville vært et andre sted sannheten kan bli gammel."""
-    assert nettsted.ubelagte(nettsted.kildevilkaar()) == {"ekspertgruppen"}
+    assert nettsted.ubelagte(nettsted.kildevilkaar()) == {"ekspertgruppen",
+                                                         "unntaksvekst"}
     assert nettsted.ubelagte({"a": None, "b": ("x",)}) == {"a"}
 
 

@@ -399,7 +399,7 @@ def test_bare_ekspertgruppen_er_ubelagt():
 
     ubelagt = {k.name for k in registry.discover()
                if erklaert_attribusjon(k) is None}
-    assert ubelagt == {"ekspertgruppen"}
+    assert ubelagt == {"ekspertgruppen", "unntaksvekst"}
 
 
 def test_tom_attribusjon_er_forbudt_og_ikke_ingen_krav():
@@ -528,6 +528,9 @@ def test_partisjoneringen_er_den_malte():
         "romming": "verden",
         "sjotemperatur": "verden",
         "trafikklysvedtak": "verden",
+        # Erklært 08.10.2026 før første snapshot, ikke målt: lista sier
+        # hva som er søkt NÅ. Mål på nytt når kilden har snapshots.
+        "unntaksvekst": "henting",
     }
 
 

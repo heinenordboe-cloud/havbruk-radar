@@ -41,6 +41,7 @@ Sitatene under er fortsatt lest for hånd; kroppene er belegget.
 | `trafikklysvedtak` | NLOD 2.0, via unntaket i Lovdatas punkt 2.3 | [lovdata.no/info/brukeravtale](https://lovdata.no/info/brukeravtale) | «hvis du oppgir Lovdata som kilde og ellers følger vilkårene i NLOD 2.0» | **ja**, men se merknad C | 12.09.2026 |
 | `reguleringsomraader` | **CC BY 4.0** | [doi.org/10.21335/NMDC-1923112433](https://doi.org/10.21335/NMDC-1923112433) | navngivelse av opphavspersonene, se merknad D | **ja** | 14.09.2026 |
 | `ekspertgruppen` | **UBELAGT** | ingen funnet — se merknad E | siteringsformen fra rapporten selv | **ukjent** | 14.09.2026 (søkt, ikke funnet) |
+| `unntaksvekst` | **UBELAGT** | ikke lest — lista ligger på mattilsynet.no, ikke i det NLOD-lisensierte API-et | — | **ukjent** | ikke søkt (08.10.2026) |
 
 ---
 

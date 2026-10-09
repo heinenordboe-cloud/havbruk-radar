@@ -228,6 +228,18 @@ kilder:
     # YAML-fil.
     aktiv: true
 
+  unntaksvekst:
+    # Mattilsynets oversikt over søknader om unntaksvekst 2025/2026 — en
+    # HTML-tabell som ikke er arkivert og ikke finnes i API-et. Målt
+    # 09.10.2026, se docs/MALING-UNNTAKSVEKST.md og
+    # docs/KILDE-UNNTAKSVEKST.md.
+    #
+    # Søkerfilteret ligger i sources/unntaksvekst.py og ikke her, av
+    # samme grunn som personfilteret i eierskap.
+    aktiv: true
+    url: "https://mattilsynet.no/fisk-og-akvakultur/kapasitetsokning-2025-2026-oversikt-over-soknader"
+    pubaqua_url: "https://api.fiskeridir.no/pub-aqua/api/v1"
+
   ekspertgruppen:
     # Ekspertgruppen for vurdering av lusepåvirkning — kategori per
     # produksjonsområde per år, altså fasiten trafikklyssystemet styres

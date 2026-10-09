@@ -392,6 +392,7 @@ KILDENAVN = {
     "trafikklysvedtak": "Lovdata, kapasitetsjusteringsforskriftene",
     "ekspertgruppen": "Ekspertgruppen for vurdering av lusepåvirkning",
     "reguleringsomraader": "Havforskningsinstituttet, reguleringsområder",
+    "unntaksvekst": "Mattilsynet, søknader om unntaksvekst 2025/2026",
 }
 
 # ------------------------------------------------------------- oppslag
