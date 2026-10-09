@@ -3217,20 +3217,16 @@ def test_grafen_finnes_ikke_naar_det_ikke_er_noe_aa_tegne():
 
 
 def test_ingen_tiltaksgrense_er_tegnet():
-    """Grensa står i lakselusforskriften, varierer med sesong og med
-    vedtak per lokalitet, og er IKKE samlet inn. En strek på 0,5 tegnet
-    av oss ville vært en påstand om regelverket, ikke en gjengivelse av
-    en kilde — og en søyle farget rust fordi den er over en strek vi
-    fant på, ville vært en vurdering forkledd som data.
-
-    Se avvik 2 i oppdraget og docs/APNE-SPORSMAL.md."""
+    """En strek på 0,5 tegnet av oss ville vært en påstand om
+    regelverket, ikke en gjengivelse av en kilde. Grensa ER samlet inn
+    (sjotemperatur.lusegrense), og teksten skal ikke si noe annet."""
     g = nettsted.lusegraf(_uker(0.1, 0.9))
     assert "tiltaksgrense" not in g
     # Og ingen søyle bærer en egen farge.
     assert all(set(s) == {"x", "y", "h", "uke", "verdi"} for s in g["soyler"])
     html = _side(lusegraf=g)
-    assert "tiltaksgrense" not in html.lower() or \
-        "Ingen tiltaksgrense er tegnet" in html
+    assert "ikke samlet inn" not in html
+    assert "Ingen tiltaksgrense er tegnet" in html
 
 
 def test_baandene_dekker_brakklagte_uker_og_bare_dem():

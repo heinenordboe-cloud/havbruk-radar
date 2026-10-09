@@ -3750,21 +3750,21 @@ def lusegraf(serie: list[dict]) -> dict | None:
     bort av seg selv: en uke uten tall har ingen søyle, og et tomrom
     ligner ikke på en null.
 
-    ## INGEN TILTAKSGRENSE, og ingen rustfargede søyler
+    ## TILTAKSGRENSA ER SAMLET INN — fra BarentsWatch, ikke av oss
 
-    Overleveringen tegner en stiplet tiltaksgrense på 0,5 og farger
-    søylene over den i rust. Begge deler er utelatt, og det er en
-    beslutning og ikke en forglemmelse: **grensa er ikke samlet inn.**
+    Fram til 09.10.2026 sto det her at grensa ikke var samlet inn. Det
+    var feil. `Lusegrense uke` hadde stått i hver sjøtemperaturkropp i
+    `data/arkiv/` siden 2012 uten å bli lest (docs/MALING-FUNN-OKTOBER.md
+    F4.5), og leses nå som `sjotemperatur.lusegrense` per lokalitet og
+    uke: 0,5, og 0,2 i vårukene fra 2017. BarentsWatchs eget flagg
+    `Over lusegrense uke` stemmer med den i alle 409 118 lokalitetsuker.
 
-    Den står i lakselusforskriften, den varierer med sesong (0,2 i
-    vårperioden, 0,5 ellers) og med vedtak per lokalitet, og ingen av
-    delene finnes i `lusetall`. En strek på 0,5 tegnet av oss ville
-    vært en påstand om regelverket, ikke en gjengivelse av en kilde —
-    og en søyle farget rust fordi den er over en strek vi fant på, ville
-    vært en vurdering forkledd som data.
+    Det som fortsatt gjelder, er grunnen til at den ikke ble tegnet:
+    en strek på 0,5 tegnet av OSS ville vært en påstand om regelverket.
+    Grensa er derfor kildens verdi for akkurat den uka, aldri en
+    konstant i koden.
 
-    Alle søyler står derfor i `--hav5`, som er nettstedets egen farge.
-    Se docs/APNE-SPORSMAL.md.
+    Søylene står i `--hav5`, én farge.
     """
     if not serie:
         return None

@@ -1986,8 +1986,8 @@ td[data-felt="farge_mangler"]::before {
   block-size: auto;
 }
 
-/* SØYLENE ER ÉN FARGE. Ingen tiltaksgrense: den er ikke samlet inn, og
-   en søyle farget etter en strek vi fant på ville vært en vurdering. */
+/* SØYLENE ER ÉN FARGE. Tiltaksgrensa er BarentsWatchs verdi per uke
+   (sjotemperatur.lusegrense), aldri en strek vi fant på. */
 .lusegraf .soyler rect { fill: var(--hav5); }
 .lusegraf .soyler rect:hover,
 .lusegraf .soyler rect.aktiv { fill: var(--ink); }
