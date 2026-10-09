@@ -4919,3 +4919,109 @@ def test_health_baerer_endepunkt_og_kildens_advarsler(tmp_path, monkeypatch):
     etter, _ = health.oppdater([runner.Result("falsk", True, 5)], "2026-10-12")
     assert etter["falsk"]["advarsler_sist"] == []
     assert etter["falsk"]["endepunkt"] == ""
+
+
+# ---------------------------- dødsfall målt utenfra: dodt_fra
+
+def test_dodt_fra_regner_unntaket_som_dodt():
+    """Speiler har_medikamentell_behandling: levende, tomt fra januar
+    2024, én enkelt True i november, tomt igjen. Målt mot Mattilsynet
+    (docs/MALING-MATTILSYNET-API.md) er det ett dødsfall, ikke to strekk.
+
+    Uten datoen ble dødsleiet før unntaket lest som et «normalt»
+    nullstrekk og dødsfallet målt fra unntaket.
+    """
+    def uke(d, sanne):
+        return (d, _ramme(d, "flagg", ["True"] * sanne + ["False"] * (100 - sanne)))
+
+    historikk = (
+        [uke(f"2023-12-{d:02d}", 5) for d in range(1, 11)]
+        + [uke(f"2024-01-{d:02d}", 0) for d in range(1, 21)]
+        + [uke("2024-11-11", 1)]
+        + [uke(f"2025-01-{d:02d}", 0) for d in range(1, 11)]
+    )
+    uten = feltnormal.bygg(historikk)["flagg"]
+    med = feltnormal.bygg(historikk, {"flagg": "2024-01-01"})["flagg"]
+
+    assert (uten["dodt_naa"], uten["normalt_nullstrekk"]) == (10, 20)
+    assert med["dodt_naa"] == 31, "alt fra og med dødsdatoen, unntaket med"
+    assert med["normalt_nullstrekk"] == 0, "dødsleiet er ikke normalen"
+    assert med["dodt_fra"] == "2024-01-01", "fila sier selv hva den bygget med"
+    assert "dodt_fra" not in uten
+
+
+def test_dodt_fra_gjelder_ikke_et_felt_som_lever_igjen():
+    historikk = [
+        ("2023-12-01", _ramme("2023-12-01", "flagg", ["True"] * 5 + ["False"] * 95)),
+        ("2024-02-01", _ramme("2024-02-01", "flagg", ["False"] * 100)),
+        ("2024-03-01", _ramme("2024-03-01", "flagg", ["True"] * 5 + ["False"] * 95)),
+    ]
+    assert feltnormal.bygg(historikk, {"flagg": "2024-01-01"})["flagg"]["dodt_naa"] == 0
+
+
+def test_ny_normal_arves_paa_nytt(tmp_path, monkeypatch):
+    """En ny referanse skal virke. Strekket i health.json ble talt mot
+    den gamle; den nye vet at feltet døde tidligere."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 19, "uker": 761,
+                               "normalt_nullstrekk": 0, "dodt_naa": 141,
+                               "dodt_fra": "2024-01-01"}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 95},
+                     "innhold_normal": "2026-08-25.3"}})
+
+    naa = _ramme("2026-10-12", "flagg", ["False"] * 1777)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 142
+    assert tilstand["falsk"]["innhold_normal"] == "2026-01-01"
+    assert "tomt 142 kjøringer" in tilsyn[0]
+
+
+def test_uten_stempel_arves_ikke_et_felt_uten_dodt_fra(tmp_path, monkeypatch):
+    """Første kjøring etter at stempelet ble innført. Et felt uten målt
+    dødsdato teller videre; normalens dodt_naa er utdatert."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 19, "uker": 761,
+                               "normalt_nullstrekk": 45, "dodt_naa": 89}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 95}}})
+
+    naa = _ramme("2026-10-12", "flagg", ["False"] * 1777)
+    tilstand, _ = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 96
+    assert tilstand["falsk"]["innhold_normal"] == "2026-01-01"
+
+
+def test_ny_normal_arver_bare_felter_med_dodt_fra(tmp_path, monkeypatch):
+    """Et felt uten målt dødsdato beholder tellingen sin. Ellers ville en
+    ny referanse stilt et annet spørsmål enn det den ble bygget for."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 0, "uker": 15,
+                               "normalt_nullstrekk": 0, "dodt_naa": 15}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 5},
+                     "innhold_normal": "2026-08-25.3"}})
+
+    naa = _ramme("2026-10-12", "flagg", ["False"] * 100)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 6
+    assert tilsyn == []
+
+
+def test_uten_stempel_arves_dodt_fra(tmp_path, monkeypatch):
+    """Selve overgangen 09.10.2026: referansen med dødsdato kom før noen
+    kjøring hadde stemplet health.json."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 19, "uker": 767,
+                               "normalt_nullstrekk": 0, "dodt_naa": 141,
+                               "dodt_fra": "2024-01-01"}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 95}}})
+
+    naa = _ramme("2026-10-12", "flagg", ["False"] * 1777)
+    tilstand, _ = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 142

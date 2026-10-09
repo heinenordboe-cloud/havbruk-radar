@@ -194,7 +194,8 @@ def mål_ramme(ramme: pl.DataFrame) -> dict[str, dict[str, dict]]:
     return ut
 
 
-def bygg(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, dict]:
+def bygg(historikk: list[tuple[str, pl.DataFrame]],
+         dodt_fra: dict[str, str] | None = None) -> dict[str, dict]:
     """Normalen for én kilde, utledet av hele historikken.
 
     `historikk` er (dato, ramme) eldst først — det `snapshot.les_mellom()`
@@ -228,18 +229,37 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, dict]:
     er den med høyest løpenummer. Da betyr «13» det samme for en kilde
     som er kjørt om igjen fire ganger på en dag som for en som ikke er
     det.
+
+    ## `dodt_fra`: et dødsfall målt utenfra
+
+    {felt: dato} for felter som er MÅLT døde fra en dato mot en annen
+    kilde, selv om enkeltverdier etterpå bryter nullstrekket.
+    `har_medikamentell_behandling` er den: én True 2024-11-11 i et felt
+    som ellers var tomt fra januar 2024, mens Mattilsynet hadde 625
+    behandlingsuker i samme tidsrom (docs/MALING-MATTILSYNET-API.md).
+    Uten datoen leste normalen dødsleiet som et 45-ukers «normalt»
+    nullstrekk og dødsfallet som 89 uker i stedet for 141.
+
+    For et slikt felt telles `dodt_naa` som datoer fra og med `dodt_fra`,
+    og `normalt_nullstrekk` måles bare på datoene før. Datoen stemples
+    på feltet, så normalfila sier selv hva den ble bygget med. Har feltet
+    innhold i siste observasjon, er det ikke dødt nå, og `dodt_naa` er 0
+    som for ethvert annet felt.
     """
     per_dato: dict[str, pl.DataFrame] = {}
     for dato, ramme in historikk:
         per_dato[dato] = ramme          # siste vinner: høyest løpenummer
 
+    dodt_fra = dodt_fra or {}
     serier: dict[str, list[int]] = {}
+    datoer: dict[str, list[str]] = {}
     typer: dict[str, str] = {}
     for dato in sorted(per_dato):
         m = mål_ramme(per_dato[dato])
         for felter in m.values():
             for felt, tall in felter.items():
                 serier.setdefault(felt, []).append(tall["minoritet"])
+                datoer.setdefault(felt, []).append(dato)
                 typer[felt] = tall.get("type", "kategorisk")
 
     ut: dict[str, dict] = {}
@@ -251,6 +271,12 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, dict]:
             else:
                 break
         kropp = v[: len(v) - etterfolgende] if etterfolgende else v
+        dod = dodt_fra.get(felt)
+        if dod is not None:
+            for_dod = sum(1 for d in datoer[felt] if d < dod)
+            kropp = v[:for_dod]
+            if etterfolgende:
+                etterfolgende = len(v) - for_dod
         strekk = best = 0
         for x in kropp:
             strekk = strekk + 1 if x == 0 else 0
@@ -273,6 +299,8 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, dict]:
             "uker": len(v),
             "type": typer[felt],
         }
+        if dod is not None:
+            ut[felt]["dodt_fra"] = dod
     return ut
 
 
@@ -306,7 +334,11 @@ def les() -> dict:
     filer = _filer()
     if not filer:
         return {}
-    return json.loads(filer[-1].read_text(encoding="utf-8"))
+    normal = json.loads(filer[-1].read_text(encoding="utf-8"))
+    # Hvilken fil som gjelder. Vakten bruker den til å se at en NY
+    # referanse er tatt i bruk — se health._vurder_innhold.
+    normal["fil"] = filer[-1].stem
+    return normal
 
 
 def skriv(normal: dict, dato: str, begrunnelse: str) -> Path:

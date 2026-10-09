@@ -296,6 +296,32 @@ def _vurder_innhold(
     talt_for = bool(observed_at) and gammel.get("innhold_strekk_dato") == observed_at
 
     felter = (normal.get("kilder") or {}).get(kilde) or {}
+
+    # Et dødsfall MÅLT UTENFRA arves på nytt når en ny referanse tas i
+    # bruk. Strekket i health.json er talt mot normalen som gjaldt da;
+    # vet den nye at feltet døde tidligere — som at har_medikamentell_
+    # behandling døde i januar 2024 og ikke i november — er det fila som
+    # vet hvor lenge feltet har vært tomt, ikke tellingen vi gjorde uten
+    # å vite det. Uten dette ville `dodt_fra` bare endret en fil ingen
+    # vakt leste.
+    #
+    # Bare felter med `dodt_fra`. Målt 09.10.2026: en full arv ville også
+    # løftet romming.antall_forbehold og gjenfangst_forbehold fra 5 til
+    # 15, fordi historikken har datoer health.json aldri talte. Det kan
+    # være riktig, men det er et annet spørsmål enn dødsdatoen, og en ny
+    # referanse skal ikke stille det i forbifarten.
+    #
+    # Mangler stempelet, vet vi ikke hvilken normal strekket ble talt
+    # mot, og et felt med `dodt_fra` arves også da. Det er tilfellet
+    # 09.10.2026: referansen med dødsdatoen ble lagt inn før noen kjøring
+    # hadde stemplet health.json, og uten arven ville første kjøring
+    # stemplet den nye fila og telt videre fra 95.
+    forrige_normal = gammel.get("innhold_normal")
+    if normal.get("fil") and forrige_normal != normal["fil"]:
+        for felt, n in felter.items():
+            if n.get("dodt_fra"):
+                strekk.pop(felt, None)
+
     grense = config.get(f"kilder.{kilde}.maks_nullstrekk",
                         normal.get("maks_nullstrekk",
                                    feltnormal.STANDARD_MAKS_NULLSTREKK))
@@ -764,6 +790,9 @@ def oppdater(
             # rekjøring samme dag skilles fra neste ukes innsamling, og
             # strekket ville telt filer i stedet for observasjoner.
             ny[r.source]["innhold_strekk_dato"] = observed_at
+            # Normalen strekket ble talt mot. Se _vurder_innhold.
+            if normal.get("fil"):
+                ny[r.source]["innhold_normal"] = normal["fil"]
         else:
             if gammel.get("felt_referanse"):
                 ny[r.source]["felt_referanse"] = gammel["felt_referanse"]
@@ -775,6 +804,8 @@ def oppdater(
                 ny[r.source]["innhold_nullstrekk"] = gammel["innhold_nullstrekk"]
             if gammel.get("innhold_strekk_dato"):
                 ny[r.source]["innhold_strekk_dato"] = gammel["innhold_strekk_dato"]
+            if gammel.get("innhold_normal"):
+                ny[r.source]["innhold_normal"] = gammel["innhold_normal"]
 
         # En aktiv kilde som feiler skal ALLTID rapporteres. De to
         # tilfellene betyr ikke det samme for den som leser meldingen, og

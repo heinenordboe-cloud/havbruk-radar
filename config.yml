@@ -55,6 +55,19 @@ kilder:
     # skrive uka, og sier fra i stedet.
     min_rapportert_andel: 0.80
 
+    # Felter som REGNES som døde fra en dato, selv om enkeltverdier etter
+    # den bryter nullstrekket. Leses bare av `run.py --bygg-feltnormal`,
+    # og datoen stemples i normalfila (`dodt_fra`) — en referanse skal
+    # kunne svare på hva den ble bygget med uten å slå opp her.
+    #
+    # har_medikamentell_behandling: målt mot Mattilsynets API 09.10.2026,
+    # se docs/MALING-MATTILSYNET-API.md punkt 4. 2023 K4: 198 av 198
+    # behandlingsuker også True hos BarentsWatch. Fra uke 1/2024: én True
+    # (Torangskjeret, 2024-11-11) mot 625 behandlingsuker til og med uke
+    # 46, og 0 mot 1 123 etter. Den ene verdien er et unntak, ikke liv.
+    dodt_fra:
+      har_medikamentell_behandling: "2024-01-01"
+
   sjotemperatur:
     # BarentsWatch fiskehelse, eksportendepunktet. Verifisert mot levende
     # tjeneste 24.08.2026, se docs/KILDE-SJOTEMPERATUR.md.

@@ -51,7 +51,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))   # så run.py virker uansett hvor du står
 
 from core import (  # noqa: E402
-    changelog, diff, feltnormal, health, kodeproveniens, miljo, paths,
+    changelog, config, diff, feltnormal, health, kodeproveniens, miljo, paths,
     predictions, registry, runner, signals, snapshot,
 )
 
@@ -213,13 +213,17 @@ def bygg_feltnormal(kjoredato: str) -> int:
     """
     kilder = registry.discover()
     normal = {}
+    dodsfall: list[str] = []
     print(f"\nBygger innholdsnormal per {kjoredato}\n")
     for kilde in kilder:
         historikk = snapshot.les_mellom(kilde.name, "0000-00-00", kjoredato)
         if not historikk:
             print(f"  {kilde.name:<20} ingen snapshots — hoppet over")
             continue
-        normal[kilde.name] = feltnormal.bygg(historikk)
+        dodt_fra = config.get(f"kilder.{kilde.name}.dodt_fra", None) or {}
+        normal[kilde.name] = feltnormal.bygg(historikk, dodt_fra)
+        for felt, dato in sorted(dodt_fra.items()):
+            dodsfall.append(f"{kilde.name}.{felt} fra {dato}")
         # DATOER, ikke filer. les_mellom() gir flere innslag for samme
         # dato når det finnes løpenummerfiler, og bygg() kollapser dem —
         # så filtallet ville overdrevet grunnlaget. akvakultur så ut til
@@ -240,9 +244,13 @@ def bygg_feltnormal(kjoredato: str) -> int:
     for linje in feltnormal.sammendrag(pakket):
         print(linje)
 
-    sti = feltnormal.skriv(
-        normal, kjoredato,
-        f"bygget fra all historikk til og med {kjoredato}")
+    begrunnelse = f"bygget fra all historikk til og med {kjoredato}"
+    if dodsfall:
+        # Står i fila, ikke bare i config: en referanse skal kunne svare
+        # på hva den ble bygget med (CLAUDE.md 1b-3).
+        begrunnelse += ("; regnet som døde etter config.yml dodt_fra: "
+                        + ", ".join(dodsfall))
+    sti = feltnormal.skriv(normal, kjoredato, begrunnelse)
     print(f"\n  skrevet: {sti}")
     print("  Commit fila i datarepoet — den er grunnlaget alarmene måles mot.")
     return 0
