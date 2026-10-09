@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block innhold %}
-{# TO SPALTER FRA 64rem, som lokalitetsindeksen: lista til venstre, de
+{# TO SPALTER FRA 80rem, som lokalitetsindeksen: lista til venstre, de
    største og ukas bevegelse til høyre. Se stil.css avsnitt 11b. #}
 <div class="med-marg">
 <div class="med-marg-hoved">
@@ -101,7 +101,7 @@
    endret seg nylig. Like på hver side av lista: de gjelder alle. Ingen
    personeier kan stå her — radene er indeksens egne. #}
 {% set m = d.marg %}
-<div class="marg">
+<div class="marg" data-pagefind-ignore>
   {% if m.vindu %}
   <section class="marg-blokk" aria-labelledby="marg-endret">
     <h2 class="etikett" id="marg-endret">Siste {{ antall(m.vindu.uker, "uke", "uker") }}</h2>

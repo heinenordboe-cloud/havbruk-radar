@@ -74,7 +74,7 @@
 {% set _ = klasser.update({r.nr: r.farge_klasse or "omraade--skravert"}) %}
 {% set _ = navn.update({r.nr: r.navn ~ ", " ~ r.farge}) %}
 {% endfor %}
-<div class="marg">
+<div class="marg" data-pagefind-ignore>
   <section class="marg-blokk" aria-labelledby="marg-kart">
     <h2 class="etikett" id="marg-kart">Fargen langs kysten</h2>
     {% call marg.minikart(d.kart, "minikart-po",

@@ -2511,7 +2511,7 @@ figcaption {
  * LESESPALTA BLIR IKKE BREDERE. `--maal-tekst` gjelder som før;
  * tomrommet fylles med innhold, ikke med lengre linjer.
  *
- * TO BARN, ALLTID: `.med-marg-hoved` og `.marg`. Under 64rem er det én
+ * TO BARN, ALLTID: `.med-marg-hoved` og `.marg`. Under 80rem er det én
  * spalte, og da kommer høyrespalta ETTER hovedinnholdet — DOM-rekkefølgen
  * er den en telefon og en skjermleser får. Hva som står i hovedspalta,
  * velger hver sidetype: på indeksene hele tabellen, på selskaps- og
@@ -2526,7 +2526,12 @@ figcaption {
 
 .med-marg > * { min-inline-size: 0; }
 
-@media (min-width: 64rem) {
+/* FRA 80rem, ikke 64 som lokalitetssiden. Over 62rem er en tabellramme
+   ikke en rulleboks (så tabellhodet kan feste seg til vinduet), og en
+   tabell som er bredere enn spalta flyter da inn i høyrespalta. MÅLT
+   09.10.2026: lokalitetslista 38 px inn i den på 1024, områdesidens
+   biomassetabell 156 px på 1024 og 38 px på 1152; ingenting fra 1280. */
+@media (min-width: 80rem) {
   .med-marg { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); }
 }
 
@@ -2535,7 +2540,7 @@ figcaption {
    rekkefølge. Fra 64rem står høyrespalta over begge radene, og den
    fleksible andre raden tar høyden dens, som på lokalitetssiden. Ingen
    radluft: seksjonen under har sin egen. */
-@media (min-width: 64rem) {
+@media (min-width: 80rem) {
   .med-marg--tre { grid-template-rows: auto 1fr; row-gap: 0; }
   .med-marg--tre > .med-marg-hoved { grid-column: 1; }
   .med-marg--tre > .marg { grid-column: 2; grid-row: 1 / span 2; }
@@ -2663,12 +2668,12 @@ figcaption {
   color: var(--ink-dempet);
 }
 
-/* UNDER 64rem STÅR BILDETEKSTEN VED SIDEN AV KARTET. Høyrespalta har
+/* UNDER 80rem STÅR BILDETEKSTEN VED SIDEN AV KARTET. Høyrespalta har
    falt under hovedinnholdet, og et kart i full bredde er 440 px høyt på
    390 — MÅLT 09.10.2026: selskapssiden til Mowi Seawater Norway ble
    5 025 px, over briefens tak på 5 000. Kartet i 13rem med teksten ved
    siden av er 256 px, og ingenting er tatt bort. */
-@media (max-width: 63.99rem) {
+@media (max-width: 79.99rem) {
   .minikart {
     display: grid;
     grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);

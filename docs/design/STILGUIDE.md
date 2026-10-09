@@ -137,13 +137,15 @@ nedover. Høyrespalta er kort med vilje — står den lenger enn venstre,
 blir det tomrom ved siden av.
 
 **`.med-marg`** er det samme mønsteret gjort felles (09.10.2026): to
-barn, `.med-marg-hoved` og `.marg`, i to spalter fra 64rem. Høyrespalta
+barn, `.med-marg-hoved` og `.marg`, i to spalter fra 80rem — ikke 64,
+fordi en tabell som er bredere enn spalta ellers flyter inn i
+høyrespalta (over 62rem er tabellramma ikke en rulleboks). Høyrespalta
 er `.marg-blokk`-er — blekkstrek, etikett, innhold — og innholdet er
 ett av tre: nøkkeltall (`dl.fakta`), en fordeling (`.fordeling`) eller
 et minikart (`.minikart`). Byggeklossene står i `maler/marg.html.j2`.
 Lesespalta blir ikke bredere; tomrommet på brede skjermer fylles med
 tall som hører til siden, aldri med pynt og aldri med det som står til
-venstre. Under 64rem kommer høyrespalta etter hovedinnholdet.
+venstre. Under 80rem kommer høyrespalta etter hovedinnholdet.
 
 | Side | Hovedspalta | Høyrespalta |
 |---|---|---|
@@ -155,12 +157,12 @@ venstre. Under 64rem kommer høyrespalta etter hovedinnholdet.
 | Områdesidene | tittel, trafikklyset, så biomassen (`--tre`); resten i full bredde under | lokaliteter, selskaper, kapasitet, uker over lusegrensa; minikart med området fylt |
 
 **`.med-marg--tre`** er tre barn: hovedspalte, høyrespalte, hovedspalte.
-Fra 64rem står høyrespalta over begge radene; under 64rem kommer den
+Fra 80rem står høyrespalta over begge radene; under 80rem kommer den
 mellom dem, så nøkkeltallene står rett etter trafikklyset på telefon.
 
 **Minikartet** er hele kysten på 320 px: land, de tretten områdene og
 punktene som én `path` (`kart.minikart()`). Det har ikke `data-kart`,
-fordi det ikke bruker Kartverkets kontur. Under 64rem er det 13rem bredt
+fordi det ikke bruker Kartverkets kontur. Under 80rem er det 13rem bredt
 med bildeteksten ved siden av: i full bredde var det 440 px høyt på
 390, og selskapssiden gikk over briefens 5 000 px.
 

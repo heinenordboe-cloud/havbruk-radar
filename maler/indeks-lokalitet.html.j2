@@ -26,13 +26,13 @@
 {% endblock %}
 
 {% block innhold %}
-{# TO SPALTER FRA 64rem: lista til venstre, høyrespalta med kartet og
+{# TO SPALTER FRA 80rem: lista til venstre, høyrespalta med kartet og
    fordelingene til høyre — lokalitetssidens mønster, se stil.css
    avsnitt 11b. Tittelen står i gitteret, så kartet starter på høyde med
    den; i sidehodet står bare brødsmula. `main` har sin egen
    `data-pagefind-body`, så søket indekserer tittelen som før.
 
-   Under 64rem kommer høyrespalta etter lista: den som leter etter én
+   Under 80rem kommer høyrespalta etter lista: den som leter etter én
    lokalitet, skal ha søket og tabellen først. #}
 <div class="med-marg">
 <div class="med-marg-hoved">
@@ -161,7 +161,7 @@
    av de samme radene. Like på hver side av lista: de gjelder hele
    registeret, ikke de hundre på denne siden. #}
 {% set m = d.marg %}
-<div class="marg">
+<div class="marg" data-pagefind-ignore>
   <section class="marg-blokk" aria-labelledby="marg-kart">
     <h2 class="etikett" id="marg-kart">Langs kysten</h2>
     {% call marg.minikart(m.kart, "minikart-lok",
