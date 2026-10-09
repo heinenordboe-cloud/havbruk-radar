@@ -41,7 +41,7 @@ Sitatene under er fortsatt lest for hånd; kroppene er belegget.
 | `trafikklysvedtak` | NLOD 2.0, via unntaket i Lovdatas punkt 2.3 | [lovdata.no/info/brukeravtale](https://lovdata.no/info/brukeravtale) | «hvis du oppgir Lovdata som kilde og ellers følger vilkårene i NLOD 2.0» | **ja**, men se merknad C | 12.09.2026 |
 | `reguleringsomraader` | **CC BY 4.0** | [doi.org/10.21335/NMDC-1923112433](https://doi.org/10.21335/NMDC-1923112433) | navngivelse av opphavspersonene, se merknad D | **ja** | 14.09.2026 |
 | `ekspertgruppen` | **UBELAGT** | ingen funnet — se merknad E | siteringsformen fra rapporten selv | **ukjent** | 14.09.2026 (søkt, ikke funnet) |
-| `unntaksvekst` | Mattilsynets gjenbruksvilkår — se merknad K | [mattilsynet.no/…/vil-du-bruke-innhold-fra-mattilsynet](https://www.mattilsynet.no/om-mattilsynet/vil-du-bruke-innhold-fra-mattilsynet) | «(Kilde: Mattilsynet, nettadressa og datoen du gjenga teksten.)» | **ikke nevnt** | 09.10.2026 |
+| `unntaksvekst` | **belagt i lov 09.10.2026**: uten vern, åndsverkloven § 14 — se merknad K | [lovdata.no/lov/2018-06-15-40/§14](https://lovdata.no/lov/2018-06-15-40/§14), arkivert i `lovdata-andsverkloven/` | ingen krav i loven; som praksis Mattilsynets egen form, «(Kilde: Mattilsynet, nettadressa og datoen du gjenga teksten.)» | **ja** — ingen enerett å begrense den (lesning, merknad K) | 09.10.2026 |
 | Mattilsynets åpne API (ikke en kilde; hentet for analysen av unntaksvekst) | **NLOD 2.0** | spesifikasjonen selv, `info.license`, arkivert i `mattilsynet-openapi/` | standardformen i NLOD 2.0: «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Mattilsynet» | **ja** | 09.10.2026 |
 
 ---
@@ -522,29 +522,89 @@ ULEST fra 12.09. Se merknad B.
 
 ---
 
-## Merknad K — `unntaksvekst`: «tekstar» på mattilsynet.no
+## Merknad K — `unntaksvekst`: belagt i lov, åndsverkloven § 14
 
-Lest 09.10.2026, siden «Vil du bruke tekstar frå Mattilsynet?»
-(fagleg gjennomgått 18.12.2024), arkivert i `vilkar-mattilsynet/` av
-`arkiver_vilkar.py`. Ordrett, i utdrag:
+**Belagt i lov 09.10.2026.** Grunnlaget for å gjengi Mattilsynets
+oversikt over søknader om unntaksvekst er at den ikke har opphavsrettslig
+vern, ikke at Mattilsynet gir lov. Vilkårssiden «Vil du bruke tekstar frå
+Mattilsynet?» var grunnlaget fra morgenen 09.10.2026, og den lesningen —
+at «tekstar» dekker en tabell — er forlatt. Siden beholdes som PRAKSIS,
+se under.
 
-> Mattilsynet.no har mange tekstar som du gjerne kan spreie, så lenge du
-> følger retningslinjene du finn her. […] Opphavsretten for alle tekstar
-> på Mattilsynet.no tilhøyrer Mattilsynet. Du kan ikkje bruke tekstane i
-> samanhengar der dei kan misforståast, mistolkast eller villeie. Du må
-> oppgi oss som kjelde […] (Kilde: Mattilsynet, nettadressa og datoen du
-> gjenga teksten.)
+### § 14 — vedtak av offentlig myndighet er uten vern
 
-Søknadslista er en tabell på mattilsynet.no, ikke en artikkel. At
-«tekstar» dekker den, er en LESNING, og den er Heines å godta eller
-avvise. Siden sier ikke noe om data; den viser til API-ene, som er NLOD.
+Åndsverkloven (LOV-2018-06-15-40, sist endret LOV-2024-12-13-76) § 14
+første og andre ledd, ordrett. Lest av kroppen
+`lovdata-andsverkloven/2026-10-09.bin.gz` i datarepoet, hentet
+2026-10-09T15:46:18Z fra lovdata.no/dokument/NL/lov/2018-06-15-40,
+sha256 `b60131c4a8bbe6fe3f4d22a39ea386aea97738ef52b0be8bb14add8885237521`
+(synlig tekst: `49ba24de8dc65ce57df0298acd6b88f67379d76a400ec49d87b528d00cb9e1fe`):
 
-Med lesningen er kilden belagt fra 09.10.2026: `attribusjon =
-("Kilde: Mattilsynet",)`, og nettadressen og datoen står ved tabellen på
-/analyse/unntaksvekst/. Det har to følger utover analysesiden: søknadene
-står i ukesendringene fra den andre ukentlige kjøringen (den første har
-ingen forrige å sammenligne med), og kilden står i lisenstabellen på
-/om/. Avvises lesningen, settes `attribusjon` tilbake til `None`; da
-bygges ikke analysesiden, og byggingen feiler til den er tatt ut.
+> Lover, forskrifter, rettsavgjørelser og andre vedtak av offentlig
+> myndighet er uten vern etter denne loven. Det samme gjelder forslag,
+> utredninger, uttalelser og lignende som gjelder offentlig
+> myndighetsutøvelse, og er avgitt av offentlig myndighet, offentlig
+> oppnevnt råd eller utvalg, eller utgitt av det offentlige. Tilsvarende
+> er offisielle oversettelser av slike tekster uten vern etter denne
+> loven.
+>
+> Åndsverk som ikke er skapt særskilt til bruk i dokumenter som nevnt i
+> første ledd, og som det siteres fra eller som gjengis i særskilt
+> vedlegg, omfattes ikke av denne bestemmelsen. Første ledd gjelder
+> heller ikke lyrikk, musikkverk eller kunstverk.
 
-Kommersiell bruk er ikke nevnt på siden.
+Søknadslista er Mattilsynets oversikt over søknader og resultatet av
+dem: en oversikt over vedtak, utgitt av myndigheten selv. Andre ledds
+unntak treffer den ikke — den er verken skapt utenfor myndigheten og
+gjengitt i et vedlegg, eller lyrikk, musikk eller kunst.
+
+### Tabellen er fakta uten verkshøyde
+
+Uavhengig av § 14: lista er saksnummer, lokalitet, produksjonsområde og
+resultat, satt opp i en tabell. Det er fakta, ordnet slik slike fakta
+ordnes, og ikke et åndsverk. Uten verkshøyde er det ingen opphavsrett å
+ta stilling til.
+
+### § 24 — databasevern krever en vesentlig investering
+
+Samme kropp, § 24 første ledd, ordrett:
+
+> Den som fremstiller en database, som for eksempel et formular, en
+> katalog, en tabell, et program eller lignende arbeid, hvor innsamling,
+> kontroll eller presentasjon av innholdet innebærer en vesentlig
+> investering, har enerett til å råde over hele eller vesentlige deler
+> av databasens innhold ved uttrekk fra eller gjenbruk av databasen.
+
+En oversikt over myndighetens egne vedtak krever ingen vesentlig
+investering i INNSAMLING: vedtakene er fattet av den som fører lista, og
+oversikten er et biprodukt av saksbehandlingen. Og § 24 femte ledd sier
+uansett at «§§ 3 tredje ledd, 4, 8 til 10, 14, 26 til 29 […] gjelder
+tilsvarende» — unntaket for vedtak gjelder også databaseretten.
+
+### Det som er en lesning, og det som ikke er det
+
+Lovteksten over er MÅLT: ordrett av en arkivert kropp med hash. At lista
+er en oversikt over vedtak i § 14s forstand, at den mangler verkshøyde,
+og at den ikke er en vesentlig investering, er LESNINGER av loven, gjort
+09.10.2026 etter Heines anvisning. Ingen domstol eller myndighet har sagt
+det om denne lista (CLAUDE.md regel 4).
+
+### Vilkårssiden beholdes som praksis
+
+Mattilsynets side (arkivert i `vilkar-mattilsynet/`, lest 09.10.2026)
+ber om tre ting, og vi gjør dem selv om loven ikke krever det:
+
+1. **Kilde.** `attribusjon = ("Kilde: Mattilsynet",)`, i bunnteksten på
+   hver side som bruker kilden.
+2. **Adresse og dato.** Ved tabellen på /analyse/unntaksvekst/.
+3. **Ingen misvisende sammenheng.** Siden sier hva lista sier, og
+   vurderer ikke søknadene. En lokalitetsside nevner lista bare der
+   koblingen er sikker.
+
+### Følgene
+
+Søknadene står i ukesendringene fra den andre ukentlige kjøringen (den
+første har ingen forrige å sammenligne med), og kilden står i
+lisenstabellen på /om/ med hjemmelen «åndsverkloven § 14». Skulle
+grunnlaget falle, settes `attribusjon` tilbake til `None`; da bygges
+ikke analysesiden, og byggingen feiler til den er tatt ut.

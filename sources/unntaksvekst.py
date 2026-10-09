@@ -347,19 +347,20 @@ class Unntaksvekst(Source):
     entity_type = "soknad_lokalitet"
     version = "1"
 
-    # BELAGT fra 09.10.2026, av Mattilsynets egen gjenbruksside «Vil du
-    # bruke tekstar frå Mattilsynet?» (fagleg gjennomgått 18.12.2024,
-    # lest og arkivert 09.10.2026 i `vilkar-mattilsynet/`): tekstene på
-    # mattilsynet.no kan spres, «Du må oppgi oss som kjelde», i forma
-    # «(Kilde: Mattilsynet, nettadressa og datoen du gjenga teksten.)».
-    # Nettadressen og datoen står ved tabellen på analysesiden; setningen
-    # her er den som står i bunnteksten.
+    # BELAGT I LOV fra 09.10.2026: lista er en oversikt over vedtak av
+    # offentlig myndighet og er uten vern etter åndsverkloven § 14, og
+    # den er fakta uten verkshøyde. Paragrafen står ordrett med hash i
+    # docs/LISENSKJEDE.md merknad K, av kroppen i `lovdata-andsverkloven/`.
     #
-    # Til 09.10.2026 sto `None` her — vilkårene for nettsidens innhold var
-    # ikke lest, og det holdt kilden ute av nettstedet. Om gjenbrukssidens
-    # «tekstar» dekker en tabell over søknader, er Heines avgjørelse; se
-    # docs/LISENSKJEDE.md. Settes den tilbake til `None`, bygges ikke
-    # analysesiden, og søknadene holdes ute av ukesendringene igjen.
+    # Setningen under er derfor PRAKSIS, ikke en lisensplikt: Mattilsynets
+    # side «Vil du bruke tekstar frå Mattilsynet?» (arkivert i
+    # `vilkar-mattilsynet/`) ber om «(Kilde: Mattilsynet, nettadressa og
+    # datoen du gjenga teksten.)», og vi gjør det. Nettadressen og datoen
+    # står ved tabellen på analysesiden; setningen her står i bunnteksten.
+    #
+    # Til 09.10.2026 sto `None` her, og det holdt kilden ute av
+    # nettstedet. Settes den tilbake, bygges ikke analysesiden, og
+    # søknadene holdes ute av ukesendringene igjen.
     attribusjon = ("Kilde: Mattilsynet",)
 
     # Lista sier hva som er søkt og avgjort NÅ. En ny henting erstatter

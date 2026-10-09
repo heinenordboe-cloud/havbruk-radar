@@ -455,12 +455,13 @@ orgnr med selskapsform, og merket slik at publiseringsvakten prøver det
 mot snapshotene. Hasher står i grupper på åtte (en hel sha256 har ni
 siffer på rad i 11,7 % av tilfellene, og porten leser dem som orgnr).
 
-**Lisensen.** Siden kunne ikke bygges med `unntaksvekst` UBELAGT. Lest
-09.10.2026: Mattilsynets gjenbruksside krever «(Kilde: Mattilsynet,
-nettadressa og datoen du gjenga teksten.)». Kilden har nå
-`attribusjon = ("Kilde: Mattilsynet",)`, og siden er arkivert i
-`vilkar-mattilsynet/`. At «tekstar» dekker tabellen, er en lesning — se
-docs/LISENSKJEDE.md merknad K, der følgene for ukesendringene står.
+**Lisensen.** Siden kunne ikke bygges med `unntaksvekst` UBELAGT. Belagt
+i lov 09.10.2026: lista er uten vern etter åndsverkloven § 14, sitert
+ordrett med hash i docs/LISENSKJEDE.md merknad K, der følgene for
+ukesendringene står. Mattilsynets gjenbruksside (arkivert i
+`vilkar-mattilsynet/`) beholdes som praksis: kilden har
+`attribusjon = ("Kilde: Mattilsynet",)`, og adressen og datoen står ved
+tabellen.
 API-dataene står under NLOD 2.0 etter spesifikasjonen selv.
 
 ## 6. Lusegrafen

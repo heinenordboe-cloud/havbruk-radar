@@ -5087,9 +5087,8 @@ KILDELISENS = {
                          "NLOD 2.0", "https://data.norge.no/nlod/no/2.0"),
     "unntaksvekst": ("Mattilsynet, oversikt over søknader om "
                      "unntaksvekst 2025/2026",
-                     "Mattilsynets gjenbruksvilkår: kildeangivelse",
-                     "https://www.mattilsynet.no/om-mattilsynet/"
-                     "vil-du-bruke-innhold-fra-mattilsynet"),
+                     "uten vern etter åndsverkloven § 14",
+                     "https://lovdata.no/lov/2018-06-15-40/§14"),
 }
 
 
@@ -7142,9 +7141,8 @@ LISENSRAD = {
                       "12.09.2026"),
     "trafikklysvedtak": ("NLOD 2.0 via Lovdatas punkt 2.3",
                          "lovdata.no/info/brukeravtale", "12.09.2026"),
-    "unntaksvekst": ("Mattilsynets gjenbruksvilkår (kildeangivelse)",
-                     "mattilsynet.no/om-mattilsynet/"
-                     "vil-du-bruke-innhold-fra-mattilsynet", "09.10.2026"),
+    "unntaksvekst": ("uten vern, åndsverkloven § 14",
+                     "lovdata.no/lov/2018-06-15-40/§14", "09.10.2026"),
     "reguleringsomraader": ("CC BY 4.0", "doi.org/10.21335/NMDC-1923112433",
                             "14.09.2026"),
     # «ikke dokumentert», ikke «UBELAGT». Cellen leses av et menneske,

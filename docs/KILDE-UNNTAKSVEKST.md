@@ -114,15 +114,18 @@ Erklært før første snapshot, ikke målt (se `test_partisjoneringen_er_den_mal
 fortiet — men se punkt 2: en gammel CDN-kopi kan gi en rad som kommer og
 går. Sjekk `headere.age` i arkivet før en `borte` leses som et vedtak.
 
-## 6. Lisens — Mattilsynets gjenbruksvilkår (fra 09.10.2026)
+## 6. Lisens — belagt i lov, åndsverkloven § 14 (fra 09.10.2026)
 
 Til 09.10.2026 sto kilden som UBELAGT: lista ligger ikke i det
 NLOD-lisensierte API-et, og vilkårene for nettsidens innhold var ikke
 lest. Det holdt kilden ute av publiserte visninger.
 
-Lest 09.10.2026: Mattilsynets side «Vil du bruke tekstar frå
-Mattilsynet?» sier at tekstene kan spres med kildeangivelsen «(Kilde:
-Mattilsynet, nettadressa og datoen du gjenga teksten.)». `attribusjon`
-er nå `("Kilde: Mattilsynet",)`, og adressen og datoen står ved tabellen
-på analysesiden. At «tekstar» dekker tabellen, er en lesning — se
-`docs/LISENSKJEDE.md` merknad K, der følgene også står.
+Belagt i lov 09.10.2026: lista er en oversikt over vedtak av offentlig
+myndighet og er uten vern etter åndsverkloven § 14; den er fakta uten
+verkshøyde, og den er ingen vesentlig investering i innsamling i § 24s
+forstand. Paragrafene står ordrett med hash i `docs/LISENSKJEDE.md`
+merknad K, der følgene også står.
+
+Mattilsynets side «Vil du bruke tekstar frå Mattilsynet?» beholdes som
+praksis: `attribusjon` er `("Kilde: Mattilsynet",)`, og adressen og
+datoen står ved tabellen på analysesiden.
