@@ -20,7 +20,7 @@ noe om det. Hvert funn har én linje «Feil hvis».
 et vilkår.** Tall står ved siden av vilkårets tall. Hvert vilkår har
 deler ingen kilde vi har, kan måle.
 
-## De tre sterkeste funnene
+## De to sterkeste funnene
 
 **1. Ingen tillatelse på lokalitetene fikk mer enn 1 % i registeret, og
 1 % fikk også en avslått lokalitet (F2.2 — MÅLT).** Mellom eierskaps-
@@ -48,6 +48,9 @@ de 45 godkjente og de 8 avslåtte innenfor vilkårets tall på hvert tall vi
 kan regne. Laveste p-verdi (Fishers eksakte test, tosidig) er 0,15. Bare
 11 av 45 godkjente har ingen telling ≥ 0,10 i uke 13–39, og 19 av 45 har
 høyst seks ikke-medikamentelle oppføringer.
+Tabellen har 46 godkjente lokaliteter og kontrollen 45, fordi ÅPENVIK
+(29416) ikke har én telling hos Mattilsynet i kvalifikasjonsperioden og
+derfor er holdt utenfor kontrollen.
 *Hvorfor sterkest:* det er bestillingens egen kontroll, og svaret er
 negativt på alle åtte tall, også de to lesemåtene av annet ledd b.
 *Feil hvis:* tallene ikke måler det Mattilsynet vurderte — en
@@ -56,18 +59,10 @@ egg-alternativet i nr. 1 er ikke regnet, og API-et mangler 53 tellinger
 i okt–nov 2023 — eller forskjellen er der, men for liten til å sees med
 8 avslag.
 
-**3. Etter kvalifikasjonsperioden har de godkjente lokalitetene flere
-medikamentelle oppføringer enn før (F3.4 — MÅLBAR).** De 44 godkjente med
-tellinger etter uke 40/2025 har 49 oppføringer av medikamentell
-behandling på de 53 ukene til uke 41/2026, mot 32 på de 104 ukene i
-kvalifikasjonsperioden. 10 av 44 har mer enn én, 25 av 44 har minst én
-telling ≥ 0,10 i uke 13–39 i 2026, og 6 har en telling over tiltaksgrensa.
-De 6 avslåtte med tellinger har 1 oppføring etter.
-*Hvorfor sterkest:* det er samme telling, samme regel og samme kilde før
-og etter; bare tidsrommet er ulikt.
-*Feil hvis:* rapporteringen av behandlinger har endret form mellom
-periodene, eller én behandling står oftere over flere ukesrapporter nå
-enn før. «Etter» er ikke «etter vedtaket»: lista har ingen vedtaksdato.
+Funnet som sto som nummer 3 til 09.10.2026 — de godkjente har flere
+medikamentelle oppføringer etter kvalifikasjonsperioden enn i den — er
+tatt ut her og av analysesiden. Det står under «Ikke publisert» nederst,
+med grunnen.
 
 Svakere, og hvorfor: at annet ledd b bare er innenfor for 10 av 45
 godkjente lest over hele perioden, men 42 av 45 lest innen uke 13–39
@@ -390,21 +385,7 @@ står på siden og i nedlastingen.
 | 32637 | VEIDNES | 13 | Godkjent | uendret | 1/36 | 0 | 1/1 | 0 | 0 | 0 | 1 | 0/26 | 0/46 | 1 | 0 |
 | 29416 | ÅPENVIK | 13 | Godkjent | +58 t (1 %) | – | – | 0/0 | 0 | 0 | 0 | 0 | 0/9 | 0/7 | 1 | 0 |
 
-**F3.4 — MÅLBAR. Etter, samlet.**
-
-| | godkjente | avslåtte |
-|---|---:|---:|
-| lokaliteter med tellinger etter uke 40/2025 | 44 av 46 | 6 av 8 |
-| minst én telling ≥ 0,10 i uke 13–39 (2026) | 25 | 1 |
-| flere enn én ≥ 0,17 i uke 13–39 i 2026 | 10 | 1 |
-| minst én telling over tiltaksgrensa | 6 | 0 |
-| mer enn én medikamentell oppføring | 10 | 0 |
-| mer enn seks ikke-medikamentelle oppføringer | 11 | 2 |
-| medikamentelle oppføringer, sum etter (53 uker) | 49 | 1 |
-| medikamentelle oppføringer, sum før (104 uker) | 32 | 4 |
-
-Feil hvis: en lokalitet som er godkjent, har byttet drift eller eier;
-tallene følger lokalitetsnummeret, ikke søkeren.
+**F3.4 er flyttet** til «Ikke publisert» nederst.
 
 **F3.5 — MÅLT. ÅPENVIK (29416, Godkjent) har ingen rapport i API-et i
 kvalifikasjonsperioden.** BarentsWatch har fem tellinger i uke 40–44/2023
@@ -417,8 +398,10 @@ kontrollen (uten tall er det ingenting å ligge innenfor).
 ## 4. Kontrollen: godkjent mot avslått før søknaden
 
 **F4.1 — MÅLBAR. Ingen forskjell.** 45 godkjente og 8 avslåtte
-lokaliteter med tellinger i kvalifikasjonsperioden; ÅPENVIK holdt
-utenfor. Andel innenfor vilkårets tall, Fishers eksakte test (tosidig,
+lokaliteter med tellinger i kvalifikasjonsperioden. Tabellen har 46
+godkjente lokaliteter og kontrollen 45, fordi ÅPENVIK (29416) ikke har én
+telling hos Mattilsynet i kvalifikasjonsperioden og derfor er holdt
+utenfor kontrollen. Andel innenfor vilkårets tall, Fishers eksakte test (tosidig,
 `math.comb`, ingen tilfeldighet):
 
 | vilkår | innenfor betyr | godkjent | avslått | p |
@@ -452,13 +435,20 @@ sier at lesemåten betyr mye, ikke hvilken Mattilsynet brukte.
 
 ## 5. Siden /analyse/unntaksvekst/
 
-Én setning øverst, tabellen per søker og lokalitet (sikre koblinger), så
+Øverst funn 1 og 2 (kapasiteten og kontrollen), så én setning om hva som
+er målt og én om hvorfor tabellen teller 46 godkjente og kontrollen 45.
+Deretter tabellen per søker og lokalitet (sikre koblinger), så
 kapasiteten, perioden per produksjonsperiode (lukket), radene uten sikker
 kobling, kontrollen, vilkårene ordrett med det som er målt under hvert,
 metode med sti og sha256 for hvert grunnlag, og forbehold. Nedlasting som
 Excel og datapakke med alle tallene i F3.3 og mer. Lenke fra forsiden og
 fra hver lokalitet med sikker kobling; i sitemap og i søket som sidetype
 «Analyse».
+
+Tabellen viser driftstall og vilkårets tall i kolonneoverskriften, men
+ingen kolonne, klasse eller farge som kan leses som innenfor eller
+utenfor, og den er sortert etter produksjonsområde og navn — ikke etter
+avvik. Drift før mot etter (F3.4) står ikke på siden.
 
 Søkernavnet er registerets, bare der kilden har koblet det entydig til et
 orgnr med selskapsform, og merket slik at publiseringsvakten prøver det
@@ -491,3 +481,54 @@ andre står i `--hav5`. «Over» er samme regel som overalt
   kandidatene skrives ut av `unntaksanalyse.py` (linjene merket
   `[usikre]`), men koblingen er ikke bekreftet, og de står verken i
   tabellen, kontrollen eller nedlastingen.
+
+---
+
+## Ikke publisert
+
+Funnet under sto som nummer 3 blant de sterkeste til 09.10.2026. Det er
+tatt ut av den listen og av analysesiden, og står her slik det ble målt.
+Tallene er riktig talt; det er SAMMENLIGNINGEN som ikke holder.
+
+**F3.4 — MÅLBAR som telling, ikke som sammenligning. Etter, samlet.**
+
+| | godkjente | avslåtte |
+|---|---:|---:|
+| lokaliteter med tellinger etter uke 40/2025 | 44 av 46 | 6 av 8 |
+| minst én telling ≥ 0,10 i uke 13–39 (2026) | 25 | 1 |
+| flere enn én ≥ 0,17 i uke 13–39 i 2026 | 10 | 1 |
+| minst én telling over tiltaksgrensa | 6 | 0 |
+| mer enn én medikamentell oppføring | 10 | 0 |
+| mer enn seks ikke-medikamentelle oppføringer | 11 | 2 |
+| medikamentelle oppføringer, sum etter (53 uker) | 49 | 1 |
+| medikamentelle oppføringer, sum før (104 uker) | 32 | 4 |
+
+Feil hvis: en lokalitet som er godkjent, har byttet drift eller eier;
+tallene følger lokalitetsnummeret, ikke søkeren.
+
+Tre grunner til at før og etter ikke kan settes mot hverandre:
+
+* **Periodene er ikke sammenlignbare.** «Etter» er 53 uker (uke 40/2025
+  til uke 41/2026), «før» er 104. Ingen av dem er justert for hvor fisken
+  er i produksjonssyklusen: lus og behandlinger følger syklusen og
+  årstiden, og en lokalitet som hadde utsett i den ene perioden og brakk
+  i den andre, gir ulike tall uten at driften er endret.
+* **En oppføring er ikke en behandling.** Mattilsynets ukesrapport har én
+  oppføring per behandling per rapport. En behandling over to uker kan
+  stå to ganger, og forskriften teller behandlinger.
+* **Det finnes ingen vedtaksdato.** «Etter» er etter kvalifikasjons-
+  perioden, ikke etter Mattilsynets vedtak, så tallet kan ikke leses som
+  drift etter en godkjenning.
+
+**Hva som måtte til for å gjøre det sammenlignbart:**
+
+* Samme kalenderuker år mot år — for eksempel uke 13–39 i 2024, 2025 og
+  2026 — så sesongen er den samme på begge sider.
+* Bare uker med fisk til stede: uker der lokaliteten ikke er brakklagt
+  (BarentsWatchs vurdering, se F3), og med en telling, slik at brakk ikke
+  trekker tallet ned.
+* Behandlinger talt som behandlinger og ikke som oppføringer — det krever
+  en regel for når to oppføringer i påfølgende uker er samme behandling,
+  og den regelen er ikke skrevet.
+* Vedtaksdatoen, om det skal hete «etter godkjenningen». Den står ikke i
+  Mattilsynets liste.
