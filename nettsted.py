@@ -107,6 +107,7 @@ import beslutning                                          # noqa: E402
 import kart                                                # noqa: E402
 import nedlasting                                          # noqa: E402
 import publiseringsvakt                                    # noqa: E402
+import unntaksanalyse                                      # noqa: E402
 import vesentlighet                                        # noqa: E402
 import visningsord                                         # noqa: E402
 from core import changelog, diff, snapshot                 # noqa: E402
@@ -191,6 +192,12 @@ ANSVARLIG_FOR = {
     "Mattilsynet.": ("Mattilsynet",),
     "Kilde: Lovdata. Inneholder data under Norsk lisens for offentlige "
     "data (NLOD) 2.0": ("Lovdata",),
+    # Søknadslista om unntaksvekst, fra mattilsynet.no — se
+    # sources/unntaksvekst.py, `attribusjon`.
+    "Kilde: Mattilsynet": ("Mattilsynet",),
+    # Lakselusrapportene fra Mattilsynets åpne API — se `MATTILSYNET_API`.
+    "Inneholder data under Norsk lisens for offentlige data (NLOD) "
+    "tilgjengeliggjort av Mattilsynet": ("Mattilsynet",),
     # Ikke vist på noen side i dag — `reguleringsomraader` står i
     # lisenstabellen og ikke i `viste_kilder()`. Navnet står her likevel,
     # så den dagen et kart tar den i bruk, felles ikke bygget for en
@@ -375,8 +382,20 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
                    feed_tittel: str = "", main_klasse: str = "",
                    side_skript: str = "", siterte_organ=(),
                    sidetype: str = "", undertittel: str = "",
-                   soketekst: str = "", kart: bool = False) -> dict:
-    """Nøklene `base.html.j2` krever, for hvilken som helst sidetype."""
+                   soketekst: str = "", kart: bool = False,
+                   ekstra_attribusjon: tuple[str, ...] = ()) -> dict:
+    """Nøklene `base.html.j2` krever, for hvilken som helst sidetype.
+
+    `ekstra_attribusjon` er setninger for data som ikke kommer fra en
+    `Source` — som `KARTVERKET` for kartet. Hver av dem må stå i
+    `ANSVARLIG_FOR`, ellers kaster `fraskrivelse()`.
+    """
+    for setning in ekstra_attribusjon:
+        if setning not in ANSVARLIG_FOR:
+            raise UbelagtKilde(
+                f"ingen i ANSVARLIG_FOR svarer for {setning!r}")
+    siterte_organ = tuple(siterte_organ) + tuple(
+        organ for s in ekstra_attribusjon for organ in ANSVARLIG_FOR[s])
     # DEN KANONISKE ADRESSEN, regnet ut av filstien og vertsnavnet.
     #
     # Ett sted. Fram til 23.09.2026 sto `https://kystloggen.no` som
@@ -403,6 +422,7 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
         # og en side uten kart bruker det ikke.
         "attribusjon": (attribusjon(kilder,
                                     felles.vilkaar if felles else None)
+                        + [s for s in ekstra_attribusjon]
                         + ([KARTVERKET] if kart else [])),
         "kartverket": KARTVERKET if kart else "",
         "kartverket_url": KARTVERKET_URL,
@@ -707,6 +727,9 @@ class Felles:
     # {orgnr: formene kildene oppgir} — det `_navn_eller_skjult()` slår
     # opp i. Se `publiseringsvakt.formkart()`.
     former: dict[str, frozenset[str]] = field(default_factory=dict)
+    # {loknr: [rad]} — Mattilsynets søknader om unntaksvekst med SIKKER
+    # kobling til lokaliteten. Se `unntak_per_lokalitet()`.
+    unntak: dict[str, list[dict]] = field(default_factory=dict)
 
 
 @lru_cache(maxsize=1)
@@ -920,6 +943,7 @@ def les_felles() -> Felles:
         biomasse_utgitt=bio_utgitt,
         sist_endret=sist_endret_av(beveg),
         former=publiseringsvakt.formkart(enhet, eierskap, alle_ovf),
+        unntak=unntak_per_lokalitet(),
     )
 
 
@@ -4802,6 +4826,11 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "lusegraf": lusegraf(serie),
         "lusperioder": produksjonsperioder(
             serie, lusedatoer[-1] if lusedatoer else ""),
+        # MATTILSYNETS SØKNADER OM UNNTAKSVEKST, når lokaliteten står i
+        # lista med en sikker kobling. Lenker til analysesiden.
+        "unntak": unntak_for_lokalitet(
+            (felles.unntak if felles else unntak_per_lokalitet())
+            .get(loknr, [])),
         # Nedlastingene. `lusetall.csv` er ikke lenger blant dem, men
         # skrives fortsatt. Navnet bærer dataversjonen — se
         # `lusetall_stamme()`.
@@ -5044,6 +5073,11 @@ KILDELISENS = {
                  "lisens-for-bruk-av-fiskeridirektoratets-data"),
     "enhetsregisteret": ("Brønnøysundregistrene, Enhetsregisteret",
                          "NLOD 2.0", "https://data.norge.no/nlod/no/2.0"),
+    "unntaksvekst": ("Mattilsynet, oversikt over søknader om "
+                     "unntaksvekst 2025/2026",
+                     "Mattilsynets gjenbruksvilkår: kildeangivelse",
+                     "https://www.mattilsynet.no/om-mattilsynet/"
+                     "vil-du-bruke-innhold-fra-mattilsynet"),
 }
 
 
@@ -5461,7 +5495,13 @@ UTEN_KORT = frozenset({"endringer-uker", "akvakultur-alle",
                        # indeks som de flate listene: én linje per rad, som
                        # ruller vannrett på telefon. Som kort var områdesiden
                        # med 137 lokaliteter 59 939 px høy på 390.
-                       "akvakultur-lokaliteter"})
+                       "akvakultur-lokaliteter",
+                       # ANALYSESIDEN FOR UNNTAKSVEKST. Tallene leses ned
+                       # kolonnene — godkjent mot avslått, før mot etter —
+                       # som i krysstabellen. Som kort var hovedtabellen
+                       # 29 681 px høy på 390 (MÅLT 09.10.2026), og hodet
+                       # har to rader, som `_kolonnenavn()` ikke leser.
+                       "unntak-lokaliteter", "unntak-perioder"})
 
 _TABELL = re.compile(r"(<table\b[^>]*>)(.*?)(</table>)", re.S)
 _TABELL_ID = re.compile(r'\bid="([^"]+)"')
@@ -6764,6 +6804,9 @@ def _urler(felles: Felles) -> list[str]:
     nedlastinger, og hver CSV er lenket fra sin egen lokalitetsside.
     """
     stier = ["/", "/om/", "/lokalitet/", "/produksjonsomrade/", "/selskap/"]
+    # ANALYSESIDEN bare når den bygges — samme vilkår som skriv_alle().
+    if felles.unntak:
+        stier.append("/" + "/".join(UNNTAK_STI) + "/")
     # INDEKSENES ØVRIGE SIDER. Samme deling som `skriv_indekser()`.
     selskaper = sum(1 for o in felles.tillatelser_per_eier
                     if not personeier(o, felles))
@@ -7087,6 +7130,9 @@ LISENSRAD = {
                       "12.09.2026"),
     "trafikklysvedtak": ("NLOD 2.0 via Lovdatas punkt 2.3",
                          "lovdata.no/info/brukeravtale", "12.09.2026"),
+    "unntaksvekst": ("Mattilsynets gjenbruksvilkår (kildeangivelse)",
+                     "mattilsynet.no/om-mattilsynet/"
+                     "vil-du-bruke-innhold-fra-mattilsynet", "09.10.2026"),
     "reguleringsomraader": ("CC BY 4.0", "doi.org/10.21335/NMDC-1923112433",
                             "14.09.2026"),
     # «ikke dokumentert», ikke «UBELAGT». Cellen leses av et menneske,
@@ -7270,6 +7316,470 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
             undertittel="Kilder, metode, dekning og sitering"),
     )
     return skriv_side(rot / "om" / "index.html", html)
+
+
+# ------------------------------------------- ANALYSEN: UNNTAKSVEKST
+#
+# /analyse/unntaksvekst/ — Mattilsynets godkjente og avslåtte søknader om
+# unntaksvekst 2025/2026, holdt mot kapasiteten i registeret og driften
+# målt mot vilkårene. Se docs/ANALYSE-UNNTAKSVEKST.md.
+#
+# SIDEN REGNER INGENTING SELV. Hvert tall er `unntaksanalyse` sitt, og
+# den modulen leser bare kropper som ligger i `data/arkiv/` — søknadslista
+# kildens egen `fetch()` ga, eierskapskroppene, Mattilsynets lakselus-
+# rapporter og forskriftstekstene. Det denne delen gjør, er å sette dem
+# på en side, med hash ved hvert grunnlag.
+#
+# INGEN VURDERING AV ENKELTAKTØRER. Tabellen står med tall og vilkårets
+# tall ved siden av hverandre, og ingen celle sier «oppfylt» eller
+# «brutt». Det er bestilt, og det er riktig: hvert vilkår har deler ingen
+# kilde vi har, kan måle (`unntaksanalyse.MAALING`).
+
+ANALYSE_KILDER = ("unntaksvekst", "akvakultur", "eierskap", "lusetall",
+                  "sjotemperatur", "trafikklysvedtak")
+
+# MATTILSYNETS API ER IKKE EN KILDE i `sources/` — det er hentet én gang
+# for denne analysen (`arkiver_mattilsynet.py lakselus`). Vilkåret står i
+# spesifikasjonen selv: «Dataene fra APIet … følger vilkårene i
+# NLOD-lisensen» (info.license: NLOD 2.0, arkivert i
+# `mattilsynet-openapi/`). NLOD 2.0 punkt 3 gir standardformen når
+# lisensgiveren ikke har bedt om en egen; samme form som Brønnøysund-
+# registrenes setning. Står her og ikke på en kilde, som `KARTVERKET`.
+MATTILSYNET_API = ("Inneholder data under Norsk lisens for offentlige "
+                   "data (NLOD) tilgjengeliggjort av Mattilsynet")
+
+UNNTAK_STI = ("analyse", "unntaksvekst")
+UNNTAK_STAMME = "unntaksvekst-2025-2026"
+
+
+def unntak_per_lokalitet() -> dict[str, list[dict]]:
+    """{lokalitetsnummer: [rad]} for de SIKRE koblingene i nyeste
+    arkiverte søknadsliste. Tom når lista ikke er arkivert.
+
+    Lest av BEGGE veiene inn i `bygg_lokalitet()` — batchen gjennom
+    `les_felles()`, enkeltsiden direkte. To lesemåter av samme liste som
+    kunne svart ulikt, er formen F6 og F7 hadde.
+    """
+    try:
+        _k, svar = unntaksanalyse.soknader()
+    except FileNotFoundError:
+        return {}
+    ut: dict[str, list[dict]] = defaultdict(list)
+    for r in unntaksanalyse.del_rader(svar["rader"])["sikre"]:
+        ut[str(r["lokalitet_nr"])].append(r)
+    return dict(ut)
+
+
+def unntak_for_lokalitet(rader: list[dict]) -> dict | None:
+    """Linja lokalitetssiden viser: resultatet og antall søkere. None når
+    lokaliteten ikke står i lista med en sikker kobling."""
+    if not rader:
+        return None
+    resultater = sorted({r["resultat"] for r in rader})
+    return {"resultat": " og ".join(r.lower() for r in resultater),
+            "soknader": len(rader), "url": "/" + "/".join(UNNTAK_STI) + "/"}
+
+
+def _hash_vist(sha: str) -> str:
+    """sha256 i grupper på åtte. Se `nedlasting.sjekksum_vist()`: en hel
+    heksadesimal sum har ni siffer på rad i 11,7 % av tilfellene, og
+    porten leser dem som organisasjonsnumre."""
+    return " ".join(sha[i:i + 8] for i in range(0, len(sha), 8))
+
+
+def _isoukeverdi(aar: int, uke: int) -> str:
+    """`2023-W40` — HTML-formen for en uke i `<time datetime>`."""
+    return f"{aar}-W{uke:02d}"
+
+
+def _kapasitetstekst(kap: dict) -> str:
+    """Cella i kapasitetskolonnen. Bare det kroppene viser."""
+    deler = []
+    if kap["endringer"]:
+        summer = ", ".join(f"+{visningsord.tall(v)} {('t' if e == 'TN' else e)}"
+                           for e, v in sorted(kap["sum_endring"].items()))
+        en = all(e["en_prosent"] for e in kap["endringer"])
+        deler.append(f"{summer} på "
+                     + visningsord.antall(len({e['tillatelse'] for e in kap['endringer']}),
+                                          "tillatelse", "tillatelser")
+                     + (", alle nøyaktig 1 %" if en else ""))
+    if kap["inn"]:
+        deler.append(visningsord.antall(len(kap["inn"]), "tillatelse",
+                                        "tillatelser") + " tilknyttet")
+    if kap["ut"]:
+        deler.append(visningsord.antall(len(kap["ut"]), "tillatelse",
+                                        "tillatelser") + " fjernet")
+    return "; ".join(deler) if deler else "uendret"
+
+
+def _andel(over: int, av: int) -> str:
+    return f"{over} av {av}" if av else VERDI_MANGLER
+
+
+def _maalvisning(m: dict) -> dict:
+    """Tallene fra `unntaksanalyse.maal()` slik en celle viser dem."""
+    return {
+        "talte": m["talte"],
+        "b1": _andel(m["b1_over_01"], m["b1_talte"]),
+        "over": (_andel(m["over"], m["talte"] - m["uten_grense"])
+                 if m["talte"] else VERDI_MANGLER),
+        "med": str(m["b3_medikamentelle"]) if m["uker"] else VERDI_MANGLER,
+        "ikke_med": (str(m["b4_ikke_medikamentelle"]) if m["uker"]
+                     else VERDI_MANGLER),
+        "maks_017": max(m["ledd2a_017_per_aar"].values(), default=0),
+        "rekke": m["ledd2b_rekke"], "rekke_13_39": m["ledd2b_rekke_13_39"],
+        "b2": m["b2_over"], "sluttet": m["b5_sluttet"],
+    }
+
+
+def _lokalitetslenke(loknr: str, felles: Felles, reserve: str) -> dict:
+    a = felles.akva.get(loknr)
+    if a is None:
+        return {"nr": loknr, "navn": reserve, "url": ""}
+    return {"nr": loknr, "navn": visningsord.tittelform(a.get("navn", "")),
+            "url": f"/lokalitet/{loknr}/"}
+
+
+def bygg_unntaksvekst(felles: Felles) -> dict | None:
+    """Alle tallene analysesiden viser, eller None uten arkivert liste."""
+    try:
+        liste_kropp, svar = unntaksanalyse.soknader()
+    except FileNotFoundError:
+        return None
+    deler = unntaksanalyse.del_rader(svar["rader"])
+    vilkaar = unntaksanalyse.vilkaar()
+    kropper = unntaksanalyse.eierskapskropper()
+
+    numre = sorted({str(r["lokalitet_nr"]) for n in ("sikre", "usikre")
+                    for r in deler[n]}, key=int)
+    kv_fra, kv_til = unntaksanalyse.KVALIFIKASJON
+    fra_dato = dt.date.fromisocalendar(*kv_fra, 1).isoformat()
+    bw = unntaksanalyse.barentswatch_uker(numre, fra_dato)
+    siste_bw = max((d for s in bw.values() for d in s), default=fra_dato)
+
+    drifter = {nr: unntaksanalyse.drift(nr, bw.get(nr, {}), siste_bw)
+               for nr in numre}
+    kapasiteter = {nr: unntaksanalyse.kapasitet(nr, kropper) for nr in numre}
+
+    # Siste uke Mattilsynet har levert for noen av lokalitetene. Står i
+    # setningen øverst og er MÅLT av rapportene, ikke av kalenderen.
+    siste_mt = max(((u.aar, u.uke) for d in drifter.values()
+                    for u in d.uker.values()), default=kv_til)
+
+    def selskap(r: dict) -> dict:
+        if not r.get("soker_orgnr"):
+            return {"navn": "", "url": ""}
+        orgnr = r["soker_orgnr"]
+        url = (f"/selskap/{orgnr}/" if orgnr in felles.tillatelser_per_eier
+               and not personeier(orgnr, felles) else "")
+        return {"navn": visningsord.selskapsnavn(r.get("soker_registernavn", "")),
+                "url": url, "orgnr": orgnr}
+
+    def po(r):
+        return int(r["po"]) if str(r["po"]).isdigit() else 99
+
+    rader = []
+    for r in sorted(deler["sikre"], key=lambda r: (
+            po(r), _lokalitetslenke(str(r["lokalitet_nr"]), felles,
+                                    r["lokalitet"])["navn"],
+            r.get("soker_registernavn", ""))):
+        nr = str(r["lokalitet_nr"])
+        d = drifter[nr]
+        rader.append({
+            "lok": _lokalitetslenke(nr, felles, r["lokalitet"]),
+            "mattilsynet_navn": r["lokalitet"],
+            "po": r["po"], "resultat": r["resultat"],
+            "saksnummer": ", ".join(r["saksnumre"]),
+            "soker": selskap(r),
+            "kapasitet": _kapasitetstekst(kapasiteter[nr]),
+            "kap_endret": bool(kapasiteter[nr]["endringer"]),
+            "kv": _maalvisning(d.kvalifikasjon),
+            "etter": _maalvisning(d.etter),
+            "_drift": d, "_kap": kapasiteter[nr], "_rad": r,
+        })
+
+    usikre = [{"mattilsynet_navn": r["lokalitet"], "po": r["po"],
+               "resultat": r["resultat"],
+               "kandidat": _lokalitetslenke(str(r["lokalitet_nr"]), felles,
+                                            str(r["lokalitet_nr"])),
+               "soker": selskap(r)}
+              for r in sorted(deler["usikre"], key=lambda r: (po(r), r["lokalitet"]))]
+    uloste = [{"mattilsynet_navn": r["lokalitet"], "po": r["po"],
+               "resultat": r["resultat"],
+               "kandidater": len(r.get("kandidater") or []),
+               "kobling": r["kobling"]}
+              for r in sorted(deler["uloste"], key=lambda r: (po(r), r["lokalitet"]))]
+
+    # PER PRODUKSJONSPERIODE, for periodene som når inn i tiden etter
+    # kvalifikasjonsperioden. Én rad per (lokalitet, periode).
+    etter_fra = dt.date.fromisocalendar(*unntaksanalyse.ETTER[0], 1).isoformat()
+    perioder = []
+    sett: set[str] = set()
+    for rad in rader:
+        nr = rad["lok"]["nr"]
+        if nr in sett:
+            continue
+        sett.add(nr)
+        d = rad["_drift"]
+        for p in d.per_periode:
+            if p["til"] < etter_fra:
+                continue
+            perioder.append({"lok": rad["lok"], "resultat": rad["resultat"],
+                             "fra": p["fra"], "til": p["til"],
+                             "aapen": p["aapen"], "bw_uker": p["bw_uker"],
+                             **_maalvisning(p)})
+        if d.etter_bw["uker"]:
+            perioder.append({"lok": rad["lok"], "resultat": rad["resultat"],
+                             "fra": "", "til": "", "aapen": False,
+                             "bw_uker": 0, **_maalvisning(d.etter_bw)})
+
+    # KONTROLLEN: én rad per lokalitet, sikre koblinger, kvalifikasjons-
+    # perioden. En lokalitet med to ulike resultater ville stått i begge
+    # grupper; den holdes utenfor og telles.
+    per_lok: dict[str, set] = defaultdict(set)
+    for r in deler["sikre"]:
+        per_lok[str(r["lokalitet_nr"])].add(r["resultat"])
+    blandet = sorted(n for n, v in per_lok.items() if len(v) > 1)
+    grupper: dict[str, list[dict]] = defaultdict(list)
+    for nr, v in per_lok.items():
+        if nr not in blandet:
+            grupper[next(iter(v))].append(drifter[nr].kvalifikasjon)
+    kontroll = unntaksanalyse.kontroll(grupper)
+    laveste_p = min((r["p"] for r in kontroll["rader"]), default=1.0)
+
+    # KAPASITETEN, oppsummert: lokalitetene med en endring, og hvor mange.
+    endret = sorted({rad["lok"]["nr"] for rad in rader if rad["kap_endret"]},
+                    key=int)
+    alle_en_prosent = all(e["en_prosent"] for nr in endret
+                          for e in kapasiteter[nr]["endringer"])
+
+    n_lok = len(per_lok)
+    godkjent = sum(1 for v in per_lok.values() if v == {"Godkjent"})
+    avslag = sum(1 for v in per_lok.values() if v == {"Avslag"})
+
+    lus_kropper = [d.kropp for d in drifter.values()]
+    # HVERT LEDD MED SIN MÅLING, slått opp i `MAALING`. Nøkkelen følger
+    # forskriftens egen nummerering: «b.3» er første ledd bokstav b nr. 3,
+    # «ledd2.a» er annet ledd bokstav a. Annet ledd begynner med avsnittet
+    # «Selv om det observerte lusenivået».
+    paragraf12, i_ledd2 = [], False
+    for b in vilkaar["paragraf12"]:
+        i_ledd2 = i_ledd2 or (b.nivaa == 0 and b.tekst.startswith("Selv om"))
+        nr = b.nummer.rstrip(".")
+        nokkel = (f"b.{nr}" if b.nivaa == 2
+                  else f"ledd2.{nr}" if b.nivaa == 1 and i_ledd2
+                  else "a." if b.nivaa == 1 and nr == "a" else "")
+        merke, tekst = unntaksanalyse.MAALING.get(nokkel, ("", ""))
+        paragraf12.append({"nivaa": b.nivaa, "nummer": b.nummer,
+                           "tekst": b.tekst, "merke": merke, "maaling": tekst})
+
+    def kilde(k: unntaksanalyse.Kropp, url: str = "") -> dict:
+        return {"navn": k.navn, "sha": _hash_vist(k.sha256), "url": url}
+
+    return {
+        "n_lok": n_lok, "godkjent": godkjent, "avslag": avslag,
+        "rader_sikre": len(deler["sikre"]),
+        "kv_fra": _isoukeverdi(*kv_fra), "kv_til": _isoukeverdi(*kv_til),
+        "kv_fra_vist": f"uke {kv_fra[1]}/{kv_fra[0]}",
+        "kv_til_vist": f"uke {kv_til[1]}/{kv_til[0]}",
+        "etter_fra_vist": "uke {1}/{0}".format(*unntaksanalyse.ETTER[0]),
+        "etter_fra": _isoukeverdi(*unntaksanalyse.ETTER[0]),
+        "siste_mt": _isoukeverdi(*siste_mt),
+        "siste_mt_vist": f"uke {siste_mt[1]}/{siste_mt[0]}",
+        "siste_bw": siste_bw,
+        "kap_fra": kropper[0][0] if kropper else "",
+        "kap_til": kropper[-1][0] if kropper else "",
+        "kap_endret": [_lokalitetslenke(nr, felles, nr) for nr in endret],
+        "kap_endret_avslag": sum(1 for nr in endret
+                                 if per_lok.get(nr) == {"Avslag"}),
+        "kap_alle_en_prosent": alle_en_prosent,
+        "rader": rader, "usikre": usikre, "uloste": uloste,
+        "perioder": perioder,
+        "kontroll": kontroll, "laveste_p": laveste_p,
+        "blandet": blandet,
+        "paragraf12": paragraf12,
+        "paragraf12a": [b.tekst for b in vilkaar["paragraf12a"]],
+        "lakselus8": [b.tekst for b in vilkaar["lakselus8"]],
+        "endret_ved": vilkaar["endret_ved"],
+        "lik_2023": vilkaar["lik_2023"],
+        "lovkilder": [kilde(k, vilkaar["url"].get(dok, ""))
+                      for dok, k in vilkaar["kilder"].items()],
+        "liste": {**kilde(liste_kropp, svar.get("url", "")),
+                  "kropp_sha": _hash_vist(svar.get("sha256", "")),
+                  "hentet": liste_kropp.navn.split("/")[-1][:10]},
+        "eierskap": [kilde(k) for _d, k, _t in kropper],
+        "lakselus_n": len(lus_kropper),
+        "lakselus_rapporter": sum(len(json.loads(k.data)["rapporter"])
+                                  for k in lus_kropper),
+        "utenfor": [{"lok": nr, **u} for nr, d in drifter.items()
+                    for u in d.utenfor],
+        "ulike_uker": sum(d.kvalifikasjon["ulike_uker"]
+                          + d.etter["ulike_uker"] for d in drifter.values()),
+        "uten_tellinger_kv": kontroll["uten_tellinger"],
+        "mattilsynet_liste_url": svar.get("url", ""),
+    }
+
+
+UNNTAK_KOLONNER = (
+    nedlasting.Kolonne("lokalitetsnummer", "string",
+                       "Fiskeridirektoratets lokalitetsnummer, slik kilden "
+                       "koblet Mattilsynets lokalitetsnavn til registeret."),
+    nedlasting.Kolonne("lokalitet_navn", "string",
+                       "Lokalitetens navn i Akvakulturregisteret."),
+    nedlasting.Kolonne("mattilsynet_navn", "string",
+                       "Lokalitetsnavnet slik Mattilsynets liste skriver det."),
+    nedlasting.Kolonne("produksjonsomraade", "string",
+                       "Produksjonsområdet Mattilsynets liste oppgir."),
+    nedlasting.Kolonne("resultat", "string",
+                       "Mattilsynets resultat: Godkjent eller Avslag."),
+    nedlasting.Kolonne("saksnummer", "string", "Mattilsynets saksnummer."),
+    nedlasting.Kolonne("navn", "string",
+                       "Søkerens navn i Fiskeridirektoratets register. Bare "
+                       "der kilden har koblet søkeren entydig til et "
+                       "organisasjonsnummer med selskapsform.",
+                       "Søkeren er ikke koblet til et selskap og er utelatt."),
+    nedlasting.Kolonne("orgnr", "string",
+                       "Søkerens organisasjonsnummer.",
+                       "Søkeren er utelatt."),
+    nedlasting.Kolonne("kapasitet_endring_tonn", "decimal",
+                       "Summen av endret capacity.current på tillatelser med "
+                       "aktiv tilknytning til lokaliteten, mellom første og "
+                       "siste eierskapskropp.", "Ingen endring."),
+    nedlasting.Kolonne("kapasitet_en_prosent", "boolean",
+                       "Om hver endring er nøyaktig round(x × 1,01).",
+                       "Ingen endring."),
+    *(nedlasting.Kolonne(f"{fase}_{navn}", "integer", f"{forkl} ({tekst}).",
+                         "Ingen rapporter i tidsrommet.")
+      for fase, tekst in (("kv", "uke 40/2023–39/2025"),
+                          ("etter", "fra uke 40/2025"))
+      for navn, forkl in (
+          ("tellinger", "Uker med lusetall fra Mattilsynet"),
+          ("tellinger_uke13_39", "Uker med lusetall i uke 13–39"),
+          ("over_010_uke13_39", "Uker med 0,10 eller flere voksne hunnlus "
+                                "i uke 13–39"),
+          ("maks_017_per_aar", "Flest uker med 0,17 eller flere i uke "
+                               "13–39 i ett ISO-år"),
+          ("rekke_010", "Lengste rekke påfølgende uker med 0,10 eller flere"),
+          ("rekke_010_uke13_39", "Samme rekke, bare uke 13–39"),
+          ("over_tiltaksgrense", "Uker på eller over BarentsWatchs "
+                                 "tiltaksgrense"),
+          ("over_tiltaksgrense_uke40_12", "Samme, i uke 40–12"),
+          ("uten_grense", "Uker med tall uten grense hos BarentsWatch"),
+          ("medikamentelle", "Oppføringer av medikamentell behandling"),
+          ("ikke_medikamentelle", "Oppføringer av ikke-medikamentell "
+                                  "behandling"),
+          ("perioder_sluttet", "Produksjonsperioder som endte med brakk"))),
+)
+
+
+def unntak_datasett(a: dict, setninger: list[str], bygget: str
+                    ) -> nedlasting.Datasett:
+    """Tabellen per søker og lokalitet, med alle tallene, som nedlasting."""
+    def fase(m: dict, f: str) -> dict:
+        return {
+            f"{f}_tellinger": str(m["talte"]),
+            f"{f}_tellinger_uke13_39": str(m["b1_talte"]),
+            f"{f}_over_010_uke13_39": str(m["b1_over_01"]),
+            f"{f}_maks_017_per_aar": str(max(m["ledd2a_017_per_aar"].values(),
+                                             default=0)),
+            f"{f}_rekke_010": str(m["ledd2b_rekke"]),
+            f"{f}_rekke_010_uke13_39": str(m["ledd2b_rekke_13_39"]),
+            f"{f}_over_tiltaksgrense": str(m["over"]),
+            f"{f}_over_tiltaksgrense_uke40_12": str(m["b2_over"]),
+            f"{f}_uten_grense": str(m["uten_grense"]),
+            f"{f}_medikamentelle": str(m["b3_medikamentelle"]),
+            f"{f}_ikke_medikamentelle": str(m["b4_ikke_medikamentelle"]),
+            f"{f}_perioder_sluttet": str(m["b5_sluttet"]),
+        } if m["uker"] else {}
+
+    rader = []
+    for rad in a["rader"]:
+        r, kap, d = rad["_rad"], rad["_kap"], rad["_drift"]
+        summer = kap["sum_endring"]
+        rader.append({
+            "lokalitetsnummer": rad["lok"]["nr"],
+            "lokalitet_navn": rad["lok"]["navn"],
+            "mattilsynet_navn": r["lokalitet"],
+            "produksjonsomraade": str(r["po"]),
+            "resultat": r["resultat"],
+            "saksnummer": "; ".join(r["saksnumre"]),
+            "navn": r.get("soker_registernavn", "") if r.get("soker_orgnr") else "",
+            "orgnr": r.get("soker_orgnr", ""),
+            "kapasitet_endring_tonn": (str(summer.get("TN")) if "TN" in summer
+                                       else ""),
+            "kapasitet_en_prosent": (str(all(e["en_prosent"] for e in
+                                             kap["endringer"]))
+                                     if kap["endringer"] else ""),
+            **fase(d.kvalifikasjon, "kv"), **fase(d.etter, "etter"),
+        })
+    return nedlasting.Datasett(
+        stamme=UNNTAK_STAMME,
+        tittel="Unntaksvekst 2025/2026: søknad, kapasitet og drift",
+        beskrivelse=(
+            f"{len(rader)} rader, én per søker og lokalitet, for "
+            f"lokalitetene i Mattilsynets oversikt over søknader om "
+            f"unntaksvekst 2025/2026 som kilden har koblet entydig til "
+            f"Akvakulturregisteret. Lus og behandlinger er fra Mattilsynets "
+            f"ukesrapporter; tiltaksgrense og produksjonsperioder er "
+            f"BarentsWatchs. Ingen kolonne sier om et vilkår er oppfylt."),
+        kolonner=UNNTAK_KOLONNER,
+        rader=rader,
+        kilder=(kildelisens(["unntaksvekst", "eierskap", "lusetall"])
+                + [("Mattilsynet, lakselusrapporter via åpent API",
+                    "NLOD 2.0", "https://data.norge.no/nlod/no/2.0")]),
+        attribusjon=list(setninger),
+        hentet=[f"Søknadslista arkivert {a['liste']['hentet']}; "
+                f"lakselusrapportene hentet samme dag."],
+        bygget=bygget,
+        merknader=[
+            "Lusetallet for en uke er det høyeste Mattilsynet har fått "
+            "rapportert for uka; en behandling som står likt i to rapporter "
+            "samme uke, telles én gang.",
+            "En oppføring av behandling i en ukesrapport er ikke "
+            "nødvendigvis det forskriften kaller én behandling.",
+            "Produksjonsperiodene er BarentsWatchs vurdering «trolig uten "
+            "fisk», ikke innrapportert slakting."],
+        nokkel=("saksnummer", "lokalitetsnummer"),
+    )
+
+
+def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
+    """/analyse/unntaksvekst/ med nedlastingene. Tom liste uten arkivert
+    søknadsliste — og da står det i byggerapporten."""
+    a = bygg_unntaksvekst(felles)
+    if a is None:
+        return []
+    mappe = rot.joinpath(*UNNTAK_STI)
+    sti = mappe / "index.html"
+    kontekst = _grunnkontekst(
+        felles, rot, sti, kilder=ANALYSE_KILDER,
+        ekstra_attribusjon=(MATTILSYNET_API,),
+        tittel="Unntaksvekst 2025/2026: fra søknad til drift",
+        beskrivelse=(
+            f"{a['n_lok']} lokaliteter Mattilsynet har godkjent eller avslått "
+            f"for unntaksvekst 2025/2026: kapasiteten i registeret, og lus "
+            f"og behandlinger målt mot vilkårene i "
+            f"produksjonsområdeforskriften § 12."),
+        jsonld=_script_trygg({
+            "@context": "https://schema.org", "@type": "Dataset",
+            "name": "Unntaksvekst 2025/2026: fra søknad til drift",
+            "inLanguage": "nb",
+            "temporalCoverage": f"{a['kv_fra']}/{a['siste_mt']}",
+        }),
+        proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+        sidetype="Analyse",
+        undertittel="Mattilsynets søknader om unntaksvekst holdt mot "
+                    "kapasitet og drift",
+        soketekst="unntaksvekst unntak kapasitetsøkning Mattilsynet")
+    ds = unntak_datasett(a, kontekst["attribusjon"], kontekst["bygget"])
+    html = _miljo().get_template("analyse-unntaksvekst.html.j2").render(
+        a=a, xlsx=ds.xlsx_navn, zip=ds.zip_navn,
+        sjekksum=nedlasting.sjekksum_vist(ds), **kontekst)
+    mappe.mkdir(parents=True, exist_ok=True)
+    (mappe / ds.xlsx_navn).write_bytes(nedlasting.xlsx_bytes(ds))
+    (mappe / ds.zip_navn).write_bytes(nedlasting.zip_bytes(ds))
+    return [skriv_side(sti, html), mappe / ds.xlsx_navn, mappe / ds.zip_navn]
+
 
 
 # ------------------------------------------------------ indeksene
@@ -7487,7 +7997,7 @@ def viste_kilder() -> frozenset[str]:
     return frozenset(
         SIDENS_KILDER + ENDRINGSKILDER + FORSIDEKILDER + SELSKAPSKILDER
         + PO_KILDER + OM_KILDER + INDEKS_LOKALITET_KILDER
-        + INDEKS_OMRAADE_KILDER + INDEKS_SELSKAP_KILDER)
+        + INDEKS_OMRAADE_KILDER + INDEKS_SELSKAP_KILDER + ANALYSE_KILDER)
 
 
 def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:
@@ -8130,7 +8640,25 @@ def bygg_forside(felles: Felles) -> dict:
         # /lokalitet/#akvakultur-uten-koordinater — der alle 1 782
         # uansett er.
         "uten_koordinater_antall": len(uten),
+
+        # ---- analysen ----
+        # Tallene er lest av søknadslista i `felles`, ikke av analysen:
+        # forsiden skal ikke regne om Mattilsynets kropper for en lenke.
+        "unntak": _forside_unntak(felles),
     }
+
+
+def _forside_unntak(felles: Felles) -> dict | None:
+    """Lenka til analysesiden, med tallene den kan stå for. None når
+    siden ikke bygges."""
+    if not felles.unntak:
+        return None
+    resultat = {nr: {r["resultat"] for r in rader}
+                for nr, rader in felles.unntak.items()}
+    return {"url": "/" + "/".join(UNNTAK_STI) + "/",
+            "lokaliteter": len(resultat),
+            "godkjent": sum(1 for v in resultat.values() if v == {"Godkjent"}),
+            "avslag": sum(1 for v in resultat.values() if v == {"Avslag"})}
 
 
 def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
@@ -8750,6 +9278,9 @@ class Byggelogg:
     endringssider: int = 0
     endringsuker: int = 0
     feeder: int = 0
+    # Analysesidene som ble skrevet. 0 er et svar og står i rapporten:
+    # uten arkivert søknadsliste bygges ikke /analyse/unntaksvekst/.
+    analyser: int = 0
     sok: dict = None
     selskap_uten_registerdata: list[str] = None
     selskap_person: list[str] = None
@@ -8873,6 +9404,17 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     except Exception as feil:                        # noqa: BLE001
         logg.feilet.append(("om", f"{type(feil).__name__}: {feil}"))
     tider["indekser"] = time.perf_counter() - t0
+
+    # ANALYSESIDEN. Egen fase i tidsmålingen: den leser Mattilsynets
+    # kropper og BarentsWatchs uker på nytt, og en fase som ikke måles er
+    # en fase ingen ser vokse.
+    t0 = time.perf_counter()
+    try:
+        logg.analyser = 1 if skriv_unntaksvekst(rot, felles) else 0
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("analyse/unntaksvekst",
+                            f"{type(feil).__name__}: {feil}"))
+    tider["analyse"] = time.perf_counter() - t0
 
     # ENDRINGSSIDENE OG FEEDENE bygges av de SAMME ukene. Ett kall til
     # `les_endringsuker()`, og begge leser resultatet: to veier til det
@@ -9022,6 +9564,9 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
           f"+ {logg.indekssider} indekssider + {logg.endringssider} "
           f"endringssider ({logg.endringsuker} uker) skrevet til {rot}")
     print(f"  {logg.feeder} Atom-feeder")
+    print(f"  {logg.analyser} analyseside(r)"
+          + ("" if logg.analyser else
+             " — ingen arkivert søknadsliste i data/arkiv/unntaksvekst/"))
     # SØKEINDEKSEN RAPPORTERES ALLTID, også når den ikke ble bygget: et
     # søk som stille slutter å virke er formen på feilene i CLAUDE.md 1b.
     print(f"  søkeindeks    {'bygget' if logg.sok['bygget'] else 'IKKE BYGGET'}"

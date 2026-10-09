@@ -464,6 +464,27 @@
    UKESBREVET ER IKKE BYGGET, og skjemaet står derfor ikke her — se
    avviket i oppdraget, punkt 6. Et skjema som poster til en adresse
    ingen lytter på, er verre enn ingen: det ser ut som en vei inn. #}
+{# ---------------------------------------------------------------- 5
+   ANALYSEN. Én lenke, med tallene lenka kan stå for. Står bare når
+   siden bygges — se `_forside_unntak()`. #}
+{% if f.unntak %}
+<section class="ark seksjon" id="analyse" aria-labelledby="analyse-tittel">
+  <div class="seksjonshode">
+    <div>
+      <p class="etikett">Analyse</p>
+      <h2 id="analyse-tittel"><a href="{{ f.unntak.url }}">Unntaksvekst
+        2025/2026: fra søknad til drift</a></h2>
+    </div>
+  </div>
+  <p class="blokk-ingress">
+    {{ antall(f.unntak.lokaliteter, "lokalitet", "lokaliteter") }} Mattilsynet har godkjent
+    ({{ f.unntak.godkjent }}) eller avslått ({{ f.unntak.avslag }}): kapasiteten
+    tillatelsene har i registeret, og lus og behandlinger fra Mattilsynets
+    rapporter holdt mot vilkårene.
+  </p>
+</section>
+{% endif %}
+
 <section class="ark seksjon" id="folg" aria-labelledby="folg-tittel">
   <div class="seksjonshode">
     <div>

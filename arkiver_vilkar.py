@@ -78,6 +78,10 @@ SIDER = {
     "brreg": ("https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/"
               "datasett-og-api/"),
     "lovdata": "https://lovdata.no/info/brukeravtale",
+    # Fra 09.10.2026: vilkåret `unntaksvekst` og analysesiden for
+    # unntaksvekst bygger på. Se sources/unntaksvekst.py, `attribusjon`.
+    "mattilsynet": ("https://www.mattilsynet.no/om-mattilsynet/"
+                    "vil-du-bruke-innhold-fra-mattilsynet"),
 }
 
 LOGG_KILDE = "vilkar"

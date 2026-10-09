@@ -41,7 +41,8 @@ Sitatene under er fortsatt lest for hånd; kroppene er belegget.
 | `trafikklysvedtak` | NLOD 2.0, via unntaket i Lovdatas punkt 2.3 | [lovdata.no/info/brukeravtale](https://lovdata.no/info/brukeravtale) | «hvis du oppgir Lovdata som kilde og ellers følger vilkårene i NLOD 2.0» | **ja**, men se merknad C | 12.09.2026 |
 | `reguleringsomraader` | **CC BY 4.0** | [doi.org/10.21335/NMDC-1923112433](https://doi.org/10.21335/NMDC-1923112433) | navngivelse av opphavspersonene, se merknad D | **ja** | 14.09.2026 |
 | `ekspertgruppen` | **UBELAGT** | ingen funnet — se merknad E | siteringsformen fra rapporten selv | **ukjent** | 14.09.2026 (søkt, ikke funnet) |
-| `unntaksvekst` | **UBELAGT** | ikke lest — lista ligger på mattilsynet.no, ikke i det NLOD-lisensierte API-et | — | **ukjent** | ikke søkt (08.10.2026) |
+| `unntaksvekst` | Mattilsynets gjenbruksvilkår — se merknad K | [mattilsynet.no/…/vil-du-bruke-innhold-fra-mattilsynet](https://www.mattilsynet.no/om-mattilsynet/vil-du-bruke-innhold-fra-mattilsynet) | «(Kilde: Mattilsynet, nettadressa og datoen du gjenga teksten.)» | **ikke nevnt** | 09.10.2026 |
+| Mattilsynets åpne API (ikke en kilde; hentet for analysen av unntaksvekst) | **NLOD 2.0** | spesifikasjonen selv, `info.license`, arkivert i `mattilsynet-openapi/` | standardformen i NLOD 2.0: «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Mattilsynet» | **ja** | 09.10.2026 |
 
 ---
 
@@ -518,3 +519,32 @@ Rekkefølgen er den samme som alvorlighetsgraden:
 
 Lukket 14.09.2026: Brregs ordrette attribusjonssetning, som sto som
 ULEST fra 12.09. Se merknad B.
+
+---
+
+## Merknad K — `unntaksvekst`: «tekstar» på mattilsynet.no
+
+Lest 09.10.2026, siden «Vil du bruke tekstar frå Mattilsynet?»
+(fagleg gjennomgått 18.12.2024), arkivert i `vilkar-mattilsynet/` av
+`arkiver_vilkar.py`. Ordrett, i utdrag:
+
+> Mattilsynet.no har mange tekstar som du gjerne kan spreie, så lenge du
+> følger retningslinjene du finn her. […] Opphavsretten for alle tekstar
+> på Mattilsynet.no tilhøyrer Mattilsynet. Du kan ikkje bruke tekstane i
+> samanhengar der dei kan misforståast, mistolkast eller villeie. Du må
+> oppgi oss som kjelde […] (Kilde: Mattilsynet, nettadressa og datoen du
+> gjenga teksten.)
+
+Søknadslista er en tabell på mattilsynet.no, ikke en artikkel. At
+«tekstar» dekker den, er en LESNING, og den er Heines å godta eller
+avvise. Siden sier ikke noe om data; den viser til API-ene, som er NLOD.
+
+Med lesningen er kilden belagt fra 09.10.2026: `attribusjon =
+("Kilde: Mattilsynet",)`, og nettadressen og datoen står ved tabellen på
+/analyse/unntaksvekst/. Det har to følger utover analysesiden: søknadene
+står i ukesendringene fra den andre ukentlige kjøringen (den første har
+ingen forrige å sammenligne med), og kilden står i lisenstabellen på
+/om/. Avvises lesningen, settes `attribusjon` tilbake til `None`; da
+bygges ikke analysesiden, og byggingen feiler til den er tatt ut.
+
+Kommersiell bruk er ikke nevnt på siden.

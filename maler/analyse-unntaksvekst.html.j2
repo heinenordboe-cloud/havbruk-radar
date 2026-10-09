@@ -1,0 +1,451 @@
+{# Analysesiden for unntaksvekst 2025/2026. Bygget av
+   `nettsted.bygg_unntaksvekst()`, som leser `unntaksanalyse` — se
+   docs/ANALYSE-UNNTAKSVEKST.md.
+
+   REKKEFØLGEN ER BESTILLINGENS: én setning om hva som er målt, tabellen
+   per søker og lokalitet, så metode og forbehold. Mellom tabellen og
+   metoden står det tre ting tabellen ikke kan bære alene: periodene,
+   koblingene som ikke er sikre, og kontrollen.
+
+   INGEN CELLE SIER OPPFYLT ELLER BRUTT. Kolonneoverskriften står med
+   vilkårets eget tall, og cella med vårt; leseren holder dem mot
+   hverandre. Det er bestilt, og det er riktig: hvert vilkår har deler
+   ingen kilde vi har, kan måle.
+
+   MARKUPKONTRAKTEN GJELDER: id, navn, thead og th scope på hver
+   tabell, data-felt på hver verdicelle, <time datetime> på hver dato og
+   uke. Lenkede navn er dobbeltmerket som på lokalitetssiden: cella for
+   kontrakten, lenka for porten. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div data-pagefind-body class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Forside</a></li>
+      <li aria-current="page">Analyse: unntaksvekst</li>
+    </ol>
+  </nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<div class="ark analyse">
+
+<div class="analyse-hode">
+  <h1>Unntaksvekst 2025/2026: fra søknad til drift</h1>
+  {# DEN ENE SETNINGEN. Hvert tall i den er regnet i denne byggingen og
+     står igjen lenger ned. #}
+  <p class="analyse-ingress">
+    For {{ antall(a.n_lok, "lokalitet", "lokaliteter") }} Mattilsynet har godkjent
+    ({{ a.godkjent }}) eller avslått ({{ a.avslag }}) for unntaksvekst
+    2025/2026, og som kan kobles entydig til Akvakulturregisteret, viser
+    siden lakselus og behandlinger fra Mattilsynets ukesrapporter fra
+    <time datetime="{{ a.kv_fra }}">{{ a.kv_fra_vist }}</time> til
+    <time datetime="{{ a.siste_mt }}">{{ a.siste_mt_vist }}</time> holdt mot
+    tallene i vilkårene, og kapasiteten tillatelsene på lokalitetene hadde i
+    registeret fra <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time>
+    til <time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time>.
+  </p>
+  <ul class="handlinger" aria-label="Last ned">
+    <li class="handlinger-gruppe"><a class="handling handling--last" href="{{ xlsx }}" download
+       aria-label="Tabellen som Excel (.xlsx)">Excel (.xlsx)</a>
+      <a class="handling handling--last" href="{{ zip }}" download
+       aria-label="Tabellen som Data (.zip)">Data (.zip)</a></li>
+    <li><a class="handling" href="#metode">Metode</a></li>
+    <li><a class="handling" href="#forbehold">Forbehold</a></li>
+  </ul>
+</div>
+
+{# ---------------------------------------------------------------- 1
+   TABELLEN PER SØKER OG LOKALITET. Én rad per søker og lokalitet, slik
+   Mattilsynets liste har dem: en lokalitet med tre søkere har tre rader
+   med de samme tallene. Bare SIKRE koblinger — de usikre står for seg
+   under, og telles ikke her. #}
+<section class="seksjon blokk" id="lokalitetene" aria-labelledby="lokalitetene-tittel">
+  <h2 id="lokalitetene-tittel">Lokalitetene</h2>
+  <p class="blokk-ingress">
+    {{ antall(a.rader_sikre, "rad", "rader") }} for {{ antall(a.n_lok, "lokalitet", "lokaliteter") }}.
+    «Før» er kvalifikasjonsperioden søknaden bygger på,
+    <time datetime="{{ a.kv_fra }}">{{ a.kv_fra_vist }}</time> til
+    <time datetime="{{ a.kv_til }}">{{ a.kv_til_vist }}</time>. «Etter» er
+    tiden siden, fra <time datetime="{{ a.etter_fra }}">{{ a.etter_fra_vist }}</time>:
+    Mattilsynets liste har ingen vedtaksdato, så uka etter
+    kvalifikasjonsperioden er det tidligste vi kan regne fra. Tallet i
+    kolonneoverskriften er vilkårets; tallet i cella er Mattilsynets
+    rapporter, talt av oss.
+  </p>
+
+  <p class="tabelltittel" id="unntak-tittel">Søker, resultat, kapasitet og
+    drift per lokalitet</p>
+  <div class="tabellramme" role="region" aria-labelledby="unntak-tittel" tabindex="0">
+  <table id="unntak-lokaliteter" class="analyse-tabell" aria-labelledby="unntak-tittel">
+    <thead>
+      <tr>
+        <th scope="col" rowspan="2">Lokalitet</th>
+        <th scope="col" rowspan="2" class="tall">PO</th>
+        <th scope="col" rowspan="2">Søker</th>
+        <th scope="col" rowspan="2">Resultat</th>
+        <th scope="col" rowspan="2">Kapasitet i registeret,
+          <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time>–<time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time></th>
+        <th scope="colgroup" colspan="3" class="fase">Før søknaden</th>
+        <th scope="colgroup" colspan="4" class="fase">Etter</th>
+      </tr>
+      <tr>
+        <th scope="col" class="tall">≥ 0,10 i <span class="hel">uke 13–39</span>
+          <span class="vilkaarstall">nr. 1: ingen</span></th>
+        <th scope="col" class="tall">Medik&shy;amentelle
+          <span class="vilkaarstall">nr. 3: høyst 1</span></th>
+        <th scope="col" class="tall">Ikke-medik&shy;amentelle
+          <span class="vilkaarstall">nr. 4: høyst 6</span></th>
+        <th scope="col" class="tall">≥ 0,10 i <span class="hel">uke 13–39</span>
+          <span class="vilkaarstall">nr. 1: ingen</span></th>
+        <th scope="col" class="tall">Over tiltaks&shy;grensa
+          <span class="vilkaarstall">nr. 2: ingen i <span class="hel">uke 40–12</span></span></th>
+        <th scope="col" class="tall">Medik&shy;amentelle
+          <span class="vilkaarstall">nr. 3: høyst 1</span></th>
+        <th scope="col" class="tall">Ikke-medik&shy;amentelle
+          <span class="vilkaarstall">nr. 4: høyst 6</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in a.rader %}
+      <tr>
+        <th scope="row">{% if r.lok.url %}<a data-felt="lokalitet_navn" href="{{ r.lok.url }}">{{ r.lok.navn }}</a>{% else %}<span data-felt="lokalitet_navn">{{ r.lok.navn }}</span>{% endif %}
+          <span class="bi">{{ r.lok.nr }}</span></th>
+        <td class="tall" data-felt="prodomraade_kode">{{ r.po }}</td>
+        <td data-felt="{{ feltmerke(r.soker.navn, 'navn') }}">{% if r.soker.navn and r.soker.url %}<a data-felt="navn" href="{{ r.soker.url }}">{{ r.soker.navn }}</a>{% elif r.soker.navn %}{{ r.soker.navn }}{% else %}{{ VERDI_MANGLER }}{% endif %}</td>
+        <td data-felt="resultat">{{ r.resultat }}</td>
+        <td data-felt="kapasitet_endring"{% if r.kap_endret %} class="endret"{% endif %}>{{ r.kapasitet }}</td>
+        <td class="tall" data-felt="kv_over_010_uke13_39">{{ r.kv.b1 }}</td>
+        <td class="tall" data-felt="kv_medikamentelle">{{ r.kv.med }}</td>
+        <td class="tall" data-felt="kv_ikke_medikamentelle">{{ r.kv.ikke_med }}</td>
+        <td class="tall" data-felt="etter_over_010_uke13_39">{{ r.etter.b1 }}</td>
+        <td class="tall" data-felt="etter_over_tiltaksgrense">{{ r.etter.over }}</td>
+        <td class="tall" data-felt="etter_medikamentelle">{{ r.etter.med }}</td>
+        <td class="tall" data-felt="etter_ikke_medikamentelle">{{ r.etter.ikke_med }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    «x av y» er uker med 0,10 eller flere voksne hunnlus av uker med en
+    telling i uke 13–39, og uker på eller over BarentsWatchs tiltaksgrense
+    av uker der BarentsWatch oppgir en grense. Behandlingene er
+    <strong>oppføringer i ukesrapportene</strong>, ikke det forskriften
+    kaller én behandling. {{ VERDI_MANGLER }} betyr ingen rapport i
+    tidsrommet — i kolonnene for 0,10: ingen telling i uke 13–39. Søkeren står bare der kilden har koblet navnet entydig til et
+    organisasjonsnummer med selskapsform; navnet er registerets. Alle
+    kolonnene — også lengste rekke, 0,17-tellinger og tiltaksgrensa i uke
+    40–12 — står i nedlastingen, sjekksum <code>{{ sjekksum }}</code>.
+  </p>
+</section>
+
+{# ---------------------------------------------------------------- 2
+   KAPASITETEN. Det tabellen viser i én kolonne, sagt som tall. #}
+<section class="seksjon blokk" id="kapasitet" aria-labelledby="kapasitet-tittel">
+  <h2 id="kapasitet-tittel">Kapasiteten i registeret</h2>
+  <p>
+    {% if a.kap_endret %}
+    Mellom <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time> og
+    <time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time> fikk
+    tillatelsene på {{ antall(a.kap_endret|length, "lokalitet", "lokaliteter") }}
+    mer kapasitet:
+    {% for l in a.kap_endret -%}
+    {% if l.url %}<a href="{{ l.url }}">{{ l.navn }}</a>{% else %}{{ l.navn }}{% endif %}
+    {%- if not loop.last %}, {% endif %}
+    {%- endfor %}.
+    {% if a.kap_alle_en_prosent %}Hver eneste endring er nøyaktig 1 %, avrundet
+    til hele tonn{% endif %}{% if a.kap_endret_avslag %}, og
+    {{ antall(a.kap_endret_avslag, "av dem", "av dem") }} er avslått av
+    Mattilsynet{% endif %}. Tillatelsene deles mellom lokaliteter, så en
+    økning på én tillatelse står på hver lokalitet den er knyttet til.
+    {% else %}
+    Ingen tillatelse på lokalitetene endret kapasitet mellom
+    <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time> og
+    <time datetime="{{ a.kap_til }}">{{ a.kap_til|dato }}</time>.
+    {% endif %}
+  </p>
+  <p class="tabellnote">
+    Kapasiteten er Fiskeridirektoratets <code>capacity.current</code> for
+    hver tillatelse med aktiv tilknytning til lokaliteten, lest av
+    {{ antall(a.eierskap|length, "eierskapskropp", "eierskapskropper") }}. Registeret oppgir ikke
+    når en kapasitet ble endret, bare at den var endret i neste kropp. En
+    økning på 1 % er det kapittel 3 i kapasitetsjusteringsforskriften for
+    2026 gir i produksjonsområde 1, 12 og 13; økningen etter unntaket står
+    i kapittel 4, med søknadsfrist hos fylkeskommunen 28. september 2026.
+  </p>
+</section>
+
+{# ---------------------------------------------------------------- 3
+   PER PRODUKSJONSPERIODE. Lang, og derfor lukket. Periodegrensa er
+   BarentsWatchs, og det står i overskriften. #}
+<section class="seksjon blokk" id="perioder" aria-labelledby="perioder-tittel">
+  <h2 id="perioder-tittel">Per produksjonsperiode</h2>
+  <p>
+    Lus mot tiltaksgrensa og behandlinger for hver produksjonsperiode som
+    når inn i tiden etter kvalifikasjonsperioden.
+    <strong>Periodegrensa er BarentsWatchs vurdering</strong> «trolig uten
+    fisk», ikke noe oppdretteren har rapportert: en periode er
+    sammenhengende uker der BarentsWatch ikke regner lokaliteten som
+    brakklagt. BarentsWatchs siste uke er
+    <time datetime="{{ a.siste_bw }}">{{ a.siste_bw|uke }}</time>; rapporter
+    fra Mattilsynet etter den står på en egen rad per lokalitet.
+  </p>
+  <details class="tallboks">
+    <summary>{{ antall(a.perioder|length, "rad", "rader") }}</summary>
+    <p class="tabelltittel" id="perioder-tabell-tittel">Lus og behandlinger
+      per produksjonsperiode</p>
+    <div class="tabellramme" role="region" aria-labelledby="perioder-tabell-tittel" tabindex="0">
+    <table id="unntak-perioder" aria-labelledby="perioder-tabell-tittel">
+      <thead>
+        <tr>
+          <th scope="col">Lokalitet</th>
+          <th scope="col">Resultat</th>
+          <th scope="col">Periode</th>
+          <th scope="col" class="tall">Tellinger</th>
+          <th scope="col" class="tall">Over tiltaksgrensa</th>
+          <th scope="col" class="tall">≥ 0,10 i <span class="hel">uke 13–39</span></th>
+          <th scope="col" class="tall">Medik&shy;amentelle</th>
+          <th scope="col" class="tall">Ikke-medik&shy;amentelle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in a.perioder %}
+        <tr>
+          <th scope="row">{% if p.lok.url %}<a data-felt="lokalitet_navn" href="{{ p.lok.url }}">{{ p.lok.navn }}</a>{% else %}<span data-felt="lokalitet_navn">{{ p.lok.navn }}</span>{% endif %}</th>
+          <td data-felt="resultat">{{ p.resultat }}</td>
+          <td data-felt="periode">{% if p.fra %}<time datetime="{{ p.fra }}">{{ p.fra|uke }}</time>–<time datetime="{{ p.til }}">{{ p.til|uke }}</time>{% if p.aapen %} (pågår){% endif %}{% else %}etter BarentsWatchs siste uke{% endif %}</td>
+          <td class="tall" data-felt="tellinger">{{ p.talte }}</td>
+          <td class="tall" data-felt="over_tiltaksgrense">{{ p.over }}</td>
+          <td class="tall" data-felt="over_010_uke13_39">{{ p.b1 }}</td>
+          <td class="tall" data-felt="medikamentelle">{{ p.med }}</td>
+          <td class="tall" data-felt="ikke_medikamentelle">{{ p.ikke_med }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+</section>
+
+{# ---------------------------------------------------------------- 4
+   KOBLINGENE SOM IKKE ER SIKRE. Vises, men telles aldri med. #}
+<section class="seksjon blokk" id="usikre" aria-labelledby="usikre-tittel">
+  <h2 id="usikre-tittel">Rader uten sikker kobling</h2>
+  <p>
+    Mattilsynets liste har ikke lokalitetsnummer. Kilden kobler navn og
+    produksjonsområde til registeret, og der navnet ikke er likt, foreslår
+    den en skrivevariant. Forslagene er <strong>ikke bekreftet</strong>, og
+    radene under er ikke med i tabellen, i kontrollen eller i noe tall på
+    siden.
+  </p>
+  {% if a.usikre %}
+  <p class="tabelltittel" id="usikre-tabell-tittel">{{ antall(a.usikre|length, "rad", "rader") }} der kilden bare har et forslag</p>
+  <div class="tabellramme" role="region" aria-labelledby="usikre-tabell-tittel" tabindex="0">
+  <table id="unntak-usikre" aria-labelledby="usikre-tabell-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Navn hos Mattilsynet</th>
+        <th scope="col" class="tall">PO</th>
+        <th scope="col">Resultat</th>
+        <th scope="col">Kildens forslag</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in a.usikre %}
+      <tr>
+        <th scope="row">{{ u.mattilsynet_navn }}</th>
+        <td class="tall" data-felt="prodomraade_kode">{{ u.po }}</td>
+        <td data-felt="resultat">{{ u.resultat }}</td>
+        <td data-felt="lokalitet_navn">{% if u.kandidat.url %}<a data-felt="lokalitet_navn" href="{{ u.kandidat.url }}">{{ u.kandidat.navn }}</a>{% else %}{{ u.kandidat.navn }}{% endif %}
+          <span class="bi">{{ u.kandidat.nr }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  {% if a.uloste %}
+  <p class="tabelltittel" id="uloste-tabell-tittel">{{ antall(a.uloste|length, "rad", "rader") }} uten lokalitetsnummer</p>
+  <div class="tabellramme" role="region" aria-labelledby="uloste-tabell-tittel" tabindex="0">
+  <table id="unntak-uloste" aria-labelledby="uloste-tabell-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Navn hos Mattilsynet</th>
+        <th scope="col" class="tall">PO</th>
+        <th scope="col">Resultat</th>
+        <th scope="col" class="tall">Kandidater i registeret</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in a.uloste %}
+      <tr>
+        <th scope="row">{{ u.mattilsynet_navn }}</th>
+        <td class="tall" data-felt="prodomraade_kode">{{ u.po }}</td>
+        <td data-felt="resultat">{{ u.resultat }}</td>
+        <td class="tall" data-felt="kandidater">{{ u.kandidater }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+{# ---------------------------------------------------------------- 5
+   KONTROLLEN. Skiller tallene godkjent fra avslått FØR søknaden? Hvis
+   ikke, er det funnet. #}
+<section class="seksjon blokk" id="kontroll" aria-labelledby="kontroll-tittel">
+  <h2 id="kontroll-tittel">Kontrollen: godkjent mot avslått før søknaden</h2>
+  <p>
+    Måler tallene noe av det Mattilsynet vurderte, skal de skille de
+    godkjente fra de avslåtte i kvalifikasjonsperioden. Tabellen teller,
+    for hvert tall, lokalitetene som ligger innenfor vilkårets tall, og
+    tester om andelene er ulike (Fishers eksakte test, tosidig).
+    {% if a.laveste_p >= 0.05 %}
+    <strong>Ingen av dem skiller gruppene:</strong> den laveste p-verdien er
+    {{ "%.2f"|format(a.laveste_p)|replace(".", ",") }}.
+    {% endif %}
+    Å ligge innenfor et tall her er ikke det samme som å ha oppfylt
+    vilkåret.
+  </p>
+  <p class="tabelltittel" id="kontroll-tabell-tittel">Lokaliteter innenfor
+    vilkårets tall, {{ a.kv_fra_vist }} til {{ a.kv_til_vist }}</p>
+  <div class="tabellramme" role="region" aria-labelledby="kontroll-tabell-tittel" tabindex="0">
+  <table id="unntak-kontroll" aria-labelledby="kontroll-tabell-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Vilkår</th>
+        <th scope="col">Innenfor betyr</th>
+        <th scope="col" class="tall">Godkjent ({{ a.kontroll.n.Godkjent }})</th>
+        <th scope="col" class="tall">Avslått ({{ a.kontroll.n.Avslag }})</th>
+        <th scope="col" class="tall">p</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for k in a.kontroll.rader %}
+      <tr>
+        <th scope="row">{{ k.id|replace("ledd2.", "annet ledd ")|replace("b.", "nr. ") }}</th>
+        <td data-felt="regel">{{ k.tekst }}</td>
+        <td class="tall" data-felt="godkjent">{{ k.godkjent }}</td>
+        <td class="tall" data-felt="avslag">{{ k.avslag }}</td>
+        <td class="tall" data-felt="p">{{ "%.2f"|format(k.p)|replace(".", ",") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">
+    Bare sikre koblinger, én rad per lokalitet.
+    {% if a.uten_tellinger_kv.Godkjent or a.uten_tellinger_kv.Avslag %}
+    {{ antall(a.uten_tellinger_kv.Godkjent + a.uten_tellinger_kv.Avslag, "lokalitet", "lokaliteter") }}
+    uten én eneste telling i perioden er holdt utenfor: uten tall er det
+    ingenting å ligge innenfor.
+    {% endif %}
+    Annet ledd bokstav b står to ganger fordi forskriften ikke sier om den
+    gjelder uke 13–39 slik nr. 1 og bokstav a gjør.
+  </p>
+</section>
+
+{# ---------------------------------------------------------------- 6
+   VILKÅRENE ORDRETT. Lest av den arkiverte kroppen ved hver bygging —
+   endres ordlyden, feller `unntaksanalyse.vilkaar()` byggingen. #}
+<section class="seksjon blokk" id="vilkaar" aria-labelledby="vilkaar-tittel">
+  <h2 id="vilkaar-tittel">Vilkårene, ordrett</h2>
+  <p>
+    Produksjonsområdeforskriften § 12, slik den står hos Lovdata. Under
+    hvert vilkår står hva som er målt.
+    {% if a.lik_2023 %}Ordlyden er den samme som i endringsforskriften
+    FOR-2023-09-28-1520, som trådte i kraft fire dager før
+    kvalifikasjonsperioden begynte.{% endif %}
+  </p>
+  <ol class="vilkaar">
+    {% for b in a.paragraf12 %}
+    <li class="vilkaar-nivaa{{ b.nivaa }}">
+      <p>{% if b.nummer %}<span class="vilkaar-nr">{{ b.nummer }}</span> {% endif %}{{ b.tekst }}</p>
+      {% if b.maaling %}
+      <p class="vilkaar-maaling"><span class="vilkaar-merke">{{ b.merke }}</span>
+        {{ b.maaling }}</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="tabellnote">
+    § 12a: {% for t in a.paragraf12a %}{{ t }}{% endfor %}
+    Lakselusforskriften § 8, som nr. 2 viser til:
+    {% for t in a.lakselus8 %}{{ t }} {% endfor %}
+    Fotnoten under § 12: {{ a.endret_ved|join(" ") }}
+  </p>
+</section>
+
+{# ---------------------------------------------------------------- 7
+   METODE. Hvert grunnlag med sti og sha256 i grupper på åtte — en hel
+   sum har ni siffer på rad i 11,7 % av tilfellene, og porten leser dem
+   som organisasjonsnumre. Se `nedlasting.sjekksum_vist()`. #}
+<section class="seksjon blokk" id="metode" aria-labelledby="metode-tittel">
+  <h2 id="metode-tittel">Metode</h2>
+  <ul class="metode">
+    <li><strong>Søknadene</strong> er Mattilsynets oversikt
+      (<a href="{{ a.mattilsynet_liste_url }}">mattilsynet.no</a>),
+      hentet og koblet av kilden <code>unntaksvekst</code> og arkivert
+      <time datetime="{{ a.liste.hentet }}">{{ a.liste.hentet|dato }}</time>:
+      <code>{{ a.liste.navn }}</code>, sha256 <code>{{ a.liste.sha }}</code>.
+      Sidens HTML slik den kom: sha256 <code>{{ a.liste.kropp_sha }}</code>.
+      Kilde: Mattilsynet, {{ a.mattilsynet_liste_url }},
+      <time datetime="{{ a.liste.hentet }}">{{ a.liste.hentet|dato }}</time>.</li>
+    <li><strong>Lus og behandlinger</strong> er Mattilsynets
+      lakselusrapporter fra det åpne API-et, {{ tall(a.lakselus_rapporter) }}
+      rapporter for {{ antall(a.lakselus_n, "lokalitet", "lokaliteter") }}, arkivert per lokalitet i
+      <code>mattilsynet-lakselus/</code>. Én verdi per uke: det høyeste
+      lusetallet som er rapportert for uka, og en behandling som står likt
+      i to rapporter, telles én gang. I {{ antall(a.ulike_uker, "uke", "uker") }} er rapportene for
+      samme lokalitet og uke ulike.{% if a.utenfor %}
+      {{ antall(a.utenfor|length, "rapport", "rapporter") }} for en uke som ligger etter uka den ble
+      levert, er holdt utenfor.{% endif %}</li>
+    <li><strong>Tiltaksgrensa og produksjonsperiodene</strong> er
+      BarentsWatchs: «Lusegrense uke» og «Trolig uten fisk» per lokalitet og
+      uke, til og med <time datetime="{{ a.siste_bw }}">{{ a.siste_bw|uke }}</time>.
+      En telling er over grensa når den, avrundet til to desimaler, er på
+      eller over grensa — slik BarentsWatch selv regner. 0,10 og 0,17
+      sammenlignes med tallet slik Mattilsynet oppgir det.</li>
+    <li><strong>Kapasiteten</strong> er lest av eierskapskroppene:
+      {% for k in a.eierskap %}<code>{{ k.navn }}</code> (sha256
+      <code>{{ k.sha }}</code>){% if not loop.last %}, {% endif %}{% endfor %}.</li>
+    <li><strong>Forskriftene</strong>:
+      {% for k in a.lovkilder %}<code>{{ k.navn }}</code> (sha256
+      <code>{{ k.sha }}</code>){% if not loop.last %}, {% endif %}{% endfor %}.</li>
+  </ul>
+</section>
+
+{# ---------------------------------------------------------------- 8
+   FORBEHOLD. Står på siden, ikke bak en lenke. #}
+<section class="seksjon blokk" id="forbehold" aria-labelledby="forbehold-tittel">
+  <h2 id="forbehold-tittel">Forbehold</h2>
+  <ul class="metode">
+    <li>Ingen tall på siden sier om en lokalitet har oppfylt eller brutt et
+      vilkår. Hvert vilkår har deler ingen kilde vi har, kan måle:
+      utslipp av egg og frittsvømmende stadier (nr. 1), særskilte vilkår i
+      tillatelsen (nr. 2), regnskapet per fisk (nr. 3 og 4), slakting
+      (nr. 5) og vedtak om biomassereduksjon (nr. 6).</li>
+    <li>En oppføring av behandling i en ukesrapport er ikke nødvendigvis én
+      behandling i forskriftens forstand. En behandling som går over to
+      uker, kan stå to ganger.</li>
+    <li>Mattilsynets liste har ingen vedtaksdato. «Etter» regnes fra uka
+      etter kvalifikasjonsperioden, ikke fra vedtaket.</li>
+    <li>Kapasitetsserien har {{ antall(a.eierskap|length, "kropp", "kropper") }}, fra
+      <time datetime="{{ a.kap_fra }}">{{ a.kap_fra|dato }}</time>. En endring
+      før det kan ikke sees. Tillatelser eid av personer er fjernet før
+      arkivering, og kan verken telles eller utelukkes.</li>
+    <li>Mattilsynets API mangler tellinger BarentsWatch har for de første
+      ukene av kvalifikasjonsperioden, oktober og november 2023. Det
+      berører særlig nr. 2, som gjelder uke 40–12.</li>
+    <li>Koblingen fra Mattilsynets navn til lokalitetsnummer er kildens.
+      En entydig kobling er et likt navn i samme produksjonsområde, ikke en
+      bekreftelse fra Mattilsynet.</li>
+  </ul>
+</section>
+
+</div>
+{% endblock %}

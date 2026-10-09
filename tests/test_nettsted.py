@@ -346,6 +346,8 @@ def _side(**overstyr) -> str:
         lok["lus_serie"][-1]["dato"] if lok["lus_serie"] else ""))
     # OPPSUMMERINGEN regnes av det samme, av samme grunn.
     lok.setdefault("sammendrag", nettsted.lokalitetssammendrag(lok))
+    # Ikke i Mattilsynets liste over søknader om unntaksvekst.
+    lok.setdefault("unntak", None)
     lok["register"] = _visning(lok["register"])
     lok["endringer"] = _endringsrader(lok["endringer"])
     for t_ in lok["tillatelser"]:
@@ -887,7 +889,7 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # er en fase ingen ser vokse.
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
-                          "selskaper", "forside", "indekser",
+                          "selskaper", "forside", "indekser", "analyse",
                           "endringssider", "feeder", "maskinfiler",
                           "sokeindeks"}
     for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html"):
@@ -1588,8 +1590,7 @@ def test_po_siden_bruker_ikke_UBELAGT_kilde_i_bunnteksten():
 
 def test_ubelagte_utledes_av_kilden_ikke_listet():
     """En liste her ville vært et andre sted sannheten kan bli gammel."""
-    assert nettsted.ubelagte(nettsted.kildevilkaar()) == {"ekspertgruppen",
-                                                         "unntaksvekst"}
+    assert nettsted.ubelagte(nettsted.kildevilkaar()) == {"ekspertgruppen"}
     assert nettsted.ubelagte({"a": None, "b": ("x",)}) == {"a"}
 
 
@@ -1965,6 +1966,7 @@ def _forside(**overstyr) -> str:
         "runder": ["2018", "2020", "2022", "2024", "2026"],
 
         "uten_koordinater_antall": 0,
+        "unntak": None,
     }
     f.update(overstyr)
     return nettsted._miljo().get_template("forside.html.j2").render(
@@ -2955,7 +2957,7 @@ def smaafelles():
         tillatelser_per_lokalitet={"10001": {"N-T-0001"}},
         enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
         akva_dato="2026-09-14", lusetall_snapshots=["2012-01-02", "2026-08-17"],
-        vilkaar=nettsted.kildevilkaar())
+        vilkaar=nettsted.kildevilkaar(), unntak={})
 
 
 def test_sitemap_bruker_nettstedets_eget_domene(tmp_path, smaafelles,

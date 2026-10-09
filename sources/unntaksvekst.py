@@ -347,11 +347,20 @@ class Unntaksvekst(Source):
     entity_type = "soknad_lokalitet"
     version = "1"
 
-    # UBELAGT. Mattilsynets API er NLOD 2.0 (målingen punkt 2), men
-    # lista ligger ikke der, og vilkårene for nettsidens innhold er ikke
-    # lest. Det holder også kilden ute av nettstedet, som bestilt — se
-    # `nettsted.ubelagte()`.
-    attribusjon = None
+    # BELAGT fra 09.10.2026, av Mattilsynets egen gjenbruksside «Vil du
+    # bruke tekstar frå Mattilsynet?» (fagleg gjennomgått 18.12.2024,
+    # lest og arkivert 09.10.2026 i `vilkar-mattilsynet/`): tekstene på
+    # mattilsynet.no kan spres, «Du må oppgi oss som kjelde», i forma
+    # «(Kilde: Mattilsynet, nettadressa og datoen du gjenga teksten.)».
+    # Nettadressen og datoen står ved tabellen på analysesiden; setningen
+    # her er den som står i bunnteksten.
+    #
+    # Til 09.10.2026 sto `None` her — vilkårene for nettsidens innhold var
+    # ikke lest, og det holdt kilden ute av nettstedet. Om gjenbrukssidens
+    # «tekstar» dekker en tabell over søknader, er Heines avgjørelse; se
+    # docs/LISENSKJEDE.md. Settes den tilbake til `None`, bygges ikke
+    # analysesiden, og søknadene holdes ute av ukesendringene igjen.
+    attribusjon = ("Kilde: Mattilsynet",)
 
     # Lista sier hva som er søkt og avgjort NÅ. En ny henting erstatter
     # den forrige som svar på det.

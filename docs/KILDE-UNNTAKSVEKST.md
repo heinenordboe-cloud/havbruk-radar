@@ -1,8 +1,8 @@
 # Kilde: `unntaksvekst` — Mattilsynets søknader om unntaksvekst 2025/2026
 
 Kode: `sources/unntaksvekst.py`. Måling: `docs/MALING-UNNTAKSVEKST.md`.
-Bygget 08.10.2026. Ukentlig via `run.py`, **ikke på nettstedet**
-(kilden er UBELAGT, se under).
+Bygget 08.10.2026. Ukentlig via `run.py`. På nettstedet fra
+09.10.2026, på /analyse/unntaksvekst/ og i ukesendringene (se punkt 6).
 
 ## 1. Hva som hentes
 
@@ -114,9 +114,15 @@ Erklært før første snapshot, ikke målt (se `test_partisjoneringen_er_den_mal
 fortiet — men se punkt 2: en gammel CDN-kopi kan gi en rad som kommer og
 går. Sjekk `headere.age` i arkivet før en `borte` leses som et vedtak.
 
-## 6. Lisens — UBELAGT
+## 6. Lisens — Mattilsynets gjenbruksvilkår (fra 09.10.2026)
 
-Mattilsynets API er NLOD 2.0. Lista ligger ikke der, og vilkårene for
-nettsidens innhold er ikke lest. `attribusjon = None`, og det holder
-kilden ute av publiserte visninger (`nettsted.ubelagte()`). Se
-`docs/LISENSKJEDE.md`.
+Til 09.10.2026 sto kilden som UBELAGT: lista ligger ikke i det
+NLOD-lisensierte API-et, og vilkårene for nettsidens innhold var ikke
+lest. Det holdt kilden ute av publiserte visninger.
+
+Lest 09.10.2026: Mattilsynets side «Vil du bruke tekstar frå
+Mattilsynet?» sier at tekstene kan spres med kildeangivelsen «(Kilde:
+Mattilsynet, nettadressa og datoen du gjenga teksten.)». `attribusjon`
+er nå `("Kilde: Mattilsynet",)`, og adressen og datoen står ved tabellen
+på analysesiden. At «tekstar» dekker tabellen, er en lesning — se
+`docs/LISENSKJEDE.md` merknad K, der følgene også står.

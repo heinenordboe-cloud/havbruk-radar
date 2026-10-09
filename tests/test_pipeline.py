@@ -399,7 +399,7 @@ def test_bare_ekspertgruppen_er_ubelagt():
 
     ubelagt = {k.name for k in registry.discover()
                if erklaert_attribusjon(k) is None}
-    assert ubelagt == {"ekspertgruppen", "unntaksvekst"}
+    assert ubelagt == {"ekspertgruppen"}
 
 
 def test_tom_attribusjon_er_forbudt_og_ikke_ingen_krav():
