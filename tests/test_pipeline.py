@@ -5025,3 +5025,17 @@ def test_uten_stempel_arves_dodt_fra(tmp_path, monkeypatch):
         [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
 
     assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 142
+
+
+def test_hver_merknad_i_lisenskjeden_har_sin_egen_bokstav():
+    """LISENSKJEDE skal kunne siteres, og «merknad K» skal peke på én
+    ting. 09.10.2026 hadde to merknader bokstaven K (herofotografiet og
+    `unntaksvekst`); herofotografiet ble L."""
+    import re
+    from collections import Counter
+    from pathlib import Path
+    tekst = (Path(__file__).resolve().parents[1] / "docs" / "LISENSKJEDE.md"
+             ).read_text(encoding="utf-8")
+    bokstaver = Counter(re.findall(r"^#+ Merknad ([A-Z])\b", tekst, re.M))
+    assert bokstaver, "fant ingen merknader"
+    assert [b for b, n in bokstaver.items() if n > 1] == []

@@ -64,7 +64,7 @@ som faktisk står på /om/.
 | Newsreader | overskrifter, ordmerke, nøkkeltall | SIL OFL 1.1 | lisensteksten følger fila | `/newsreader-OFL.txt` | `docs/design/NEWSREADER.md` |
 | IBM Plex Sans | brødtekst, etiketter, tabeller | SIL OFL 1.1 | lisensteksten følger fila | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
 | IBM Plex Mono | tallverdier i tabellkolonner | SIL OFL 1.1 | samme fil som Sans | `/ibmplex-OFL.txt` | `docs/design/IBM-PLEX.md` |
-| Herofotografiet, «skjærgård på Bømlo» | forsidens hero, tre bredder | Unsplash-lisensen | **ingenting** | `/bilde/hero-*.jpg` | `docs/design/HEROFOTO.md`, merknad K |
+| Herofotografiet, «skjærgård på Bømlo» | forsidens hero, tre bredder | Unsplash-lisensen | **ingenting** | `/bilde/hero-*.jpg` | `docs/design/HEROFOTO.md`, merknad L |
 | Kystkontur, Kartverket N500/N2000 | kystlinja i alle kart | **CC BY 4.0** | **«© Kartverket»** med lenke, der kartet vises | dekkes av krediteringen under hvert kart og i bunnteksten | `docs/design/KARTGEOMETRI.md`, merknad J |
 | Kystlinje, Natural Earth 1:10 m | nabolandene i kartene | public domain | **ingenting** | `/naturalearth-LICENSE.md` | `docs/design/KARTGEOMETRI.md` |
 | Produksjonsområdepolygoner | kartene | NLOD (Fiskeridirektoratet) | «Kilde: Fiskeridirektoratet» | dekkes av kildeattribusjonen | `docs/design/KARTGEOMETRI.md` |
@@ -177,7 +177,11 @@ Dybdekurvene er grove og har varierende kvalitet og nøyaktighet.»
 INGENTING ER BYGGET MED DEM. Dette er lisensen og størrelsen, som var
 det som ble bedt om.
 
-### Merknad K — herofotografiet, og at raden følger fila
+### Merknad L — herofotografiet, og at raden følger fila
+
+*Het merknad K til 09.10.2026, da bokstaven ble tatt av `unntaksvekst`
+også. To merknader med samme bokstav i et dokument som skal siteres,
+er en feil; denne fikk neste ledige.*
 
 Raden i tabell 2 har vært ute og inne igjen på fem dager, og det er
 verdt å skrive ned hvorfor framfor å la tabellen se stabil ut:
