@@ -162,9 +162,8 @@ mellom dem, så nøkkeltallene står rett etter trafikklyset på telefon.
 
 **Minikartet** er hele kysten på 320 px: land, de tretten områdene og
 punktene som én `path` (`kart.minikart()`). Det har ikke `data-kart`,
-fordi det ikke bruker Kartverkets kontur. Under 80rem er det 13rem bredt
-med bildeteksten ved siden av: i full bredde var det 440 px høyt på
-390, og selskapssiden gikk over briefens 5 000 px.
+fordi det ikke bruker Kartverkets kontur. Bildeteksten står alltid
+under. På telefon har kartet full bredde; ellers er det høyst 22rem.
 
 ## Komponenter
 
