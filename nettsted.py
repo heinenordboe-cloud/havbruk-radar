@@ -6221,6 +6221,51 @@ def _ukebeskrivelse(uke: dict, valgt: dict | None, rader: list[dict]) -> str:
             f"{uke['vist']} ({uke['spenn']}) i norske akvakulturregistre.")
 
 
+# DIAGRAMMET I HØYRESPALTA på /endringer/: én stolpe per uke, piksler.
+UKEDIAGRAM_STOLPE = 8
+UKEDIAGRAM_LUFT = 4
+UKEDIAGRAM_HOYDE = 20
+
+
+def ukediagram(uker: list[dict]) -> dict:
+    """Endringer per uke og type som små stolperader, til høyrespalta på
+    endringsindeksen. Tallene er krysstabellens — `u["typer"]` — og
+    tabellen står rett under, så diagrammet legger ikke til én verdi.
+
+    ÉN SKALA PER RAD, og bildeteksten sier det. Diagrammet svarer på
+    NÅR en type skjedde; HVOR MYE står som tall ved raden. Med én skala
+    for alle ble hver rad unntatt selskapsdata en strek på én piksel —
+    MÅLT 09.10.2026: 750 selskapsdata i én uke mot 83 fisk til stede i
+    alle sju til sammen. En uke med noe får minst én piksel, så den ikke
+    leses som null.
+
+    Typene står i tabellens rekkefølge, så diagram og tabell kan leses
+    mot hverandre; en type uten en eneste endring i noen uke er ikke en
+    rad. Ukene står eldst til venstre, som i en tidsserie — motsatt av
+    tabellen, som har nyeste øverst."""
+    eldst_forst = list(reversed(uker))
+    per_uke = [{k["id"]: k["antall"] for k in u["typer"]} for u in eldst_forst]
+    steg = UKEDIAGRAM_STOLPE + UKEDIAGRAM_LUFT
+    rader = []
+    for k in ENDRINGSTYPER:
+        tallrekke = [d.get(k["id"], 0) for d in per_uke]
+        if not sum(tallrekke):
+            continue
+        maks = max(tallrekke)
+        soyler = []
+        for i, n in enumerate(tallrekke):
+            h = max(1, round(UKEDIAGRAM_HOYDE * n / maks)) if n else 0
+            soyler.append({"x": i * steg, "y": UKEDIAGRAM_HOYDE - h, "h": h,
+                           "uke": eldst_forst[i]["vist"], "antall": n})
+        rader.append({"id": k["id"], "navn": k["navn"],
+                      "sum": sum(tallrekke), "soyler": soyler})
+    return {"rader": rader,
+            "bredde": max(0, len(uker) * steg - UKEDIAGRAM_LUFT),
+            "hoyde": UKEDIAGRAM_HOYDE, "stolpe": UKEDIAGRAM_STOLPE,
+            "forste": eldst_forst[0]["vist"] if uker else "",
+            "siste": eldst_forst[-1]["vist"] if uker else ""}
+
+
 def skriv_endringssider(rot: Path, felles: Felles,
                         uker: list[dict]) -> list[Path]:
     """Indeksen, ukesidene, typesidene og datafilene."""
@@ -6329,6 +6374,8 @@ def skriv_endringssider(rot: Path, felles: Felles,
         uker=uker,
         totalt=sum(u["antall"] for u in uker),
         typer=ENDRINGSTYPER,
+        diagram=ukediagram(uker),
+        analyse=_forside_unntak(felles),
         utenfor=(uker[0]["utenfor_uka"] if uker else 0),
         **_grunnkontekst(
             felles, rot, sti, kilder=ENDRINGSKILDER,

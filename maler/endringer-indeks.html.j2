@@ -7,6 +7,7 @@
    9 i oppdraget: et arkiv som later som det er eldre enn det er, er
    verdiløst den dagen noen sjekker. #}
 {% extends "base.html.j2" %}
+{% import "marg.html.j2" as marg %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -16,6 +17,16 @@
       <li aria-current="page">Endringer</li>
     </ol>
   </nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+{# TOPPEN I TO SPALTER, tabellen i full bredde under (stil.css avsnitt
+   11b). Krysstabellen har en kolonne per type og trenger plassen; det
+   som sto alene over den — tittel og forklaring — får høyrespalta ved
+   siden av seg: nyeste uke, ukene som diagram og analysen. #}
+<div class="ark med-marg">
+<div class="med-marg-hoved">
   <h1>Endringer, uke for uke</h1>
   <p class="lok-undertittel">
     {{ antall(uker|length, "uke", "uker") }} med observerte endringer ·
@@ -25,11 +36,6 @@
     <li><a class="handling" href="/endringer/feed.xml">Følg alle
       endringer (feed)</a></li>
   </ul>
-</div>
-{% endblock %}
-
-{% block innhold %}
-<section class="ark seksjon">
   <p class="historikk-forklaring">
     Hver uke vi har hentet registrene og sammenlignet med forrige
     øyeblikksbilde. <strong>Datoen er når VI så endringen</strong> —
@@ -42,6 +48,57 @@
     står på entitetenes egne sider.
     {% endif %}
   </p>
+  {% if uker %}
+  {# NYESTE UKE, som en «videre»-lenke: det er den de fleste kommer for. #}
+  <a class="videre" href="/endringer/{{ uker[0].slug }}/">Se nyeste uke,
+    {{ uker[0].vist }}: {{ antall(uker[0].antall, "endring", "endringer") }} →</a>
+  {% endif %}
+</div>
+
+<div class="marg">
+  {% if diagram.rader %}
+  {# DIAGRAMMET. Hver rad er en type, hver stolpe en uke, eldst til
+     venstre; én skala for alle. Det sier ingenting tabellen under ikke
+     sier, og er derfor `aria-hidden` med tallene i tabellen som
+     tekstalternativ — se `nettsted.ukediagram()`. #}
+  <section class="marg-blokk" aria-labelledby="marg-diagram">
+    <h2 class="etikett" id="marg-diagram">Per uke og type</h2>
+    <figure class="ukediagram">
+      <ol>
+        {% for r in diagram.rader %}
+        <li>
+          <span>{{ r.navn }}</span>
+          <svg viewBox="0 0 {{ diagram.bredde }} {{ diagram.hoyde }}"
+               width="{{ diagram.bredde }}" height="{{ diagram.hoyde }}"
+               aria-hidden="true">
+            {%- for s in r.soyler %}{% if s.h %}<rect x="{{ s.x }}" y="{{ s.y }}" width="{{ diagram.stolpe }}" height="{{ s.h }}"/>{% endif %}{% endfor -%}
+          </svg>
+          <span class="fordeling-tall">{{ tall(r.sum) }}</span>
+        </li>
+        {% endfor %}
+      </ol>
+      <figcaption>Én stolpe per uke, {{ diagram.forste }} til venstre og
+        {{ diagram.siste }} til høyre. Hver rad har sin egen skala: den
+        høyeste stolpen er radens største uke, og summen står ved siden
+        av. Tallene står i tabellen under.</figcaption>
+    </figure>
+  </section>
+  {% endif %}
+
+  {% if analyse %}
+  <section class="marg-blokk" aria-labelledby="marg-analyse">
+    <h2 class="etikett" id="marg-analyse">Analyse</h2>
+    <p class="marg-lenke"><a href="{{ analyse.url }}">Unntaksvekst 2025/2026:
+      fra søknad til drift</a></p>
+    <p class="marg-note">{{ antall(analyse.lokaliteter, "lokalitet", "lokaliteter") }} Mattilsynet
+      har godkjent ({{ analyse.godkjent }}) eller avslått ({{ analyse.avslag }}),
+      holdt mot vilkårene.</p>
+  </section>
+  {% endif %}
+</div>
+</div>
+
+<section class="ark seksjon">
 
   <p class="tabelltittel" id="endringer-uker-tittel">{{ alle(uker|length, "uka", "ukene") }}, nyeste først. Tallene per type
       lenker rett til uka filtrert på den typen.</p>

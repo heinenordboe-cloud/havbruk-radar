@@ -2350,6 +2350,26 @@ def test_selskapsindeksens_hoyrespalte_rangerer_bare_tonn_og_aldri_en_person():
     assert m["vindu"] is None, "ingen dekning: ingen påstand om fire uker"
 
 
+def test_ukediagrammet_har_en_skala_per_rad_og_eldste_uke_til_venstre():
+    """Én skala per rad: den høyeste stolpen er radens største uke, og en
+    uke med noe er aldri null piksler. En type uten endringer er ikke en
+    rad. Ukene står eldst til venstre, motsatt av tabellen."""
+    def uke(vist, **n):
+        return {"vist": vist, "typer": [{"id": k["id"], "antall": n.get(k["id"], 0)}
+                                        for k in nettsted.ENDRINGSTYPER]}
+    uker = [uke("uke 41", selskap=750, eierskap=1),   # nyeste først, som ellers
+            uke("uke 40", eierskap=2)]
+    d = nettsted.ukediagram(uker)
+    rader = {r["id"]: r for r in d["rader"]}
+    assert set(rader) == {"eierskap", "selskap"}
+    assert [s["uke"] for s in rader["eierskap"]["soyler"]] == ["uke 40", "uke 41"]
+    assert [s["h"] for s in rader["eierskap"]["soyler"]] == [20, 10]
+    assert [s["h"] for s in rader["selskap"]["soyler"]] == [0, 20]
+    assert rader["selskap"]["sum"] == 750
+    assert (d["forste"], d["siste"]) == ("uke 40", "uke 41")
+    assert nettsted.ukediagram([])["rader"] == []
+
+
 def _indeksfelles(n):
     from types import SimpleNamespace
     return SimpleNamespace(

@@ -2551,6 +2551,43 @@ figcaption {
 
 .marg .fakta { margin-block-end: 0; }
 
+/* EN LENKE SOM ER BLOKKENS INNHOLD, som analysen på /endringer/. */
+.marg-lenke {
+  margin: 0;
+  font-family: var(--skrift-tittel);
+  font-size: var(--tekst-h3);
+  line-height: 1.2;
+}
+
+/* UKEDIAGRAMMET på /endringer/: type, stolper, sum. Stolpene har sin egen
+   bredde i piksler — en stolpe per uke skal ikke strekkes. */
+.ukediagram { margin: 0; }
+
+.ukediagram ol { list-style: none; margin: 0; padding: 0; max-width: none; }
+
+.ukediagram li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(2.5rem, auto);
+  align-items: end;
+  gap: var(--rom-12);
+  margin: 0;
+  padding-block: var(--rom-4);
+  border-block-end: 1px solid var(--papir3);
+  font-size: var(--tekst-s);
+  line-height: var(--lh-tett);
+}
+
+.ukediagram svg { display: block; }
+.ukediagram rect { fill: var(--hav5); }
+
+.ukediagram figcaption {
+  margin-block-start: var(--rom-8);
+  max-width: none;
+  font-size: var(--tekst-xs);
+  line-height: var(--lh-tett);
+  color: var(--ink-dempet);
+}
+
 /* SØKET I HOVEDSPALTA. I sidehodet var luften under det sidehodets egen;
    i gitteret må den stå her. */
 .med-marg-hoved > .sok--side { margin-block-end: var(--rom-32); }
