@@ -2530,6 +2530,17 @@ figcaption {
   .med-marg { grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem); }
 }
 
+/* TRE DELER: to hovedspalter og høyrespalta mellom dem i markupen.
+   Områdesiden: toppen, så høyrespalta, så biomassen — telefonens
+   rekkefølge. Fra 64rem står høyrespalta over begge radene, og den
+   fleksible andre raden tar høyden dens, som på lokalitetssiden. Ingen
+   radluft: seksjonen under har sin egen. */
+@media (min-width: 64rem) {
+  .med-marg--tre { grid-template-rows: auto 1fr; row-gap: 0; }
+  .med-marg--tre > .med-marg-hoved { grid-column: 1; }
+  .med-marg--tre > .marg { grid-column: 2; grid-row: 1 / span 2; }
+}
+
 /* EN BLOKK I HØYRESPALTA: blekkstrek og etikett over, som «Tilstanden
    nå» på lokalitetssiden. */
 .marg-blokk {

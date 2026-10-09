@@ -3392,6 +3392,62 @@ def _po_saerskilt(po: str, felles: Felles) -> list[dict]:
     return ut
 
 
+# «SISTE PERIODE» I OMRÅDETS LUSETALL: de 52 nyeste ukene vi har tall
+# for. Et år, så alle årstidene er med én gang; ikke en
+# kvalifikasjonsperiode, som har sin egen analyse.
+PO_LUS_UKER = 52
+
+
+def _po_marg(felles: Felles, lokaliteter: list[str]) -> dict:
+    """Nøkkeltallene i høyrespalta på områdesiden, som ikke står andre
+    steder på siden: kapasiteten og lusa.
+
+    KAPASITETEN ER REGISTERETS, PER LOKALITET, I TONN. Samme tall som
+    lokalitetstabellen viser rad for rad; lokaliteter i andre enheter er
+    telt for seg (se `_samlet_kapasitet()` om hvorfor de ikke legges
+    sammen).
+
+    LUSA ER LOKALITETSUKER: hver rapporterte uke på hver lokalitet i
+    området er én, og den er over når BarentsWatchs egen regel sier det
+    (`_over_grensen()`). En uke uten rapport eller uten grense telles
+    ikke — verken som over eller under."""
+    tonn, i_tonn, andre = 0.0, 0, 0
+    for loknr in lokaliteter:
+        a = felles.akva[loknr]
+        try:
+            verdi = float((a.get("kapasitet") or "").strip())
+        except ValueError:
+            continue
+        if (a.get("kapasitet_enhet") or "").strip() == "TN":
+            tonn += verdi
+            i_tonn += 1
+        else:
+            andre += 1
+
+    datoer = felles.lusetall_snapshots[-PO_LUS_UKER:]
+    sett = set(datoer)
+    over = rapportert = 0
+    for loknr in lokaliteter:
+        for u in felles.lusserier.get(loknr, ()):
+            if u.get("dato") not in sett:
+                continue
+            o = _over_grensen(u.get("voksne_hunnlus") or "",
+                              u.get("lusegrense") or "")
+            if o is None:
+                continue
+            rapportert += 1
+            over += o
+    return {
+        "kapasitet": visningsord.maalt(tonn, "TN") if i_tonn else "",
+        "kapasitet_lokaliteter": i_tonn,
+        "andre_enheter": andre,
+        "lus": ({"over": over, "rapportert": rapportert,
+                 "fra": datoer[0], "til": datoer[-1], "uker": len(datoer)}
+                if datoer else None),
+        "kart": kart.minikart(),
+    }
+
+
 def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
     """Alt én produksjonsområdeside trenger.
 
@@ -3495,6 +3551,7 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
                                  if l["selskap"]["orgnr"]}),
         "uten_kjent_eier": sum(1 for l in lokaliteter
                                if not l["selskap"]["orgnr"]),
+        "marg": _po_marg(felles, [l["loknr"] for l in lokaliteter]),
 
         # ---- biomassen, flyttet hit fra lokalitetssiden ----
         "biomasse": biomassegraf(serie),

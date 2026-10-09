@@ -1426,6 +1426,11 @@ def _po(**overstyr) -> str:
         "lokaliteter_antall": 1,
         "selskaper_antall": 1,
         "uten_kjent_eier": 0,
+        "marg": {"kapasitet": "8 000 tonn", "kapasitet_lokaliteter": 1,
+                 "andre_enheter": 0,
+                 "lus": {"over": 3, "rapportert": 40, "fra": "2025-09-15",
+                         "til": "2026-09-07", "uker": 52},
+                 "kart": nettsted.kart.minikart()},
         "akva_hentet": "2026-09-14T04:00:00+00:00",
         "naa": {"farge": "gul", "klasse": nettsted.FARGE_KLASSE["gul"],
                 "uenig": ""},
@@ -1483,6 +1488,47 @@ def _po(**overstyr) -> str:
         **_grunn("produksjonsomrade/4", main_klasse="fullbredde",
                  jsonld=nettsted.jsonld_po(po, nettsted.kildevilkaar()),
                  attribusjon=nettsted.attribusjon(nettsted.PO_KILDER)))
+
+
+def test_po_siden_har_tallene_og_kartet_i_hoyrespalta():
+    """Stil.css avsnitt 11b, `--tre`: toppen, høyrespalta, biomassen —
+    telefonens rekkefølge. Lokaliteter og selskaper står i høyrespalta og
+    ikke lenger i undertittelen; to steder for to tall er ett for mye.
+    Området selv er fylt med fargen nå, og er merket som gjeldende."""
+    html = _po()
+    flat = " ".join(html.split())
+    assert 'class="ark med-marg med-marg--tre"' in html
+    assert ('class="fargen-naa"' in html and
+            html.index('class="fargen-naa"') < html.index('class="marg"')
+            < html.index('id="biomasse-maaned"'))
+    assert "Produksjonsområde 4 · 1 lokalitet" not in flat
+    tekst = " ".join(re.sub(r"<[^>]+>", " ", html).split())
+    assert "3 av 40 rapporterte lokalitetsuker, uke 38, 2025 til uke 37, 2026" in tekst
+    kartet = html[html.index('class="mini-omraader"'):html.index('class="mini-land"')]
+    gjeldende = kartet[kartet.index('href="/produksjonsomrade/4/"'):]
+    assert 'aria-current="page"' in gjeldende[:60]
+    assert f'class="{nettsted.FARGE_KLASSE["gul"]}"' in gjeldende.split("</a>")[0]
+
+
+def test_po_marg_teller_rapporterte_lokalitetsuker_og_bare_tonn():
+    """En uke uten rapport eller uten grense er verken over eller under.
+    Kapasitet i andre enheter legges ikke sammen med tonn."""
+    from types import SimpleNamespace
+    felles = SimpleNamespace(
+        akva={"1": {"kapasitet": "780", "kapasitet_enhet": "TN"},
+              "2": {"kapasitet": "12", "kapasitet_enhet": "DA"}},
+        lusetall_snapshots=["2026-08-31", "2026-09-07"],
+        lusserier={"1": [
+            {"dato": "2026-08-24", "voksne_hunnlus": "0.9", "lusegrense": "0.5"},
+            {"dato": "2026-08-31", "voksne_hunnlus": "0.495", "lusegrense": "0.5"},
+            {"dato": "2026-09-07", "voksne_hunnlus": "", "lusegrense": "0.5"}],
+            "2": [{"dato": "2026-09-07", "voksne_hunnlus": "0.1",
+                   "lusegrense": "0.5"}]})
+    m = nettsted._po_marg(felles, ["1", "2"])
+    assert (m["lus"]["over"], m["lus"]["rapportert"]) == (1, 2), \
+        "0,495 er over etter halv-opp; uka utenfor perioden og den uten tall teller ikke"
+    assert (m["kapasitet_lokaliteter"], m["andre_enheter"]) == (1, 1)
+    assert m["kapasitet"] == "780\xa0tonn"
 
 
 def test_celle_uten_farge_SIER_det():

@@ -152,6 +152,11 @@ venstre. Under 64rem kommer høyrespalta etter hovedinnholdet.
 | Selskapsindeksen | tittel, søk, lista | selskaper med endringer siste 4 uker, de fem største etter tonn og etter lokaliteter |
 | Endringsindeksen | tittel, forklaring, nyeste uke; krysstabellen i full bredde under | endringer per uke og type som stolperader, analysen |
 | Selskapssiden | tittel, nøkkeltall, vesentlige endringer; resten i full bredde under | minikart med selskapets lokaliteter, per område |
+| Områdesidene | tittel, trafikklyset, så biomassen (`--tre`); resten i full bredde under | lokaliteter, selskaper, kapasitet, uker over lusegrensa; minikart med området fylt |
+
+**`.med-marg--tre`** er tre barn: hovedspalte, høyrespalte, hovedspalte.
+Fra 64rem står høyrespalta over begge radene; under 64rem kommer den
+mellom dem, så nøkkeltallene står rett etter trafikklyset på telefon.
 
 **Minikartet** er hele kysten på 320 px: land, de tretten områdene og
 punktene som én `path` (`kart.minikart()`). Det har ikke `data-kart`,

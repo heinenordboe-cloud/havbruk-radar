@@ -24,6 +24,7 @@
    2026-09-16-url-struktur.md. Markupkontrakten gjelder. #}
 {% extends "base.html.j2" %}
 {% from "verdiendring.html.j2" import verdiendring %}
+{% import "marg.html.j2" as marg %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -34,13 +35,26 @@
       <li aria-current="page">Område {{ po.nr }}</li>
     </ol>
   </nav>
+</div>
+{% endblock %}
 
+{% block innhold %}
+
+{# ---------------------------------------------------------------- 0
+   TRE DELER I GITTERET FRA 64rem (stil.css avsnitt 11b, `--tre`):
+   fargen og biomassen til venstre, høyrespalta til høyre over begge.
+
+   DOM-REKKEFØLGEN ER TOPP, HØYRESPALTE, BIOMASSE, og det er telefonens:
+   nøkkeltallene og kartet kommer rett etter trafikklyset, før grafen.
+   På brede skjermer legger gitteret høyrespalta ved siden av begge,
+   som tilstanden på lokalitetssiden. #}
+<div class="ark med-marg med-marg--tre">
+<div class="med-marg-hoved">
   <h1><span data-navn>{{ po.navn }}</span></h1>
-  <p class="lok-undertittel">
-    Produksjonsområde {{ po.nr }} ·
-    {{ antall(po.lokaliteter_antall, "lokalitet", "lokaliteter") }} ·
-    {{ antall(po.selskaper_antall, "selskap", "selskaper") }}
-  </p>
+  {# LOKALITETER OG SELSKAPER står i høyrespalta fra 09.10.2026, med
+     kapasiteten og lusa. To steder for de samme to tallene er ett for
+     mye. #}
+  <p class="lok-undertittel">Produksjonsområde {{ po.nr }}</p>
 
   <ul class="handlinger" aria-label="Følg og siter">
     <li><a class="handling" href="feed.xml">Følg området (feed)</a></li>
@@ -84,10 +98,58 @@
     <p class="rundenote"><a href="#kilder-for-fargen">Kildene for fargen, runde for runde</a></p>
   </section>
 </div>
-{% endblock %}
 
-{% block innhold %}
+{% set m = po.marg %}
+<div class="marg">
+  <section class="marg-blokk" aria-labelledby="marg-tall">
+    <h2 class="etikett" id="marg-tall">Området i tall</h2>
+    <dl class="fakta">
+      <div>
+        <dt>Lokaliteter</dt>
+        <dd>{{ tall(po.lokaliteter_antall) }}</dd>
+      </div>
+      <div>
+        <dt>Selskaper</dt>
+        <dd>{{ tall(po.selskaper_antall) }}
+          {% if po.uten_kjent_eier %}<span class="fakta-bi">{{ antall(po.uten_kjent_eier, "lokalitet", "lokaliteter") }}
+            uten kjent eier</span>{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Kapasitet</dt>
+        <dd>{{ m.kapasitet or "—" }}
+          <span class="fakta-bi">sum over {{ antall(m.kapasitet_lokaliteter, "lokalitet", "lokaliteter") }}{% if m.andre_enheter %};
+            {{ tall(m.andre_enheter) }} i andre enheter er ikke med{% endif %}</span></dd>
+      </div>
+      {% if m.lus %}
+      <div>
+        <dt>Uker over lusegrensa</dt>
+        <dd>{{ tall(m.lus.over) }} <span class="fakta-bi">av {{ tall(m.lus.rapportert) }}
+          rapporterte lokalitetsuker,
+          <time datetime="{{ m.lus.fra }}">{{ m.lus.fra|uke }}</time>
+          til <time datetime="{{ m.lus.til }}">{{ m.lus.til|uke }}</time></span></dd>
+      </div>
+      {% endif %}
+    </dl>
+    <p class="marg-note">Kapasiteten er registerets, per lokalitet. Lusegrensa
+      er BarentsWatchs tiltaksgrense for uka, regnet som BarentsWatch regner.</p>
+  </section>
 
+  <section class="marg-blokk" aria-labelledby="marg-kart">
+    <h2 class="etikett" id="marg-kart">Langs kysten</h2>
+    {% call marg.minikart(m.kart, "minikart-po",
+         "Kart over hvor produksjonsområde " ~ po.nr ~ " ligger",
+         "Hele kysten med de tretten produksjonsområdene. Område " ~ po.nr ~
+         " er fylt med fargen som gjelder nå; de andre er lenker til sine
+          sider.",
+         klasser={po.nr: po.naa.klasse or "omraade--skravert"},
+         lenker=True, gjeldende=po.nr) -%}
+      Område {{ po.nr }} er fylt med fargen som gjelder nå,
+      {{ po.naa.farge }}.
+    {%- endcall %}
+  </section>
+</div>
+
+<div class="med-marg-hoved">
 {# ---------------------------------------------------------------- 1
    BIOMASSEN. Flyttet hit fra lokalitetssiden. #}
 <section class="ark seksjon" id="biomasse-maaned"
@@ -216,6 +278,9 @@
   </p>
   {% endif %}
 </section>
+</div>
+</div>
+
 
 {# ---------------------------------------------------------------- 2
    LOKALITETENE. Søkefeltet filtrerer tabellen med JS; uten JS vises
