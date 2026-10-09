@@ -32,6 +32,11 @@ henter det de viser til og som manglet:
     lakselusforskriften
         SF-versjonen. § 12 nr. 2 viser til «Grensene i forskrift
         5. desember 2012 nr. 1140 om bekjempelse av lakselus § 8».
+    andsverkloven
+        NL-versjonen av LOV-2018-06-15-40. § 14 er grunnlaget for at
+        Mattilsynets søknadsliste kan gjengis: «Lover, forskrifter,
+        rettsavgjørelser og andre vedtak av offentlig myndighet» er uten
+        vern. Lagt til 09.10.2026; se docs/LISENSKJEDE.md merknad K.
 
 ## Hva som lagres
 
@@ -76,6 +81,8 @@ DOKUMENTER = {
         "https://lovdata.no/dokument/LTI/forskrift/2023-09-28-1520",
     "lakselusforskriften":
         "https://lovdata.no/dokument/SF/forskrift/2012-12-05-1140",
+    "andsverkloven":
+        "https://lovdata.no/dokument/NL/lov/2018-06-15-40",
 }
 
 LOGG_KILDE = "lovdata"
@@ -87,12 +94,16 @@ LOGG_KILDE = "lovdata"
 # også overskriften på siste paragraf, og innholdsfortegnelsen står
 # foran dokumenthodet: et mønster på navnet alene ga «Vedlegg» og «og»
 # (MÅLT 09.10.2026 på produksjonsområde- og lakselusforskriften).
+#
+# `LOV-` ved siden av `FOR-` fra åndsverkloven: en lov har lovens
+# nummer i «Dato», og et mønster på bare `FOR-` ga tomt felt.
 _DATO = r"\d\d\.\d\d\.\d{4}"
 METAFELT = {
-    "Dato": r"FOR-\d{4}-\d\d-\d\d-\d+",
-    "Sist endret": r"FOR-\d{4}-\d\d-\d\d-\d+",
+    "Dato": r"(?:FOR|LOV)-\d{4}-\d\d-\d\d-\d+",
+    "Sist endret": r"(?:FOR|LOV)-\d{4}-\d\d-\d\d-\d+",
     "Ikrafttredelse": _DATO,
-    "Kunngjort": _DATO + r" kl\. \d\d\.\d\d",
+    # Klokkeslettet er valgfritt: en lov har «Kunngjort 15.06.2018» uten.
+    "Kunngjort": _DATO + r"(?: kl\. \d\d\.\d\d)?",
 }
 
 

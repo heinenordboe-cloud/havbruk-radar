@@ -53,6 +53,20 @@ def test_metadata_leses_av_dokumenthodet_ikke_av_innholdsfortegnelsen():
         "Ikrafttredelse": "16.01.2017", "Kunngjort": "25.01.2017 kl. 14.05"}
 
 
+def test_en_lov_har_lovens_nummer_og_kunngjoring_uten_klokkeslett():
+    """Åndsverkloven, MÅLT 09.10.2026: «Dato LOV-2018-06-15-40» og
+    «Kunngjort 15.06.2018 Rettet …». Mønstrene på bare `FOR-` og på
+    «kl.» ga to tomme felt."""
+    hode = (b"<dl><dt>Dato</dt><dd>LOV-2018-06-15-40</dd>"
+            b"<dt>Sist endret</dt><dd>LOV-2024-12-13-76</dd>"
+            b"<dt>Kunngjort</dt><dd>15.06.2018</dd>"
+            b"<dt>Rettet</dt><dd>28.11.2025</dd></dl>")
+    m = ark.metadata(hode)
+    assert m["Dato"] == "LOV-2018-06-15-40"
+    assert m["Sist endret"] == "LOV-2024-12-13-76"
+    assert m["Kunngjort"] == "15.06.2018"
+
+
 def test_et_felt_som_mangler_er_tomt_ikke_gjettet():
     assert ark.metadata(b"<p>Dato FOR-2023-09-28-1520</p>")["Sist endret"] == ""
 
