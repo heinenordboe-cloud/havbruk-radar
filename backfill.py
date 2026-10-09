@@ -7,6 +7,7 @@
     python backfill.py --kilde biomasse --revisjon        # har kilden snudd?
     python backfill.py --kilde biomasse --arkiv <url>     # eldre utgivelse inn
     python backfill.py --kilde ekspertgruppen --rapporter # N kropper, M år hver
+    python backfill.py --kilde sjotemperatur --reparse    # arkivet, ny parser
 
 ## TRE moduser, valgt av kilden og ikke av et flagg
 
@@ -80,6 +81,7 @@ sekunders eller to minutters mellomrom.
 import argparse
 import datetime as dt
 import gzip
+import hashlib
 import json
 import re
 import io
@@ -264,6 +266,125 @@ def _arkivert_kropp(kilde, utgivelse):
         f"Ingen av {len(kandidater)} arkiverte kropper under {dato} er "
         f"«{utgivelse.tittel}». Forsiden avgjør, ikke filnavnet."
     )
+
+
+def _kropp_med_hash(kilde_navn: str, dato: str, raw_hash: str):
+    """Den arkiverte kroppen for `dato` med nøyaktig denne hashen, i den
+    formen `fetch()` returnerte den. None når den ikke finnes.
+
+    Hashen avgjør, ikke filnavnet: står det flere kropper under samme
+    dato (`.2`, `.3`), er det den snapshotet SIER det kom fra som skal
+    leses på nytt. Da er den nye lesningen en lesning av den samme
+    påstanden, og ingenting annet.
+
+    Formen leses av endelsen `core/raw.py` ga den: `.txt` var en str,
+    `.json` noe `json.dumps` tok imot, `.bin` bytes.
+    """
+    mappe = raw_arkiv.ARKIV_DIR / kilde_navn
+    for sti in sorted(mappe.glob(f"{dato}.*gz")):
+        if sti.name.split(".")[0] != dato:
+            continue
+        with gzip.open(sti, "rb") as f:
+            data = f.read()
+        if hashlib.sha256(data).hexdigest() != raw_hash:
+            continue
+        if sti.name.endswith(".txt.gz"):
+            return data.decode("utf-8")
+        if sti.name.endswith(".json.gz"):
+            return json.loads(data)
+        return data
+    return None
+
+
+def _reparse_uker(kilde, args) -> int:
+    """Les hver ukes ARKIVERTE kropp på nytt med gjeldende parser.
+
+        python backfill.py --kilde sjotemperatur --reparse
+        python backfill.py --kilde sjotemperatur --reparse --fra 2026-01 --til 2026-10
+
+    For når kilden har lært å lese noe nytt i kropper vi allerede har —
+    `Lusegrense uke` lå i hver sjøtemperaturkropp i fire år før den ble
+    lest. Ingen henting: det kilden sa den uka er arkivert, og en ny
+    henting ville vært et nytt spørsmål til en kilde som kan ha
+    ombestemt seg.
+
+    Per uke:
+
+      * Kroppen er den med `raw_hash` lik den SISTE versjonen av uka.
+      * Proveniensen er den gamle: `fetched_at`, `published_at`,
+        `utvalg` og `endepunkt` kopieres fra det snapshotet. Vi spurte
+        ikke på nytt, så `fetched_at` i dag ville vært usant (1b-7). Bare
+        `source_version` er ny — det er den som sier at dette er en ny
+        lesning.
+      * Nytt snapshot ved siden av det gamle, med løpenummer. Ingenting
+        overskrives (regel 2), og begge lesningene står.
+      * INGEN changelog. Forskjellen er vår parser, ikke kilden — samme
+        regel som ekspertgruppens og eierskapets --reparse.
+
+    Idempotent: en uke der siste versjon alt har gjeldende
+    `source_version`, hoppes over.
+
+    Rekkefølgen av versjoner blir riktig uten å røre sorteringen:
+    `versjoner()` sorterer på (publisert, løpenummer), publisert er lik
+    for de to lesningene, og den nye har høyest løpenummer.
+    """
+    datoer = snapshot.datoer(kilde.name)
+    if args.fra and args.til:
+        fra = mandag(*_parse_uke(args.fra))
+        til = mandag(*_parse_uke(args.til))
+        datoer = [d for d in datoer if fra <= d <= til]
+    if not datoer:
+        print(f"Ingen snapshots for {kilde.name} å lese på nytt.")
+        return 1
+
+    print(f"Re-parse {kilde.name}: {len(datoer)} uker fra arkivet, "
+          f"source_version {kilde.version}"
+          + (" (TØRRKJØRING)" if args.torrkjor else ""))
+    skrevet = hoppet = 0
+    feil: list[str] = []
+    for dato in datoer:
+        versjoner = snapshot.versjoner(kilde.name, dato)
+        siste = versjoner[-1][1]
+        if snapshot.source_version_i(siste) == kilde.version:
+            hoppet += 1
+            continue
+        hasher = siste["raw_hash"].unique().to_list() if "raw_hash" in siste.columns else []
+        if len(hasher) != 1 or not hasher[0]:
+            feil.append(f"{dato}: snapshotet peker ikke på én kropp ({hasher})")
+            continue
+        rå = _kropp_med_hash(kilde.name, dato, hasher[0])
+        if rå is None:
+            feil.append(f"{dato}: ingen arkivert kropp med sha256 {hasher[0][:16]}…")
+            continue
+        try:
+            obs = runner.stempl(
+                kilde.parse(rå, dato),
+                source_version=kilde.version, raw_hash=hasher[0],
+                fetched_at=snapshot.fetched_at_i(siste),
+                published_at=snapshot.published_at_i(siste) or "",
+                utvalg=snapshot.utvalg_i(siste),
+                endepunkt=snapshot.endepunkt_i(siste) or "",
+                kilde=kilde)
+        except Exception as e:
+            feil.append(f"{dato}: {type(e).__name__}: {e}")
+            continue
+        if not obs:
+            feil.append(f"{dato}: ny lesning ga null rader")
+            continue
+        if args.torrkjor:
+            print(f"  {dato}: {len(obs):>6} observasjoner")
+            continue
+        filer = snapshot.write(obs, dato)
+        skrevet += 1
+        print(f"  {dato}: {len(obs):>6} observasjoner, RE-PARSE "
+              f"(ingen changelog) -> {filer[0].name}")
+
+    print(f"\n{skrevet} uker RE-PARSET (ingen changelog), {hoppet} hadde "
+          f"alt version {kilde.version}, {len(feil)} feilet.")
+    for f in feil:
+        print(f"  FEIL {f}")
+    print("health.json er URØRT — backfill oppdaterer ikke helsetilstanden.")
+    return 1 if feil else 0
 
 
 def _parse_uke(tekst: str) -> tuple[int, int]:
@@ -1303,7 +1424,9 @@ def main() -> int:
                    help="les de ARKIVERTE kroppene i stedet for å hente på "
                         "nytt, og skriv årene om igjen med gjeldende "
                         "parserversjon. For når uttrekket er forbedret og "
-                        "kildene er uendret. Krever --rapporter-kilder.")
+                        "kildene er uendret. For rapportkilder og "
+                        "ukekilder; ukekilder leser kroppen snapshotets "
+                        "raw_hash peker på, og --fra/--til er valgfrie.")
     p.add_argument("--pause", type=float, default=None,
                    help=f"sekunder mellom kall (standard: kildens egen "
                         f"`pause_s`, ellers {PAUSE_S})")
@@ -1363,6 +1486,9 @@ def main() -> int:
         print(f"--arkiv krever en kilde som leverer hele serien i ett kall "
               f"(hent_alt). {args.kilde} henter én uke om gangen.")
         return 1
+
+    if args.reparse:
+        return _reparse_uker(kilde, args)
 
     if args.revisjon:
         print(f"--revisjon krever en kilde som leverer hele serien i ett "

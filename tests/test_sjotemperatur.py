@@ -142,14 +142,55 @@ def test_rad_uten_lokalitetsnummer_hoppes_over():
 
 # ---- feltvalg: hva kilden IKKE eier -----------------------------------
 
-def test_emitter_bare_temperatur_ikke_naboenes_felter():
+def test_emitter_ikke_naboenes_felter():
     """`akvakultur` eier navn, kommune, fylke, breddegrad og
     produksjonsområde; `lusetall` eier lusetallene. To kilder som skriver
     samme felt med hver sin skrivemåte legger igjen en permanent falsk
-    forskjell."""
+    forskjell. `lusegrense` eier ingen andre."""
     obs = list(Sjotemperatur().parse(_csv(_rad(10029)), "2026-08-24"))
     assert {o.field for o in obs} == {"sjotemperatur",
-                                      "temperatur_er_rapportert"}
+                                      "temperatur_er_rapportert",
+                                      "lusegrense"}
+
+
+# ---- lusegrensa (version 2) -------------------------------------------
+
+def _grenserad(nr, grense, brakk="Nei", temp="14.07"):
+    return _rad(nr, temp=temp, brakk=brakk).replace(",0.5,Nei,", f",{grense},Nei,")
+
+
+def test_lusegrensa_leses_som_kilden_sier_den():
+    obs = list(Sjotemperatur().parse(
+        _csv(_grenserad(10029, "0.2"), _grenserad(10030, "0.5")), "2026-08-24"))
+    grenser = {o.entity_id: o.value for o in obs if o.field == "lusegrense"}
+    assert grenser == {"10029": "0.2", "10030": "0.5"}
+
+
+def test_lusegrensa_lagres_ogsaa_uten_temperatur_og_paa_brakklagte():
+    """Grensa er kildens påstand om regelverket for lokaliteten den uka,
+    ikke en måling. En brakklagt lokalitet uten temperatur har den også."""
+    obs = list(Sjotemperatur().parse(
+        _csv(_grenserad(10029, "0.5", brakk="Ja", temp="")), "2026-08-24"))
+    assert {o.field: o.value for o in obs} == {
+        "temperatur_er_rapportert": "False", "lusegrense": "0.5"}
+
+
+def test_tom_lusegrense_gir_ingen_rad():
+    obs = list(Sjotemperatur().parse(_csv(_grenserad(10029, "")), "2026-08-24"))
+    assert "lusegrense" not in {o.field for o in obs}
+
+
+def test_manglende_lusegrensekolonne_kaster():
+    """Kolonnen står i alle 767 arkiverte kropper. Forsvinner den, er
+    formatet endret, og en stille tom grense ville sett ut som at
+    regelverket var borte."""
+    hode = HODE.replace("Lusegrense uke,", "Grense,")
+    with pytest.raises(Kolonnefeil, match="Lusegrense uke"):
+        _les_csv("﻿" + hode + "\n" + _rad(10029) + "\n")
+
+
+def test_versjonen_er_bumpet_for_den_nye_lesningen():
+    assert Sjotemperatur.version == "2"
 
 
 def test_lokalitetsnummeret_er_nokkelen_navnet_folger_med_som_etikett():

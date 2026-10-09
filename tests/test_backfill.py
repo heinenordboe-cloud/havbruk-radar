@@ -845,3 +845,65 @@ def test_arkiv_avvises_for_en_ukekilde(isolert, monkeypatch, capsys):
                                      "--arkiv", "https://x"])
     assert backfill.main() == 1
     assert "--arkiv krever en kilde" in capsys.readouterr().out
+
+
+# ------------------------------------------------- --reparse for ukekilder
+
+class ToLesninger(FalskLusetall):
+    """Version 1 leser bare lusetallet. Version 2 har lært å lese et felt
+    til i den SAMME kroppen — som sjøtemperaturens lusegrense."""
+
+    version = "1"
+
+    def parse(self, raw, observed_at):
+        yield from super().parse(raw, observed_at)
+        if self.version == "2":
+            for lok in raw.get("localities", []):
+                yield Observation(
+                    entity_id=str(lok["localityNo"]),
+                    entity_type=self.entity_type, entity_name="",
+                    field="grense", value="0.5", source=self.name,
+                    observed_at=observed_at)
+
+
+def test_reparse_leser_arkivet_og_beholder_proveniensen(isolert, monkeypatch,
+                                                         capsys):
+    import polars as pl
+
+    kilde = ToLesninger()
+    assert _kjor(monkeypatch, kilde, "2026-01", "2026-02") == 0
+    hentet = list(kilde.hentet)
+    changelog_for = sorted((isolert / "changelog").glob("*.parquet"))
+
+    kilde.version = "2"
+    assert _kjor(monkeypatch, kilde, "2026-01", "2026-02", ["--reparse"]) == 0
+    assert kilde.hentet == hentet, "ingen ny henting"
+
+    mappe = isolert / "raw/lusetall"
+    gammel = pl.read_parquet(mappe / "2025-12-29.parquet")
+    ny = pl.read_parquet(mappe / "2025-12-29.2.parquet")
+    assert set(gammel["field"]) == {"voksne_hunnlus"}, "den gamle står urørt"
+    assert set(ny["field"]) == {"voksne_hunnlus", "grense"}
+    assert ny["source_version"].unique().to_list() == ["2"]
+    for kol in ("fetched_at", "raw_hash", "published_at", "utvalg"):
+        assert ny[kol].unique().to_list() == gammel[kol].unique().to_list(), kol
+    assert sorted((isolert / "changelog").glob("*.parquet")) == changelog_for, \
+        "en ny lesning er ikke en hendelse"
+    assert snapshot.versjoner("lusetall", "2025-12-29")[-1][0] == 2, \
+        "den nye lesningen er siste versjon"
+
+    # Idempotent.
+    assert _kjor(monkeypatch, kilde, "2026-01", "2026-02", ["--reparse"]) == 0
+    assert not (mappe / "2025-12-29.3.parquet").exists()
+    assert "2 hadde alt version 2" in capsys.readouterr().out
+
+
+def test_reparse_uten_arkivert_kropp_feiler_uka(isolert, monkeypatch, capsys):
+    kilde = ToLesninger()
+    assert _kjor(monkeypatch, kilde, "2026-01", "2026-01") == 0
+    for f in (isolert / "arkiv/lusetall").glob("*"):
+        f.unlink()
+    kilde.version = "2"
+    assert _kjor(monkeypatch, kilde, "2026-01", "2026-01", ["--reparse"]) == 1
+    assert "ingen arkivert kropp" in capsys.readouterr().out
+    assert not (isolert / "raw/lusetall/2025-12-29.2.parquet").exists()

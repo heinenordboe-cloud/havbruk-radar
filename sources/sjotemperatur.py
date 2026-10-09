@@ -35,14 +35,33 @@ omdøping er en re-parse og ikke tapt historikk.
 
 ## Hva kilden emitter, og hva den lar være
 
-`sjotemperatur` og `temperatur_er_rapportert`. Ikke noe mer.
+`sjotemperatur`, `temperatur_er_rapportert` og `lusegrense`. Ikke noe mer.
 
-CSV-en bærer 20 kolonner, men de andre 18 eies allerede: `lusetall` eier
+CSV-en bærer 20 kolonner, men de fleste andre eies allerede: `lusetall` eier
 lusetallene og driftsflaggene, `akvakultur` eier navn, kommune, fylke,
 breddegrad og produksjonsområde (`prodomraade_kode`/-`navn`/-`status`).
 To kilder som skriver samme felt med hver sin skrivemåte legger igjen en
 permanent falsk forskjell i dataene — samme grunn som at `lusetall` ikke
 emitter `navn`.
+
+`lusegrense` er `Lusegrense uke`, og INGEN annen kilde eier den:
+lusetall-endepunktet har ikke grensa. Lagt til 09.10.2026 som version
+"2", som en ny tolkning av kroppene som lå i `data/arkiv/` fra før —
+ingen ny henting (`backfill.py --reparse`). MÅLT i alle 767 kropper
+2012-01-02 … 2026-09-07 (docs/MALING-FUNN-OKTOBER.md F4.5): 0,5, og 0,2
+i vårukene fra 2017. Den står også på brakklagte lokaliteter, og lagres
+der også — det er det kilden sier.
+
+Prøven på at feltet er lest riktig er BarentsWatchs EGEN regel:
+`Over lusegrense uke` er «Ja» nøyaktig når voksne hunnlus, avrundet til
+to desimaler, er minst `Lusegrense uke`. MÅLT 09.10.2026 med
+`lusetall.voksne_hunnlus` og dette feltet etter re-parse: 409 118 av
+409 118 lokalitetsuker i alle 767 uker. AVRUNDINGEN ER HALV OPP: med
+Pythons `round()`, som runder 0,495 til 0,49, er det tre avvik — alle
+0,495 mot 0,5, alle «Ja» hos BarentsWatch.
+`Over lusegrense uke` lagres IKKE: den kan regnes ut av to felt vi har,
+og et lagret flagg ved siden av ville vært en tredje påstand som kunne
+blitt uenig med de to.
 
 `temperatur_er_rapportert` er ikke pynt. 0,0 grader er en LOVLIG målt
 verdi og forekommer 675 ganger i historikken, de fleste i uke 51-52/2012.
@@ -141,13 +160,15 @@ KOL_NR = "Lokalitetsnummer"
 KOL_NAVN = "Lokalitetsnavn"
 KOL_TEMP = "Sjøtemperatur"
 KOL_BRAKK = "Trolig uten fisk"
+KOL_GRENSE = "Lusegrense uke"
 
-PAAKREVDE = (KOL_UKE, KOL_AAR, KOL_NR, KOL_TEMP, KOL_BRAKK)
+PAAKREVDE = (KOL_UKE, KOL_AAR, KOL_NR, KOL_TEMP, KOL_BRAKK, KOL_GRENSE)
 
 # Feltnavn er en kontrakt mot historikken. Døper du om et felt senere,
 # leser diffen det som at det gamle forsvant og et nytt oppsto.
 FELT_TEMP = "sjotemperatur"
 FELT_RAPPORTERT = "temperatur_er_rapportert"
+FELT_GRENSE = "lusegrense"
 
 
 class Kolonnefeil(RuntimeError):
@@ -239,6 +260,11 @@ class Sjotemperatur(Source):
     # og sjøtemperatur er ingen av delene. Lest 12.09.2026.
     attribusjon = ("Data levert av BarentsWatch",)
     entity_type = "lokalitet"
+
+    # "2" fra 09.10.2026: `lusegrense` lagt til. Kroppene er de samme;
+    # versjonen er det som skiller den nye lesningen fra den gamle på
+    # radene, og det som gjør `backfill.py --reparse` idempotent.
+    version = "2"
 
     # ISO-uka målingen gjelder for, som lusetall. Målt: 764 datoer fra
     # 2012-01-02, median 2675 dager.
@@ -395,6 +421,20 @@ class Sjotemperatur(Source):
                 continue
             navn = (rad.get(KOL_NAVN) or "").strip()
             temp = _tall(rad.get(KOL_TEMP))
+
+            # Grensa uavhengig av temperaturen: den er kildens påstand om
+            # regelverket for lokaliteten den uka, ikke en måling.
+            grense = _tall(rad.get(KOL_GRENSE))
+            if grense is not None:
+                yield Observation(
+                    entity_id=nr,
+                    entity_type=self.entity_type,
+                    entity_name=navn,
+                    field=FELT_GRENSE,
+                    value=str(grense),
+                    source=self.name,
+                    observed_at=gjelder,
+                )
 
             # Flagget først, og for HVER rad. Det er det som gjør et hull
             # lesbart som et hull i stedet for som null grader.
