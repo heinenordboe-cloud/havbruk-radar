@@ -9142,6 +9142,13 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
 
     lokalitetsrader = [lokaliteter[k] for k in
                        sorted(lokaliteter, key=lambda e: int(e) if e.isdigit() else 0)]
+    # HØYRESPALTA: hvor langs kysten lokalitetene ligger, og hvor mange
+    # i hvert område. Tellingen er av de samme lokalitetene som lista.
+    per_po = _po_fordeling(felles, lokaliteter)
+    marg = ({"kart": kart.minikart(_koordinater(felles, lokaliteter)),
+             "per_po": per_po,
+             "utenfor_po": len(lokaliteter) - sum(r["antall"] for r in per_po)}
+            if lokaliteter else None)
     samlet = _samlet_kapasitet(mine)
     endringer, vindu = _selskapsendringer(orgnr, sorted(lokaliteter),
                                           tillatelser, felles)
@@ -9167,6 +9174,7 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
         "tillatelser_antall": len(tillatelser),
         "lokaliteter": lokalitetsrader,
         "lokaliteter_antall": len(lokaliteter),
+        "marg": marg,
         "overforinger": overforinger,
 
         # ---- nøkkeltallene i overskriften ----

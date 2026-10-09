@@ -2652,6 +2652,22 @@ figcaption {
   color: var(--ink-dempet);
 }
 
+/* UNDER 64rem STÅR BILDETEKSTEN VED SIDEN AV KARTET. Høyrespalta har
+   falt under hovedinnholdet, og et kart i full bredde er 440 px høyt på
+   390 — MÅLT 09.10.2026: selskapssiden til Mowi Seawater Norway ble
+   5 025 px, over briefens tak på 5 000. Kartet i 13rem med teksten ved
+   siden av er 256 px, og ingenting er tatt bort. */
+@media (max-width: 63.99rem) {
+  .minikart {
+    display: grid;
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+    gap: var(--rom-16);
+    align-items: end;
+  }
+  .minikart svg { max-inline-size: none; }
+  .minikart figcaption { margin: 0; }
+}
+
 .mini-omraader path {
   fill: var(--kart-hav);
   stroke: var(--papir);

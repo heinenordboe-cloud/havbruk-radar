@@ -1624,6 +1624,10 @@ def _selskap(**overstyr) -> str:
                          "kapasitet": "780 tonn", "siden": "2018-03-13",
                          "tillatelser": ["N-T-0001"]}],
         "lokaliteter_antall": 1,
+        "marg": {"kart": nettsted.kart.minikart([("67.2", "14.4")]),
+                 "per_po": nettsted.fordeling(
+                     [("8 Helgeland til Bodø", "/produksjonsomrade/8/", 1, "1")]),
+                 "utenfor_po": 0},
         "overforinger": [{"dato": "2018-03-13", "tillatelse": "N-T-0001",
                           "rekkefolge": "1"}],
         "enhetsregisteret_url":
@@ -5360,6 +5364,21 @@ def _crad(eid, felt, fra, til, dato, kilde="akvakultur", slag="endret"):
     return {"entity_id": eid, "field": felt, "old_value": fra,
             "new_value": til, "change_type": slag, "source": kilde,
             "observed_at": dato, "forrige_observed_at": ""}
+
+
+def test_selskapssiden_har_kart_og_omraader_i_hoyrespalta():
+    """Stil.css avsnitt 11b. Høyrespalta står etter endringene og før
+    lokalitetslista i markupen — det er rekkefølgen på telefon. Uten
+    lokaliteter er det ingen høyrespalte og ingen to spalter."""
+    html = _selskap()
+    flat = " ".join(html.split())
+    assert 'class="ark med-marg"' in html
+    assert "1 av 1 lokalitet er tegnet" in flat
+    assert '<a href="/produksjonsomrade/8/">8 Helgeland til Bodø</a>' in html
+    assert (html.index('id="endringer-selskap"') < html.index('class="marg"')
+            < html.index('id="lok-tittel"'))
+    uten = _selskap(marg=None)
+    assert 'class="marg"' not in uten and 'class="ark med-marg"' not in uten
 
 
 def _selskapsfelles(endringer):

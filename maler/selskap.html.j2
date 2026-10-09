@@ -13,6 +13,7 @@
 
    Markupkontrakten gjelder. Ankernavnene er `<kilde>-<hva>`. #}
 {% extends "base.html.j2" %}
+{% import "marg.html.j2" as marg %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -23,7 +24,24 @@
       <li aria-current="page">Org.nr. {{ sel.orgnr }}</li>
     </ol>
   </nav>
+</div>
+{% endblock %}
 
+{% block innhold %}
+{# TO SPALTER FRA 64rem, lokalitetssidens mønster (stil.css avsnitt 11b):
+   tittelen, nøkkeltallene og de vesentlige endringene til venstre;
+   kartet over lokalitetene og fordelingen per område til høyre. Resten
+   av siden — lokaliteter, tillatelser, eierskap, register — står i full
+   bredde under. I sidehodet står bare brødsmula; `main` har sin egen
+   `data-pagefind-body`.
+
+   Under 64rem kommer høyrespalta etter endringene og før
+   lokalitetslista: kartet og fordelingen er en oppsummering av lista
+   som følger. Uten lokaliteter er det ingen høyrespalte, og da er det
+   heller ingen to spalter. #}
+<div class="ark{% if sel.marg %} med-marg{% endif %}">
+<div class="med-marg-hoved">
+<div class="selskap-hode">
   {# Navnet i menneskelig form. Den rå verdien står i registerfeltene
      og i siteringen nederst — se `visningsord.selskapsnavn()`. #}
   <h1><span data-navn>{{ sel.navn|selskapsnavn or sel.orgnr }}</span></h1>
@@ -93,9 +111,6 @@
     <li><a class="handling" href="{{ sel.enhetsregisteret_url }}">Enhetsregisteret ↗</a></li>
   </ul>
 </div>
-{% endblock %}
-
-{% block innhold %}
 
 {# ---------------------------------------------------------------- 0
    VESENTLIGE ENDRINGER, de samme som tallet i overskriften teller.
@@ -180,6 +195,34 @@
   </p>
 </section>
 {% endif %}
+</div>
+
+{% if sel.marg %}
+{% set m = sel.marg %}
+<div class="marg">
+  <section class="marg-blokk" aria-labelledby="marg-kart">
+    <h2 class="etikett" id="marg-kart">Langs kysten</h2>
+    {% call marg.minikart(m.kart, "minikart-selskap",
+         "Kart over lokalitetene til " ~ (sel.navn|selskapsnavn or sel.orgnr),
+         "Hver lokalitet selskapet har tillatelse på, er en prikk på kysten.
+          Alle står i lokalitetslista under.") -%}
+      {{ tall(m.kart.tegnet) }} av {{ antall(sel.lokaliteter_antall, "lokalitet", "lokaliteter") }}
+      er tegnet{% if m.kart.uten_koordinater %}; {{ tall(m.kart.uten_koordinater) }} mangler koordinater{% endif %}.
+    {%- endcall %}
+  </section>
+  {% if m.per_po %}
+  <section class="marg-blokk" aria-labelledby="marg-po">
+    <h2 class="etikett" id="marg-po">Per produksjonsområde</h2>
+    {{ marg.fordeling(m.per_po, "marg-po") }}
+    {% if m.utenfor_po %}
+    <p class="marg-note">{{ antall(m.utenfor_po, "lokalitet", "lokaliteter") }} ligger
+      utenfor inndelingen.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endif %}
+</div>
 
 {# ---------------------------------------------------------------- 1
    LOKALITETENE OG TILLATELSENE, side om side.

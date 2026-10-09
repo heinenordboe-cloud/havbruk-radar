@@ -151,10 +151,13 @@ venstre. Under 64rem kommer høyrespalta etter hovedinnholdet.
 | Områdeindeksen | tittel, tabellen | minikart fylt med tabellens farge, områdene som lenker |
 | Selskapsindeksen | tittel, søk, lista | selskaper med endringer siste 4 uker, de fem største etter tonn og etter lokaliteter |
 | Endringsindeksen | tittel, forklaring, nyeste uke; krysstabellen i full bredde under | endringer per uke og type som stolperader, analysen |
+| Selskapssiden | tittel, nøkkeltall, vesentlige endringer; resten i full bredde under | minikart med selskapets lokaliteter, per område |
 
 **Minikartet** er hele kysten på 320 px: land, de tretten områdene og
 punktene som én `path` (`kart.minikart()`). Det har ikke `data-kart`,
-fordi det ikke bruker Kartverkets kontur.
+fordi det ikke bruker Kartverkets kontur. Under 64rem er det 13rem bredt
+med bildeteksten ved siden av: i full bredde var det 440 px høyt på
+390, og selskapssiden gikk over briefens 5 000 px.
 
 ## Komponenter
 
