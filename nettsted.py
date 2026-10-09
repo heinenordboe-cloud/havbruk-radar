@@ -7942,6 +7942,73 @@ def bygg_poindeks(felles: Felles) -> dict:
             "uten_omraade": uten_omraade_tekst(felles.akva)}
 
 
+# DE STØRSTE, i høyrespalta på selskapsindeksen. Fem er nok til å svare
+# på «hvem er størst» uten å bli en andre tabell.
+SELSKAP_TOPP = 5
+
+# «Siste fire uker» på selskapsindeksen: en måned, regnet i hele uker,
+# som selskapssidens kvartal.
+SELSKAP_INDEKS_UKER = 4
+
+
+def _selskapsmarg(felles: Felles, rader: list[dict]) -> dict:
+    """Høyrespalta på selskapsindeksen. `rader` er indeksens egne — uten
+    personeierne, så ingen av listene kan navngi en person (regel 3).
+
+    KAPASITETEN ER BARE TONN. `kapasitet_enhet` er tonn, dekar, stykk,
+    kilo, kvadrat- og kubikkmeter og liter i det samme registeret (se
+    `_samlet_kapasitet()`); en rangering på tvers av enhetene ville vært
+    en rangering av ingenting. Tillatelser i andre enheter er telt, og
+    noten sier hvor mange.
+
+    ENDRINGENE er selskapssidens: `_selskapsendringer()` med et vindu på
+    fire uker i stedet for tretten, så et selskap som teller her, har en
+    rad i lista på sin egen side."""
+    tonn: dict[str, float] = defaultdict(float)
+    andre = 0
+    endret = 0
+    vindu = None
+    for r in rader:
+        orgnr = r["orgnr"]
+        tillatelser = sorted(felles.tillatelser_per_eier.get(orgnr, ()))
+        for nr in tillatelser:
+            d = felles.eierskap[nr]
+            try:
+                verdi = float((d.get("kapasitet") or "").strip())
+            except ValueError:
+                continue
+            if (d.get("kapasitet_enhet") or "").strip() == "TN":
+                tonn[orgnr] += verdi
+            else:
+                andre += 1
+        lok = sorted({l for nr in tillatelser
+                      for l in _liste(felles.eierskap[nr].get("lokaliteter"))
+                      if l in felles.akva})
+        poster, vindu = _selskapsendringer(orgnr, lok, tillatelser, felles,
+                                           uker=SELSKAP_INDEKS_UKER)
+        endret += bool(poster)
+
+    def tekst(r: dict) -> str:
+        return visningsord.selskapsnavn(r["navn"]) or r["orgnr"]
+
+    etter_tonn = sorted((r for r in rader if tonn.get(r["orgnr"])),
+                        key=lambda r: (-tonn[r["orgnr"]], tekst(r)))
+    etter_lok = sorted(rader, key=lambda r: (-r["lokaliteter"], tekst(r)))
+    return {
+        "tonn": fordeling([(tekst(r), f"/selskap/{r['orgnr']}/",
+                            tonn[r["orgnr"]],
+                            visningsord.maalt(tonn[r["orgnr"]], "TN"))
+                           for r in etter_tonn[:SELSKAP_TOPP]]),
+        "andre_enheter": andre,
+        "lokaliteter": fordeling([(tekst(r), f"/selskap/{r['orgnr']}/",
+                                   r["lokaliteter"],
+                                   visningsord.tall(r["lokaliteter"]))
+                                  for r in etter_lok[:SELSKAP_TOPP]]),
+        "endret": endret,
+        "vindu": vindu,
+    }
+
+
 def bygg_selskapsindeks(felles: Felles) -> dict:
     """Selskapene med minst én tillatelse, sortert på navn.
 
@@ -7974,7 +8041,8 @@ def bygg_selskapsindeks(felles: Felles) -> dict:
             "eierskap_dato": felles.eierskap_dato,
             "uten_registerdata": sum(1 for r in rader
                                      if not r["har_registerdata"]),
-            "personeiere": personer}
+            "personeiere": personer,
+            "marg": _selskapsmarg(felles, rader)}
 
 
 # RADER PER INDEKSSIDE. MÅLT 08.10.2026 på 390 px: en indeksrad som
@@ -9117,7 +9185,8 @@ def _avgitte_tillatelser(orgnr: str, felles: Felles) -> set[str]:
 
 
 def _selskapsendringer(orgnr: str, lokaliteter: list[str],
-                       tillatelser: list[str], felles: Felles
+                       tillatelser: list[str], felles: Felles,
+                       uker: int = SELSKAP_UKER
                        ) -> tuple[list[dict], dict | None]:
     """(vesentlige endringer i vinduet, nyest først; vinduet).
 
@@ -9128,7 +9197,7 @@ def _selskapsendringer(orgnr: str, lokaliteter: list[str],
     av lokalitetene, telles én gang.
     """
     vindu = endringsvindu(max(felles.akva_dato, felles.eierskap_dato),
-                          felles.dekning_fra, SELSKAP_UKER)
+                          felles.dekning_fra, uker)
     if not vindu:
         return [], None
     rader: list[dict] = []

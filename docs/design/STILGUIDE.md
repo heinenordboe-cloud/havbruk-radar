@@ -149,6 +149,7 @@ venstre. Under 64rem kommer høyrespalta etter hovedinnholdet.
 |---|---|---|
 | Lokalitetsindeksen | tittel, søk, lista | minikart med alle, per område, per art |
 | Områdeindeksen | tittel, tabellen | minikart fylt med tabellens farge, områdene som lenker |
+| Selskapsindeksen | tittel, søk, lista | selskaper med endringer siste 4 uker, de fem største etter tonn og etter lokaliteter |
 
 **Minikartet** er hele kysten på 320 px: land, de tretten områdene og
 punktene som én `path` (`kart.minikart()`). Det har ikke `data-kart`,

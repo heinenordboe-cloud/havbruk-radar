@@ -1,6 +1,7 @@
 {# Selskapsindeksen, sortert på navn og delt i sider på 100 — se
    indeks-lokalitet.html.j2 for hvorfor. #}
 {% extends "base.html.j2" %}
+{% import "marg.html.j2" as marg %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -10,6 +11,14 @@
     <li aria-current="page">Selskaper</li>
   </ol>
 </nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+{# TO SPALTER FRA 64rem, som lokalitetsindeksen: lista til venstre, de
+   største og ukas bevegelse til høyre. Se stil.css avsnitt 11b. #}
+<div class="med-marg">
+<div class="med-marg-hoved">
 {# «INNEHAVERE», IKKE «SELSKAPER». Lista er bygget av hvem som EIER en
    tillatelse i eierskapsregisteret, ikke av hvem som er et selskap: et
    selskap i næringskodeuttrekket vårt uten tillatelse står ikke her.
@@ -29,10 +38,6 @@
          placeholder="Søk etter selskap, lokalitet eller kommune">
   <button class="knapp" type="submit">Søk</button>
 </form>
-</div>
-{% endblock %}
-
-{% block innhold %}
 
 {% if d.side and d.side.antall > 1 %}
 <p class="historikk-forklaring">
@@ -90,4 +95,46 @@
   Organisasjonsnummeret er Brønnøysundregistrenes og er nøkkelen til
   selskapssiden.
 </p>
+</div>
+
+{# HØYRESPALTA. Hvem som er størst, målt to måter, og hvor mange som har
+   endret seg nylig. Like på hver side av lista: de gjelder alle. Ingen
+   personeier kan stå her — radene er indeksens egne. #}
+{% set m = d.marg %}
+<div class="marg">
+  {% if m.vindu %}
+  <section class="marg-blokk" aria-labelledby="marg-endret">
+    <h2 class="etikett" id="marg-endret">Siste {{ antall(m.vindu.uker, "uke", "uker") }}</h2>
+    <dl class="fakta">
+      <div>
+        <dt>Selskaper med vesentlige endringer</dt>
+        <dd>{{ tall(m.endret) }} <span class="fakta-bi">av {{ tall(d.antall) }},
+          til <time datetime="{{ m.vindu.til }}">{{ m.vindu.til|dato }}</time>{% if not m.vindu.hele %},
+          talt fra <time datetime="{{ m.vindu.fra }}">{{ m.vindu.fra|dato }}</time>{% endif %}</span></dd>
+      </div>
+    </dl>
+    <p class="marg-note">Samme telling som på hver selskapsside: endringer
+      på selskapets lokaliteter og tillatelser.
+      <a href="/endringer/">Endringene uke for uke</a>.</p>
+  </section>
+  {% endif %}
+
+  {% if m.tonn %}
+  <section class="marg-blokk" aria-labelledby="marg-tonn">
+    <h2 class="etikett" id="marg-tonn">Størst etter kapasitet</h2>
+    {{ marg.fordeling(m.tonn, "marg-tonn") }}
+    <p class="marg-note">Summen av tillatelsenes kapasitet i tonn.
+      {{ antall(m.andre_enheter, "tillatelse", "tillatelser") }} har kapasitet i
+      andre enheter — stykk, dekar, kilo — og er ikke med.</p>
+  </section>
+  {% endif %}
+
+  {% if m.lokaliteter %}
+  <section class="marg-blokk" aria-labelledby="marg-lok">
+    <h2 class="etikett" id="marg-lok">Flest lokaliteter</h2>
+    {{ marg.fordeling(m.lokaliteter, "marg-lok") }}
+  </section>
+  {% endif %}
+</div>
+</div>
 {% endblock %}

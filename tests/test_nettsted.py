@@ -2306,7 +2306,8 @@ def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
                   "N-T-0001": {"eier_type": "LimitedLiabilityCompany",
                                "eier_navn": "TESTLAKS AS",
                                "lokaliteter": "10001"}},
-        enhet={"912345678": {}}, eierskap_dato="2026-09-14")
+        enhet={"912345678": {}}, eierskap_dato="2026-09-14",
+        akva={}, akva_dato="2026-09-14", dekning_fra=[], registerendringer={})
 
     d = nettsted.bygg_selskapsindeks(felles)
     assert [r["orgnr"] for r in d["rader"]] == ["912345678"]
@@ -2318,6 +2319,35 @@ def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
     assert "1 eier(e) står ikke i lista og har ingen side" in flat
     assert "personregister" in flat
     assert "954744469" not in html
+
+
+def test_selskapsindeksens_hoyrespalte_rangerer_bare_tonn_og_aldri_en_person():
+    """Kapasitet i ulike enheter kan ikke legges sammen; tillatelsene i
+    andre enheter telles og noten sier det. En personeier er ikke i
+    indeksens rader og kan derfor ikke stå blant de største, uansett
+    hvor stor (regel 3)."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        tillatelser_per_eier={"954744469": ["P-1"], "912345678": ["A-1", "A-2"],
+                              "923456789": ["B-1"]},
+        eierskap={
+            "P-1": {"eier_type": "JointlyOwnedShippingCompany",
+                    "eier_navn": "NOE ANS", "lokaliteter": "",
+                    "kapasitet": "99999", "kapasitet_enhet": "TN"},
+            "A-1": {"eier_type": "LimitedLiabilityCompany", "eier_navn": "ALFA AS",
+                    "lokaliteter": "", "kapasitet": "780", "kapasitet_enhet": "TN"},
+            "A-2": {"eier_type": "LimitedLiabilityCompany", "eier_navn": "ALFA AS",
+                    "lokaliteter": "", "kapasitet": "12", "kapasitet_enhet": "DA"},
+            "B-1": {"eier_type": "LimitedLiabilityCompany", "eier_navn": "BETA AS",
+                    "lokaliteter": "", "kapasitet": "3120", "kapasitet_enhet": "TN"}},
+        enhet={}, eierskap_dato="2026-09-14",
+        akva={}, akva_dato="2026-09-14", dekning_fra=[], registerendringer={})
+    m = nettsted.bygg_selskapsindeks(felles)["marg"]
+    assert [(r["tekst"], r["antall"]) for r in m["tonn"]] == [
+        ("Beta AS", 3120.0), ("Alfa AS", 780.0)]
+    assert m["andre_enheter"] == 1
+    assert m["vindu"] is None, "ingen dekning: ingen påstand om fire uker"
 
 
 def _indeksfelles(n):

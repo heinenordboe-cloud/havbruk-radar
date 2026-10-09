@@ -2585,9 +2585,12 @@ figcaption {
 .fordeling-stolpe { display: block; inline-size: 100%; block-size: 6px; }
 .fordeling-stolpe rect { fill: var(--hav5); }
 
+/* SANS MED TABELLSIFFER, ikke mono. Fordelingen er en liste og ikke en
+   tabellkolonne, og enheten står ved tallet («184 905 tonn», se
+   `visningsord.maalt`): i mono ble mellomrommene like brede som sifrene. */
 .fordeling-tall {
-  font-family: var(--skrift-tall);
-  font-size: var(--tekst-xs);
+  font-size: var(--tekst-s);
+  font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
 }
