@@ -71,6 +71,20 @@ TRE REGLER VI HAR VALGT, og som står fordi et annet valg gir andre tall:
     uten avrunding: «færre enn 0,1». Tiltaksgrensa sammenlignes slik
     BarentsWatch gjør, med halv-opp til to desimaler
     (`nettsted._over_grensen`).
+
+## 4. Kontrollen: godkjent mot avslått FØR søknaden
+
+Hvis tallene over måler noe av det Mattilsynet vurderte, skal de skille
+de godkjente fra de avslåtte i kvalifikasjonsperioden. `kontroll()`
+teller, per tall, hvor mange lokaliteter i hver gruppe som ligger
+innenfor tallet i vilkåret, og regner Fishers eksakte test (tosidig) på
+de to andelene. Bare SIKRE koblinger, én rad per lokalitet — en
+lokalitet med tre søkere er én lokalitet.
+
+«Innenfor tallet i vilkåret» er en sammenligning av to tall, ikke en
+vurdering av om lokaliteten oppfylte vilkåret: hvert vilkår har deler
+ingen kilde vi har, kan måle (se `MAALING`). Finnes ingen forskjell, er
+det funnet — ikke et tegn på at noe er galt med en enkelt lokalitet.
 """
 
 from __future__ import annotations
@@ -79,7 +93,9 @@ import datetime as dt
 import gzip
 import hashlib
 import json
+import math
 import re
+import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -722,6 +738,87 @@ def drift(loknr: str, bw: dict[str, dict], siste_bw: str) -> Drift:
     return d
 
 
+# --------------------------------------------------- 4. kontrollen
+
+def _maks_per_aar(k: dict) -> int:
+    return max(k["ledd2a_017_per_aar"].values(), default=0)
+
+
+# (id, hva som telles som «innenfor», regel). Tallene i reglene er
+# vilkårets egne; ingen av dem er valgt av oss.
+KONTROLL = (
+    ("b.1", "ingen telling ≥ 0,10 i uke 13–39",
+     lambda k: k["b1_over_01"] == 0),
+    ("ledd2.a", "høyst én telling ≥ 0,17 i uke 13–39 hvert år",
+     lambda k: _maks_per_aar(k) <= 1),
+    ("ledd2.b", "færre enn fire tellinger ≥ 0,10 på rad, hele perioden",
+     lambda k: k["ledd2b_rekke"] < 4),
+    ("ledd2.b", "færre enn fire tellinger ≥ 0,10 på rad, innen uke 13–39",
+     lambda k: k["ledd2b_rekke_13_39"] < 4),
+    ("b.2", "ingen telling på eller over tiltaksgrensa i uke 40–12",
+     lambda k: k["b2_over"] == 0),
+    ("b.3", "høyst én oppføring av medikamentell behandling",
+     lambda k: k["b3_medikamentelle"] <= 1),
+    ("b.4", "høyst seks oppføringer av ikke-medikamentell behandling",
+     lambda k: k["b4_ikke_medikamentelle"] <= 6),
+    ("b.5", "minst én produksjonsperiode endte med brakk",
+     lambda k: k["b5_sluttet"] >= 1),
+)
+
+
+def fisher_p(a: int, b: int, c: int, d: int) -> float:
+    """Fishers eksakte test, tosidig, for tabellen [[a, b], [c, d]].
+
+    Summen av sannsynlighetene for alle tabeller med samme marginaler som
+    er like sannsynlige som eller mindre sannsynlige enn den observerte.
+    Regnet eksakt med `math.comb` — ingen tilfeldighet, ingen tilnærming.
+    """
+    n, r1, k1 = a + b + c + d, a + b, a + c
+    if n == 0:
+        return 1.0
+
+    def p(x: int) -> float:
+        return math.comb(r1, x) * math.comb(n - r1, k1 - x) / math.comb(n, k1)
+    p0 = p(a)
+    return min(1.0, sum(p(x) for x in range(max(0, k1 - (n - r1)),
+                                            min(r1, k1) + 1)
+                        if p(x) <= p0 * (1 + 1e-9)))
+
+
+def kontroll(grupper: dict[str, list[dict]]) -> dict:
+    """Godkjent mot avslått på hvert tall i KONTROLL.
+
+    `grupper` er {resultat: [målene for kvalifikasjonsperioden, én per
+    lokalitet]}. Returnerer {rader: [{id, tekst, godkjent, avslag, p}],
+    medianer: {nøkkel: (godkjent, avslag)}, n: {resultat: antall}}.
+    """
+    # En lokalitet UTEN tellinger i perioden har ingen tall å ligge
+    # innenfor. Med den ville «ingen telling ≥ 0,10» vært sant fordi
+    # ingenting ble talt — vet ikke er ikke innenfor. Den telles for seg.
+    uten = {r: sum(1 for k in gr if not k["talte"]) for r, gr in grupper.items()}
+    g = [k for k in grupper.get("Godkjent", []) if k["talte"]]
+    a = [k for k in grupper.get("Avslag", []) if k["talte"]]
+    rader = []
+    for vid, tekst, regel in KONTROLL:
+        ig, ia = sum(map(regel, g)), sum(map(regel, a))
+        rader.append({"id": vid, "tekst": tekst, "godkjent": ig,
+                      "avslag": ia, "p": fisher_p(ig, len(g) - ig,
+                                                  ia, len(a) - ia)})
+    medianer = {}
+    for nokkel in ("talte", "b1_over_01", "b1_maks", "ledd2b_rekke",
+                   "ledd2b_rekke_13_39", "b3_medikamentelle",
+                   "b4_ikke_medikamentelle"):
+        medianer[nokkel] = tuple(
+            statistics.median([k[nokkel] for k in gr if k[nokkel] is not None])
+            if any(k[nokkel] is not None for k in gr) else None
+            for gr in (g, a))
+    return {"rader": rader, "medianer": medianer,
+            "n": {"Godkjent": len(g), "Avslag": len(a)},
+            "uten_tellinger": {"Godkjent": uten.get("Godkjent", 0),
+                               "Avslag": uten.get("Avslag", 0)},
+            "regler": len(KONTROLL)}
+
+
 # ------------------------------------------------------------------ CLI
 
 def _skriv_vilkaar(v: dict) -> None:
@@ -798,10 +895,40 @@ def _skriv_drift() -> None:
                   f"  perioder {len(d.per_periode)}  utenfor {d.utenfor}")
 
 
+def _skriv_kontroll() -> None:
+    _k, svar = soknader()
+    sikre = del_rader(svar["rader"])["sikre"]
+    res: dict[str, set] = {}
+    for r in sikre:
+        res.setdefault(r["lokalitet_nr"], set()).add(r["resultat"])
+    blandet = sorted(n for n, v in res.items() if len(v) > 1)
+    fra = dt.date.fromisocalendar(*KVALIFIKASJON[0], 1).isoformat()
+    bw = barentswatch_uker(res, fra)
+    siste_bw = max(d for s in bw.values() for d in s)
+    grupper: dict[str, list[dict]] = {}
+    for nr, v in sorted(res.items()):
+        if nr in blandet:
+            continue
+        grupper.setdefault(next(iter(v)), []).append(
+            drift(nr, bw[nr], siste_bw).kvalifikasjon)
+    k = kontroll(grupper)
+    print(f"\nKONTROLLEN — kvalifikasjonsperioden, sikre koblinger, "
+          f"{k['n']['Godkjent']} godkjente og {k['n']['Avslag']} avslåtte "
+          f"lokaliteter (blandet resultat holdt utenfor: {blandet or 'ingen'})")
+    print(f"  uten én telling i perioden: {k['uten_tellinger']}")
+    for r in k["rader"]:
+        print(f"  {r['id']:8} {r['tekst']:60} godkjent {r['godkjent']:>2}/"
+              f"{k['n']['Godkjent']}  avslag {r['avslag']}/{k['n']['Avslag']}"
+              f"  p = {r['p']:.3f}")
+    for n, (gm, am) in k["medianer"].items():
+        print(f"  median {n:24} godkjent {gm}  avslag {am}")
+
+
 def main() -> int:
     _skriv_vilkaar(vilkaar())
     _skriv_kapasitet()
     _skriv_drift()
+    _skriv_kontroll()
     return 0
 
 

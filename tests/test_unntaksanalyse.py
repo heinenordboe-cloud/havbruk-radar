@@ -358,3 +358,44 @@ def test_barentswatch_ukene_leses_av_snapshotene(tmp_path, monkeypatch):
     assert bw == {"100": {"2023-10-02": {"dato": "2023-10-02",
                                          "brakklagt": "False",
                                          "lusegrense": "0.5"}}}
+
+
+# --------------------------------------------------- 4. kontrollen
+
+def test_fisher_eksakt_mot_kjente_verdier():
+    """Teskje-eksempelet: [[3, 1], [1, 3]] gir 0,4857 tosidig."""
+    assert abs(u.fisher_p(3, 1, 1, 3) - 0.485714) < 1e-5
+    assert u.fisher_p(5, 0, 0, 5) < 0.01
+    assert u.fisher_p(2, 2, 2, 2) == pytest.approx(1.0)
+    assert u.fisher_p(0, 0, 0, 0) == 1.0
+
+
+def _maal(**k):
+    grunn = {"talte": 10, "b1_over_01": 0, "ledd2a_017_per_aar": {},
+             "ledd2b_rekke": 0, "ledd2b_rekke_13_39": 0, "b2_over": 0,
+             "b3_medikamentelle": 0, "b4_ikke_medikamentelle": 0,
+             "b5_sluttet": 1, "b1_maks": Decimal("0.05")}
+    return {**grunn, **k}
+
+
+def test_kontrollen_teller_innenfor_per_gruppe():
+    k = u.kontroll({"Godkjent": [_maal(), _maal(b1_over_01=2)],
+                    "Avslag": [_maal(b3_medikamentelle=2)]})
+    b1 = next(r for r in k["rader"] if r["id"] == "b.1")
+    b3 = next(r for r in k["rader"] if r["id"] == "b.3")
+    assert (b1["godkjent"], b1["avslag"]) == (1, 1)
+    assert (b3["godkjent"], b3["avslag"]) == (2, 0)
+    assert k["n"] == {"Godkjent": 2, "Avslag": 1}
+
+
+def test_en_lokalitet_uten_tellinger_er_ikke_innenfor_den_er_utenfor_kontrollen():
+    """Vet ikke er ikke innenfor: uten tellinger er «ingen telling ≥ 0,10»
+    sant fordi ingenting ble talt."""
+    k = u.kontroll({"Godkjent": [_maal(), _maal(talte=0)], "Avslag": []})
+    assert k["n"]["Godkjent"] == 1
+    assert k["uten_tellinger"]["Godkjent"] == 1
+
+
+def test_begge_lesemaatene_av_annet_ledd_b_staar():
+    ids = [(r[0], r[1]) for r in u.KONTROLL if r[0] == "ledd2.b"]
+    assert len(ids) == 2
