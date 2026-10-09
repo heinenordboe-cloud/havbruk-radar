@@ -1,5 +1,6 @@
 {# Produksjonsområdeindeksen. Tretten rader, nyeste farge. #}
 {% extends "base.html.j2" %}
+{% import "marg.html.j2" as marg %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -9,11 +10,16 @@
     <li aria-current="page">Produksjonsområder</li>
   </ol>
 </nav>
-<h1>Alle produksjonsområder</h1>
 </div>
 {% endblock %}
 
 {% block innhold %}
+{# TABELLEN OG KARTET VED SIDEN AV HVERANDRE, som på forsiden, men med
+   kartet i høyrespalta (stil.css avsnitt 11b). Tittelen står i gitteret,
+   så kartet starter på høyde med den. #}
+<div class="med-marg">
+<div class="med-marg-hoved">
+<h1>Alle produksjonsområder</h1>
 <p class="historikk-forklaring">
   {{ antall(d.antall, "produksjonsområde", "produksjonsområder") }}, fastsatt i forskrift. {{ d.uten_omraade }}
   Fargen under
@@ -58,4 +64,27 @@
   i klartekst framfor en tom celle. Hver områdeside viser alle rundene
   med hvor sterkt fargen er belagt i forskriftsteksten.
 </p>
+</div>
+
+{# KARTET. Hvert område er en lenke til områdesiden, og navnet og fargen
+   står i tipset og i lenkas navn. Fyllet er cella i «Farge»-kolonnen;
+   et område uten farge i nyeste runde er stiplet, som i stripa. #}
+{% set klasser = {} %}{% set navn = {} %}
+{% for r in d.rader %}
+{% set _ = klasser.update({r.nr: r.farge_klasse or "omraade--skravert"}) %}
+{% set _ = navn.update({r.nr: r.navn ~ ", " ~ r.farge}) %}
+{% endfor %}
+<div class="marg">
+  <section class="marg-blokk" aria-labelledby="marg-kart">
+    <h2 class="etikett" id="marg-kart">Fargen langs kysten</h2>
+    {% call marg.minikart(d.kart, "minikart-po",
+         "Kart over de " ~ d.antall ~ " produksjonsområdene",
+         "Hvert område er fylt med fargen fra nyeste fastsatte runde, som i
+          tabellen ved siden av, og er en lenke til områdesiden.",
+         klasser=klasser, lenker=True, navn=navn) -%}
+      Fargen er den nyeste fastsatte runden, som i tabellen.
+    {%- endcall %}
+  </section>
+</div>
+</div>
 {% endblock %}

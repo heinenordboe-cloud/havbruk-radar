@@ -2372,6 +2372,27 @@ def test_lokalitetsindeksen_har_hoyrespalta_med_kart_og_arter():
     assert html.index('id="akvakultur-alle"') < html.index('class="marg"')
 
 
+def test_omraadeindeksens_kart_har_tabellens_farge():
+    """Kartet ved tabellen fylles med nyeste fastsatte runde, som
+    «Farge»-kolonnen — ikke med registerets farge nå, som forsidens. Et
+    område uten farge i runden er stiplet. Hvert område er en lenke."""
+    rader = [{"nr": str(i), "navn": f"Område {i}", "lokaliteter": i,
+              "siste_runde": "2026", "farge": "gul" if i != 2 else "ikke oppgitt",
+              "farge_felt": "farge", "farge_klasse": "lys-gul" if i != 2 else "",
+              "lesemaate": "ordrett"} for i in range(1, 14)]
+    d = {"rader": rader, "antall": 13, "kart": nettsted.kart.minikart(),
+         "akva_dato": "2026-10-05", "uten_po": 0, "uten_omraade": ""}
+    html = nettsted._miljo().get_template(
+        "indeks-produksjonsomrade.html.j2").render(d=d, **_grunn("produksjonsomrade"))
+    lenker = re.findall(r'<a href="/produksjonsomrade/(\d+)/"\s+aria-label="([^"]+)">', html)
+    assert len(lenker) == 13
+    assert ("4", "Produksjonsområde 4 Område 4, gul") in lenker
+    kartet = html[html.index('class="mini-omraader"'):html.index('class="mini-land"')]
+    assert kartet.count('class="lys-gul"') >= 12
+    assert 'class="omraade--skravert"' in kartet
+    assert html.index('id="trafikklysvedtak-alle"') < html.index('class="marg"')
+
+
 def test_indeksen_deles_og_hver_side_lenker_til_alle_de_andre(tmp_path, monkeypatch):
     """BRIEF.md: ingen indeksside over 10 000 px på 390. Den flate lista
     var 525 434. Innvendingen mot paginering — at de siste sidene ikke

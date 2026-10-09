@@ -148,6 +148,7 @@ venstre. Under 64rem kommer høyrespalta etter hovedinnholdet.
 | Side | Hovedspalta | Høyrespalta |
 |---|---|---|
 | Lokalitetsindeksen | tittel, søk, lista | minikart med alle, per område, per art |
+| Områdeindeksen | tittel, tabellen | minikart fylt med tabellens farge, områdene som lenker |
 
 **Minikartet** er hele kysten på 320 px: land, de tretten områdene og
 punktene som én `path` (`kart.minikart()`). Det har ikke `data-kart`,

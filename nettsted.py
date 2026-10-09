@@ -7931,6 +7931,11 @@ def bygg_poindeks(felles: Felles) -> dict:
             "lesemaate": siste["lesemaate"] if siste else "",
         })
     return {"rader": rader, "antall": len(rader),
+            # KARTET ved tabellen, fylt med TABELLENS farge — nyeste
+            # fastsatte runde — så kart og tabell sier det samme. Forsidens
+            # kart viser fargen registeret oppgir nå, og står ved en tabell
+            # som viser begge.
+            "kart": kart.minikart(),
             "akva_dato": felles.akva_dato,
             "uten_po": sum(1 for a in felles.akva.values()
                            if not (a.get("prodomraade_kode") or "").strip()),
