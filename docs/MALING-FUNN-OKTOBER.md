@@ -10,7 +10,45 @@ regnestykke på målte tall. Hvert funn har én linje «Feil hvis».
 
 ## De tre sterkeste funnene
 
-_(fylles inn når alle punktene er målt)_
+**1. Uke 41 er forskriften, ikke markedet (F1.1 + F1.4).** 33
+tillatelser, ikke «rundt 40», fikk nøyaktig `round(x × 1,01)` tonn MTB
+mellom kroppene 28.09 og 05.10.2026. Alle ligger i PO 1, 12 og 13, og
+det er nøyaktig de grønne områdene i kapittel 3 i FOR-2026-08-20-1764:
+1 % mot 270 000 kr/t, søknadsfrist 28.09.2026. Bare to selskaper tok
+tilbudet: MOWI SEAWATER NORWAY AS (25 tillatelser, 248 t) og LERØY
+AURORA SJØ AS (8, 91 t).
+*Hvorfor sterkest:* fire uavhengige kjennetegn stemmer uten ett unntak:
+faktoren, avrundingen, områdene og tidspunktet rett etter fristen. Alt
+er holdt mot tre arkivkropper med hash, og ordningen finnes i hver
+forskriftsversjon siden 2017.
+
+**2. Lusegrensa ligger allerede i arkivet, for hver lokalitet og uke
+2012–2026 (F4.5).** `Lusegrense uke` og `Over lusegrense uke` står i hver
+sjøtemperaturkropp i `data/arkiv/`. BarentsWatchs flagg er nøyaktig
+`round(voksne_hunnlus, 2) >= Lusegrense uke` i **409 118 av 409 118**
+uker, med 0,2 i ukene i april–juni fra 2017. `nettsted.py` sier at
+grensa «ikke er samlet inn», og lusegrafen er tegnet uten den av den
+grunn.
+*Hvorfor sterkest:* null avvik på over 400 000 uker, målt mot kropper vi
+allerede har. Funnet endrer hva nettstedet kan vise, uten én ny henting.
+
+**3. `isFallow` er BarentsWatchs slutning, ikke en observasjon
+(F4.2).** Feltet er identisk med «Trolig uten fisk» i alle 822 467 uker
+der begge finnes. Indre brakkløp på nøyaktig 3 uker forekommer **0**
+ganger, mot 231 på 4 uker. Produksjonsløp ender med høyst 3 uker uten
+lusetall (3 unntak av 7 326). Hver syklus-, brakk- og
+dekningsanalyse bygget på lusetall arver denne slutningen. Det samme
+gjelder at `hasSalmonoids` er statisk (F4.1), og at rensefisk- og
+medikamentflaggene er døde siden 2023-04 og 2024-11 (F4.6).
+*Hvorfor sterkest:* likheten er eksakt, og 0-gapet ved 3 uker er et
+strukturelt fingeravtrykk som tilfeldig rapportering ikke gir.
+Konsekvensen gjelder alt videre arbeid med syklusene. Selve «4 uker
+uten rapport»-regelen er en hypotese og ikke bekreftet.
+
+Svakere, og hvorfor: punkt 2 er bare kartlagt i dokumentasjonen
+(nøklene mangler lokalt). Punkt 3 domineres av en Cermaq-intern flytting
+som ikke kan skilles fra et oppkjøp. 96,1 % enighet med biomasselaget
+(F4.4) er solid, men gjelder bare én måned.
 
 ---
 
