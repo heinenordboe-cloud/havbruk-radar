@@ -560,3 +560,16 @@ brakkla.
 
 Skript: `p4_panel.py` → `p4_sykluser.py` → `p4b_biomasselag.py`,
 `p4d_selskaper.py`.
+
+## Etterskrift 09.10.2026: medikamentflagget døde i januar 2024
+
+F4.6 sier at `hasSubstanceTreatments` er sist `True` 2024-11-11. Det er
+riktig som opptelling, men feil som dødsdato. Målingen mot Mattilsynets
+API viser at flagget sluttet å virke i **januar 2024**: i 4. kvartal 2023
+er 198 av 198 behandlingsuker hos Mattilsynet også `True` hos
+BarentsWatch, mens det fra uke 1/2024 til og med uke 46 står én eneste
+`True` mot 625 behandlingsuker. Den ene verdien, Torangskjeret
+2024-11-11, er et unntak og ikke et tegn på liv.
+
+Teksten over er ikke endret. Se `docs/MALING-MATTILSYNET-API.md`
+punkt 4.
