@@ -3260,6 +3260,8 @@ def biomassegraf(serie: list[dict]) -> dict | None:
         "plott_bredde": plott_b, "plott_hoyde": plott_h,
         "bunn": round(bunn, 1),
         "soyler": soyler,
+        # Søylene på eller over grensa — de som står i rust.
+        "over": sum(1 for s in soyler if s["over"]),
         "soylebredde": bredde,
         "linjer": linjer,
         "aar": aar,
@@ -3823,7 +3825,15 @@ def lusegraf(serie: list[dict]) -> dict | None:
     uke uten tall har et tomrom. Y-aksen tar med grensa, ellers ville en
     lokalitet med lave tall fått linja utenfor plottet.
 
-    Søylene står i `--hav5`, én farge.
+    ## SØYLENE OVER GRENSA ER RUST (09.10.2026)
+
+    Som i overleveringen: en søyle på eller over grensa for uka står i
+    `--rust`, de andre i `--hav5`. «Over» er `_over_grensen()` — halv-opp
+    til to desimaler, slik BarentsWatch selv regner, MÅLT mot deres eget
+    flagg i 409 118 av 409 118 uker. Uten grense for uka er søylen ikke
+    over: en uke uten grense er ikke en uke under den heller, men den får
+    ingen farge vi ikke kan begrunne. Fargen gjør linja lesbar på telefon
+    uten å telle søyler.
     """
     if not serie:
         return None
@@ -3909,7 +3919,9 @@ def lusegraf(serie: list[dict]) -> dict | None:
     soyler = [{"x": x(plass[i]), "y": round(min(y(verdi), bunn - gulv), 1),
                "h": round(max(bunn - y(verdi), gulv), 1),
                "uke": f"{serie[i]['iso_aar']} uke {serie[i]['iso_uke']}",
-               "verdi": visningsord.tall(verdi)}
+               "verdi": visningsord.tall(verdi),
+               "over": _over_grensen(serie[i].get("voksne_hunnlus") or "",
+                                     serie[i].get("lusegrense") or "") is True}
               for i, verdi in enumerate(verdier) if verdi is not None]
 
     # Brakkleggingsstrekkene, slått sammen til sammenhengende bånd. Et
@@ -3995,6 +4007,8 @@ def lusegraf(serie: list[dict]) -> dict | None:
         "brakk_y": round(bunn + 2, 1),
         "brakk_hoyde": GRAF_BRAKK_HOYDE - 2,
         "soyler": soyler,
+        # Søylene på eller over grensa — de som står i rust.
+        "over": sum(1 for s in soyler if s["over"]),
         "soylebredde": bredde,
         "baand": baand,
         "grense": grense,

@@ -1990,6 +1990,9 @@ td[data-felt="farge_mangler"]::before {
 /* SØYLENE ER ÉN FARGE. Tiltaksgrensa er BarentsWatchs verdi per uke
    (sjotemperatur.lusegrense), aldri en strek vi fant på. */
 .lusegraf .soyler rect { fill: var(--hav5); }
+/* PÅ ELLER OVER TILTAKSGRENSA, som i overleveringen. Regelen er
+   `nettsted._over_grensen()`, ikke en terskel her. */
+.lusegraf .soyler rect.over { fill: var(--rust); }
 .lusegraf .soyler rect:hover,
 .lusegraf .soyler rect.aktiv { fill: var(--ink); }
 .lusegraf .brakk rect { fill: var(--ink-dempet); opacity: 0.45; }
@@ -2034,6 +2037,7 @@ figcaption {
 .tegn { display: flex; align-items: center; gap: 0.45em; }
 .tegn-rute { inline-size: 12px; block-size: 12px; flex: none; }
 .tegn-soyle { background: var(--hav5); }
+.tegn-over { background: var(--rust); }
 .tegn-brakk { background: var(--ink-dempet); opacity: 0.45; block-size: 4px; }
 .tegn-strek { inline-size: 16px; flex: none; border-block-start: 1.5px dashed var(--rust); }
 

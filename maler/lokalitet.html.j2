@@ -690,6 +690,7 @@
         på nullinja. Den lave stripa under aksen er uker lokaliteten var
         brakklagt.{% if g.grense %} Den stiplede linja er tiltaksgrensa
         BarentsWatch oppgir for lokaliteten hver uke, {{ g.grense.verdier }}.{% endif %}
+        {%- if g.over %} {{ antall(g.over, "uke", "uker") }} på eller over grensa står i rust.{% endif %}
         Alle tallene står i tabellen under.</desc>
 
       <g class="akse" aria-hidden="true">
@@ -708,7 +709,7 @@
       <g class="soyler">
         {% for s in g.soyler %}
         <rect x="{{ s.x }}" y="{{ s.y }}" width="{{ g.soylebredde }}"
-              height="{{ s.h }}"><title>{{ s.uke }}: {{ s.verdi }}</title></rect>
+              height="{{ s.h }}"{% if s.over %} class="over"{% endif %}><title>{{ s.uke }}: {{ s.verdi }}{% if s.over %}, på eller over tiltaksgrensa{% endif %}</title></rect>
         {% endfor %}
       </g>
 
@@ -737,6 +738,10 @@
       {% if g.grense %}
       <span class="tegn"><span class="tegn-strek"></span>tiltaksgrense, slik
         BarentsWatch oppgir den</span>
+      {% endif %}
+      {% if g.over %}
+      <span class="tegn"><span class="tegn-rute tegn-over"></span>på eller over
+        tiltaksgrensa</span>
       {% endif %}
       <span class="tegn">tomrom = ingen rapport, ikke null</span>
       <span class="tegn">hårstrek på nullinja = målt til null</span>

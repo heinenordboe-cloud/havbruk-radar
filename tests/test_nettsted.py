@@ -3228,8 +3228,8 @@ def test_uten_kildens_grense_tegnes_ingen_strek():
     BarentsWatch en grense, er det ingen linje — ikke en standardverdi."""
     g = nettsted.lusegraf(_uker(0.1, 0.9))
     assert g["grense"] is None
-    # Og ingen søyle bærer en egen farge.
-    assert all(set(s) == {"x", "y", "h", "uke", "verdi"} for s in g["soyler"])
+    # Og ingen søyle bærer en egen farge: uten grense er ingen over den.
+    assert not any(s["over"] for s in g["soyler"]) and g["over"] == 0
     html = _side(lusegraf=g)
     assert "ikke samlet inn" not in html
     assert "Ingen tiltaksgrense er tegnet" in html
@@ -3262,6 +3262,24 @@ def test_aksen_tar_med_grensa():
     """Med lave tall ville linja ellers ligget over plottet."""
     g = nettsted.lusegraf(_uker(0.05, 0.1, grense=("0.5", "0.5")))
     assert g["tak"] >= 0.5
+
+
+def test_soylene_over_grensa_er_rust():
+    """Bestilt 09.10.2026, som i overleveringen. «Over» er
+    `_over_grensen()`: på grensa er over, og 0,495 rundes til 0,5."""
+    g = nettsted.lusegraf(_uker(0.1, 0.5, 0.495, 0.6, 0.3, None,
+                                grense=("0.5", "0.5", "0.5", None, "0.2", "0.5")))
+    assert [s["over"] for s in g["soyler"]] == [False, True, True, False, True]
+    assert g["over"] == 3
+    html = _side(lusegraf=g)
+    assert html.count('class="over"') == 3
+    assert "tegn-over" in html and "3 uker på eller over grensa står i rust" in html
+
+
+def test_uten_soyler_over_grensa_ingen_rust_i_tegnforklaringen():
+    g = nettsted.lusegraf(_uker(0.1, 0.2, grense=("0.5", "0.5")))
+    html = _side(lusegraf=g)
+    assert 'class="over"' not in html and "tegn-over" not in html
 
 
 def test_grenselinja_staar_paa_siden_med_tegnforklaring():
