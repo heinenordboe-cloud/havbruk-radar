@@ -26,12 +26,35 @@ endres, skal felle analysen, ikke stå sitert slik den var.
 FOR-2023-09-28-1520 (LTI), som ga § 12 dagens ordlyd. Er de like, gjaldt
 ordlyden i hele kvalifikasjonsperioden 2023–2025, som begynte uke 40/2023
 — fire dager etter at endringen trådte i kraft.
+
+## 2. Søknad → lokalitet → tillatelser → kapasitet
+
+Søknadene er kildens: `data/arkiv/unntaksvekst/`, skrevet av
+`Unntaksvekst.fetch()`, med kildens søkerfilter og lokalitetskobling.
+Analysen kobler ingenting om. Den deler radene i tre, etter kildens
+`kobling`:
+
+    sikre      entydig, via_soker — lokalitetsnummeret er kildens svar
+    usikre     usikker — kildens FORSLAG; vises for seg, telles aldri
+               sammen med de sikre
+    uløste     flertydig, annen_po, ikke_funnet — uten nummer
+
+Tillatelsene på en lokalitet er dem med en AKTIV tilknytning til
+lokalitetsnummeret i eierskapskroppen (`connections[].active`), lest for
+HVER kropp for seg: en tillatelse som flyttes inn eller ut, er en
+hendelse, ikke en ny lokalitet. Kapasiteten er `capacity.current`.
+
+Datoen på en endring er kroppen den ble SETT i. Registeret oppgir ikke
+når kapasiteten ble endret, så «mellom 28.09 og 05.10» er alt som kan
+sies — samme skille som `nettsted.py` gjør mellom observert og oppgitt
+historikk.
 """
 
 from __future__ import annotations
 
 import gzip
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from html.parser import HTMLParser
@@ -330,6 +353,122 @@ def vilkaar() -> dict:
     }
 
 
+# --------------------------------------------- 2. søknadene og kapasiteten
+
+SIKRE = frozenset({"entydig", "via_soker"})
+USIKRE = frozenset({"usikker"})
+
+
+def soknader() -> tuple[Kropp, dict]:
+    """(kropp, svar) fra nyeste arkiverte `unntaksvekst`.
+
+    Svaret er det `Unntaksvekst.fetch()` returnerte: `rader` med kildens
+    kobling, og `sha256`/`headere` for HTML-kroppen slik den kom."""
+    k = siste_kropp("unntaksvekst")
+    return k, json.loads(k.data)
+
+
+def del_rader(rader: list[dict]) -> dict[str, list[dict]]:
+    """{sikre, usikre, uloste} etter kildens `kobling`. Kaster på en
+    kobling analysen ikke kjenner: en ny verdi hos kilden skal ikke falle
+    stille i en av de tre."""
+    ut: dict[str, list[dict]] = {"sikre": [], "usikre": [], "uloste": []}
+    kjente = SIKRE | USIKRE | {"flertydig", "annen_po", "ikke_funnet"}
+    for r in rader:
+        k = r.get("kobling")
+        if k not in kjente:
+            raise ValueError(f"ukjent kobling {k!r} i unntaksvekst-raden "
+                             f"{r.get('lokalitet')!r}")
+        ut["sikre" if k in SIKRE else "usikre" if k in USIKRE
+           else "uloste"].append(r)
+    return ut
+
+
+def eierskapskropper() -> list[tuple[str, Kropp, dict]]:
+    """[(dato, kropp, {tillatelsesnummer: tillatelse})], eldst først.
+
+    Én per dato: står det flere versjoner av samme dato, brukes den
+    siste, som `snapshot.versjoner()[-1]` ellers i repoet."""
+    per_dato: dict[str, Path] = {}
+    for sti in sorted((paths.ARKIV_DIR / "eierskap").glob("*.json.gz"),
+                      key=_arkivorden):
+        per_dato[_arkivorden(sti)[0]] = sti
+    ut = []
+    for dato in sorted(per_dato):
+        k = les_kropp(per_dato[dato])
+        d = json.loads(k.data)
+        ut.append((dato, k, {str(t.get("licenseNr")): t
+                             for t in d.get("tillatelser") or []}))
+    return ut
+
+
+def _tilknyttet(tillatelser: dict, loknr: str) -> dict[str, dict]:
+    return {nr: t for nr, t in tillatelser.items()
+            if any(c.get("active") and str(c.get("siteNr")) == loknr
+                   for c in t.get("connections") or [])}
+
+
+def _kap(t: dict):
+    return (t.get("capacity") or {}).get("current")
+
+
+def kapasitet(loknr: str, kropper: list[tuple[str, Kropp, dict]]) -> dict:
+    """Tillatelsene på lokaliteten og hver kapasitetsendring, kropp for kropp.
+
+        tillatelser   i nyeste kropp: [{nr, kapasitet, enhet, eier_orgnr}]
+        endringer     [{fra, til, tillatelse, gammel, ny, endring,
+                        en_prosent}] — `en_prosent` er True når ny er
+                      nøyaktig round(gammel × 1,01), aritmetikken i
+                      kapittel 3 i FOR-2026-08-20-1764 (§ 7)
+        inn, ut       tillatelser som fikk eller mistet en aktiv
+                      tilknytning: [{fra, til, tillatelse}]
+        sum_endring   summen av `endring`, per enhet
+        fra, til      første og siste kroppsdato
+    """
+    endringer, inn, ut_ = [], [], []
+    forrige = None
+    for dato, _k, tillatelser in kropper:
+        her = _tilknyttet(tillatelser, loknr)
+        if forrige is not None:
+            fdato, fher = forrige
+            for nr in sorted(set(fher) | set(her)):
+                if nr not in fher:
+                    inn.append({"fra": fdato, "til": dato, "tillatelse": nr})
+                elif nr not in her:
+                    ut_.append({"fra": fdato, "til": dato, "tillatelse": nr})
+                elif _kap(fher[nr]) != _kap(her[nr]):
+                    g, n = _kap(fher[nr]), _kap(her[nr])
+                    endringer.append({
+                        "fra": fdato, "til": dato, "tillatelse": nr,
+                        "gammel": g, "ny": n,
+                        "endring": (n - g) if None not in (g, n) else None,
+                        "enhet": (her[nr].get("capacity") or {}).get("unit"),
+                        "en_prosent": None not in (g, n)
+                                      and _halv_opp(g * 1.01) == n})
+        forrige = (dato, her)
+    siste = forrige[1] if forrige else {}
+    summer: dict[str, float] = {}
+    for e in endringer:
+        if e["endring"] is not None:
+            summer[e["enhet"] or ""] = summer.get(e["enhet"] or "", 0) + e["endring"]
+    return {
+        "tillatelser": [{"nr": nr, "kapasitet": _kap(t),
+                         "enhet": (t.get("capacity") or {}).get("unit"),
+                         "eier_orgnr": str(t.get("openLegalEntityNr") or "")}
+                        for nr, t in sorted(siste.items())],
+        "endringer": endringer, "inn": inn, "ut": ut_, "sum_endring": summer,
+        "fra": kropper[0][0] if kropper else "",
+        "til": kropper[-1][0] if kropper else "",
+    }
+
+
+def _halv_opp(x: float) -> float:
+    """Avrunding til hele tonn, halv opp — «avrundes til nærmeste hele
+    tonn» (FOR-2026-08-20-1764 § 7). Pythons round() runder halv til
+    partall."""
+    return float(int(x + 0.5))
+
+
 # ------------------------------------------------------------------ CLI
 
 def _skriv_vilkaar(v: dict) -> None:
@@ -348,8 +487,39 @@ def _skriv_vilkaar(v: dict) -> None:
         print(f"    {b.tekst}")
 
 
+def _skriv_kapasitet() -> None:
+    k, svar = soknader()
+    deler = del_rader(svar["rader"])
+    kropper = eierskapskropper()
+    print(f"\nSØKNADENE — {k.navn}  sha256 {k.sha256}")
+    print(f"  HTML-kroppen: sha256 {svar['sha256']}, {svar['bytes']} byte, "
+          f"headere {svar['headere']}")
+    for navn, rader in deler.items():
+        print(f"  {navn:7} {len(rader):>3} rader, "
+              f"{len({r.get('lokalitet_nr') for r in rader if r.get('lokalitet_nr')})}"
+              f" lokalitetsnummer")
+    print("\nKAPASITET — eierskapskroppene")
+    for dato, kr, _ in kropper:
+        print(f"  {dato}  {kr.navn}  sha256 {kr.sha256}")
+    for navn in ("sikre", "usikre"):
+        sett: dict[str, set] = {}
+        for r in deler[navn]:
+            sett.setdefault(r["lokalitet_nr"], set()).add(r["resultat"])
+        for nr in sorted(sett, key=int):
+            kap = kapasitet(nr, kropper)
+            if kap["endringer"] or kap["inn"] or kap["ut"]:
+                print(f"  [{navn}] {nr} {sorted(sett[nr])}: "
+                      f"{len(kap['tillatelser'])} tillatelser, "
+                      f"sum {kap['sum_endring']}, "
+                      f"{sum(e['en_prosent'] for e in kap['endringer'])}"
+                      f"/{len(kap['endringer'])} lik round(x*1,01), "
+                      f"inn {[i['tillatelse'] for i in kap['inn']]}, "
+                      f"ut {[i['tillatelse'] for i in kap['ut']]}")
+
+
 def main() -> int:
     _skriv_vilkaar(vilkaar())
+    _skriv_kapasitet()
     return 0
 
 

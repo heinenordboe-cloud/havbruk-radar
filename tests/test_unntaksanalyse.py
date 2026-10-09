@@ -148,3 +148,87 @@ def test_hvert_vilkaar_har_et_merke():
                                                   "IKKE MÅLBAR"}
     assert {"b.1", "b.2", "b.3", "b.4", "b.5", "b.6", "a.", "ledd2.a",
             "ledd2.b"} == set(u.MAALING)
+
+
+# ------------------------------------------- 2. søknadene og kapasiteten
+
+import json  # noqa: E402
+
+
+def _tillatelse(nr, kap, *lok, aktiv=True, eier="921668236"):
+    return {"licenseNr": nr, "openLegalEntityNr": eier,
+            "capacity": {"current": kap, "unit": "TN"},
+            "connections": [{"active": aktiv, "siteNr": l} for l in lok]}
+
+
+def _eierskap(arkiv, dato, *tillatelser, navn=None):
+    _legg(arkiv, "eierskap", navn or f"{dato}.json.gz",
+          json.dumps({"tillatelser": list(tillatelser),
+                      "personer_fjernet": 0}).encode())
+
+
+def test_raden_deles_etter_kildens_kobling():
+    rader = [{"kobling": k, "lokalitet": k} for k in
+             ("entydig", "via_soker", "usikker", "flertydig", "annen_po",
+              "ikke_funnet")]
+    d = u.del_rader(rader)
+    assert [r["kobling"] for r in d["sikre"]] == ["entydig", "via_soker"]
+    assert [r["kobling"] for r in d["usikre"]] == ["usikker"]
+    assert len(d["uloste"]) == 3
+
+
+def test_en_ukjent_kobling_faller_ikke_stille_i_en_av_de_tre():
+    with pytest.raises(ValueError, match="ukjent kobling"):
+        u.del_rader([{"kobling": "kanskje", "lokalitet": "X"}])
+
+
+def test_kapasiteten_leses_per_kropp_og_merker_en_prosent(arkiv):
+    _eierskap(arkiv, "2026-09-28", _tillatelse("A", 1068.0, "100"),
+              _tillatelse("B", 500.0, "100"), _tillatelse("C", 900.0, "200"))
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 1079.0, "100"),
+              _tillatelse("B", 530.0, "100"), _tillatelse("C", 999.0, "200"))
+    kap = u.kapasitet("100", u.eierskapskropper())
+    assert [(e["tillatelse"], e["endring"], e["en_prosent"])
+            for e in kap["endringer"]] == [("A", 11.0, True), ("B", 30.0, False)]
+    assert kap["sum_endring"] == {"TN": 41.0}
+    assert (kap["fra"], kap["til"]) == ("2026-09-28", "2026-10-05")
+    assert [t["nr"] for t in kap["tillatelser"]] == ["A", "B"], \
+        "C er på en annen lokalitet"
+
+
+def test_halv_opp_ikke_halv_til_partall():
+    """1050 × 1,01 = 1060,5 → 1061. round() ville gitt 1060."""
+    assert u._halv_opp(1050 * 1.01) == 1061.0
+
+
+def test_en_tillatelse_som_flyttes_inn_er_en_hendelse_ikke_en_endring(arkiv):
+    _eierskap(arkiv, "2026-09-28", _tillatelse("A", 100.0, "100"),
+              _tillatelse("B", 200.0, "300"))
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 100.0, "100"),
+              _tillatelse("B", 200.0, "300", "100"))
+    kap = u.kapasitet("100", u.eierskapskropper())
+    assert kap["endringer"] == []
+    assert kap["inn"] == [{"fra": "2026-09-28", "til": "2026-10-05",
+                           "tillatelse": "B"}]
+
+
+def test_en_inaktiv_tilknytning_teller_ikke(arkiv):
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 100.0, "100", aktiv=False))
+    assert u.kapasitet("100", u.eierskapskropper())["tillatelser"] == []
+
+
+def test_siste_versjon_av_en_dato_brukes(arkiv):
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 1.0, "100"))
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 2.0, "100"),
+              navn="2026-10-05.2.json.gz")
+    [(dato, _k, t)] = u.eierskapskropper()
+    assert dato == "2026-10-05" and t["A"]["capacity"]["current"] == 2.0
+
+
+def test_soknadene_er_kildens_arkiverte_svar(arkiv):
+    svar = {"rader": [{"kobling": "entydig", "lokalitet_nr": "100"}],
+            "sha256": "ab" * 32, "bytes": 3, "headere": {}}
+    _legg(arkiv, "unntaksvekst", "2026-10-09.json.gz",
+          json.dumps(svar).encode())
+    k, lest = u.soknader()
+    assert lest == svar and k.navn == "unntaksvekst/2026-10-09.json.gz"
