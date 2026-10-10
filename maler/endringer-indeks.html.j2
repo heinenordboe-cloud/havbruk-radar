@@ -85,16 +85,6 @@
   </section>
   {% endif %}
 
-  {% if analyse %}
-  <section class="marg-blokk" aria-labelledby="marg-analyse">
-    <h2 class="etikett" id="marg-analyse">Analyse</h2>
-    <p class="marg-lenke"><a href="{{ analyse.url }}">Unntaksvekst 2025/2026:
-      fra søknad til drift</a></p>
-    <p class="marg-note">{{ antall(analyse.lokaliteter, "lokalitet", "lokaliteter") }} Mattilsynet
-      har godkjent ({{ analyse.godkjent }}) eller avslått ({{ analyse.avslag }}),
-      holdt mot vilkårene.</p>
-  </section>
-  {% endif %}
 </div>
 </div>
 

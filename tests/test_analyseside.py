@@ -180,16 +180,6 @@ def test_sitemap_har_ikke_analysesiden_selv_med_arkivert_liste():
     assert "/analyse/unntaksvekst/" not in nettsted._urler(felles)
 
 
-def test_forsiden_lenker_til_analysen_med_tall_fra_lista():
-    felles = SimpleNamespace(unntak={
-        "1": [{"resultat": "Godkjent"}, {"resultat": "Godkjent"}],
-        "2": [{"resultat": "Avslag"}]})
-    assert nettsted._forside_unntak(felles) == {
-        "url": "/analyse/unntaksvekst/", "lokaliteter": 2,
-        "godkjent": 1, "avslag": 1}
-    assert nettsted._forside_unntak(SimpleNamespace(unntak={})) is None
-
-
 def test_analysesidens_kilder_er_belagt_og_vist():
     assert set(nettsted.ANALYSE_KILDER) <= nettsted.viste_kilder()
     assert set(nettsted.ANALYSE_KILDER).isdisjoint(

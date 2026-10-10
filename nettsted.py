@@ -6432,7 +6432,6 @@ def skriv_endringssider(rot: Path, felles: Felles,
         totalt=sum(u["antall"] for u in uker),
         typer=ENDRINGSTYPER,
         diagram=ukediagram(uker),
-        analyse=_forside_unntak(felles),
         utenfor=(uker[0]["utenfor_uka"] if uker else 0),
         **_grunnkontekst(
             felles, rot, sti, kilder=ENDRINGSKILDER,
@@ -8904,25 +8903,7 @@ def bygg_forside(felles: Felles) -> dict:
         # /lokalitet/#akvakultur-uten-koordinater — der alle 1 782
         # uansett er.
         "uten_koordinater_antall": len(uten),
-
-        # ---- analysen ----
-        # Tallene er lest av søknadslista i `felles`, ikke av analysen:
-        # forsiden skal ikke regne om Mattilsynets kropper for en lenke.
-        "unntak": _forside_unntak(felles),
     }
-
-
-def _forside_unntak(felles: Felles) -> dict | None:
-    """Lenka til analysesiden, med tallene den kan stå for. None når
-    siden ikke bygges."""
-    if not felles.unntak:
-        return None
-    resultat = {nr: {r["resultat"] for r in rader}
-                for nr, rader in felles.unntak.items()}
-    return {"url": "/" + "/".join(UNNTAK_STI) + "/",
-            "lokaliteter": len(resultat),
-            "godkjent": sum(1 for v in resultat.values() if v == {"Godkjent"}),
-            "avslag": sum(1 for v in resultat.values() if v == {"Avslag"})}
 
 
 def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
