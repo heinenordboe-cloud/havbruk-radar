@@ -25,6 +25,9 @@ som ryker: porten.
                     fra hvilken kode og hvilke data. Skriptet commiter
                     og pusher den selv — en logglinje ingen pushet
                     stopper NESTE publisering i steg 1.
+    7  røyktest     bare produksjon: `royktest.py` mot kystloggen.no,
+                    som i `publiser.yml`. Fem sider som bygget sier,
+                    og hver side i NEDTATT svarer 404.
 
 ## Ingen nøkler her
 
@@ -541,6 +544,18 @@ def bokfor(kode: str, data: str, miljo: str,
     return "", []
 
 
+# ------------------------------------------------------------ steg 7
+
+def royktest_args(uke: str) -> list[str]:
+    """Argumentene steg 7 gir `royktest.main()`.
+
+    Samme prøve som `publiser.yml` kjører etter opplastingen, mot samme
+    mappe som nettopp ble lagt ut. Uka sendes med `--uke`: lokalt finnes
+    ingen kvitteringsfil, og røyktesten leser bare uka av den.
+    """
+    return ["--mappe", str(UT), "--uke", uke]
+
+
 # ------------------------------------------------------------ hoved
 
 def main() -> int:
@@ -574,7 +589,7 @@ def main() -> int:
     print(f"\nKystloggen → {miljo}")
 
     # 1. Kan denne publiseringen gjøres rede for?
-    print("\n[1/6] sporbarhet")
+    print("\n[1/7] sporbarhet")
     git("pull", "--ff-only", "--quiet", mappe=DATAREPO)
     kode = krev_sporbar(ROT, "koderepoet")
     data = krev_sporbar(DATAREPO, "datarepoet")
@@ -583,9 +598,9 @@ def main() -> int:
 
     # 2. Bygg.
     if args.uten_bygg:
-        print("\n[2/6] bygg — hoppet over (--uten-bygg)")
+        print("\n[2/7] bygg — hoppet over (--uten-bygg)")
     else:
-        print("\n[2/6] bygg")
+        print("\n[2/7] bygg")
         kjor(*byggkommando(), vis=True)
 
     if not UT.is_dir():
@@ -593,11 +608,11 @@ def main() -> int:
 
     # 3. Porten. Egen kjøring, også når bygget nettopp kjørte den:
     #    `--uten-bygg` skal ikke kunne hoppe over den.
-    print(f"\n[{PORTSTEG}/6] publiseringsvakten")
+    print(f"\n[{PORTSTEG}/7] publiseringsvakten")
     print("\n".join(kjor_porten(UT, args.produksjon)))
 
     # 4. Hva er det jeg legger ut?
-    print("\n[4/6] ukas endringer")
+    print("\n[4/7] ukas endringer")
     uke, linjer = ukas_tall()
     print("\n".join(linjer))
     filer = sum(1 for p in UT.rglob("*") if p.is_file())
@@ -609,13 +624,29 @@ def main() -> int:
 
     # 5. Ut.
     gren = PRODUKSJONSGREN if args.produksjon else FORHANDSGREN
-    print(f"\n[5/6] wrangler → {miljo} (gren {gren})")
+    print(f"\n[5/7] wrangler → {miljo} (gren {gren})")
     kjor(*wranglerkommando(UT, args.produksjon), vis=True)
 
     # 6. Logg.
-    print("\n[6/6] logg")
+    print("\n[6/7] logg")
     sti = LOGG.relative_to(DATAREPO)
     problem, gjenstaar = bokfor(kode, data, miljo, uke)
+    if not problem:
+        print(f"      {sti} — committet og pushet")
+
+    # 7. Svarer nettstedet som bygget sier? Også når bokføringen over
+    #    feilet — siden er ute uansett, og publiser.yml gjør det samme
+    #    (`if: always() && steps.opplasting.outcome == 'success'`).
+    #    Bare produksjon, som der: forhåndsvisningen har ingen røyktest
+    #    i bygg.yml heller.
+    rod = False
+    if args.produksjon:
+        print("\n[7/7] røyktest")
+        import royktest
+        rod = royktest.main(royktest_args(uke)) != 0
+    else:
+        print("\n[7/7] røyktest — bare for produksjon")
+
     if problem:
         # IKKE `Stopp`. Hver eneste Stopp-melding i dette skriptet ender
         # på at ingenting er lastet opp, og her er det motsatte sant.
@@ -628,7 +659,11 @@ def main() -> int:
               + "\n\n  Står linja upushet, stopper neste publisering i "
                 "steg 1.\n  CLAUDE.md regel 7.\n")
         return 1
-    print(f"      {sti} — committet og pushet")
+    if rod:
+        # IKKE `Stopp`, av samme grunn som over: siden er ute.
+        print(f"\n  SIDEN ER UTE — steg 5 lastet opp til {miljo}, men\n"
+              f"  røyktesten er rød. Feilene står over.\n")
+        return 1
     print(f"\nFerdig. {miljo}.\n")
     return 0
 

@@ -167,8 +167,8 @@ def test_portsteget_er_steget_porten_faktisk_kjorer_i():
     er den like villedende som den var da den sa «skal ikke publiseres».
     """
     kilde = (ROT / "publiser.py").read_text(encoding="utf-8")
-    assert f'print(f"\\n[{{PORTSTEG}}/6] publiseringsvakten")' in kilde
-    assert "[3/6]" not in kilde
+    assert f'print(f"\\n[{{PORTSTEG}}/7] publiseringsvakten")' in kilde
+    assert "[3/7]" not in kilde
 
 
 def test_nettsted_godtar_flagget_og_bare_ett_av_de_to():
@@ -415,3 +415,33 @@ def test_feilet_push_sier_fra_uten_aa_paastaa_at_noe_kan_gjores_om(datarepo):
         ["git", "-C", str(datarepo), "show", "--name-only", "--format=",
          "HEAD"], capture_output=True, text=True).stdout.split()
     assert rort == ["docs/publiseringslogg.tsv"]
+
+
+def test_steg_7_gir_royktesten_mappa_og_uka(tmp_path, monkeypatch):
+    """Det publiser.py sender, er det royktest.py godtar: uka bygget
+    gjelder, og mappa som nettopp ble lastet opp."""
+    import royktest
+    sett = {}
+
+    def kjor(base, sider, *a, **kw):
+        sett["base"], sett["sider"] = base, [s.sti for s in sider]
+        return []
+    monkeypatch.setattr(royktest, "kjor", kjor)
+    monkeypatch.setattr(royktest, "csp", lambda m: "default-src 'self'")
+    monkeypatch.setattr(royktest, "kontakt", lambda m: "k@x.test")
+    monkeypatch.setattr(royktest, "utvalg",
+                        lambda m, uke: [royktest.Side(f"/endringer/{uke}/",
+                                                      kart=False),
+                                        royktest.Side("/lokalitet/1/",
+                                                      kart=True)])
+    args = publiser.royktest_args("2026-41")
+    assert args[args.index("--mappe") + 1] == str(publiser.UT)
+    assert royktest.main(args) == 0
+    assert sett == {"base": royktest.BASE, "sider": ["/endringer/2026-41/",
+                                                  "/lokalitet/1/"]}
+
+
+def test_main_kjorer_royktesten_bare_for_produksjon():
+    kilde = (ROT / "publiser.py").read_text(encoding="utf-8")
+    steg = kilde[kilde.index("# 7. Svarer"):]
+    assert "if args.produksjon:" in steg[:steg.index("royktest.main")]

@@ -271,3 +271,16 @@ def test_www_sjekkes_bare_for_produksjonsadressen(monkeypatch, tmp_path):
     royktest.main(["--mappe", str(m), "--kvittering", str(k),
                    "--base", "https://forhandsvisning.kystloggen.pages.dev"])
     assert sett["www"] == ""
+
+
+def test_uke_kan_oppgis_uten_kvittering(monkeypatch, tmp_path):
+    """publiser.py har ingen kvitteringsfil, bare uka."""
+    m = _bygg(tmp_path / "m")
+    monkeypatch.setattr(royktest, "kjor", lambda *a, **kw: [])
+    assert royktest.main(["--mappe", str(m), "--uke", UKE]) == 0
+
+
+def test_kvittering_og_uke_utelukker_hverandre(tmp_path):
+    with pytest.raises(SystemExit):
+        royktest.main(["--mappe", str(tmp_path), "--uke", UKE,
+                       "--kvittering", str(tmp_path / "k.json")])

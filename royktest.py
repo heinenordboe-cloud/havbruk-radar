@@ -2,8 +2,11 @@
 """Røyktest av kystloggen.no etter en publisering. Bare lesing.
 
     python royktest.py --mappe NETTSTED --kvittering K [--base URL] [--www URL]
+    python royktest.py --mappe NETTSTED --uke 2026-41
 
-Kjøres til slutt i `publiser.yml`. Fem sider hentes fra den levende
+Kjøres til slutt i `publiser.yml`, og i `publiser.py` steg 7 etter en
+produksjonspublisering. Lokalt finnes ingen kvitteringsfil; da oppgis
+uka direkte, og det er det eneste røyktesten leser av kvitteringen. Fem sider hentes fra den levende
 adressen og sammenlignes med byggemappa som nettopp ble lagt ut:
 
     forsiden                  /
@@ -87,6 +90,7 @@ import argparse
 import json
 import os
 import re
+import ssl
 import sys
 import time
 import urllib.error
@@ -181,11 +185,28 @@ def utvalg(mappe: Path, uke: str) -> list[Side]:
     ]
 
 
+def _tls() -> ssl.SSLContext:
+    """Sertifikatene fra certifi når den finnes, ellers systemets.
+
+    MÅLT 10.10.2026: Python fra python.org på macOS har ingen
+    rotsertifikater før «Install Certificates.command» er kjørt, og
+    hver side svarte CERTIFICATE_VERIFY_FAILED — en røyktest som er rød
+    av en grunn som ikke handler om nettstedet. certifi ligger i
+    .venv. I publiser.yml er den ikke installert, og Ubuntus egne
+    sertifikater brukes som før.
+    """
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 def hent(url: str) -> tuple[int, dict[str, str], str, str]:
     """(status, hoder, kropp, endelig adresse). Kaster ikke på 4xx/5xx."""
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=30, context=_tls()) as r:
             return (r.status, {k.lower(): v for k, v in r.headers.items()},
                     r.read().decode("utf-8", errors="replace"), r.geturl())
     except urllib.error.HTTPError as e:
@@ -205,7 +226,9 @@ def hent_uten_videresending(url: str) -> tuple[int, dict[str, str], str, str]:
     req = urllib.request.Request(url, method="HEAD",
                                  headers={"User-Agent": UA})
     try:
-        with urllib.request.build_opener(_IkkeFolg).open(req, timeout=30) as r:
+        with urllib.request.build_opener(
+                _IkkeFolg, urllib.request.HTTPSHandler(context=_tls())
+                ).open(req, timeout=30) as r:
             return (r.status, {k.lower(): v for k, v in r.headers.items()},
                     "", r.geturl())
     except urllib.error.HTTPError as e:
@@ -318,7 +341,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--mappe", type=Path, required=True,
                     help="byggemappa som ble lagt ut")
-    ap.add_argument("--kvittering", type=Path, required=True)
+    kilde = ap.add_mutually_exclusive_group(required=True)
+    kilde.add_argument("--kvittering", type=Path)
+    kilde.add_argument("--uke", help="uka bygget gjelder, når det ikke "
+                                     "finnes en kvittering (publiser.py)")
     ap.add_argument("--base", default=BASE)
     ap.add_argument("--www", default=None,
                     help=f"www-verten som skal gi 301 til --base. Standard "
@@ -328,7 +354,8 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     www = a.www if a.www is not None else (WWW if a.base == BASE else "")
 
-    uke = json.loads(a.kvittering.read_text(encoding="utf-8")).get("uke", "")
+    uke = (a.uke if a.uke is not None else
+           json.loads(a.kvittering.read_text(encoding="utf-8")).get("uke", ""))
     forventet_csp = csp(a.mappe)
     try:
         if not forventet_csp:
