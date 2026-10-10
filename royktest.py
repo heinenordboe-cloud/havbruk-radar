@@ -25,6 +25,21 @@ heter og hvilken CSP som gjelder, er alle ting bygget avgjør. En prøve
 med egne kopier av dem ville målt om nettstedet er slik det VAR da
 prøven ble skrevet.
 
+## Sider som er tatt ned svarer 404
+
+Hver sti i `NEDTATT` hentes fra den levende adressen og skal svare
+404. Porten (`publiseringsvakt.nedtattfunn()`) sier at siden ikke er i
+BYGGET; dette sier at den ikke er på NETTSTEDET — to ulike påstander,
+og bare den andre er den leseren møter. En utrulling hos Cloudflare
+Pages er hele bygget og ingenting annet, så de to skal falle sammen.
+Prøven er der for dagen de ikke gjør det: en publisering fra kode som
+er eldre enn nedtakingen (10.10.2026, kl. 19:07 UTC: kode 0cd058f, ni
+minutter før 180386b), en mellomlagring, eller et Pages-oppsett uten
+`404.html`, der en ukjent sti svarer 200 med forsiden.
+
+Statusen må være NØYAKTIG 404. En 200 er siden eller en reserve, og
+begge er feil; en 5xx sier ingenting om hva som ligger der.
+
 ## www videresender til samme sti
 
 Fra 07.10.2026 svarer `www.kystloggen.no` med 301 til `kystloggen.no`
@@ -92,6 +107,11 @@ KARTVERKET = "© Kartverket"
 # Det Cloudflare skriver e-postlenker om til. Står den i en side, er
 # adressen ikke lenger lesbar uten skriptet som dekoder den.
 OBFUSKERT = "/cdn-cgi/l/email-protection"
+
+# SIDENE SOM ER TATT NED. Samme verdi som `publiseringsvakt.NEDTATT`,
+# prøvd i tests/test_royktest.py — her som kopi av samme grunn som
+# KARTVERKET: vakten trenger polars, og publiser.yml installerer det ikke.
+NEDTATT = ("analyse/unntaksvekst",)
 
 UA = "kystloggen-royktest (+https://github.com/heinenordboe-cloud/havbruk-radar)"
 
@@ -249,6 +269,19 @@ def sjekk(base: str, side: Side, forventet_csp: str, henter=hent,
     return feil
 
 
+def sjekk_nedtatt(base: str, sti: str, henter=hent) -> list[str]:
+    """Feilene for én nedtatt sti. Tom liste når den svarer 404."""
+    side = f"/{sti}/"
+    try:
+        status, _, _, _ = henter(base.rstrip("/") + side)
+    except (urllib.error.URLError, OSError) as e:
+        return [f"{side}: kunne ikke hentes ({e})"]
+    if status != 404:
+        return [f"{side}: status {status}, ikke 404 — siden er tatt ned, "
+                f"men svarer fortsatt"]
+    return []
+
+
 def www_stier(sider: list[Side]) -> list[str]:
     """Forsiden og den første lokaliteten: roten og en dyp sti."""
     return [sider[0].sti, next(s.sti for s in sider
@@ -258,7 +291,8 @@ def www_stier(sider: list[Side]) -> list[str]:
 def kjor(base: str, sider: list[Side], forventet_csp: str,
          forsok: int, pause: float, henter=hent,
          adresse: str = "", www: str = "",
-         www_henter=hent_uten_videresending) -> list[str]:
+         www_henter=hent_uten_videresending,
+         nedtatt: tuple[str, ...] = NEDTATT) -> list[str]:
     """Feilene fra siste forsøk. Tom liste når alt svarer.
 
     `www` tom: videresendingen sjekkes ikke (en annen `--base` enn
@@ -267,6 +301,8 @@ def kjor(base: str, sider: list[Side], forventet_csp: str,
     for n in range(1, forsok + 1):
         feil = [f for s in sider
                 for f in sjekk(base, s, forventet_csp, henter, adresse)]
+        feil += [f for sti in nedtatt
+                 for f in sjekk_nedtatt(base, sti, henter)]
         if www:
             feil += [f for sti in www_stier(sider)
                      for f in sjekk_www(www, base, sti, www_henter)]
@@ -313,6 +349,8 @@ def main(argv: list[str] | None = None) -> int:
     if www:
         for sti in www_stier(sider):
             print(f"  {www}{sti} → 301")
+    for sti in NEDTATT:
+        print(f"  /{sti}/ → 404")
     feil = kjor(a.base, sider, forventet_csp, a.forsok, a.pause,
                 adresse=adresse, www=www)
 
@@ -325,6 +363,9 @@ def main(argv: list[str] | None = None) -> int:
         vert = www.split("://", 1)[-1].rstrip("/")
         egne = [f for f in feil if f.startswith(f"{vert}/")]
         rader.append(f"| `{vert}` → 301 | {'; '.join(egne) or 'ok'} |")
+    for sti in NEDTATT:
+        egne = [f for f in feil if f.startswith(f"/{sti}/:")]
+        rader.append(f"| `/{sti}/` → 404 | {'; '.join(egne) or 'ok'} |")
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a",
                   encoding="utf-8") as f:

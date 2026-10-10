@@ -55,6 +55,8 @@ def _levende(mappe: Path, csp: str = CSP, overstyr: dict | None = None):
         if sti in overstyr:
             return overstyr[sti]
         fil = mappe / sti / "index.html"
+        if not fil.exists():
+            return (404, {}, "", url)
         return (200, {"content-security-policy": csp},
                 fil.read_text(encoding="utf-8"), url)
     return henter
@@ -62,6 +64,31 @@ def _levende(mappe: Path, csp: str = CSP, overstyr: dict | None = None):
 
 def test_kartverket_er_den_samme_setningen_som_bygget_skriver():
     assert royktest.KARTVERKET == nettsted.KARTVERKET
+
+
+def test_nedtatt_er_den_samme_lista_som_porten_bruker():
+    import publiseringsvakt
+    assert royktest.NEDTATT == publiseringsvakt.NEDTATT
+
+
+@pytest.mark.parametrize("status", [200, 503])
+def test_nedtatt_side_som_ikke_svarer_404_er_rod(tmp_path, status):
+    """10.10.2026: /analyse/unntaksvekst/ var borte fra bygget, men et
+    menneske så den på kystloggen.no. 200 er siden eller Pages' reserve
+    uten 404.html; 503 sier ingenting om hva som ligger der."""
+    m = _bygg(tmp_path)
+    sti = royktest.NEDTATT[0]
+    henter = _levende(m, overstyr={f"{sti}/": (status, {}, "x", "")})
+    feil = royktest.kjor("https://x.test", royktest.utvalg(m, UKE), CSP,
+                         forsok=1, pause=0, henter=henter)
+    assert feil == [f"/{sti}/: status {status}, ikke 404 — siden er tatt "
+                    f"ned, men svarer fortsatt"]
+
+
+def test_nedtatt_side_som_svarer_404_er_ren(tmp_path):
+    m = _bygg(tmp_path)
+    assert royktest.kjor("https://x.test", royktest.utvalg(m, UKE), CSP,
+                         forsok=1, pause=0, henter=_levende(m)) == []
 
 
 def test_csp_leses_fra_alle_siders_blokk(tmp_path):
