@@ -727,9 +727,6 @@ class Felles:
     # {orgnr: formene kildene oppgir} — det `_navn_eller_skjult()` slår
     # opp i. Se `publiseringsvakt.formkart()`.
     former: dict[str, frozenset[str]] = field(default_factory=dict)
-    # {loknr: [rad]} — Mattilsynets søknader om unntaksvekst med SIKKER
-    # kobling til lokaliteten. Se `unntak_per_lokalitet()`.
-    unntak: dict[str, list[dict]] = field(default_factory=dict)
 
 
 @lru_cache(maxsize=1)
@@ -943,7 +940,6 @@ def les_felles() -> Felles:
         biomasse_utgitt=bio_utgitt,
         sist_endret=sist_endret_av(beveg),
         former=publiseringsvakt.formkart(enhet, eierskap, alle_ovf),
-        unntak=unntak_per_lokalitet(),
     )
 
 
@@ -4895,11 +4891,6 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "lusegraf": lusegraf(serie),
         "lusperioder": produksjonsperioder(
             serie, lusedatoer[-1] if lusedatoer else ""),
-        # MATTILSYNETS SØKNADER OM UNNTAKSVEKST, når lokaliteten står i
-        # lista med en sikker kobling. Lenker til analysesiden.
-        "unntak": unntak_for_lokalitet(
-            (felles.unntak if felles else unntak_per_lokalitet())
-            .get(loknr, [])),
         # Nedlastingene. `lusetall.csv` er ikke lenger blant dem, men
         # skrives fortsatt. Navnet bærer dataversjonen — se
         # `lusetall_stamme()`.
@@ -7478,16 +7469,6 @@ def unntak_per_lokalitet() -> dict[str, list[dict]]:
     for r in unntaksanalyse.del_rader(svar["rader"])["sikre"]:
         ut[str(r["lokalitet_nr"])].append(r)
     return dict(ut)
-
-
-def unntak_for_lokalitet(rader: list[dict]) -> dict | None:
-    """Linja lokalitetssiden viser: resultatet og antall søkere. None når
-    lokaliteten ikke står i lista med en sikker kobling."""
-    if not rader:
-        return None
-    resultater = sorted({r["resultat"] for r in rader})
-    return {"resultat": " og ".join(r.lower() for r in resultater),
-            "soknader": len(rader), "url": "/" + "/".join(UNNTAK_STI) + "/"}
 
 
 def _hash_vist(sha: str) -> str:

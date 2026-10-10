@@ -163,13 +163,9 @@ def test_uten_arkivert_liste_bygges_ingen_side(tmp_path, monkeypatch):
     assert nettsted.skriv_unntaksvekst(tmp_path / "ut", _felles(unntak={})) == []
 
 
-def test_lokaliteten_faar_linja_bare_med_sikker_kobling(arkiv):
+def test_bare_sikre_koblinger_per_lokalitet(arkiv):
     per = nettsted.unntak_per_lokalitet()
     assert set(per) == {"10001", "10002"}, "10003 er usikker"
-    linje = nettsted.unntak_for_lokalitet(per["10001"])
-    assert linje == {"resultat": "godkjent", "soknader": 1,
-                     "url": "/analyse/unntaksvekst/"}
-    assert nettsted.unntak_for_lokalitet([]) is None
 
 
 def test_sitemap_har_ikke_analysesiden_selv_med_arkivert_liste():

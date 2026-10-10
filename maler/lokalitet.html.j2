@@ -105,18 +105,6 @@
     </p>
     {% endif %}
 
-    {# UNNTAKSVEKST. Bare når kilden har koblet lokaliteten SIKKERT til
-       Mattilsynets liste; en usikker kobling får ingen linje her. Linja
-       sier hva lista sier, og lenker til analysen — den vurderer ikke. #}
-    {% if lok.unntak %}
-    <p class="lok-merknad">
-      Står i Mattilsynets oversikt over søknader om unntaksvekst 2025/2026
-      med resultatet {{ lok.unntak.resultat }}{% if lok.unntak.soknader > 1 %}
-      ({{ antall(lok.unntak.soknader, "søknad", "søknader") }}){% endif %}.
-      <a href="{{ lok.unntak.url }}">Se analysen av unntaksvekst</a>.
-    </p>
-    {% endif %}
-
     {# VERKTØYLINJA, ikke en rad med knapper. Det er lenker — til en
        feed, et anker og to filer — og de står som lenker. En knapp er
        for en handling på siden (kopier, søk). Se docs/design/STILGUIDE.md. #}
