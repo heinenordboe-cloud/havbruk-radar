@@ -52,6 +52,20 @@ er merkevaren — en side som overdriver én gang, er en side ingen siterer.
 - **Ingen sporing, ingen eksterne ressurser.** Fonter, bilder og skript
   ligger hos oss.
 
+## Hva nettstedet viser
+
+- **Registerendringer, med kilde.** Det er nettstedets innhold.
+- **Analyser bare på område- eller næringsnivå.** Aldri med
+  selskapsnavn holdt mot regler eller vilkår — heller ikke uten en
+  celle som sier «oppfylt» eller «brutt». Tall ved siden av et vilkår
+  leses som en vurdering av den som står i raden.
+
+`/analyse/unntaksvekst/` ble tatt ned 10.10.2026 etter denne regelen.
+Koden og `docs/ANALYSE-UNNTAKSVEKST.md` ligger i repoet, kilden
+arkiveres hver uke, men vises ikke (`nettsted.IKKE_PUBLISERT`).
+Publiseringsvakten feller et bygg der siden finnes eller nevnes
+(`publiseringsvakt.NEDTATT`).
+
 ## Hva vi ikke skriver om
 
 Ingen omtale av rapporter, abonnement eller tjenester før Heine sier

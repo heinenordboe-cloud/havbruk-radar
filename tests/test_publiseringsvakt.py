@@ -579,6 +579,41 @@ def test_produksjon_med_kontaktadresse_er_rent(tmp_path, snapshotmappe):
     assert vakt.gransk(ut, produksjon=True) == []
 
 
+def test_analysesiden_for_unntaksvekst_feller_porten(tmp_path,
+                                                    snapshotmappe):
+    """docs/design/BRIEF.md, «Hva nettstedet viser»: siden er tatt ned
+    10.10.2026. Finnes den i bygget, eller lenker noe til den, faller
+    porten."""
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title><p>Forsiden.</p>", encoding="utf-8")
+    assert vakt.gransk(ut) == []
+
+    (ut / "sitemap.xml").write_text(
+        "<urlset><url><loc>/analyse/unntaksvekst/</loc></url></urlset>",
+        encoding="utf-8")
+    assert [f.slag for f in vakt.gransk(ut)] == ["nedtatt"]
+
+    (ut / "sitemap.xml").unlink()
+    side = ut / "analyse" / "unntaksvekst" / "index.html"
+    side.parent.mkdir(parents=True)
+    side.write_text("<!doctype html><title>x</title><p>Analyse.</p>",
+                    encoding="utf-8")
+    assert [f.slag for f in vakt.gransk(ut)] == ["nedtatt"]
+
+
+def test_analysesiden_bygges_ikke():
+    """Byggingen kaller ikke `skriv_unntaksvekst()` — prøven over fanger
+    det i porten, denne i suiten."""
+    import ast
+    import nettsted
+    kilde = pathlib.Path(nettsted.__file__).read_text(encoding="utf-8")
+    kall = {n.func.id for n in ast.walk(ast.parse(kilde))
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    assert "skriv_unntaksvekst" not in kall
+
+
 def test_publiser_sender_produksjonsflagget_til_porten():
     """Prøven som binder de to filene: uten flagget ville
     produksjonsprøven aldri kjørt der den gjelder."""

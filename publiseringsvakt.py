@@ -498,7 +498,7 @@ class Funn:
     slag: str        # ukjent_orgnr | personform | ukjent_navn | ugranska
                      # | ukjent_partisjon | feilerklaert_partisjon
                      # | uferdig | raatt_tidsstempel | reposti
-                     # | uten_kontakt
+                     # | uten_kontakt | nedtatt
     utdrag: str
     antall: int = 1
 
@@ -2383,6 +2383,19 @@ def utdrag_dekker_indeksen(katalog: Path) -> tuple[int, int]:
 # skal si det samme er formen F6 og F7 hadde.
 UTEN_KONTAKT = "Ingen kontaktadresse er satt i denne"
 
+# SIDER SOM ER TATT NED, og som ikke skal finnes i bygget — verken som
+# mappe eller som adresse i en annen fil (lenke, sitemap, stilark).
+# /analyse/unntaksvekst/ holdt navngitte selskaper mot vilkår, og det
+# bryter docs/design/BRIEF.md, «Hva nettstedet viser» (10.10.2026). Koden
+# ligger i repoet; prøven er det som hindrer at den bygges igjen.
+NEDTATT = ("analyse/unntaksvekst",)
+
+
+def nedtattfunn(mappe: Path) -> list[Funn]:
+    """Mappene i `NEDTATT` som finnes i bygget."""
+    return [Funn(sti, "nedtatt", f"/{sti}/ er tatt ned og skal ikke bygges")
+            for sti in NEDTATT if (mappe / sti).exists()]
+
 
 def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
@@ -2393,7 +2406,7 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     rødt. Porten skiller dem ikke, og exit-koden dekker begge.
     """
     funn: list[Funn] = (list(grunnlagsfunn()) + list(kodeproveniensfunn())
-                        + list(filtallsfunn(mappe)))
+                        + list(filtallsfunn(mappe)) + nedtattfunn(mappe))
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.
@@ -2457,6 +2470,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
             continue
         funn.extend(tekstfunn(rel, sti.suffix.lower(), tekst, orgnr_ok,
                               navn_ok, tvetydige, kvittert))
+        funn.extend(Funn(rel, "nedtatt", f"nevner /{n}/, som er tatt ned")
+                    for n in NEDTATT if f"/{n}/" in tekst)
     return funn
 
 
