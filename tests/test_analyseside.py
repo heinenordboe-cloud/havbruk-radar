@@ -172,11 +172,11 @@ def test_lokaliteten_faar_linja_bare_med_sikker_kobling(arkiv):
     assert nettsted.unntak_for_lokalitet([]) is None
 
 
-def test_sitemap_har_analysesiden_bare_naar_den_bygges():
+def test_sitemap_har_ikke_analysesiden_selv_med_arkivert_liste():
+    """Siden bygges ikke fra 10.10.2026, og står da ikke i sitemap —
+    heller ikke når søknadslista er arkivert."""
     felles = SimpleNamespace(
         akva={}, po_navn={}, tillatelser_per_eier={}, unntak={"1": [{}]})
-    assert "/analyse/unntaksvekst/" in nettsted._urler(felles)
-    felles.unntak = {}
     assert "/analyse/unntaksvekst/" not in nettsted._urler(felles)
 
 

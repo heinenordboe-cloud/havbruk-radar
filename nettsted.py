@@ -6919,9 +6919,6 @@ def _urler(felles: Felles) -> list[str]:
     nedlastinger, og hver CSV er lenket fra sin egen lokalitetsside.
     """
     stier = ["/", "/om/", "/lokalitet/", "/produksjonsomrade/", "/selskap/"]
-    # ANALYSESIDEN bare når den bygges — samme vilkår som skriv_alle().
-    if felles.unntak:
-        stier.append("/" + "/".join(UNNTAK_STI) + "/")
     # INDEKSENES ØVRIGE SIDER. Samme deling som `skriv_indekser()`.
     selskaper = sum(1 for o in felles.tillatelser_per_eier
                     if not personeier(o, felles))
@@ -9556,8 +9553,8 @@ class Byggelogg:
     endringssider: int = 0
     endringsuker: int = 0
     feeder: int = 0
-    # Analysesidene som ble skrevet. 0 er et svar og står i rapporten:
-    # uten arkivert søknadsliste bygges ikke /analyse/unntaksvekst/.
+    # Analysesidene som ble skrevet. 0 er et svar og står i rapporten;
+    # /analyse/unntaksvekst/ bygges ikke lenger (10.10.2026).
     analyser: int = 0
     sok: dict = None
     selskap_uten_registerdata: list[str] = None
@@ -9683,16 +9680,11 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         logg.feilet.append(("om", f"{type(feil).__name__}: {feil}"))
     tider["indekser"] = time.perf_counter() - t0
 
-    # ANALYSESIDEN. Egen fase i tidsmålingen: den leser Mattilsynets
-    # kropper og BarentsWatchs uker på nytt, og en fase som ikke måles er
-    # en fase ingen ser vokse.
-    t0 = time.perf_counter()
-    try:
-        logg.analyser = 1 if skriv_unntaksvekst(rot, felles) else 0
-    except Exception as feil:                        # noqa: BLE001
-        logg.feilet.append(("analyse/unntaksvekst",
-                            f"{type(feil).__name__}: {feil}"))
-    tider["analyse"] = time.perf_counter() - t0
+    # ANALYSESIDEN FOR UNNTAKSVEKST BYGGES IKKE (10.10.2026). Den holdt
+    # navngitte selskaper mot vilkårene for unntaksvekst, og det bryter
+    # BRIEF.md, «Hva nettstedet viser». `skriv_unntaksvekst()` og
+    # docs/ANALYSE-UNNTAKSVEKST.md blir liggende; kallet er tatt ut, og
+    # `test_analysesiden_bygges_ikke` holder det slik.
 
     # ENDRINGSSIDENE OG FEEDENE bygges av de SAMME ukene. Ett kall til
     # `les_endringsuker()`, og begge leser resultatet: to veier til det
@@ -9842,9 +9834,7 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
           f"+ {logg.indekssider} indekssider + {logg.endringssider} "
           f"endringssider ({logg.endringsuker} uker) skrevet til {rot}")
     print(f"  {logg.feeder} Atom-feeder")
-    print(f"  {logg.analyser} analyseside(r)"
-          + ("" if logg.analyser else
-             " — ingen arkivert søknadsliste i data/arkiv/unntaksvekst/"))
+    print(f"  {logg.analyser} analyseside(r)")
     # SØKEINDEKSEN RAPPORTERES ALLTID, også når den ikke ble bygget: et
     # søk som stille slutter å virke er formen på feilene i CLAUDE.md 1b.
     print(f"  søkeindeks    {'bygget' if logg.sok['bygget'] else 'IKKE BYGGET'}"
