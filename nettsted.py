@@ -150,6 +150,16 @@ SKILLE = " · "
 # bære en publisert visning. Kjernen sier hva som er erklært; hva det
 # får lov til å bety er publiseringsleddets sak.
 
+# KILDER SOM ARKIVERES, MEN IKKE VISES. Kilden kjører hver uke og skriver
+# snapshot og arkiv som før; nettstedet nevner den ikke — ikke i
+# ukesendringene, ikke i feedene, ikke i kildetabellen på /om/. Lista er
+# POLITIKK og står derfor her, ikke på kilden (se avsnittet over).
+#
+# `unntaksvekst` fra 10.10.2026: Mattilsynets søknadsliste navngir
+# selskaper med resultat, og analysesiden holdt dem mot vilkårene. Det
+# bryter BRIEF.md, «Hva nettstedet viser».
+IKKE_PUBLISERT = frozenset({"unntaksvekst"})
+
 
 def kildevilkaar() -> dict[str, tuple[str, ...] | None]:
     """{kildenavn: setninger eller None} for alle kilder repoet har.
@@ -811,7 +821,10 @@ def _les_beveg() -> pl.DataFrame:
     """
     alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
     alle = changelog.merk_feltbevegelse(alle, kilder=ukentlige_kilder())
-    return uten_bokforing(diff.bevegelse(alle))
+    # IKKE_PUBLISERT holdes ute HER, ved den ene lesingen, så ingen
+    # visning — uke, feed, lokalitet, område, selskap — kan ta den med.
+    return uten_bokforing(diff.bevegelse(alle)).filter(
+        ~pl.col("source").is_in(sorted(IKKE_PUBLISERT)))
 
 
 def les_felles() -> Felles:
@@ -7271,7 +7284,7 @@ def bygg_om(felles: Felles) -> dict:
 
     vilkaar = felles.vilkaar
     kilder = []
-    for navn in sorted(LISENSRAD):
+    for navn in sorted(set(LISENSRAD) - IKKE_PUBLISERT):
         lisens, hjemmel, lest = LISENSRAD[navn]
         setninger = vilkaar.get(navn)
         kilder.append({
@@ -8241,7 +8254,7 @@ def viste_kilder() -> frozenset[str]:
     return frozenset(
         SIDENS_KILDER + ENDRINGSKILDER + FORSIDEKILDER + SELSKAPSKILDER
         + PO_KILDER + OM_KILDER + INDEKS_LOKALITET_KILDER
-        + INDEKS_OMRAADE_KILDER + INDEKS_SELSKAP_KILDER + ANALYSE_KILDER)
+        + INDEKS_OMRAADE_KILDER + INDEKS_SELSKAP_KILDER)
 
 
 def skriv_indekser(rot: Path, felles: Felles) -> list[Path]:

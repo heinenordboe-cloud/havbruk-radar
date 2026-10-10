@@ -3005,6 +3005,9 @@ def test_ingen_vist_kilde_staar_som_nei():
                  and all(isinstance(e, ast.Constant) for e in n.value.elts)}
     assert navngitte, "fant ingen KILDER-tupler"
 
+    # ANALYSESIDEN bygges ikke fra 10.10.2026, og kildene dens er da
+    # ikke vist av den.
+    navngitte.pop("ANALYSE_KILDER")
     vist = nettsted.viste_kilder()
     for navn, kilder in sorted(navngitte.items()):
         for k in kilder:
@@ -4252,6 +4255,18 @@ def test_ubelagt_ukentlig_kilde_staar_ikke_i_ukesendringene():
                            bevegelse=pl.DataFrame([rad]))
     uker = nettsted.les_endringsuker(felles)
     assert not any(h for u in uker for h in u["hendelser"]), uker
+
+
+def test_ikke_publisert_kilde_slipper_ikke_gjennom_doren(monkeypatch):
+    """`unntaksvekst` er belagt og ukentlig, og arkiveres hver uke. Fra
+    10.10.2026 står den likevel ingen steder på nettstedet: radene
+    stoppes i `_les_beveg()`, før uke, feed og sider leser dem."""
+    rader = [_po_rad("1", "ROD", "GUL"),
+             dict(_po_rad("1", "ROD", "GUL"), source="unntaksvekst",
+                  field="resultat", entity_id="2025/1|ANDAL|PO3")]
+    ut = _gjennom_doren(monkeypatch, rader)
+    assert ut["source"].to_list() == ["akvakultur"]
+
 
 def test_ulik_overgang_i_samme_omrade_er_to_hendelser():
     """Nøkkelen er (område, fra, til). To områder som begge gikk til

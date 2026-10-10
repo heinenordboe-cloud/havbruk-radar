@@ -176,8 +176,11 @@ def test_sitemap_har_ikke_analysesiden_selv_med_arkivert_liste():
     assert "/analyse/unntaksvekst/" not in nettsted._urler(felles)
 
 
-def test_analysesidens_kilder_er_belagt_og_vist():
-    assert set(nettsted.ANALYSE_KILDER) <= nettsted.viste_kilder()
+def test_analysesidens_kilder_er_belagt_og_unntaksvekst_ikke_vist():
+    """Siden bygges ikke fra 10.10.2026; `unntaksvekst` vises ingen
+    andre steder heller. Kildene er fortsatt belagt."""
+    assert "unntaksvekst" not in nettsted.viste_kilder()
+    assert "unntaksvekst" in nettsted.IKKE_PUBLISERT
     assert set(nettsted.ANALYSE_KILDER).isdisjoint(
         nettsted.ubelagte(nettsted.kildevilkaar()))
     assert nettsted.ANSVARLIG_FOR[nettsted.MATTILSYNET_API] == ("Mattilsynet",)
