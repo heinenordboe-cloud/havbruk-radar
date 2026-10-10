@@ -60,6 +60,17 @@ er merkevaren — en side som overdriver én gang, er en side ingen siterer.
   celle som sier «oppfylt» eller «brutt». Tall ved siden av et vilkår
   leses som en vurdering av den som står i raden.
 
+**Publiseringsterskelen.** Noe publiseres bare når alle fem holder:
+
+1. Det er nytt og finnes ikke hos andre.
+2. Det kan etterprøves med kilde og hash.
+3. Det har en navngitt bruker som ville sitert det — journalist,
+   forsker eller rådgiver.
+4. Det står på område- eller næringsnivå.
+5. Heine ville stått for det i et møte med et selskap som er nevnt.
+
+Ukentlige analyser går til `docs/`, ikke til nettstedet.
+
 `/analyse/unntaksvekst/` ble tatt ned 10.10.2026 etter denne regelen.
 Koden og `docs/ANALYSE-UNNTAKSVEKST.md` ligger i repoet, kilden
 arkiveres hver uke, men vises ikke (`nettsted.IKKE_PUBLISERT`).
