@@ -81,6 +81,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import hashlib
 import io
 import json
 import math
@@ -5811,7 +5812,17 @@ def stilark() -> str:
     for navn in STILFILER:
         sti = MALER / navn
         biter.append(f"/* ==== {navn} ==== */\n{sti.read_text(encoding='utf-8')}")
-    return "\n".join(biter)
+    tekst = "\n".join(biter)
+    # Fontene har innholdshash i navnet i bygget (se `innholdsnavn()`).
+    # Hver `url("<font>")` skal finnes NØYAKTIG én gang; et bytte som
+    # traff to steder, eller ingen, er en feil og ikke et stille utfall.
+    for navn, publisert in fontnavn().items():
+        gammel = f'url("{navn}")'
+        if tekst.count(gammel) != 1:
+            raise ValueError(f"stilarket viser til {gammel} "
+                             f"{tekst.count(gammel)} ganger, ventet én")
+        tekst = tekst.replace(gammel, f'url("{publisert}")')
+    return tekst
 
 
 def skriv_stil(rot: Path) -> Path:
@@ -5845,6 +5856,30 @@ def skriv_stil(rot: Path) -> Path:
 # En woff2 som base64 i stilarket ville lagt 47 kB på en fil hver leser
 # henter, og gjort at stilarket ikke kan mellomlagres uavhengig av
 # fonten. To filer, to forespørsler, begge cachbare.
+
+# INNHOLDSHASH I FILNAVNET, fra 12.10.2026.
+#
+# Fonter og bilder sendes ut med `Cache-Control: immutable` og ett års
+# levetid (`VERTSFILHODER`). Det er bare sant når navnet endres med
+# innholdet. Herobildet ble byttet 27.09.2026 under de samme navnene, og
+# en nettleser som hadde hentet siden 24.–26.09, viste det gamle
+# skyfotoet under bildeteksten til det nye. Bekreftet 12.10.2026:
+# serveren sendte riktige filer (sha256 som i docs/design/HEROFOTO.md),
+# mens Safari viste det gamle bildet.
+#
+# Kildefilene i `maler/` beholder navnene sine. Bygget skriver
+# `<navn>.<de 10 første tegnene av sha256>.<endelse>`, og forsiden og
+# stilarket viser til det navnet. Porten (`publiseringsvakt.
+# immutablefunn()`) feller hver fil som får `immutable` uten
+# innholdshash i navnet.
+HASHLENGDE = 10
+
+
+def innholdsnavn(navn: str, data: bytes) -> str:
+    """«hero-2400.jpg» -> «hero-2400.<sha256[:10]>.jpg»."""
+    stamme, _, endelse = navn.rpartition(".")
+    return f"{stamme}.{hashlib.sha256(data).hexdigest()[:HASHLENGDE]}.{endelse}"
+
 
 # TRE FONTER FRA 22.09.2026, og to lisensfiler.
 #
@@ -5897,6 +5932,20 @@ BILDEMAPPE = "bilde"
 
 BILDEFILER = ("hero-800.jpg", "hero-1600.jpg", "hero-2400.jpg")
 
+
+def bildeadresser() -> dict[str, str]:
+    """{navn i maler/bilde/: adresse i bygget}, med innholdshash i
+    navnet. Forsiden viser til adressene, ikke til navnene."""
+    ut = {}
+    for navn in BILDEFILER:
+        kilde = MALER / BILDEMAPPE / navn
+        if not kilde.exists():
+            raise FileNotFoundError(
+                f"{kilde} mangler. Forsiden viser til fila i `srcset`; "
+                f"uten den er heroen en tom flate.")
+        ut[navn] = f"/{BILDEMAPPE}/{innholdsnavn(navn, kilde.read_bytes())}"
+    return ut
+
 # HEROENS BILDETEKST. Stedet og fotografen er EGENSKAPER VED FILA og
 # hører derfor her, ved siden av filnavnene — ikke i malen. Malen
 # skriver ingen navn; den er den samme uansett hvilket bilde som ligger
@@ -5926,8 +5975,12 @@ HEROFOTO = {
 GEOFILER = ("naturalearth-LICENSE.md",)
 
 
-def _kopier_fra_maler(rot: Path, navn: tuple[str, ...], hvorfor: str) -> list[Path]:
+def _kopier_fra_maler(rot: Path, navn: tuple[str, ...], hvorfor: str,
+                      hashet: tuple[str, ...] = ()) -> list[Path]:
     """Kopierer navngitte filer fra `maler/` til nettstedets rot.
+
+    Filer med en endelse i `hashet` får innholdshash i navnet — se
+    `innholdsnavn()`.
 
     Kaster om en av dem mangler framfor å hoppe over den. Begge
     filtypene her feiler STILLE hvis de uteblir: en side uten fonten
@@ -5939,17 +5992,29 @@ def _kopier_fra_maler(rot: Path, navn: tuple[str, ...], hvorfor: str) -> list[Pa
         kilde = MALER / fil
         if not kilde.exists():
             raise FileNotFoundError(f"{kilde} mangler. {hvorfor}")
-        ut = rot / fil
-        ut.write_bytes(kilde.read_bytes())
+        data = kilde.read_bytes()
+        ut = rot / (innholdsnavn(fil, data) if fil.endswith(hashet) else fil)
+        ut.write_bytes(data)
         skrevet.append(ut)
     return skrevet
 
 
+FONTHASHET = (".woff2",)
+
+
+def fontnavn() -> dict[str, str]:
+    """{navn i maler/: navn i bygget} for fontene. Lisensene beholder
+    navnet; de har ingen immutable-regel."""
+    return {n: innholdsnavn(n, (MALER / n).read_bytes())
+            for n in FONTFILER if n.endswith(FONTHASHET)}
+
+
 def skriv_fonter(rot: Path) -> list[Path]:
-    """Fonten og lisensen til nettstedets rot."""
+    """Fontene (med innholdshash i navnet) og lisensene til rota."""
     return _kopier_fra_maler(
         rot, FONTFILER,
-        "Stilarket viser til fila; uten den er @font-face en død lenke.")
+        "Stilarket viser til fila; uten den er @font-face en død lenke.",
+        FONTHASHET)
 
 
 def skriv_ikoner(rot: Path) -> list[Path]:
@@ -5979,14 +6044,9 @@ def skriv_bilder(rot: Path) -> list[Path]:
     skrevet = []
     if BILDEFILER:
         (rot / BILDEMAPPE).mkdir(parents=True, exist_ok=True)
-    for navn in BILDEFILER:
-        kilde = MALER / BILDEMAPPE / navn
-        if not kilde.exists():
-            raise FileNotFoundError(
-                f"{kilde} mangler. Forsiden viser til fila i `srcset`; "
-                f"uten den er heroen en tom flate.")
-        ut = rot / BILDEMAPPE / navn
-        ut.write_bytes(kilde.read_bytes())
+    for navn, adresse in bildeadresser().items():
+        ut = rot / adresse.lstrip("/")
+        ut.write_bytes((MALER / BILDEMAPPE / navn).read_bytes())
         skrevet.append(ut)
     for navn in GEOFILER:
         kilde = MALER / "geo" / navn
@@ -7083,14 +7143,36 @@ VERTSFILHODER = (
     ("/*.csv", (("Content-Type", "text/csv; charset=utf-8"),)),
     ("/*.json", (("Content-Type", "application/json; charset=utf-8"),)),
     ("/*.txt", (("Content-Type", "text/plain; charset=utf-8"),)),
-    # Fonter og bilder er UFORANDERLIGE: filnavnet bærer innholdet, og
-    # et nytt innhold får et nytt navn. Ett år, og `immutable` så
-    # nettleseren ikke engang spør.
+    # `immutable` BARE DER NAVNET BÆRER INNHOLDET. Ett år, og nettleseren
+    # spør ikke engang. Til 12.10.2026 sto det her at «filnavnet bærer
+    # innholdet» for fonter og bilder, men ingen av dem hadde en hash i
+    # navnet, og herobildet ble byttet 27.09 under de samme navnene. Nå
+    # skriver bygget `<navn>.<sha256[:10]>.<endelse>` (`innholdsnavn()`),
+    # og porten (`publiseringsvakt.immutablefunn()`) feller hver fil som
+    # får regelen uten.
     ("/*.woff2", (("Cache-Control", "public, max-age=31536000, immutable"),)),
     ("/bilde/*", (("Cache-Control", "public, max-age=31536000, immutable"),)),
-    # Søkeindeksen skrives på nytt hver uke med nye filnavn (hashet av
-    # Pagefind), så den tåler det samme.
-    ("/pagefind/*", (("Cache-Control", "public, max-age=31536000, immutable"),)),
+    # SØKEINDEKSEN: bare filene Pagefind selv har hashet. Fram til
+    # 12.10.2026 dekket `/pagefind/*` også de tre med faste navn:
+    #
+    #   pagefind-entry.json  hentes med `?ts=${Date.now()}` (MÅLT i
+    #                        pagefind.js 1.4.0), så en hurtigbuffer
+    #                        brukes aldri. Regelen var virkningsløs, ikke
+    #                        farlig, men den er ikke sann om navnet.
+    #   pagefind.js,         endres bare ved versjonsbytte. Det er nettopp
+    #   wasm.<språk>.pagefind da en gammel kopi bryter søket: nye
+    #                        indeksfiler, gammel motor, og pagefind.js
+    #                        sier bare «Pagefind JS version doesn't match»
+    #                        i konsollen. Uten regel spør nettleseren
+    #                        verten, og prisen er ett 304-svar.
+    #
+    # Mønsteret med splat foran endelsen er det samme som `/*.woff2`, og
+    # det virker hos Cloudflare (MÅLT 12.10.2026: fontene svarer med
+    # `immutable`).
+    ("/pagefind/fragment/*", (("Cache-Control", "public, max-age=31536000, immutable"),)),
+    ("/pagefind/index/*", (("Cache-Control", "public, max-age=31536000, immutable"),)),
+    ("/pagefind/filter/*", (("Cache-Control", "public, max-age=31536000, immutable"),)),
+    ("/pagefind/*.pf_meta", (("Cache-Control", "public, max-age=31536000, immutable"),)),
 )
 
 
@@ -8834,6 +8916,8 @@ def bygg_forside(felles: Felles) -> dict:
         # HEROENS BILDETEKST. Stedet, fotografen, og produksjonsområdet
         # slått opp i registeret — se `_herofoto()`.
         "herofoto": _herofoto(felles),
+        # Adressene med innholdshash i navnet — se `innholdsnavn()`.
+        "herobilder": bildeadresser(),
 
         # ---- tallene ----
         "lokaliteter": len(felles.akva),

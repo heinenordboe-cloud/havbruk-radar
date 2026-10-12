@@ -42,10 +42,10 @@
      bildeteksten under, der de er like tilgjengelige for en skjermleser
      som for et øye — og det er riktigere sted enn et attributt. #}
   <img class="hero-bilde" alt=""
-       src="/bilde/hero-1600.jpg"
-       srcset="/bilde/hero-800.jpg 800w,
-               /bilde/hero-1600.jpg 1600w,
-               /bilde/hero-2400.jpg 2400w"
+       src="{{ f.herobilder['hero-1600.jpg'] }}"
+       srcset="{{ f.herobilder['hero-800.jpg'] }} 800w,
+               {{ f.herobilder['hero-1600.jpg'] }} 1600w,
+               {{ f.herobilder['hero-2400.jpg'] }} 2400w"
        sizes="100vw" width="2400" height="1600"
        loading="eager" fetchpriority="high" decoding="async">
 

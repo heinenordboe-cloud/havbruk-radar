@@ -498,7 +498,7 @@ class Funn:
     slag: str        # ukjent_orgnr | personform | ukjent_navn | ugranska
                      # | ukjent_partisjon | feilerklaert_partisjon
                      # | uferdig | raatt_tidsstempel | reposti
-                     # | uten_kontakt | nedtatt
+                     # | uten_kontakt | nedtatt | immutable_uten_hash
     utdrag: str
     antall: int = 1
 
@@ -2397,6 +2397,75 @@ def nedtattfunn(mappe: Path) -> list[Funn]:
             for sti in NEDTATT if (mappe / sti).exists()]
 
 
+# IMMUTABLE KREVER INNHOLDSHASH I NAVNET. Fra 12.10.2026.
+#
+# En fil med `Cache-Control: immutable` og ett års levetid hentes ikke
+# på nytt av en nettleser som har den. Det er bare riktig når et nytt
+# innhold får et nytt navn. Herobildet ble byttet 27.09.2026 under de
+# samme navnene, og Safari viste det gamle bildet to uker senere.
+#
+# Prøven leser `_headers` slik bygget skrev den, finner hver regel med
+# `immutable`, og krever at hver fil regelen treffer har de 10 første
+# tegnene av SIN EGEN sha256 i navnet (`nettsted.innholdsnavn()`).
+# Summen regnes av fila, så et navn som ser hashet ut men er kopiert fra
+# en annen fil, faller også.
+#
+# UNNTAKENE står her, med grunn, og ingen andre steder:
+#
+#   Pagefinds indeksfiler (`fragment/`, `index/`, `filter/`, `.pf_meta`)
+#   er hashet av Pagefind selv. Hashen er ikke sha256 av bytene, så den
+#   kan ikke regnes etter her; mønsteret er kravet. Pagefinds faste
+#   navn (`pagefind.js`, `pagefind-entry.json`, `wasm.*.pagefind`) har
+#   ingen immutable-regel — se `VERTSFILHODER` i nettsted.py — og
+#   faller her hvis de får en.
+#
+# Funnet kan ikke kvitteres. Et nytt unntak er en kodeendring her.
+IMMUTABLE_UNNTAK = (
+    (re.compile(r"pagefind/(?:fragment|index|filter)/[a-z]+_[0-9a-f]{7,}"
+                r"\.pf_(?:fragment|index|filter)"),
+     "hashet av Pagefind"),
+    (re.compile(r"pagefind/pagefind\.[a-z]+_[0-9a-f]{7,}\.pf_meta"),
+     "hashet av Pagefind"),
+)
+
+
+def _hoderegler(tekst: str) -> list[tuple[str, dict[str, str]]]:
+    """(mønster, {hode: verdi}) fra en `_headers`-fil, i rekkefølge."""
+    regler: list[tuple[str, dict[str, str]]] = []
+    for linje in tekst.splitlines():
+        if not linje.strip() or linje.lstrip().startswith("#"):
+            continue
+        if not linje[0].isspace():
+            regler.append((linje.strip(), {}))
+        elif regler and ":" in linje:
+            navn, _, verdi = linje.strip().partition(":")
+            regler[-1][1][navn.strip().lower()] = verdi.strip()
+    return regler
+
+
+def immutablefunn(mappe: Path) -> list[Funn]:
+    """Filer med en immutable-regel og uten innholdshash i navnet."""
+    hoder = mappe / "_headers"
+    if not hoder.exists():
+        return []
+    regler = [(m, re.compile(re.escape(m).replace(r"\*", ".*")))
+              for m, h in _hoderegler(hoder.read_text(encoding="utf-8"))
+              if "immutable" in h.get("cache-control", "").lower()]
+    funn = []
+    for sti in sorted(p for p in mappe.rglob("*") if p.is_file()):
+        rel = sti.relative_to(mappe).as_posix()
+        treff = next((m for m, r in regler if r.fullmatch("/" + rel)), "")
+        if not treff or any(r.fullmatch(rel) for r, _ in IMMUTABLE_UNNTAK):
+            continue
+        sum_ = hashlib.sha256(sti.read_bytes()).hexdigest()[:10]
+        if f".{sum_}." in sti.name:
+            continue
+        funn.append(Funn(rel, "immutable_uten_hash",
+                         f"{treff} gir «immutable», men navnet bærer ikke "
+                         f"innholdets sha256 ({sum_})"))
+    return funn
+
+
 def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
 
@@ -2406,7 +2475,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     rødt. Porten skiller dem ikke, og exit-koden dekker begge.
     """
     funn: list[Funn] = (list(grunnlagsfunn()) + list(kodeproveniensfunn())
-                        + list(filtallsfunn(mappe)) + nedtattfunn(mappe))
+                        + list(filtallsfunn(mappe)) + nedtattfunn(mappe)
+                        + immutablefunn(mappe))
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.

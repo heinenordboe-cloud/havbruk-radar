@@ -1964,6 +1964,7 @@ def _forside(**overstyr) -> str:
                      "tjeneste": "Unsplash",
                      "po": "3", "po_navn": "Karmøy til Sotra",
                      "koder": []},
+        "herobilder": nettsted.bildeadresser(),
         "lokaliteter": 1782, "produksjonsomraader": 13, "selskaper": 481,
         "tillatelser": 2945, "luke_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
@@ -2198,9 +2199,12 @@ def test_heroen_er_et_foto_vi_hoster_selv():
     assert "images.unsplash.com" not in hero
     assert "unsplash.com/" not in hero
     assert "/kart/norge.svg" not in html, "kartheroen er borte"
-    # De tre breddene, alle fra vår egen rot.
+    # De tre breddene, alle fra vår egen rot, med innholdshash i navnet
+    # (12.10.2026). Det faste navnet står ikke i siden lenger.
+    adresser = nettsted.bildeadresser()
     for bredde in (800, 1600, 2400):
-        assert f'/bilde/hero-{bredde}.jpg' in hero, bredde
+        assert adresser[f"hero-{bredde}.jpg"] in hero, bredde
+        assert f'/bilde/hero-{bredde}.jpg' not in hero, bredde
     # Navngivingen står som tekst.
     assert "Foto: Endre Stedje / Unsplash" in hero
     # Ingen ekstern vert i heroen i det hele tatt.
@@ -3199,10 +3203,11 @@ def test_robots_aapner_alt_og_peker_paa_sitemapet(tmp_path, monkeypatch):
 def test_fontene_og_lisensene_kopieres_ut(tmp_path):
     skrevet = nettsted.skriv_fonter(tmp_path)
     navn = {s.name for s in skrevet}
-    assert navn == {"newsreader.woff2", "newsreader-OFL.txt",
-                    "ibmplexsans.woff2", "ibmplexmono.woff2",
+    fonter = nettsted.fontnavn()
+    assert navn == {fonter["newsreader.woff2"], "newsreader-OFL.txt",
+                    fonter["ibmplexsans.woff2"], fonter["ibmplexmono.woff2"],
                     "ibmplex-OFL.txt"}
-    for font in ("newsreader.woff2", "ibmplexsans.woff2", "ibmplexmono.woff2"):
+    for font in fonter.values():
         assert (tmp_path / font).stat().st_size > 10_000, font
     # OFL 1.1 krever at lisensteksten følger fonten. Den skal være
     # lisensen, ikke en lenke til den. Begge Plex-familiene ligger under
@@ -3225,10 +3230,72 @@ def test_stilarket_viser_til_en_fil_som_faktisk_sendes_ut():
     følger med, peker CSS-en på noe som ikke finnes i rota."""
     vist_til = set(re.findall(r'url\("([^"]+\.woff2)"\)', nettsted.stilark()))
     assert vist_til, "@font-face uten url(...woff2) — er fonten fjernet?"
-    assert vist_til <= set(nettsted.FONTFILER)
+    # Stilarket viser til navnene MED innholdshash (12.10.2026), og det
+    # er de skriv_fonter() legger ut.
+    assert vist_til == set(nettsted.fontnavn().values())
     # Og andre veien: en font som SENDES UT uten at noe viser til den,
     # er 35 kB hver leser laster ned for ingenting.
-    assert {f for f in nettsted.FONTFILER if f.endswith(".woff2")} == vist_til
+    assert len(vist_til) == sum(1 for f in nettsted.FONTFILER if f.endswith(".woff2"))
+
+
+# ---- innholdshash i navnet (12.10.2026) -------------------------------
+#
+# Herobildet ble byttet 27.09.2026 under de samme navnene, med
+# `immutable` og ett års levetid. Safari viste det gamle bildet to uker
+# etter. Prøvene under feiler på den gamle oppførselen.
+
+def test_hver_fil_med_immutable_har_innholdshash_i_navnet(tmp_path):
+    """Maskinfilene slik bygget skriver dem, og Pagefinds fire slag.
+    Med faste navn (før 12.10.2026) gir porten seks funn for fonter og
+    bilder og tre for Pagefinds faste filer."""
+    import publiseringsvakt
+    nettsted.skriv_fonter(tmp_path)
+    nettsted.skriv_bilder(tmp_path)
+    nettsted.skriv_vertsfiler(tmp_path)
+    pf = tmp_path / "pagefind"
+    for sti in ("pagefind.js", "pagefind-entry.json", "wasm.nb.pagefind",
+                "pagefind.nb_fb97818763.pf_meta", "fragment/nb_01e414c.pf_fragment",
+                "index/nb_03d65db.pf_index", "filter/nb_707ddc7.pf_filter"):
+        (pf / sti).parent.mkdir(parents=True, exist_ok=True)
+        (pf / sti).write_bytes(b"x")
+    assert publiseringsvakt.immutablefunn(tmp_path) == []
+    # Og prøven ser faktisk filene: alle seks maskinfilene har en regel.
+    hashet = [p for p in tmp_path.rglob("*")
+              if p.suffix in (".woff2", ".jpg")]
+    assert len(hashet) == 6
+
+
+def test_fast_navn_under_immutable_er_et_funn(tmp_path):
+    """Den gamle oppførselen: `bilde/hero-800.jpg` under `/bilde/*`."""
+    import publiseringsvakt
+    (tmp_path / "bilde").mkdir()
+    (tmp_path / "bilde" / "hero-800.jpg").write_bytes(b"gammelt skyfoto")
+    # Et navn som ser hashet ut, men er en annen fils sum, faller også.
+    (tmp_path / "bilde" / "hero-1600.0123456789.jpg").write_bytes(b"nytt")
+    (tmp_path / "_headers").write_text(
+        "/bilde/*\n  Cache-Control: public, max-age=31536000, immutable\n",
+        encoding="utf-8")
+    funn = publiseringsvakt.immutablefunn(tmp_path)
+    assert sorted(f.fil for f in funn) == ["bilde/hero-1600.0123456789.jpg",
+                                           "bilde/hero-800.jpg"]
+    assert all(f.slag == "immutable_uten_hash" and not f.noekkel for f in funn)
+
+
+def test_pagefinds_faste_filer_har_ingen_immutable_regel(tmp_path):
+    """pagefind.js og wasm endres ved versjonsbytte, og entry hentes med
+    ?ts=. Ingen av dem skal ha `immutable`."""
+    import publiseringsvakt
+    nettsted.skriv_vertsfiler(tmp_path)
+    pf = tmp_path / "pagefind"
+    pf.mkdir()
+    for navn in ("pagefind.js", "pagefind-entry.json", "wasm.nb.pagefind"):
+        (pf / navn).write_bytes(b"x")
+    (tmp_path / "_headers").write_text(
+        (tmp_path / "_headers").read_text(encoding="utf-8")
+        + "\n/pagefind/*\n  Cache-Control: public, max-age=31536000, immutable\n",
+        encoding="utf-8")
+    assert len(publiseringsvakt.immutablefunn(tmp_path)) == 3, \
+        "den gamle regelen `/pagefind/*` skal felle de tre"
 
 
 # ---- gradnettet -------------------------------------------------------
