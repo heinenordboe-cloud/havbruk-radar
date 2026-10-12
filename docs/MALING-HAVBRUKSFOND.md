@@ -1374,3 +1374,59 @@ Pris, ordrett fra `regjeringen-pressemeldinger/2026-09-10`: «Én prosent selges
 | 141 | 4215 LILLESAND | 0.039% | 15 782 |
 | 142 | 1122 GJESDAL | 0.037% | 14 779 |
 | 143 | 1566 SURNADAL | 0.020% | 8 234 |
+
+---
+
+## Etterskrift 12.10.2026: fire rettelser etter kontrolløren
+
+Kontrolløren (`.claude/agents/kontrollor.md`) er kjørt tre ganger på
+dokumentet, med frø 3402823090, 2460126501 og 1376395980. Hver gang
+trakk den tre påstander tilfeldig og regnet dem ut fra kroppene uten å
+lese skriptene. Disse traff: 954 lokaliteter i vekttesten (linje 208),
+1 779 av 1 779 med fylkesnummer lik de to første sifrene i
+kommunenummeret (linje 262, trukket to ganger), 9 av 17 holdt ute av
+ledd 2 (linje 228), 34 av 43 økninger fanget av `CAPACITY_CHANGE`
+(linje 730) og TR-S-0001 fra 0 til 4 000 (linje 1110). Fire ting er
+rettet her. Hver av dem er sjekket på nytt mot kroppen.
+
+**1. «Perioden» i A4 er to perioder.** Avsnittet «Versjonsfeltet som
+snarvei» sier «`versjon_gyldig_fra` i perioden», og «Perioden» øverst i
+A4 er 01.09.2025 kl. 12.00 – 01.09.2027 kl. 12.00. Tallet 34 (46 785
+av 60 244 t) gjelder perioden som ga økningene i 2025-regnearket,
+**01.09.2023 kl. 12.00 – 01.09.2025 kl. 12.00**. Med perioden slik den
+er definert, er tallet 2 lokaliteter og 3 006 t. Begge er regnet mot
+snapshotet `data/raw/akvakultur/2026-10-12.parquet` og arket «Økt
+kapasitet» i `havbruksfondet/2026-10-12.8.bin.gz` (sha256 `e26cfffe…`).
+Konklusjonen står: feltet mister en femtedel av økningene. Det er bare
+ordet «perioden» som peker feil.
+
+**2. Wayback ble ikke sjekket 12.10 (A7, «Tallet er et GULV», punkt
+1).** Teksten sier at «Wayback har ingen treff for regjeringen.no» og
+viser til loggen 12.10.2026. Den loggen
+(`data/arkiv/auksjon/2026-10-12.logg.json`) sier det motsatte:
+«Wayback-oppslaget (CDX) feilet: timed out», og «0 avtrykk» betyr «vet
+ikke», ikke «ingen». Det samme skjedde 07.10 (504). Siste dag oppslaget
+gikk, er 11.10.2026: loggen den dagen har verken Wayback-avtrykk eller
+feil, og `arkiver_auksjon.py` skriver ingenting i loggen for et
+vellykket oppslag uten treff. Setningen skulle vist til loggen 11.10.
+Resten av punktet står: ingen kropp vi har, inneholder en auksjonspris
+for 2026.
+
+**3. Tørrkjøringene i A6 er ikke målt etter definisjonen øverst.**
+Avsnittet «Wayback-nettet ble strammet etter en måling» (80 avtrykk,
+deretter 15 avtrykk av 7 artikler) slutter med merket for målt. Merket
+krever en arkivert kropp med sha256. CDX-svarene fra tørrkjøringene er
+ikke arkivert, og `havbruksfondet/2026-10-12.logg.json` har dem ikke.
+Ingen kropp vi har sier det, så merket skulle vært UBELAGT (EKSTERN i
+`docs/PROVENIENS-2026-09-11.md`). Testen avsnittet nevner, prøver
+regelen uten nettverk, ikke tallene.
+
+**4. TR-S-0001 skiftet enhet (A7, «Svaret»).** «TR-S-0001 fra 0 til
+4 000» stemmer som tall, men ikke som økning i samme mål. I
+`eierskap/2026-10-05.json.gz` (sha256 `581bca616e7d0b7706524cf6323e956a9dfbb4c99c9c77b1671f3aab2a171c11`)
+er kapasiteten 0 **STK**. I `eierskap/2026-10-12.json.gz` (sha256
+`702b6b2afeb83b38e1d9d9cb85b4d0860b5e3a57583d4e2e059044001fbc06e0`)
+er den 4 000 **TN**. Punktet oppga heller ikke kroppene; det er de to.
+At den holdes utenfor gulvet, står.
+
+Teksten over er ikke endret.

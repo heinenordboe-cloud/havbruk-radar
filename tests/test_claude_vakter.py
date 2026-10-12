@@ -109,6 +109,7 @@ def test_trekk_teller_bare_bekreftet_maalt_med_tall(tmp_path):
         "Delingen er MÅLBAR, ikke MÅLT, fordi 10 grenser kan ha flyttet seg.\n\n"
         "MÅLT at siden ble hentet 12.10.2026 i 2026.\n\n"
         "- **De to kroppene er enige** om 143 kommuner. MÅLT.\n\n"
+        "1. **Auksjonen er ikke med.** Ingen side. MÅLT mot loggen.\n\n"
         "```\nMÅLT 99 i en kodeblokk\n```\n", encoding="utf-8")
     alle = trekk.kandidater(dok)
     assert [(fra, tall) for fra, _, _, tall in alle] == [

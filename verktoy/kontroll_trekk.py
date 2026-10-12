@@ -84,7 +84,10 @@ def bekrefter_maalt(tekst: str) -> bool:
 
 
 def tall_i(tekst: str) -> list[str]:
-    rest = STI.sub(" ", tekst)
+    # Nummeret på et listepunkt («1. **Auksjonen …**») er ikke et tall
+    # påstanden sier noe om. Kontrolløren trakk det 12.10.2026.
+    rest = re.sub(r"(?m)^\s*\d+\.\s", " ", tekst)
+    rest = STI.sub(" ", rest)
     for monster in (KLOKKE, DATO, HASH):
         rest = monster.sub(" ", rest)
     return [t.strip() for t in TALL.findall(rest)
