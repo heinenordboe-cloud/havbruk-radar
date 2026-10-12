@@ -245,6 +245,11 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]],
     på feltet, så normalfila sier selv hva den ble bygget med. Har feltet
     innhold i siste observasjon, er det ikke dødt nå, og `dodt_naa` er 0
     som for ethvert annet felt.
+
+    `dod_verdi` er verdien feltet står fast på i siste observasjon
+    («False»). Vakten bruker den til å se at feltet VÅKNER også når alle
+    radene skifter verdi samtidig: da er minoriteten fortsatt 0, men
+    toppverdien er en annen. Se health._vurder_innhold.
     """
     per_dato: dict[str, pl.DataFrame] = {}
     for dato, ramme in historikk:
@@ -254,6 +259,7 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]],
     serier: dict[str, list[int]] = {}
     datoer: dict[str, list[str]] = {}
     typer: dict[str, str] = {}
+    toppverdi: dict[str, str | None] = {}
     for dato in sorted(per_dato):
         m = mål_ramme(per_dato[dato])
         for felter in m.values():
@@ -261,6 +267,7 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]],
                 serier.setdefault(felt, []).append(tall["minoritet"])
                 datoer.setdefault(felt, []).append(dato)
                 typer[felt] = tall.get("type", "kategorisk")
+                toppverdi[felt] = tall.get("toppverdi")
 
     ut: dict[str, dict] = {}
     for felt, v in serier.items():
@@ -301,6 +308,8 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]],
         }
         if dod is not None:
             ut[felt]["dodt_fra"] = dod
+            if etterfolgende:
+                ut[felt]["dod_verdi"] = toppverdi[felt]
     return ut
 
 

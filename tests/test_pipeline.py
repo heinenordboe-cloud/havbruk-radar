@@ -4975,7 +4975,7 @@ def test_ny_normal_arves_paa_nytt(tmp_path, monkeypatch):
 
     assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 142
     assert tilstand["falsk"]["innhold_normal"] == "2026-01-01"
-    assert "tomt 142 kjøringer" in tilsyn[0]
+    assert tilsyn == [], "et felt i dodt_fra varsler ikke på strekket (12.10.2026)"
 
 
 def test_uten_stempel_arves_ikke_et_felt_uten_dodt_fra(tmp_path, monkeypatch):
@@ -5027,6 +5027,85 @@ def test_uten_stempel_arves_dodt_fra(tmp_path, monkeypatch):
     assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 142
 
 
+# DELVIS 12.10.2026: begge feltene i dodt_fra ga KREVER TILSYN for et
+# strekk vi visste om. Et dødt felt skal varsle når det VÅKNER, ikke når
+# det fortsatt er dødt.
+
+_DODT = {"falsk": {"flagg": {"gulv": 0, "median": 46, "uker": 768,
+                             "normalt_nullstrekk": 3, "dodt_naa": 178,
+                             "dodt_fra": "2023-04-24", "dod_verdi": "False"}}}
+
+
+def test_dodt_felt_som_forblir_dodt_varsler_ikke(tmp_path, monkeypatch):
+    _vakt(tmp_path, monkeypatch, _DODT,
+          {"falsk": {"innhold_nullstrekk": {"flagg": 178},
+                     "innhold_normal": "2026-01-01"}})
+
+    naa = _ramme("2026-10-12", "flagg", ["False"] * 1778)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert tilsyn == []
+    assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 179, \
+        "strekket føres fortsatt i health.json"
+
+
+def test_dodt_felt_som_faar_en_true_varsler(tmp_path, monkeypatch):
+    _vakt(tmp_path, monkeypatch, _DODT,
+          {"falsk": {"innhold_nullstrekk": {"flagg": 178},
+                     "innhold_normal": "2026-01-01"}})
+
+    naa = _ramme("2026-10-12", "flagg", ["True"] + ["False"] * 1777)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert len(tilsyn) == 1, tilsyn
+    assert "falsk.flagg" in tilsyn[0] and "våknet" in tilsyn[0]
+    assert "1 av 1778 rader" in tilsyn[0]
+    assert tilstand["falsk"]["innhold_nullstrekk"].get("flagg", 0) == 0
+
+
+def test_dodt_felt_som_skifter_hele_kolonnen_varsler(tmp_path, monkeypatch):
+    """Minoriteten er 0 også når alle radene blir True samtidig."""
+    _vakt(tmp_path, monkeypatch, _DODT,
+          {"falsk": {"innhold_nullstrekk": {"flagg": 178},
+                     "innhold_normal": "2026-01-01"}})
+
+    naa = _ramme("2026-10-12", "flagg", ["True"] * 1778)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert len(tilsyn) == 1 and "døde på «False»" in tilsyn[0], tilsyn
+
+
+def test_dodt_fra_stempler_verdien_feltet_dode_paa():
+    historikk = (
+        [(f"2023-03-{d:02d}", _ramme(f"2023-03-{d:02d}", "flagg",
+                                     ["True"] * 5 + ["False"] * 95))
+         for d in range(1, 15)]
+        + [(f"2023-05-{d:02d}", _ramme(f"2023-05-{d:02d}", "flagg", ["False"] * 100))
+           for d in range(1, 15)]
+    )
+    n = feltnormal.bygg(historikk, {"flagg": "2023-04-24"})["flagg"]
+    assert (n["dodt_fra"], n["dod_verdi"], n["dodt_naa"]) == ("2023-04-24", "False", 14)
+    assert "dod_verdi" not in feltnormal.bygg(historikk)["flagg"]
+
+
+def test_strekkgrensa_gjelder_fortsatt_felt_uten_dodt_fra(tmp_path, monkeypatch):
+    """Ingen terskel er senket: et felt uten dodt_fra varsler ved 13."""
+    _vakt(tmp_path, monkeypatch,
+          {"falsk": {"flagg": {"gulv": 0, "median": 40, "uker": 768,
+                               "normalt_nullstrekk": 3, "dodt_naa": 0}}},
+          {"falsk": {"innhold_nullstrekk": {"flagg": 12},
+                     "innhold_normal": "2026-01-01"}})
+
+    naa = _ramme("2026-10-12", "flagg", ["False"] * 1778)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-10-12", naa)
+
+    assert len(tilsyn) == 1 and "tomt 13 kjøringer på rad" in tilsyn[0]
+
+
 def test_hver_merknad_i_lisenskjeden_har_sin_egen_bokstav():
     """LISENSKJEDE skal kunne siteres, og «merknad K» skal peke på én
     ting. 09.10.2026 hadde to merknader bokstaven K (herofotografiet og
@@ -5039,3 +5118,36 @@ def test_hver_merknad_i_lisenskjeden_har_sin_egen_bokstav():
     bokstaver = Counter(re.findall(r"^#+ Merknad ([A-Z])\b", tekst, re.M))
     assert bokstaver, "fant ingen merknader"
     assert [b for b, n in bokstaver.items() if n > 1] == []
+
+
+def test_bygg_feltnormal_bare_en_kilde_tar_de_andre_uendret_med(tmp_path, monkeypatch):
+    """`--bygg-feltnormal --bare lusetall` (12.10.2026): én kilde bygges
+    på nytt, og de andre kildenes referanser flytter seg ikke."""
+    import run
+    from core import config as konfig
+
+    monkeypatch.setattr(feltnormal, "FELTNORMAL_DIR", tmp_path / "feltnormal")
+    annen = {"felt": {"gulv": 79, "laveste_sett": 79, "median": 120,
+                      "normalt_nullstrekk": 0, "dodt_naa": 0, "uker": 16}}
+    feltnormal.skriv({"annen": annen, "falsk": {}}, "2026-10-09", "test")
+
+    class K:
+        def __init__(self, name):
+            self.name = name
+    monkeypatch.setattr(run.registry, "discover", lambda: [K("annen"), K("falsk")])
+    historikk = [(f"2023-05-{d:02d}", _ramme(f"2023-05-{d:02d}", "flagg", ["False"] * 10))
+                 for d in range(1, 15)]
+    monkeypatch.setattr(run.snapshot, "les_mellom",
+                        lambda kilde, fra, til: historikk if kilde == "falsk" else
+                        pytest.fail("bare-kilden er den eneste som leses"))
+    ekte_get = konfig.get
+    monkeypatch.setattr(konfig, "get", lambda nokkel, standard=None:
+                        {"flagg": "2023-04-24"} if nokkel == "kilder.falsk.dodt_fra"
+                        else ekte_get(nokkel, standard))
+
+    assert run.bygg_feltnormal("2026-10-12", "falsk") == 0
+    ny = feltnormal.les()
+    assert ny["fil"] == "2026-10-12"
+    assert ny["kilder"]["annen"] == annen, "en annen kildes referanse er urørt"
+    assert ny["kilder"]["falsk"]["flagg"]["dodt_fra"] == "2023-04-24"
+    assert "uendret fra 2026-10-09" in ny["begrunnelse"]

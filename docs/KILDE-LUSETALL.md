@@ -144,6 +144,35 @@ falsk forskjell i dataene. Lusetall emitter kun lusespesifikke felter.
 Feltvalget forøvrig gjøres i `sources/lusetall.py`, ikke i `config.yml` —
 samme begrunnelse som for akvakultur.
 
+### Datatap: to behandlingsflagg er døde hos kilden
+
+Ført inn 12.10.2026. To felt kommer fortsatt i hver rad, men sier ikke
+lenger noe:
+
+| felt | BarentsWatch | sist levende | dødt fra | målt mot |
+|---|---|---|---|---|
+| `har_rensefisk` | `hasCleanerfishDeployed` | 2023-04-17 (6 lokaliteter) | 2023-04-24 | våre 768 snapshots: 0 True i alle 178 uker til 2026-09-14 |
+| `har_medikamentell_behandling` | `hasSubstanceTreatments` | 2023-12-25 | 2024-01-01 | Mattilsynets API: 1 True mot 625 behandlingsuker i uke 1–46/2024 |
+
+Kilder: `docs/MALING-FUNN-OKTOBER.md` F4.6 og etterskriften 09.10.2026,
+`docs/MALING-MATTILSYNET-API.md` punkt 4. Den ene True-verdien i
+`har_medikamentell_behandling` (2024-11-11) er et unntak, ikke liv.
+
+**Hva som er tapt.** Fra datoene over betyr `False` «ikke oppgitt av
+BarentsWatch», ikke «ingen rensefisk» eller «ingen behandling». Ukene
+lar seg ikke hente på nytt fra dette endepunktet, og vi har ingen annen
+kilde for rensefisk per lokalitet og uke. For medikamentell behandling
+har Mattilsynet tallene (`docs/MALING-MATTILSYNET-API.md`). BarentsWatchs
+`liceTreatments/{year}` er dokumentert med både behandlingstype og
+rensefisk, men er ikke hentet (F2 i MALING-FUNN-OKTOBER, regel 4).
+Analyser som bruker flaggene, kan bare bruke ukene før dødsdatoen.
+
+**Hva vakten gjør.** Begge står i `kilder.lusetall.dodt_fra` i
+`config.yml` og stemples i feltnormalen. Et felt der gir ikke KREVER
+TILSYN for nullstrekket, men gjør det hvis feltet får en annen verdi
+igjen. Strekket føres fortsatt i `health.json`. Feltene hentes som før,
+og attribusjonen under gjelder dem fortsatt.
+
 ## Backfill
 
 **Fella:** 2010 og 2011 gir `200 OK` med tom liste, ikke `404`. En

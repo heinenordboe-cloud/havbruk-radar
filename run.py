@@ -199,7 +199,7 @@ def bygg_commitmelding(kjoredato: str, resultater, endringer, scoret,
     return "\n".join(linjer)
 
 
-def bygg_feltnormal(kjoredato: str) -> int:
+def bygg_feltnormal(kjoredato: str, bare: str | None = None) -> int:
     """Etabler hva hvert felt NORMALT inneholder, fra hele historikken.
 
     Egen kommando og ikke noe den ukentlige kjøringen gjør. Det var
@@ -210,11 +210,32 @@ def bygg_feltnormal(kjoredato: str) -> int:
 
     Skriver en NY fil i data/feltnormal/, aldri over en som finnes.
     «Hva var normalen i uke X» skal kunne besvares av dataene.
+
+    `bare` bygger ÉN kilde på nytt og tar de andre uendret med fra
+    normalen som gjelder. Lagt til 12.10.2026 for `dodt_fra` på
+    `har_rensefisk`: en full ombygging samme dag ville også senket
+    `laveste_sett` for flere felt i andre kilder (enhetsregisteret
+    `siste_innsendte_aarsregnskap` 79 -> 70) og gitt `unntaksvekst` og
+    `sjotemperatur.lusegrense` sin første normal. Det er referanser som
+    flytter seg i forbifarten (CLAUDE.md 1b-4), og et spørsmål om én
+    kilde skal ikke stille det for alle.
     """
     kilder = registry.discover()
     normal = {}
     dodsfall: list[str] = []
-    print(f"\nBygger innholdsnormal per {kjoredato}\n")
+    gjeldende = feltnormal.les() if bare else {}
+    if bare:
+        if not gjeldende:
+            print("  --bare krever en normal å bygge videre på; ingen finnes.")
+            return 1
+        if bare not in {k.name for k in kilder}:
+            print(f"  Ukjent kilde '{bare}'.")
+            return 1
+        kilder = [k for k in kilder if k.name == bare]
+        normal = {k: v for k, v in gjeldende["kilder"].items() if k != bare}
+    print(f"\nBygger innholdsnormal per {kjoredato}"
+          + (f", bare {bare}; resten uendret fra {gjeldende['fil']}" if bare else "")
+          + "\n")
     for kilde in kilder:
         historikk = snapshot.les_mellom(kilde.name, "0000-00-00", kjoredato)
         if not historikk:
@@ -245,6 +266,10 @@ def bygg_feltnormal(kjoredato: str) -> int:
         print(linje)
 
     begrunnelse = f"bygget fra all historikk til og med {kjoredato}"
+    if bare:
+        begrunnelse = (f"{bare} bygget fra all historikk til og med "
+                       f"{kjoredato}; de andre kildene uendret fra "
+                       f"{gjeldende['fil']}")
     if dodsfall:
         # Står i fila, ikke bare i config: en referanse skal kunne svare
         # på hva den ble bygget med (CLAUDE.md 1b-3).
@@ -317,7 +342,7 @@ def main() -> int:
     # fordi den daterer fila, og kjøredatoen slås opp nøyaktig ett sted
     # (CLAUDE.md 1b) — ikke fordi den samler inn noe.
     if args.bygg_feltnormal:
-        return bygg_feltnormal(kjoredato)
+        return bygg_feltnormal(kjoredato, args.bare)
 
     # 1. Finn kilder
     kilder = registry.discover()

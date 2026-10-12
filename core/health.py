@@ -271,6 +271,12 @@ def _vurder_innhold(
       den feilen den finnes for. Tallet står i normalen som kontekst til
       den som leser alarmen, ikke som fribillett.
 
+    Et felt med `dodt_fra` i normalen er MÅLT dødt utenfra. Det prøves
+    omvendt: strekket føres, men varsler ikke, og feltet varsler når det
+    får innhold igjen. Det er ikke en fribillett etter forrige avsnitt:
+    unntaket kommer fra en måling mot en annen kilde, ikke fra strekket,
+    og det fanger nettopp det strekket ikke kan fange etter et dødsfall.
+
     Uten en etablert normal gjøres ingenting. En alarm på et grunnlag vi
     ikke har er støy, og støy er det som får folk til å slutte å lese
     alarmer. `--bygg-feltnormal` etablerer grunnlaget.
@@ -348,6 +354,36 @@ def _vurder_innhold(
 
         if n is None:
             continue                 # ingen normal for dette feltet ennå
+
+        # ET DØDSFALL MÅLT UTENFRA VARSLER IKKE PÅ STREKKET. Fra
+        # 12.10.2026, etter DELVIS-kjøringen samme dag: begge feltene i
+        # `dodt_fra` var målt døde hos kilden (MALING-FUNN-OKTOBER F4.6,
+        # MALING-MATTILSYNET-API punkt 4), og alarmen sa bare det vi
+        # visste. `--godta-felt` nullstilte strekket, og etter 13 uker
+        # ville den kommet tilbake med samme beskjed.
+        #
+        # Spørsmålet om et slikt felt er ikke lenger «har det vært tomt
+        # for lenge», men «er det fortsatt dødt». Strekket telles og
+        # føres i health.json som før; det som varsler, er at feltet
+        # VÅKNER: en rad med en annen verdi, eller at hele kolonnen har
+        # skiftet til en annen verdi enn den den døde på. Grensa for
+        # strekket er urørt for alle andre felt.
+        dod = n.get("dodt_fra")
+        if dod:
+            topp = tall.get("toppverdi")
+            dod_verdi = n.get("dod_verdi")
+            skiftet = (dod_verdi is not None and topp is not None
+                       and str(topp) != str(dod_verdi))
+            if minoritet > 0 or skiftet:
+                hva = (f"{minoritet} av {tall['rader']} rader er ikke «{topp}»"
+                       if minoritet > 0 else
+                       f"alle {tall['rader']} rader er «{topp}», feltet døde "
+                       f"på «{dod_verdi}»")
+                varsler.append(
+                    f"{kilde}.{felt} (regnet som dødt fra {dod} etter "
+                    f"dodt_fra, men har innhold igjen: {hva} — feltet har "
+                    f"våknet)")
+            continue
 
         # Gulvet er None når normalen hviler på for få observasjoner til
         # at «laveste noensinne» betyr noe. Da hoppes gulvprøven over —

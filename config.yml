@@ -65,8 +65,18 @@ kilder:
     # behandlingsuker også True hos BarentsWatch. Fra uke 1/2024: én True
     # (Torangskjeret, 2024-11-11) mot 625 behandlingsuker til og med uke
     # 46, og 0 mot 1 123 etter. Den ene verdien er et unntak, ikke liv.
+    #
+    # har_rensefisk: docs/MALING-FUNN-OKTOBER.md F4.6, `hasCleanerfishDeployed`
+    # sist True 2023-04-17. Målt på nytt 12.10.2026 over 768 lusetall-
+    # snapshots: 6 lokaliteter den uka, 3-5 ukene før, og 0 i hver av de
+    # 178 ukene fra 2023-04-24 til 2026-09-14 (1 778 rader hver uke).
+    #
+    # Et felt her varsler ikke for nullstrekket, men når det får innhold
+    # igjen (health._vurder_innhold). Strekket føres fortsatt i
+    # health.json, og maks_nullstrekk gjelder som før for alle andre felt.
     dodt_fra:
       har_medikamentell_behandling: "2024-01-01"
+      har_rensefisk: "2023-04-24"
 
   sjotemperatur:
     # BarentsWatch fiskehelse, eksportendepunktet. Verifisert mot levende
