@@ -186,9 +186,9 @@ oftest en flytting inne i et konsern.**
 
 ### SF-A-0003 — ingen overføring på 53 år
 
-    tildelt      TESTVIK OG STRAUM ANS  1973-09-28
+    tildelt      (navn ikke vist) ANS  1973-09-28
     (ingen overføringer registrert)
-    eier 14.09   TESTVIK OG STRAUM ANS  (UnlimitedLiabilityCompany)
+    eier 14.09   (navn ikke vist) ANS  (UnlimitedLiabilityCompany)
     kapasitet    648,0 TN  →  648,0 TN
     lokaliteter  10317; 11800; 27055
 

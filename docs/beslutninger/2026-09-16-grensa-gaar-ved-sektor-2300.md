@@ -56,7 +56,7 @@ stå. Den veien er stengt, og den er stengt med et tall.
 **Målt 15.09.2026 på enhetsregisteret-snapshotet:** en navneprøve — to
 eller tre ord, ingen bedriftsord — treffer **1278 av 1807** entiteter, og
 **1196 av dem er AS**. Brreg skriver navn i VERSALER (1795 av 1807), så
-«NORDLAKS OPPDRETT AS» og «HANSEN OG OLSEN DA» har nøyaktig samme form.
+«NORDLAKS OPPDRETT AS» og «(navn ikke vist) DA» har nøyaktig samme form.
 
 Navneprøven er altså ikke upresis — den er verdiløs alene. Og en regel
 som avhenger av hvordan et navn SER UT, er ikke en regel: det er samme

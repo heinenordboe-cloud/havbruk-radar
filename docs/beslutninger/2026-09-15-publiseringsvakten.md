@@ -235,7 +235,7 @@ kostnaden til «32 DA, 31 ANS og 1 partrederi». Målingen i dag gir 27 + 18
 
 En prøve på navneform uten organisasjonsformen treffer **1278 av 1807**
 entiteter — hvorav **1196 er AS**. Brreg skriver navn i VERSALER (1795 av
-1807), så «NORDLAKS OPPDRETT AS» og «HANSEN OG OLSEN DA» har nøyaktig
+1807), så «NORDLAKS OPPDRETT AS» og «(navn ikke vist) DA» har nøyaktig
 samme form.
 
 `core/persondata.py` sa dette på forhånd: «å filtrere PÅ NAVNET er

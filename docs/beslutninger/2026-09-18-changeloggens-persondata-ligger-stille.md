@@ -128,7 +128,7 @@ feltmerket celle. `<td data-felt="organisasjonsform">DA</td>` felles selv
 om `DA` er dekar i 748 rader, fordi merkingen SIER hva feltet er.
 
 **Verifisert ved å plante.** Én konstruert changelog-rad
-(`eier_navn`, `old_value = "TESTVIK OG STRAUM DA"`) på en tillatelse som
+(`eier_navn`, `old_value = "(navn ikke vist) DA"`) på en tillatelse som
 ligger på en lokalitet, i en kopi av changeloggen med symlink til ekte
 snapshots:
 
