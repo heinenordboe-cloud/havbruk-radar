@@ -170,13 +170,51 @@ def test_daglig_henter_ikke_de_faste_kroppene_og_arkiverer_ntb_under_sin_dato(
     assert not (arkiv / "regjeringen-pressemeldinger").exists()
 
 
+NY_PM = ("<html><body><p>Pressemelding | Dato: 12.11.2026 | NFD</p>"
+         "<p>Utbetaling fra Havbruksfondet</p></body></html>").encode()
+
+
 def test_daglig_tar_wayback_treff_inn_under_meldingens_dato(arkiv, monkeypatch):
     cdx = ("20261112180000 https://www.regjeringen.no/no/aktuelt/"
-           "havbruksfondet-2026/id1/\n")
+           "havbruksfondet-2026/id1/\n"
+           "20261113090000 http://regjeringen.no/no/aktuelt/"
+           "havbruksfondet-2026/id1\n")
     _daglig(monkeypatch, cdx=cdx)
+    hentet = []
+    monkeypatch.setattr(ark, "_hent", lambda k, url: (hentet.append(url)
+                        or (NY_PM, "") if "regjeringen" in url
+                        else (SIDE, "") if url == ark.SIDE else (b"x" + url.encode(), "")))
     ark.main(["--daglig", "--dato", "2026-11-13"])
     [pm] = (arkiv / "regjeringen-pressemeldinger").glob("*.gz")
-    assert pm.name == "2025-11-10.bin.gz", "datoen i kroppen, ikke kjøredagen"
+    assert pm.name == "2026-11-12.bin.gz", "datoen i kroppen, ikke kjøredagen"
+    assert len([u for u in hentet if "regjeringen" in u]) == 1, \
+        "to avtrykk av samme artikkel er én artikkel, og det siste hentes"
+    assert "20261113090000" in [u for u in hentet if "regjeringen" in u][0]
+
+    # Neste dag: artikkelen er kjent og hentes ikke på nytt.
+    hentet.clear()
+    ark.main(["--daglig", "--dato", "2026-11-14"])
+    assert not [u for u in hentet if "regjeringen" in u]
+
+
+def test_daglig_wayback_holder_ute_gamle_og_udaterte_sider(arkiv, monkeypatch):
+    """MÅLT 12.10.2026: `from=` gjelder avtrykket, og et bredt nett ga 80
+    gamle eller udaterte sider. Ingen av dem skal inn i arkivet."""
+    cdx = ("20261112180000 https://www.regjeringen.no/no/aktuelt/"
+           "havbruksfondet-gammel/id1/\n"
+           "20261112180000 https://www.regjeringen.no/no/aktuelt/"
+           "havbruksfondet-tema/id2/\n")
+    _daglig(monkeypatch, cdx=cdx)
+    kropper = {"id1": PM, "id2": b"<p>Havbruksfondet, temaside</p>"}
+    monkeypatch.setattr(ark, "_hent", lambda k, url: next(
+        ((v, "") for n, v in kropper.items() if n in url),
+        (SIDE, "") if url == ark.SIDE else (b"x" + url.encode(), "")))
+    ark.main(["--daglig", "--fra", "20261001", "--dato", "2026-11-13"])
+    assert not (arkiv / "regjeringen-pressemeldinger").exists()
+    logg = json.loads((arkiv / "havbruksfondet" / "2026-11-13.logg.json")
+                      .read_text())
+    assert sorted(r["hoppet_over"] for r in logg if "hoppet_over" in r) == [
+        "datert 2025-11-10, før vinduet", "ingen «Dato:»"]
 
 
 def test_daglig_ntb_som_feiler_er_en_advarsel_ikke_en_stille_null(

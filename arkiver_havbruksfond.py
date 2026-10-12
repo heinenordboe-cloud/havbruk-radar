@@ -58,10 +58,12 @@ den dagen. Derfor leses de av noe som finnes nå:
                   «Havbruksfond» i tittel eller ingress hentes og
                   arkiveres i `ntb-pressemeldinger/`. MÅLT: NTB-kopien av
                   pressemeldingen 21.10.2024 har hele kommunetabellen.
-    Wayback       regjeringen.no/no/aktuelt/ fra `--fra`, filtrert på
-                  «havbruk» i adressen, inn i `regjeringen-pressemeldinger/`.
-                  Fanger bare det noen har krøllet, og bare når slugen
-                  sier det: 2024-meldingen het `ny-side11`.
+    Wayback       regjeringen.no/no/aktuelt/ fra `--fra`, med
+                  «havbruksfond» i adressen, en kropp som nevner fondet og
+                  en «Dato:» i vinduet, inn i `regjeringen-pressemeldinger/`.
+                  Én kropp per artikkel. Fanger bare det noen har krøllet,
+                  og bare når slugen sier det: 2024-meldingen het
+                  `ny-side11`.
 
 Strømmen arkiveres ikke selv. Den endrer seg hver gang NFD publiserer
 noe, og ville gitt én kropp per dag uten innhold om fondet.
@@ -169,9 +171,37 @@ NTB_RSS = ("https://kommunikasjon.ntb.no/rss/releases/latest"
            "?publisherId=14943704&lang=no")
 _TEMA = re.compile(r"havbruksfond", re.I)
 
+# `from=` gjelder AVTRYKKET, ikke sidens utgivelse. MÅLT 12.10.2026 med
+# «havbruk» i adressen og from=20251101: 80 avtrykk, de fleste sider fra
+# 2020–2024 som Wayback tilfeldigvis krøllet på nytt, og tjue uten
+# «Dato:» i det hele tatt. Nettet strammes derfor tre ganger: slugen må
+# si «havbruksfond», kroppen må nevne fondet, og kroppens egen dato må
+# ligge i vinduet. Se `_nye_pressemeldinger`.
 CDX = ("http://web.archive.org/cdx/search/cdx?url=regjeringen.no/no/aktuelt/*"
-       "&filter=original:.*havbruk.*&from={fra}&output=text"
-       "&collapse=urlkey&fl=timestamp,original&limit=80")
+       "&filter=original:.*havbruksfond.*&filter=statuscode:200&from={fra}"
+       "&output=text&fl=timestamp,original&limit=200")
+
+
+def _adresse(u: str) -> str:
+    """Én nøkkel per artikkel, uansett skjema, www og skråstrek."""
+    u = re.sub(r"^https?://(www\.)?", "", u.strip().lower())
+    return u.split("?")[0].rstrip("/")
+
+
+def tidligere_artikler() -> set[str]:
+    """Artikkeladresser som allerede er arkivert, lest av loggene.
+
+    Wayback krøller samme melding mange ganger, og hvert avtrykk har nytt
+    sidekrom rundt samme tekst (MÅLT: 10.11 og 05.12.2025 for
+    utbetalingsmeldingen, 5 990 like tegn). Uten denne ville hver ny
+    krølling blitt en ny kropp i arkivet.
+    """
+    ut = set()
+    for sti in (raw_arkiv.ARKIV_DIR / KILDE).glob("*.logg.json"):
+        for r in json.loads(sti.read_text()):
+            if r.get("artikkel") and r.get("sha256"):
+                ut.add(r["artikkel"])
+    return ut
 
 # «Pressemelding | Dato: 10.11.2025 | Nærings- og fiskeridepartementet»
 _DATO = re.compile(r"Dato:\s*(\d\d)\.(\d\d)\.(\d{4})")
@@ -227,7 +257,8 @@ def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
 
 
 def _arkiver(klient, hva: str, url: str, kilde: str, dato: str,
-             torr: bool, logg: list, kropp_og_utgitt=None) -> bytes | None:
+             torr: bool, logg: list, kropp_og_utgitt=None,
+             ekstra: dict | None = None) -> bytes | None:
     try:
         kropp, utgitt = kropp_og_utgitt or _hent(klient, url)
     except Exception as e:
@@ -243,7 +274,7 @@ def _arkiver(klient, hva: str, url: str, kilde: str, dato: str,
         dato = egen or dato
 
     post = {"hva": hva, "url": url, "kilde": kilde, "observed_at": dato,
-            "byte": len(kropp), "published_at": utgitt}
+            "byte": len(kropp), "published_at": utgitt, **(ekstra or {})}
     meta = pdf_metadata(kropp)
     if meta:
         post["pdf"] = meta
@@ -292,10 +323,37 @@ def _nye_pressemeldinger(klient, dato: str, fra: str, torr: bool,
     except Exception as e:
         rader = []
         _advar(logg, "wayback_feilet", f"Wayback-oppslaget (CDX) feilet: {e}.")
-    print(f"  {len(rader)} avtrykk fra {fra} med «havbruk» i adressen")
-    for ts, u in rader:
-        _arkiver(klient, "regjeringen", f"https://web.archive.org/web/{ts}id_/{u}",
-                 PRESSE, dato, torr, logg)
+    # Siste avtrykk per artikkel, og bare artikler vi ikke har.
+    siste: dict[str, tuple[str, str]] = {}
+    for rad in rader:
+        if len(rad) == 2:
+            ts, u = rad
+            k = _adresse(u)
+            if k not in siste or ts > siste[k][0]:
+                siste[k] = (ts, u)
+    kjente = tidligere_artikler()
+    fra_iso = f"{fra[:4]}-{fra[4:6]}-{fra[6:8]}"
+    print(f"  {len(rader)} avtrykk fra {fra} med «havbruksfond» i adressen, "
+          f"{len(siste)} artikler, {len(set(siste) & kjente)} arkivert fra før")
+    for k, (ts, u) in sorted(siste.items()):
+        if k in kjente:
+            continue
+        url = f"https://web.archive.org/web/{ts}id_/{u}"
+        try:
+            kropp, utgitt = _hent(klient, url)
+        except Exception as e:
+            logg.append({"hva": "regjeringen", "url": url, "feil": str(e)})
+            continue
+        d = pressedato(kropp)
+        if not d or d < fra_iso or not _TEMA.search(synlig_tekst(kropp)):
+            hvorfor = ("ingen «Dato:»" if not d else f"datert {d}, før vinduet"
+                       if d < fra_iso else "nevner ikke fondet")
+            print(f"  hoppet over ({hvorfor})  {u}")
+            logg.append({"hva": "regjeringen", "url": url, "artikkel": k,
+                         "hoppet_over": hvorfor})
+            continue
+        _arkiver(klient, "regjeringen", url, PRESSE, dato, torr, logg,
+                 kropp_og_utgitt=(kropp, utgitt), ekstra={"artikkel": k})
 
 
 def main(argv=None) -> int:
