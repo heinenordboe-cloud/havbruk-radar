@@ -77,6 +77,20 @@ som dekoder den er kode porten aldri har sett.
 Bytene sammenlignes fortsatt ikke. At obfuskeringen er av, betyr ikke
 at Cloudflare ikke endrer noe annet — det er ikke målt.
 
+## Ingen skript fra andre domener
+
+Fra 12.10.2026. Samme dag la Cloudflare inn Web Analytics-skriptet
+(`static.cloudflareinsights.com/beacon.min.js`) i sidene på veien ut.
+CSP-en blokkerte det, og Heine har slått det av, men en innstilling i et
+dashbord kan slås på igjen uten at noe i repoet endrer seg. Hver side
+røyktesten henter, skal derfor bare ha `<script src>` uten vert eller med
+samme vert som `--base`. Et skript fra et annet domene er rødt selv om
+CSP-en stopper det: det betyr at noen andre enn bygget skriver i sidene,
+og CSP-en er det eneste som står mellom det og leseren.
+
+Skript fra `/cdn-cgi/` på samme vert er Cloudflares egne og fanges ikke
+her; e-postobfuskeringen over er den vi har sett.
+
 ## Nye forsøk
 
 En utrulling hos Cloudflare Pages er atomisk, men det tar noen sekunder
@@ -87,6 +101,7 @@ teller.
 from __future__ import annotations
 
 import argparse
+import html.parser
 import json
 import os
 import re
@@ -94,6 +109,7 @@ import ssl
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
@@ -255,6 +271,31 @@ def sjekk_www(www: str, base: str, sti: str,
     return []
 
 
+class _Skript(html.parser.HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.src: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "script":
+            src = dict(attrs).get("src")
+            if src:
+                self.src.append(src.strip())
+
+
+def fremmede_skript(kropp: str, base: str) -> list[str]:
+    """`<script src>` som peker til en annen vert enn `base`."""
+    leser = _Skript()
+    leser.feed(kropp)
+    egen = urllib.parse.urlsplit(base).hostname or ""
+    ut = []
+    for src in leser.src:
+        vert = urllib.parse.urlsplit(urllib.parse.urljoin(base + "/", src)).hostname
+        if vert and vert.lower() != egen.lower():
+            ut.append(src)
+    return ut
+
+
 def sjekk(base: str, side: Side, forventet_csp: str, henter=hent,
           adresse: str = "") -> list[str]:
     """Feilene for én side. Tom liste når den er som bygget sier."""
@@ -286,6 +327,10 @@ def sjekk(base: str, side: Side, forventet_csp: str, henter=hent,
         feil.append(f"{side.sti}: e-postadressen er skrevet om til "
                     f"{OBFUSKERT} — Email Address Obfuscation er på hos "
                     f"Cloudflare")
+    for src in fremmede_skript(kropp, base):
+        feil.append(f"{side.sti}: skript fra et annet domene: {src} — "
+                    f"noe utenfor bygget skriver i siden (Cloudflare Web "
+                    f"Analytics?)")
     if side.tittel and _tittel(kropp) != side.tittel:
         feil.append(f"{side.sti}: tittelen er «{_tittel(kropp)}», bygget "
                     f"skrev «{side.tittel}»")

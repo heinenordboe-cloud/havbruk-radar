@@ -284,3 +284,33 @@ def test_kvittering_og_uke_utelukker_hverandre(tmp_path):
     with pytest.raises(SystemExit):
         royktest.main(["--mappe", str(tmp_path), "--uke", UKE,
                        "--kvittering", str(tmp_path / "k.json")])
+
+
+# 12.10.2026: Cloudflare la inn Web Analytics-skriptet. CSP-en stoppet
+# det, og det er slått av; det skal ikke kunne komme tilbake usett.
+BEACON = ("<script defer src='https://static.cloudflareinsights.com/beacon.min.js'"
+          " data-cf-beacon='{\"token\": \"x\"}'></script>")
+
+
+def test_skript_fra_et_annet_domene_paa_forsiden_er_rodt(tmp_path):
+    m = _bygg(tmp_path)
+    forside = (m / "index.html").read_text(encoding="utf-8")
+    feil = royktest.kjor(
+        "https://x.test", royktest.utvalg(m, UKE), CSP, forsok=1, pause=0,
+        henter=_levende(m, overstyr={"": (
+            200, {"content-security-policy": CSP}, forside + BEACON,
+            "https://x.test/")}), adresse=ADRESSE)
+    assert len(feil) == 1, feil
+    assert feil[0].startswith("/: skript fra et annet domene")
+    assert "static.cloudflareinsights.com" in feil[0]
+
+
+def test_egne_skript_er_ikke_fremmede():
+    kropp = ('<script src="/kystloggen.js" defer></script>'
+             '<script src="sok.js" type="module"></script>'
+             '<script src="https://x.test/a.js"></script>'
+             '<script type="application/ld+json">{}</script>')
+    assert royktest.fremmede_skript(kropp, "https://x.test") == []
+    assert royktest.fremmede_skript(
+        '<script src="//cdn.example.com/a.js"></script>', "https://x.test") == [
+        "//cdn.example.com/a.js"]
