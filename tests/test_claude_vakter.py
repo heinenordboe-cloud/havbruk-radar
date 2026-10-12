@@ -124,3 +124,104 @@ def test_trekk_med_samme_fro_gir_samme_utvalg(tmp_path, capsys):
     trekk.main([str(dok), "--fro", "42"])
     assert capsys.readouterr().out == en
     assert "frø 42" in en and en.count("=== trekk") == 3
+
+
+# ------------------------------------------------------------ hookene
+
+def _hook(skript: str, inn: dict) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, str(HOOKS / skript)],
+                          input=json.dumps(inn), capture_output=True, text=True)
+
+
+DATAREPO = ROT.parent / "havbruk-radar-data"
+
+
+@pytest.mark.parametrize("kommando", [
+    "rm -f data/raw/lusetall/2026-10-12.parquet",
+    "sed -i '' 's/a/b/' data/arkiv/auksjon/2026-10-06.logg.json",
+    "echo {} > data/arkiv/auksjon/ny.logg.json",
+    "cd data && mv arkiv/a.gz arkiv/b.gz",
+    "ls data/raw/lusetall/*.parquet | xargs rm",
+])
+def test_arkivvakt_stopper_skriving_i_arkiv_og_raw(kommando):
+    r = _hook("arkivvakt.py", {"tool_name": "Bash", "cwd": str(DATAREPO),
+                               "tool_input": {"command": kommando}})
+    assert r.returncode == 2, kommando
+    assert "regel 2" in r.stderr
+
+
+@pytest.mark.parametrize("kommando", [
+    "gzip -dc data/arkiv/auksjon/2026-10-06.bin.gz | shasum -a 256",
+    "cp data/arkiv/havbruksfondet/2026-10-12.12.bin.gz /tmp/sjekk/",
+    "git add data/arkiv/havbruksfondet/ && git commit -F /tmp/m.txt",
+])
+def test_arkivvakt_slipper_lesing_og_commit(kommando):
+    r = _hook("arkivvakt.py", {"tool_name": "Bash", "cwd": str(DATAREPO),
+                               "tool_input": {"command": kommando}})
+    assert r.returncode == 0, (kommando, r.stderr)
+
+
+def test_arkivvakt_slipper_arkiveringsskriptet():
+    """Skriptene arkiverer gjennom raw.arkiver_ny(); vakten ser bare
+    kommandolinja."""
+    r = _hook("arkivvakt.py", {"tool_name": "Bash", "cwd": str(ROT),
+                               "tool_input": {"command":
+                                              ".venv/bin/python arkiver_auksjon.py"}})
+    assert r.returncode == 0
+
+
+def test_arkivvakt_stopper_write_men_ikke_feltnormal():
+    stopp = _hook("arkivvakt.py", {"tool_name": "Write", "cwd": str(ROT),
+                                   "tool_input": {"file_path": str(
+                                       DATAREPO / "data/raw/x/2026-10-12.parquet")}})
+    assert stopp.returncode == 2
+    ok = _hook("arkivvakt.py", {"tool_name": "Write", "cwd": str(ROT),
+                                "tool_input": {"file_path": str(
+                                    DATAREPO / "data/feltnormal/2026-10-12.json")}})
+    assert ok.returncode == 0
+
+
+def _repo(tmp_path: Path, tekst: str) -> Path:
+    repo = tmp_path / "repo"
+    (repo / "docs").mkdir(parents=True)
+    for args in (["init", "-q"], ["config", "user.email", "t@t"],
+                 ["config", "user.name", "t"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True)
+    (repo / "docs" / "MALING-X.md").write_text(tekst, encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    return repo
+
+
+def test_persondatavakt_stopper_commit_med_personformnavn(tmp_path):
+    repo = _repo(tmp_path, "# Måling\n\n| eier | tillatelser |\n|---|---:|\n"
+                           "| FJORDVIK OG BAKKE ANS | 3 |\n")
+    r = _hook("persondatavakt.py", {"tool_name": "Bash", "cwd": str(repo),
+                                    "tool_input": {"command": "git commit -m x"}})
+    assert r.returncode == 2
+    assert "docs/MALING-X.md:5" in r.stderr
+    assert "FJORDVIK" not in r.stderr, "navnet skal ikke gjentas"
+
+
+def test_persondatavakt_stopper_etternavn_fornavn_i_navnekolonne(tmp_path):
+    repo = _repo(tmp_path, "| mottaker_navn | dato |\n|---|---|\n"
+                           "| FJORDVIK, KARI | 2024-01-01 |\n")
+    r = _hook("persondatavakt.py", {"tool_name": "Bash", "cwd": str(tmp_path),
+                                    "tool_input": {"command":
+                                                   f"git -C {repo} commit -m x"}})
+    assert r.returncode == 2 and "MALING-X.md:3" in r.stderr
+
+
+def test_persondatavakt_slipper_selskap_og_opptellinger(tmp_path):
+    repo = _repo(tmp_path, "# Måling\n\nMOWI SEAWATER NORWAY AS fikk 25.\n\n"
+                           "| form | antall |\n|---|---|\n| DA, ANS, PRE | 32 DA |\n"
+                           "| status | MÅLT, AVGRENSET |\n")
+    r = _hook("persondatavakt.py", {"tool_name": "Bash", "cwd": str(repo),
+                                    "tool_input": {"command": "git commit -m x"}})
+    assert r.returncode == 0, r.stderr
+
+
+def test_persondatavakt_ser_bort_fra_alt_som_ikke_er_commit(tmp_path):
+    repo = _repo(tmp_path, "| eier |\n|---|\n| FJORDVIK OG BAKKE ANS |\n")
+    r = _hook("persondatavakt.py", {"tool_name": "Bash", "cwd": str(repo),
+                                    "tool_input": {"command": "git status"}})
+    assert r.returncode == 0
