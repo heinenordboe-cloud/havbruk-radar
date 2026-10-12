@@ -499,3 +499,163 @@ Kommunenumre med MTB 31.08.2026 men ikke 2025: []
 | 141 | 4215 | LILLESAND | 1 495 | 0.0394% | 0.0394% |  |
 | 142 | 1122 | GJESDAL | 1 400 | 0.0369% | 0.0369% |  |
 | 143 | 1566 | SURNADAL | 780 | 0.0206% | 0.0206% |  |
+
+---
+
+## A3. Kontroll mot 2025
+
+    .venv/bin/python analyse/havbruksfond/a3_kontroll_2025.py
+
+Grunnlaget er to kropper fra 2025. Pressemeldingen 10.11.2025 er hentet
+via Wayback (regjeringen.no svarer 403) og ligger i
+`regjeringen-pressemeldinger/2025-11-10.bin.gz`. Den har tabellen
+KOMMUNE/TOTALT for 143 kommuner og beløpene for 8 fylkeskommuner.
+Fiskeridirektoratets regneark for 2025 ligger i
+`havbruksfondet/2026-10-12.8.bin.gz`. Det deler TOTALT i ANDEL
+NYKLARERT og ORDINÆR UTBETALING og lister hver lokalitet med MTB per
+01.09.2025. Begge er arkivert i A1.
+
+### Det viktigste først
+
+- **De to 2025-kroppene er enige** om beløpet til alle 143 kommuner,
+  med avvik under 1 kr. MÅLT.
+- **Rangkorrelasjonen er ρ = 0,940 mot TOTALT og ρ = 0,997 mot ORDINÆR.**
+  2025 var et oddetallsår: 763 mill. av kommunenes 1 128 mill. kr gikk
+  etter ny MTB, så TOTALT-andelen 2025 er en annen størrelse enn en
+  andel av stående MTB. Uten nyklarert-delen er sammenhengen nesten
+  perfekt. MÅLT.
+- **Alle de 10 største avvikene mot TOTALT forklares av
+  nyklarert-delen 2025.** Kommuner som fikk inntil 5 mill. kr for ny
+  MTB i 2025 (Bokn, Tingvoll, Saltdal, Båtsfjord, Stad, Bremanger), ligger
+  lavere i 2026. Kommuner som ikke fikk noe (Kinn, Stavanger, Harstad),
+  ligger høyere. For Frøya, Bokn, Harstad og Bremanger kommer det i
+  tillegg en mindre del som skyldes lokaliteter. Ingen av de ti er
+  uforklart. MÅLT: avviket er delt i to ledd regnet av de to
+  kroppene, og lokalitetene er holdt mot regnearkets liste.
+- **Alle de 10 største avvikene mot ORDINÆR forklares av lokaliteter**
+  som har kommet til, forsvunnet eller endret MTB siden 01.09.2025.
+  Ingen er uforklart. Den største er Nærøysund (−0,175 prosentpoeng: to
+  lokaliteter borte, én redusert, én økt). MÅLT lokalitet for lokalitet.
+- Fylkeskommunene avviker med høyst 0,25 prosentpoeng (Nordland).
+  Fylkenes andel 2025 hadde ingen nyklarert-del, så her er det bare
+  stående MTB som skiller.
+
+Dette er en rimelighetskontroll og ikke en fasit. 2025 bygger på
+registeret ett år før, og det fanger ikke opp en feil som er lik i både
+deres og vår metode.
+
+### Kroppene
+
+- pressemelding: `data/arkiv/regjeringen-pressemeldinger/2025-11-10.bin.gz`, sha256 `35b92f454817a8bc6430314b69b2b799a296e84f2feee60d0a1fe6d2396b8a69`
+- regneark: `data/arkiv/havbruksfondet/2026-10-12.8.bin.gz`, sha256 `e26cfffe259153d0f9fd9d84c3f2a89b3d904e290c0f48f5978a667e38308b76`
+
+### Pressemeldingen mot regnearket
+
+- kommuner i pressemeldingen: 143, i regnearket: 143
+- navn i pressemeldingen uten treff i regnearket: []
+- kommuner der beløpet avviker med 1 kr eller mer: 0
+- sum kommuner 1 127 938 403 + fylker 281 984 600 = 1 409 923 003 (avrunding); «Totalt:» 1 409 923 000
+
+### Rangkorrelasjon (Spearman)
+
+- A2 31.08.2026 mot TOTALT 2025, 143 kommuner (mangler = 0): **ρ = 0.9395**
+- samme, bare de 143 som finnes i begge: ρ = 0.9395
+- A2 mot ORDINÆR 2025 (uten nyklarert-delen), 143 kommuner: ρ = 0.9966
+- bare i 2025: []
+- bare i 2026: []
+
+### De 20 største
+
+| # 2025 | kommune | andel 2025 TOTALT | andel 2026 (A2) | # 2026 |
+|---|---|---|---|---|
+| 1 | FRØYA | 4.047% | 4.546% | 1 |
+| 2 | NÆRØYSUND | 3.612% | 3.786% | 2 |
+| 3 | SENJA | 3.198% | 3.441% | 3 |
+| 4 | HAMMERFEST | 2.957% | 3.059% | 4 |
+| 5 | HITRA | 2.631% | 2.713% | 5 |
+| 6 | SMØLA | 1.973% | 1.911% | 9 |
+| 7 | ALTA | 1.952% | 1.884% | 10 |
+| 8 | KARLSØY | 1.937% | 1.993% | 6 |
+| 9 | TROMSØ | 1.678% | 1.513% | 13 |
+| 10 | ÅFJORD | 1.667% | 1.447% | 16 |
+| 11 | HADSEL | 1.625% | 1.405% | 18 |
+| 12 | RØDØY | 1.609% | 1.457% | 15 |
+| 13 | KVINNHERAD | 1.601% | 1.577% | 12 |
+| 14 | LURØY | 1.601% | 1.343% | 22 |
+| 15 | KINN | 1.568% | 1.960% | 7 |
+| 16 | STAVANGER | 1.530% | 1.912% | 8 |
+| 17 | STEIGEN | 1.436% | 1.382% | 19 |
+| 18 | HAMARØY | 1.422% | 1.218% | 26 |
+| 19 | GILDESKÅL | 1.411% | 1.157% | 29 |
+| 20 | SOLUND | 1.368% | 1.156% | 30 |
+
+### De 10 største avvikene (prosentpoeng, A2 minus TOTALT 2025)
+
+| kommune | 2025 TOTALT | 2026 A2 | avvik | av det: nyklarert 2025 | av det: stående MTB | forklaring |
+|---|---|---|---|---|---|---|
+| FRØYA | 4.047% | 4.546% | +0.499 | +0.458 | +0.041 | nyklarert-delen 2025 (kommunen fikk 5 000 000 kr av den); lokaliteter: 1 nye, 4 borte, 5 endret, netto +1 656 t |
+| BOKN | 0.739% | 0.339% | -0.400 | -0.369 | -0.031 | nyklarert-delen 2025 (kommunen fikk 5 000 000 kr av den); lokaliteter: 0 nye, 0 borte, 1 endret, netto -1 150 t |
+| TINGVOLL | 0.595% | 0.198% | -0.397 | -0.397 | -0.000 | nyklarert-delen 2025 (kommunen fikk 4 923 240 kr av den) |
+| SALTDAL | 0.636% | 0.240% | -0.395 | -0.395 | -0.000 | nyklarert-delen 2025 (kommunen fikk 5 000 000 kr av den) |
+| KINN | 1.568% | 1.960% | +0.391 | +0.392 | -0.001 | nyklarert-delen 2025 (kommunen fikk 0 kr av den) |
+| HARSTAD | 1.288% | 1.670% | +0.382 | +0.322 | +0.060 | nyklarert-delen 2025 (kommunen fikk 0 kr av den); lokaliteter: 0 nye, 0 borte, 1 endret, netto +2 330 t |
+| BÅTSFJORD | 0.687% | 0.305% | -0.382 | -0.382 | -0.000 | nyklarert-delen 2025 (kommunen fikk 5 000 000 kr av den) |
+| STAVANGER | 1.530% | 1.912% | +0.382 | +0.383 | -0.001 | nyklarert-delen 2025 (kommunen fikk 0 kr av den) |
+| BREMANGER | 1.200% | 0.822% | -0.378 | -0.254 | -0.124 | nyklarert-delen 2025 (kommunen fikk 5 000 000 kr av den); lokaliteter: 0 nye, 1 borte, 1 endret, netto -4 680 t |
+| STAD | 0.782% | 0.424% | -0.359 | -0.358 | -0.000 | nyklarert-delen 2025 (kommunen fikk 5 000 000 kr av den) |
+
+### De 10 største avvikene mot ORDINÆR 2025 (prosentpoeng)
+
+Nyklarert-delen er tatt ut. Det som står igjen, er forskjell i stående MTB: lokaliteter som kom, forsvant eller endret MTB, og at alle andre kommuners MTB flyttet seg (nevneren).
+
+| kommune | ORDINÆR 2025 | 2026 A2 | avvik | MTB 2025 | MTB 2026 | forklaring |
+|---|---|---|---|---|---|---|
+| NÆRØYSUND | 3.961% | 3.786% | -0.175 | 150 239 | 143 675 | 0 nye, 2 borte, 2 endret: −13959 3 120 t, −26335 3 120 t, 37177 -3 120 t, 45262 +2 796 t |
+| SKJERVØY | 1.534% | 1.380% | -0.154 | 58 170 | 52 370 | 0 nye, 1 borte, 1 endret: −36237 5 400 t, 32357 -400 t |
+| HARAM | 0.594% | 0.738% | +0.144 | 22 531 | 27 991 | 1 nye, 0 borte, 1 endret: +45299 4 680 t, 12281 +780 t |
+| KARLSØY | 1.868% | 1.993% | +0.125 | 70 840 | 75 640 | 0 nye, 0 borte, 2 endret: 10757 +1 800 t, 36257 +3 000 t |
+| BREMANGER | 0.946% | 0.822% | -0.124 | 35 880 | 31 200 | 0 nye, 1 borte, 1 endret: −13550 3 120 t, 12224 -1 560 t |
+| HERØY I NORDLAND | 0.936% | 1.043% | +0.107 | 35 520 | 39 598 | 1 nye, 0 borte, 1 endret: +45300 3 599 t, 37857 +479 t |
+| SORTLAND | 0.797% | 0.902% | +0.105 | 30 224 | 34 224 | 1 nye, 0 borte, 0 endret: +45301 4 000 t |
+| LURØY | 1.447% | 1.343% | -0.104 | 54 872 | 50 972 | 0 nye, 2 borte, 0 endret: −21337 2 340 t, −26675 1 560 t |
+| SØMNA | 0.198% | 0.300% | +0.103 | 7 495 | 11 395 | 1 nye, 0 borte, 0 endret: +45282 3 900 t |
+| EVENES | 0.158% | 0.253% | +0.095 | 6 000 | 9 600 | 1 nye, 0 borte, 0 endret: +45298 3 600 t |
+
+### Lokalitetene bak avvikene mot TOTALT
+
+**FRØYA**
+- ny siden 01.09.2025: 45280, 4 776 t
+- borte siden 01.09.2025: 24456, 3 120 t
+- borte siden 01.09.2025: 24696, 3 900 t
+- borte siden 01.09.2025: 30437, 3 120 t
+- borte siden 01.09.2025: 31959, 5 460 t
+- endret: 12394, +3 900 t
+- endret: 12435, +3 120 t
+- endret: 14042, +3 120 t
+- endret: 28636, +5 460 t
+- endret: 33757, -3 120 t
+
+**BOKN**
+- endret: 38957, -1 150 t
+
+**HARSTAD**
+- endret: 26055, +2 330 t
+
+**BREMANGER**
+- borte siden 01.09.2025: 13550, 3 120 t
+- endret: 12224, -1 560 t
+
+### Fylkeskommunene
+
+| fylke | 2025 | 2026 A2 | avvik (pp) |
+|---|---|---|---|
+| Vestland | 20.818% | 20.704% | -0.113 |
+| Nordland | 20.435% | 20.686% | +0.251 |
+| Trøndelag | 18.810% | 18.567% | -0.243 |
+| Troms | 15.178% | 15.117% | -0.062 |
+| Finnmark | 10.210% | 10.185% | -0.025 |
+| Møre og Romsdal | 8.392% | 8.597% | +0.205 |
+| Rogaland | 5.296% | 5.283% | -0.013 |
+| Agder | 0.862% | 0.861% | -0.000 |
+
+Samlet MTB i nøkkelen: Fiskeridirektoratet 01.09.2025 3 793 021 t, A2 31.08.2026 3 795 214 t (+0.06%)
