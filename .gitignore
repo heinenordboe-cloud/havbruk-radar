@@ -18,12 +18,15 @@ dashboard/.evidence/
 # sjekkut. Den har allerede sviktet to ganger. En regel som skal gjelde
 # repoet må ligge i repoet.
 #
-# Unntaket er de to filene som er REGLER, ikke notater: sperrene for
-# Auto-modus og oppsettet for forhåndsvisningen. De skal følge repoet av
+# Unntaket er filene som er REGLER, ikke notater: sperrene for
+# Auto-modus, oppsettet for forhåndsvisningen, og fra 12.10.2026
+# agentene og hookene som håndhever CLAUDE.md. De skal følge repoet av
 # nøyaktig samme grunn.
 /.claude/*
 !/.claude/settings.json
 !/.claude/launch.json
+!/.claude/agents/
+!/.claude/hooks/
 
 # Generert av analyse/. Ren funksjon av snapshots + fasit, kan alltid
 # regenereres — og en generert fil som skrives om hver kjøring er

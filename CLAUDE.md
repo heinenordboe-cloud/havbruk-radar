@@ -423,6 +423,8 @@ Målt 08.10.2026: pytest 15 s, bygging med vakt 3 min 31 s — under
 fire minutter til sammen. Regel 6 gjelder fortsatt: det som er
 verifisert, er det som er kjørt.
 
+En økt som skriver eller endrer et MALING-dokument, kjører kontrolløren (`.claude/agents/kontrollor.md`) på det før push.
+
 **Rapporten er maks 10 linjer**, i tre deler: hva endret seg, hva er
 verifisert (og hvordan), hva må Heine bestemme. Den slutter med hashene
 til commitene. Det som ikke passer, står i commit-meldingen.
