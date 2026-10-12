@@ -974,7 +974,7 @@ den kommer. Det finnes tre veier inn:
 |---|---|---|
 | Fiskeridirektoratets side | siden og **hver lenke den har**, hver kjøring | regnearket med hele beregningen har kommet hit hvert år siden 2017 |
 | NFD hos NTB | RSS-strømmen; saker med «Havbruksfond» i tittel eller ingress hentes | MÅLT 12.10.2026: strømmen svarer 200 uten nøkkel, og NTB-kopien av meldingen 21.10.2024 har hele kommunetabellen. regjeringen.no svarer 403 |
-| regjeringen.no via Wayback | avtrykk fra `--fra` med «havbruksfond» i adressen. Kroppen må nevne fondet og ha en «Dato:» i vinduet. Én kropp per artikkel | fanger bare det Wayback har krøllet, og bare når adressen sier det. 2024-meldingen het `…/ny-side11/id3062266/` og ville ikke blitt fanget |
+| regjeringen.no via Wayback | avtrykk fra `--fra` med «havbruksfond» i adressen. Kroppen må nevne fondet og ha en «Dato:» i vinduet. Én kropp per artikkel | fanger bare det Wayback har krøllet, og bare når adressen sier det. 2024-meldingen (`id3062266`) er krøllet både som `ny-side11` og som `rekordutbetaling-fra-havbruksfondet`, så den ville vært fanget |
 
 **Wayback-nettet ble strammet etter en måling.** Første utkast filtrerte
 på «havbruk» i adressen. Tørrkjørt med `--fra 20251101` ga det
@@ -986,7 +986,11 @@ auksjonsarkivet også har målt. Nå må tre ting stemme: slugen sier
 «havbruksfond», kroppen nevner fondet, og kroppens egen dato ligger fra
 `--fra` og fram. Artikler som alt er arkivert, hentes ikke på nytt
 (`artikkel` i loggen). Det er testet uten nettverk i
-`test_daglig_wayback_holder_ute_gamle_og_udaterte_sider`.
+`test_daglig_wayback_holder_ute_gamle_og_udaterte_sider`. Tørrkjørt på
+nytt med `--fra 20251101` fant det strammere nettet 15 avtrykk av 7
+artikler. Det ville arkivert én av dem, meldingen 10.11.2025. De seks
+andre ble holdt ute: fem var datert 2022–2024, og én var en side uten
+«Dato:». MÅLT.
 
 NTB-kroppene havner i en ny mappe, `data/arkiv/ntb-pressemeldinger/`,
 under meldingens egen dato. Wayback-kroppene havner i

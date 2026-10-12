@@ -62,8 +62,8 @@ den dagen. Derfor leses de av noe som finnes nå:
                   «havbruksfond» i adressen, en kropp som nevner fondet og
                   en «Dato:» i vinduet, inn i `regjeringen-pressemeldinger/`.
                   Én kropp per artikkel. Fanger bare det noen har krøllet,
-                  og bare når slugen sier det: 2024-meldingen het
-                  `ny-side11`.
+                  og bare når slugen sier det (2024-meldingen er krøllet
+                  både som `ny-side11` og med «havbruksfondet» i slugen).
 
 Strømmen arkiveres ikke selv. Den endrer seg hver gang NFD publiserer
 noe, og ville gitt én kropp per dag uten innhold om fondet.
