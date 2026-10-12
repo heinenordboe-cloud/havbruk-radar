@@ -1,5 +1,15 @@
 # Åpne spørsmål
 
+> **Etterskrift 12.10.2026, gjelder punkt 3.** Nettstedet er publisert. Første
+> produksjonspublisering var **2026-09-24T22:01:31Z** (25.09.2026
+> kl. 00.01 norsk tid), kode `2e09005`, data `98a5a70`. Det står i
+> publiseringsloggen i datarepoet, `docs/publiseringslogg.tsv`, som har
+> 23 publiseringer (11 i produksjon) fram til 12.10.2026. Hosting og domene står i
+> `docs/RUNBOOK.md` under «Publisering: `publiser.py`»: Cloudflare Pages,
+> prosjekt `kystloggen`, domene `kystloggen.no`. Domenet er lest i
+> RUNBOOK og ikke sjekket mot tjenesten her. Teksten under er uendret fra
+> da den ble skrevet.
+
 Det ubesvarte, med begrunnelse for hvorfor det betyr noe. Sytten
 tekniske spørsmål står igjen: sju under, sortert etter hva som
 blokkerer mest, og ti fra designimplementeringen 22.09.2026.
