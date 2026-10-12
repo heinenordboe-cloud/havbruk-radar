@@ -855,3 +855,100 @@ Nå (snapshot) minus Fiskeridirektoratets lokalitetsliste per 01.09.2025, bare �
 | 4613 BØMLO | 420 | 16281 +420 |
 
 **29 kommuner, 37 lokaliteter, 82 608 t.**
+
+---
+
+## A5. Anslaget
+
+### Formatet kan ikke bære det, og det er tre grunner til det
+
+Målt mot `core/predictions.py`, ikke bare mot malen:
+
+1. **Det finnes ingen kilde.** Et anslag avgjøres med
+   `snapshot.les_mellom(kilde, fra, til)`. Utbetalingen fra fondet er
+   ingen kilde i `sources/`. Uten snapshots blir utfallet
+   `kan_ikke_avgjores` («ingen utgangsverdi ved vindusstart»).
+2. **Ingen av typene passer.** `endring` og `uendret` måler prosent
+   bevegelse fra en utgangsverdi i et snapshot. `verdi` krever at
+   strengen er nøyaktig lik. Anslaget sier at en andel havner innenfor
+   et intervall rundt et tall vi har regnet ut. Det er ingen av de tre.
+3. **Påstanden gjelder 143 entiteter.** Malen har én `entitet` per
+   anslag.
+
+**Hva som må til:**
+
+- en kilde `sources/havbruksfond.py` som leser Fiskeridirektoratets
+  regneark (`havbruksfondet/`, arkivert i A1 og fanget av A6). Den
+  skal gi én observasjon per kommune og fylkeskommune
+  (`entity_id` = kommunenummer, felt `andel` og `utbetaling`) med
+  `observed_at` = måledatoen 01.09. Det er én ny fil og ingen endring i
+  `core/` (regel 1);
+- en ny type i `core/predictions.py`, for eksempel `intervall` med
+  `verdi_min` og `verdi_max`. Det **er** en endring i `core/`, og den
+  avgjør du;
+- én prediksjon per kommune, laget av et skript fra A2-tabellen, i
+  stedet for én påstand om alle.
+
+### Anslaget, ferdig utfylt unntatt konfidens
+
+Referanseverdiene er A2-tabellen «Kommunene, alle 143» og
+«Fylkeskommunene» over, slik de står i commit `a4608a3`. `vindu.fra`
+må være datoen du committer fila, eller senere (valideringen krever det).
+Fila skal hete etter samme dato.
+
+```yaml
+prediksjoner:
+  - id: "<dato>-1"
+    entitet: "kommuner"            # FORMATET BÆRER DET IKKE: gjelder alle 143
+    kilde: "havbruksfond"          # FINNES IKKE i sources/ (se over)
+    felt: "andel"
+    type: "intervall"              # FINNES IKKE i core/predictions.TYPER
+    verdi_min: "A2-andel − 0,05 prosentpoeng, per kommune"
+    verdi_max: "A2-andel + 0,05 prosentpoeng, per kommune"
+    vindu:
+      fra: "<dato>"
+      til: "2026-12-31"
+    grunnlag: >
+      Utbetalingen 2026 er i et partallsår. Etter instruksen av 27.09.2024
+      fordeles da hele kommunenes andel etter klarert lokalitets-MTB per
+      01.09.2026 kl. 12.00, uten nyklarert-del. A2 har regnet ut denne
+      andelen fra registeret 31.08.2026 og 07.09.2026, og de to
+      snapshotene er like. Filteret og vekten (max av kapasitet og
+      midlertidig kapasitet) er holdt mot Fiskeridirektoratets egen
+      lokalitetsliste for 2025. Der stemmer vekten for 954 av 954
+      lokaliteter som ikke er endret siden. Andelen per kommune er da
+      MTB i kommunen delt på samlet MTB, og den skal treffe
+      Fiskeridirektoratets tall med mindre de har brukt en lokalitet vi
+      holder ute eller utelatt en vi tar med.
+    feil_hvis: >
+      Én av disse fire er nok til at påstanden faller.
+      (1) Tabellen «Utbetalinger fra Havbruksfondet 2026» har en kolonne
+      ANDEL NYKLARERT med beløp over 0 for noen kommune. Da er
+      partallsregelen ikke fulgt.
+      (2) Kommunesettet er ikke de samme 143 kommunenumrene som i A2.
+      (3) For minst én kommune avviker TOTALT / sum TOTALT for kommunene
+      mer enn 0,05 prosentpoeng fra A2.
+      (4) For minst én fylkeskommune avviker andelen mer enn 0,05
+      prosentpoeng fra A2.
+      Mekanismen er feil hvis Fiskeridirektoratets lokalitetsliste per
+      01.09.2026 tar med eller utelater andre lokaliteter enn filteret
+      gjør. To kjente kandidater er Havbruksstasjonen i Tromsø (1 625 t)
+      og HØGÅS (780 t).
+    konfidens:                     # fylles av Heine
+    utfall: ""
+    utfall_dato: ""
+    utfall_kilde: ""
+    utfall_note: ""
+```
+
+**Hvordan anslaget avgjøres for hånd mot 2025-formatet:** ta
+regnearket for 2026 (A6 arkiverer det), arket «Utbetalingsoversikt». Del
+TOTALT per KOMNR på summen for kommunene, og del BELØP per FYLKESNR i
+arket «Fylkeskommuner» på summen for fylkeskommunene. Hold tallene mot
+A2-tabellene, kommune for kommune. Pressemeldingen har samme tabell med
+kommunenavn i stedet for nummer. A3 viser at de to stemmer overens.
+
+**Hvorfor ±0,05 prosentpoeng:** den største kjente usikkerheten er
+Havbruksstasjonen i Tromsø. Den gir 0,043 prosentpoeng for Tromsø hvis
+Fiskeridirektoratet tar lokalitetene med igjen. Alle andre kjente
+forskjeller er mindre. Det er en terskel, ikke et konfidensintervall.
