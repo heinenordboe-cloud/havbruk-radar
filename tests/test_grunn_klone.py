@@ -153,3 +153,37 @@ def test_full_klone_som_ikke_har_hentet_origin_main(repoer, i_klone,
     assert pushet is None
     assert "er ikke hentet i denne klonen" in hvordan
     assert "finnes ikke" not in hvordan
+
+
+def test_main_pushet_etter_kloning(tmp_path, i_klone, monkeypatch):
+    """MÅLT 12.10.2026, bygg.yml #8: koden ble klonet, så ble det pushet
+    en ny commit til kodrepoet mens bygget gikk. `ls-remote` svarte med
+    en sha klonen ikke hadde, og 790 snapshots ble «kan ikke avgjøres».
+    Porten skal hente det fjernlageret sa, og svare ja."""
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "--bare", "--initial-branch", "main",
+                    str(origin)], check=True, capture_output=True)
+    arbeid, klone = tmp_path / "arbeid", tmp_path / "klone"
+    subprocess.run(["git", "clone", str(origin), str(arbeid)],
+                   check=True, capture_output=True)
+    for n, v in (("user.email", "t@example.invalid"), ("user.name", "T"),
+                 ("commit.gpgsign", "false")):
+        _git(arbeid, "config", n, v)
+
+    def commit(i):
+        (arbeid / "fil.txt").write_text(f"{i}\n", encoding="utf-8")
+        _git(arbeid, "add", "-A")
+        _git(arbeid, "commit", "-m", f"c{i}")
+        _git(arbeid, "push", "origin", "main")
+        return _git(arbeid, "rev-parse", "HEAD")
+
+    gammel = commit(0)
+    subprocess.run(["git", "clone", f"file://{origin}", str(klone)],
+                   check=True, capture_output=True)
+    ny = commit(1)                       # pushet ETTER kloningen
+
+    i_klone(klone)
+    monkeypatch.setattr(kp, "_hent_main", kp._hent_main.__wrapped__)
+    assert kp._fjern_main() == ny
+    pushet, hvordan = kp.paa_origin_main(gammel)
+    assert pushet is True, hvordan

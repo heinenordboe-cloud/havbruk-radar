@@ -192,6 +192,23 @@ def _har_commit(sha: str) -> bool:
     return _git("cat-file", "-e", f"{sha}^{{commit}}")[0] == 0
 
 
+@lru_cache(maxsize=4)
+def _hent_main(mot: str) -> None:
+    """Hent fjernlagerets main når `mot` mangler i klonen. Én gang per sha.
+
+    MÅLT 12.10.2026, bygg.yml kjøring #8: koden ble klonet på 66016dd,
+    og mens bygget gikk ble 04d91dd pushet til kodrepoet. `ls-remote` i
+    porten svarte 04d91dd, klonen hadde den ikke, og hvert snapshot med
+    stempel — 790 — ble «kan ikke avgjøres». Ingen av dem var upushet.
+
+    Spørsmålet er det samme som før, stilt til den som vet: vi henter det
+    fjernlageret sa var main, i stedet for å gi opp fordi vi ikke hadde
+    det. Lykkes ikke hentingen, er svaret fortsatt «kan ikke avgjøres»
+    med grunnen under — prøven blir ikke mildere, bare mindre blind.
+    """
+    _git("fetch", "--quiet", "--no-tags", "origin", "refs/heads/main", tid=60)
+
+
 def _er_stamfar(sha: str, mot: str) -> tuple[bool | None, str]:
     """(er `sha` lik eller stamfar til `mot`, grunn når det ikke kan avgjøres).
 
@@ -217,6 +234,8 @@ def _er_stamfar(sha: str, mot: str) -> tuple[bool | None, str]:
     """
     if sha == mot:
         return True, ""
+    if not _har_commit(mot):
+        _hent_main(mot)
     kode, _ = _git("merge-base", "--is-ancestor", sha, mot)
     if kode == 0:
         return True, ""
