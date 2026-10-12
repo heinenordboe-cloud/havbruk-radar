@@ -20,13 +20,14 @@ dashboard/.evidence/
 #
 # Unntaket er filene som er REGLER, ikke notater: sperrene for
 # Auto-modus, oppsettet for forhåndsvisningen, og fra 12.10.2026
-# agentene og hookene som håndhever CLAUDE.md. De skal følge repoet av
+# agentene, hookene og skillene som håndhever CLAUDE.md. De skal følge repoet av
 # nøyaktig samme grunn.
 /.claude/*
 !/.claude/settings.json
 !/.claude/launch.json
 !/.claude/agents/
 !/.claude/hooks/
+!/.claude/skills/
 
 # Generert av analyse/. Ren funksjon av snapshots + fasit, kan alltid
 # regenereres — og en generert fil som skrives om hver kjøring er
