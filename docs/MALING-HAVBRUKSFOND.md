@@ -673,3 +673,185 @@ Nyklarert-delen er tatt ut. Det som står igjen, er forskjell i stående MTB: lo
 | Agder | 0.862% | 0.857% | -0.005 |
 
 Samlet MTB i nøkkelen: Fiskeridirektoratet 01.09.2025 3 793 021 t, A2 31.08.2026 3 815 004 t (+0.58%)
+
+---
+
+## A4. Ny biomasse
+
+    .venv/bin/python analyse/havbruksfond/a4_ny_biomasse.py [snapshotdato]
+
+**Perioden.** Etter instruksen gjelder perioden «fra 1. september kl 12.00
+i oddetallsår, og to kalenderår tilbake i tid». Neste oddetallsår er
+2027, så perioden som løper nå, er **01.09.2025 kl. 12.00 –
+01.09.2027 kl. 12.00**. Den utbetales i 2027. Utbetalingen i 2026 har
+ingen nyklarert-del (A1). Kjøringen under er gjort mot snapshotet
+12.10.2026.
+
+### Svaret: `forste_klarering` gir MÅLBAR, ikke MÅLT
+
+Med `forste_klarering` fra 01.09.2025 kl. 12.00 får vi **7 lokaliteter
+i 7 kommuner, 27 675 t**. Feltet måler noe annet enn regelverket.
+Regelverket teller *ny lokalitets-MTB*. Feltet sier når en *lokalitet*
+ble klarert første gang. Fiskeridirektoratets regneark for 2025 viser
+forskjellen. Arket «Økt kapasitet» har 67 rader: 24 nye lokaliteter
+(107 945 t) og 43 lokaliteter som fantes fra før og fikk mer MTB
+(60 244 t).
+
+- `forste_klarering` fanger alle **24 av 24** nye lokaliteter fra
+  2025. Den delen måler feltet riktig. MÅLT.
+- Den ser ikke økningen på lokaliteter som fantes fra før. Det var
+  **35,8 % av ny MTB i 2025**. MÅLT.
+
+### Bedre: Fiskeridirektoratets egen startverdi
+
+Periodens startpunkt er 01.09.2025. Fiskeridirektoratets lokalitetsliste
+per den dagen er arkivert (A1), og det er den regnearket kaller
+«HistKap». Nå minus da, lokalitet for lokalitet og bare økninger, gir
+**29 kommuner, 37 lokaliteter og 82 608 t** per 12.10.2026 (tabellen
+nederst). Det er nærmere regelverket, men fortsatt MÅLBAR og ikke MÅLT,
+av tre grunner:
+
+1. En økning som er gjort og reversert mellom to av våre hentinger,
+   ses ikke. Fiskeridirektoratet gjør «ikke fratrekk for
+   lokalitets-MTB som har bortfalt», så den ville trolig telt med hos
+   dem.
+2. 38097 HØGÅS er telt som ny (780 t). Den var ute av registeret
+   01.09.2025 og kom tilbake 03.10.2025 (A2). Om Fiskeridirektoratet
+   regner en gjenoppstått lokalitet som ny MTB, er UBELAGT.
+3. Delte lokaliteter er fordelt med andelene fra 2025.
+
+Taket på 5 mill. kr per kommune og potten for 2027 er ikke regnet ut.
+Potten er 1/8 av utbetalingene i 2026 og 2027, og ingen av dem er kjent.
+
+### Versjonsfeltet som snarvei: testet, og det mister en femtedel
+
+`versjon_aarsak = CAPACITY_CHANGE` med `versjon_gyldig_fra` i perioden
+peker på 34 av de 43 økningene fra 2025 (46 785 av 60 244 t). De andre ni
+har fått en senere versjon av en annen grunn (koordinater, areal,
+vedtaksstatus), eller en senere kapasitetsendring. Bare siste versjon
+står i snapshotet. MÅLT. Feltet sier heller ikke hvor stor endringen
+var, eller i hvilken retning.
+
+### Kontroll mot Fiskeridirektoratets 2025-regneark
+
+Regneark `data/arkiv/havbruksfondet/2026-10-12.8.bin.gz`, sha256 `e26cfffe259153d0f9fd9d84c3f2a89b3d904e290c0f48f5978a667e38308b76`.
+
+- rader i «Økt kapasitet»: 67
+- av dem nye lokaliteter (HistKap 0): 24, 107 945 t
+- av dem økt MTB på eksisterende lokalitet: 43, 60 244 t
+- **andel av ny MTB 2025 som forste_klarering ikke kan se: 35.8%**
+- nye lokaliteter 2025 med forste_klarering i 01.09.2023–01.09.2025 i vårt snapshot 2026-10-12: 24 av 24
+- økt MTB 2025 der `versjon_aarsak` = CAPACITY_CHANGE med `versjon_gyldig_fra` i perioden, i snapshot 2026-10-12: 34 av 43, 46 785 av 60 244 t
+  - de andre, etter `versjon_aarsak` i dag: AREA_EVENT 2, CAPACITY_CHANGE 2, COORDINATES 4, DECISION_STATUS_CHANGED 1
+
+### Lokaliteter i nøkkelen med forste_klarering fra 2025-09-01T10:00:00Z (snapshot 2026-10-12)
+
+Snapshot `data/raw/akvakultur/2026-10-12.parquet`, raw_hash `69a4c7efaf2f423e294d4c8cff4ec8c36abc227503b7ff268f8fd94cc7917c9d`.
+
+| lokalitet | navn | kommune | MTB | forste_klarering | klarering |
+|---|---|---|---|---|---|
+| 45299 | HARAM | 1580 HARAM | 4 680 | 2026-06-15 | PERMANENT |
+| 45282 | LAKSVIKA | 1812 SØMNA | 3 900 | 2026-01-29 | PERMANENT |
+| 45300 | SKIPBÅTSVÆR | 1818 HERØY I NORDLAND | 3 599 | 2026-06-16 | PERMANENT |
+| 45298 | FORNES I | 1853 EVENES | 3 600 | 2026-06-06 | PERMANENT |
+| 45301 | KINNHOLMEN | 1870 SORTLAND | 4 000 | 2026-07-02 | PERMANENT |
+| 45280 | KLOVNINGAN | 5014 FRØYA | 4 776 | 2026-01-06 | TEMPORARY |
+| 45289 | BÅRÅSA | 5057 ØRLAND | 3 120 | 2026-04-12 | PERMANENT |
+
+**7 kommuner, 7 lokaliteter, 27 675 t**
+
+| kommune | lokaliteter | MTB (t) |
+|---|---|---|
+| 5014 FRØYA | 1 | 4 776 |
+| 1580 HARAM | 1 | 4 680 |
+| 1870 SORTLAND | 1 | 4 000 |
+| 1812 SØMNA | 1 | 3 900 |
+| 1853 EVENES | 1 | 3 600 |
+| 1818 HERØY I NORDLAND | 1 | 3 599 |
+| 5057 ØRLAND | 1 | 3 120 |
+
+### Økt MTB på lokaliteter som fantes 2026-08-17 (snapshot 2026-10-12)
+
+Serien begynner 2026-08-17. Økning mellom 01.09.2025 og 2026-08-17 kan ikke ses.
+
+- 16281 KASTEVIKA (BØMLO): 780 → 1 200 t (+420)
+
+### Lokaliteter fra før perioden med kapasitetsendring fra 2025-09-01T10:00:00Z (`versjon_aarsak`, snapshot 2026-10-12)
+
+Retningen og størrelsen står ikke i feltet; bare at kapasiteten ble endret, og når.
+
+| lokalitet | navn | kommune | MTB nå | versjon_gyldig_fra |
+|---|---|---|---|---|
+| 12265 | GUDMUNDSET | 1508 ÅLESUND | 3 120 | 2026-01-19 |
+| 20815 | SLETTVIKA | 1520 ØRSTA | 4 680 | 2026-05-17 |
+| 27395 | RINDARØY | 1547 AUKRA | 1 560 | 2026-01-14 |
+| 12839 | VINDSNES | 1578 FJORD | 3 900 | 2026-01-25 |
+| 22335 | STORVIKA | 1579 HUSTADVIKA | 6 240 | 2026-04-07 |
+| 12281 | ROGNE | 1580 HARAM | 7 800 | 2025-11-23 |
+| 35737 | SÆTEROSEN | 1813 BRØNNØY | 3 599 | 2026-07-14 |
+| 36317 | VARHOLMEN | 1813 BRØNNØY | 5 460 | 2026-01-08 |
+| 37857 | SEISKJÆRET | 1818 HERØY I NORDLAND | 3 599 | 2026-01-19 |
+| 45037 | Kjølvika I | 1838 GILDESKÅL | 2 576 | 2026-09-24 |
+| 27996 | KALVHODET | 1865 VÅGAN | 4 990 | 2026-02-11 |
+| 20897 | GISLØY S | 1868 ØKSNES | 3 600 | 2026-07-16 |
+| 39577 | SILDA | 4602 KINN | 3 120 | 2026-07-19 |
+| 16281 | KASTEVIKA | 4613 BØMLO | 1 200 | 2026-09-28 |
+| 11575 | KOLØY N | 4615 FITJAR | 2 340 | 2026-07-01 |
+| 26295 | LANGØY | 4631 ALVER | 8 280 | 2026-05-05 |
+| 11803 | KYRAVIKA | 4646 FJALER | 4 680 | 2025-11-25 |
+| 12394 | ØRNØYA | 5014 FRØYA | 8 580 | 2026-01-05 |
+| 12435 | GRØTTINGSØY | 5014 FRØYA | 10 140 | 2026-01-08 |
+| 14042 | KATTHOLMEN | 5014 FRØYA | 7 800 | 2025-12-21 |
+| 28636 | RATAREN | 5014 FRØYA | 10 920 | 2025-12-21 |
+| 33757 | HÅBRANDEN | 5014 FRØYA | 5 460 | 2025-12-14 |
+| 12348 | KÅHOLMEN | 5056 HITRA | 3 900 | 2026-06-30 |
+| 13503 | HEGGVIKA | 5056 HITRA | 4 680 | 2026-06-30 |
+| 33417 | PERSFLUA | 5057 ØRLAND | 3 120 | 2026-04-12 |
+| 30297 | KRABBHOLMEN | 5058 ÅFJORD | 6 240 | 2026-01-05 |
+| 45262 | TAREGGA ØST | 5060 NÆRØYSUND | 3 600 | 2025-10-27 |
+| 13804 | ROGNDALEN | 5501 TROMSØ | 3 599 | 2026-06-02 |
+| 26055 | TOPPSUND Ø | 5503 HARSTAD | 8 000 | 2026-02-17 |
+| 26615 | HAUG | 5510 KVÆFJORD | 4 280 | 2026-06-25 |
+| 31177 | HILDERKLEIVA | 5510 KVÆFJORD | 1 200 | 2026-03-13 |
+| 10757 | DÅVØYA | 5534 KARLSØY | 7 200 | 2025-11-23 |
+| 36257 | MJØNES | 5534 KARLSØY | 10 200 | 2025-11-23 |
+
+**33 lokaliteter i 25 kommuner.**
+
+### Ny lokalitets-MTB fra 01.09.2025 til 2026-10-12, per kommune
+
+Nå (snapshot) minus Fiskeridirektoratets lokalitetsliste per 01.09.2025, bare økninger. «ny» = lokaliteten sto ikke på lista.
+
+| kommune | ny MTB (t) | lokaliteter |
+|---|---|---|
+| 5014 FRØYA | 20 376 | 12394 +3 900, 12435 +3 120, 14042 +3 120, 28636 +5 460, 45280 (ny) +4 776 |
+| 1580 HARAM | 5 460 | 12281 +780, 45299 (ny) +4 680 |
+| 5534 KARLSØY | 4 800 | 10757 +1 800, 36257 +3 000 |
+| 1818 HERØY I NORDLAND | 4 078 | 37857 +479, 45300 (ny) +3 599 |
+| 1870 SORTLAND | 4 000 | 45301 (ny) +4 000 |
+| 1812 SØMNA | 3 900 | 45282 (ny) +3 900 |
+| 4631 ALVER | 3 600 | 26295 +3 600 |
+| 1853 EVENES | 3 600 | 45298 (ny) +3 600 |
+| 1813 BRØNNØY | 3 599 | 35737 +1 259, 36317 +2 340 |
+| 5058 ÅFJORD | 3 120 | 30297 +3 120 |
+| 5057 ØRLAND | 3 120 | 45289 (ny) +3 120 |
+| 5060 NÆRØYSUND | 2 796 | 45262 +2 796 |
+| 5624 LEBESBY | 2 400 | 13337 +2 400 |
+| 5503 HARSTAD | 2 330 | 26055 +2 330 |
+| 1865 VÅGAN | 1 870 | 27996 +1 870 |
+| 4615 FITJAR | 1 560 | 11575 +1 560 |
+| 4646 FJALER | 1 560 | 11803 +1 560 |
+| 1508 ÅLESUND | 1 560 | 12265 +1 560 |
+| 1520 ØRSTA | 1 560 | 20815 +1 560 |
+| 1868 ØKSNES | 1 260 | 20897 +1 260 |
+| 1578 FJORD | 780 | 12839 +780 |
+| 5056 HITRA | 780 | 13503 +780 |
+| 1579 HUSTADVIKA | 780 | 22335 +780 |
+| 1130 STRAND | 780 | 38097 (ny) +780 |
+| 4602 KINN | 780 | 39577 +780 |
+| 5510 KVÆFJORD | 680 | 26615 +680 |
+| 1547 AUKRA | 560 | 27395 +560 |
+| 5501 TROMSØ | 499 | 13804 +499 |
+| 4613 BØMLO | 420 | 16281 +420 |
+
+**29 kommuner, 37 lokaliteter, 82 608 t.**
