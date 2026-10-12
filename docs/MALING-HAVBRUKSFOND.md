@@ -1067,3 +1067,292 @@ i døgnet mot en uendret side gir derfor én commit per dag, og den er
 kvitteringen på at jobben kjørte. Det er testet i
 `test_daglig_uten_noe_nytt_skriver_ingen_ny_logg`. Vil du ha commits bare
 når en ny kropp kommer, kan `git add` begrenses til `*.bin.gz`.
+
+---
+
+## A7. Inntekter fra kapasitetssalget 2026
+
+    .venv/bin/python analyse/havbruksfond/a7_kapasitetssalg.py
+
+Skriptet kan kjøres hver uke. Det leser hver changelogfil for
+`eierskap` fra og med 2026-09-28, så nye uker kommer med uten endring i
+koden. Prisen leses av den arkiverte pressemeldingen 10.09.2026 og er
+ikke skrevet inn i skriptet.
+
+### Svaret
+
+- **33 tillatelser fikk nøyaktig 1 %** (`round(gammel × 1,01)`), til
+  sammen **339 t**. Alle kom i uke 41 (changeloggen 2026-10-05). MÅLT
+  mot changeloggen. Det er de samme 33 som F1.1 i
+  docs/MALING-FUNN-OKTOBER.md.
+- **339 t × 270 000 kr = 91 530 000 kr.** Fondets andel er 55 %:
+  **50 341 500 kr**, som deles i 40 273 200 kr til kommuner og
+  10 068 300 kr til fylkeskommuner. MÅLBAR, fordi det er regnet ut av
+  målte tall og en andel (55 %) som ikke er bekreftet for 2026 (A1).
+- **Uavklart, ikke priset:** én økning, TR-S-0001 fra 0 til 4 000. Det er
+  en **settefisktillatelse** (KOMM-SETT) og trolig ikke et salg av vekst.
+  I tillegg kom 11 nye tillatelser. Ti er matfisktillatelser for torsk
+  (F-H-0038–0042 og TR-O-0004–0008). Én er en slaktemerdtillatelse for
+  laks, ørret og regnbueørret (VL-B-0015, 420 t). Ingen av dem ligner
+  auksjonen, som selger nye matfisktillatelser for laks. MÅLT mot
+  eierskapskroppene for samme uke.
+
+### Tallet er et GULV, og dette er grunnene
+
+1. **Auksjonen er ikke med.** Det finnes ingen auksjonspris i noen kropp
+   vi har. Auksjonsarkivet (`data/arkiv/auksjon/`) har ingen side for
+   2026-runden per 12.10.2026. Indeksen hos Fiskeridirektoratet lenker
+   fortsatt bare rundene 2018–2024, og Wayback har ingen treff for
+   regjeringen.no. MÅLT mot loggen 12.10.2026. Om auksjonen er holdt, kan
+   ikke kroppene svare på.
+2. **Unntaksvekst er ikke med.** Den selges til samme pris, men kan ikke
+   skilles fra andre økninger i changeloggen. Andelen til fondet er ikke
+   oppgitt (A1, hull 2).
+3. **Det som ikke er registrert ennå, er ikke med.** En økning som er
+   vedtatt, men ikke lagt inn i pub-aqua, kommer først i en senere uke.
+4. **Tillatelser eid av personer, ENK og sektor 2300 er ikke med.** De
+   fjernes i `fetch()` før arkivering (93 i kroppene, se F1.1), og kan
+   verken telles eller utelukkes.
+
+### Fordelingen per kommune er en stedfortreder
+
+Fordelingen under bruker andelene fra A2, som oppgaven ber om. Det er
+**ikke** fordelingen fondet faktisk kommer til å bruke, av to grunner:
+
+- Etter regelen i instruksen av 2022 (A1, hull 3) havner salg som er
+  bokført etter 31.08.2026, i utbetalingen **2027**. Det er et
+  oddetallsår. Da går 1/8 av to års utbetalinger etter ny MTB (A4), og
+  resten etter MTB per 01.09.2027, ikke per 01.09.2026.
+- Beløpet fastsettes i departementets årlige orientering. Den
+  «fordrer budsjettfullmakt fra Stortinget» (instruksen 2024) og kan
+  avvike fra en ren prosentregning.
+
+### Grunnlaget
+
+Changeloggfiler for eierskap fra 2026-09-28: 2026-09-28.parquet, 2026-10-05.parquet, 2026-10-12.parquet.
+
+Pris, ordrett fra `regjeringen-pressemeldinger/2026-09-10`: «Én prosent selges til fastpris. Dette er tilbud om vekst på tillatelser oppdretterne allerede har. Prisen er 270 000 kroner per tonn»
+
+- økt kapasitet på eksisterende tillatelse: 34
+- redusert kapasitet: 0
+- nye tillatelser med kapasitet: 11
+
+### Hver tillatelse med økt kapasitet
+
+| uke | tillatelse | type | laks/ørret/regnbueørret | gammel | ny | tonn økt | klasse |
+|---|---|---|---|---|---|---|---|
+| 2026-10-05 | AG-F-0005 | KOMM-MATF Matfisk | ja | 1261 | 1274 | 13 | fastpris (1 %) |
+| 2026-10-05 | AG-F-0006 | KOMM-MATF Matfisk | ja | 1125 | 1136 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-H-0036 | KOMM-MATF Matfisk | ja | 1816 | 1834 | 18 | fastpris (1 %) |
+| 2026-10-05 | F-N-0006 | KOMM-MATF Matfisk | ja | 1073 | 1084 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-SV-0004 | KOMM-MATF Matfisk | ja | 1068 | 1079 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-SV-0005 | KOMM-MATF Matfisk | ja | 1068 | 1079 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-SV-0006 | KOMM-MATF Matfisk | ja | 1068 | 1079 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-SV-0008 | KOMM-MATF Matfisk | ja | 1068 | 1079 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-SV-0009 | KOMM-MATF Matfisk | ja | 1068 | 1079 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-SV-0010 | KOMM-MATF Matfisk | ja | 1073 | 1084 | 11 | fastpris (1 %) |
+| 2026-10-05 | F-SV-0011 | KOMM-MATF Matfisk | ja | 1442 | 1456 | 14 | fastpris (1 %) |
+| 2026-10-05 | R-HM-0005 | KOMM-MATF Matfisk | ja | 872 | 881 | 9 | fastpris (1 %) |
+| 2026-10-05 | R-HM-0007 | KOMM-MATF Matfisk | ja | 839 | 847 | 8 | fastpris (1 %) |
+| 2026-10-05 | R-V-0016 | KOMM-MATF Matfisk | ja | 839 | 847 | 8 | fastpris (1 %) |
+| 2026-10-05 | R-V-0017 | KOMM-MATF Matfisk | ja | 851 | 860 | 9 | fastpris (1 %) |
+| 2026-10-05 | R-V-0018 | KOMM-MATF Matfisk | ja | 836 | 844 | 8 | fastpris (1 %) |
+| 2026-10-05 | TF-H-0003 | KOMM-MATF Matfisk | ja | 1798 | 1816 | 18 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0003 | KOMM-MATF Matfisk | ja | 1107 | 1118 | 11 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0004 | KOMM-MATF Matfisk | ja | 1074 | 1085 | 11 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0005 | KOMM-MATF Matfisk | ja | 1101 | 1112 | 11 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0010 | KOMM-MATF Matfisk | ja | 1076 | 1087 | 11 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0013 | KOMM-MATF Matfisk | ja | 1074 | 1085 | 11 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0014 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0015 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0017 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0018 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-F-0023 | KOMM-MATF Matfisk | ja | 118 | 119 | 1 | fastpris (1 %) |
+| 2026-10-05 | VA-FS-0010 | KOMM-MATF Matfisk | ja | 910 | 919 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-FS-0011 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-FS-0014 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-LD-0004 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-LD-0008 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-05 | VA-LD-0010 | KOMM-MATF Matfisk | ja | 877 | 886 | 9 | fastpris (1 %) |
+| 2026-10-12 | TR-S-0001 | KOMM-SETT Settefisk | ja | 0 | 4000 | 4000 | uavklart |
+
+### Nye tillatelser (uavklart)
+
+| uke | tillatelse | type | laks/ørret/regnbueørret | kapasitet |
+|---|---|---|---|---|
+| 2026-09-28 | F-H-0038 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-09-28 | F-H-0039 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-09-28 | F-H-0040 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-09-28 | F-H-0041 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-09-28 | F-H-0042 | KOMM-MATF Matfisk | nei | 480 |
+| 2026-10-05 | TR-O-0004 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-10-05 | TR-O-0005 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-10-05 | TR-O-0006 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-10-05 | TR-O-0007 | KOMM-MATF Matfisk | nei | 780 |
+| 2026-10-05 | TR-O-0008 | KOMM-MATF Matfisk | nei | 380 |
+| 2026-10-05 | VL-B-0015 | SLAK-MATF Matfisk | ja | 420 |
+
+### Gulvet
+
+- fastpris: 33 tillatelser, **339 t × 270 000 kr = 91 530 000 kr**
+- uavklart, ikke priset: 1 økninger, 4 000 t; 11 nye tillatelser
+- fondets andel 55%: **50 341 500 kr** (kommuner 40 273 200, fylkeskommuner 10 068 300)
+
+### Fordelt etter andelene fra A2 (31.08.2026)
+
+| fylkeskommune | andel | kr |
+|---|---|---|
+| 18 Nordland | 20.759% | 2 090 077 |
+| 46 Vestland | 20.649% | 2 079 000 |
+| 50 Trøndelag | 18.695% | 1 882 306 |
+| 55 Troms | 15.049% | 1 515 157 |
+| 56 Finnmark | 10.132% | 1 020 133 |
+| 15 Møre og Romsdal | 8.603% | 866 221 |
+| 11 Rogaland | 5.255% | 529 119 |
+| 42 Agder | 0.857% | 86 286 |
+
+| # | kommune | andel | kr |
+|---|---|---|---|
+| 1 | 5014 FRØYA | 4.584% | 1 845 978 |
+| 2 | 5060 NÆRØYSUND | 3.848% | 1 549 646 |
+| 3 | 5530 SENJA | 3.423% | 1 378 725 |
+| 4 | 5603 HAMMERFEST | 3.043% | 1 225 518 |
+| 5 | 5056 HITRA | 2.699% | 1 086 795 |
+| 6 | 5534 KARLSØY | 1.983% | 798 496 |
+| 7 | 4602 KINN | 1.970% | 793 323 |
+| 8 | 1103 STAVANGER | 1.902% | 765 857 |
+| 9 | 1573 SMØLA | 1.901% | 765 771 |
+| 10 | 5601 ALTA | 1.875% | 754 950 |
+| 11 | 5503 HARSTAD | 1.661% | 669 126 |
+| 12 | 4617 KVINNHERAD | 1.600% | 644 476 |
+| 13 | 5058 ÅFJORD | 1.521% | 612 490 |
+| 14 | 5501 TROMSØ | 1.506% | 606 346 |
+| 15 | 4626 ØYGARDEN | 1.492% | 600 772 |
+| 16 | 1866 HADSEL | 1.469% | 591 555 |
+| 17 | 1836 RØDØY | 1.449% | 583 750 |
+| 18 | 5049 FLATANGER | 1.417% | 570 475 |
+| 19 | 1848 STEIGEN | 1.395% | 561 818 |
+| 20 | 5542 SKJERVØY | 1.383% | 557 068 |
+| 21 | 4625 AUSTEVOLL | 1.374% | 553 373 |
+| 22 | 1834 LURØY | 1.336% | 538 092 |
+| 23 | 5055 HEIM | 1.294% | 521 052 |
+| 24 | 4631 ALVER | 1.293% | 520 600 |
+| 25 | 4613 BØMLO | 1.220% | 491 512 |
+| 26 | 1875 HAMARØY | 1.216% | 489 823 |
+| 27 | 1838 GILDESKÅL | 1.203% | 484 450 |
+| 28 | 5514 IBESTAD | 1.184% | 476 838 |
+| 29 | 4635 GULEN | 1.168% | 470 504 |
+| 30 | 4636 SOLUND | 1.150% | 463 009 |
+| 31 | 5618 MÅSØY | 1.090% | 438 877 |
+| 32 | 4624 BJØRNAFJORDEN | 1.040% | 418 989 |
+| 33 | 1818 HERØY I NORDLAND | 1.038% | 418 013 |
+| 34 | 5614 LOPPA | 0.950% | 382 558 |
+| 35 | 1811 BINDAL | 0.927% | 373 490 |
+| 36 | 1870 SORTLAND | 0.897% | 361 282 |
+| 37 | 5007 NAMSOS | 0.893% | 359 555 |
+| 38 | 4616 TYSNES | 0.878% | 353 433 |
+| 39 | 5052 LEKA | 0.874% | 352 166 |
+| 40 | 5620 NORDKAPP | 0.871% | 350 846 |
+| 41 | 4648 BREMANGER | 0.818% | 329 364 |
+| 42 | 4645 ASKVOLL | 0.797% | 321 130 |
+| 43 | 1827 DØNNA | 0.769% | 309 729 |
+| 44 | 1813 BRØNNØY | 0.749% | 301 535 |
+| 45 | 1580 HARAM | 0.734% | 295 484 |
+| 46 | 1868 ØKSNES | 0.719% | 289 661 |
+| 47 | 5546 KVÆNANGEN | 0.708% | 285 026 |
+| 48 | 1837 MELØY | 0.700% | 281 859 |
+| 49 | 4637 HYLLESTAD | 0.695% | 279 959 |
+| 50 | 4207 FLEKKEFJORD | 0.695% | 279 959 |
+| 51 | 5616 HASVIK | 0.694% | 279 452 |
+| 52 | 1547 AUKRA | 0.654% | 263 491 |
+| 53 | 1845 SØRFOLD | 0.653% | 262 858 |
+| 54 | 1820 ALSTAHAUG | 0.651% | 261 996 |
+| 55 | 1804 BODØ | 0.649% | 261 443 |
+| 56 | 5528 DYRØY | 0.644% | 259 427 |
+| 57 | 1576 AURE | 0.613% | 247 041 |
+| 58 | 1865 VÅGAN | 0.611% | 246 087 |
+| 59 | 5512 TJELDSUND | 0.609% | 245 334 |
+| 60 | 1146 TYSVÆR | 0.606% | 243 856 |
+| 61 | 5624 LEBESBY | 0.604% | 243 064 |
+| 62 | 4638 HØYANGER | 0.593% | 238 789 |
+| 63 | 4622 KVAM | 0.585% | 235 611 |
+| 64 | 5057 ØRLAND | 0.572% | 230 555 |
+| 65 | 1806 NARVIK | 0.552% | 222 109 |
+| 66 | 1851 LØDINGEN | 0.535% | 215 649 |
+| 67 | 1506 MOLDE | 0.519% | 208 914 |
+| 68 | 5059 ORKLAND | 0.504% | 202 896 |
+| 69 | 4615 FITJAR | 0.491% | 197 829 |
+| 70 | 5020 OSEN | 0.491% | 197 618 |
+| 71 | 5516 GRATANGEN | 0.475% | 191 284 |
+| 72 | 4612 SVEIO | 0.470% | 189 384 |
+| 73 | 4630 OSTERØY | 0.470% | 189 384 |
+| 74 | 1505 KRISTIANSUND | 0.470% | 189 384 |
+| 75 | 5510 KVÆFJORD | 0.468% | 188 645 |
+| 76 | 1554 AVERØY | 0.461% | 185 689 |
+| 77 | 1867 BØ I NORDLAND | 0.450% | 181 323 |
+| 78 | 4618 ULLENSVANG | 0.450% | 181 150 |
+| 79 | 5605 SØR-VARANGER | 0.426% | 171 649 |
+| 80 | 4649 STAD | 0.421% | 169 749 |
+| 81 | 1160 VINDAFJORD | 0.421% | 169 749 |
+| 82 | 1520 ØRSTA | 0.388% | 156 448 |
+| 83 | 1535 VESTNES | 0.368% | 148 214 |
+| 84 | 1860 VESTVÅGØY | 0.355% | 143 147 |
+| 85 | 4646 FJALER | 0.348% | 139 980 |
+| 86 | 1133 HJELMELAND | 0.344% | 138 713 |
+| 87 | 1145 BOKN | 0.338% | 135 968 |
+| 88 | 1134 SULDAL | 0.330% | 132 801 |
+| 89 | 1577 VOLDA | 0.327% | 131 745 |
+| 90 | 1816 VEVELSTAD | 0.327% | 131 745 |
+| 91 | 5632 BÅTSFJORD | 0.303% | 122 139 |
+| 92 | 1812 SØMNA | 0.299% | 120 295 |
+| 93 | 4634 MASFJORDEN | 0.289% | 116 333 |
+| 94 | 1511 VANYLVEN | 0.286% | 115 277 |
+| 95 | 5636 UNJÁRGA - NESSEBY | 0.277% | 111 477 |
+| 96 | 1828 NESNA | 0.266% | 107 043 |
+| 97 | 5522 SALANGEN | 0.252% | 101 343 |
+| 98 | 1853 EVENES | 0.252% | 101 343 |
+| 99 | 1106 HAUGESUND | 0.250% | 100 709 |
+| 100 | 1108 SANDNES | 0.247% | 99 337 |
+| 101 | 1579 HUSTADVIKA | 0.245% | 98 809 |
+| 102 | 1840 SALTDAL | 0.239% | 96 265 |
+| 103 | 4611 ETNE | 0.236% | 95 114 |
+| 104 | 5518 LOABÁK - LAVANGEN | 0.236% | 95 009 |
+| 105 | 1841 FAUSKE | 0.225% | 90 744 |
+| 106 | 1149 KARMØY | 0.225% | 90 575 |
+| 107 | 1144 KVITSØY | 0.217% | 87 408 |
+| 108 | 1815 VEGA | 0.200% | 80 441 |
+| 109 | 1560 TINGVOLL | 0.197% | 79 385 |
+| 110 | 1130 STRAND | 0.196% | 79 086 |
+| 111 | 4632 AUSTRHEIM | 0.187% | 75 212 |
+| 112 | 5544 NORDREISA | 0.186% | 74 951 |
+| 113 | 1578 FJORD | 0.184% | 74 107 |
+| 114 | 1557 GJEMNES | 0.184% | 74 107 |
+| 115 | 1508 ÅLESUND | 0.176% | 70 940 |
+| 116 | 1532 GISKE | 0.166% | 66 817 |
+| 117 | 1833 RANA | 0.164% | 65 873 |
+| 118 | 1525 STRANDA | 0.164% | 65 873 |
+| 119 | 4627 ASKØY | 0.164% | 65 873 |
+| 120 | 1514 SANDE I MØRE OG ROMSDAL | 0.150% | 60 426 |
+| 121 | 1539 RAUMA | 0.143% | 57 639 |
+| 122 | 1151 UTSIRA | 0.143% | 57 639 |
+| 123 | 5536 LYNGEN | 0.142% | 57 005 |
+| 124 | 1822 LEIRFJORD | 0.123% | 49 405 |
+| 125 | 4614 STORD | 0.123% | 49 405 |
+| 126 | 1515 HERØY I MØRE OG ROMSDAL | 0.108% | 43 450 |
+| 127 | 4650 GLOPPEN | 0.102% | 41 170 |
+| 128 | 1835 TRÆNA | 0.094% | 38 004 |
+| 129 | 5526 SØRREISA | 0.094% | 38 004 |
+| 130 | 5540 GÁIVUOTNA - KÅFJORD - KAIVUONO | 0.094% | 38 004 |
+| 131 | 1871 ANDØY | 0.083% | 33 612 |
+| 132 | 4623 SAMNANGER | 0.082% | 32 936 |
+| 133 | 1824 VEFSN | 0.082% | 32 936 |
+| 134 | 1859 FLAKSTAD | 0.082% | 32 936 |
+| 135 | 4633 FEDJE | 0.082% | 32 936 |
+| 136 | 1528 SYKKYLVEN | 0.082% | 32 936 |
+| 137 | 1516 ULSTEIN | 0.061% | 24 702 |
+| 138 | 4628 VAKSDAL | 0.061% | 24 702 |
+| 139 | 4225 LYNGDAL | 0.061% | 24 702 |
+| 140 | 4206 FARSUND | 0.061% | 24 702 |
+| 141 | 4215 LILLESAND | 0.039% | 15 782 |
+| 142 | 1122 GJESDAL | 0.037% | 14 779 |
+| 143 | 1566 SURNADAL | 0.020% | 8 234 |
