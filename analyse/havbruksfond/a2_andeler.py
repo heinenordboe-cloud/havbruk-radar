@@ -73,7 +73,7 @@ def main() -> None:
               f"{x['fyl'].height} |")
 
     print("\n### Holdt ute av ledd 2 (31.08)\n")
-    for r in a["ute"].select(["entity_id", "navn", "kommune", "kapasitet",
+    for r in a["ute"].select(["entity_id", "navn", "kommune", "mtb",
                               "tillatelser"]).sort("entity_id").iter_rows():
         print(f"- {r[0]} {r[1]} ({r[2]}), {_mtb(r[3])} t — {r[4]}")
 
@@ -86,8 +86,8 @@ def main() -> None:
 
     # ── endringer mellom de to kroppene ──────────────────────────────
     print(f"\n## Endringer {FOR} → {ETTER} i det filtrerte utvalget\n")
-    ka = dict(a["med"].select(["entity_id", "kapasitet"]).iter_rows())
-    kb = dict(b["med"].select(["entity_id", "kapasitet"]).iter_rows())
+    ka = dict(a["med"].select(["entity_id", "mtb"]).iter_rows())
+    kb = dict(b["med"].select(["entity_id", "mtb"]).iter_rows())
     na = {r[0]: r[1:] for r in a["w"].select(
         ["entity_id", "navn", "kommunenummer", "kommune"]).iter_rows()}
     nb = {r[0]: r[1:] for r in b["w"].select(
@@ -107,7 +107,7 @@ def main() -> None:
         print()
     endret = [(e, ka[e], kb[e]) for e in sorted(set(ka) & set(kb))
               if ka[e] != kb[e]]
-    print(f"**Endret kapasitet: {len(endret)}**\n")
+    print(f"**Endret MTB: {len(endret)}**\n")
     for e, x, y in endret:
         print(f"- {e} {na[e][0]} ({na[e][2]}): {_mtb(x)} → {_mtb(y)} t "
               f"({y - x:+,.0f})".replace(",", " "))

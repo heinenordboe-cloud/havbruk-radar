@@ -34,6 +34,17 @@ Lokaliteter uten noen aktiv kobling holdes INNE. Fiskeridirektoratet
 regnet med to slike i 2025; regelverket sier ikke hva som skal skje med
 dem, og det er Fiskeridirektoratets praksis som avgjøres mot.
 
+## Vekten er max(kapasitet, kapasitet_midlertidig)
+
+`kapasitet` er `capacity` i kroppen, `kapasitet_midlertidig` er
+`tempCapacity`. MÅLT 12.10.2026 mot Fiskeridirektoratets liste per
+01.09.2025, på de 954 lokalitetene som ikke har fått ny versjon siden
+den dagen (`versjon_gyldig_fra` før 01.09.2025 kl. 12.00) og derfor må
+ha samme tall i dag som da: deres tall er lik `max(kapasitet,
+kapasitet_midlertidig)` for alle 954, lik `kapasitet` for 946 og lik
+`kapasitet_midlertidig` for 953. Første utkast brukte `kapasitet` og
+undervurderte bl.a. Kjølvika I (Gildeskål) med 1 796 t.
+
 ## Lokaliteter over en kommunegrense
 
 Instruksen deler en slik lokalitet etter «kartfestet arealbeslag». Det
@@ -77,7 +88,8 @@ Ledd 2, eierskapskroppen (data/arkiv/eierskap/<dato>.json.gz):
     holdes UTENFOR hvis lokaliteten har aktive koblinger og INGEN av
     tillatelsene har laks (071101), ørret (071301) eller regnbueørret
     (071401) i species.fishCodes. Uten aktive koblinger: holdes inne.
-Vekt: kapasitet (MTB, tonn). Kommune: kommunenummer. Fylke: fylkesnummer.
+Vekt: mtb = max(kapasitet, kapasitet_midlertidig), tonn.
+Kommune: kommunenummer. Fylke: fylkesnummer.
 Delte lokaliteter: andelen fra Fiskeridirektoratets 2025-regneark."""
 
 
@@ -98,7 +110,10 @@ def bred(dato: str) -> tuple[pl.DataFrame, dict]:
                            if "fetched_at" in d.columns else [])}
     w = d.pivot(on="field", index="entity_id", values="value",
                 aggregate_function="first")
-    return w.with_columns(pl.col("kapasitet").cast(pl.Float64)), meta
+    w = w.with_columns(pl.col("kapasitet").cast(pl.Float64),
+                       pl.col("kapasitet_midlertidig").cast(pl.Float64))
+    return w.with_columns(pl.max_horizontal("kapasitet", "kapasitet_midlertidig")
+                          .alias("mtb")), meta
 
 
 def tillatelser(dato: str) -> dict[str, dict]:
@@ -180,7 +195,7 @@ def andeler(med: pl.DataFrame, delte: dict, navn: dict[str, str]
     """(per kommune, per fylke) med MTB og andel."""
     rader = []
     for e, kom, kap in med.select(
-            ["entity_id", "kommunenummer", "kapasitet"]).iter_rows():
+            ["entity_id", "kommunenummer", "mtb"]).iter_rows():
         for k, a in (delte.get(e) or [(kom, 1.0)]):
             rader.append((k, kap * a, e in delte))
     r = pl.DataFrame(rader, schema=["kommunenummer", "mtb", "delt"],

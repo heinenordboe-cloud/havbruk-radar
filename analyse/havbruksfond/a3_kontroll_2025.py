@@ -171,7 +171,7 @@ def main() -> None:
             fd_lok.setdefault(k, {})[e] = mtb
     vaar_lok: dict[str, dict[str, float]] = {}
     for e, k, kap in a["med"].select(
-            ["entity_id", "kommunenummer", "kapasitet"]).iter_rows():
+            ["entity_id", "kommunenummer", "mtb"]).iter_rows():
         for kk, andel in (a["delte"].get(e) or [(k, 1.0)]):
             vaar_lok.setdefault(kk, {})[e] = kap * andel
 
