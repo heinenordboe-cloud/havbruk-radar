@@ -78,7 +78,9 @@ LAKSEARTER = {"071101": "Laks", "071301": "Ørret", "071401": "Regnbueørret"}
 
 FILTER = """\
 Ledd 1, akvakultursnapshotet (data/raw/akvakultur/<dato>.parquet):
-    'SALMON' in arter            (laks, ørret, regnbueørret)
+    'SALMON' in arter            (artsgruppen i kroppen; at den er laks,
+                                  ørret og regnbueørret står ingen steder
+                                  i kroppen. Artene sikres av ledd 2.)
     vanntype        == 'Salt'
     plasseringstype == 'Offshore'
     kapasitet_enhet == 'TN'      (MTB i tonn)
