@@ -762,14 +762,26 @@ python arkiver_auksjon.py --torrkjor      # se hva den ville hentet
 python arkiver_auksjon.py                 # arkiver
 ```
 
-Auksjonen for tildelingsrunde 2026 holdes **27.09.2026**. Prisene per
-produksjonsområde publiseres én gang og kan ikke hentes i ettertid.
+**Datoen for auksjonen i tildelingsrunde 2026 er ikke kjent.**
+Pressemeldingen 10.09.2026 (`regjeringen-pressemeldinger/2026-09-10`,
+sha256 `7237cbaf…`) sier bare «Auksjonen holdes i løpet av høsten».
+Datoen 27.09.2026 som sto her til 12.10.2026, kom fra en side på
+regjeringen.no om 2022-runden, publisert 27.07.2022 og merket utdatert.
 
-`auksjon.yml` i datarepoet fyrer **64 ganger over 42 døgn**: tre ganger i
-døgnet 20.–30.09 (06, 14 og 20 UTC) og daglig gjennom oktober. Det er
-ikke overdrevet — GitHubs cron er best effort, og `arkiver_ny()` skriver
-bare når innholdet er nytt, så en kjøring som ikke finner noe koster
-ingenting og committer ingenting.
+Resultatet kan hentes i ettertid. Fiskeridirektoratets sider for de seks
+rundene 2018–2024 lå fortsatt ute 06.10.2026 og ble arkivert den dagen
+(`data/arkiv/auksjon/2026-10-06.*`, sha256 i loggfila). Det som kan gå
+tapt, er en versjon av en side som endres, og en pressemelding som bare
+finnes i Wayback. Teksten her sa til 12.10.2026 at prisene publiseres én
+gang og ikke kan hentes i ettertid; det var feil.
+
+`auksjon.yml` i datarepoet fyrer **125 ganger over 103 døgn**: tre ganger
+i døgnet 20.–30.09 (06, 14 og 20 UTC) og daglig 06:17 UTC fra 01.10 til
+31.12. Det er ikke overdrevet — GitHubs cron er best effort, og
+`arkiver_ny()` skriver bare når innholdet er nytt, så en kjøring som ikke
+finner noe koster ingenting og committer ingenting. Kommentarene og
+commit-meldingen i `auksjon.yml` sier fortsatt 27.09.2026 og «kan ikke
+hentes i ettertid»; fila er sperret herfra.
 
 **En commit fra denne jobben BETYR at noe nytt ble publisert.** Stillhet
 er normaltilstanden.
@@ -778,7 +790,8 @@ Mistet en dag? Kjør `workflow_dispatch` med `fra` satt bakover —
 Wayback holder kroppen selv om Fiskeridirektoratet bytter den ut.
 
 Kroppene er RÅ og ikke parset. Uttrekket av priser per produksjonsområde
-er en egen jobb uten frist; hentingen har fristen.
+er en egen jobb uten frist. Hentingen haster mer, fordi en side kan
+endres, men den har ikke en dag den må skje på.
 
 Hva den gjør: leser biomassefila og sjekker om kilden har OMBESTEMT SEG
 om måneder vi allerede har skrevet. Der noe er endret, skrives

@@ -1,16 +1,37 @@
 """Arkiverer auksjonsresultatet for en tildelingsrunde. ETT FORSØK PER DAG,
-OVER ET VINDU — fordi resultatet publiseres én gang og ikke kan hentes
-i ettertid.
+OVER ET VINDU — fordi vi ikke vet når resultatet kommer, og fordi en side
+som endres eller tas ned, ikke kan hentes slik den var.
 
     python arkiver_auksjon.py                 # arkiver det som finnes nå
     python arkiver_auksjon.py --torrkjor      # si hva som ville skjedd
 
+## Datoen er ikke kjent
+
+Til 12.10.2026 sto det her at auksjonen holdes 27.09.2026, og at
+resultatet publiseres én gang og ikke kan hentes i ettertid. Begge var
+feil:
+
+  * Datoen kom fra en side på regjeringen.no om 2022-runden, publisert
+    27.07.2022 og merket utdatert (funnet av Heine 12.10.2026; siden er
+    ikke arkivert her). Den eneste kroppen vi har om 2026-runden,
+    pressemeldingen 10.09.2026 (`regjeringen-pressemeldinger/2026-09-10`,
+    sha256 `7237cbafc063088bb288449b458e3bc9d04c636b67d11d98b8b53fabfc1f6c5d`),
+    sier bare «Auksjonen holdes i løpet av høsten».
+  * Resultatsidene for de seks rundene 2018–2024 (to i 2018) ligger
+    fortsatt ute hos Fiskeridirektoratet. Alle seks ble arkivert på nytt
+    06.10.2026 (`auksjon/2026-10-06.2`–`.7`, sha256 i `2026-10-06.logg.json`).
+    Det som kan gå tapt, er en VERSJON av en side som endres, og en
+    pressemelding som bare finnes i Wayback — ikke resultatet i seg selv.
+
+Vinduet er derfor åpent til ut året (`auksjon.yml` i datarepoet).
+
 ## Hvorfor dette ikke er en kilde
 
 En kilde emitterer `Observation`-objekter, og det krever at formatet er
-sett. **Formatet på 2026-resultatet er IKKE sett** — auksjonen holdes
-27.09.2026, og siden finnes ikke ennå. CLAUDE.md regel 4: har du ikke
-sett responsen, si det i stedet for å anta at den ligner en annen.
+sett. **Formatet på 2026-resultatet er IKKE sett** — datoen er ukjent,
+og per 12.10.2026 lenker indeksen ingen side for 2026-runden. CLAUDE.md
+regel 4: har du ikke sett responsen, si det i stedet for å anta at den
+ligner en annen.
 
 Derfor arkiverer denne bare. Prisene per produksjonsområde trekkes ut
 senere, av en kilde som er skrevet mot en kropp som finnes — og kroppen
@@ -166,9 +187,11 @@ def main() -> int:
     p.add_argument("--torrkjor", action="store_true")
     p.add_argument("--fra", default="20260920",
                    help="Tidligste Wayback-avtrykk som regnes med "
-                        "(ÅÅÅÅMMDD). Standard er en uke før auksjonen "
-                        "27.09.2026. Filteret gjelder AVTRYKKET, ikke "
-                        "sidens utgivelse — se CDX-kommentaren.")
+                        "(ÅÅÅÅMMDD). Standard 20.09.2026 ble satt etter "
+                        "en auksjonsdato som gjaldt 2022-runden; datoen "
+                        "for 2026 er ukjent, og grensa er bare nedre. "
+                        "Filteret gjelder AVTRYKKET, ikke sidens "
+                        "utgivelse — se CDX-kommentaren.")
     p.add_argument("--dato", default="",
                    help="observed_at for arkivfilene. Standard: i dag. "
                         "Kjernen slår opp kjøredatoen ett sted (1b), så "
