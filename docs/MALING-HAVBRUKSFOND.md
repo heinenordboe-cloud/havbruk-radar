@@ -952,3 +952,118 @@ kommunenavn i stedet for nummer. A3 viser at de to stemmer overens.
 Havbruksstasjonen i Tromsø. Den gir 0,043 prosentpoeng for Tromsø hvis
 Fiskeridirektoratet tar lokalitetene med igjen. Alle andre kjente
 forskjeller er mindre. Det er en terskel, ikke et konfidensintervall.
+
+---
+
+## A6. Årets fordeling arkiveres den dagen den kommer
+
+    python arkiver_havbruksfond.py --daglig [--fra ÅÅÅÅMMDD]
+
+Mønsteret er det samme som i `arkiver_auksjon.py`. Hver kjøring henter
+det som kan være nytt, og `raw.arkiver_ny()` skriver bare en kropp som
+ikke ligger der fra før. Derfor koster et bredt vindu ingenting. Den
+faste lista fra A1 (instruksene og 2024–2025-meldingene) hoppes over med
+`--daglig`.
+
+Fordelingen er en tabell per kommune, og adressen er ukjent til dagen
+den kommer. Det finnes tre veier inn:
+
+| vei | hva | hvorfor |
+|---|---|---|
+| Fiskeridirektoratets side | siden og **hver lenke den har**, hver kjøring | regnearket med hele beregningen har kommet hit hvert år siden 2017 |
+| NFD hos NTB | RSS-strømmen; saker med «Havbruksfond» i tittel eller ingress hentes | MÅLT 12.10.2026: strømmen svarer 200 uten nøkkel, og NTB-kopien av meldingen 21.10.2024 har hele kommunetabellen. regjeringen.no svarer 403 |
+| regjeringen.no via Wayback | avtrykk fra `--fra` med «havbruk» i adressen | fanger bare det Wayback har krøllet, og bare når adressen sier det. 2024-meldingen het `…/ny-side11/id3062266/` og ville ikke blitt fanget |
+
+NTB-kroppene havner i en ny mappe, `data/arkiv/ntb-pressemeldinger/`,
+under meldingens egen dato. Wayback-kroppene havner i
+`regjeringen-pressemeldinger/`, som før.
+
+Skriptet er kjørt tørt 12.10.2026: siden og ti vedlegg, 0 saker hos
+NTB og 0 Wayback-avtrykk fra 01.10.2026. Exit-koden følger
+auksjonsarkiveringen: rød bare når noe feilet og ingenting nytt kom inn.
+En NTB- eller Wayback-feil gir `::warning::` og en post i loggen, så en
+dag der kilden ikke svarte, ikke ser ut som en dag uten nyheter.
+
+### Workflow-endringen (ikke gjort; `.github/workflows/` er sperret)
+
+Ny fil i **datarepoet**: `.github/workflows/havbruksfond.yml`. Den er
+bygget som `auksjon.yml`. Vinduet går fra 12.10 til 31.12. Utbetalingen
+kom 21.10 i 2024 og 10.11 i 2025, og instruksen sier «normalt i
+oktober». Resten av oktober og hele november fyrer den tre ganger i
+døgnet, desember én gang.
+
+```yaml
+name: Havbruksfondarkivering
+
+on:
+  schedule:
+    - cron: "0 6,14,20 12-31 10 *"
+    - cron: "0 6,14,20 * 11 *"
+    - cron: "0 6 * 12 *"
+  workflow_dispatch:
+    inputs:
+      fra:
+        description: Tidligste Wayback-avtrykk (ÅÅÅÅMMDD)
+        type: string
+        default: "20261001"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: havbruksfond
+  cancel-in-progress: false
+
+jobs:
+  arkiver:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          path: data-repo
+      - uses: actions/checkout@v5
+        with:
+          repository: heinenordboe-cloud/havbruk-radar
+          ref: main
+          fetch-depth: 1
+          path: kode
+          token: ${{ secrets.KODE_REPO_TOKEN }}
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: kode/requirements.txt
+      - run: pip install -r kode/requirements.txt
+      - name: Arkiver
+        working-directory: kode
+        env:
+          HAVBRUK_DATA_DIR: ${{ github.workspace }}/data-repo/data
+          FRA: ${{ inputs.fra || '20261001' }}
+        run: python arkiver_havbruksfond.py --daglig --fra "$FRA"
+      - name: Commit arkivet
+        if: always()
+        working-directory: data-repo
+        run: |
+          git config user.name "havbruk-radar"
+          git config user.email "actions@github.com"
+          git add data/arkiv/havbruksfondet/ \
+                  data/arkiv/regjeringen-pressemeldinger/ \
+                  data/arkiv/ntb-pressemeldinger/ 2>/dev/null || true
+          git diff --staged --quiet && { echo "Ingen ny kropp."; exit 0; }
+          nye=$(git diff --staged --name-only | grep -c 'bin\.gz$' || true)
+          git commit -m "Havbruksfondarkiv $(date -u +%Y-%m-%d): $nye ny(e) kropp(er)" \
+            -m "Skrevet av arkiver_havbruksfond.py --daglig."
+          git push
+```
+
+**Loggen.** Med `--daglig` skrives `havbruksfondet/<dato>.logg.json` bare
+ved første kjøring på en dato eller når noe nytt kom inn. Tre kjøringer
+i døgnet mot en uendret side gir derfor én commit per dag, og den er
+kvitteringen på at jobben kjørte. Det er testet i
+`test_daglig_uten_noe_nytt_skriver_ingen_ny_logg`. Vil du ha commits bare
+når en ny kropp kommer, kan `git add` begrenses til `*.bin.gz`.

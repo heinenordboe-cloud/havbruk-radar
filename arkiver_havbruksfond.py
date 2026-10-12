@@ -3,8 +3,12 @@
     python arkiver_havbruksfond.py                 # arkiver det som finnes nå
     python arkiver_havbruksfond.py --torrkjor      # si hva som ville skjedd
 
-Kjøres for hånd, ikke av en workflow (ennå — se docs/MALING-HAVBRUKSFOND.md
-punkt A6).
+    python arkiver_havbruksfond.py --daglig       # årets fordeling, se A6
+
+Uten `--daglig`: alt under, kjøres for hånd. Med `--daglig`: bare det som
+kan være NYTT — siden og vedleggene, NFDs pressemeldinger hos NTB og
+regjeringen.no via Wayback — for en workflow som fyrer hver dag gjennom
+utbetalingssesongen (docs/MALING-HAVBRUKSFOND.md A6).
 
 ## Hvorfor
 
@@ -40,6 +44,27 @@ Hva som hentes, og hvor det havner:
         fondet: fastpristildelingen og auksjonen 2024, og utbetalingen
         10.11.2025 med fordelingen per kommune. regjeringen.no svarer 403
         på direkte henting.
+
+## Årets fordeling: tre veier inn, fordi den publiseres én gang
+
+Fordelingen for 2026 kommer som et nytt regneark på Fiskeridirektoratets
+side og som en pressemelding fra NFD. Ingen av adressene er kjent før
+den dagen. Derfor leses de av noe som finnes nå:
+
+    vedlegg       hver lenke siden har, hver kjøring. Et nytt regneark
+                  er en ny lenke og en ny kropp.
+    NTB           NFDs RSS-strøm hos NTB, som svarer 200 uten nøkkel
+                  (MÅLT 12.10.2026; regjeringen.no svarer 403). Saker med
+                  «Havbruksfond» i tittel eller ingress hentes og
+                  arkiveres i `ntb-pressemeldinger/`. MÅLT: NTB-kopien av
+                  pressemeldingen 21.10.2024 har hele kommunetabellen.
+    Wayback       regjeringen.no/no/aktuelt/ fra `--fra`, filtrert på
+                  «havbruk» i adressen, inn i `regjeringen-pressemeldinger/`.
+                  Fanger bare det noen har krøllet, og bare når slugen
+                  sier det: 2024-meldingen het `ny-side11`.
+
+Strømmen arkiveres ikke selv. Den endrer seg hver gang NFD publiserer
+noe, og ville gitt én kropp per dag uten innhold om fondet.
 
 ## Hva som lagres
 
@@ -137,14 +162,40 @@ PRESSEMELDINGER = {
         url=_R + "milliardutbetaling-fra-havbruksfondet/id3138552/"),
 }
 
+NTB = "ntb-pressemeldinger"
+# NFD hos NTB. publisherId lest av NTB-adressen til pressemeldingen
+# 21.10.2024 («Rekordutbetaling fra Havbruksfondet»).
+NTB_RSS = ("https://kommunikasjon.ntb.no/rss/releases/latest"
+           "?publisherId=14943704&lang=no")
+_TEMA = re.compile(r"havbruksfond", re.I)
+
+CDX = ("http://web.archive.org/cdx/search/cdx?url=regjeringen.no/no/aktuelt/*"
+       "&filter=original:.*havbruk.*&from={fra}&output=text"
+       "&collapse=urlkey&fl=timestamp,original&limit=80")
+
 # «Pressemelding | Dato: 10.11.2025 | Nærings- og fiskeridepartementet»
 _DATO = re.compile(r"Dato:\s*(\d\d)\.(\d\d)\.(\d{4})")
+# NTB: «Rekordutbetaling fra Havbruksfondet 21.10.2024 12:10:00 CEST»
+_NTB_DATO = re.compile(r"(\d\d)\.(\d\d)\.(\d{4}) \d\d:\d\d:\d\d CES?T")
 
 
 def pressedato(kropp: bytes) -> str:
     """Pressemeldingens egen dato, ISO. Tom når den ikke står der."""
-    m = _DATO.search(synlig_tekst(kropp))
+    t = synlig_tekst(kropp)
+    m = _DATO.search(t) or _NTB_DATO.search(t)
     return f"{m.group(3)}-{m.group(2)}-{m.group(1)}" if m else ""
+
+
+def ntb_saker(rss: bytes) -> list[str]:
+    """Lenkene i strømmen der tittel eller ingress nevner fondet."""
+    import xml.etree.ElementTree as ET
+    ut = []
+    for item in ET.fromstring(rss).iter("item"):
+        tekst = " ".join((item.findtext(k) or "") for k in ("title", "description"))
+        lenke = (item.findtext("link") or "").strip()
+        if lenke and _TEMA.search(tekst):
+            ut.append(lenke)
+    return ut
 
 
 def vedlegg(side: bytes) -> list[str]:
@@ -184,7 +235,7 @@ def _arkiver(klient, hva: str, url: str, kilde: str, dato: str,
         logg.append({"hva": hva, "url": url, "feil": str(e)})
         return None
 
-    if kilde == PRESSE:
+    if kilde in (PRESSE, NTB):
         egen = pressedato(kropp)
         if not egen:
             print(f"::warning::{hva}: fant ingen «Dato:» i kroppen; "
@@ -210,9 +261,52 @@ def _arkiver(klient, hva: str, url: str, kilde: str, dato: str,
     return kropp
 
 
+def _advar(logg: list, hva: str, tekst: str) -> None:
+    """::warning:: i Actions OG en post i loggfila, som i arkiver_auksjon.
+
+    En dag der NTB eller Wayback ikke svarte, skal ikke se ut som en dag
+    der ingenting var publisert.
+    """
+    print(f"::warning::Havbruksfondarkivering: {tekst}")
+    logg.append({"advarsel": hva, "tekst": tekst})
+
+
+def _nye_pressemeldinger(klient, dato: str, fra: str, torr: bool,
+                         logg: list) -> None:
+    print("\nNFD hos NTB:")
+    try:
+        rss = _http.get(klient, NTB_RSS, hva="NTB-strøm NFD").content
+        saker = ntb_saker(rss)
+    except Exception as e:
+        saker = []
+        _advar(logg, "ntb_feilet", f"NTB-strømmen kunne ikke leses ({e}). "
+               f"«0 saker» betyr i dag «vet ikke», ikke «ingen».")
+    print(f"  {len(saker)} sak(er) om Havbruksfondet i strømmen")
+    for url in saker:
+        _arkiver(klient, "ntb", url, NTB, dato, torr, logg)
+
+    print("\nregjeringen.no via Wayback:")
+    try:
+        r = _http.get(klient, CDX.format(fra=fra), hva="CDX-oppslag havbruk")
+        rader = [ln.split() for ln in r.text.splitlines() if ln]
+    except Exception as e:
+        rader = []
+        _advar(logg, "wayback_feilet", f"Wayback-oppslaget (CDX) feilet: {e}.")
+    print(f"  {len(rader)} avtrykk fra {fra} med «havbruk» i adressen")
+    for ts, u in rader:
+        _arkiver(klient, "regjeringen", f"https://web.archive.org/web/{ts}id_/{u}",
+                 PRESSE, dato, torr, logg)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--torrkjor", action="store_true")
+    p.add_argument("--daglig", action="store_true",
+                   help="Bare det som kan være nytt: siden, vedleggene, NTB "
+                        "og Wayback. Hopper over de faste Wayback-kroppene.")
+    p.add_argument("--fra", default="20261001",
+                   help="Tidligste Wayback-avtrykk (ÅÅÅÅMMDD) som regnes med. "
+                        "Gjelder AVTRYKKET, ikke sidens utgivelse.")
     p.add_argument("--dato", default="",
                    help="observed_at for arkivfilene i havbruksfondet/. "
                         "Standard: i dag. Sendes inn og leses ikke av noen "
@@ -248,13 +342,16 @@ def main(argv=None) -> int:
         for url in lenker:
             _arkiver(klient, "vedlegg", url, KILDE, dato, a.torrkjor, logg)
 
-        print("\nInstrukser (Wayback):")
-        for navn, url in INSTRUKSER.items():
-            _arkiver(klient, navn, url, KILDE, dato, a.torrkjor, logg)
+        if not a.daglig:
+            print("\nInstrukser (Wayback):")
+            for navn, url in INSTRUKSER.items():
+                _arkiver(klient, navn, url, KILDE, dato, a.torrkjor, logg)
 
-        print("\nPressemeldinger (Wayback):")
-        for navn, url in PRESSEMELDINGER.items():
-            _arkiver(klient, navn, url, PRESSE, dato, a.torrkjor, logg)
+            print("\nPressemeldinger (Wayback):")
+            for navn, url in PRESSEMELDINGER.items():
+                _arkiver(klient, navn, url, PRESSE, dato, a.torrkjor, logg)
+
+        _nye_pressemeldinger(klient, dato, a.fra, a.torrkjor, logg)
 
     for r in logg:
         if "sha256" in r:
@@ -265,8 +362,14 @@ def main(argv=None) -> int:
     print(f"\n{sum(1 for r in logg if 'url' in r)} adresse(r), {nye} ny(e) "
           f"kropp(er), {feil} feil.")
 
-    if not a.torrkjor:
-        mappe = raw_arkiv.ARKIV_DIR / KILDE
+    # Med --daglig skrives en ny logg bare første kjøring på en dato, eller
+    # når noe nytt kom inn. Ellers ville tre kjøringer i døgnet gitt tre
+    # commits om dagen uten nytt innhold. Første logg per dato blir
+    # stående som kvittering på at jobben kjørte.
+    mappe = raw_arkiv.ARKIV_DIR / KILDE
+    stille = (a.daglig and not nye
+              and (mappe / f"{dato}.logg.json").exists())
+    if not a.torrkjor and not stille:
         mappe.mkdir(parents=True, exist_ok=True)
         sti = mappe / f"{dato}.logg.json"
         n = 2
@@ -276,6 +379,10 @@ def main(argv=None) -> int:
         sti.write_text(json.dumps(logg, indent=2, ensure_ascii=False))
         print(f"Logg: {sti}")
 
+    if a.daglig:
+        # Som arkiver_auksjon: én død adresse skal ikke koste dagens funn,
+        # men en dag der ALT feilet, skal være rød.
+        return 1 if feil and nye == 0 else 0
     return 1 if feil else 0
 
 
