@@ -149,6 +149,13 @@ med GitLab CI. Til det er gjort, går det tapt én uke per uke (regel 5).
 Står `speil.yml` rød, er det ikke støy: da stopper backupen fra den
 dagen.
 
+Fra 13.10.2026 starter `speil.yml` etter hver tidsstempling
+(workflow_run: fangstjobb → `stempel.yml` → `speil.yml`), med mandag
+07:00 og tirsdag 21:00 UTC som reserve. Rekkefølgen står i workflow_run
+og ikke i klokkeslett: planlagte kjøringer startet 4–8 timer etter
+cron-tiden (målt 12.10.2026). To speilinger kjører aldri samtidig
+(concurrency-gruppen `speil`); hver gjør `git push --force`.
+
 Speilworkflowen hører hjemme i DATAREPOET, ikke her — koden er allerede
 offentlig og finnes i enhver klone, mens historikken er det eneste som
 ikke kan skaffes på nytt. Codeberg eller GitLab, begge gratis.
