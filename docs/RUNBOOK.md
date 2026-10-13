@@ -779,12 +779,14 @@ gang og ikke kan hentes i ettertid; det var feil.
 i døgnet 20.–30.09 (06, 14 og 20 UTC) og daglig 06:17 UTC fra 01.10 til
 31.12. Det er ikke overdrevet — GitHubs cron er best effort, og
 `arkiver_ny()` skriver bare når innholdet er nytt, så en kjøring som ikke
-finner noe koster ingenting og committer ingenting. Kommentarene og
-commit-meldingen i `auksjon.yml` sier fortsatt 27.09.2026 og «kan ikke
-hentes i ettertid»; fila er sperret herfra.
+finner noe koster ingenting. Kommentarene og commit-meldingen i
+`auksjon.yml` sa 27.09.2026 og «kan ikke hentes i ettertid» til
+13.10.2026; den rettede fila gjelder fra den er lastet opp i datarepoet.
 
-**En commit fra denne jobben BETYR at noe nytt ble publisert.** Stillhet
-er normaltilstanden.
+**Én commit per dag er normaltilstanden**: loggfila for datoen skrives
+første kjøring, også når ingen kropp er ny («0 ny(e) kropp(er)»). Det er
+den commiten tilsynet måler (`.github/jobber.yml`). En ny kropp står i
+emnelinjen som et tall over null.
 
 Mistet en dag? Kjør `workflow_dispatch` med `fra` satt bakover —
 Wayback holder kroppen selv om Fiskeridirektoratet bytter den ut.
