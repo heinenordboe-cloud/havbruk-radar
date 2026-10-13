@@ -18,11 +18,13 @@ For hver kilde i `KILDER`: kroppen `fetch()` returnerer, serialisert som
 `core.raw` gjør for innsamlingen — samme bytes, samme sha256.
 
   * Kroppen skrives til `data/arkiv/<kilde>/<dato>.daglig.<ext>.gz`
-    (`<dato>.daglig.2.<ext>.gz` osv.) BARE når sha256 avviker fra siste
-    lagrede kropp for kilden, daglig eller ukentlig. Merket `daglig` er
+    (`<dato>.daglig.2.<ext>.gz` osv.) BARE når sha256 av den kanoniske
+    formen (se Akvakultur under) avviker fra siste lagrede kropp for
+    kilden, daglig eller ukentlig. Det som skrives, er den rå kroppen. Merket `daglig` er
     `core.raw.DAGLIG`; det skiller navnene fra innsamlingens, se under.
   * Loggfila `data/arkiv/<kilde>/<dato>.daglig.logg.json` skrives hver
-    kjøring, med løpenummer hvis den finnes: `kjoring: daglig`, sha256,
+    kjøring, med løpenummer hvis den finnes: `kjoring: daglig`, sha256
+    rå og kanonisk,
     når vi hentet, `ny` eller `uendret`, og hvilken kropp den ble
     sammenlignet med — og om DEN var daglig eller ukentlig, lest av
     merket i filnavnet.
@@ -42,16 +44,27 @@ vi ingenting: hver daglig logg har sha256 for det vi fikk, også når det
 var uendret. En feil «siste» gir i verste fall en kropp for mye, eller
 en kropp som ikke skrives fordi de samme bytene allerede ligger der.
 
-## Akvakultur venter
+## Akvakultur: sammenlignet på kanonisk form
 
 MÅLT 13.10.2026, to hentinger 20 sekunder fra hverandre og en tredje en
-time senere: 1780 lokaliteter, samme lengde (6 718 929 byte), ulik sha256
-hver gang. Eneste forskjell var rekkefølgen i `speciesTypes` — for 77 av
-de 201 lokalitetene med mer enn én art etter 20 sekunder, 73 etter en
-time. Eierskap og biomasselag var byte-like over den samme timen, og med
-mandagens ukekropp. Kroppen blir aldri byte-lik, og regelen over ville skrevet ~450 kB
-hver dag. Lagringsformen er Heines valg, og kilden står ikke i `KILDER`
-før den er tatt.
+time senere: 1780 lokaliteter, samme lengde, ulik sha256 hver gang. Eneste
+forskjell var rekkefølgen i `speciesTypes`. Byte for byte ville regelen
+over skrevet ~450 kB hver dag.
+
+Kroppen sammenlignes derfor på en kanonisk form der listene i `UORDNET`
+er sortert, og den RÅ kroppen lagres når den kanoniske sha256 avviker fra
+den forrige lagrede sin. Loggen fører begge.
+
+Hvilke lister: MÅLT 13.10.2026 kl. 21.23–21.25 UTC, tre hentinger 60 s fra
+hverandre, hver liste i hver lokalitet sammenlignet: `speciesTypes`
+varierte i rekkefølge for 127 av 1780 (201 har mer enn ett element);
+`connections` (1284 med >1), `obsoleteConnections` (645) og
+`speciesLimitations` (1) var like i alle tre, og lokalitetene selv sto i
+samme rekkefølge. Mot ukekroppene 28.09, 05.10 og 12.10 og hentingen
+13.10, 1779 felles lokaliteter: `speciesTypes` skilte seg 406 ganger bare
+i rekkefølge og aldri i innhold; de tre andre skilte seg aldri bare i
+rekkefølge (18/157/7 ganger i innhold — det er endringer). Kanonisk sha256
+var lik for alle tre hentingene (0931916b…).
 
 ## Samtidig med innsamlingen
 
@@ -85,7 +98,13 @@ from core import raw as raw_arkiv
 from core import registry
 
 # Kildene som arkiveres daglig. Navnet er kildens `name`.
-KILDER = ("eierskap", "biomasselag")
+KILDER = ("eierskap", "biomasselag", "akvakultur")
+
+# Lister uten meningsbærende rekkefølge, per post i kroppen. Sorteres i den
+# kanoniske formen som sammenlignes; den lagrede kroppen er rå. MÅLT, ikke
+# antatt — se «Akvakultur» i docstringen. En kilde som ikke står her,
+# sammenlignes byte for byte.
+UORDNET = {"akvakultur": ("speciesTypes",)}
 
 def siste_kropp(kilde: str) -> Path | None:
     """Siste lagrede kropp, innsamlingens eller daglig (`raw.orden()`)."""
@@ -93,31 +112,54 @@ def siste_kropp(kilde: str) -> Path | None:
     return filer[-1] if filer else None
 
 
-def _sha(sti: Path) -> str:
-    with gzip.open(sti, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()
+def kanonisk_sha(kilde: str, data: bytes) -> str:
+    """sha256 av den kanoniske formen: kroppen med listene i `UORDNET`
+    sortert, serialisert som `core.raw` gjør. For en kilde uten slike
+    lister er den lik sha256 av kroppen.
+
+    Leser bytene, ikke objektet `fetch()` ga: den lagrede kroppen og den
+    nye går da gjennom nøyaktig samme vei."""
+    felt = UORDNET.get(kilde, ())
+    if not felt:
+        return hashlib.sha256(data).hexdigest()
+    poster = json.loads(data)
+    for post in poster:
+        for navn in felt:
+            if isinstance(post.get(navn), list):
+                post[navn] = sorted(post[navn], key=lambda x: json.dumps(
+                    x, ensure_ascii=False, sort_keys=True))
+    return hashlib.sha256(raw_arkiv._serialiser(poster)[0]).hexdigest()
 
 
 def arkiver(kilde, dato: str, torr: bool) -> dict:
-    """Én kilde: hent, sammenlign med siste lagrede, skriv hvis ny."""
+    """Én kilde: hent, sammenlign med siste lagrede, skriv hvis ny.
+
+    Sammenligningen er på den kanoniske formen; det som skrives, er den
+    rå kroppen. Begge sha256 står i loggen."""
     hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     rå = kilde.fetch(dato)
     data, ext = raw_arkiv._serialiser(rå)
     sha = hashlib.sha256(data).hexdigest()
+    kanon = kanonisk_sha(kilde.name, data)
 
     forrige = siste_kropp(kilde.name)
     sammenlignet = None
     if forrige is not None:
+        with gzip.open(forrige, "rb") as f:
+            lagret = f.read()
         sammenlignet = {
-            "fil": forrige.name, "sha256": _sha(forrige),
+            "fil": forrige.name, "sha256": hashlib.sha256(lagret).hexdigest(),
+            "sha256_kanonisk": kanonisk_sha(kilde.name, lagret),
             "kjoring": "daglig" if raw_arkiv.merke(forrige.name) == raw_arkiv.DAGLIG
                        else "ukentlig",
         }
-    ny = sammenlignet is None or sammenlignet["sha256"] != sha
+    ny = sammenlignet is None or sammenlignet["sha256_kanonisk"] != kanon
 
     post = {
         "kjoring": "daglig", "kilde": kilde.name, "observed_at": dato,
-        "fetched_at": hentet, "sha256": sha, "byte": len(data),
+        "fetched_at": hentet, "sha256": sha, "sha256_kanonisk": kanon,
+        "kanonisk_sorterer": list(UORDNET.get(kilde.name, ())),
+        "byte": len(data),
         "status": "ny" if ny else "uendret", "sammenlignet_med": sammenlignet,
         "source_version": getattr(kilde, "version", ""),
         "utvalg": getattr(kilde, "utvalg", None),
@@ -127,7 +169,7 @@ def arkiver(kilde, dato: str, torr: bool) -> dict:
     }
     if ny and not torr:
         # Stien `arkiver()` vil velge, slått opp først så loggen kan si den.
-        # Ingen andre skriver mappa mens dette kjører (se docstringen).
+        # Bare dette skriptet skriver `.daglig.`-navn (se docstringen).
         sti = raw_arkiv._ledig_sti(kilde.name, dato, ext, raw_arkiv.DAGLIG)
         skrevet = raw_arkiv.arkiver(kilde.name, dato, rå, raw_arkiv.DAGLIG)
         assert skrevet == sha and sti.exists(), (kilde.name, sti, skrevet, sha)

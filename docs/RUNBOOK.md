@@ -888,24 +888,30 @@ python arkiver_daglig.py                # skriv
 ```
 
 `daglig.yml` i datarepoet kjører det hver dag (cron 05:23 UTC, i praksis
-4–8 timer senere). For **eierskap** og **biomasselag** skrives kroppen til
-`data/arkiv/<kilde>/`, med samme navn og løpenummer som den ukentlige,
-bare når sha256 avviker fra siste lagrede kropp — daglig eller ukentlig.
-Ellers skrives bare `<dato>.logg.json` med sha256, hentetid og
-«uendret». Loggen sier `kjoring: daglig` og om kroppen den ble
-sammenlignet med var daglig eller ukentlig. Ingen snapshot, ingen
-changelog, health.json urørt.
+4–8 timer senere). For **eierskap**, **biomasselag** og **akvakultur**
+skrives kroppen til `data/arkiv/<kilde>/<dato>.daglig.json.gz`
+(løpenummer innenfor daglig: `<dato>.daglig.2.json.gz`) bare når den
+avviker fra siste lagrede kropp — daglig eller ukentlig. Ellers skrives
+bare `<dato>.daglig.logg.json` med sha256, hentetid og «uendret». Loggen
+sier `kjoring: daglig` og om kroppen den ble sammenlignet med var daglig
+eller ukentlig. Ingen snapshot, ingen changelog, health.json urørt.
 
-Jobben skriver ikke mens innsamlingen kjører eller står i kø — de deler
-mapper (se `delt` i `.github/jobber.yml`). Har den ventet 90 minutter,
-stopper den rødt uten å hente, og prøver igjen neste dag.
+**Navnene er disjunkte fra innsamlingens.** samle.yml og daglig.yml skriver
+samme mapper fra hver sin checkout; innsamlingen skriver aldri et navn
+med `.daglig.`, og holder dem utenfor sin `git add`. Fram til 13.10.2026
+kunne begge valgt `<dato>.json.gz` samme dag, og rebasen stoppet da på
+konflikt. «Siste lagrede kropp» er `core.raw.orden()`: dato, så
+innsamlingens før den daglige samme dato, så løpenummer.
 
-**Akvakultur er ikke med.** Kroppen blir aldri byte-lik: API-et gir
-`speciesTypes` i skiftende rekkefølge (MÅLT 13.10.2026: 77 av 201
-lokaliteter med flere arter mellom to hentinger 20 sekunder fra
-hverandre, 73 mellom to hentinger en time fra hverandre). Med
-regelen over ville ~450 kB blitt skrevet hver dag. Lagringsformen er
-ikke valgt.
+Jobben venter fortsatt til innsamlingen ikke kjører eller står i kø, så
+innsamlingens kropp er den siste når det sammenlignes. Har den ventet 90
+minutter, stopper den rødt uten å hente, og prøver igjen neste dag.
+
+**Akvakultur sammenlignes på kanonisk form.** API-et gir `speciesTypes` i
+skiftende rekkefølge, så kroppen blir aldri byte-lik. Sammenligningen
+sorterer den lista (`UORDNET` i skriptet) og ingen andre; det som lagres,
+er den rå kroppen. Loggen fører `sha256` og `sha256_kanonisk`. Hvilke
+lister, og målingen bak, står i docstringen til `arkiver_daglig.py`.
 
 Tilsynet varsler når ingen daglig logg er committet på 2 døgn.
 

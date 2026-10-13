@@ -38,9 +38,11 @@ def arkiv(tmp_path, monkeypatch):
 
 @pytest.fixture
 def svar(monkeypatch):
-    s = {"eierskap": {"tillatelser": [1]}, "biomasselag": [{"a": 1}]}
+    s = {"eierskap": {"tillatelser": [1]}, "biomasselag": [{"a": 1}],
+         "akvakultur": [{"siteNr": "1", "speciesTypes": ["A", "B"],
+                         "connections": [{"k": 1}, {"k": 2}]}]}
     monkeypatch.setattr(registry, "discover",
-                        lambda: [Falsk(n, s) for n in ("eierskap", "biomasselag")])
+                        lambda: [Falsk(n, s) for n in ark.KILDER])
     return s
 
 
@@ -88,9 +90,10 @@ def test_uendret_mot_daglig_kropp_sier_daglig(arkiv, svar):
     assert kropper(arkiv, "eierskap") == ["2026-10-13.daglig.json.gz"]
     andre = logger(arkiv, "eierskap")[1]
     assert andre["status"] == "uendret"
+    forste = logger(arkiv, "eierskap")[0]
     assert andre["sammenlignet_med"] == {
         "fil": "2026-10-13.daglig.json.gz", "kjoring": "daglig",
-        "sha256": logger(arkiv, "eierskap")[0]["sha256"]}
+        "sha256": forste["sha256"], "sha256_kanonisk": forste["sha256"]}
 
 
 def test_endret_kropp_samme_dag_som_innsamlingen_faar_eget_navn(arkiv, svar):
@@ -188,11 +191,61 @@ def test_kode_som_ikke_kan_spores_henter_ingenting(arkiv, svar, monkeypatch, cap
     assert not arkiv.exists()
 
 
-def test_akvakultur_er_ikke_med_for_lagringsformen_er_valgt():
-    """MÅLT 13.10.2026: kroppen er aldri byte-lik (rekkefølgen i
-    speciesTypes). Se modulens docstring. Prøven står så kilden ikke
-    legges til uten at noen har sett hvorfor den mangler."""
-    assert "akvakultur" not in ark.KILDER
+def test_akvakultur_med_ny_rekkefolge_i_speciestypes_er_uendret(arkiv, svar):
+    """MÅLT 13.10.2026: rekkefølgen i speciesTypes varierer mellom
+    hentinger. Den kanoniske formen sorterer den, og bare den."""
+    ark.main(["--dato", "2026-10-13"])
+    svar["akvakultur"] = [{"siteNr": "1", "speciesTypes": ["B", "A"],
+                           "connections": [{"k": 1}, {"k": 2}]}]
+    ark.main(["--dato", "2026-10-14"])
+    assert kropper(arkiv, "akvakultur") == ["2026-10-13.daglig.json.gz"]
+    forste, andre = logger(arkiv, "akvakultur")
+    assert andre["status"] == "uendret"
+    assert andre["sha256"] != forste["sha256"]
+    assert andre["sha256_kanonisk"] == forste["sha256_kanonisk"] \
+        == andre["sammenlignet_med"]["sha256_kanonisk"]
+    assert andre["kanonisk_sorterer"] == ["speciesTypes"]
+
+
+def test_akvakultur_lagres_raa_naar_den_kanoniske_avviker(arkiv, svar):
+    ark.main(["--dato", "2026-10-13"])
+    ny = [{"siteNr": "1", "speciesTypes": ["C", "B", "A"],
+           "connections": [{"k": 1}, {"k": 2}]}]
+    svar["akvakultur"] = ny
+    ark.main(["--dato", "2026-10-14"])
+    lagret = gzip.open(arkiv / "akvakultur" / "2026-10-14.daglig.json.gz").read()
+    assert lagret == raw_arkiv._serialiser(ny)[0]       # rå: C, B, A
+    andre = logger(arkiv, "akvakultur")[1]
+    assert andre["status"] == "ny"
+    assert andre["sha256"] == hashlib.sha256(lagret).hexdigest()
+
+
+def test_andre_lister_sorteres_ikke(arkiv, svar):
+    """connections var stabil i alle målingene; en ny rekkefølge der er
+    ikke dokumentert som meningsløs, og skal lagres."""
+    ark.main(["--dato", "2026-10-13"])
+    svar["akvakultur"] = [{"siteNr": "1", "speciesTypes": ["A", "B"],
+                           "connections": [{"k": 2}, {"k": 1}]}]
+    ark.main(["--dato", "2026-10-14"])
+    assert logger(arkiv, "akvakultur")[1]["status"] == "ny"
+
+
+def test_kanonisk_mot_ukentlig_kropp(arkiv, svar):
+    """Innsamlingens kropp leses fra disk og går gjennom samme kanonisering."""
+    raw_arkiv.arkiver("akvakultur", "2026-10-12",
+                      [{"siteNr": "1", "speciesTypes": ["B", "A"],
+                        "connections": [{"k": 1}, {"k": 2}]}])
+    ark.main(["--dato", "2026-10-13"])
+    [logg] = logger(arkiv, "akvakultur")
+    assert logg["status"] == "uendret"
+    assert logg["sammenlignet_med"]["kjoring"] == "ukentlig"
+
+
+def test_uten_uordnede_lister_er_kanonisk_lik_raa(arkiv, svar):
+    ark.main(["--dato", "2026-10-13"])
+    [logg] = logger(arkiv, "eierskap")
+    assert logg["sha256_kanonisk"] == logg["sha256"]
+    assert logg["kanonisk_sorterer"] == []
 
 
 def _git(cwd, *args, sjekk=True):
