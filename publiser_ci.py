@@ -5,6 +5,8 @@
     python publiser_ci.py sjekk MAPPE --kvittering K    publiser.yml: summen
     python publiser_ci.py last-opp MAPPE --miljo M      steg 5
     python publiser_ci.py logg --kvittering K --miljo M steg 6
+    python publiser_ci.py automatisk --kvittering K --datarepo D
+                                                        publiser.yml: vilkårene
 
 Workflowene bor i DATAREPOET (`bygg.yml`, `publiser.yml`), som
 `samle.yml`, og henter dette skriptet fra kodrepoet.
@@ -33,7 +35,9 @@ import argparse
 import datetime as dt
 import json
 import os
+import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 ROT = Path(__file__).resolve().parent
@@ -67,10 +71,11 @@ def bygg(kvittering: Path) -> dict:
         raise Stopp(f"\n  STOPPET: {ut} finnes ikke.")
 
     print("\n[3/4] publiseringsvakten (som for produksjon)")
-    print("\n".join(publiser.kjor_porten(ut, produksjon=True)))
+    portlinjer, kvitterte = publiser.port(ut, produksjon=True)
+    print("\n".join(portlinjer))
 
     print("\n[4/4] ukas endringer")
-    uke, linjer = publiser.ukas_tall()
+    uke, linjer, maal = publiser.ukas_maal()
     sok = publiser.krev_sokeindeks(ut, produksjon=True)
     sha, filer, byte = publiser.mappesum(ut)
     k = {
@@ -81,6 +86,14 @@ def bygg(kvittering: Path) -> dict:
         "filer": filer,
         "byte": byte,
         "bygget": dt.datetime.now(dt.timezone.utc).isoformat(),
+        # Det publiser.yml måler vilkårene for automatisk utlegging mot.
+        # `ukvitterte` er alltid 0 her: porten stopper bygget før denne
+        # linja ellers. Den står likevel, så kvitteringen SIER det og
+        # publiser.yml leser det i stedet for å slutte det av at fila
+        # finnes. En kvittering fra før 13.10.2026 mangler feltene, og
+        # da holder ikke vilkårene (se `vurder()`).
+        "port": {"ukvitterte": 0, "kvitterte": kvitterte},
+        "maal": maal,
     }
     print("\n".join(linjer + sok))
     print(f"\n  {filer} filer, {byte / 1e6:.1f} MB")
@@ -216,6 +229,175 @@ def logg(k: dict, miljo: str, forsok: int = 3) -> str:
     return problem
 
 
+# ------------------------------------------------------------ automatisk
+
+# Heine bestemte 12.10.2026 at databygg skal kunne gå ut av seg selv.
+# bygg.yml starter publiser.yml med `automatisk=ja` etter et grønt bygg,
+# og publiser.yml er fortsatt den eneste døra til produksjon. Den stoler
+# ikke på kalleren: `automatisk=ja` betyr «vurder», ikke «gå». Vurderingen
+# er her, og alle fire vilkår må holde:
+#
+#   a  kode       kvitteringens kode_commit er den samme som i siste
+#                 produksjonslinje i publiseringsloggen. Bare data er nytt;
+#                 ny kode går ut med «ja», som før.
+#   b  porten     null ukvitterte funn, slik kvitteringen sier det.
+#   c  delvis     ukas innsamling er ikke DELVIS. Lest av innsamlingens egen
+#                 commit, ikke av noe som ligner.
+#   d  båndet     ukas endringer og antall lokaliteter ligger i
+#                 normalbåndet i config.yml (`publisering.normalbaand`).
+#
+# «Vet ikke» holder aldri. En kvittering uten feltene, en logg uten
+# produksjonslinje, en commit som ikke kan leses: vilkåret holder ikke,
+# grunnen står i issuen, og bygget venter på «ja» som før.
+
+INNSAMLER = "havbruk-radar"     # user.name i samle.yml
+DELVIS = "DELVIS:"              # merket samle.yml setter i emnelinjen
+
+
+@dataclass
+class Vilkar:
+    navn: str
+    holder: bool
+    tekst: str
+
+
+def siste_produksjon(logg_sti: Path) -> dict | None:
+    """Siste linje med miljø `produksjon` i publiseringsloggen."""
+    if not logg_sti.exists():
+        return None
+    linjer = logg_sti.read_text(encoding="utf-8").splitlines()
+    if not linjer:
+        return None
+    felt = linjer[0].split("\t")
+    rader = [dict(zip(felt, l.split("\t"))) for l in linjer[1:] if l.strip()]
+    prod = [r for r in rader if r.get("miljo") == "produksjon"]
+    return prod[-1] if prod else None
+
+
+def vilkar_kode(k: dict, siste: dict | None) -> Vilkar:
+    if siste is None:
+        return Vilkar("a kode", False, "publiseringsloggen har ingen "
+                      "produksjonslinje å sammenligne med")
+    if k.get("kode_commit") != siste.get("kode_commit"):
+        return Vilkar("a kode", False,
+                      f"koden er ny: bygget er laget med "
+                      f"{k.get('kode_commit', '')[:12]}, produksjon kjører "
+                      f"{siste.get('kode_commit', '')[:12]} "
+                      f"({siste.get('tidspunkt', '')[:10]}). Ny kode går ut "
+                      f"med «ja».")
+    return Vilkar("a kode", True, f"samme kode som produksjon "
+                  f"({k['kode_commit'][:12]}); bare data er nytt")
+
+
+def vilkar_port(k: dict) -> Vilkar:
+    port = k.get("port")
+    if not isinstance(port, dict) or not isinstance(port.get("ukvitterte"), int):
+        return Vilkar("b porten", False, "kvitteringen sier ikke hvor mange "
+                      "ukvitterte funn porten fant (bygget er eldre enn "
+                      "13.10.2026)")
+    if port["ukvitterte"]:
+        return Vilkar("b porten", False,
+                      f"{port['ukvitterte']} ukvitterte funn")
+    return Vilkar("b porten", True, f"null ukvitterte funn "
+                  f"({port.get('kvitterte', '?')} kvitterte står)")
+
+
+def _git(datarepo: Path, *args: str) -> str:
+    r = subprocess.run(["git", "-C", str(datarepo), *args],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args[:2])}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def innsamlingscommits(datarepo: Path, data_commit: str) -> list[tuple[str, str, str]]:
+    """[(sha, forfatter, emne)] for hver commit i ISO-uka til den siste
+    innsamlingen, til og med `data_commit`. Nyest først. Tom: ingen funnet.
+
+    En innsamlingscommit skrev både data/health.json og noe under
+    data/raw/. Begge, med vilje: tirsdagens gjenkjøring i en frisk uke kan
+    skrive health.json alene, med MANDAGENS emnelinje og uten DELVIS-merket
+    (MÅLT: dc8b126, 06.10.2026, etter en DELVIS mandag 182e2df), og
+    revisjonen skriver data/raw/ uten health.json.
+
+    HELE UKA, ikke bare siste commit. En gjenkjøring som henter én kilde,
+    vurderer bare den kilden: 22.09.2026 skrev tirsdagen et snapshot uten
+    merket (b3e80ea, «0 endringer») etter en DELVIS mandag (cdaf1f9,
+    tilsyn: true). Siste commit alene ville sagt at uka var hel."""
+    funnet: list[tuple[str, str, str]] = []
+    uke = None
+    for linje in _git(datarepo, "log", "--format=%H%x1f%an%x1f%ct%x1f%s",
+                      data_commit, "--", "data/health.json").splitlines():
+        sha, forfatter, tid, emne = linje.split("\x1f", 3)
+        if not _git(datarepo, "diff-tree", "--root", "--no-commit-id",
+                    "--name-only", "-r", sha, "--", "data/raw").strip():
+            continue
+        denne = dt.datetime.fromtimestamp(int(tid), dt.timezone.utc).isocalendar()[:2]
+        if uke is None:
+            uke = denne
+        elif denne != uke:
+            break
+        funnet.append((sha, forfatter, emne))
+    return funnet
+
+
+def vilkar_delvis(k: dict, datarepo: Path) -> Vilkar:
+    try:
+        funnet = innsamlingscommits(datarepo, k["data_commit"])
+    except (RuntimeError, OSError, KeyError, ValueError) as e:
+        return Vilkar("c delvis", False, f"innsamlingens commits kunne ikke "
+                      f"leses: {e}")
+    if not funnet:
+        return Vilkar("c delvis", False, "fant ingen commit som skrev "
+                      "snapshots før datacommiten")
+    for sha, forfatter, emne in funnet:
+        if forfatter != INNSAMLER:
+            return Vilkar("c delvis", False,
+                          f"en snapshot-commit i uka ({sha[:12]}) er skrevet av "
+                          f"{forfatter}, ikke av innsamlingen — om uka er hel, "
+                          f"står ikke noe sted")
+        if emne.startswith(DELVIS):
+            return Vilkar("c delvis", False,
+                          f"uka er DELVIS: «{emne}» ({sha[:12]})")
+    return Vilkar("c delvis", True, f"{len(funnet)} innsamlingscommit(s) i uka, "
+                  f"ingen DELVIS: «{funnet[0][2]}» ({funnet[0][0][:12]})")
+
+
+def normalbaand() -> dict:
+    from core import config
+    return config.get("publisering.normalbaand", {}) or {}
+
+
+def vilkar_band(k: dict, band: dict) -> Vilkar:
+    maal = k.get("maal")
+    if not isinstance(maal, dict):
+        return Vilkar("d båndet", False, "kvitteringen har ikke ukas tall "
+                      "(bygget er eldre enn 13.10.2026)")
+    utenfor, innenfor = [], []
+    for navn in ("endringer", "lokaliteter"):
+        grense = band.get(navn) or {}
+        verdi = maal.get(navn)
+        if not isinstance(verdi, int) or not {"min", "maks"} <= set(grense):
+            utenfor.append(f"{navn}: {verdi!r} mot {grense or 'ingen grense'}")
+        elif not grense["min"] <= verdi <= grense["maks"]:
+            utenfor.append(f"{navn} {verdi} utenfor {grense['min']}–{grense['maks']}")
+        else:
+            innenfor.append(f"{navn} {verdi} i {grense['min']}–{grense['maks']}")
+    if utenfor:
+        return Vilkar("d båndet", False, "; ".join(utenfor))
+    return Vilkar("d båndet", True, "; ".join(innenfor))
+
+
+def vurder(k: dict, logg_sti: Path, datarepo: Path, band: dict) -> list[Vilkar]:
+    return [vilkar_kode(k, siste_produksjon(logg_sti)), vilkar_port(k),
+            vilkar_delvis(k, datarepo), vilkar_band(k, band)]
+
+
+def vilkaarstekst(vilkar: list[Vilkar]) -> str:
+    return "\n".join(f"- {'✓' if v.holder else '✗'} **{v.navn}**: {v.tekst}"
+                     for v in vilkar)
+
+
 # ------------------------------------------------------------ hoved
 
 def main(argv: list[str] | None = None) -> int:
@@ -237,6 +419,12 @@ def main(argv: list[str] | None = None) -> int:
     lg.add_argument("--kvittering", type=Path, required=True)
     lg.add_argument("--miljo", choices=MILJOER, required=True)
 
+    au = sub.add_parser("automatisk", help="vilkårene for automatisk utlegging")
+    au.add_argument("--kvittering", type=Path, required=True)
+    au.add_argument("--datarepo", type=Path, required=True)
+    au.add_argument("--rapport", type=Path,
+                    help="skriv vilkårene som markdown hit (til issuen)")
+
     a = ap.parse_args(argv)
     if a.kommando == "bygg":
         bygg(a.kvittering)
@@ -255,6 +443,21 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(f"      {publiser.LOGG.relative_to(publiser.DATAREPO)} — "
               f"committet og pushet")
+    elif a.kommando == "automatisk":
+        k = les_kvittering(a.kvittering)
+        vilkar = vurder(k, a.datarepo / "docs" / "publiseringslogg.tsv",
+                        a.datarepo, normalbaand())
+        apen = all(v.holder for v in vilkar)
+        for v in vilkar:
+            print(f"  {'holder ' if v.holder else 'HOLDER IKKE'}  {v.navn}: {v.tekst}")
+        print(f"\n  {'Alle fire holder: legges ut.' if apen else 'Legges IKKE ut. Bygget venter på «ja».'}")
+        if a.rapport:
+            a.rapport.parent.mkdir(parents=True, exist_ok=True)
+            a.rapport.write_text(vilkaarstekst(vilkar) + "\n", encoding="utf-8")
+        sti = os.environ.get("GITHUB_OUTPUT")
+        if sti:
+            with open(sti, "a", encoding="utf-8") as f:
+                f.write(f"apen={'ja' if apen else 'nei'}\n")
     return 0
 
 

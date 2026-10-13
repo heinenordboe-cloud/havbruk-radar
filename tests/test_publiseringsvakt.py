@@ -622,7 +622,7 @@ def test_publiser_sender_produksjonsflagget_til_porten():
     assert "kjor_porten(UT, args.produksjon)" in kode
     # Og byggene fra Actions er produksjonsbygg — se publiser_ci.py.
     ci = (rot / "publiser_ci.py").read_text(encoding="utf-8")
-    assert "kjor_porten(ut, produksjon=True)" in ci
+    assert "port(ut, produksjon=True)" in ci
 
 
 def test_porten_faar_produksjonsflagget(monkeypatch, tmp_path):

@@ -377,10 +377,54 @@ To workflows i DATAREPOET, og koden de kjører ligger i kodrepoet
 | Workflow | Starter | Gjør |
 |---|---|---|
 | **Bygg nettstedet** (`bygg.yml`) | av seg selv når innsamlingen ender grønn (også DELVIS), eller for hånd | bygger, kjører porten, legger ut til **forhåndsvisning**, lagrer byggemappa i 7 dager |
-| **Publiser** (`publiser.yml`) | bare for hånd | legger et ferdig bygg ut på **kystloggen.no**, røyktester det, og sletter eldre bygg når alt er grønt |
+| **Publiser** (`publiser.yml`) | for hånd med «ja», og av `bygg.yml` med `automatisk=ja` etter et grønt bygg | legger et ferdig bygg ut på **kystloggen.no** — automatisk bare når fire vilkår holder — røyktester det, og sletter eldre bygg når alt er grønt |
 
-Godkjenningen er at du starter `Publiser` selv. Datarepoet er privat på
-GitHub Free, og der finnes ikke miljøer med påkrevd godkjenner.
+Godkjenningen er at du starter `Publiser` selv, eller at de fire
+vilkårene under holder. Datarepoet er privat på GitHub Free, og der
+finnes ikke miljøer med påkrevd godkjenner.
+
+### Automatisk publisering av databygg
+
+Heine bestemte 12.10.2026 at en uke der bare DATA er nytt, kan gå ut av
+seg selv. `bygg.yml` starter `publiser.yml` med `automatisk=ja` og sitt
+eget run_id etter et grønt bygg. `publiser.yml` stoler ikke på det: den
+leser kvitteringen og datarepoet selv (`publiser_ci.py automatisk`), og
+legger ut bare når alle fire holder:
+
+| | Vilkår | Leses av |
+|---|---|---|
+| a | koden er den produksjon kjører | `kode_commit` i kvitteringen mot siste produksjonslinje i publiseringsloggen |
+| b | porten fant null ukvitterte funn | `port` i kvitteringen |
+| c | uka er ikke DELVIS | emnelinjen på hver innsamlingscommit (skrev `data/health.json` og `data/raw/`) i ISO-uka til den siste, fram til `data_commit` |
+| d | ukas tall er i normalbåndet | `maal` i kvitteringen mot `publisering.normalbaand` i `config.yml` |
+
+**Holder ett ikke**, legges ingenting ut. Jobben er grønn, issuen
+«Automatisk publisering stoppet» sier hvilket vilkår og hvorfor, og
+bygget venter på «ja» som før (stegene under, med `run_id` fra issuen).
+Issuen lukkes av neste publisering som består røyktesten.
+
+**Går bygget ut**, kommer issuen «Automatisk publisert» med ukas tall,
+kvitteringen og kommandoen som ruller tilbake:
+
+```bash
+gh workflow run publiser.yml -R heinenordboe-cloud/havbruk-radar-data \
+  -f run_id=<forrige produksjonsbygg> -f bekreft=ja
+```
+
+Forrige produksjonsbygg finnes ved å lese kvitteringene, og ryddingen
+lar det stå. Bygg utløper etter 7 dager; er forrige eldre, sier issuen
+at tilbakerulling med run_id ikke går.
+
+**DELVIS stopper i dag hver uke.** Alle åtte ukene 2026-35 til 2026-42
+er DELVIS (MÅLT 13.10.2026; fra uke 37 med «tilsyn: true» fordi
+innholdsvarsler står til rotårsaken er fikset). Vilkår a, b og d ville
+holdt for uke 42. Så lenge et innholdsvarsel står, går ingen uke ut av
+seg selv.
+
+**Normalbåndet** er målt over alle uker og står med metoden i
+`config.yml`. Det flytter seg ikke av seg selv (CLAUDE.md 1b-4), og fordi
+vilkår a krever koden produksjon kjører, går et nytt bånd ut med «ja»
+før det kan slippe noe gjennom.
 
 **`bygg.yml` endrer ikke innsamlingen.** Den starter først når
 `samle.yml` er ferdig, og den eneste skrivingen er logglinja. Bygger den
@@ -413,10 +457,12 @@ i oppsummeringen, og jobben er grønn.
 github.com i nettleseren på telefonen.*
 
 Rød i `Publiser` betyr én av fire ting, og steget som feilet sier
-hvilken: `bekreft` var ikke `ja`, summen avvek (ingenting er lastet
-opp), en Cloudflare-nøkkel mangler (ingenting er lastet opp), eller
-røyktesten feilet (siden ER ute — da kommer issuen «Publiseringen
-trenger tilsyn», og den lukkes av neste røyktest som går).
+hvilken: `bekreft` var ikke `ja` (og `automatisk` ikke satt), summen
+avvek (ingenting er lastet opp), en Cloudflare-nøkkel mangler (ingenting
+er lastet opp), eller røyktesten feilet (siden ER ute — da kommer issuen
+«Publiseringen trenger tilsyn», og den lukkes av neste røyktest som
+går). En automatisk kjøring som vilkårene stoppet, er GRØNN; signalet er
+issuen «Automatisk publisering stoppet».
 
 Røyktesten krever at kontaktadressen står som klartekst
 (`mailto:kontakt@kystloggen.no`) på alle fem sidene. Cloudflares **Email

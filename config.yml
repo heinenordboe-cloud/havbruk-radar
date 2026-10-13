@@ -328,3 +328,40 @@ nettsted:
   # De to er ikke samme spørsmål: den ene er hvem leserne skriver til,
   # den andre hvem en etat skal nå når vi henter for mye.
   kontakt: "kontakt@kystloggen.no"
+
+publisering:
+  # NORMALBÅNDET for automatisk publisering (publiser_ci.py automatisk,
+  # vilkår d). Et databygg går ut av seg selv bare når ukas tall ligger
+  # her; ellers venter det på «ja».
+  #
+  # MÅLT 13.10.2026 over ALLE uker i dataene, med de samme funksjonene som
+  # bygger tallene i kvitteringen:
+  #
+  #   endringer    `antall` i nettsted.les_endringsuker() — overskriftstallet
+  #                på forsiden. 8 uker, 2026-35 til 2026-42:
+  #                2, 12, 25, 94, 8, 21, 75, 61
+  #   lokaliteter  distinkte lokaliteter i hvert akvakultur-snapshot, siste
+  #                versjon per dato (= len(felles.akva)). 9 snapshots,
+  #                2026-08-17 til 2026-10-12: 1779–1783
+  #
+  # Regelen:
+  #
+  #   endringer    min 1, maks 3 × høyeste uke (94). En uke med null
+  #                endringer er enten stille eller en tom diff, og en uke
+  #                med tre ganger det høyeste vi har sett er enten en stor
+  #                uke eller en parser som teller feil. Begge fortjener et
+  #                menneske.
+  #   lokaliteter  2 % under laveste og over høyeste: 1743–1819. Registeret
+  #                har flyttet seg 4 lokaliteter på åtte uker; 2 % er 36.
+  #
+  # Ingen historisk uke ligger utenfor båndet (det er målt av dem). Med
+  # regelen anvendt på ukene FØR hver uke, ville 2026-36 (12 mot maks 6)
+  # og 2026-38 (94 mot maks 75) ha stoppet; ingen uke etter 2026-38.
+  #
+  # BÅNDET FLYTTER SEG IKKE AV SEG SELV (CLAUDE.md 1b-4). Et rullende bånd
+  # godtar degradering i sakte film. Det endres av en commit her, og fordi
+  # vilkår a krever at koden er den produksjon allerede kjører, går et nytt
+  # bånd ut med «ja» før det kan slippe noe gjennom av seg selv.
+  normalbaand:
+    endringer: {min: 1, maks: 282}
+    lokaliteter: {min: 1743, maks: 1819}

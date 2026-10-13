@@ -217,6 +217,15 @@ def byggkommando(av: str = f"{Path(__file__).name} steg {PORTSTEG}"
 def kjor_porten(ut: Path, produksjon: bool) -> list[str]:
     """Linjene som skrives om porten. `Stopp` ved ett ukvittert funn.
 
+    Se `port()`, som gjør jobben og i tillegg sier hvor mange kvitterte
+    funn som står — det kvitteringen fra `publiser_ci.py bygg` bærer.
+    """
+    return port(ut, produksjon)[0]
+
+
+def port(ut: Path, produksjon: bool) -> tuple[list[str], int]:
+    """(linjene, antall kvitterte funn). `Stopp` ved ett ukvittert funn.
+
     Én funksjon for `main()` og `publiser_ci.py`: porten er det ene
     steget ingen av de to veiene skal kunne gjøre litt annerledes.
 
@@ -236,7 +245,8 @@ def kjor_porten(ut: Path, produksjon: bool) -> list[str]:
         raise Stopp("\n".join(linjer + [f"      {f}" for f in igjen])
                     + f"\n\n  STOPPET: {len(igjen)} ukvitterte funn. "
                       f"Ingenting er lastet opp.")
-    return linjer + [f"      rent — {len(kvitterte)} kvitterte funn står"]
+    return (linjer + [f"      rent — {len(kvitterte)} kvitterte funn står"],
+            len(kvitterte))
 
 
 # ------------------------------------------------------------ steg 4
@@ -367,11 +377,23 @@ def krev_sokeindeks(ut: Path, produksjon: bool) -> list[str]:
 
 
 def ukas_tall() -> tuple[str, list[str]]:
-    """(ukeslug, linjer) — hva som ligger i den ferskeste uka.
+    """(ukeslug, linjer) — hva som ligger i den ferskeste uka. Se
+    `ukas_maal()`."""
+    slug, linjer, _ = ukas_maal()
+    return slug, linjer
+
+
+def ukas_maal() -> tuple[str, list[str], dict]:
+    """(ukeslug, linjer, mål) — hva som ligger i den ferskeste uka.
 
     Leses av det som NETTOPP ble bygget, ikke av changeloggen på nytt:
     spørsmålet er «hva er det jeg er i ferd med å legge ut», og det
     svares bare av utputtet.
+
+    `mål` er tallene normalbåndet for automatisk publisering måles mot
+    (`publiser_ci.vilkar_band`): `endringer` er overskriftstallet for uka,
+    `lokaliteter` antallet lokaliteter i akvakulturregisteret — de samme
+    to tallene som står i linjene. Tom når det ikke er noen endringsuke.
     """
     import collections
 
@@ -380,7 +402,7 @@ def ukas_tall() -> tuple[str, list[str]]:
     felles = nettsted.les_felles()
     uker = nettsted.les_endringsuker(felles)
     if not uker:
-        return "", ["Ingen endringsuker."]
+        return "", ["Ingen endringsuker."], {}
 
     u = uker[0]
     linjer = [
@@ -418,7 +440,8 @@ def ukas_tall() -> tuple[str, list[str]]:
     if uten:
         linjer.append("    " + (", ".join(uten) if len(uten) <= 10
                                 else ", ".join(uten[:10]) + " …"))
-    return u["slug"], linjer
+    return u["slug"], linjer, {"endringer": u["antall"],
+                               "lokaliteter": len(felles.akva)}
 
 
 def spor(tekst: str) -> None:

@@ -203,3 +203,235 @@ def test_avvik_fra_kvitteringen_stopper(tmp_path):
 def test_ingen_mappe_stopper(tmp_path):
     with pytest.raises(publiser.Stopp, match="finnes ikke"):
         publiser_ci.sjekk(tmp_path / "borte", K)
+
+
+# ---- automatisk utlegging: de fire vilkårene ---------------------------
+
+KODE, ANNEN = "a" * 40, "f" * 40
+
+
+def _logg(sti: Path, *linjer: tuple[str, str, str]) -> Path:
+    sti.write_text("tidspunkt\tmiljo\tkode_commit\tdata_commit\tuke\n" + "".join(
+        f"2026-10-0{i + 1}T12:00:00+00:00\t{m}\t{k}\t{d}\t2026-41\n"
+        for i, (m, k, d) in enumerate(linjer)), encoding="utf-8")
+    return sti
+
+
+def test_a_holder_naar_koden_er_den_produksjon_kjorer(tmp_path):
+    logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"),
+                 ("forhandsvisning", ANNEN, "d2"))
+    siste = publiser_ci.siste_produksjon(logg)
+    assert siste["kode_commit"] == KODE      # forhåndsvisningen teller ikke
+    assert publiser_ci.vilkar_kode({"kode_commit": KODE}, siste).holder
+    v = publiser_ci.vilkar_kode({"kode_commit": ANNEN}, siste)
+    assert not v.holder and "koden er ny" in v.tekst
+
+
+def test_a_holder_ikke_uten_produksjonslinje(tmp_path):
+    logg = _logg(tmp_path / "l.tsv", ("forhandsvisning", KODE, "d1"))
+    assert publiser_ci.siste_produksjon(logg) is None
+    assert not publiser_ci.vilkar_kode({"kode_commit": KODE}, None).holder
+    assert publiser_ci.siste_produksjon(tmp_path / "finnes-ikke.tsv") is None
+
+
+@pytest.mark.parametrize("port,holder", [
+    ({"ukvitterte": 0, "kvitterte": 3}, True),
+    ({"ukvitterte": 2, "kvitterte": 0}, False),
+    (None, False),                           # kvittering fra før feltet
+    ({"kvitterte": 1}, False),
+])
+def test_b_porten(port, holder):
+    k = {} if port is None else {"port": port}
+    assert publiser_ci.vilkar_port(k).holder is holder
+
+
+BAND = {"endringer": {"min": 1, "maks": 282},
+        "lokaliteter": {"min": 1743, "maks": 1819}}
+
+
+@pytest.mark.parametrize("maal,holder", [
+    ({"endringer": 61, "lokaliteter": 1780}, True),
+    ({"endringer": 1, "lokaliteter": 1743}, True),       # grensene er med
+    ({"endringer": 282, "lokaliteter": 1819}, True),
+    ({"endringer": 0, "lokaliteter": 1780}, False),
+    ({"endringer": 283, "lokaliteter": 1780}, False),
+    ({"endringer": 61, "lokaliteter": 1742}, False),
+    ({"endringer": 61, "lokaliteter": 1820}, False),
+    ({"endringer": 61}, False),
+    (None, False),
+])
+def test_d_baandet(maal, holder):
+    k = {} if maal is None else {"maal": maal}
+    assert publiser_ci.vilkar_band(k, BAND).holder is holder
+
+
+def test_d_holder_ikke_uten_baand():
+    k = {"maal": {"endringer": 61, "lokaliteter": 1780}}
+    assert not publiser_ci.vilkar_band(k, {}).holder
+
+
+def test_baandet_i_config_er_det_som_er_maalt():
+    """Tallene og regelen står i config.yml med målingen. Endres de uten
+    at kommentaren følger, er det denne prøven som sier fra."""
+    assert publiser_ci.normalbaand() == BAND
+
+
+class Datarepo:
+    """Et git-repo med commits på formen samle.yml og revisjon.yml skriver."""
+
+    def __init__(self, rot: Path):
+        self.rot = rot
+        subprocess.run(["git", "init", "-q", str(rot)], check=True)
+        self.n = 0
+
+    def commit(self, emne: str, dag: str, stier=("data/health.json", "data/raw/a/x.parquet"),
+               hvem: str = "havbruk-radar") -> str:
+        for sti in stier:
+            self.n += 1
+            (self.rot / sti).parent.mkdir(parents=True, exist_ok=True)
+            (self.rot / sti).write_text(str(self.n))
+        tid = f"{dag}T12:00:00+00:00"
+        env = {"GIT_AUTHOR_NAME": hvem, "GIT_COMMITTER_NAME": hvem,
+               "GIT_AUTHOR_EMAIL": "a@b", "GIT_COMMITTER_EMAIL": "a@b",
+               "GIT_AUTHOR_DATE": tid, "GIT_COMMITTER_DATE": tid,
+               "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin"}
+        subprocess.run(["git", "-C", str(self.rot), "add", "-A"], check=True, env=env)
+        subprocess.run(["git", "-C", str(self.rot), "commit", "-q", "-m", emne],
+                       check=True, env=env)
+        return subprocess.run(["git", "-C", str(self.rot), "rev-parse", "HEAD"],
+                              capture_output=True, text=True).stdout.strip()
+
+
+@pytest.fixture
+def repo(tmp_path):
+    return Datarepo(tmp_path / "data-repo")
+
+
+def _c(repo, sha):
+    return publiser_ci.vilkar_delvis({"data_commit": sha}, repo.rot)
+
+
+def test_c_holder_for_en_hel_uke(repo):
+    sha = repo.commit("Snapshot 2026-10-12 — 61 endringer", "2026-10-12")
+    v = _c(repo, sha)
+    assert v.holder, v.tekst
+
+
+def test_c_holder_ikke_for_en_delvis_uke(repo):
+    sha = repo.commit("DELVIS: Snapshot 2026-10-12 — 61 endringer", "2026-10-12")
+    assert "DELVIS" in _c(repo, sha).tekst and not _c(repo, sha).holder
+
+
+def test_c_tirsdagens_health_alene_skjuler_ikke_en_delvis_mandag(repo):
+    """dc8b126: health.json alene, mandagens emnelinje, uten merket."""
+    repo.commit("DELVIS: Snapshot 2026-10-05", "2026-10-05")
+    sha = repo.commit("Snapshot 2026-10-05", "2026-10-06", stier=("data/health.json",))
+    v = _c(repo, sha)
+    assert not v.holder and "DELVIS: Snapshot 2026-10-05" in v.tekst
+
+
+def test_c_en_delvis_gjenkjoring_redder_ikke_uka(repo):
+    """b3e80ea: tirsdagen skrev et snapshot uten merket, mandagen var DELVIS."""
+    repo.commit("DELVIS: Snapshot 2026-09-21", "2026-09-21")
+    sha = repo.commit("Snapshot 2026-09-22 — 0 endringer", "2026-09-22")
+    assert not _c(repo, sha).holder
+
+
+def test_c_forrige_uke_teller_ikke(repo):
+    repo.commit("DELVIS: Snapshot 2026-10-05", "2026-10-05")
+    sha = repo.commit("Snapshot 2026-10-12", "2026-10-12")
+    assert _c(repo, sha).holder
+
+
+def test_c_revisjonen_og_arkivene_er_ikke_innsamlingen(repo):
+    repo.commit("Snapshot 2026-10-12", "2026-10-12")
+    repo.commit("Revisjon biomasse 2026-10-22: 1 måneder REVIDERT", "2026-10-22",
+                stier=("data/raw/biomasse/2026-07-31.2.parquet",))
+    sha = repo.commit("Auksjonsarkiv 2026-10-23", "2026-10-23",
+                      stier=("data/arkiv/auksjon/x.logg.json",))
+    v = _c(repo, sha)
+    assert v.holder and "Snapshot 2026-10-12" in v.tekst
+
+
+def test_c_et_snapshot_skrevet_av_et_menneske_sier_ikke_om_uka_er_hel(repo):
+    sha = repo.commit("Snapshot for hånd", "2026-10-12", hvem="Heine Nordboe")
+    v = _c(repo, sha)
+    assert not v.holder and "Heine Nordboe" in v.tekst
+
+
+def test_c_data_commit_avgjor_hva_som_er_med(repo):
+    """En DELVIS-commit ETTER datacommiten er ikke i bygget."""
+    sha = repo.commit("Snapshot 2026-10-12", "2026-10-12")
+    repo.commit("DELVIS: Snapshot 2026-10-13", "2026-10-13")
+    assert _c(repo, sha).holder
+
+
+def test_c_holder_ikke_uten_innsamling_eller_lesbar_historikk(repo, tmp_path):
+    sha = repo.commit("Auksjonsarkiv", "2026-10-12", stier=("data/arkiv/a/x",))
+    assert not _c(repo, sha).holder
+    v = publiser_ci.vilkar_delvis({"data_commit": "0" * 40}, repo.rot)
+    assert not v.holder and "kunne ikke leses" in v.tekst
+
+
+def _hel_kvittering(repo, logg_dir: Path) -> Path:
+    sha = repo.commit("Snapshot 2026-10-12", "2026-10-12")
+    (repo.rot / "docs").mkdir(exist_ok=True)
+    _logg(repo.rot / "docs" / "publiseringslogg.tsv", ("produksjon", KODE, "d0"))
+    k = logg_dir / "kvittering.json"
+    k.write_text(json.dumps({
+        "kode_commit": KODE, "data_commit": sha, "uke": "2026-42", "sha256": "s",
+        "port": {"ukvitterte": 0, "kvitterte": 0},
+        "maal": {"endringer": 61, "lokaliteter": 1780}}), encoding="utf-8")
+    return k
+
+
+def test_alle_fire_holder_og_doera_er_aapen(repo, tmp_path, monkeypatch):
+    k = _hel_kvittering(repo, tmp_path)
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
+    monkeypatch.setattr(publiser_ci, "normalbaand", lambda: BAND)
+    rapport = tmp_path / "rapport.md"
+    assert publiser_ci.main(["automatisk", "--kvittering", str(k),
+                             "--datarepo", str(repo.rot), "--rapport", str(rapport)]) == 0
+    assert ut.read_text() == "apen=ja\n"
+    assert rapport.read_text().count("✓") == 4
+
+
+@pytest.mark.parametrize("vilkar", ["a", "b", "c", "d"])
+def test_ett_vilkar_som_ikke_holder_lukker_doera(repo, tmp_path, monkeypatch, vilkar):
+    k = _hel_kvittering(repo, tmp_path)
+    kv = json.loads(k.read_text())
+    if vilkar == "a":
+        kv["kode_commit"] = ANNEN
+    elif vilkar == "b":
+        del kv["port"]
+    elif vilkar == "c":
+        kv["data_commit"] = repo.commit("DELVIS: Snapshot 2026-10-12", "2026-10-12")
+    else:
+        kv["maal"]["endringer"] = 5000
+    k.write_text(json.dumps(kv))
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
+    monkeypatch.setattr(publiser_ci, "normalbaand", lambda: BAND)
+    rapport = tmp_path / "rapport.md"
+    publiser_ci.main(["automatisk", "--kvittering", str(k),
+                      "--datarepo", str(repo.rot), "--rapport", str(rapport)])
+    assert ut.read_text() == "apen=nei\n"
+    [linje] = [l for l in rapport.read_text().splitlines() if "✗" in l]
+    assert f"**{vilkar} " in linje
+
+
+def test_kvitteringen_baerer_porten_og_ukas_tall(tmp_path, monkeypatch):
+    """Det publiser.yml leser vilkår b og d av, skrives av bygget."""
+    monkeypatch.setattr(publiser, "krev_sporbar", lambda *a: "c" * 40)
+    monkeypatch.setattr(publiser, "kjor", lambda *a, **k: None)
+    monkeypatch.setattr(publiser, "UT", tmp_path)
+    monkeypatch.setattr(publiser, "port", lambda ut, produksjon: (["rent"], 2))
+    monkeypatch.setattr(publiser, "ukas_maal", lambda: (
+        "2026-42", ["  61 endringer"], {"endringer": 61, "lokaliteter": 1780}))
+    monkeypatch.setattr(publiser, "krev_sokeindeks", lambda ut, produksjon: [])
+    monkeypatch.setattr(publiser, "mappesum", lambda ut: ("s" * 64, 3, 10))
+    k = publiser_ci.bygg(tmp_path / "k" / "kvittering.json")
+    assert k["port"] == {"ukvitterte": 0, "kvitterte": 2}
+    assert k["maal"] == {"endringer": 61, "lokaliteter": 1780}
+    assert json.loads((tmp_path / "k" / "kvittering.json").read_text())["maal"] == k["maal"]
