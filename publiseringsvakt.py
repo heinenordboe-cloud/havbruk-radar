@@ -499,6 +499,7 @@ class Funn:
                      # | ukjent_partisjon | feilerklaert_partisjon
                      # | uferdig | raatt_tidsstempel | reposti
                      # | uten_kontakt | nedtatt | immutable_uten_hash
+                     # | innholdstype
     utdrag: str
     antall: int = 1
 
@@ -2466,6 +2467,32 @@ def immutablefunn(mappe: Path) -> list[Funn]:
     return funn
 
 
+
+def innholdstypefunn(mappe: Path) -> list[Funn]:
+    """.xml-filer som ikke treffes av NØYAKTIG ÉN Content-Type-regel.
+
+    Cloudflare slår sammen hodene fra alle regler som treffer en sti.
+    To Content-Type blir da to verdier i samme svar, og null betyr at
+    verten gjetter (`text/xml` uten tegnsett). `/sitemap.xml` ble servert
+    som Atom til 12.10.2026 fordi `/*.xml` traff den.
+    """
+    hoder = mappe / "_headers"
+    if not hoder.exists():
+        return []
+    regler = [(m, re.compile(re.escape(m).replace(r"\*", ".*")))
+              for m, h in _hoderegler(hoder.read_text(encoding="utf-8"))
+              if "content-type" in h]
+    funn = []
+    for sti in sorted(mappe.rglob("*.xml")):
+        rel = sti.relative_to(mappe).as_posix()
+        treff = [m for m, r in regler if r.fullmatch("/" + rel)]
+        if len(treff) != 1:
+            funn.append(Funn(rel, "innholdstype",
+                             f"{len(treff)} Content-Type-regler treffer "
+                             f"({', '.join(treff) or 'ingen'}), skal være én"))
+    return funn
+
+
 def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
 
@@ -2476,7 +2503,7 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """
     funn: list[Funn] = (list(grunnlagsfunn()) + list(kodeproveniensfunn())
                         + list(filtallsfunn(mappe)) + nedtattfunn(mappe)
-                        + immutablefunn(mappe))
+                        + immutablefunn(mappe) + innholdstypefunn(mappe))
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.

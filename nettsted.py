@@ -7138,8 +7138,21 @@ VERTSHODER = (
 #
 # Dette er ikke teoretisk for oss: 2 277 feeder og 1 787 CSV-er, og
 # nesten hvert eneste norske stedsnavn har en æøå i seg.
+ATOM_TYPE = "application/atom+xml; charset=utf-8"
+
 VERTSFILHODER = (
-    ("/*.xml", (("Content-Type", "application/atom+xml; charset=utf-8"),)),
+    # ATOM BARE PÅ FEEDENES STIER, ikke på `/*.xml`. Fram til 12.10.2026
+    # traff `/*.xml` også `/sitemap.xml`, og Search Console fikk den som
+    # `application/atom+xml`. Cloudflare SLÅR SAMMEN regler som treffer
+    # samme sti, så en ekstra regel for sitemap ville gitt to
+    # Content-Type. Derfor er hver .xml-fil sin egen regel, og porten
+    # (`publiseringsvakt.innholdstypefunn()`) feller en .xml-fil som
+    # treffes av null eller flere enn én. Stiene er `skriv_feeder()`s.
+    ("/endringer/feed.xml", (("Content-Type", ATOM_TYPE),)),
+    ("/lokalitet/*/feed.xml", (("Content-Type", ATOM_TYPE),)),
+    ("/produksjonsomrade/*/feed.xml", (("Content-Type", ATOM_TYPE),)),
+    ("/selskap/*/feed.xml", (("Content-Type", ATOM_TYPE),)),
+    ("/sitemap.xml", (("Content-Type", "application/xml; charset=utf-8"),)),
     ("/*.csv", (("Content-Type", "text/csv; charset=utf-8"),)),
     ("/*.json", (("Content-Type", "application/json; charset=utf-8"),)),
     ("/*.txt", (("Content-Type", "text/plain; charset=utf-8"),)),

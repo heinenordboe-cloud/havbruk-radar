@@ -5176,6 +5176,35 @@ def test_headers_er_strenge_fordi_siden_er_enkel(tmp_path):
     assert "max-age=31536000, immutable" in tekst
 
 
+
+def test_hver_xml_fil_treffes_av_noeyaktig_en_content_type(tmp_path):
+    """`/*.xml` traff også `/sitemap.xml`, som ble servert som Atom til
+    12.10.2026. Cloudflare slår sammen regler, så en ekstra regel ville
+    gitt to Content-Type. Stiene er `skriv_feeder()`s fire former."""
+    import publiseringsvakt
+    nettsted.skriv_vertsfiler(tmp_path)
+    for rel in ("sitemap.xml", "endringer/feed.xml",
+                "lokalitet/31397/feed.xml", "produksjonsomrade/3/feed.xml",
+                "selskap/912345678/feed.xml"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text("<x/>", encoding="utf-8")
+    assert publiseringsvakt.innholdstypefunn(tmp_path) == []
+    regler = dict(publiseringsvakt._hoderegler(
+        (tmp_path / "_headers").read_text(encoding="utf-8")))
+    assert regler["/sitemap.xml"]["content-type"] == \
+        "application/xml; charset=utf-8"
+    assert regler["/selskap/*/feed.xml"]["content-type"] == \
+        "application/atom+xml; charset=utf-8"
+
+    # Og prøven ser feilen: en ny .xml uten regel, og den gamle regelen.
+    (tmp_path / "ukjent.xml").write_text("<x/>", encoding="utf-8")
+    assert [f.fil for f in publiseringsvakt.innholdstypefunn(tmp_path)] \
+        == ["ukjent.xml"]
+    (tmp_path / "ukjent.xml").unlink()
+    with open(tmp_path / "_headers", "a", encoding="utf-8") as f:
+        f.write("\n/*.xml\n  Content-Type: application/atom+xml\n")
+    assert len(publiseringsvakt.innholdstypefunn(tmp_path)) == 5
+
 def test_404_gjetter_ikke(tmp_path):
     """Et lokalitetsnummer som ikke finnes kan være nedlagt,
     feilskrevet eller utenfor utvalget vårt — og de tre betyr helt
