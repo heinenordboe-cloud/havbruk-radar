@@ -856,6 +856,54 @@ ikke valgt.
 
 Tilsynet varsler når ingen daglig logg er committet på 2 døgn.
 
+### Tidsstempler
+
+`stempel.yml` i datarepoet kjører `stempel.py` etter hver fangstjobb
+(workflow_run), med søndag-cron som reserve:
+
+```bash
+python stempel.py --torrkjor      # hvor mange filer som ikke er stemplet
+python stempel.py                 # manifest, stempel, oppgrader ventende
+```
+
+Den skriver `data/stempler/<dato>.manifest.txt` med sha256 for hver fil i
+`data/arkiv/`, `data/raw/` og `predictions/` som ikke står i et tidligere
+manifest, og HEAD i begge repoene. `ots stamp` gir `<manifest>.ots`, som
+venter på kalendrene. En senere kjøring oppgraderer en kopi og skriver
+`<manifest>.komplett.ots` når den er forankret i en blokk; originalen
+endres aldri. Venter et stempel mer enn 2 døgn, gir kjøringen en
+`::warning::`.
+
+**Verifisere et stempel**, fra mappa begge repoene ligger i (`~`):
+
+```bash
+M=havbruk-radar-data/data/stempler/2026-10-18.manifest.txt   # eksempel
+
+# 1. Filene er de manifestet sier. Uten dette verktøyet:
+grep -v '^#' "$M" | grep . | shasum -a 256 -c --quiet && echo filene OK
+
+# 2. Manifestet er det stempelet gjelder, og stempelet peker på en blokk:
+pip install opentimestamps-client==0.7.2
+ots --no-bitcoin verify -f "$M" "$M.komplett.ots"
+#   «To verify manually, check that Bitcoin block N has merkleroot X»
+
+# 3. Blokka har den merkleroten. Hvilken som helst blokkutforsker:
+curl -s https://mempool.space/api/block/$(curl -s https://mempool.space/api/block-height/N) \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["merkle_root"])'
+```
+
+Med en egen Bitcoin-node svarer `ots verify -f "$M" "$M.komplett.ots"`
+(uten `--no-bitcoin`) på 2 og 3 i ett. Kjeden er prøvd 13.10.2026 på
+`predictions/havbruksfond-2026.md.ots`: blokk 971138, merkleroot
+`b7d19ad3…54a2`, samme svar fra `ots` og mempool.space.
+
+Finnes bare `<manifest>.ots` (ikke `.komplett.ots`), er stempelet et løfte
+fra kalendrene, ikke et bevis i kjeden. `ots info "$M.ots"` viser hvilke
+kalendre som har det.
+
+Feiler `ots stamp` (kalendrene svarer ikke), blir jobben rød, manifestet
+committes likevel, og neste kjøring stempler det.
+
 ## Ved behov: en eldre utgivelse inn i serien
 
 ```bash
