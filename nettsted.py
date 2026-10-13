@@ -182,6 +182,93 @@ LISENS_URL = {
     "enhetsregisteret": "https://data.norge.no/nlod/no/2.0",
 }
 
+# LISENSSIDEN PER KILDE, når versjonen IKKE er belagt: hjemmelen fra
+# docs/LISENSKJEDE.md, ordrett. `license` er påkrevd for hvert Dataset i
+# Search Console (4 kritiske feil, 8 ikke-kritiske til 12.10.2026), og
+# siden utgiveren selv har skrevet er den eneste URL-en som ikke påstår
+# mer enn utgiveren har sagt. `LISENS_URL` vinner der den finnes.
+LISENSSIDE = {
+    "akvakultur": "https://www.fiskeridir.no/statistikk-tall-og-analyse/"
+                  "lisens-for-bruk-av-fiskeridirektoratets-data",
+    "biomasselag": "https://www.fiskeridir.no/statistikk-tall-og-analyse/"
+                   "lisens-for-bruk-av-fiskeridirektoratets-data",
+    "lusetall": "https://www.barentswatch.no/artikler/api-vilkar",
+    "sjotemperatur": "https://www.barentswatch.no/artikler/api-vilkar",
+    "trafikklysvedtak": "https://lovdata.no/info/brukeravtale",
+    "unntaksvekst": "https://lovdata.no/lov/2018-06-15-40/§14",
+}
+
+# HVA HVER KILDE INNEHOLDER, for `description` i JSON-LD. Google krever
+# minst 50 tegn. MÅLT 12.10.2026: feltene står i nyeste snapshot av hver
+# kilde i datarepoet, og ingen tall står her, fordi de ville blitt
+# usanne neste uke.
+KILDEBESKRIVELSE = {
+    "akvakultur": "Fiskeridirektoratets akvakulturregister: per lokalitet "
+                  "navn, kommune, posisjon, produksjonsområde, arter, "
+                  "tillatt kapasitet og tilknyttede tillatelser.",
+    "eierskap": "Akvakulturtillatelsene i Fiskeridirektoratets register: "
+                "eier med organisasjonsnummer, hvem tillatelsen opprinnelig "
+                "ble tildelt, kapasitet, formål og lokalitetene den ligger "
+                "på.",
+    "eierskap_historikk": "Overføringene av akvakulturtillatelser i "
+                          "Fiskeridirektoratets register: tillatelse, "
+                          "mottaker med organisasjonsnummer, journaldato og "
+                          "journalnummer.",
+    "lusetall": "Ukentlige lusetall per akvakulturlokalitet fra BarentsWatch: "
+                "gjennomsnittlig antall voksne hunnlus per fisk, om tallet er "
+                "rapportert, og om lokaliteten har brukt rensefisk, mekanisk "
+                "fjerning eller medikamentell behandling.",
+    "sjotemperatur": "Ukentlig sjøtemperatur per akvakulturlokalitet fra "
+                     "BarentsWatch, med om temperaturen er rapportert og "
+                     "lusegrensen som gjelder.",
+    "trafikklysvedtak": "Trafikklysfargen Nærings- og fiskeridepartementet "
+                        "har fastsatt for produksjonsområdene, lest fra "
+                        "forskriftene på Lovdata.",
+    "enhetsregisteret": "Brønnøysundregistrenes Enhetsregister for "
+                        "selskapene i utvalget: navn, organisasjonsform, "
+                        "næringskode, kommune, ansatte, konkurs og "
+                        "avvikling. Uten roller og personopplysninger.",
+    "biomasselag": "Fiskeridirektoratets kartlag for biomasse: per lokalitet "
+                   "om det står fisk i sjøen, hvilke arter, og datoen for "
+                   "siste rapport.",
+    "unntaksvekst": "Mattilsynets oversikt over søknader om unntaksvekst "
+                    "2025/2026: saksnummer, søker med organisasjonsnummer, "
+                    "lokalitet, produksjonsområde og resultat.",
+}
+
+# Avsnittet på /om/ som sier hva gjenbruk av en side krever. Toppnivåets
+# `license` peker hit og ikke til én lisens: en side sammenstiller kilder
+# med hver sin lisensgiver, og en enkelt lisens-URL ville skjult det.
+GJENBRUK_STI = "/om/#gjenbruk"
+
+
+def kildenode(kilde: str, vilkaar: dict) -> dict:
+    """schema.org/Dataset for én kilde i `isBasedOn`.
+
+    `url` er kildens rad i lisenstabellen på /om/ — en side vi selv har
+    skrevet og vet hva står på. En adresse hos utgiveren ville vært en
+    påstand om en side ingen av oss har lest for dette formålet.
+    """
+    node = {
+        "@type": "Dataset",
+        "name": kilde,
+        "description": KILDEBESKRIVELSE[kilde],
+        "url": f"{_basisurl()}/om/#kilde-{kilde}",
+        "license": LISENS_URL.get(kilde) or LISENSSIDE[kilde],
+        "creditText": (vilkaar.get(kilde) or ("",))[0],
+    }
+    if kilde in UTGIVER:
+        node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
+    return node
+
+
+def med_url_og_lisens(data: dict, sti: str) -> dict:
+    """`url` og `license` på et toppnivå-Dataset. `sti` er sidens egen."""
+    data["url"] = _basisurl() + sti
+    data["license"] = _basisurl() + GJENBRUK_STI
+    return data
+
+
 # HVEM SOM STÅR BAK HVER ATTRIBUSJONSSETNING.
 #
 # Bunnteksten sa «verken Fiskeridirektoratet, Brønnøysundregistrene,
@@ -5286,34 +5373,24 @@ def jsonld(lok: dict) -> str:
 
     Tre valg som er verdt å begrunne:
 
-    **Ingen `url`.** Domenet finnes ikke ennå, og en absolutt URL med et
-    påfunnet vertsnavn ville vært en påstand om noe som ikke er avgjort.
-    `identifier` bærer den ekte identiteten i stedet — `siteNr`, med
+    **`url` fra 12.10.2026.** Fram til domenet var avgjort sto den ikke
+    her; nå er den `_basisurl()` + sidens sti, som i sitemap.xml.
+    `identifier` bærer fortsatt den ekte identiteten — `siteNr`, med
     `propertyID` som sier hvilket register nummeret tilhører.
 
-    **`isBasedOn` per kilde, ikke én `license` for hele siden.** Kildene
-    har hver sin lisensgiver og hver sin attribusjonsplikt, og en enkelt
-    `license`-URL på toppnivå ville skjult at de er tre. Bare kilder der
-    lisensVERSJONEN er belagt får en URL — Fiskeridirektoratets side sier
-    «NLOD» uten versjon, og en lenke til 2.0 ville påstått en versjon
-    ingen har gått god for.
+    **`license` per kilde i `isBasedOn`, og toppnivået peker til
+    /om/#gjenbruk.** Kildene har hver sin lisensgiver, og en enkelt
+    lisens-URL på toppnivå ville skjult at de er flere. Bare kilder der
+    lisensVERSJONEN er belagt får en versjons-URL; de andre får
+    utgiverens egen lisensside (`LISENSSIDE`) — Fiskeridirektoratets side
+    sier «NLOD» uten versjon, og en lenke til 2.0 ville påstått en
+    versjon ingen har gått god for.
 
     **`temporalCoverage` er MÅLT**, ikke satt til «siden 2012»: det er
     spennet i lusetallserien for akkurat denne lokaliteten.
     """
     indeks = kildevilkaar()
-    kilder = []
-    for kilde in SIDENS_KILDER:
-        node = {
-            "@type": "Dataset",
-            "name": kilde,
-            "creditText": (indeks.get(kilde) or ("",))[0],
-        }
-        if kilde in UTGIVER:
-            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
-        if kilde in LISENS_URL:
-            node["license"] = LISENS_URL[kilde]
-        kilder.append(node)
+    kilder = [kildenode(k, indeks) for k in SIDENS_KILDER]
 
     data = {
         "@context": "https://schema.org",
@@ -5335,6 +5412,7 @@ def jsonld(lok: dict) -> str:
         "isBasedOn": kilder,
         "creator": {"@type": "Organization", "name": "Kystloggen"},
     }
+    med_url_og_lisens(data, f"/lokalitet/{lok['loknr']}/")
     if lok["lus_fra"]:
         data["temporalCoverage"] = f"{lok['lus_fra']}/{lok['lus_til']}"
     if lok["breddegrad"] and lok["lengdegrad"]:
@@ -6460,7 +6538,8 @@ def skriv_endringssider(rot: Path, felles: Felles,
                     felles, rot, sti, kilder=ENDRINGSKILDER,
                     tittel=f"{tittel} — Kystloggen",
                     beskrivelse=_ukebeskrivelse(uke, valgt, ledet),
-                    jsonld=_jsonld_uke(uke, hendelser, felles.vilkaar, url),
+                    jsonld=_jsonld_uke(uke, hendelser, felles.vilkaar, url,
+                                       "../" if slag else ""),
                     proveniens_tekst=proveniens(
                         uke["siste_dato"], _ukens_hentet(uke),
                         f"Sammenligning av øyeblikksbildene for "
@@ -6520,18 +6599,17 @@ def skriv_endringssider(rot: Path, felles: Felles,
 
 
 def _jsonld_uke(uke: dict, rader: list[dict], vilkaar: dict,
-                url: str) -> Markup:
-    """schema.org/Dataset for én endringsuke."""
-    kilder = []
-    for kilde in ENDRINGSKILDER:
-        node = {"@type": "Dataset", "name": kilde,
-                "creditText": (vilkaar.get(kilde) or ("",))[0]}
-        if kilde in UTGIVER:
-            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
-        if kilde in LISENS_URL:
-            node["license"] = LISENS_URL[kilde]
-        kilder.append(node)
-    return _script_trygg({
+                url: str, til_uka: str = "") -> Markup:
+    """schema.org/Dataset for én endringsuke.
+
+    `til_uka` er stien fra siden til UKAS mappe, der datafilene ligger:
+    tom for ukesiden, `../` for typesidene under den. Fram til 12.10.2026
+    pekte typesidenes `contentUrl` på filer som ikke fantes — de er
+    relative, og typesiden ligger ett nivå ned. Porten fant det
+    (`publiseringsvakt.jsonldfunn`).
+    """
+    kilder = [kildenode(k, vilkaar) for k in ENDRINGSKILDER]
+    return _script_trygg(med_url_og_lisens({
         "@context": "https://schema.org",
         "@type": "Dataset",
         "name": f"Endringer i norske akvakulturregistre, {uke['vist']}",
@@ -6545,13 +6623,13 @@ def _jsonld_uke(uke: dict, rader: list[dict], vilkaar: dict,
         "creator": {"@type": "Organization", "name": "Kystloggen"},
         "distribution": [
             {"@type": "DataDownload", "encodingFormat": XLSX_MIME,
-             "contentUrl": uke["xlsx_filnavn"]},
+             "contentUrl": til_uka + uke["xlsx_filnavn"]},
             {"@type": "DataDownload", "encodingFormat": "application/zip",
-             "contentUrl": uke["zip_filnavn"]},
+             "contentUrl": til_uka + uke["zip_filnavn"]},
             {"@type": "DataDownload", "encodingFormat": "application/json",
-             "contentUrl": "endringer.json"},
+             "contentUrl": til_uka + "endringer.json"},
         ],
-    })
+    }, url))
 
 
 # ------------------------------------------------------------ FEEDENE
@@ -7967,12 +8045,18 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
             f"for unntaksvekst 2025/2026: kapasiteten i registeret, og lus "
             f"og behandlinger målt mot vilkårene i "
             f"produksjonsområdeforskriften § 12."),
-        jsonld=_script_trygg({
+        jsonld=_script_trygg(med_url_og_lisens({
             "@context": "https://schema.org", "@type": "Dataset",
             "name": "Unntaksvekst 2025/2026: fra søknad til drift",
+            "description": (
+                f"{a['n_lok']} lokaliteter Mattilsynet har godkjent eller "
+                f"avslått for unntaksvekst 2025/2026, holdt mot kapasiteten "
+                f"i registeret og mot lus og behandlinger."),
             "inLanguage": "nb",
             "temporalCoverage": f"{a['kv_fra']}/{a['siste_mt']}",
-        }),
+            "isBasedOn": [kildenode(k, felles.vilkaar)
+                          for k in ANALYSE_KILDER],
+        }, "/" + "/".join(UNNTAK_STI) + "/")),
         proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
         sidetype="Analyse",
         undertittel="Mattilsynets søknader om unntaksvekst holdt mot "
@@ -9025,15 +9109,7 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
 
 def jsonld_forside(f: dict, vilkaar: dict) -> Markup:
     """schema.org/Dataset for hele samlingen."""
-    kilder = []
-    for kilde in FORSIDEKILDER:
-        node = {"@type": "Dataset", "name": kilde,
-                "creditText": (vilkaar.get(kilde) or ("",))[0]}
-        if kilde in UTGIVER:
-            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
-        if kilde in LISENS_URL:
-            node["license"] = LISENS_URL[kilde]
-        kilder.append(node)
+    kilder = [kildenode(k, vilkaar) for k in FORSIDEKILDER]
     data = {
         "@context": "https://schema.org",
         "@type": "Dataset",
@@ -9049,6 +9125,7 @@ def jsonld_forside(f: dict, vilkaar: dict) -> Markup:
         "creator": {"@type": "Person", "name": "Heine Valø Nordbøe"},
         "spatialCoverage": {"@type": "Place", "name": "Norge"},
     }
+    med_url_og_lisens(data, "/")
     if f["luke_uker"]:
         data["temporalCoverage"] = f"{f['lus_fra']}/{f['lus_til']}"
     return _script_trygg(data)
@@ -9444,18 +9521,10 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
     """schema.org/Dataset for selskapssiden.
 
     `identifier` er organisasjonsnummeret med `propertyID` som sier hvem
-    som har tildelt det. Ingen `url`, av samme grunn som ellers.
+    som har tildelt det.
     """
-    kilder = []
-    for kilde in SELSKAPSKILDER:
-        node = {"@type": "Dataset", "name": kilde,
-                "creditText": (vilkaar.get(kilde) or ("",))[0]}
-        if kilde in UTGIVER:
-            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
-        if kilde in LISENS_URL:
-            node["license"] = LISENS_URL[kilde]
-        kilder.append(node)
-    return _script_trygg({
+    kilder = [kildenode(k, vilkaar) for k in SELSKAPSKILDER]
+    return _script_trygg(med_url_og_lisens({
         "@context": "https://schema.org",
         "@type": "Dataset",
         "name": f"{sel['navn'] or sel['orgnr']} — akvakulturtillatelser "
@@ -9474,7 +9543,7 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
         "dateModified": sel["eierskap_dato"],
         "isBasedOn": kilder,
         "creator": {"@type": "Organization", "name": "Kystloggen"},
-    })
+    }, f"/selskap/{sel['orgnr']}/"))
 
 
 def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
@@ -9525,20 +9594,10 @@ PO_KILDER = ("akvakultur", "trafikklysvedtak")
 def jsonld_po(po: dict, vilkaar: dict) -> Markup:
     """schema.org/Dataset for produksjonsområdesiden.
 
-    Ingen `url`, som på lokalitetssiden: domenet finnes ikke ennå, og en
-    absolutt URL med et påfunnet vertsnavn ville vært en påstand om noe
-    som ikke er avgjort. `identifier` bærer PO-nummeret med `propertyID`
-    som sier hvem som har fastsatt det.
+    `identifier` bærer PO-nummeret med `propertyID` som sier hvem som har
+    fastsatt det.
     """
-    kilder = []
-    for kilde in PO_KILDER:
-        node = {"@type": "Dataset", "name": kilde,
-                "creditText": (vilkaar.get(kilde) or ("",))[0]}
-        if kilde in UTGIVER:
-            node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
-        if kilde in LISENS_URL:
-            node["license"] = LISENS_URL[kilde]
-        kilder.append(node)
+    kilder = [kildenode(k, vilkaar) for k in PO_KILDER]
     data = {
         "@context": "https://schema.org",
         "@type": "Dataset",
@@ -9559,6 +9618,7 @@ def jsonld_po(po: dict, vilkaar: dict) -> Markup:
         "isBasedOn": kilder,
         "creator": {"@type": "Organization", "name": "Kystloggen"},
     }
+    med_url_og_lisens(data, f"/produksjonsomrade/{po['nr']}/")
     if po["runder"]:
         data["temporalCoverage"] = (f"{po['runder'][0]['aar']}/"
                                     f"{po['runder'][-1]['aar']}")

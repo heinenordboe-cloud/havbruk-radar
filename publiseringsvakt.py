@@ -499,7 +499,7 @@ class Funn:
                      # | ukjent_partisjon | feilerklaert_partisjon
                      # | uferdig | raatt_tidsstempel | reposti
                      # | uten_kontakt | nedtatt | immutable_uten_hash
-                     # | innholdstype
+                     # | innholdstype | jsonld
     utdrag: str
     antall: int = 1
 
@@ -2493,6 +2493,64 @@ def innholdstypefunn(mappe: Path) -> list[Funn]:
     return funn
 
 
+
+_JSONLD = re.compile(r'<script type="application/ld\+json">(.*?)</script>',
+                     re.S)
+
+
+def _datasett(node):
+    if isinstance(node, dict):
+        if node.get("@type") == "Dataset":
+            yield node
+        for v in node.values():
+            yield from _datasett(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _datasett(v)
+
+
+def jsonldfunn(mappe: Path) -> list[Funn]:
+    """Dataset-noder Search Console avviser, og nedlastinger som mangler.
+
+    Hvert Dataset, også de i `isBasedOn`, skal ha `name`, `description`
+    på minst 50 tegn, `license` og `url` (Search Console, 12.10.2026: 4
+    kritiske og 8 ikke-kritiske feil). En `DataDownload` skal peke på en
+    fil som finnes i bygget — en `contentUrl` til ingenting er en påstand
+    om en nedlasting vi ikke tilbyr. Ett funn per side, med første avvik.
+    """
+    funn = []
+    for sti in sorted(mappe.rglob("*.html")):
+        rel = sti.relative_to(mappe).as_posix()
+        tekst = _tekst(sti) or ""
+        for m in _JSONLD.finditer(tekst):
+            if not m.group(1).strip():
+                continue
+            try:
+                data = json.loads(m.group(1))
+            except ValueError as e:
+                funn.append(Funn(rel, "jsonld", f"ugyldig JSON: {e}"))
+                continue
+            avvik = []
+            for ds in _datasett(data):
+                mangler = [k for k in ("name", "license", "url")
+                           if not ds.get(k)]
+                if len(ds.get("description") or "") < 50:
+                    mangler.append("description ≥ 50 tegn")
+                if mangler:
+                    avvik.append(f"Dataset {ds.get('name', '?')!s:.40} "
+                                 f"mangler {', '.join(mangler)}")
+                for d in ds.get("distribution") or []:
+                    url = d.get("contentUrl", "")
+                    if not url or "://" in url or url.startswith("/"):
+                        avvik.append(f"contentUrl {url!r} er ikke relativ")
+                    elif not (sti.parent / url).is_file():
+                        avvik.append(f"contentUrl {url} finnes ikke")
+            if avvik:
+                funn.append(Funn(rel, "jsonld", avvik[0],
+                                 antall=len(avvik)))
+    return funn
+
+
 def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
 
@@ -2503,7 +2561,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """
     funn: list[Funn] = (list(grunnlagsfunn()) + list(kodeproveniensfunn())
                         + list(filtallsfunn(mappe)) + nedtattfunn(mappe)
-                        + immutablefunn(mappe) + innholdstypefunn(mappe))
+                        + immutablefunn(mappe) + innholdstypefunn(mappe)
+                        + jsonldfunn(mappe))
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.

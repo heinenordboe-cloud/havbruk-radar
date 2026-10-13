@@ -569,14 +569,15 @@ def test_jsonld_kan_ikke_bryte_ut_av_script_taggen():
     assert json.loads(raa)["name"].startswith("Lokalitet 31397 OTER</script>")
 
 
-def test_jsonld_paastaar_ingen_url_og_ingen_ugyldig_lisens():
-    """Domenet finnes ikke ennå. En absolutt URL med et påfunnet
-    vertsnavn ville vært en påstand om noe som ikke er avgjort — og
-    `license` på toppnivå ville skjult at kildene har hver sin
+def test_jsonld_toppnivaa_har_url_og_lisens_til_gjenbruk(monkeypatch):
+    """Search Console, 12.10.2026: `url` og `license` manglet på hvert
+    Dataset. Domenet er avgjort, og toppnivåets lisens peker til
+    /om/#gjenbruk og ikke til én lisens — kildene har hver sin
     lisensgiver."""
+    monkeypatch.delenv("HAVBRUK_BASEURL", raising=False)
     d = _jsonld_av(_side())
-    assert "url" not in d
-    assert "license" not in d
+    assert d["url"] == "https://kystloggen.no/lokalitet/31397/"
+    assert d["license"] == "https://kystloggen.no/om/#gjenbruk"
     assert d["identifier"]["value"] == "31397"
     assert "siteNr" in d["identifier"]["propertyID"]
 
@@ -587,7 +588,8 @@ def test_jsonld_oppgir_lisensversjon_bare_der_den_er_belagt():
     for — se docs/LISENSKJEDE.md merknad A mot merknad B."""
     d = _jsonld_av(_side())
     per_kilde = {k["name"]: k for k in d["isBasedOn"]}
-    assert "license" not in per_kilde["akvakultur"]
+    assert per_kilde["akvakultur"]["license"] == nettsted.LISENSSIDE["akvakultur"]
+    assert "2.0" not in per_kilde["akvakultur"]["license"]
     assert per_kilde["eierskap"]["license"] == "https://data.norge.no/nlod/no/2.0"
 
 
@@ -5176,6 +5178,47 @@ def test_headers_er_strenge_fordi_siden_er_enkel(tmp_path):
     assert "max-age=31536000, immutable" in tekst
 
 
+
+def test_hver_kilde_i_jsonld_har_beskrivelse_lisens_og_rad_paa_om():
+    """Hver kilde en side kan bygge på, får et fullt Dataset. Og `url`-
+    ankeret finnes: /om/ har en rad per kilde i `LISENSRAD`."""
+    alle = set(nettsted.SIDENS_KILDER) | set(nettsted.ENDRINGSKILDER) | \
+        set(nettsted.FORSIDEKILDER) | set(nettsted.SELSKAPSKILDER) | \
+        set(nettsted.PO_KILDER) | set(nettsted.ANALYSE_KILDER)
+    for kilde in sorted(alle):
+        node = nettsted.kildenode(kilde, nettsted.kildevilkaar())
+        assert len(node["description"]) >= 50, kilde
+        assert node["license"].startswith("https://"), kilde
+        assert node["url"].endswith(f"/om/#kilde-{kilde}"), kilde
+        assert kilde in nettsted.LISENSRAD, kilde
+
+
+def test_porten_feller_dataset_uten_lisens_url_eller_beskrivelse(tmp_path):
+    """Porten parser JSON-LD fra hver side i bygget. Lokalitetssiden
+    består, med nedlastingene på plass; den gamle kildenoden og en
+    manglende fil faller."""
+    import publiseringsvakt
+    html = _side()
+    d = _jsonld_av(html)
+    side = tmp_path / "lokalitet" / "31397" / "index.html"
+    side.parent.mkdir(parents=True)
+    side.write_text(html, encoding="utf-8")
+    for dl in d["distribution"]:
+        (side.parent / dl["contentUrl"]).write_bytes(b"x")
+    assert publiseringsvakt.jsonldfunn(tmp_path) == []
+
+    (side.parent / d["distribution"][0]["contentUrl"]).unlink()
+    funn = publiseringsvakt.jsonldfunn(tmp_path)
+    assert [f.slag for f in funn] == ["jsonld"]
+    assert "finnes ikke" in funn[0].utdrag
+
+    gammel = ('<script type="application/ld+json">{"@type": "Dataset", '
+              '"name": "x", "isBasedOn": [{"@type": "Dataset", '
+              '"name": "akvakultur"}]}</script>')
+    (tmp_path / "gammel.html").write_text(gammel, encoding="utf-8")
+    gammel_funn = [f for f in publiseringsvakt.jsonldfunn(tmp_path)
+                   if f.fil == "gammel.html"]
+    assert gammel_funn[0].antall == 2
 
 def test_hver_xml_fil_treffes_av_noeyaktig_en_content_type(tmp_path):
     """`/*.xml` traff også `/sitemap.xml`, som ble servert som Atom til

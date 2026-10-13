@@ -42,6 +42,7 @@
       <li><a href="#hvem">Hvem som står bak</a></li>
       <li><a href="#innsamling">Innsamling og metode</a></li>
       <li><a href="#dekning">Dekning og begrensninger</a></li>
+      <li><a href="#gjenbruk">Gjenbruk</a></li>
       <li><a href="#kilder">Kildene, med lisens</a></li>
       <li><a href="#hva-vi-ikke-gjor">Hva som bevisst ikke hentes</a></li>
       <li><a href="#sitering">Slik siterer du</a></li>
@@ -170,6 +171,13 @@
   konstruksjon.
 </p>
 
+<h2 id="gjenbruk">Gjenbruk</h2>
+<p>
+  Dataene på disse sidene kommer fra kildene i tabellen under, og
+  gjenbruk følger kildens lisens og attribusjonskrav slik de står der.
+  Bygger en side på flere kilder, gjelder vilkårene til hver av dem.
+</p>
+
 <h2 id="kilder">Kildene, med lisens og attribusjon</h2>
 <p>
   En kilde vi ikke har funnet lisensvilkåret for, vises ikke her. Den
@@ -199,7 +207,7 @@
   </thead>
   <tbody>
     {% for k in om.kilder %}
-    <tr>
+    <tr id="kilde-{{ k.navn }}">
       <th scope="row">{{ kilde(k.navn) }}</th>
       <td data-felt="lisens">{{ k.lisens }}</td>
       <td data-felt="hjemmel">{{ k.hjemmel }}</td>
