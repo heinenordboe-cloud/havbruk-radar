@@ -105,7 +105,7 @@ from pathlib import Path
 import polars as pl
 
 import arkiver_lovdata
-from core import paths, snapshot
+from core import paths, raw, snapshot
 
 
 # ---------------------------------------------------------------- kropper
@@ -133,8 +133,8 @@ def les_kropp(sti: Path) -> Kropp:
 
 
 def siste_kropp(mappe: str) -> Kropp:
-    """Nyeste arkivfil i `data/arkiv/<mappe>/`, etter filnavnets dato og
-    løpenummer. Kaster når mappa er tom: en analyse uten grunnlag skal
+    """Nyeste arkivfil i `data/arkiv/<mappe>/`, etter filnavnets dato,
+    merke og løpenummer (`raw.orden()`). Kaster når mappa er tom: en analyse uten grunnlag skal
     stoppe, ikke svare tomt."""
     filer = sorted((paths.ARKIV_DIR / mappe).glob("*.gz"), key=_arkivorden)
     if not filer:
@@ -144,11 +144,10 @@ def siste_kropp(mappe: str) -> Kropp:
     return les_kropp(filer[-1])
 
 
-def _arkivorden(sti: Path) -> tuple[str, int]:
-    """(dato, løpenummer): `2026-10-09.bin.gz` før `2026-10-09.2.bin.gz`."""
-    deler = sti.name.split(".")
-    nr = int(deler[1]) if len(deler) > 3 and deler[1].isdigit() else 1
-    return deler[0], nr
+def _arkivorden(sti: Path) -> tuple[str, int, int]:
+    """`raw.orden()`: (dato, merke, løpenummer). `2026-10-09.bin.gz` før
+    `2026-10-09.2.bin.gz`, og innsamlingens kropp før en daglig samme dato."""
+    return raw.orden(sti)
 
 
 # ------------------------------------------------------- lovdata-paragraf

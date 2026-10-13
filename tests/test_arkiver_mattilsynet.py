@@ -154,3 +154,15 @@ def test_publisert_er_tom_uten_last_modified(arkiv, lusarkiv):
     logg = json.loads((arkiv / "mattilsynet" / "2026-10-09.logg.json").read_text())
     assert all(p["published_at"] == "" for p in logg)
     assert {p["hva"] for p in logg} == {"openapi", "lakselus"}
+
+
+def test_selskapsformene_leses_fra_siste_kropp_ogsaa_naar_den_er_daglig(arkiv):
+    """`arkiver_daglig.py` skriver `<dato>.daglig.json.gz` i samme mappe.
+    Sortert på filnavn ville `.2.json.gz` samme dato vunnet over den."""
+    def kropp(form):
+        return {"enheter": [{"openNr": "921668236", "typeValue": form}],
+                "tillatelser": [], "personer_fjernet": 0}
+    raw_arkiv.arkiver("eierskap", "2026-10-05", kropp("A"))
+    raw_arkiv.arkiver("eierskap", "2026-10-05", kropp("B"), raw_arkiv.DAGLIG)
+    raw_arkiv.arkiver("eierskap", "2026-10-05", kropp("C"))
+    assert ark.selskapsformer() == {"921668236": "B"}

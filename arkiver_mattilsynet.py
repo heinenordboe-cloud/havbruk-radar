@@ -157,7 +157,9 @@ def selskapsformer() -> dict[str, str]:
 
     Kroppen er allerede personfiltrert av `eierskap`; at et nummer står
     her, er ikke nok i seg selv — formen prøves i `beholdes()`."""
-    filer = sorted((raw_arkiv.ARKIV_DIR / "eierskap").glob("*.json.gz"))
+    # Innsamlingens og de daglige, i `raw.orden()`: sortert på filnavn ville
+    # `2026-10-13.daglig.json.gz` stått FØR `2026-10-13.2.json.gz`.
+    filer = [p for p in raw_arkiv.kropper("eierskap") if p.name.endswith(".json.gz")]
     if not filer:
         raise FileNotFoundError("ingen eierskapskropp å slå opp formene i")
     d = json.loads(gzip.open(filer[-1], "rb").read())

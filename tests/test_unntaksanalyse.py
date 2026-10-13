@@ -225,6 +225,21 @@ def test_siste_versjon_av_en_dato_brukes(arkiv):
     assert dato == "2026-10-05" and t["A"]["capacity"]["current"] == 2.0
 
 
+def test_daglig_kropp_samme_dato_kommer_etter_innsamlingens(arkiv):
+    """`arkiver_daglig.py` skriver `<dato>.daglig.json.gz`. Sortert på
+    filnavn ville den stått foran `.json.gz` og bak `.2.json.gz`."""
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 1.0, "100"))
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 3.0, "100"),
+              navn="2026-10-05.daglig.json.gz")
+    _eierskap(arkiv, "2026-10-05", _tillatelse("A", 2.0, "100"),
+              navn="2026-10-05.2.json.gz")
+    [(dato, _k, t)] = u.eierskapskropper()
+    assert dato == "2026-10-05" and t["A"]["capacity"]["current"] == 3.0
+    assert u.siste_kropp("eierskap").sti.name == "2026-10-05.daglig.json.gz"
+    _eierskap(arkiv, "2026-10-06", _tillatelse("A", 4.0, "100"))
+    assert u.siste_kropp("eierskap").sti.name == "2026-10-06.json.gz"
+
+
 def test_soknadene_er_kildens_arkiverte_svar(arkiv):
     svar = {"rader": [{"kobling": "entydig", "lokalitet_nr": "100"}],
             "sha256": "ab" * 32, "bytes": 3, "headere": {}}

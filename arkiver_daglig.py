@@ -17,14 +17,15 @@ eier tirsdag og igjen torsdag, er borte før mandagen kommer. Et
 For hver kilde i `KILDER`: kroppen `fetch()` returnerer, serialisert som
 `core.raw` gjør for innsamlingen — samme bytes, samme sha256.
 
-  * Kroppen skrives til `data/arkiv/<kilde>/<dato>.<ext>.gz`, samme
-    navnekonvensjon og løpenummer som den ukentlige, BARE når sha256
-    avviker fra siste lagrede kropp for kilden, daglig eller ukentlig.
-  * Loggfila `data/arkiv/<kilde>/<dato>.logg.json` skrives hver kjøring,
-    med løpenummer hvis den finnes: `kjoring: daglig`, sha256, når vi
-    hentet, `ny` eller `uendret`, og hvilken kropp den ble sammenlignet
-    med — og om DEN var daglig eller ukentlig. En kropp er daglig når en
-    daglig logg peker på den; ukentlige kropper har ingen logg.
+  * Kroppen skrives til `data/arkiv/<kilde>/<dato>.daglig.<ext>.gz`
+    (`<dato>.daglig.2.<ext>.gz` osv.) BARE når sha256 avviker fra siste
+    lagrede kropp for kilden, daglig eller ukentlig. Merket `daglig` er
+    `core.raw.DAGLIG`; det skiller navnene fra innsamlingens, se under.
+  * Loggfila `data/arkiv/<kilde>/<dato>.daglig.logg.json` skrives hver
+    kjøring, med løpenummer hvis den finnes: `kjoring: daglig`, sha256,
+    når vi hentet, `ny` eller `uendret`, og hvilken kropp den ble
+    sammenlignet med — og om DEN var daglig eller ukentlig, lest av
+    merket i filnavnet.
 
 Ingen snapshot, ingen changelog, og health.json røres ikke: dette er
 råarkiv, ikke innsamling. `core/` er uendret. `data/kvitteringer/` er
@@ -32,7 +33,8 @@ portens og brukes ikke her.
 
 ## Siste lagrede kropp
 
-Hentes etter filnavn (dato, løpenummer). F14 er grunnen til å nevne det:
+`core.raw.kropper()`, i `raw.orden()`: dato, så innsamlingens før den
+daglige samme dato, så løpenummer. F14 er grunnen til å nevne det:
 filnavnet er en stedfortreder for rekkefølge, og arkivinnsetting brøt den
 for biomasse. For kildene her er `gjelder_for()` kjøredatoen, så datoen
 i navnet ER dagen kroppen ble hentet — og blir den likevel feil, mister
@@ -53,11 +55,16 @@ før den er tatt.
 
 ## Samtidig med innsamlingen
 
-`samle.yml` skriver de samme mappene. Hentet begge samme dag med hver sin
-checkout, kunne begge valgt `<dato>.json.gz`, og rebasen ville stoppet på
-konflikten. `daglig.yml` venter derfor til ingen innsamling kjører, tar
-inn siste main, og først da kjører dette skriptet. Se `delt` i
+`samle.yml` skriver de samme mappene fra sin egen checkout. Fram til
+13.10.2026 kunne begge valgt `<dato>.json.gz` samme dag, og rebasen ville
+stoppet på konflikten tre ganger på rad. Nå skriver innsamlingen aldri et
+navn med `.daglig.`, og dette skriptet aldri et uten: filnavnene er
+disjunkte, og `samle.yml` holder `*.daglig.*` utenfor sin `git add`. Se
 `.github/jobber.yml` i datarepoet.
+
+`daglig.yml` venter fortsatt til ingen innsamling kjører og tar inn main
+før skriptet kjører — ikke for å unngå navnet, men så innsamlingens kropp
+er den siste lagrede når det sammenlignes.
 
 ## Kodeproveniens
 
@@ -70,7 +77,6 @@ import datetime as dt
 import gzip
 import hashlib
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -81,32 +87,10 @@ from core import registry
 # Kildene som arkiveres daglig. Navnet er kildens `name`.
 KILDER = ("eierskap", "biomasselag")
 
-_NAVN = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:\.(\d+))?\.[a-z]+\.gz$")
-
-
-def _orden(sti: Path) -> tuple[str, int]:
-    m = _NAVN.match(sti.name)
-    return (m.group(1), int(m.group(2) or 1)) if m else ("", 0)
-
-
 def siste_kropp(kilde: str) -> Path | None:
-    mappe = raw_arkiv.ARKIV_DIR / kilde
-    filer = [p for p in mappe.glob("*.gz") if _NAVN.match(p.name)] \
-        if mappe.exists() else []
-    return max(filer, key=_orden) if filer else None
-
-
-def daglige(kilde: str) -> set[str]:
-    """Filnavnene daglige logger sier at de skrev."""
-    ut = set()
-    for sti in (raw_arkiv.ARKIV_DIR / kilde).glob("*.logg.json"):
-        try:
-            post = json.loads(sti.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if post.get("kjoring") == "daglig" and post.get("fil"):
-            ut.add(post["fil"])
-    return ut
+    """Siste lagrede kropp, innsamlingens eller daglig (`raw.orden()`)."""
+    filer = raw_arkiv.kropper(kilde)
+    return filer[-1] if filer else None
 
 
 def _sha(sti: Path) -> str:
@@ -126,7 +110,8 @@ def arkiver(kilde, dato: str, torr: bool) -> dict:
     if forrige is not None:
         sammenlignet = {
             "fil": forrige.name, "sha256": _sha(forrige),
-            "kjoring": "daglig" if forrige.name in daglige(kilde.name) else "ukentlig",
+            "kjoring": "daglig" if raw_arkiv.merke(forrige.name) == raw_arkiv.DAGLIG
+                       else "ukentlig",
         }
     ny = sammenlignet is None or sammenlignet["sha256"] != sha
 
@@ -143,8 +128,8 @@ def arkiver(kilde, dato: str, torr: bool) -> dict:
     if ny and not torr:
         # Stien `arkiver()` vil velge, slått opp først så loggen kan si den.
         # Ingen andre skriver mappa mens dette kjører (se docstringen).
-        sti = raw_arkiv._ledig_sti(kilde.name, dato, ext)
-        skrevet = raw_arkiv.arkiver(kilde.name, dato, rå)
+        sti = raw_arkiv._ledig_sti(kilde.name, dato, ext, raw_arkiv.DAGLIG)
+        skrevet = raw_arkiv.arkiver(kilde.name, dato, rå, raw_arkiv.DAGLIG)
         assert skrevet == sha and sti.exists(), (kilde.name, sti, skrevet, sha)
         post["fil"] = sti.name
     return post
@@ -153,9 +138,10 @@ def arkiver(kilde, dato: str, torr: bool) -> dict:
 def skriv_logg(kilde: str, dato: str, post: dict) -> Path:
     mappe = raw_arkiv.ARKIV_DIR / kilde
     mappe.mkdir(parents=True, exist_ok=True)
-    sti, n = mappe / f"{dato}.logg.json", 2
+    stamme = f"{dato}.{raw_arkiv.DAGLIG}"
+    sti, n = mappe / f"{stamme}.logg.json", 2
     while sti.exists():
-        sti, n = mappe / f"{dato}.{n}.logg.json", n + 1
+        sti, n = mappe / f"{stamme}.{n}.logg.json", n + 1
     sti.write_text(json.dumps(post, indent=2, ensure_ascii=False), encoding="utf-8")
     return sti
 
