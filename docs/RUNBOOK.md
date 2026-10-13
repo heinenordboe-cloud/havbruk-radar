@@ -825,6 +825,37 @@ står. Er den derimot uventet, har noen endret parseren uten å si fra.
 lenger finnes i publiseringen. Det har ikke skjedd, og skulle det skje,
 er det verdt å undersøke før noe annet.
 
+## Daglig: arkivet og tidsstemplene
+
+### Daglig arkiv
+
+```bash
+python arkiver_daglig.py --torrkjor     # ny/uendret mot siste lagrede kropp
+python arkiver_daglig.py                # skriv
+```
+
+`daglig.yml` i datarepoet kjører det hver dag (cron 05:23 UTC, i praksis
+4–8 timer senere). For **eierskap** og **biomasselag** skrives kroppen til
+`data/arkiv/<kilde>/`, med samme navn og løpenummer som den ukentlige,
+bare når sha256 avviker fra siste lagrede kropp — daglig eller ukentlig.
+Ellers skrives bare `<dato>.logg.json` med sha256, hentetid og
+«uendret». Loggen sier `kjoring: daglig` og om kroppen den ble
+sammenlignet med var daglig eller ukentlig. Ingen snapshot, ingen
+changelog, health.json urørt.
+
+Jobben skriver ikke mens innsamlingen kjører eller står i kø — de deler
+mapper (se `delt` i `.github/jobber.yml`). Har den ventet 90 minutter,
+stopper den rødt uten å hente, og prøver igjen neste dag.
+
+**Akvakultur er ikke med.** Kroppen blir aldri byte-lik: API-et gir
+`speciesTypes` i skiftende rekkefølge (MÅLT 13.10.2026: 77 av 201
+lokaliteter med flere arter mellom to hentinger 20 sekunder fra
+hverandre, 73 mellom to hentinger en time fra hverandre). Med
+regelen over ville ~450 kB blitt skrevet hver dag. Lagringsformen er
+ikke valgt.
+
+Tilsynet varsler når ingen daglig logg er committet på 2 døgn.
+
 ## Ved behov: en eldre utgivelse inn i serien
 
 ```bash
