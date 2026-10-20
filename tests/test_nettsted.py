@@ -5191,6 +5191,70 @@ def test_hver_kilde_i_jsonld_har_beskrivelse_lisens_og_rad_paa_om():
         assert node["license"].startswith("https://"), kilde
         assert node["url"].endswith(f"/om/#kilde-{kilde}"), kilde
         assert kilde in nettsted.LISENSRAD, kilde
+        assert node["creator"]["@type"] == "Organization", kilde
+        assert node["creator"]["name"], kilde
+
+
+def test_kildenodens_creator_er_utgiveren_og_gjettes_ikke(monkeypatch):
+    """`creator` er `UTGIVER[kilde]`. Trafikklysvedtak er unntaket Heine
+    bestemte 19.10.2026: departementet er `creator`, kilden står utenfor
+    `UTGIVER`, og `provider` er som før — ingen. En kilde uten utgiver
+    kaster i stedet for å få en."""
+    vilkaar = nettsted.kildevilkaar()
+    assert nettsted.kildenode("biomasselag", vilkaar)["creator"]["name"] \
+        == "Fiskeridirektoratet"
+    assert nettsted.kildenode("unntaksvekst", vilkaar)["creator"]["name"] \
+        == "Mattilsynet"
+
+    trafikklys = nettsted.kildenode("trafikklysvedtak", vilkaar)
+    assert "trafikklysvedtak" not in nettsted.UTGIVER
+    assert trafikklys["creator"]["name"] == "Nærings- og fiskeridepartementet"
+    assert "provider" not in trafikklys
+
+    utgiver = dict(nettsted.UTGIVER)
+    del utgiver["lusetall"]
+    monkeypatch.setattr(nettsted, "UTGIVER", utgiver)
+    with pytest.raises(nettsted.UbelagtKilde, match="lusetall"):
+        nettsted.kildenode("lusetall", vilkaar)
+
+
+def test_porten_krever_creator_paa_hvert_dataset(tmp_path):
+    """Også i `isBasedOn`. En `creator` uten `name` teller ikke."""
+    import publiseringsvakt
+
+    def side(topp: dict, kilde: dict) -> str:
+        felles = {"@type": "Dataset", "description": "d" * 50,
+                  "license": "https://x/", "url": "https://x/"}
+        data = {**felles, "name": "topp", **topp,
+                "isBasedOn": [{**felles, "name": "kilde", **kilde}]}
+        return ('<script type="application/ld+json">'
+                + json.dumps(data) + "</script>")
+
+    skaper = {"creator": {"@type": "Organization", "name": "Kystloggen"}}
+    (tmp_path / "hel.html").write_text(side(skaper, skaper), encoding="utf-8")
+    assert publiseringsvakt.jsonldfunn(tmp_path) == []
+
+    (tmp_path / "topp.html").write_text(side({}, skaper), encoding="utf-8")
+    (tmp_path / "kilde.html").write_text(side(skaper, {}), encoding="utf-8")
+    (tmp_path / "uten_navn.html").write_text(
+        side(skaper, {"creator": {"@type": "Organization"}}),
+        encoding="utf-8")
+    funn = {f.fil: f for f in publiseringsvakt.jsonldfunn(tmp_path)}
+    assert set(funn) == {"topp.html", "kilde.html", "uten_navn.html"}
+    assert "topp mangler creator med name" in funn["topp.html"].utdrag
+    assert "kilde mangler creator med name" in funn["kilde.html"].utdrag
+    assert "creator med name" in funn["uten_navn.html"].utdrag
+
+
+def test_toppnivaaets_creator_er_kystloggen_med_url(monkeypatch):
+    """Forsiden sa «Person» fram til 19.10.2026; de andre sa
+    «Organization» uten adresse. Nå er alle like."""
+    monkeypatch.setenv("HAVBRUK_BASEURL", "https://kystloggen.no")
+    assert nettsted.kystloggen() == {"@type": "Organization",
+                                     "name": "Kystloggen",
+                                     "url": "https://kystloggen.no/"}
+    d = _jsonld_av(_side())
+    assert d["creator"] == nettsted.kystloggen()
 
 
 def test_porten_feller_dataset_uten_lisens_url_eller_beskrivelse(tmp_path):

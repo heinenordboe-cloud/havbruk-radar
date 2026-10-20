@@ -2514,9 +2514,12 @@ def jsonldfunn(mappe: Path) -> list[Funn]:
 
     Hvert Dataset, også de i `isBasedOn`, skal ha `name`, `description`
     på minst 50 tegn, `license` og `url` (Search Console, 12.10.2026: 4
-    kritiske og 8 ikke-kritiske feil). En `DataDownload` skal peke på en
-    fil som finnes i bygget — en `contentUrl` til ingenting er en påstand
-    om en nedlasting vi ikke tilbyr. Ett funn per side, med første avvik.
+    kritiske og 8 ikke-kritiske feil), og en `creator` som navngir noen
+    (fra 19.10.2026). En `creator` uten `name` er ingen påstand om hvem
+    som har laget tallene, og telles som manglende. En `DataDownload`
+    skal peke på en fil som finnes i bygget — en `contentUrl` til
+    ingenting er en påstand om en nedlasting vi ikke tilbyr. Ett funn per
+    side, med første avvik.
     """
     funn = []
     for sti in sorted(mappe.rglob("*.html")):
@@ -2536,6 +2539,9 @@ def jsonldfunn(mappe: Path) -> list[Funn]:
                            if not ds.get(k)]
                 if len(ds.get("description") or "") < 50:
                     mangler.append("description ≥ 50 tegn")
+                skaper = ds.get("creator")
+                if not (isinstance(skaper, dict) and skaper.get("name")):
+                    mangler.append("creator med name")
                 if mangler:
                     avvik.append(f"Dataset {ds.get('name', '?')!s:.40} "
                                  f"mangler {', '.join(mangler)}")

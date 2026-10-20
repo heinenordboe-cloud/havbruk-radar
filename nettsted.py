@@ -248,7 +248,24 @@ def kildenode(kilde: str, vilkaar: dict) -> dict:
     `url` er kildens rad i lisenstabellen på /om/ — en side vi selv har
     skrevet og vet hva står på. En adresse hos utgiveren ville vært en
     påstand om en side ingen av oss har lest for dette formålet.
+
+    `creator` er `UTGIVER[kilde]`, med ett unntak: trafikklysfargen
+    fastsettes av Nærings- og fiskeridepartementet, men forskriftene leses
+    på Lovdata, og det er Lovdata attribusjonen navngir. Heine bestemte
+    19.10.2026 at departementet er `creator` og at kilden blir stående
+    utenfor `UTGIVER` — `provider` og attribusjonen er som før.
+
+    En kilde uten utgiver kaster `UbelagtKilde`. Utgiveren gjettes ikke:
+    `creator` er en påstand om hvem som har laget tallene.
     """
+    if kilde == "trafikklysvedtak":
+        skaper = "Nærings- og fiskeridepartementet"
+    elif kilde in UTGIVER:
+        skaper = UTGIVER[kilde]
+    else:
+        raise UbelagtKilde(
+            f"{kilde!r} står ikke i UTGIVER, og kildenoden i isBasedOn "
+            f"ville fått en creator ingen har gått god for.")
     node = {
         "@type": "Dataset",
         "name": kilde,
@@ -256,10 +273,21 @@ def kildenode(kilde: str, vilkaar: dict) -> dict:
         "url": f"{_basisurl()}/om/#kilde-{kilde}",
         "license": LISENS_URL.get(kilde) or LISENSSIDE[kilde],
         "creditText": (vilkaar.get(kilde) or ("",))[0],
+        "creator": {"@type": "Organization", "name": skaper},
     }
     if kilde in UTGIVER:
         node["provider"] = {"@type": "Organization", "name": UTGIVER[kilde]}
     return node
+
+
+def kystloggen() -> dict:
+    """`creator` på hvert toppnivå-Dataset: oss, med adressen.
+
+    Ved KALL, som `_basisurl()`: en forhåndsvisning med
+    `HAVBRUK_BASEURL` skal oppgi sin egen adresse.
+    """
+    return {"@type": "Organization", "name": "Kystloggen",
+            "url": _basisurl() + "/"}
 
 
 def med_url_og_lisens(data: dict, sti: str) -> dict:
@@ -352,6 +380,8 @@ UTGIVER = {
     "lusetall": "BarentsWatch",
     "sjotemperatur": "BarentsWatch",
     "enhetsregisteret": "Brønnøysundregistrene",
+    "biomasselag": "Fiskeridirektoratet",
+    "unntaksvekst": "Mattilsynet",
 }
 
 
@@ -5410,7 +5440,7 @@ def jsonld(lok: dict) -> str:
         "inLanguage": "nb",
         "dateModified": lok["akva_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Organization", "name": "Kystloggen"},
+        "creator": kystloggen(),
     }
     med_url_og_lisens(data, f"/lokalitet/{lok['loknr']}/")
     if lok["lus_fra"]:
@@ -6620,7 +6650,7 @@ def _jsonld_uke(uke: dict, rader: list[dict], vilkaar: dict,
         "temporalCoverage": f"{uke['forste_dato']}/{uke['siste_dato']}",
         "dateModified": uke["siste_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Organization", "name": "Kystloggen"},
+        "creator": kystloggen(),
         "distribution": [
             {"@type": "DataDownload", "encodingFormat": XLSX_MIME,
              "contentUrl": til_uka + uke["xlsx_filnavn"]},
@@ -8056,6 +8086,7 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
             "temporalCoverage": f"{a['kv_fra']}/{a['siste_mt']}",
             "isBasedOn": [kildenode(k, felles.vilkaar)
                           for k in ANALYSE_KILDER],
+            "creator": kystloggen(),
         }, "/" + "/".join(UNNTAK_STI) + "/")),
         proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
         sidetype="Analyse",
@@ -9122,7 +9153,7 @@ def jsonld_forside(f: dict, vilkaar: dict) -> Markup:
         "inLanguage": "nb",
         "dateModified": f["akva_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Person", "name": "Heine Valø Nordbøe"},
+        "creator": kystloggen(),
         "spatialCoverage": {"@type": "Place", "name": "Norge"},
     }
     med_url_og_lisens(data, "/")
@@ -9542,7 +9573,7 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
         "inLanguage": "nb",
         "dateModified": sel["eierskap_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Organization", "name": "Kystloggen"},
+        "creator": kystloggen(),
     }, f"/selskap/{sel['orgnr']}/"))
 
 
@@ -9616,7 +9647,7 @@ def jsonld_po(po: dict, vilkaar: dict) -> Markup:
         "inLanguage": "nb",
         "dateModified": po["akva_dato"],
         "isBasedOn": kilder,
-        "creator": {"@type": "Organization", "name": "Kystloggen"},
+        "creator": kystloggen(),
     }
     med_url_og_lisens(data, f"/produksjonsomrade/{po['nr']}/")
     if po["runder"]:
