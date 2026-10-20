@@ -329,7 +329,7 @@ def test_logglinja_havner_paa_origin_og_treet_blir_rent(datarepo):
 
     innhold = _pa_origin(datarepo)
     assert innhold.startswith("tidspunkt\tmiljo\t")
-    assert f"\tproduksjon\t{'a' * 40}\t{'b' * 40}\t2026-39\n" in innhold
+    assert f"\tproduksjon\t{'a' * 40}\t{'b' * 40}\t2026-39\t\t\n" in innhold
 
 
 def test_commitmeldingen_navngir_miljo_og_begge_commitene(datarepo):
@@ -371,12 +371,12 @@ def test_linja_legges_til_og_skrives_ikke_om(datarepo):
     """Append-only, som alt annet i datarepoet. CLAUDE.md regel 2."""
     publiser.bokfor("a" * 40, "b" * 40, "forhandsvisning", "2026-38")
     publiser.bokfor("c" * 40, "d" * 40, "produksjon", "2026-39")
-    linjer = _pa_origin(datarepo).strip().splitlines()
+    linjer = _pa_origin(datarepo).rstrip("\n").splitlines()
     assert len(linjer) == 3
     assert linjer[1].split("\t")[1:] == ["forhandsvisning", "a" * 40,
-                                         "b" * 40, "2026-38"]
+                                         "b" * 40, "2026-38", "", ""]
     assert linjer[2].split("\t")[1:] == ["produksjon", "c" * 40,
-                                         "d" * 40, "2026-39"]
+                                         "d" * 40, "2026-39", "", ""]
 
 
 def test_feilet_push_sier_fra_uten_aa_paastaa_at_noe_kan_gjores_om(datarepo):
@@ -415,6 +415,86 @@ def test_feilet_push_sier_fra_uten_aa_paastaa_at_noe_kan_gjores_om(datarepo):
         ["git", "-C", str(datarepo), "show", "--name-only", "--format=",
          "HEAD"], capture_output=True, text=True).stdout.split()
     assert rort == ["docs/publiseringslogg.tsv"]
+
+
+ID = "ea2f3923-4130-49b7-814e-07cd2c6f7dd5"
+
+
+def _wrangler_skriver(post: dict | None):
+    """En `kjor` som gjør det wrangler gjør med WRANGLER_OUTPUT_FILE_PATH."""
+    kalt = []
+
+    def kjor(*args, vis=False, env=None, **_):
+        kalt.append((args, env))
+        sti = Path(env["WRANGLER_OUTPUT_FILE_PATH"])
+        linjer = [json.dumps({"type": "wrangler-session", "version": 1})]
+        if post is not None:
+            linjer.append(json.dumps({"type": "pages-deploy-detailed",
+                                      "version": 1, **post}))
+        sti.write_text("\n".join(linjer) + "\n", encoding="utf-8")
+        return ""
+    return kjor, kalt
+
+
+def test_deployment_id_leses_av_wranglers_utputt(tmp_path, monkeypatch):
+    """1b-3: id-en som sier hva linja betyr, tas i det publiseringen
+    skjer — av wrangler, som kjenner den — og ikke av et oppslag senere."""
+    kjor, kalt = _wrangler_skriver({"pages_project": "kystloggen",
+                                    "deployment_id": ID,
+                                    "environment": "production"})
+    monkeypatch.setattr(publiser, "kjor", kjor)
+    assert publiser.last_opp(tmp_path, True) == (ID, "")
+    args, env = kalt[0]
+    assert list(args) == publiser.wranglerkommando(tmp_path, True)
+    assert env["WRANGLER_OUTPUT_FILE_PATH"]
+    assert env.get("PATH") == __import__("os").environ.get("PATH")
+
+
+@pytest.mark.parametrize("post,produksjon,grunn", [
+    ({"pages_project": "kystloggen", "deployment_id": ID,
+      "environment": "preview"}, True, "landet i 'preview'"),
+    ({"pages_project": "kystloggen-prove", "deployment_id": ID,
+      "environment": "production"}, True, "prosjektet"),
+    ({"pages_project": "kystloggen", "deployment_id": ID,
+      "environment": "production"}, False, "landet i 'production'"),
+    (None, True, "ingen deployment_id"),
+])
+def test_feil_utrulling_gir_ingen_id(tmp_path, monkeypatch, post,
+                                     produksjon, grunn):
+    """En produksjonslinje skal ikke peke tilbakerullingen på noe som
+    aldri var ute. Tom id er «vet ikke», og grunnen sies."""
+    kjor, _ = _wrangler_skriver(post)
+    monkeypatch.setattr(publiser, "kjor", kjor)
+    utrulling, problem = publiser.last_opp(tmp_path, produksjon)
+    assert utrulling == ""
+    assert grunn in problem
+
+
+def test_bokforingen_skriver_deployment_id_og_hvordan_vi_vet_den(datarepo):
+    publiser.bokfor("a" * 40, "b" * 40, "produksjon", "2026-43", ID,
+                    "wrangler")
+    publiser.bokfor("a" * 40, "b" * 40, "forhandsvisning", "2026-43", "",
+                    "wrangler")
+    rader = publiser.les_logg(publiser.LOGG)
+    assert tuple(publiser.LOGG.read_text(encoding="utf-8").splitlines()[0]
+                 .split("\t")) == publiser.LOGGFELT
+    assert (rader[0]["deployment_id"], rader[0]["deployment_kilde"]) == \
+        (ID, "wrangler")
+    # Ingen id: ingen kilde heller. En kilde uten noe den er kilde til,
+    # ville vært en påstand om ingenting.
+    assert (rader[1]["deployment_id"], rader[1]["deployment_kilde"]) == ("", "")
+
+
+def test_en_logg_fra_for_kolonnene_faar_ikke_lengre_linjer(datarepo):
+    """Feltene følger overskriften i FILA, ikke i koden."""
+    publiser.LOGG.parent.mkdir(parents=True, exist_ok=True)
+    publiser.LOGG.write_text("tidspunkt\tmiljo\tkode_commit\tdata_commit"
+                             "\tuke\n", encoding="utf-8")
+    publiser.skriv_logg("a" * 40, "b" * 40, "produksjon", "2026-43", ID,
+                        "wrangler")
+    linje = publiser.LOGG.read_text(encoding="utf-8").splitlines()[1]
+    assert linje.split("\t")[1:] == ["produksjon", "a" * 40, "b" * 40,
+                                     "2026-43"]
 
 
 def test_steg_7_gir_royktesten_mappa_og_uka(tmp_path, monkeypatch):

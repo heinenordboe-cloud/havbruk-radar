@@ -7,6 +7,12 @@
     python publiser_ci.py logg --kvittering K --miljo M steg 6
     python publiser_ci.py automatisk --kvittering K --datarepo D
                                                         publiser.yml: vilkårene
+    python publiser_ci.py i-produksjon [--krev ID] [--logg L]
+                                                        hva Cloudflare har ute
+    python publiser_ci.py tilbakerull --deployment-id ID --logg L
+                                                        publiser.yml: rollback
+    python publiser_ci.py logg-tilbakerulling --deployment-id ID
+                                                        loggen etter rollback
 
 Workflowene bor i DATAREPOET (`bygg.yml`, `publiser.yml`), som
 `samle.yml`, og henter dette skriptet fra kodrepoet.
@@ -35,8 +41,12 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import subprocess
 import sys
+import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -189,18 +199,57 @@ def krev_cloudflare(miljo: dict | None = None) -> None:
             f"fra GitHub» i docs/RUNBOOK.md.\n  Ingenting er lastet opp.")
 
 
-def last_opp(mappe: Path, miljo: str) -> None:
+def utdata(**verdier: str) -> None:
+    """Skriv `navn=verdi` til GITHUB_OUTPUT når vi kjører i Actions."""
+    sti = os.environ.get("GITHUB_OUTPUT")
+    if sti:
+        with open(sti, "a", encoding="utf-8") as f:
+            for navn, verdi in verdier.items():
+                f.write(f"{navn}={verdi}\n")
+
+
+def last_opp(mappe: Path, miljo: str) -> str:
+    """Steg 5. Cloudflares deployment_id, også til GITHUB_OUTPUT.
+
+    Tom id er en advarsel, ikke rødt: siden er lastet opp. Logglinja får da
+    tomt felt — «vet ikke» — og steget som skriver den, får id-en fra
+    `DEPLOYMENT_ID` (se `main()`).
+    """
     krev_cloudflare()
     if not mappe.is_dir():
         raise Stopp(f"\n  STOPPET: {mappe} finnes ikke.")
     produksjon = miljo == "produksjon"
     print(f"\nwrangler → {miljo}")
-    publiser.kjor(*publiser.wranglerkommando(mappe, produksjon), vis=True)
+    utrulling, mangler = publiser.last_opp(mappe, produksjon)
+    if utrulling:
+        print(f"  deployment_id {utrulling}")
+    else:
+        print(f"::warning::{mangler}. Siden er lastet opp; logglinja får "
+              f"tomt deployment_id.")
+    utdata(deployment_id=utrulling)
+    return utrulling
 
 
 # ------------------------------------------------------------ steg 6
 
-def logg(k: dict, miljo: str, forsok: int = 3) -> str:
+def _bokfor(kode: str, data: str, miljo: str, uke: str, deployment_id: str,
+            kilde: str, forsok: int) -> str:
+    """`publiser.bokfor()` med nye forsøk på pushen. Se `logg()`."""
+    problem, _ = publiser.bokfor(kode, data, miljo, uke, deployment_id, kilde)
+    if not problem or "ikke pushet" not in problem:
+        return problem
+    for _ in range(forsok):
+        feil = (publiser.prov("git", "pull", "--rebase", "--quiet",
+                              "origin", "main", mappe=publiser.DATAREPO)
+                or publiser.prov("git", "push", "--quiet", "origin",
+                                 "HEAD:main", mappe=publiser.DATAREPO))
+        if not feil:
+            return ""
+        problem = f"logglinja er committet, men ikke pushet:\n    {feil}"
+    return problem
+
+
+def logg(k: dict, miljo: str, forsok: int = 3, deployment_id: str = "") -> str:
     """Steg 6, med nye forsøk når origin har flyttet seg.
 
     Tom streng når linja står på `origin/main`, ellers grunnen.
@@ -213,20 +262,11 @@ def logg(k: dict, miljo: str, forsok: int = 3) -> str:
 
     Linja skrives ÉN gang. Nye forsøk gjelder bare pushen; å kalle
     `bokfor()` på nytt ville skrevet linja to ganger.
+
+    `deployment_id` er den `last_opp()` leste av wrangler i samme jobb.
     """
-    problem, _ = publiser.bokfor(k["kode_commit"], k["data_commit"],
-                                 miljo, k["uke"])
-    if not problem or "ikke pushet" not in problem:
-        return problem
-    for _ in range(forsok):
-        feil = (publiser.prov("git", "pull", "--rebase", "--quiet",
-                              "origin", "main", mappe=publiser.DATAREPO)
-                or publiser.prov("git", "push", "--quiet", "origin",
-                                 "HEAD:main", mappe=publiser.DATAREPO))
-        if not feil:
-            return ""
-        problem = f"logglinja er committet, men ikke pushet:\n    {feil}"
-    return problem
+    return _bokfor(k["kode_commit"], k["data_commit"], miljo, k["uke"],
+                   deployment_id, "wrangler", forsok)
 
 
 # ------------------------------------------------------------ automatisk
@@ -261,16 +301,20 @@ class Vilkar:
     tekst: str
 
 
+# LINJENE SOM SIER HVA KYSTLOGGEN.NO KJØRER. En tilbakerulling er en
+# produksjonshendelse like mye som en publisering: etter den kjører
+# produksjon koden og dataene i MÅLUTRULLINGEN, og linja bærer dem
+# (`logg_tilbakerulling()`). Leste vilkår a bare `produksjon`, ville
+# mandagen etter en tilbakerulling sammenlignet med koden som ble rullet
+# BORT — og sluppet den ut igjen.
+PRODUKSJON = ("produksjon", "tilbakerulling")
+
+
 def siste_produksjon(logg_sti: Path) -> dict | None:
-    """Siste linje med miljø `produksjon` i publiseringsloggen."""
-    if not logg_sti.exists():
-        return None
-    linjer = logg_sti.read_text(encoding="utf-8").splitlines()
-    if not linjer:
-        return None
-    felt = linjer[0].split("\t")
-    rader = [dict(zip(felt, l.split("\t"))) for l in linjer[1:] if l.strip()]
-    prod = [r for r in rader if r.get("miljo") == "produksjon"]
+    """Linja som sier hva produksjon kjører nå: den siste publiseringen
+    ELLER tilbakerullingen. None når loggen ikke har noen."""
+    prod = [r for r in publiser.les_logg(logg_sti)
+            if r.get("miljo") in PRODUKSJON]
     return prod[-1] if prod else None
 
 
@@ -278,15 +322,26 @@ def vilkar_kode(k: dict, siste: dict | None) -> Vilkar:
     if siste is None:
         return Vilkar("a kode", False, "publiseringsloggen har ingen "
                       "produksjonslinje å sammenligne med")
+    tilbake = siste.get("miljo") == "tilbakerulling"
+    hvor = (f"tilbakerullet til {(siste.get('deployment_id') or '?')[:8]} "
+            f"{siste.get('tidspunkt', '')[:10]}" if tilbake
+            else siste.get("tidspunkt", "")[:10])
+    if not siste.get("kode_commit"):
+        # «Vet ikke» holder aldri. En tom kode_commit er like lik «» som
+        # en kvittering uten felt — og da ville den holdt.
+        return Vilkar("a kode", False,
+                      f"loggen vet ikke hvilken kode produksjon kjører ({hvor}"
+                      f"): målutrullingen har ingen linje med kode_commit. "
+                      f"Bygget går ut med «ja».")
     if k.get("kode_commit") != siste.get("kode_commit"):
         return Vilkar("a kode", False,
                       f"koden er ny: bygget er laget med "
                       f"{k.get('kode_commit', '')[:12]}, produksjon kjører "
                       f"{siste.get('kode_commit', '')[:12]} "
-                      f"({siste.get('tidspunkt', '')[:10]}). Ny kode går ut "
-                      f"med «ja».")
+                      f"({hvor}). Ny kode går ut med «ja».")
     return Vilkar("a kode", True, f"samme kode som produksjon "
-                  f"({k['kode_commit'][:12]}); bare data er nytt")
+                  f"({k['kode_commit'][:12]}"
+                  f"{', ' + hvor if tilbake else ''}); bare data er nytt")
 
 
 def vilkar_port(k: dict) -> Vilkar:
@@ -398,6 +453,144 @@ def vilkaarstekst(vilkar: list[Vilkar]) -> str:
                      for v in vilkar)
 
 
+# ------------------------------------------------------------ tilbakerulling
+
+# Fra 20.10.2026 går tilbakerulling via Cloudflare Pages, som beholder hver
+# produksjonsutrulling, og ikke via et gammelt bygg i GitHub: byggene
+# utløper etter 7 dager, og vi publiserer hver 7. dag. MÅLT 20.10.2026:
+# alle 16 produksjonsutrullinger siden den første (24.09.2026) står hos
+# Cloudflare, og en rollback i et prøveprosjekt ga den første utrullingen
+# på produksjonsadressen etter 16 sekunder.
+#
+# ÉN VEI, MED LOGG. `publiser.yml` med `tilbakerulling=<deployment_id>`
+# kaller `tilbakerull()`, skriver en linje med `logg_tilbakerulling()` og
+# røyktester. En tilbakerulling i Cloudflares dashbord skriver ingen linje,
+# og da leser vilkår a feil kode neste mandag.
+
+CF_API = "https://api.cloudflare.com/client/v4"
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def cloudflare(metode: str, sti: str) -> dict:
+    """Ett kall mot Pages-prosjektet. `Stopp` med Cloudflares egen melding.
+
+    Samme token og konto som wrangler bruker i Actions (`CLOUDFLARE`):
+    `Account · Cloudflare Pages · Edit` dekker både listing, rollback og
+    oppslag. Verdiene skrives aldri ut.
+    """
+    import royktest
+
+    krev_cloudflare()
+    konto = os.environ["CLOUDFLARE_ACCOUNT_ID"].strip()
+    url = (f"{CF_API}/accounts/{konto}/pages/projects/"
+           f"{publiser.PROSJEKT}{sti}")
+    req = urllib.request.Request(url, method=metode, headers={
+        "Authorization": f"Bearer {os.environ['CLOUDFLARE_API_TOKEN'].strip()}"})
+    try:
+        with urllib.request.urlopen(req, timeout=30,
+                                    context=royktest._tls()) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        try:
+            feil = json.loads(e.read()).get("errors")
+        except ValueError:
+            feil = ""
+        raise Stopp(f"\n  STOPPET: Cloudflare svarte {e.code} på {metode} "
+                    f"{sti or '/'}: {feil}")
+    except (urllib.error.URLError, OSError) as e:
+        raise Stopp(f"\n  STOPPET: Cloudflare kunne ikke nås: {e}")
+
+
+def i_produksjon(kall=None) -> dict:
+    """Utrullingen kystloggen.no svarer med NÅ, slik Cloudflare sier det.
+
+    Prosjektets `canonical_deployment`, ikke den nyeste: MÅLT 20.10.2026 i
+    prøveprosjektet var `latest_deployment` fortsatt den nyeste etter en
+    rollback, mens `canonical_deployment` var den som svarte.
+    """
+    kall = kall or cloudflare
+    c = (kall("GET", "").get("result") or {}).get("canonical_deployment") or {}
+    if not c.get("id"):
+        raise Stopp(f"\n  STOPPET: Cloudflare oppgir ingen canonical_deployment "
+                    f"for {publiser.PROSJEKT}.")
+    return c
+
+
+def krev_i_produksjon(maal: str, kall=None, forsok: int = 6,
+                      pause: float = 5.0) -> dict:
+    """`Stopp` med mindre Cloudflare sier at `maal` er i produksjon.
+
+    Spørsmålet stilles til den som vet (CLAUDE.md 1b-1). At rollback-kallet
+    svarte 200, sier at Cloudflare tok imot bestillingen, ikke at
+    kystloggen.no svarer med utrullingen.
+    """
+    c: dict = {}
+    for n in range(1, forsok + 1):
+        c = i_produksjon(kall)
+        if c["id"] == maal:
+            return c
+        if n < forsok:
+            time.sleep(pause)
+    raise Stopp(f"\n  STOPPET: Cloudflare sier at {c.get('id')} er i "
+                f"produksjon, ikke {maal}.")
+
+
+def maalet(logg_sti: Path, maal: str) -> dict:
+    """Linja som sier hva utrullingen `maal` inneholder. Tom: ukjent.
+
+    Slått opp på deployment_id, som er eksakt, og bare blant linjer som
+    kjenner koden.
+    """
+    for r in reversed(publiser.les_logg(logg_sti)):
+        if (r.get("deployment_id") == maal and r.get("miljo") in PRODUKSJON
+                and r.get("kode_commit")):
+            return r
+    return {}
+
+
+def tilbakerull(maal: str, kall=None, forsok: int = 6,
+                pause: float = 5.0) -> dict:
+    """Sett utrullingen `maal` i produksjon. Returnerer utrullingen.
+
+    `Stopp` FØR kallet når id-en ikke er en produksjonsutrulling som
+    lyktes, og etter kallet når Cloudflare ikke sier at den er ute.
+    """
+    if not UUID.fullmatch(maal or ""):
+        raise Stopp(f"\n  STOPPET: «{maal}» er ikke en deployment_id "
+                    f"(8-4-4-4-12 heksadesimaler). Ingenting er endret.")
+    kall = kall or cloudflare
+    u = kall("GET", f"/deployments/{maal}").get("result") or {}
+    if u.get("environment") != "production":
+        raise Stopp(f"\n  STOPPET: {maal} er en {u.get('environment')!r}-"
+                    f"utrulling. Bare produksjonsutrullinger kan settes "
+                    f"tilbake. Ingenting er endret.")
+    status = (u.get("latest_stage") or {}).get("status")
+    if status != "success":
+        raise Stopp(f"\n  STOPPET: {maal} har status {status!r}, ikke "
+                    f"success. Ingenting er endret.")
+    if i_produksjon(kall)["id"] == maal:
+        print(f"  {maal} er allerede i produksjon; ingen rollback sendt.")
+    else:
+        kall("POST", f"/deployments/{maal}/rollback")
+        print(f"  rollback til {maal} sendt")
+    krev_i_produksjon(maal, kall, forsok, pause)
+    print(f"  Cloudflare: canonical_deployment er {maal}")
+    return u
+
+
+def logg_tilbakerulling(maal: str, forsok: int = 3) -> str:
+    """Logglinja for en tilbakerulling. Tom streng når den er på origin.
+
+    Kode, data og uke er MÅLUTRULLINGENS, slått opp på deployment_id i
+    loggen FØR linja skrives. Finnes den ikke der, står de tomme, og vilkår
+    a holder ikke før neste publisering med «ja».
+    """
+    r = maalet(publiser.LOGG, maal)
+    return _bokfor(r.get("kode_commit", ""), r.get("data_commit", ""),
+                   "tilbakerulling", r.get("uke", ""), maal,
+                   "tilbakerulling", forsok)
+
+
 # ------------------------------------------------------------ hoved
 
 def main(argv: list[str] | None = None) -> int:
@@ -418,6 +611,24 @@ def main(argv: list[str] | None = None) -> int:
     lg = sub.add_parser("logg", help="steg 6")
     lg.add_argument("--kvittering", type=Path, required=True)
     lg.add_argument("--miljo", choices=MILJOER, required=True)
+    # Fra miljøet, ikke bare fra et flagg: publiser.yml kjører koden BYGGET
+    # ble laget med, og en kode fra før flagget fantes ville stoppet på et
+    # ukjent argument etter at siden er lagt ut. En variabel ser den bort fra.
+    lg.add_argument("--deployment-id", default=os.environ.get("DEPLOYMENT_ID", ""),
+                    help="Cloudflares id fra last-opp (standard: $DEPLOYMENT_ID)")
+
+    ip = sub.add_parser("i-produksjon", help="utrullingen Cloudflare har ute nå")
+    ip.add_argument("--krev", help="stopp med mindre det er denne deployment_id-en")
+    ip.add_argument("--logg", type=Path,
+                    help="publiseringsloggen, for uka og tidspunktet")
+
+    tb = sub.add_parser("tilbakerull", help="sett en produksjonsutrulling tilbake")
+    tb.add_argument("--deployment-id", required=True)
+    tb.add_argument("--logg", type=Path, required=True,
+                    help="publiseringsloggen, for uka røyktesten skal se")
+
+    lt = sub.add_parser("logg-tilbakerulling", help="logglinja etter rollback")
+    lt.add_argument("--deployment-id", required=True)
 
     au = sub.add_parser("automatisk", help="vilkårene for automatisk utlegging")
     au.add_argument("--kvittering", type=Path, required=True)
@@ -433,7 +644,13 @@ def main(argv: list[str] | None = None) -> int:
     elif a.kommando == "last-opp":
         last_opp(a.mappe, a.miljo)
     elif a.kommando == "logg":
-        problem = logg(les_kvittering(a.kvittering), a.miljo)
+        utrulling = a.deployment_id.strip()
+        if utrulling and not UUID.fullmatch(utrulling):
+            print(f"::warning::deployment_id «{utrulling}» er ikke en "
+                  f"Cloudflare-id; logglinja får tomt felt.")
+            utrulling = ""
+        problem = logg(les_kvittering(a.kvittering), a.miljo,
+                       deployment_id=utrulling)
         if problem:
             # Siden er ute. Det er bokføringen som mangler — rød, fordi
             # en upushet linje ellers står ukjent til neste gang noen
@@ -454,10 +671,30 @@ def main(argv: list[str] | None = None) -> int:
         if a.rapport:
             a.rapport.parent.mkdir(parents=True, exist_ok=True)
             a.rapport.write_text(vilkaarstekst(vilkar) + "\n", encoding="utf-8")
-        sti = os.environ.get("GITHUB_OUTPUT")
-        if sti:
-            with open(sti, "a", encoding="utf-8") as f:
-                f.write(f"apen={'ja' if apen else 'nei'}\n")
+        utdata(apen="ja" if apen else "nei")
+    elif a.kommando == "i-produksjon":
+        c = krev_i_produksjon(a.krev) if a.krev else i_produksjon()
+        r = maalet(a.logg, c["id"]) if a.logg else {}
+        print(f"  i produksjon: {c['id']} (utrullet {c.get('created_on', '')[:19]}"
+              f"{', uke ' + r['uke'] if r.get('uke') else ''})")
+        utdata(deployment_id=c["id"], opprettet=c.get("created_on", ""),
+               uke=r.get("uke", ""))
+    elif a.kommando == "tilbakerull":
+        r = maalet(a.logg, a.deployment_id)
+        print(f"Tilbakerulling til {a.deployment_id}: "
+              + (f"uke {r['uke']}, kode {r['kode_commit'][:12]}, data "
+                 f"{r['data_commit'][:12]}" if r else
+                 "loggen har ingen linje for den — kode og uke er ukjent"))
+        u = tilbakerull(a.deployment_id)
+        utdata(url=u.get("url", ""), uke=r.get("uke", ""))
+    elif a.kommando == "logg-tilbakerulling":
+        problem = logg_tilbakerulling(a.deployment_id)
+        if problem:
+            print(f"::error::kystloggen.no er rullet tilbake, men "
+                  f"publiseringsloggen er ikke pushet: {problem}")
+            return 1
+        print(f"      {publiser.LOGG.relative_to(publiser.DATAREPO)} — "
+              f"committet og pushet")
     return 0
 
 

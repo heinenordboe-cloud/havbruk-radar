@@ -314,3 +314,49 @@ def test_egne_skript_er_ikke_fremmede():
     assert royktest.fremmede_skript(
         '<script src="//cdn.example.com/a.js"></script>', "https://x.test") == [
         "//cdn.example.com/a.js"]
+
+
+# ---- etter en tilbakerulling: utrullingen er fasiten -------------------
+
+def _utrulling(sider: dict[str, tuple[int, str]], csp_: str = "default-src 'self'"):
+    """En henter som svarer som `<id>.kystloggen.pages.dev`."""
+    def henter(url):
+        sti = "/" + url.split("://", 1)[1].split("/", 1)[1]
+        status, kropp = sider.get(sti, (404, ""))
+        return status, {"content-security-policy": csp_}, kropp, url
+    return henter
+
+
+def _kart(tittel: str) -> str:
+    return f"<title>{tittel}</title><p>{royktest.KARTVERKET}</p>"
+
+
+def test_forventningen_leses_av_utrullingens_egen_adresse():
+    lok = "".join(f"<url><loc>https://kystloggen.no/lokalitet/{n}/</loc></url>"
+                  for n in (300, 20, 1000, 7))
+    po = "<url><loc>https://kystloggen.no/produksjonsomrade/2/</loc></url>"
+    henter = _utrulling({
+        "/": (200, '<title>Kystloggen</title><a href="/endringer/2026-42/">'
+                   '</a><a href="mailto:k@x.no">k</a>'),
+        "/endringer/2026-42/": (200, "<title>Uke 42</title>"),
+        "/sitemap.xml": (200, f"<urlset>{lok}{po}</urlset>"),
+        "/lokalitet/7/": (200, "<title>uten kart</title>"),
+        "/lokalitet/20/": (200, _kart("20")),
+        "/lokalitet/1000/": (200, _kart("1000")),
+        "/produksjonsomrade/2/": (200, _kart("PO 2")),
+    })
+    csp_, adresse, uke, sider = royktest.forventning_fra_utrulling(
+        "https://6c147962.kystloggen.pages.dev", henter=henter)
+    assert (csp_, adresse, uke) == ("default-src 'self'", "k@x.no", "2026-42")
+    assert [s.sti for s in sider] == ["/", "/endringer/2026-42/",
+                                      "/lokalitet/20/", "/lokalitet/1000/",
+                                      "/produksjonsomrade/2/"]
+    # Titlene er utrullingens: det er dem kystloggen.no skal svare med.
+    assert (sider[0].tittel, sider[1].tittel) == ("Kystloggen", "Uke 42")
+    assert sider[0].lenke == "/endringer/2026-42/"
+
+
+def test_utrulling_uten_uke_kan_ikke_settes_opp():
+    henter = _utrulling({"/": (200, "<title>x</title>")})
+    with pytest.raises(ValueError, match="lenker ikke til noen uke"):
+        royktest.forventning_fra_utrulling("https://x.pages.dev", henter=henter)

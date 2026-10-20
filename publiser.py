@@ -22,7 +22,8 @@ som ryker: porten.
                     nektes produksjon; forhåndsvisning advares.
     5  wrangler     forhåndsvisning med mindre --produksjon
     6  logg         én linje i datarepoet: hva som ble lagt ut, når,
-                    fra hvilken kode og hvilke data. Skriptet commiter
+                    fra hvilken kode og hvilke data, og Cloudflares
+                    deployment_id for utrullingen. Skriptet commiter
                     og pusher den selv — en logglinje ingen pushet
                     stopper NESTE publisering i steg 1.
     7  røyktest     bare produksjon: `royktest.py` mot kystloggen.no,
@@ -40,9 +41,11 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROT = Path(__file__).resolve().parent
@@ -119,11 +122,12 @@ class Stopp(SystemExit):
     """Publiseringen stanset. Meldingen sier hvor og hvorfor."""
 
 
-def kjor(*args: str, mappe: Path = ROT, vis: bool = False) -> str:
+def kjor(*args: str, mappe: Path = ROT, vis: bool = False,
+         env: dict | None = None) -> str:
     """Kjør en kommando. `Stopp` ved feil, med kommandoens egen melding."""
     try:
         ut = subprocess.run(args, cwd=mappe, text=True,
-                            capture_output=not vis)
+                            capture_output=not vis, env=env)
     except FileNotFoundError:
         # En kommando som ikke finnes skal si HVA som mangler, ikke
         # vise et spor fra subprocess. Dette rammer `npx` på en maskin
@@ -475,22 +479,138 @@ def wranglerkommando(ut: Path, produksjon: bool) -> list[str]:
             "--project-name", PROSJEKT, "--branch", gren]
 
 
+# MILJØET CLOUDFLARE SKAL SVARE AT UTRULLINGEN LANDET I. Det er Pages sitt
+# ord, ikke vårt: grenen vi sender avgjør det, og svaret sier om det
+# skjedde.
+CF_MILJO = {True: "production", False: "preview"}
+
+
+def les_utrulling(sti: Path) -> dict:
+    """Siste `pages-deploy-detailed` wrangler skrev til `sti`. Tom: ingen.
+
+    Wrangler skriver én JSON-linje per hendelse når
+    `WRANGLER_OUTPUT_FILE_PATH` er satt, og `pages deploy` skriver en med
+    `deployment_id` — Cloudflares id for utrullingen, den samme
+    tilbakerullingen tar. MÅLT 20.10.2026 med 4.139.0: id-ene i fila var de
+    API-et oppga for de to utrullingene i prøveprosjektet.
+    """
+    try:
+        linjer = sti.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+    funnet = {}
+    for linje in linjer:
+        try:
+            post = json.loads(linje)
+        except ValueError:
+            continue
+        if isinstance(post, dict) and post.get("type") == "pages-deploy-detailed":
+            funnet = post
+    return funnet
+
+
+def utrulling_id(post: dict, produksjon: bool) -> tuple[str, str]:
+    """(deployment_id, problem). id er tom når problemet ikke er det.
+
+    Id-en tas bare når utrullingen er i DETTE prosjektet og i miljøet vi
+    ba om. En produksjonspublisering som landet i en forhåndsvisning, får
+    ingen id i produksjonslinja — den ville pekt tilbakerullingen på noe
+    som aldri var ute.
+    """
+    if not post.get("deployment_id"):
+        return "", ("wrangler oppga ingen deployment_id (ingen "
+                    "pages-deploy-detailed i utputtfila)")
+    if post.get("pages_project") != PROSJEKT:
+        return "", (f"utrullingen er i prosjektet {post.get('pages_project')!r}, "
+                    f"ikke {PROSJEKT!r}")
+    if post.get("environment") != CF_MILJO[produksjon]:
+        return "", (f"utrullingen landet i {post.get('environment')!r}, "
+                    f"ikke {CF_MILJO[produksjon]!r}")
+    return post["deployment_id"], ""
+
+
+def last_opp(ut: Path, produksjon: bool) -> tuple[str, str]:
+    """Steg 5. (deployment_id, problem) — Cloudflares id for utrullingen.
+
+    ## Hvorfor id-en leses HER, og ikke slås opp senere
+
+    Den avgjør hva logglinja BETYR: hvilken utrulling tilbakerullingen
+    kan sette tilbake (CLAUDE.md 1b-3). Et oppslag i ettertid måtte gjette
+    utrullingen ut fra tid og commit — og to publiseringer med samme kode
+    samme kveld (06.10.2026, 17:53 og 18:10) er nøyaktig der det gjettet
+    blir et valg. Wrangler kjenner svaret i det den laster opp, og skriver
+    det til en fil når vi ber om det.
+
+    Problemet stanser ingenting: siden er lastet opp når det oppstår.
+    Linja får da tomt felt, som betyr «vet ikke».
+    """
+    with tempfile.TemporaryDirectory() as mappe:
+        fil = Path(mappe) / "wrangler.ndjson"
+        env = {**os.environ, "WRANGLER_OUTPUT_FILE_PATH": str(fil)}
+        kjor(*wranglerkommando(ut, produksjon), vis=True, env=env)
+        return utrulling_id(les_utrulling(fil), produksjon)
+
+
 # ------------------------------------------------------------ steg 6
 
-def skriv_logg(kode: str, data: str, miljo: str, uke: str) -> None:
+# KOLONNENE I PUBLISERINGSLOGGEN.
+#
+#   deployment_id     Cloudflares id for utrullingen. Tom: vet ikke.
+#   deployment_kilde  hvordan vi vet den:
+#                       wrangler        lest av wranglers utputt i det
+#                                       publiseringen skjedde
+#                       tilbakerulling  id-en tilbakerullingen ble gitt, og
+#                                       som Cloudflare bekreftet var ute
+#                       etterfylt       koblet 20.10.2026 ved commit og
+#                                       tid, bare der koblingen var entydig
+#
+# `miljo` er `forhandsvisning`, `produksjon` eller `tilbakerulling`. En
+# tilbakerullingslinje bærer kode, data og uke fra MÅLUTRULLINGEN: det
+# produksjon kjører etter den (`publiser_ci.siste_produksjon()`).
+LOGGFELT = ("tidspunkt", "miljo", "kode_commit", "data_commit", "uke",
+            "deployment_id", "deployment_kilde")
+
+
+def skriv_logg(kode: str, data: str, miljo: str, uke: str,
+               deployment_id: str = "", kilde: str = "") -> None:
     """Én linje per publisering, i DATAREPOET.
 
     Der og ikke i koderepoet: en publisering er en hendelse i
     historikken, og historikken bor der dataene bor. Linja er
     append-only som alt annet der.
+
+    Feltene skrives i den rekkefølgen fila selv oppgir i overskriften, og
+    bare de den har. En logg fra før en kolonne kom til, får ikke en linje
+    som er lengre enn overskriften sin.
     """
     LOGG.parent.mkdir(parents=True, exist_ok=True)
-    ny = not LOGG.exists()
+    if LOGG.exists() and LOGG.stat().st_size:
+        with LOGG.open(encoding="utf-8") as f:
+            felt = f.readline().rstrip("\n").split("\t")
+        overskrift = ""
+    else:
+        felt = list(LOGGFELT)
+        overskrift = "\t".join(LOGGFELT) + "\n"
+    verdi = {"tidspunkt": dt.datetime.now(dt.timezone.utc).isoformat(),
+             "miljo": miljo, "kode_commit": kode, "data_commit": data,
+             "uke": uke, "deployment_id": deployment_id,
+             "deployment_kilde": kilde if deployment_id else ""}
     with LOGG.open("a", encoding="utf-8") as f:
-        if ny:
-            f.write("tidspunkt\tmiljo\tkode_commit\tdata_commit\tuke\n")
-        f.write(f"{dt.datetime.now(dt.timezone.utc).isoformat()}\t"
-                f"{miljo}\t{kode}\t{data}\t{uke}\n")
+        f.write(overskrift + "\t".join(verdi.get(n, "") for n in felt) + "\n")
+
+
+def les_logg(sti: Path) -> list[dict]:
+    """Linjene i publiseringsloggen som dict, eldste først. Tom: ingen fil.
+
+    Linjer fra før en kolonne kom til, mangler den — `.get()` gir None.
+    """
+    if not sti.exists():
+        return []
+    linjer = sti.read_text(encoding="utf-8").splitlines()
+    if not linjer:
+        return []
+    felt = linjer[0].split("\t")
+    return [dict(zip(felt, l.split("\t"))) for l in linjer[1:] if l.strip()]
 
 
 def loggmelding(kode: str, data: str, miljo: str) -> str:
@@ -510,8 +630,8 @@ def loggmelding(kode: str, data: str, miljo: str) -> str:
             f"data {data[:12]}")
 
 
-def bokfor(kode: str, data: str, miljo: str,
-           uke: str) -> tuple[str, list[str]]:
+def bokfor(kode: str, data: str, miljo: str, uke: str,
+           deployment_id: str = "", kilde: str = "") -> tuple[str, list[str]]:
     """Skriv logglinja, og commit og push AKKURAT den fila.
 
     `("", [])` når linja står på `origin/main`. Ellers (grunnen til at
@@ -541,7 +661,7 @@ def bokfor(kode: str, data: str, miljo: str,
     og der finnes ikke valget mellom å gjøre det og å la være. Svaret
     er å si høyt hva som mangler, ikke å late som om ingenting skjedde.
     """
-    skriv_logg(kode, data, miljo, uke)
+    skriv_logg(kode, data, miljo, uke, deployment_id, kilde)
     sti = str(LOGG.relative_to(DATAREPO))
     melding = loggmelding(kode, data, miljo)
 
@@ -648,12 +768,16 @@ def main() -> int:
     # 5. Ut.
     gren = PRODUKSJONSGREN if args.produksjon else FORHANDSGREN
     print(f"\n[5/7] wrangler → {miljo} (gren {gren})")
-    kjor(*wranglerkommando(UT, args.produksjon), vis=True)
+    utrulling, mangler = last_opp(UT, args.produksjon)
+    print(f"      deployment_id {utrulling}" if utrulling else
+          f"\n  ADVARSEL: {mangler}.\n  Logglinja får tomt "
+          f"deployment_id; siden er lastet opp.")
 
     # 6. Logg.
     print("\n[6/7] logg")
     sti = LOGG.relative_to(DATAREPO)
-    problem, gjenstaar = bokfor(kode, data, miljo, uke)
+    problem, gjenstaar = bokfor(kode, data, miljo, uke, utrulling,
+                                "wrangler")
     if not problem:
         print(f"      {sti} — committet og pushet")
 

@@ -3,6 +3,7 @@
 
     python royktest.py --mappe NETTSTED --kvittering K [--base URL] [--www URL]
     python royktest.py --mappe NETTSTED --uke 2026-41
+    python royktest.py --utrulling https://<id>.kystloggen.pages.dev [--uke U]
 
 Kjøres til slutt i `publiser.yml`, og i `publiser.py` steg 7 etter en
 produksjonspublisering. Lokalt finnes ingen kvitteringsfil; da oppgis
@@ -90,6 +91,28 @@ og CSP-en er det eneste som står mellom det og leseren.
 
 Skript fra `/cdn-cgi/` på samme vert er Cloudflares egne og fanges ikke
 her; e-postobfuskeringen over er den vi har sett.
+
+## Etter en tilbakerulling: utrullingen er fasiten
+
+Fra 20.10.2026 ruller `publiser.yml` tilbake via Cloudflare Pages, og da
+finnes ingen byggemappe — GitHub-bygget er som regel utløpt, og det er
+grunnen til at tilbakerullingen går via Cloudflare. `--utrulling` leser
+forventningen av utrullingens EGEN adresse (`<id>.kystloggen.pages.dev`),
+som svarer med akkurat de filene og hodene den ble lastet opp med (MÅLT
+20.10.2026 for tre av dem, også den eldste fra 24.09):
+
+    CSP                hodet utrullingen selv svarer med på /
+    kontaktadressen    mailto: på utrullingens forside
+    uka                `--uke`, ellers første /endringer/<uke>/ forsiden
+                       lenker til
+    sidene             forsiden og ukesiden med titlene utrullingen har,
+                       og de første/siste lokalitetene og det første
+                       produksjonsområdet MED kart, i sitemap.xml-rekkefølge
+
+Så hentes de samme sidene fra kystloggen.no og holdes mot det, som før.
+At Cloudflare sier at utrullingen er ute (`canonical_deployment`), spør
+`publiser_ci.py i-produksjon --krev` om i samme steg; dette svarer på om
+det er DEN som svarer.
 
 ## Nye forsøk
 
@@ -198,6 +221,69 @@ def utvalg(mappe: Path, uke: str) -> list[Side]:
         Side(f"/lokalitet/{lok[0].parent.name}/", kart=True),
         Side(f"/lokalitet/{lok[-1].parent.name}/", kart=True),
         Side(f"/produksjonsomrade/{po[0].parent.name}/", kart=True),
+    ]
+
+
+# Hvor mange sider fra hver ende av sitemap.xml som prøves før utvalget gir
+# opp å finne en med kart. MÅLT 20.10.2026: den første lokaliteten i
+# sitemapen har kart; taket er for den dagen det endrer seg.
+MAKS_KANDIDATER = 25
+
+
+def forventning_fra_utrulling(url: str, uke: str = "", henter=None
+                              ) -> tuple[str, str, str, list[Side]]:
+    """(csp, adresse, uke, sider) lest av utrullingens egen adresse.
+
+    `ValueError` når utrullingen ikke gir det som trengs — da er det
+    utvalget som ikke kan settes sammen, ikke nettstedet som svarer feil.
+    """
+    henter = henter or hent
+    rot = url.rstrip("/")
+    status, hoder, forside, _ = henter(rot + "/")
+    if status != 200:
+        raise ValueError(f"utrullingen svarer {status} på {rot}/")
+    forventet_csp = hoder.get("content-security-policy", "")
+    m = re.search(r'href="mailto:([^"]+)"', forside)
+    adresse = m.group(1) if m else ""
+    if not uke:
+        m = re.search(r'href="/endringer/(\d{4}-\d{2})/"', forside)
+        uke = m.group(1) if m else ""
+    if not uke:
+        raise ValueError("forsiden i utrullingen lenker ikke til noen uke")
+    status, _, ukeside, _ = henter(f"{rot}/endringer/{uke}/")
+    if status != 200:
+        raise ValueError(f"utrullingen svarer {status} på /endringer/{uke}/")
+    status, _, kart, _ = henter(rot + "/sitemap.xml")
+    if status != 200:
+        raise ValueError(f"utrullingen svarer {status} på /sitemap.xml")
+    stier = re.findall(
+        r"<loc>[^<]*?(/(?:lokalitet|produksjonsomrade)/\d+/)</loc>", kart)
+
+    def nummerert(katalog: str) -> list[str]:
+        return sorted((s for s in stier if s.startswith(f"/{katalog}/")),
+                      key=lambda s: int(s.split("/")[2]))
+
+    def med_kart(kandidater: list[str]) -> str:
+        for sti in kandidater[:MAKS_KANDIDATER]:
+            st, _, kropp, _ = henter(rot + sti)
+            if st == 200 and KARTVERKET in kropp:
+                return sti
+        return ""
+
+    lok, po = nummerert("lokalitet"), nummerert("produksjonsomrade")
+    forste, siste = med_kart(lok), med_kart(lok[::-1])
+    po_kart = med_kart(po)
+    if not (forste and siste and po_kart) or forste == siste:
+        raise ValueError(f"fant ikke to lokaliteter og ett produksjonsområde "
+                         f"med kart i utrullingens sitemap.xml ({len(lok)} "
+                         f"lokaliteter, {len(po)} produksjonsområder)")
+    return forventet_csp, adresse, uke, [
+        Side("/", kart=True, lenke=f"/endringer/{uke}/",
+             tittel=_tittel(forside)),
+        Side(f"/endringer/{uke}/", kart=False, tittel=_tittel(ukeside)),
+        Side(forste, kart=True),
+        Side(siste, kart=True),
+        Side(po_kart, kart=True),
     ]
 
 
@@ -384,9 +470,13 @@ def kjor(base: str, sider: list[Side], forventet_csp: str,
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--mappe", type=Path, required=True,
-                    help="byggemappa som ble lagt ut")
-    kilde = ap.add_mutually_exclusive_group(required=True)
+    fasit = ap.add_mutually_exclusive_group(required=True)
+    fasit.add_argument("--mappe", type=Path,
+                       help="byggemappa som ble lagt ut")
+    fasit.add_argument("--utrulling",
+                       help="utrullingens egen adresse hos Cloudflare, etter "
+                            "en tilbakerulling (ingen byggemappe)")
+    kilde = ap.add_mutually_exclusive_group()
     kilde.add_argument("--kvittering", type=Path)
     kilde.add_argument("--uke", help="uka bygget gjelder, når det ikke "
                                      "finnes en kvittering (publiser.py)")
@@ -399,23 +489,33 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     www = a.www if a.www is not None else (WWW if a.base == BASE else "")
 
+    if a.mappe and a.uke is None and a.kvittering is None:
+        ap.error("--mappe krever --kvittering eller --uke")
     uke = (a.uke if a.uke is not None else
-           json.loads(a.kvittering.read_text(encoding="utf-8")).get("uke", ""))
-    forventet_csp = csp(a.mappe)
+           json.loads(a.kvittering.read_text(encoding="utf-8")).get("uke", "")
+           if a.kvittering else "")
     try:
+        if a.utrulling:
+            forventet_csp, adresse, uke, sider = forventning_fra_utrulling(
+                a.utrulling, uke)
+            hvor = f"utrullingen {a.utrulling}"
+        else:
+            forventet_csp = csp(a.mappe)
+            adresse = kontakt(a.mappe)
+            sider = utvalg(a.mappe, uke)
+            hvor = "bygget"
         if not forventet_csp:
-            raise ValueError("_headers i bygget oppgir ingen "
-                             "Content-Security-Policy for /*")
-        adresse = kontakt(a.mappe)
+            raise ValueError(f"{hvor} oppgir ingen Content-Security-Policy "
+                             f"for /")
         if not adresse:
-            raise ValueError("forsiden i bygget har ingen mailto:-lenke — "
-                             "står nettsted.kontakt i config.yml?")
-        sider = utvalg(a.mappe, uke)
+            raise ValueError(f"forsiden i {hvor} har ingen mailto:-lenke — "
+                             f"står nettsted.kontakt i config.yml?")
     except (OSError, ValueError) as e:
         print(f"::error::Røyktesten kunne ikke settes opp: {e}")
         return 1
 
-    print(f"Røyktest av {a.base}, uke {uke}, kontakt {adresse}:")
+    print(f"Røyktest av {a.base}, uke {uke}, kontakt {adresse}"
+          + (f", mot {a.utrulling}" if a.utrulling else "") + ":")
     for s in sider:
         print(f"  {s.sti}")
     if www:

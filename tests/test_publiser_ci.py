@@ -175,7 +175,7 @@ def test_avvist_push_proves_igjen_og_linja_havner_paa_origin(datarepo):
     linjer = _pa_origin(datarepo).splitlines()
     assert len(linjer) == 2                    # overskrift + ÉN linje
     assert linjer[1].split("\t")[1:] == ["forhandsvisning", "a" * 40,
-                                         "b" * 40, "2026-41"]
+                                         "b" * 40, "2026-41", "", ""]
 
 
 def test_ny_push_skriver_ikke_linja_to_ganger(datarepo):
@@ -435,3 +435,192 @@ def test_kvitteringen_baerer_porten_og_ukas_tall(tmp_path, monkeypatch):
     assert k["port"] == {"ukvitterte": 0, "kvitterte": 2}
     assert k["maal"] == {"endringer": 61, "lokaliteter": 1780}
     assert json.loads((tmp_path / "k" / "kvittering.json").read_text())["maal"] == k["maal"]
+
+
+# ---- tilbakerulling via Cloudflare Pages ------------------------------
+
+GOD, GAMMEL = "ea2f3923-4130-49b7-814e-07cd2c6f7dd5", \
+    "6c147962-4339-4f08-8bb5-c05b2cfa8ff1"
+FELT = "\t".join(publiser.LOGGFELT)
+
+
+def _logg7(sti: Path, *linjer: tuple[str, ...]) -> Path:
+    """(tidspunkt, miljo, kode, data, uke, deployment_id, kilde)."""
+    sti.parent.mkdir(parents=True, exist_ok=True)
+    sti.write_text(FELT + "\n" + "".join("\t".join(l) + "\n" for l in linjer),
+                   encoding="utf-8")
+    return sti
+
+
+def _for_og_etter_tilbakerulling(sti: Path, tilbake_kode: str) -> Path:
+    """W ute 13.10, X ut 19.10, så rullet tilbake til W 20.10."""
+    return _logg7(
+        sti,
+        ("2026-10-13T22:06:52+00:00", "produksjon", "w" * 40, "d1", "2026-42",
+         GAMMEL, "etterfylt"),
+        ("2026-10-19T10:45:14+00:00", "produksjon", "x" * 40, "d2", "2026-43",
+         GOD, "wrangler"),
+        ("2026-10-20T09:00:00+00:00", "forhandsvisning", "x" * 40, "d3",
+         "2026-43", "", ""),
+        ("2026-10-20T10:00:00+00:00", "tilbakerulling", tilbake_kode, "d1",
+         "2026-42", GAMMEL, "tilbakerulling"))
+
+
+def test_a_etter_tilbakerulling_slipper_ikke_ut_koden_som_ble_rullet_bort(tmp_path):
+    """Mandagen etter: main har fortsatt koden X, produksjon kjører W.
+    Siste PRODUKSJONSlinje sier X — leste vilkår a den, holdt det."""
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "w" * 40)
+    siste = publiser_ci.siste_produksjon(logg)
+    assert siste["miljo"] == "tilbakerulling"
+    v = publiser_ci.vilkar_kode({"kode_commit": "x" * 40}, siste)
+    assert not v.holder
+    assert "produksjon kjører wwwwwwwwwwww" in v.tekst
+    assert "tilbakerullet til 6c147962" in v.tekst
+
+
+def test_a_etter_tilbakerulling_stopper_ikke_samme_kode(tmp_path):
+    """Rullet tilbake for DATA, med samme kode: neste databygg med den
+    koden skal kunne gå ut, som før tilbakerullingen."""
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "w" * 40)
+    v = publiser_ci.vilkar_kode({"kode_commit": "w" * 40},
+                                publiser_ci.siste_produksjon(logg))
+    assert v.holder, v.tekst
+
+
+def test_a_etter_tilbakerulling_til_ukjent_kode_holder_ikke(tmp_path):
+    """Målutrullingen fantes ikke i loggen: kode_commit er tom. «Vet ikke»
+    holder aldri — heller ikke for en kvittering som også mangler den."""
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "")
+    siste = publiser_ci.siste_produksjon(logg)
+    for kode in ("x" * 40, "w" * 40, ""):
+        v = publiser_ci.vilkar_kode({"kode_commit": kode}, siste)
+        assert not v.holder and "vet ikke hvilken kode" in v.tekst
+
+
+def test_a_leser_fortsatt_en_logg_med_fem_kolonner(tmp_path):
+    """Loggen fra før 20.10.2026 har ingen deployment-kolonner."""
+    logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"))
+    assert publiser_ci.vilkar_kode({"kode_commit": KODE},
+                                   publiser_ci.siste_produksjon(logg)).holder
+
+
+class Cloudflare:
+    """Pages-API-et slik prøven 20.10.2026 viste det: rollback flytter
+    `canonical_deployment`, ikke `latest_deployment`."""
+
+    def __init__(self, ute: str, utrullinger: dict, flytter: bool = True):
+        self.ute, self.utr, self.flytter, self.kall = ute, utrullinger, flytter, []
+
+    def __call__(self, metode, sti):
+        self.kall.append((metode, sti))
+        if (metode, sti) == ("GET", ""):
+            return {"result": {"canonical_deployment": {"id": self.ute}}}
+        id_ = sti.split("/")[2]
+        if metode == "GET":
+            return {"result": self.utr[id_]}
+        assert sti.endswith("/rollback")
+        if self.flytter:
+            self.ute = id_
+        return {"result": self.utr[id_]}
+
+
+def _utr(miljo="production", status="success"):
+    return {"environment": miljo, "latest_stage": {"status": status},
+            "url": "https://6c147962.kystloggen.pages.dev"}
+
+
+def test_tilbakerulling_spor_cloudflare_om_maalet_er_ute():
+    cf = Cloudflare(GOD, {GAMMEL: _utr()})
+    u = publiser_ci.tilbakerull(GAMMEL, kall=cf, pause=0)
+    assert u["url"].startswith("https://6c147962.")
+    assert ("POST", f"/deployments/{GAMMEL}/rollback") in cf.kall
+    assert cf.kall[-1] == ("GET", "")          # siste ord er canonical
+
+
+def test_rollback_som_svarte_men_ikke_flyttet_noe_stopper():
+    """200 fra rollback er en bestilling, ikke et resultat (1b-2)."""
+    cf = Cloudflare(GOD, {GAMMEL: _utr()}, flytter=False)
+    with pytest.raises(publiser.Stopp, match=f"{GOD} er i produksjon, ikke {GAMMEL}"):
+        publiser_ci.tilbakerull(GAMMEL, kall=cf, forsok=2, pause=0)
+
+
+@pytest.mark.parametrize("maal,utr,grunn", [
+    ("ikke-en-id", {}, "ikke en deployment_id"),
+    (GAMMEL, {GAMMEL: _utr(miljo="preview")}, "'preview'-utrulling"),
+    (GAMMEL, {GAMMEL: _utr(status="failure")}, "status 'failure'"),
+])
+def test_ingen_rollback_naar_maalet_ikke_kan_settes_tilbake(maal, utr, grunn):
+    cf = Cloudflare(GOD, utr)
+    with pytest.raises(publiser.Stopp, match=grunn):
+        publiser_ci.tilbakerull(maal, kall=cf, pause=0)
+    assert not [k for k in cf.kall if k[0] == "POST"]
+
+
+def test_maalet_som_allerede_er_ute_faar_ingen_rollback():
+    cf = Cloudflare(GAMMEL, {GAMMEL: _utr()})
+    publiser_ci.tilbakerull(GAMMEL, kall=cf, pause=0)
+    assert not [k for k in cf.kall if k[0] == "POST"]
+
+
+def test_tilbakerullingslinja_baerer_maalets_kode_data_og_uke(datarepo):
+    _for_og_etter_tilbakerulling(publiser.LOGG, "w" * 40)
+    for args in (["add", "-A"], ["commit", "-qm", "logg"], ["push", "-q"]):
+        subprocess.run(["git", "-C", str(datarepo), *args], check=True,
+                       capture_output=True)
+    assert publiser_ci.logg_tilbakerulling(GOD) == ""
+    siste = publiser.les_logg(publiser.LOGG)[-1]
+    assert (siste["miljo"], siste["kode_commit"], siste["data_commit"],
+            siste["uke"], siste["deployment_id"], siste["deployment_kilde"]) == \
+        ("tilbakerulling", "x" * 40, "d2", "2026-43", GOD, "tilbakerulling")
+    assert _pa_origin(datarepo).rstrip("\n").splitlines()[-1].split("\t")[1:] == \
+        ["tilbakerulling", "x" * 40, "d2", "2026-43", GOD, "tilbakerulling"]
+
+
+def test_tilbakerulling_til_en_id_loggen_ikke_kjenner(datarepo):
+    """Kode og uke står tomme — og vilkår a holder da ikke."""
+    assert publiser_ci.logg_tilbakerulling(GAMMEL) == ""
+    siste = publiser_ci.siste_produksjon(publiser.LOGG)
+    assert (siste["kode_commit"], siste["deployment_id"]) == ("", GAMMEL)
+    assert not publiser_ci.vilkar_kode({"kode_commit": KODE}, siste).holder
+
+
+def test_logg_tar_deployment_id_fra_miljoet(datarepo, tmp_path, monkeypatch):
+    """publiser.yml gir id-en som DEPLOYMENT_ID, ikke som flagg: koden som
+    kjører er bygget sin, og en eldre kode ville stoppet på et ukjent
+    argument etter at siden er ute."""
+    k = tmp_path / "k.json"
+    k.write_text(json.dumps(K))
+    monkeypatch.setenv("DEPLOYMENT_ID", GOD)
+    assert publiser_ci.main(["logg", "--kvittering", str(k),
+                             "--miljo", "produksjon"]) == 0
+    monkeypatch.setenv("DEPLOYMENT_ID", "tull")
+    assert publiser_ci.main(["logg", "--kvittering", str(k),
+                             "--miljo", "produksjon"]) == 0
+    rader = publiser.les_logg(publiser.LOGG)
+    assert [(r["deployment_id"], r["deployment_kilde"]) for r in rader] == \
+        [(GOD, "wrangler"), ("", "")]
+
+
+def test_last_opp_gir_id_en_videre(tmp_path, monkeypatch):
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "t")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "a")
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
+    monkeypatch.setattr(publiser, "last_opp", lambda m, p: (GOD, ""))
+    assert publiser_ci.last_opp(tmp_path, "produksjon") == GOD
+    assert ut.read_text() == f"deployment_id={GOD}\n"
+
+
+def test_i_produksjon_krev_stopper_paa_feil_utrulling(tmp_path, monkeypatch):
+    """Røyktesten etter en tilbakerulling spør Cloudflare først."""
+    cf = Cloudflare(GOD, {})
+    monkeypatch.setattr(publiser_ci, "cloudflare", cf)
+    monkeypatch.setattr(publiser_ci.time, "sleep", lambda s: None)
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "w" * 40)
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
+    publiser_ci.main(["i-produksjon", "--krev", GOD, "--logg", str(logg)])
+    assert ut.read_text().splitlines() == [f"deployment_id={GOD}",
+                                           "opprettet=", "uke=2026-43"]
+    with pytest.raises(publiser.Stopp, match=f"ikke {GAMMEL}"):
+        publiser_ci.main(["i-produksjon", "--krev", GAMMEL])

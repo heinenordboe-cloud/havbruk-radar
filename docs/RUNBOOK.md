@@ -341,11 +341,28 @@ publisering aldri bygger på en eldre kopi enn den som ligger på GitHub.
 publisering er en hendelse i historikken, og historikken bor der
 dataene bor.
 
-    tidspunkt  miljo  kode_commit  data_commit  uke
+    tidspunkt  miljo  kode_commit  data_commit  uke  deployment_id  deployment_kilde
 
 Skriptet skriver linja, og committer og pusher den selv (steg 6, fra
 23.09.2026). `bygg.yml` og `publiser.yml` skriver den samme linja for
 sine publiseringer, så loggen dekker begge veiene.
+
+Fra 20.10.2026 står Cloudflares `deployment_id` på linja — id-en
+tilbakerullingen tar (se «Tilbakerulling»). Den leses av wranglers egen
+utputt i det opplastingen skjer (`WRANGLER_OUTPUT_FILE_PATH`), og
+`deployment_kilde` sier hvordan vi vet den:
+
+| `deployment_kilde` | |
+|---|---|
+| `wrangler` | lest av wrangler i det publiseringen skjedde |
+| `tilbakerulling` | id-en en tilbakerulling ble gitt, og som Cloudflare bekreftet var ute |
+| `etterfylt` | koblet 20.10.2026 ved commit og tid — de 16 produksjonslinjene før kolonnen kom |
+
+Tom `deployment_id` betyr «vet ikke». Det gjelder forhåndsvisningene fra
+`bygg.yml`, som ikke gir id-en videre til logglinja, og en publisering
+der wrangler ikke oppga den (en advarsel i kjøringen; siden er ute).
+
+`miljo` er `forhandsvisning`, `produksjon` eller `tilbakerulling`.
 
 ### Ingen nøkler — lokalt
 
@@ -404,16 +421,9 @@ bygget venter på «ja» som før (stegene under, med `run_id` fra issuen).
 Issuen lukkes av neste publisering som består røyktesten.
 
 **Går bygget ut**, kommer issuen «Automatisk publisert» med ukas tall,
-kvitteringen og kommandoen som ruller tilbake:
-
-```bash
-gh workflow run publiser.yml -R heinenordboe-cloud/havbruk-radar-data \
-  -f run_id=<forrige produksjonsbygg> -f bekreft=ja
-```
-
-Forrige produksjonsbygg finnes ved å lese kvitteringene, og ryddingen
-lar det stå. Bygg utløper etter 7 dager; er forrige eldre, sier issuen
-at tilbakerulling med run_id ikke går.
+kvitteringen og kommandoen som ruller tilbake til utrullingen som var
+ute før — med Cloudflares `deployment_id`, ikke et run_id. Se
+«Tilbakerulling» under.
 
 **DELVIS stopper i dag hver uke.** Alle åtte ukene 2026-35 til 2026-42
 er DELVIS (MÅLT 13.10.2026; fra uke 37 med «tilsyn: true» fordi
@@ -433,6 +443,70 @@ ikke, er snapshotene uansett skrevet.
 Den bygger ikke når innsamlingen ikke skrev noe — tirsdagens
 gjenkjøring i en frisk uke. Da står «Innsamlingen skrev ingenting nytt»
 i oppsummeringen, og jobben er grønn.
+
+### Tilbakerulling
+
+Fra 20.10.2026 går tilbakerulling via **Cloudflare Pages**, ikke via et
+gammelt bygg i GitHub. Byggene i Actions utløper etter 7 dager, og vi
+publiserer hver 7. dag: forrige bygg er borte omtrent når det trengs.
+Cloudflare beholder hver produksjonsutrulling. `retention-days: 7` i
+`bygg.yml` står; et gammelt bygg er reserven, ikke planen.
+
+MÅLT 20.10.2026:
+
+- **Alle 16 produksjonsutrullinger** siden den første (24.09.2026 22:01
+  UTC) står hos Cloudflare, og alle 16 svarer på sin egen adresse
+  (`<id>.kystloggen.pages.dev`), også den eldste. Hvor lenge Cloudflare
+  beholder dem utover det, er ikke målt.
+- **Rollback virker.** I prøveprosjektet `kystloggen-prove` (slettet
+  etterpå): to utrullinger med wrangler 4.139.0 og publiser.yml-tokenet,
+  rollback til den første med API-et — produksjonsadressen svarte med
+  den første 16 sekunder etter kallet, og det sto seg. Prosjektets
+  `canonical_deployment` var den første; `latest_deployment` var
+  fortsatt den andre.
+
+**Én vei, med logg:**
+
+```bash
+gh workflow run publiser.yml -R heinenordboe-cloud/havbruk-radar-data \
+  -f tilbakerulling=<deployment_id> -f bekreft=ja
+```
+
+eller Actions → **Publiser** → **Run workflow**, `tilbakerulling` lik
+id-en, `bekreft` «ja», `run_id` tom. Jobben
+
+1. sjekker at id-en er en produksjonsutrulling i `kystloggen` som lyktes,
+   og stopper ellers før noe endres,
+2. kaller rollback, og krever at Cloudflare deretter oppgir den som
+   `canonical_deployment`,
+3. skriver en linje med `miljo` = `tilbakerulling` i publiseringsloggen,
+4. røyktester: spør Cloudflare igjen om `canonical_deployment` er id-en,
+   og holder kystloggen.no mot utrullingens egen adresse
+   (`royktest.py --utrulling`) — det finnes ingen byggemappe å holde den
+   mot.
+
+**Id-en** står i issuen «Automatisk publisert» (forrige utrulling), i
+`deployment_id`-kolonnen i publiseringsloggen, og i API-et:
+
+```bash
+curl -s "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/kystloggen/deployments?env=production" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  | python3 -c 'import json,sys; [print(r["created_on"][:19], r["id"]) for r in json.load(sys.stdin)["result"]]'
+```
+
+**Ikke rull tilbake i Cloudflares dashbord.** Det virker, men skriver
+ingen logglinje, og logglinja er det vilkår a leser: etter en
+tilbakerulling kjører produksjon koden og dataene i MÅLUTRULLINGEN, og
+linja bærer dem. Uten den sammenligner neste mandag med koden som ble
+rullet bort, og slipper den ut igjen automatisk. Med den:
+
+| mandagen etter | vilkår a |
+|---|---|
+| bygget har koden som ble rullet bort | holder ikke — ny kode går ut med «ja» |
+| rullet tilbake for data, samme kode | holder |
+| målutrullingen finnes ikke i loggen | holder ikke — koden er ukjent |
+
+Vilkår b, c og d leser ikke loggen.
 
 ### Fra mobilen
 
@@ -555,9 +629,8 @@ for en måling:
 | to ukentlige bygg, den nyeste publisert | 249–373 MB (to–tre ute) | 124 MB |
 | verste: fire bygg innen 14 dager | 498 MB | to innen 7 dager: 249 MB |
 
-Bygget som ligger ute nå ble lastet opp med 14 dager og utløper 21.10.
-Retensjonen gjelder bare nye opplastinger, men neste grønne publisering
-sletter det.
+Byggene i Actions er ikke tilbakerullingen: den går via Cloudflare
+(se «Tilbakerulling»). `retention-days` står på 7.
 
 ### Filtaket hos Cloudflare Pages
 
