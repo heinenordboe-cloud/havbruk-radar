@@ -355,7 +355,7 @@ utputt i det opplastingen skjer (`WRANGLER_OUTPUT_FILE_PATH`), og
 | `deployment_kilde` | |
 |---|---|
 | `wrangler` | lest av wrangler i det publiseringen skjedde |
-| `tilbakerulling` | id-en en tilbakerulling ble gitt, og som Cloudflare bekreftet var ute |
+| `tilbakerulling` | id-en en tilbakerulling sendte rollback til (eller fant allerede ute); om Cloudflare bekreftet den, sier røyktesten i samme kjøring |
 | `etterfylt` | koblet 20.10.2026 ved commit og tid — de 16 produksjonslinjene før kolonnen kom |
 
 Tom `deployment_id` betyr «vet ikke». Det gjelder forhåndsvisningene fra
@@ -478,12 +478,19 @@ id-en, `bekreft` «ja», `run_id` tom. Jobben
 1. sjekker at id-en er en produksjonsutrulling i `kystloggen` som lyktes,
    og stopper ellers før noe endres,
 2. kaller rollback, og krever at Cloudflare deretter oppgir den som
-   `canonical_deployment`,
+   `canonical_deployment` — venter opptil 90 s (prøven brukte 16),
 3. skriver en linje med `miljo` = `tilbakerulling` i publiseringsloggen,
 4. røyktester: spør Cloudflare igjen om `canonical_deployment` er id-en,
    og holder kystloggen.no mot utrullingens egen adresse
    (`royktest.py --utrulling`) — det finnes ingen byggemappe å holde den
    mot.
+
+3 og 4 og issuen kjører når rollback-kallet er GJORT (`sendt=ja`, skrevet
+før ventingen), ikke når steg 2 er grønt. Gir ventingen opp, kan
+produksjon likevel være endret: steg 2 er da rødt, linja står, og
+røyktesten blir rød hvis Cloudflare fortsatt ikke oppgir målet. En linje
+for mye koster et «ja» neste mandag; en linje for lite slipper koden som
+ble rullet bort, ut igjen automatisk.
 
 **Id-en** står i issuen «Automatisk publisert» (forrige utrulling), i
 `deployment_id`-kolonnen i publiseringsloggen, og i API-et:

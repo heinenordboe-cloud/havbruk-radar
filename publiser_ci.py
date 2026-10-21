@@ -468,6 +468,11 @@ def vilkaarstekst(vilkar: list[Vilkar]) -> str:
 # og da leser vilkår a feil kode neste mandag.
 
 CF_API = "https://api.cloudflare.com/client/v4"
+
+# Hvor lenge vi venter på at Cloudflare oppgir målet som
+# canonical_deployment: 18 pauser à 5 s, 90 s. Prøven brukte 16 s; 30 s
+# lot en treg Cloudflare gjøre steget rødt ETTER at produksjon var endret.
+VENT_FORSOK, VENT_PAUSE = 19, 5.0
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
@@ -516,8 +521,8 @@ def i_produksjon(kall=None) -> dict:
     return c
 
 
-def krev_i_produksjon(maal: str, kall=None, forsok: int = 6,
-                      pause: float = 5.0) -> dict:
+def krev_i_produksjon(maal: str, kall=None, forsok: int = VENT_FORSOK,
+                      pause: float = VENT_PAUSE) -> dict:
     """`Stopp` med mindre Cloudflare sier at `maal` er i produksjon.
 
     Spørsmålet stilles til den som vet (CLAUDE.md 1b-1). At rollback-kallet
@@ -548,12 +553,17 @@ def maalet(logg_sti: Path, maal: str) -> dict:
     return {}
 
 
-def tilbakerull(maal: str, kall=None, forsok: int = 6,
-                pause: float = 5.0) -> dict:
+def tilbakerull(maal: str, kall=None, forsok: int = VENT_FORSOK,
+                pause: float = VENT_PAUSE) -> dict:
     """Sett utrullingen `maal` i produksjon. Returnerer utrullingen.
 
     `Stopp` FØR kallet når id-en ikke er en produksjonsutrulling som
     lyktes, og etter kallet når Cloudflare ikke sier at den er ute.
+
+    `sendt=ja` skrives i det kallet er gjort, før ventingen: fra da av kan
+    produksjon være endret, og logglinja, røyktesten og issuen i
+    publiser.yml skal kjøre selv om ventingen gir opp. Det er ventingens
+    utfall, ikke stegets, som sier om Cloudflare tok den.
     """
     if not UUID.fullmatch(maal or ""):
         raise Stopp(f"\n  STOPPET: «{maal}» er ikke en deployment_id "
@@ -573,6 +583,7 @@ def tilbakerull(maal: str, kall=None, forsok: int = 6,
     else:
         kall("POST", f"/deployments/{maal}/rollback")
         print(f"  rollback til {maal} sendt")
+    utdata(sendt="ja", url=u.get("url", ""))
     krev_i_produksjon(maal, kall, forsok, pause)
     print(f"  Cloudflare: canonical_deployment er {maal}")
     return u
@@ -685,8 +696,10 @@ def main(argv: list[str] | None = None) -> int:
               + (f"uke {r['uke']}, kode {r['kode_commit'][:12]}, data "
                  f"{r['data_commit'][:12]}" if r else
                  "loggen har ingen linje for den — kode og uke er ukjent"))
-        u = tilbakerull(a.deployment_id)
-        utdata(url=u.get("url", ""), uke=r.get("uke", ""))
+        # Uka før kallet, som url-en: røyktesten trenger begge også når
+        # ventingen i tilbakerull() gir opp.
+        utdata(uke=r.get("uke", ""))
+        tilbakerull(a.deployment_id)
     elif a.kommando == "logg-tilbakerulling":
         problem = logg_tilbakerulling(a.deployment_id)
         if problem:

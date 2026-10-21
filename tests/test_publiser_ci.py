@@ -549,17 +549,62 @@ def test_rollback_som_svarte_men_ikke_flyttet_noe_stopper():
     (GAMMEL, {GAMMEL: _utr(miljo="preview")}, "'preview'-utrulling"),
     (GAMMEL, {GAMMEL: _utr(status="failure")}, "status 'failure'"),
 ])
-def test_ingen_rollback_naar_maalet_ikke_kan_settes_tilbake(maal, utr, grunn):
+def test_ingen_rollback_naar_maalet_ikke_kan_settes_tilbake(maal, utr, grunn,
+                                                            tmp_path, monkeypatch):
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
     cf = Cloudflare(GOD, utr)
     with pytest.raises(publiser.Stopp, match=grunn):
         publiser_ci.tilbakerull(maal, kall=cf, pause=0)
     assert not [k for k in cf.kall if k[0] == "POST"]
+    assert not ut.exists(), "ingenting sendt: stegene etter skal ikke kjøre"
 
 
-def test_maalet_som_allerede_er_ute_faar_ingen_rollback():
+def test_maalet_som_allerede_er_ute_faar_ingen_rollback(tmp_path, monkeypatch):
+    """Men sendt=ja: produksjon ER målet, og logglinja skal skrives."""
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
     cf = Cloudflare(GAMMEL, {GAMMEL: _utr()})
     publiser_ci.tilbakerull(GAMMEL, kall=cf, pause=0)
     assert not [k for k in cf.kall if k[0] == "POST"]
+    assert "sendt=ja" in ut.read_text().splitlines()
+
+
+def test_rollback_som_aldri_blir_ute_feiler_men_logges_og_royktestes(
+        datarepo, tmp_path, monkeypatch):
+    """POST lykkes, canonical blir aldri målet. Steget «Rull tilbake» er
+    rødt — men produksjon kan være endret, så sendt=ja står, og stegene
+    publiser.yml kjører på det (logglinja, røyktesten, issuen) gjør jobben.
+    Røyktesten spør Cloudflare igjen og blir rød."""
+    _for_og_etter_tilbakerulling(publiser.LOGG, "w" * 40)
+    for args in (["add", "-A"], ["commit", "-qm", "logg"], ["push", "-q"]):
+        subprocess.run(["git", "-C", str(datarepo), *args], check=True,
+                       capture_output=True)
+    cf = Cloudflare(GOD, {GAMMEL: _utr()}, flytter=False)
+    monkeypatch.setattr(publiser_ci, "cloudflare", cf)
+    sovn: list[float] = []
+    monkeypatch.setattr(publiser_ci.time, "sleep", sovn.append)
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
+
+    with pytest.raises(publiser.Stopp, match=f"{GOD} er i produksjon, ikke {GAMMEL}"):
+        publiser_ci.main(["tilbakerull", "--deployment-id", GAMMEL,
+                          "--logg", str(publiser.LOGG)])
+    assert ("POST", f"/deployments/{GAMMEL}/rollback") in cf.kall
+    assert sum(sovn) >= 90, "minst 90 s før steget gir opp"
+    utdata = dict(l.split("=", 1) for l in ut.read_text().splitlines())
+    assert utdata == {"uke": "2026-42", "sendt": "ja",
+                      "url": "https://6c147962.kystloggen.pages.dev"}
+
+    # if: steps.rull.outputs.sendt == 'ja'
+    assert publiser_ci.main(["logg-tilbakerulling", "--deployment-id", GAMMEL]) == 0
+    siste = publiser.les_logg(publiser.LOGG)[-1]
+    assert (siste["miljo"], siste["deployment_id"], siste["uke"]) == \
+        ("tilbakerulling", GAMMEL, "2026-42")
+    assert _pa_origin(datarepo).rstrip("\n").splitlines()[-1].split("\t")[1] \
+        == "tilbakerulling"
+    with pytest.raises(publiser.Stopp, match=f"{GOD} er i produksjon, ikke {GAMMEL}"):
+        publiser_ci.main(["i-produksjon", "--krev", GAMMEL])
 
 
 def test_tilbakerullingslinja_baerer_maalets_kode_data_og_uke(datarepo):
