@@ -152,14 +152,122 @@
   <p>Lusetall hentes fire uker på etterskudd. Ferskere uker er
     ufullstendige hos kilden.</p>
   <p>Datoen er mandag i ISO-uka tellingen gjelder for.</p>
+  <p>Tellingen gjelder laks og ørret i sjø. Et anlegg uten laks, eller på
+    land, har ingen lusetall.</p>
+  <p><strong>Tomrom betyr ikke null.</strong> En uke uten søyle er en uke
+    kilden ikke oppgir noe tall for.</p>
+  <p>En hårstrek på nullinja er en uke som er målt til null.</p>
+  <p>Den lave stripa under aksen er uker lokaliteten var brakklagt.</p>
+  <p>Den stiplede linja er tiltaksgrensa slik BarentsWatch oppgir den uke
+    for uke («Lusegrense uke») — ikke en strek vi har satt.</p>
+  <p>Over grensa: voksne hunnlus per fisk, avrundet til to desimaler, på
+    eller over grensa den uka — slik BarentsWatch selv regner.</p>
+  <p>«Brakklagt» er BarentsWatchs vurdering «Trolig uten fisk», ikke noe
+    oppdretteren har rapportert.</p>
+  <p>En produksjonsperiode er sammenhengende uker BarentsWatch ikke regner
+    som brakklagt.</p>
+  <p>Én uke de kaller brakklagt deler en periode i to. En uke lokaliteten
+    mangler i hos kilden avslutter den også.</p>
+</details>
+
+<details class="forklaring" id="lesing-alder">
+  <summary>«Ukjent», «vurdert» og «uenige»</summary>
+  <p><strong>Ukjent:</strong> påstanden er eldre enn to
+    rapporteringsperioder. Datoen er siste rapport.</p>
+  <p>To perioder er to måneder for månedsrapportene og to uker for
+    lusetall og registrene.</p>
+  <p><strong>Vurdert:</strong> kildens egen slutning, ikke noe som er
+    rapportert.</p>
+  <p><strong>Uenige:</strong> to kilder sier fisk og ingen fisk om samme
+    uke og samme arter.</p>
+  <p>Da står begge, hver med sin dato. Vi velger ikke mellom dem.</p>
 </details>
 
 <details class="forklaring" id="lesing-endringer">
   <summary>Endringer vi har sett</summary>
   <p>Første henting er dagen vi begynte å hente kilden. Endringer i
     registerfeltene er fra den dagen og senere.</p>
+  <p>Datoen er som hovedregel når VI så endringen. Registeret oppgir ikke
+    når det gjorde den.</p>
+  <p>Endringen kan altså ha skjedd når som helst i uka før.</p>
   <p>Datoer lenger ned kan være eldre: kilder som daterer en observasjon
     til uka den gjelder for, oppgir sin egen dato.</p>
+  <p>Det gjelder sykdomsflaggene fra BarentsWatch: de er datert til uka de
+    gjelder for.</p>
+  <p><strong>Tekniske endringer</strong>: koordinater flyttet under
+    {{ koordinatterskel }} meter, versjonsdato, versjonsårsak og artsbegrensninger.</p>
+  <p>Også sykdomsflagg som bare kom inn i eller falt ut av kilden uten å
+    være satt.</p>
+  <p>Og felt som gjentar eller følger av en annen endring samme uke. De
+    står samlet, ikke borte.</p>
+  <p>Måleseriene telles ikke som endringer. Lusetall og sjøtemperatur
+    leverer et nytt tall hver uke.</p>
+</details>
+
+<details class="forklaring" id="lesing-ila">
+  <summary>ILA og PD</summary>
+  <p>ILA- og PD-flaggene er unntaket. De ligger i lusetallkilden, men de
+    er ikke målinger.</p>
+  <p>De er flagg som slås av og på, og et flagg som slås på er noe som har
+    skjedd med anlegget.</p>
+  <p><strong>«Satt» betyr at flagget står, ikke at sykdommen er
+    påvist.</strong></p>
+  <p>BarentsWatchs dokumentasjon sier om feltet bare «Does the site have
+    ISA disease this week».</p>
+  <p>Den skiller ikke mistanke fra påvist, selv om skillet finnes i
+    kildens egne saksdata.</p>
+  <p>Vi bruker ikke ordet «påvist» før vi har målt at det stemmer. Se
+    <a href="#hva-vi-ikke-gjor">hva som bevisst ikke hentes</a>.</p>
+</details>
+
+<details class="forklaring" id="lesing-fisk">
+  <summary>Fisk til stede</summary>
+  <p>Fra Fiskeridirektoratets biomasselag: ja eller nei og art, ved siste
+    månedsrapport.</p>
+  <p><strong>Laget oppgir ingen mengde</strong> — verken antall fisk
+    eller kilo biomasse.</p>
+  <p>Biomassedatabasen etter akvakulturdriftsforskriften § 44 er
+    børssensitiv og ikke offentlig.</p>
+  <p>De offentlige mengdetallene finnes per produksjonsområde og står på
+    områdesidene.</p>
+  <p>«Arter» er artene oppdretter meldte ved siste månedsrapport, ikke dem
+    lokaliteten har tillatelse for.</p>
+  <p>En lokalitet uten fisk, eller uten rapportplikt, står ikke i
+    laget.</p>
+</details>
+
+<details class="forklaring" id="lesing-tillatelser">
+  <summary>Tillatelser og kapasitet</summary>
+  <p>Lokalitetens kapasitet er det stedet er klarert for. Tillatelsenes er
+    summen av MTB.</p>
+  <p>En tillatelse kan brukes på flere lokaliteter, så de to tallene er
+    ulike størrelser.</p>
+  <p>«0» er registerets egen verdi for tillatelsen, ikke en feil hos
+    oss.</p>
+  <p>«Tildelt» er da tillatelsen ble gitt første gang — ikke nødvendigvis
+    til den som eier den nå.</p>
+  <p><strong>Navnet ved «Tillatelse tildelt» er dagens navn</strong> på
+    organisasjonsnummeret.</p>
+  <p>Registeret oppgir nummeret og slår navnet opp når det svarer. Derfor
+    står nummeret først.</p>
+  <p><strong>«Journalført senest denne datoen»</strong> er ikke det samme
+    som overdragelsesdato.</p>
+  <p>Journaldatoen er da saken ble ført, og overdragelsen kan ha skjedd
+    før.</p>
+  <p>Serien skiller ikke konserninterne flyttinger fra ekte oppkjøp. Det
+    lar seg ikke gjøre med offentlige data.</p>
+</details>
+
+<details class="forklaring" id="lesing-register">
+  <summary>Registerfeltene og historikken</summary>
+  <p>Navnet står i registerfeltene i registerets egen skrivemåte.
+    Overskriften er samme navn i tittelform.</p>
+  <p>«—» i «Sist endret» betyr at feltet ikke har endret seg i loggen vår,
+    ikke at det aldri har endret seg.</p>
+  <p>«Historikk kildene selv fører» er ikke det samme som «Endringer vi
+    har sett».</p>
+  <p>Der er datoen når VI så noe; her er datoen kildens egen påstand om
+    når noe skjedde.</p>
 </details>
 
 <details class="forklaring" id="lesing-bevis">

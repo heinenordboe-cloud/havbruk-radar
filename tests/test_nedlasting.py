@@ -521,7 +521,9 @@ def test_antall_uker_i_teksten_er_antall_rader_og_hullet_navngis(
     mappe = ut / "lokalitet" / "10001"
     assert navngitt in (mappe / nettsted.CSV_FILNAVN).read_text()
     html = " ".join((mappe / "index.html").read_text().split())
-    assert navngitt in html
+    # PÅ SIDEN SOM ETIKETT, i filene som setning med hver dato (fra
+    # 20.10.2026, tekstreglene). Uka er den samme.
+    assert "Mangler hos kilden: uke 32, 2026" in html
     # MÅLT i første utgave: «2 uker.1 uke i perioden» — en `{#-` i malen
     # spiste mellomrommet foran setningen.
     assert not re.search(r"uker?\.\d", html)

@@ -93,17 +93,21 @@
     {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
        ned. Et ledd uten data er utelatt, ikke gjettet — se
        `nettsted.lokalitetssammendrag` og docs/design/BRIEF.md. #}
+    {#- ÉN LINJE PER LEDD, ikke én setning. Tre ledd i én setning ble 122
+        tegn med et langt selskapsnavn — fire linjer på 390 px — og
+        tekstreglene fra 20.10.2026 sier etiketter framfor setninger. #}
     {% if lok.sammendrag %}
-    <p class="lok-sammendrag">
-      {%- for ledd in lok.sammendrag -%}
-      {%- if not loop.first %} · {% endif -%}
+    <ul class="lok-sammendrag">
+      {%- for ledd in lok.sammendrag %}
+      <li>
       {%- for bit in ledd -%}
       {%- if bit[0] == "tid" -%}<time datetime="{{ bit[1] }}">{{ bit[2] }}</time>
       {%- elif bit[0] == "lenke" -%}<a href="{{ bit[1] }}">{{ bit[2] }}</a>
       {%- else -%}{{ bit[1] }}{%- endif -%}
       {%- endfor -%}
-      {%- endfor -%}.
-    </p>
+      </li>
+      {%- endfor %}
+    </ul>
     {% endif %}
 
     {# VERKTØYLINJA, ikke en rad med knapper. Det er lenker — til en
@@ -443,8 +447,7 @@
            Ordet kommer fra kildens egen erklæring — se
            `_endringsrad()`. #}
         {% if post.datoslag == "verden" %}
-        <span class="tidsakse-bi tidsakse-bi--verden">gjelder uka, ikke
-          dagen vi så det</span>
+        <span class="tidsakse-bi tidsakse-bi--verden">gjelder uka</span>
         {% endif %}
         {% if post.gjelder != "lokaliteten" %}
         <span class="tidsakse-bi">{{ post.gjelder }}</span>
@@ -503,123 +506,16 @@
   {% endif %}
   {% endif %}
 
-  {#- OM TALLENE PÅ DENNE SIDEN. Forklaringene sto spredt over siden, like
-      på hver lokalitet, og flere av dem forklarte noe som ikke sto der:
-      «Journalført senest» på en side uten journalførte overføringer,
-      ILA/PD-boksen på et landanlegg uten flagg. De er samlet her, og hver
-      står bare når det den forklarer finnes på siden.
-
-      TEKSTEN ER FLYTTET, IKKE ENDRET. Henvisninger som «under» stemmer
-      fordi boksen står etter tidslinja og før lusetallene, tillatelsene
-      og historikken. Flyttes boksen, må de leses på nytt. #}
-  {% set flagg = lok.observert|selectattr("kildefelt", "in", ["har_ila", "har_pd"])|list %}
-  {% set tildelt_finnes = lok.tillatelser|selectattr("tildelt_dato")|list %}
-  {% set tildelinger = lok.oppgitt|selectattr("slag", "equalto", "Tillatelse tildelt")|list %}
-  {% set journalfort = lok.oppgitt|selectattr("presisjon", "equalto", "journalført senest denne datoen")|list %}
-  <details class="tallboks om-tallene" id="om-tallene">
-    <summary>Om tallene på denne siden</summary>
-    {% if lok.endringer %}
-<p class="tabellnote">
-    Hver endring i registerfeltene siden første øyeblikksbilde.
-    <strong>Datoen er som hovedregel når VI så endringen</strong> —
-    registeret oppgir ikke når det gjorde den, så den kan ha skjedd når
-    som helst i uka før. Unntaket er sykdomsflaggene fra BarentsWatch:
-    de er datert til <em>uka de gjelder for</em>, og hver slik post sier
-    det. Loggen dekker
-    {% for d in lok.dekning_fra %}{{ d.kilde }} fra
-    <time datetime="{{ d.fra }}">{{ d.fra|dato }}</time>{% if not loop.last %},
-    {% endif %}{% endfor %}; en endring som skjedde før det, har vi
-    ikke sett skje.
-  </p>
-    {% endif %}
-    {% if tekniske %}
-    <p class="tabellnote">
-      {#- DEN ENESTE NYE TEKSTEN i boksen: hva klassen betyr. Den sier
-          reglene i `vesentlighet`, og ingenting om dataene. #}
-      <strong>Tekniske endringer</strong> er koordinatjusteringer under
-      {{ koordinatterskel }} meter, versjonsdato og versjonsårsak, artsbegrensninger,
-      sykdomsflagg som bare kom inn i eller falt ut av kilden uten å
-      være satt, og felt som gjentar eller følger av en annen endring
-      samme uke. De står samlet under tidslinja, ikke borte.
-    </p>
-    {% endif %}
-    {% if lok.maaleserie_rader %}
-  <p class="tabellnote">
-    Måleseriene telles ikke som endringer her. Lusetall og sjøtemperatur
-    leverer et nytt tall hver uke — for denne lokaliteten
-    {{ tall(lok.maaleserie_rader) }} slike tall mot
-    {{ lok.endringer|length }} registerendringer.
-    Lusetallene står som en serie under.
-  </p>
-    {% endif %}
-    {% if flagg %}
-  <p class="tabellnote">
-    <strong>ILA- og PD-flaggene er unntaket.</strong> De ligger i
-    lusetallkilden, men de er ikke målinger — de er flagg som slås av og
-    på, og et flagg som slås på er noe som har skjedd med anlegget. De
-    står derfor i tidslinja.
-    <strong>«Satt» betyr at flagget står, ikke at sykdommen er
-    påvist.</strong> BarentsWatchs dokumentasjon sier om feltet bare
-    «Does the site have ISA disease this week», og skiller ikke mistanke
-    fra påvist — selv om skillet finnes i kildens egne saksdata
-    («Mistanke or Påvist»). Vi bruker ikke ordet «påvist» før vi har
-    målt at det stemmer. Se
-    {#- EN LESER KAN IKKE ÅPNE EN FIL I REPOET. Stien sto som `<code>`
-        på 1 782 sider og pekte på noe bare vi har. Avsnittet på /om/
-        er det samme innholdet, på en adresse som svarer. #}
-    <a href="/om/#hva-vi-ikke-gjor">hva som bevisst ikke hentes</a>.
-  </p>
-    {% endif %}
-    {% if lok.biolag %}
-    <p class="tabellnote">
-      <strong>Laget oppgir ingen mengde</strong> — verken antall fisk
-      eller kilo biomasse. Biomassedatabasen etter
-      akvakulturdriftsforskriften § 44 er børssensitiv og ikke
-      offentlig, så dette er ja/nei og art, aldri hvor mye. De
-      offentlige mengdetallene finnes per produksjonsområde og står
-      {% if lok.po_kode %}
-      <a href="/produksjonsomrade/{{ lok.po_kode }}/#biomasse-maaned">på
-        områdesiden</a>.
-      {% else %}
-      på områdesidene.
-      {% endif %}
-      «Arter» er artene oppdretter meldte som til stede ved siste
-      månedsrapport, og er ikke det samme som artene lokaliteten har
-      tillatelse for.
-    </p>
-    {% endif %}
-<p class="tabellnote">
-      Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss
-      den dagen. Den identifiserer øyeblikksbildet, og gjør at en
-      sitering kan etterprøves mot arkivet selv om siden er bygget om
-      siden.
-    </p>
-    {% if tildelt_finnes %}
-<p class="tabellnote">
-      «Tildelt» er da tillatelsen ble gitt første gang — ikke
-      nødvendigvis til den som eier den nå. Hvem den ble gitt TIL står i
-      historikken under.
-</p>
-    {% endif %}
-    {% if tildelinger %}
-  <p class="tabellnote">
-    <strong>Navnet ved «Tillatelse tildelt» er dagens navn</strong> på
-    organisasjonsnummeret, ikke navnet selskapet hadde da tillatelsen
-    ble gitt. Registeret oppgir nummeret og slår navnet opp når det
-    svarer, så en tildeling fra 1995 viser navnet nummeret bærer nå.
-    Derfor står nummeret først.
-  </p>
-    {% endif %}
-    {% if journalfort %}
-  <p class="tabellnote">
-    <strong>«Journalført senest denne datoen»</strong> er ikke det samme
-    som overdragelsesdato. Journaldatoen er da saken ble ført, og
-    overdragelsen kan ha skjedd før. Serien skiller heller ikke
-    konserninterne flyttinger fra ekte oppkjøp; det lar seg ikke gjøre
-    med offentlige data.
-  </p>
-    {% endif %}
-  </details>
+  {#- OM TALLENE. Forklaringene som er like på hver lokalitetsside — hva
+      datoen er, hva «teknisk» betyr, ILA og PD, biomasselaget,
+      tildelinger og journaldatoer — står én gang, på /om/#lesing
+      (tekstreglene 20.10.2026: «Felles forbehold står ett sted»). Her står
+      bare det som er DENNE sidens tall. Ankeret `#om-tallene` blir
+      stående. #}
+  <p class="etikettlinje" id="om-tallene">
+    {%- if lok.maaleserie_rader %}Ikke regnet som endringer: {{ tall(lok.maaleserie_rader) }} måletall
+    (mot {{ antall(lok.endringer|length, "registerendring", "registerendringer") }}) · {% endif -%}
+    <a href="/om/#lesing">Slik leser du tallene</a></p>
 
 </section>
 
@@ -744,10 +640,6 @@
     {% endif %}
     {% if lok.lusegraf %}
     {% set g = lok.lusegraf %}
-    <p class="blokk-ingress">
-      Uke for uke fra <time datetime="{{ g.fra }}">{{ g.fra[:4] }}</time>.
-      Kilde: BarentsWatch, som henter fra Mattilsynet.
-    </p>
 
     {# SØYLER OG IKKE EN KURVE: en kurve trekker en strek mellom to
        målinger og påstår dermed noe om uka imellom. Se `lusegraf()`.
@@ -813,57 +705,46 @@
       </g>
     </svg>
     <figcaption>
-      <span class="tegn"><span class="tegn-rute tegn-soyle"></span>voksne
-        hunnlus per fisk</span>
+      <span class="tegn"><span class="tegn-rute tegn-soyle"></span>voksne hunnlus</span>
       <span class="tegn"><span class="tegn-rute tegn-brakk"></span>brakklagt</span>
       {% if g.grense %}
-      <span class="tegn"><span class="tegn-strek"></span>tiltaksgrense, slik
-        BarentsWatch oppgir den</span>
+      <span class="tegn"><span class="tegn-strek"></span>tiltaksgrense</span>
       {% endif %}
       {% if g.over %}
-      <span class="tegn"><span class="tegn-rute tegn-over"></span>på eller over
-        tiltaksgrensa</span>
+      <span class="tegn"><span class="tegn-rute tegn-over"></span>over grensa</span>
       {% endif %}
-      <span class="tegn">tomrom = ingen rapport, ikke null</span>
-      <span class="tegn">hårstrek på nullinja = målt til null</span>
+      <span class="tegn">tomrom: ingen rapport</span>
+      <span class="tegn">hårstrek: målt null</span>
     </figcaption>
     </figure>
 
-    <p class="tabellnote">
-      Høyeste målte verdi {{ g.maks }}.
-      {#- HULLET SIES OGSÅ HER, ikke bare i `<desc>`: tomrommet ser likt
-          ut som en uke uten tall, og forskjellen står i teksten. #}
-      {% if g.mangler %}
-      {{ antall(g.mangler, "uke", "uker") }} på tidsaksen er tomme fordi
-      lokaliteten ikke står i kildens svar for dem — de har heller ingen
-      rad i tabellen.
-      {% endif %}
-      {{ tall(g.uker_med_tall) }} av {{ antall(g.uker, "uke", "uker") }} har tall, og
-      {{ g.nuller }} av dem er null.
+    {#- TALLENE GRAFEN ER TEGNET AV, som etiketter. Hva tomrom, hårstrek og
+        grenselinje betyr, står én gang på /om/#lesing-lus — ikke på hver
+        av 1 781 sider. Hvert tall står fortsatt. #}
+    <dl class="fakta fakta--tett" aria-label="Tallene i grafen">
+      <div><dt>Høyeste</dt><dd data-felt="voksne_hunnlus">{{ g.maks }}</dd></div>
+      <div><dt>Uker med tall</dt><dd>{{ tall(g.uker_med_tall) }} av {{ tall(g.uker) }}
+        <span class="fakta-etikett">fra <time datetime="{{ g.fra }}">{{ g.fra[:4] }}</time></span></dd></div>
+      <div><dt>Målt null</dt><dd>{{ tall(g.nuller) }}</dd></div>
       {% if g.uten_tall %}
-      {{ antall(g.uten_tall, "uke", "uker") }} har ingen søyle fordi kilden ikke oppgir
-      noe tall — <strong>tomrom betyr ikke null</strong>.
-      {% if g.hull_forklart %}
-      {{ g.hull_forklart }} av dem er uker lokaliteten var brakklagt.
+      <div><dt>Uten tall</dt><dd>{{ tall(g.uten_tall) }}
+        {%- if g.hull_forklart or g.hull_uforklart %}
+        <span class="fakta-etikett">{% if g.hull_forklart %}{{ tall(g.hull_forklart) }} brakklagt{% endif %}
+          {%- if g.hull_forklart and g.hull_uforklart %}, {% endif %}
+          {%- if g.hull_uforklart %}{{ tall(g.hull_uforklart) }} uforklart{% endif %}</span>
+        {%- endif %}</dd></div>
       {% endif %}
-      {% if g.hull_uforklart %}
-      {{ antall(g.hull_uforklart, "uke", "uker") }} mangler tall uten at noe vi har
-      forklarer det.
+      {% if g.mangler %}
+      <div><dt>Mangler hos kilden</dt><dd>{{ antall(g.mangler, "uke", "uker") }}</dd></div>
       {% endif %}
+      <div><dt>Tiltaksgrense</dt><dd>
+        {%- if g.grense %}{{ g.grense.verdier }}
+        {%- if g.grense.uten %} <span class="fakta-etikett">{{ antall(g.grense.uten, "uke", "uker") }} uten</span>{% endif %}
+        {%- else %}ikke oppgitt{% endif %}</dd></div>
+      {% if g.over %}
+      <div><dt>Over grensa</dt><dd>{{ antall(g.over, "uke", "uker") }}</dd></div>
       {% endif %}
-      {% if g.grense %}
-      Den stiplede linja er tiltaksgrensa slik BarentsWatch oppgir den
-      for lokaliteten uke for uke («Lusegrense uke»), her
-      {{ g.grense.verdier }} — ikke en strek vi har satt.
-      {% if g.grense.uten %}
-      {{ antall(g.grense.uten, "uke", "uker") }} har ingen grense hos kilden,
-      og der har linja et brudd.
-      {% endif %}
-      {% else %}
-      <strong>Ingen tiltaksgrense er tegnet:</strong> BarentsWatch oppgir
-      ingen for lokaliteten i ukene over.
-      {% endif %}
-    </p>
+    </dl>
 
     {#- UKER OVER GRENSEN PER PRODUKSJONSPERIODE. Periodegrensa er
         BarentsWatchs «Trolig uten fisk», og det står — se
@@ -880,28 +761,17 @@
         <dd>
           {% if p %}
           {{ tall(p.over) }} av {{ antall(p.med_tall, "uke", "uker") }} med lusetall
-          <span class="fakta-bi">{{ p.fra|uke }}{% if p.til != p.fra %} til
-            {{ p.til|uke }}{% endif %}, {{ antall(p.uker, "uke", "uker") }}{% if p.uten_grense %};
-            {{ antall(p.uten_grense, "uke", "uker") }} med tall har ingen grense
-            hos kilden og er ikke talt{% endif %}</span>
+          <span class="fakta-bi">{{ p.fra|uke }}{% if p.til != p.fra %}–{{ p.til|uke }}{% endif %}
+            {%- if p.uten_grense %} · {{ antall(p.uten_grense, "uke", "uker") }} uten grense{% endif %}</span>
           {% else %}
-          <span class="mangler">ingen — lokaliteten er brakklagt eller ikke i
-            kildens siste uke</span>
+          <span class="mangler">ingen: brakklagt, eller ikke i siste uke</span>
           {% endif %}
         </dd>
       </div>
       {% endfor %}
     </dl>
-    <p class="tabellnote">
-      Periodene avgrenses av <strong>BarentsWatchs vurdering «Trolig uten
-      fisk»</strong>: en periode er sammenhengende uker der BarentsWatch
-      ikke regner lokaliteten som brakklagt. Det er deres slutning, ikke
-      noe oppdretteren har rapportert, og en enkelt uke de kaller
-      brakklagt deler en periode i to. En uke lokaliteten mangler i hos
-      kilden avslutter også perioden. Over grensen betyr voksne hunnlus
-      per fisk, avrundet til to desimaler, på eller over grensa for uka —
-      slik BarentsWatch selv regner.
-    </p>
+    <p class="etikettlinje">Periodegrense: BarentsWatchs vurdering «Trolig uten fisk»
+      <a href="/om/#lesing-lus">(om tallene)</a></p>
     {% endif %}
 
     {% else %}
@@ -911,40 +781,28 @@
         de 767 ukene» om begge, og MÅLT 06.10.2026 var det usant på 778
         av 783 sider — Moltustranda (12325) står i alle 767, uten tall.
         `lus_uker` er antall uker lokaliteten står i, og skiller dem. #}
-    <p class="tomt">
-      Ingen lusetall rapportert.
-      {% if lok.lus_uker %}
-      Lokaliteten står i {{ tall(lok.lus_uker) }} av de
-      {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
-      BarentsWatch, men kilden oppgir ikke et tall i noen av dem.
-      {% if lok.lus_mangler_tekst %}{{ lok.lus_mangler_tekst }}{% endif %}
-      {% else %}
-      Lokaliteten finnes ikke i noen av de
-      {{ antall(lok.lusetall_snapshots, "uka", "ukene") }} vi har fra
-      BarentsWatch — ikke i én uke med tomt tall, men ikke i registeret
-      i det hele tatt.
+    <p class="tomt">Ingen lusetall rapportert.</p>
+    <dl class="fakta fakta--tett">
+      <div><dt>Hos BarentsWatch</dt><dd>
+        {%- if lok.lus_uker %}{{ tall(lok.lus_uker) }} av {{ antall(lok.lusetall_snapshots, "uke", "uker") }}, uten tall
+        {%- else %}ikke i noen av {{ antall(lok.lusetall_snapshots, "uke", "uker") }}{% endif %}</dd></div>
+      {% if lok.lus_mangler_kort %}
+      <div><dt>Mangler hos kilden</dt><dd>{{ lok.lus_mangler_kort }}</dd></div>
       {% endif %}
       {#- HVA REGISTERET SIER, ikke hva vi tror. «Ventet for anlegg som
           ikke har laksefisk» sto på hver side uten lusetall, også på
-          laksanlegg. Se `_lus_fravaer()`. #}
+          laksanlegg. Se `_lus_fravaer()`. At tellingen gjelder laks og
+          ørret i sjø, står på /om/#lesing-lus. #}
       {% if lok.lus_fravaer == "uten_laks" %}
-      Lokaliteten er ikke oppført med laks i Akvakulturregisteret, og
-      lusetellingen gjelder laks og ørret i sjø.
+      <div><dt>Akvakulturregisteret</dt><dd>ikke oppført med laks</dd></div>
       {% elif lok.lus_fravaer == "paa_land" %}
-      Lokaliteten ligger på land, og lusetellingen gjelder laks og ørret
-      i sjø.
+      <div><dt>Akvakulturregisteret</dt><dd>ligger på land</dd></div>
       {% endif %}
-      {% if lok.lus_uker %}
-      Nedlastingene har alle ukene, med tom celle der kilden ikke oppgir
-      noe: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a> og
-      <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>.
-      {% else %}
-      Nedlastingene finnes likevel, med overskrift og null rader — «vi
-      har sett etter og ikke funnet noe» er et svar, og 404 er det ikke:
-      <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a> og
-      <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>.
-      {% endif %}
-    </p>
+    </dl>
+    {#- NEDLASTINGENE FINNES OGSÅ UTEN TALL: «vi har sett etter og ikke
+        funnet noe» er et svar, og 404 er det ikke. #}
+    <p class="etikettlinje">Alle ukene: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a>
+      · <a href="{{ lok.zip_filnavn }}">Data (.zip)</a></p>
     {% endif %}
 
     {# TALLENE I TABELL, i en `<details>`. Grafen er formen for «har det
@@ -958,7 +816,7 @@
        tabellen — ikke omvendt, og ikke en forutsetning for den. #}
     <details class="tallboks">
       <summary>
-        {%- if lok.lus %}Tallene i tabell — siste {{ antall(lok.lus|length, "uke", "uker") }}
+        {%- if lok.lus %}Tabell, siste {{ antall(lok.lus|length, "uke", "uker") }}
         {%- else %}Tabellen, med hode og null rader{% endif %}</summary>
       <p class="tabelltittel" id="lusetall-uke-tittel">{% if lok.lus_uker %}
           Voksne hunnlus per fisk, de siste {{ lok.lus|length }} av
@@ -1000,23 +858,15 @@
         </tbody>
       </table>
       </div>
-      <p class="tabellnote">
-        {% if lok.lus_uker %}
-        Serien dekker
+      {% if lok.lus_uker %}
+      <p class="tabellnote">Serien:
         <time datetime="{{ lok.lus_fra }}">{{ lok.lus_fra }}</time>–<time datetime="{{ lok.lus_til }}">{{ lok.lus_til }}</time>,
         {{ antall(lok.lus_uker, "uke", "uker") }}.
-        {# DE MANGLENDE UKENE NAVNGIS. «764 uker» for et spenn på 767
-            ISO-uker, uten å si hvilke tre, lar leseren tro at tallet er
-            feil — eller at de tre er tomme uker i fila. Se
-            `manglende_uker()`. #}
-        {% if lok.lus_mangler_tekst %}{{ lok.lus_mangler_tekst }}{% endif %}
-        <strong>«{{ "–" }}» betyr at kilden ikke oppgir
-        noe tall</strong> — ikke at tallet var null.
-        {% endif %}
-        Hele serien: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a>
-        eller <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>, med kildens
-        egne verdier og et eget ark om kilde, lisens og kolonner.
-      </p>
+        {%- if lok.lus_mangler_kort %} Mangler hos kilden: {{ lok.lus_mangler_kort }}.{% endif %}</p>
+      <p class="tabellnote"><strong>«–»</strong> betyr at kilden ikke oppgir noe tall, ikke null.</p>
+      {% endif %}
+      <p class="tabellnote">Hele serien: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a>
+        eller <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>, med kildens egne verdier.</p>
     </details>
   </section>
 
@@ -1069,15 +919,9 @@
     {% if lok.tillatelser_uten_eier %}
     <p class="tabellnote">
       For {{ lok.tillatelser_uten_eier }} av
-      {{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }} vet vi ikke hvem eieren
-      er. Tillatelsen finnes og er aktiv i Akvakulturregisteret — det er
-      eieren som mangler hos oss. Fiskeridirektoratet oppgir ikke
-      organisasjonsnummer for eiere som er privatpersoner, og en eier vi
-      ikke kan klassifisere slipper ikke gjennom personvernfilteret
-      vårt. Radene står med «{{ lok.eier_ukjent }}» framfor å bli
-      utelatt. Se
-      <a href="/om/#dekning">hva dekningen er</a>.
-    </p>
+      {{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }} vet vi ikke hvem eieren er.</p>
+    <p class="tabellnote">Kilden oppgir ikke nummer for privatpersoner, og vi
+      navngir ingen vi ikke kan klassifisere. <a href="/om/#dekning">Dekningen</a></p>
     {% endif %}
     {# KAPASITET 0. Registeret oppgir 0 for noen tillatelser — særlig
        der lokaliteten er klarert i stykk. Uten et ord ble «0 stykk» lest
@@ -1090,25 +934,17 @@
       <strong>«0» er registerets egen verdi</strong> for
       {% if lok.tillatelser_null_kapasitet == lok.tillatelser|length %}alle
       tillatelsene{% else %}{{ lok.tillatelser_null_kapasitet }} av
-      tillatelsene{% endif %} her. Lokalitetens klarerte kapasitet
-      {%- if lok.kapasitet %}, {{ lok.kapasitet }},{% endif %} står i
-      tilstanden øverst. Den er ikke summen av tillatelsenes — de to er
-      ulike størrelser, og en tillatelse kan brukes på flere lokaliteter.
-    </p>
+      tillatelsene{% endif %}{% if lok.kapasitet %}. Lokaliteten: {{ lok.kapasitet }}{% endif %}.</p>
     {% endif %}
   </section>
 
   <section class="seksjon blokk" id="registerfelt" aria-labelledby="felt-tittel">
     <h2 id="felt-tittel">Registerfeltene</h2>
-    <p class="blokk-ingress">
-      Slik Akvakulturregisteret viser lokaliteten i siste
-      øyeblikksbilde, med kildens egne verdier.
-    </p>
     {#- LUKKET SOM STANDARD. 27 felt slik registeret fører dem er
         oppslagsverk, ikke det en leser kommer for; de viktigste står i
         tilstanden øverst. Noten om navnet følger tabellen inn. #}
     <details class="tallboks registerfelt">
-      <summary>Alle {{ antall(lok.register|length, "felt", "felt") }} slik registeret oppgir dem</summary>
+      <summary>Alle {{ antall(lok.register|length, "felt", "felt") }}, med kildens egne verdier</summary>
     <p class="tabelltittel" id="akvakultur-register-tittel">Akvakulturregisteret
         {{ herkomst(lok.paastander.sted.herkomst) }}</p>
     <div class="tabellramme" role="region"
@@ -1148,13 +984,8 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">
-      Navnet står her i registerets egen skrivemåte. Overskriften øverst
-      på siden er det samme navnet satt i tittelform — det er en
-      presentasjon, og denne raden er den siterbare.
-      «—» i siste kolonne betyr at feltet ikke har endret seg i loggen
-      vår, ikke at det aldri har endret seg.
-    </p>
+    <p class="tabellnote">«—» i siste kolonne: ingen endring i loggen vår.
+      <a href="/om/#lesing-register">Om feltene</a></p>
     </details>
   </section>
 
@@ -1169,15 +1000,18 @@
       <h2 id="oppgitt-tittel">Historikk kildene selv fører</h2>
     </div>
   </div>
-  <p class="historikk-forklaring">
-    Dette er <strong>ikke</strong> det samme som lista over. Der er
-    datoen når VI så noe; her er datoen kildens egen påstand om når noe
-    skjedde.
-  </p>
-
+  {#- AT DETTE IKKE ER DET SAMME SOM TIDSLINJA OVER — der er datoen vår,
+      her er den kildens — står på /om/#lesing-register. Overskriften og
+      etiketten sier det kort. #}
   {% if lok.oppgitt %}
-  <p class="tabelltittel" id="eierskap_historikk-overforinger-tittel">Datoer kildene oppgir selv, eldst først.
-      {{ antall(lok.oppgitt|length, "post", "poster") }}.</p>
+  {#- BAK ET KLIKK, som registerfeltene og lusetabellen: oppslagsstoff
+      lenger ned på siden (BRIEF.md, «Sider og jobb»). Antallet og
+      årsspennet står synlig, og hver rad står i tabellen. #}
+  <details class="tallboks oppgitt-historikk">
+    <summary>{{ antall(lok.oppgitt|length, "post", "poster") }},
+      {{ lok.oppgitt[0].dato[:4] }}{% if lok.oppgitt[-1].dato[:4] != lok.oppgitt[0].dato[:4] %}–{{ lok.oppgitt[-1].dato[:4] }}{% endif %}</summary>
+  <p class="tabelltittel" id="eierskap_historikk-overforinger-tittel">{{ antall(lok.oppgitt|length, "post", "poster") }},
+      eldst først <span class="herkomst">{{ "eierskap"|kildekort }} · datoene er kildens</span></p>
   <div class="tabellramme" role="region"
        aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
   <table id="eierskap_historikk-overforinger" aria-labelledby="eierskap_historikk-overforinger-tittel">
@@ -1187,7 +1021,7 @@
         <th scope="col">Hva</th>
         <th scope="col">Hvem</th>
         <th scope="col">Kilde</th>
-        <th scope="col">Hvor presis datoen er</th>
+        <th scope="col">Dato er</th>
       </tr>
     </thead>
     <tbody>
@@ -1228,13 +1062,15 @@
         {% else %}
         <td>—</td>
         {% endif %}
-        <td data-felt="source">{{ kilde(o.kilde) }}</td>
-        <td data-felt="presisjon">{{ o.presisjon }}</td>
+        {#- DATASETTET ALENE: utgiveren står én gang, i tittelen over. #}
+        <td data-felt="source">{{ o.kilde|datasett }}</td>
+        <td data-felt="presisjon">{{ o.presisjon|presisjon_kort }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
+  </details>
   {% else %}
   <p class="tomt">
     Ingen av kildene oppgir egne datoer for denne lokaliteten — verken

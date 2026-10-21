@@ -531,6 +531,10 @@ main.fullbredde {
   text-wrap: pretty;
 }
 
+/* OPPSUMMERINGEN ER EN LISTE: ett ledd per linje, uten punkter. */
+ul.lok-sammendrag { list-style: none; padding: 0; }
+ul.lok-sammendrag > li + li { margin-block-start: var(--rom-4); }
+
 /* LENKER I INGRESSEN OG FAKTALISTA står i blekk med rust strek under.
    De er navn i en setning, og en setning med tre rustfargede ord leses
    som tre advarsler. */
@@ -2291,6 +2295,10 @@ figcaption {
   font-size: var(--tekst-xs);
   color: var(--ink-dempet);
 }
+
+/* TETT FAKTALISTE: tallene under en graf. */
+.fakta--tett { gap: var(--rom-8) var(--rom-16); margin-block-end: var(--rom-16); }
+.fakta--tett dd { font-size: var(--tekst-s); }
 
 /* EN RAD OVER HELE BREDDEN, for en verdi med to tall og hver sin etikett. */
 .fakta > .fakta-hel { grid-column: 1 / -1; }

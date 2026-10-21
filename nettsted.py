@@ -1456,13 +1456,7 @@ def manglende_tekst(mangler: list[str]) -> str:
     """
     if not mangler:
         return ""
-    strekk: list[list[str]] = [[mangler[0]]]
-    for d in mangler[1:]:
-        forrige = dt.date.fromisoformat(strekk[-1][-1])
-        if dt.date.fromisoformat(d) - forrige == dt.timedelta(days=7):
-            strekk[-1].append(d)
-        else:
-            strekk.append([d])
+    strekk = _ukestrekk(mangler)
 
     def vist(d: str) -> str:
         return f"{d} ({visningsord.uke(d)})"
@@ -1473,6 +1467,39 @@ def manglende_tekst(mangler: list[str]) -> str:
     return (f"{visningsord.antall(len(mangler), 'uke', 'uker')} i perioden "
             f"mangler fordi lokaliteten ikke står i kildens svar for dem: "
             f"{'; '.join(deler)}. De har ingen rad.")
+
+
+def _ukestrekk(mangler: list[str]) -> list[list[str]]:
+    """Sammenhengende uker som ett strekk hver, i rekkefølge."""
+    strekk: list[list[str]] = [[mangler[0]]]
+    for d in mangler[1:]:
+        forrige = dt.date.fromisoformat(strekk[-1][-1])
+        if dt.date.fromisoformat(d) - forrige == dt.timedelta(days=7):
+            strekk[-1].append(d)
+        else:
+            strekk.append([d])
+    return strekk
+
+
+def manglende_kort(mangler: list[str]) -> str:
+    """De manglende ukene som korte strekk, for SIDEN: «uke 48–50, 2018».
+
+    `manglende_tekst()` er setningen i nedlastingene, med hver dato. På
+    siden er det en etikett, og hva fraværet betyr står på /om/#lesing-lus.
+    """
+    if not mangler:
+        return ""
+
+    def vist(s: list[str]) -> str:
+        if len(s) == 1:
+            return visningsord.uke(s[0])
+        (aa, ua, _), (ab, ub, _) = (dt.date.fromisoformat(s[0]).isocalendar(),
+                                    dt.date.fromisoformat(s[-1]).isocalendar())
+        if aa == ab:
+            return f"uke {ua}–{ub}, {aa}"
+        return f"{visningsord.uke(s[0])}–{visningsord.uke(s[-1])}"
+
+    return " · ".join(vist(s) for s in _ukestrekk(mangler))
 
 
 def til_visning(rader: list[dict]) -> list[dict]:
@@ -4555,7 +4582,10 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
     if klarert:
         poster.append({
             "dato": klarert, "slag": "Første klarering",
-            "hva": "Lokaliteten klarert av Fiskeridirektoratet",
+            # «Slag: hva» i én celle. Slaget sier hva som skjedde, så
+            # hva-delen sier bare hvem eller hvilken tillatelse — «M-AV-0023
+            # tildelt» etter «Tillatelse tildelt» sa det samme to ganger.
+            "hva": "lokaliteten",
             "navn": "", "navn_felt": "",
             "orgnr": "", "navn_er_i_dag": False,
             "kilde": "akvakultur", "felt": "forste_klarering",
@@ -4582,7 +4612,7 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             poster.append({
                 "dato": till["tildelt_dato"],
                 "slag": "Tillatelse tildelt",
-                "hva": f"{till['nr']} tildelt",
+                "hva": till["nr"],
                 "navn": till["tildelt_navn"],
                 "navn_felt": till.get("tildelt_felt", "tildelt_navn"),
                 "orgnr": till.get("tildelt_orgnr", ""),
@@ -4600,7 +4630,7 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             poster.append({
                 "dato": o["dato"],
                 "slag": "Overføring journalført",
-                "hva": f"{o['tillatelse']} overført",
+                "hva": o["tillatelse"],
                 "navn": navn,
                 "navn_felt": felt,
                 "orgnr": "", "navn_er_i_dag": False,
@@ -4914,11 +4944,11 @@ def lokalitetssammendrag(lok: dict) -> list[list[tuple]]:
                       max(lok.get("akva_dato") or "",
                           lok.get("eierskap_dato") or "")),
     ]
-    ledd = [l for l in ledd if l]
-    # STOR FORBOKSTAV på det første leddet, hvilket det enn er.
-    if ledd and ledd[0][0][0] == "tekst":
-        s = ledd[0][0][1]
-        ledd[0][0] = ("tekst", s[:1].upper() + s[1:])
+    ledd = [list(l) for l in ledd if l]
+    # STOR FORBOKSTAV på hvert ledd: hvert står på sin egen linje.
+    for l in ledd:
+        if l[0][0] == "tekst":
+            l[0] = ("tekst", l[0][1][:1].upper() + l[0][1][1:])
     return ledd
 
 
@@ -5043,6 +5073,15 @@ def lokalitetspaastander(lok: dict) -> dict:
                 ut["uenige"] = x["bw"]
     return ut
 
+
+# HVOR PRESIS EN OPPGITT DATO ER, i ett ord per rad. Hele uttrykket — at
+# «senest» er journaldatoen og ikke overdragelsen — står én gang, på
+# /om/#lesing-tillatelser. Ukjent kommer ordrett igjennom.
+PRESISJON_KORT = {
+    "dato oppgitt av registeret": "oppgitt",
+    "journalført senest denne datoen": "senest",
+    "utledet: neste journalførte overføring": "utledet",
+}
 
 PAASTANDSTEMAER = ("fisk", "lus", "innehaver", "journalfort", "kapasitet",
                    "mtb", "midlertidig", "sted", "tillatelser", "uenige")
@@ -5310,6 +5349,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "lus_mangler": manglende_uker(serie, lusedatoer),
         "lus_mangler_tekst": manglende_tekst(
             manglende_uker(serie, lusedatoer)),
+        "lus_mangler_kort": manglende_kort(manglende_uker(serie, lusedatoer)),
         # Hvor mange ukesnapshots vi HAR. Uten det kan en side med null
         # uker ikke skille «vi har ikke sett etter» fra «vi har sett i
         # 764 uker og ikke funnet den».
@@ -5930,6 +5970,8 @@ def _miljo() -> Environment:
     miljo.filters["maaned"] = visningsord.maaned
     miljo.filters["kortdato"] = visningsord.kortdato
     miljo.filters["kildekort"] = visningsord.kilde_kort
+    miljo.filters["datasett"] = visningsord.datasett
+    miljo.filters["presisjon_kort"] = lambda p: PRESISJON_KORT.get(p, p)
     miljo.filters["tidspunkt"] = visningsord.tidspunkt
     miljo.filters["tall"] = visningsord.tall
     # NAVN I VISNINGEN. Registrene skriver navn i versaler; sidene viser

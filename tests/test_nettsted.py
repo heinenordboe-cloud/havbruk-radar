@@ -356,6 +356,7 @@ def _side(**overstyr) -> str:
         lok["lus_serie"][-1]["dato"] if lok["lus_serie"] else ""))
     # PÅSTANDENE OG OPPSUMMERINGEN regnes av det samme, av samme grunn —
     # påstandene først, fordi oppsummeringen er satt sammen av dem.
+    lok.setdefault("lus_mangler_kort", nettsted.manglende_kort(lok["lus_mangler"]))
     lok.setdefault("fisk_mot_lus", nettsted.fisk_mot_lus(lok))
     lok.setdefault("paastander", nettsted.lokalitetspaastander(lok))
     lok.setdefault("referanse", nettsted.referansedato(lok))
@@ -3024,7 +3025,7 @@ def test_d_ingen_endringer_star_en_gang_med_en_dato():
                  akva_dato="2026-10-19", eierskap_dato="2026-10-19")
     flat = " ".join(re.sub(r"<[^>]+>", " ", html).split())
     assert flat.count("endringer siden") == 1, flat.count("endringer siden")
-    assert "ingen vesentlige endringer siden 2. september 2026" in flat
+    assert "Ingen vesentlige endringer siden 2. september 2026" in flat
     assert "Første øyeblikksbilde" not in flat
     assert "Akvakulturregisteret 17.08.2026 · Tillatelsene 02.09.2026" in flat
 
@@ -3512,7 +3513,7 @@ def test_uten_kildens_grense_tegnes_ingen_strek():
     assert not any(s["over"] for s in g["soyler"]) and g["over"] == 0
     html = _side(lusegraf=g)
     assert "ikke samlet inn" not in html
-    assert "Ingen tiltaksgrense er tegnet" in html
+    assert "<dt>Tiltaksgrense</dt><dd>ikke oppgitt</dd>" in html
     assert 'class="grense"' not in html
 
 
@@ -3578,9 +3579,11 @@ def test_grenselinja_staar_paa_siden_med_tegnforklaring():
     g = nettsted.lusegraf(_uker(0.1, 0.6, grense=("0.5", "0.5")))
     html = _side(lusegraf=g)
     assert f'<path d="{g["grense"]["d"]}"/>' in html
-    assert "tiltaksgrense, slik" in html
-    assert "Ingen tiltaksgrense er tegnet" not in html
-    assert "ikke en strek vi har satt" in html
+    assert '<span class="tegn-strek"></span>tiltaksgrense</span>' in html
+    assert "<dt>Tiltaksgrense</dt><dd>0,5" in " ".join(html.split())
+    assert "ikke oppgitt</dd>" not in html
+    # AT STREKEN ER KILDENS, står én gang, på metodesiden.
+    assert "ikke en strek vi har satt" in " ".join(_om().split())
 
 
 def test_baandene_dekker_brakklagte_uker_og_bare_dem():
@@ -3659,9 +3662,10 @@ def test_siden_uten_lusetall_far_ingen_graf():
 
 @pytest.mark.parametrize("arter, plassering, ventet", [
     # Moltustranda (12325): laks, på land. Fikk «ikke har laksefisk».
-    ("SALMON", "Onshore", "Lokaliteten ligger på land"),
-    ("OTHER_FISH; SHELL_FISH", "Offshore", "ikke oppført med laks i Akvakulturregisteret"),
-    ("OTHER_FISH; SALMON", "Onshore", "Lokaliteten ligger på land"),
+    ("SALMON", "Onshore", "<dt>Akvakulturregisteret</dt><dd>ligger på land</dd>"),
+    ("OTHER_FISH; SHELL_FISH", "Offshore",
+     "<dt>Akvakulturregisteret</dt><dd>ikke oppført med laks</dd>"),
+    ("OTHER_FISH; SALMON", "Onshore", "<dt>Akvakulturregisteret</dt><dd>ligger på land</dd>"),
     # Laks i sjø: registeret forklarer ikke fraværet, og siden gjør det
     # heller ikke.
     ("SALMON", "Offshore", None),
@@ -3699,10 +3703,10 @@ def test_uten_tall_men_hos_barentswatch_sier_ikke_at_den_mangler():
     flat = " ".join(html.split())
 
     assert nettsted.lusegraf(serie) is None, "forutsetningen for prøven"
-    assert "Lokaliteten står i 3 av de 767 ukene" in flat
-    assert "finnes ikke i noen av" not in flat
+    assert "<dt>Hos BarentsWatch</dt><dd>3 av 767 uker, uten tall</dd>" in flat
+    assert "ikke i noen av" not in flat
     assert "null rader" not in flat
-    assert "Lokaliteten ligger på land" in flat
+    assert "<dd>ligger på land</dd>" in flat
 
 
 def test_nedlastingsknappene_vises_bare_naar_lokaliteten_har_hatt_et_lusetall():
@@ -3798,57 +3802,46 @@ def test_versjonsaarsaken_blir_staaende_naar_den_er_alene(monkeypatch):
 
 FORKLARINGENE = (
     "Datoen er som hovedregel når VI så endringen",
-    "Måleseriene telles ikke som endringer her.",
+    "Måleseriene telles ikke som endringer.",
     "ILA- og PD-flaggene er unntaket.",
     "betyr at flagget står, ikke at sykdommen er påvist.",
     "Laget oppgir ingen mengde",
-    "Sjekksummen er SHA-256 av kroppen Fiskeridirektoratet sendte oss",
+    "Summen er sha256 av svaret kilden sendte oss den dagen.",
     "er da tillatelsen ble gitt første gang",
     "er dagens navn</strong> på organisasjonsnummeret",
     "«Journalført senest denne datoen»</strong> er ikke det samme",
-    "Navnet står her i registerets egen skrivemåte.",
+    "Navnet står i registerfeltene i registerets egen skrivemåte.",
+    "Tomrom betyr ikke null.",
+    "ikke en strek vi har satt",
 )
 
 
-def test_ingen_forklaring_er_slettet_fra_lokalitetsmalen():
-    """Teksten FLYTTES, den endres ikke. Én setning fra hver."""
-    mal = " ".join((Path(__file__).resolve().parents[1] / "maler"
-                    / "lokalitet.html.j2").read_text(encoding="utf-8").split())
+def test_ingen_forklaring_er_slettet_men_flyttet_til_metodesiden():
+    """Teksten FLYTTES, den slettes ikke. Fra 20.10.2026 står forklaringene
+    som er like på hver lokalitetsside ÉN gang, på /om/#lesing —
+    tekstreglene: «Felles forbehold står ett sted». Én setning fra hver."""
+    om = " ".join(re.sub(r"<[^>]+>", "", _om()).split())
     for setning in FORKLARINGENE:
-        assert " ".join(setning.split()) in mal, setning
+        ren = " ".join(re.sub(r"<[^>]+>", "", setning).split())
+        assert ren in om, setning
 
 
-def _om_tallene(html: str) -> str:
-    a = html.index('id="om-tallene"')
-    return html[a:html.index("</details>", a)]
-
-
-def test_forklaringene_star_samlet_i_om_tallene():
+def test_lokalitetssiden_gjentar_ikke_forklaringene_men_lenker_til_dem():
     html = _side()
-    om = " ".join(_om_tallene(html).split())
-    for setning in ("Måleseriene telles ikke som endringer her.",
-                    "Laget oppgir ingen mengde",
-                    "Sjekksummen er SHA-256",
-                    "er da tillatelsen ble gitt første gang",
-                    "«Journalført senest denne datoen»"):
-        assert setning in om, setning
-    # Og ikke to steder.
-    flat = " ".join(html.split())
-    assert flat.count("Sjekksummen er SHA-256") == 1
-    assert flat.count("Laget oppgir ingen mengde") == 1
+    flat = " ".join(re.sub(r"<[^>]+>", "", html).split())
+    for setning in FORKLARINGENE:
+        ren = " ".join(re.sub(r"<[^>]+>", "", setning).split())
+        assert ren not in flat, setning
+    assert '<a href="/om/#lesing">Slik leser du tallene</a>' in html
 
 
-@pytest.mark.parametrize("overstyr, borte", [
-    ({"biolag": None}, "Laget oppgir ingen mengde"),
-    ({"maaleserie_rader": 0}, "Måleseriene telles ikke"),
-    ({"overforinger": []}, "«Journalført senest denne datoen»"),
-    ({"tillatelser": []}, "er da tillatelsen ble gitt første gang"),
-    # Fiksturen har ingen ILA/PD-post i tidslinja.
-    ({}, "ILA- og PD-flaggene er unntaket."),
-    ({}, "<strong>Tekniske endringer</strong>"),
-])
-def test_en_forklaring_staar_bare_naar_det_den_forklarer_finnes(overstyr, borte):
-    assert borte not in " ".join(_side(**overstyr).split())
+def test_sidens_egne_tall_star_der_forklaringen_stod():
+    """Antallet måletall som ikke regnes som endringer er DENNE sidens tall,
+    og det står — bare når det finnes."""
+    med = _side()
+    assert "Ikke regnet som endringer: 1\u00a0284 måletall" in med
+    uten = " ".join(_side(maaleserie_rader=0).split())
+    assert "Ikke regnet som endringer" not in uten
 
 
 def _post(felt, klasse, dato, kilde="akvakultur", fra="a", til="b"):
@@ -3878,8 +3871,9 @@ def test_vesentlige_foerst_og_tekniske_samlet_med_antall():
     assert "Versjon gyldig fra" in tekn and "Breddegrad" in tekn
     # Nyeste først blant de vesentlige.
     assert hoved.index("Samdrift") < hoved.index("ILA")
-    # Nå finnes både flagg og tekniske: begge forklaringene står.
-    om = " ".join(_om_tallene(html).split())
+    # Forklaringene av flagg og tekniske står på metodesiden, med samme
+    # terskel som regelen i `vesentlighet`.
+    om = " ".join(_om().split())
     assert "ILA- og PD-flaggene er unntaket." in om
     assert f"under {visningsord.tall(int(vesentlighet.KOORDINAT_TERSKEL_M))} meter" in om
 
@@ -3891,7 +3885,8 @@ def test_registerfeltene_er_lukket_som_standard():
     assert " open" not in tag
     inni = html[a:html.index("</details>", a)]
     assert 'id="akvakultur-register"' in inni
-    assert "Navnet står her i registerets egen skrivemåte." in " ".join(inni.split())
+    # Noten om navnet står på metodesiden fra 20.10.2026; boksen lenker dit.
+    assert 'href="/om/#lesing-register"' in inni
 
 
 # Variabler stilarket bruker uten å definere, MED VILJE, og hvor det står
@@ -5576,12 +5571,11 @@ def test_siden_sier_at_hullet_er_tomrom():
     serie = _serie_med_hull("2013-05-27", "2018-01-15")
     g = nettsted.lusegraf(serie)
     html = " ".join(_side(lus_serie=serie, lusegraf=g).split())
-    assert ("243 uker på tidsaksen er tomme fordi lokaliteten ikke står i "
-            "kildens svar for dem") in html
+    assert "<dt>Mangler hos kilden</dt><dd>243 uker</dd>" in html
     assert "243 uker der lokaliteten ikke står i kildens svar" in html
-    # Uten hull: ingen slik setning.
+    # Uten hull: ingen slik etikett.
     g0 = nettsted.lusegraf(_uker(0.1, 0.2))
-    assert "på tidsaksen er tomme" not in _side(lusegraf=g0)
+    assert "Mangler hos kilden" not in _side(lusegraf=g0)
 
 
 # ==================================== oppsummeringssetningen
@@ -5680,7 +5674,7 @@ def test_endringer_sier_fra_naar_vi_har_hentet_i_under_tolv_uker():
 def test_oppsummeringen_staar_oeverst_med_time_og_stor_forbokstav():
     html = _side(selskap={"navn": "", "orgnr": "", "url": "", "siden": "",
                           "antall": 0, "flere": 0, "personform": False})
-    m = re.search(r'<p class="lok-sammendrag">(.*?)</p>', html, re.S)
+    m = re.search(r'<ul class="lok-sammendrag">\s*<li>(.*?)</li>', html, re.S)
     assert m, "oppsummeringen mangler"
     setning = m.group(1)
     assert setning.startswith("Fisk per <time")

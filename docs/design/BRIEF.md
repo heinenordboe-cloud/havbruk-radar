@@ -43,7 +43,9 @@ er merkevaren — en side som overdriver én gang, er en side ingen siterer.
 - **Ingen personnavn.** Se CLAUDE.md regel 3. Et enkeltpersonforetak er
   en person.
 - **Forbehold slettes aldri, de legges ett klikk unna.** Et forbehold kan
-  flyttes ned eller inn bak en `<details>`, men det skal finnes på siden.
+  flyttes ned eller inn bak en `<details>`. Er det likt for alle sider av
+  en type, står det ÉN gang — i bunnteksten eller på metodesiden
+  (`/om/#lesing`) — og siden lenker dit (tekstreglene under, 20.10.2026).
 - **Registerverdier vises med menneskelig form først**, og rå verdi ett
   klikk unna (se `visningsord.py`).
 - **Alt kan siteres og lastes ned.**
@@ -51,6 +53,33 @@ er merkevaren — en side som overdriver én gang, er en side ingen siterer.
   lukkede lister og filtre skal fungere med JS slått av.
 - **Ingen sporing, ingen eksterne ressurser.** Fonter, bilder og skript
   ligger hos oss.
+
+## Tekstregler (fra 20.10.2026)
+
+To mål gjelder samtidig: hver påstand er etterprøvbar (kilde,
+gjelder-dato, alder, konflikt), og ingen blir oversvømt av tekst. Sidene
+skal bli kortere, ikke lengre, selv om de får mer informasjon.
+
+- **Tall og korte etiketter framfor setninger.** Det folk forstår uten
+  tekst, forklares ikke.
+- **Herkomst er en liten grå linje**, «Fiskeridir. · 31.08.2026», ikke en
+  setning (`paastand.html.j2`).
+- **Detaljer ligger bak `<details>`** eller en tooltip, lukket som
+  standard: hash, stempel, metode, hvorfor to tall er ulike.
+- **Én forklaring per begrep per side**, aldri gjentatt per rad. Felles
+  forbehold står ett sted, ikke på hver side.
+- **Ingen avsnitt over tre linjer på 390 px** — heller ikke bak et klikk.
+  Porten feller et bygg som har det.
+- **Kort, vanlig norsk.** Ingen interne ord (snapshot, kropp, kilde-id)
+  i synlig tekst.
+
+**Påstander.** Vi går aldri god for at det er fisk i merdene, bare for at
+en kilde sa det på en dato. Hver påstand har kilde, gjelder-dato (når
+den gjelder, ikke når vi hentet den), alder (eldre enn kildens grense →
+«ukjent» med dato for siste rapport) og konflikt (to kilder uenige om
+samme periode → begge vises med dato, aldri slått stille sammen). En
+indikasjon — vår slutning, som «trolig slakting» — går aldri på
+nettstedet. Se `paastand.py`.
 
 ## Hva nettstedet viser
 
