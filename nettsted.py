@@ -711,6 +711,86 @@ def _sjekksum(kilde: str) -> str:
     return verdier[0] if len(verdier) == 1 else ""
 
 
+# KILDENE BEVISET PÅ LOKALITETSSIDEN GJELDER: de fire hver tilstand-
+# påstand kommer fra. Eierskapshistorikken er hendelser datert av kilden,
+# fordelt på årsfiler, og har ingen ÉN kropp å oppgi.
+BEVISKILDER = ("akvakultur", "eierskap", "biomasselag", "lusetall")
+
+
+def _stempelindeks() -> dict[tuple[str, str], tuple[str, str]]:
+    """{(sha256, sti): (manifestets dato, status)} fra `data/stempler/`.
+
+    Status er «komplett» når manifestet har `.komplett.ots` (forankret i en
+    Bitcoin-blokk), «venter» med bare `.ots`, og tom uten. Står fila i
+    flere manifester, gjelder det første: det er det eldste beviset.
+    Se stempel.py for formatet.
+    """
+    import stempel
+
+    ut: dict[tuple[str, str], tuple[str, str]] = {}
+    mappe = DATA_DIR / "stempler"
+    for m in sorted(mappe.glob("*.manifest.txt")) if mappe.exists() else []:
+        status = ("komplett" if m.with_name(m.name + ".komplett.ots").exists()
+                  else "venter" if m.with_name(m.name + ".ots").exists() else "")
+        dato = m.name.split(".", 1)[0]
+        for linje in m.read_text(encoding="utf-8").splitlines():
+            treff = stempel._LINJE.match(linje)
+            if treff:
+                ut.setdefault((treff.group(1), treff.group(2)), (dato, status))
+    return ut
+
+
+def bevis(kilder=BEVISKILDER) -> list[dict]:
+    """Beviset for dataene en side er bygget av: én rad per kilde.
+
+        dato      øyeblikksbildets dato (for lusetall: uka den gjelder)
+        hentet    dagen vi hentet det
+        sha256    `raw_hash`, altså summen av kroppen kilden sendte
+        stempel   «komplett», «venter» eller tom — om FILA siden er bygget
+                  av står i et stemplet manifest
+
+    STEMPELET PRØVES MOT FILA, ikke mot navnet: sha256 av parquet-fila må
+    stå i manifestet. En fil som er skrevet om etter stemplingen har en
+    annen sum, og står da som ustemplet.
+
+    INGEN LENKE TIL KROPPEN. Datarepoet er privat med vilje; summen og
+    stempelet lar den som får kroppen av oss etterprøve den.
+    """
+    import stempel
+
+    indeks = _stempelindeks()
+    ut = []
+    for kilde in kilder:
+        dato = snapshot.siste_dato(kilde)
+        if dato is None:
+            continue
+        nr, ramme = snapshot.versjoner(kilde, dato)[-1]
+        # FILA DER SNAPSHOT-MODULEN LESER DEN, ikke en sti satt sammen her:
+        # `snapshot.RAW_DIR` er den ene sannheten om hvor rådataene ligger.
+        fil = snapshot.RAW_DIR / kilde / (
+            f"{dato}.parquet" if nr == 1 else f"{dato}.{nr}.parquet")
+        # Manifestets sti er fra mappa repoene ligger i, med repoets navn
+        # på GitHub — se `stempel.filer()`.
+        sti = f"havbruk-radar-data/data/raw/{kilde}/{fil.name}"
+        manifest, status = (indeks.get((stempel._sha(fil), sti), ("", ""))
+                            if fil.exists() else ("", ""))
+        summer = ([v for v in ramme["raw_hash"].unique().to_list() if v]
+                  if "raw_hash" in ramme.columns else [])
+        ut.append({
+            "kilde": kilde,
+            "navn": visningsord.datasett(kilde),
+            "kort": visningsord.kilde_kort(kilde),
+            "dato": dato,
+            "uke": kilde in ("lusetall", "sjotemperatur"),
+            "hentet": visningsord.oslodato(snapshot.fetched_at_i(ramme) or "")[:10],
+            "sha256": summer[0] if len(summer) == 1 else "",
+            "sha256_vist": _hash_vist(summer[0]) if len(summer) == 1 else "",
+            "stempel": status,
+            "manifest": manifest,
+        })
+    return ut
+
+
 def _hentet(kilde: str) -> str:
     """`fetched_at` i nyeste snapshot av kilden, eller tom streng.
 
@@ -855,6 +935,10 @@ class Felles:
     # {orgnr: formene kildene oppgir} — det `_navn_eller_skjult()` slår
     # opp i. Se `publiseringsvakt.formkart()`.
     former: dict[str, frozenset[str]] = field(default_factory=dict)
+    # BEVISET for hver kilde lokalitetssiden bygger på: dato, sum og
+    # stempel. Likt for alle sidene, og summen av en parquet-fil er for dyr
+    # til å regnes 1 781 ganger. Se `bevis()`.
+    bevis: list[dict] = field(default_factory=list)
 
 
 @lru_cache(maxsize=1)
@@ -1064,6 +1148,7 @@ def les_felles() -> Felles:
         enhet_dato=enhet_dato,
         akva_hentet=_hentet("akvakultur"),
         sjekksum=_sjekksum("akvakultur"),
+        bevis=bevis(),
         kontakt=_kontakt(),
         bevegelse=beveg,
         po_naa=_po_naa(akva),
@@ -5331,6 +5416,8 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
             "aar": akva_dato[:4],
             "sjekksum": (felles.sjekksum if felles else _sjekksum("akvakultur")),
         },
+        # ---- beviset: dato, sum og stempel per kilde ----
+        "bevis": felles.bevis if felles else bevis(),
     }
     # REGNES AV DET SIDEN ALLEREDE VISER, ikke slått opp på nytt.
     # Påstandene først: oppsummeringen er satt sammen av dem.

@@ -2322,6 +2322,14 @@ strong.uenige { display: inline; }
 .etikettlinje { margin-block: 0 var(--rom-16); font-size: var(--tekst-s); }
 .etikettlinje .herkomst { display: inline; margin-inline-start: var(--rom-8); }
 
+/* BEVISET: én blokk per kilde, summen i monospace så gruppene står under
+   hverandre. */
+.bevisliste { margin: var(--rom-8) 0 0; }
+.bevisliste > div { padding-block: var(--rom-8); border-block-end: 1px solid var(--papir3); }
+.bevisliste dt { font-weight: 600; }
+.bevisliste dt .herkomst { display: inline; margin-inline-start: var(--rom-8); }
+.bevisliste dd { margin: var(--rom-4) 0 0; font-size: var(--tekst-s); overflow-wrap: anywhere; }
+
 /* EN FORKLARING ETT KLIKK UNNA. Lukket som standard. */
 .forklaring { margin-block: var(--rom-8) var(--rom-16); font-size: var(--tekst-s); }
 .forklaring > summary { cursor: pointer; color: var(--ink-dempet); }

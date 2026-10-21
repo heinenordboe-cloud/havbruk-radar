@@ -1243,6 +1243,39 @@
   {% endif %}
 </section>
 
+{# ---------------------------------------------------------------- 6b
+   BEVISET, bak et klikk. Per kilde: dagen vi hentet, sha256 av svaret
+   kilden sendte, og om fila siden er bygget av er stemplet med
+   OpenTimestamps. Stempelet er prøvd mot fila — se `nettsted.bevis()`.
+
+   INGEN LENKE TIL SVARET. Datarepoet er privat med vilje. Hvordan en sum
+   etterprøves står på /om/#lesing-bevis. #}
+{% if lok.bevis %}
+<details class="tallboks bevis" id="bevis">
+  <summary>Bevis</summary>
+  <dl class="bevisliste">
+    {% for b in lok.bevis %}
+    <div>
+      <dt>{{ b.navn }} <span class="herkomst">{{ b.kort }}</span></dt>
+      {#- UTEN HENTETIDSPUNKT, INGEN DATO. Et gammelt snapshot kan være
+          skrevet før `fetched_at` fantes, og `datetime=""` er ugyldig. #}
+      <dd>{% if b.uke %}<time datetime="{{ b.dato }}">{{ b.dato|uke }}</time>{% if b.hentet %} · {% endif %}{% endif %}
+        {%- if b.hentet %}hentet <time datetime="{{ b.hentet }}">{{ b.hentet|kortdato }}</time>
+        {%- elif not b.uke %}<time datetime="{{ b.dato }}">{{ b.dato|kortdato }}</time>{% endif %}</dd>
+      {% if b.sha256 %}
+      <dd class="tall-mono" data-felt="raw_hash">sha256 {{ b.sha256_vist }}</dd>
+      {% endif %}
+      <dd>{% if b.stempel == "komplett" %}stemplet med OpenTimestamps
+        <time datetime="{{ b.manifest }}">{{ b.manifest|kortdato }}</time>
+        {%- elif b.stempel == "venter" %}stempelet venter på en Bitcoin-blokk
+        {%- else %}ikke stemplet{% endif %}</dd>
+    </div>
+    {% endfor %}
+  </dl>
+  <p><a href="/om/#lesing-bevis">Slik etterprøver du en sum</a></p>
+</details>
+{% endif %}
+
 {# ---------------------------------------------------------------- 7
    SITER DENNE SIDEN, sist. Den sto midt på siden, mellom fisk og lus,
    til 08.10.2026; den er det siste man trenger, ikke det første. #}

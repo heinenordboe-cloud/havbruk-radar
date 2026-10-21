@@ -325,6 +325,13 @@ def _side(**overstyr) -> str:
               "arter_tilstede": "Laks", "antall_arter": "1",
               "siste_rapport": "2026-08-31", "lokalitet_status": "AKTIV"}],
             ["2026-09-15"]),
+        "bevis": [{"kilde": "akvakultur", "navn": "Akvakulturregisteret",
+                   "kort": "Fiskeridir.", "dato": "2026-09-14", "uke": False,
+                   "hentet": "2026-09-14",
+                   "sha256": "efe1c0884c4e39d20b7d775a363d" + "0" * 36,
+                   "sha256_vist": nettsted._hash_vist(
+                       "efe1c0884c4e39d20b7d775a363d" + "0" * 36),
+                   "stempel": "komplett", "manifest": "2026-09-15"}],
         "siter": {"url": "https://kystloggen.no/lokalitet/31397/",
                   "uke": "uke 38, 2026", "dato": "14. september 2026",
                   "aar": "2026", "sjekksum": "efe1c0884c4e39d20b7d775a363d"},
@@ -6019,3 +6026,52 @@ def test_fisk_i_tilstanden_er_kildens_nyeste_svar_ogsaa_naar_laget_gaar_bakover(
         ["2026-09-22", "2026-10-19"], akva_dato="2026-10-19")
     assert fisk["herkomst"]["gjelder"] == "2026-07-31"
     assert fisk["utgaatt"] and fisk["vist"] == "ukjent"
+
+
+# ==================================== beviset
+#
+# Per kilde: dato, sha256 og om fila er stemplet med OpenTimestamps.
+# Ingen lenke til kroppen — datarepoet er privat med vilje.
+
+def test_beviset_viser_dato_sum_og_stempel_og_lenker_ikke_til_kroppen():
+    html = _side()
+    a = html.index('id="bevis"')
+    boks = html[a:html.index("</details>", a)]
+    flat = " ".join(boks.split())
+    assert "Akvakulturregisteret" in flat
+    assert '<time datetime="2026-09-14">14.09.2026</time>' in boks
+    # Summen i grupper på åtte: ni siffer på rad leses av porten som et
+    # organisasjonsnummer (`_hash_vist`).
+    assert "sha256 efe1c088 4c4e39d2 0b7d775a 363d0000" in flat
+    assert "stemplet med OpenTimestamps" in flat
+    # Bak et klikk, lukket som standard.
+    assert '<details class="tallboks bevis" id="bevis">' in html
+    for ord_ in ("arkiv", ".json.gz", ".parquet", "havbruk-radar-data"):
+        assert ord_ not in boks, ord_
+
+
+def test_stempelet_proves_mot_fila_og_ikke_mot_navnet(datamappe, tmp_path,
+                                                       monkeypatch):
+    """Står fila i et manifest med en ANNEN sum, er den ikke stemplet."""
+    import hashlib
+
+    from core import snapshot as snap
+
+    fil = snap.RAW_DIR / "akvakultur" / "2026-09-14.parquet"
+    sha = hashlib.sha256(fil.read_bytes()).hexdigest()
+    sti = "havbruk-radar-data/data/raw/akvakultur/2026-09-14.parquet"
+    stempler = tmp_path / "stempler"
+    stempler.mkdir()
+    monkeypatch.setattr(nettsted, "DATA_DIR", tmp_path)
+
+    m = stempler / "2026-09-15.manifest.txt"
+    m.write_text(f"# test\n{sha}  {sti}\n", encoding="utf-8")
+    (stempler / "2026-09-15.manifest.txt.ots").write_bytes(b"x")
+    assert nettsted.bevis(("akvakultur",))[0]["stempel"] == "venter"
+
+    (stempler / "2026-09-15.manifest.txt.komplett.ots").write_bytes(b"x")
+    b = nettsted.bevis(("akvakultur",))[0]
+    assert (b["stempel"], b["manifest"]) == ("komplett", "2026-09-15")
+
+    m.write_text(f"# test\n{'0' * 64}  {sti}\n", encoding="utf-8")
+    assert nettsted.bevis(("akvakultur",))[0]["stempel"] == ""
