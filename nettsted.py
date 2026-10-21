@@ -4867,12 +4867,18 @@ def lokalitetspaastander(lok: dict) -> dict:
     akva, eier = lok["akva_dato"], lok["eierskap_dato"]
     ut: dict = dict.fromkeys(PAASTANDSTEMAER)
 
-    # FISK: siste månedsrapport i biomasselaget. Gjelder månedsslutten.
-    maaneder = (lok.get("biolag") or {}).get("maaneder") or []
-    if maaneder:
-        r = maaneder[-1]
-        ut["fisk"] = vis(Paastand("fisk", "biomasselag", r["dato"],
-                                  r["har_fisk"], felt="har_fisk"),
+    # FISK: kildens NYESTE SVAR, altså siste henting — ikke den høyeste
+    # måneden vi har sett. De to er ulike når laget går bakover: MÅLT
+    # 20.10.2026 sa reserveendepunktet 31.07 om 12003 etter at primæren
+    # hadde sagt 31.08 (samme form som 10726 og 10747 i
+    # docs/KILDE-BIOMASSELAG.md punkt 5). Samme regel som `_siste()`:
+    # nyeste påstand vinner. Gjelder månedsslutten.
+    ruter = (lok.get("biolag") or {}).get("ruter") or []
+    if ruter and ruter[-1].get("siste_rapport"):
+        r = ruter[-1]
+        ut["fisk"] = vis(Paastand("fisk", "biomasselag",
+                                  r["siste_rapport"][:10], r["har_fisk"],
+                                  felt="har_fisk"),
                          ref, JANEI_FISK.get(r["har_fisk"], r["har_fisk"]))
 
     # LAKSELUS: siste uke lokaliteten står i hos BarentsWatch. BARE der
@@ -4942,9 +4948,10 @@ def lokalitetspaastander(lok: dict) -> dict:
 
     # UENIGE OM SISTE RAPPORT: BarentsWatch sier det motsatte samme uke.
     # Begge vises, hver med sin dato — aldri slått sammen til én verdi.
-    mot = lok.get("fisk_mot_lus") or []
-    if mot and mot[-1]["konflikt"]:
-        ut["uenige"] = mot[-1]["bw"]
+    if ut["fisk"]:
+        for x in lok.get("fisk_mot_lus") or []:
+            if x["dato"] == ut["fisk"]["herkomst"]["gjelder"] and x["konflikt"]:
+                ut["uenige"] = x["bw"]
     return ut
 
 

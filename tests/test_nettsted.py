@@ -5973,3 +5973,14 @@ def test_a_landanlegg_er_utenfor_barentswatchs_univers():
     html = _fisk_og_lus("2025-12-31", "Ja", "2025-12-29", "True",
                         laks="False", land="True")
     assert "Uenige:" not in html and ">uenige<" not in html
+
+
+def test_fisk_i_tilstanden_er_kildens_nyeste_svar_ogsaa_naar_laget_gaar_bakover():
+    """12003, MÅLT 20.10.2026: primæren sa 31.08, reserven senere 31.07.
+    Tilstanden følger nyeste henting, og en julirapport er utgått 19.10."""
+    fisk = _fiskepaastand(
+        [_rute("2026-09-22", "Ja", "2026-08-31"),
+         _rute("2026-10-19", "Ja", "2026-07-31")],
+        ["2026-09-22", "2026-10-19"], akva_dato="2026-10-19")
+    assert fisk["herkomst"]["gjelder"] == "2026-07-31"
+    assert fisk["utgaatt"] and fisk["vist"] == "ukjent"
