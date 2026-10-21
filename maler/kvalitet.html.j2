@@ -1,0 +1,77 @@
+{# KVALITETSRAPPORTEN for bygget. Kort med vilje: tall og etiketter, og
+   hele rapporten i `/kvalitet.json`. Se kvalitet.py for hva som telles
+   og hvor. Ingen forklaring som står på /om/#lesing, gjentas her. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Forside</a></li>
+      <li><a href="/om/">Om</a></li>
+      <li aria-current="page">Kvalitet</li>
+    </ol>
+  </nav>
+  <h1>Kvalitet i dette bygget</h1>
+  <p class="lok-undertittel">Bygget <time datetime="{{ k.bygget }}">{{ k.bygget|kortdato }}</time>
+    · <a href="/kvalitet.json">Hele rapporten (JSON)</a></p>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<section class="ark seksjon" aria-labelledby="kv-paastander">
+  <h2 id="kv-paastander">Påstandene på {{ antall(k.lokalitetssider, "lokalitetsside", "lokalitetssider") }}</h2>
+  <dl class="fakta">
+    {% set f = k.tilstand.get("fisk", {}) %}
+    <div><dt>Fisk vist</dt><dd>{{ tall(f.get("vist", 0)) }}</dd></div>
+    <div><dt>Fisk «ukjent»</dt><dd>{{ tall(f.get("ukjent", 0)) }}</dd></div>
+    {% set l = k.tilstand.get("lus", {}) %}
+    <div><dt>Lakselus vist</dt><dd>{{ tall(l.get("vist", 0)) }}</dd></div>
+    <div><dt>Lakselus «ukjent»</dt><dd>{{ tall(l.get("ukjent", 0)) }}</dd></div>
+    <div><dt>Uenige i tilstanden</dt><dd>{{ tall(k.hull.get("b_uenige_i_tilstanden", 0)) }}</dd></div>
+    <div><dt>Sider med uenige måneder</dt><dd>{{ tall(k.hull.get("b_sider_med_uenige_maaneder", 0)) }}</dd></div>
+    <div><dt>«Ja» eldre enn grensa</dt><dd>{{ tall(k.hull.get("a_ja_eldre_enn_grensa", 0)) }}
+      <span class="fakta-etikett">vist som ja: {{ tall(k.hull.get("a_vist_som_ja", 0)) }}</span></dd></div>
+    <div><dt>To kapasiteter, ulike</dt><dd>{{ tall(k.hull.get("c_ulike", 0)) }}
+      <span class="fakta-etikett">av {{ tall(k.hull.get("c_begge_kapasiteter", 0)) }}</span></dd></div>
+    <div><dt>Midlertidig ulik ordinær</dt><dd>{{ tall(k.hull.get("c_midlertidig_ulik_ordinaer", 0)) }}</dd></div>
+    <div><dt>Delt posisjon</dt><dd>{{ tall(k.hull.get("g_delt_posisjon", 0)) }}</dd></div>
+    <div><dt>Uten tillatelser</dt><dd>{{ tall(k.hull.get("g_uten_tillatelser", 0)) }}</dd></div>
+  </dl>
+  <p class="tabellnote"><a href="/om/#lesing-alder">Hva «ukjent» og «uenige» betyr</a></p>
+</section>
+
+<section class="ark seksjon" aria-labelledby="kv-tekst">
+  <h2 id="kv-tekst">Teksten</h2>
+  <dl class="fakta">
+    <div><dt>Avsnitt over {{ k.tekst.avsnittsgrense_tegn }} tegn</dt><dd>{{ tall(k.tekst.avsnitt_over_grensa) }}</dd></div>
+    <div><dt>Påstander uten kilde eller dato</dt><dd>{{ tall(k.tekst.paastander_uten_kilde_eller_dato) }}</dd></div>
+  </dl>
+  <p class="tabelltittel" id="kvalitet-ord-tittel">Synlige ord per sidetype</p>
+  <div class="tabellramme" role="region" aria-labelledby="kvalitet-ord-tittel" tabindex="0">
+  <table id="kvalitet-ord" aria-labelledby="kvalitet-ord-tittel">
+    <thead>
+      <tr><th scope="col">Sidetype</th><th scope="col" class="tall">Sider</th>
+        <th scope="col" class="tall">Median</th><th scope="col" class="tall">Sum</th></tr>
+    </thead>
+    <tbody>
+      {% for st, v in k.tekst.synlige_ord.items() %}
+      <tr><th scope="row">{{ sidetypenavn.get(st, st) }}</th>
+        <td class="tall" data-felt="sider">{{ tall(v.sider) }}</td>
+        <td class="tall" data-felt="median">{{ tall(v.median) }}</td>
+        <td class="tall" data-felt="sum">{{ tall(v.sum) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="ark seksjon" aria-labelledby="kv-data">
+  <h2 id="kv-data">Dataene</h2>
+  <dl class="fakta">
+    {% for kilde, dato in k.data.items() %}
+    <div><dt>{{ kilde|datasett }}</dt><dd><time datetime="{{ dato }}">{{ dato|kortdato }}</time></dd></div>
+    {% endfor %}
+  </dl>
+</section>
+{% endblock %}

@@ -106,6 +106,7 @@ sys.path.insert(0, str(ROOT))
 
 import beslutning                                          # noqa: E402
 import kart                                                # noqa: E402
+import kvalitet                                            # noqa: E402
 import nedlasting                                          # noqa: E402
 import publiseringsvakt                                    # noqa: E402
 import unntaksanalyse                                      # noqa: E402
@@ -5103,7 +5104,8 @@ def fisk_mot_lus(lok: dict) -> list[dict]:
     `biolag.maaneder`.
 
         {"dato": månedsslutt, "uke": mandagen eller "",
-         "bw": {"vist", "verdi", "herkomst"} eller None, "konflikt": bool}
+         "bw": {"vist", "verdi", "nivaa", "herkomst"} eller None,
+         "konflikt": bool}
 
     `bw` er None når uka ikke er hentet — uka med 30.09.2026 hentes fire
     uker etter — eller lokaliteten ikke står i den. Raden er HISTORIKK, og
@@ -5145,6 +5147,7 @@ def fisk_mot_lus(lok: dict) -> list[dict]:
         ut.append({"dato": m["dato"], "uke": mandag,
                    "bw": {"verdi": brakk.verdi,
                           "vist": BRAKK_VIST.get(brakk.verdi, brakk.verdi),
+                          "nivaa": brakk.nivaa,
                           "herkomst": herkomst(brakk)},
                    "konflikt": konflikt(fisk, brakk)})
     return ut
@@ -6207,7 +6210,8 @@ def skriv_side(sti: Path, html: str) -> Path:
 
 def skriv_lokalitet(loknr: str, rot: Path = UT,
                     felles: Felles | None = None,
-                    mal=None) -> list[Path]:
+                    mal=None, maaler: "kvalitet.Kvalitet | None" = None
+                    ) -> list[Path]:
     """Rendrer og skriver lokalitetssiden OG dens CSV. Returnerer stiene.
 
     Begge filene i samme mappe, som er hva en avsluttende skråstrek
@@ -6219,6 +6223,10 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     kompilerer malen på nytt.
     """
     lok = bygg_lokalitet(loknr, felles)
+    # KVALITETSRAPPORTEN teller påstandene siden viser, fra den samme
+    # dicten malen får — se kvalitet.py.
+    if maaler is not None:
+        maaler.lokalitet(lok)
     sti = rot / "lokalitet" / loknr / "index.html"
     vilkaar = felles.vilkaar if felles else None
     # KASTER PÅ UBELAGT før noe skrives. `_grunnkontekst()` bygger
@@ -7752,6 +7760,33 @@ def skriv_vertsfiler(rot: Path) -> Path:
     ut = rot / "_headers"
     ut.write_text("\n".join(linjer) + "\n", encoding="utf-8")
     return ut
+
+
+def skriv_kvalitet(rot: Path, felles: Felles, maaler: "kvalitet.Kvalitet"
+                   ) -> dict:
+    """`kvalitet.json` og `/kvalitet/`. Returnerer JSON-en.
+
+    Datoene er dataenes, per kilde: det rapporten gjelder. Byggedatoen er
+    når vi regnet den.
+    """
+    data = {k: snapshot.siste_dato(k) or "" for k in BEVISKILDER}
+    bygget = dt.date.today().isoformat()
+    rapport = maaler.som_json(bygget=bygget, data=data)
+    (rot / "kvalitet.json").write_text(
+        json.dumps(rapport, ensure_ascii=False, indent=1) + "\n",
+        encoding="utf-8")
+    sti = rot / "kvalitet" / "index.html"
+    html = _miljo().get_template("kvalitet.html.j2").render(
+        k=rapport, sidetypenavn=kvalitet.SIDETYPENAVN,
+        **_grunnkontekst(
+            felles, rot, sti, kilder=SIDENS_KILDER,
+            tittel="Kvalitet i dette bygget — Kystloggen",
+            beskrivelse=("Påstandene på lokalitetssidene, hvor mange som er "
+                         "ukjent eller uenige, og hvor lang teksten er."),
+            jsonld="", meny_aktiv="",
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet)))
+    skriv_side(sti, html)
+    return rapport
 
 
 def skriv_404(rot: Path, felles: Felles) -> Path:
@@ -10150,6 +10185,8 @@ class Byggelogg:
     # /analyse/unntaksvekst/ bygges ikke lenger (10.10.2026).
     analyser: int = 0
     sok: dict = None
+    # Kvalitetsrapporten for bygget, slik `skriv_kvalitet()` skrev den.
+    kvalitet: dict = None
     selskap_uten_registerdata: list[str] = None
     selskap_person: list[str] = None
     uten_eier: list[str] = None
@@ -10191,6 +10228,7 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     tider["malkompilering"] = time.perf_counter() - t0
 
     logg = Byggelogg()
+    maaler = kvalitet.Kvalitet()
     ider = sorted(felles.akva, key=lambda e: int(e) if e.isdigit() else 0)
     if grense:
         ider = ider[:grense]
@@ -10199,7 +10237,7 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     for loknr in ider:
         a = felles.akva[loknr]
         try:
-            skriv_lokalitet(loknr, rot, felles, mal)
+            skriv_lokalitet(loknr, rot, felles, mal, maaler)
         except Exception as feil:                    # noqa: BLE001
             logg.feilet.append((loknr, f"{type(feil).__name__}: {feil}"))
             continue
@@ -10324,6 +10362,16 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
             logg.feilet.append(("maskinfiler", f"{type(feil).__name__}: {feil}"))
     tider["maskinfiler"] = time.perf_counter() - t0
 
+    # KVALITETSRAPPORTEN, når hver side er skrevet: teksten måles av den
+    # ferdige HTML-en. Før søkeindeksen, så `/kvalitet/` blir søkbar.
+    t0 = time.perf_counter()
+    try:
+        maaler.tekst(rot)
+        logg.kvalitet = skriv_kvalitet(rot, felles, maaler)
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("kvalitet", f"{type(feil).__name__}: {feil}"))
+    tider["kvalitet"] = time.perf_counter() - t0
+
     # SØKEINDEKSEN SIST. Den leser den ferdige HTML-en fra disk, så hver
     # side må være skrevet — også `/sok/` selv.
     t0 = time.perf_counter()
@@ -10433,6 +10481,17 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
     print(f"  søkeindeks    {'bygget' if logg.sok['bygget'] else 'IKKE BYGGET'}"
           f"  {logg.sok['filer']} filer, {logg.sok['byte'] / 1e6:.1f} MB")
     print(f"                {logg.sok['melding']}")
+    # KVALITETEN, også når alt er null: normalverdien skal være kjent.
+    if logg.kvalitet:
+        k, h, tx = logg.kvalitet, logg.kvalitet["hull"], logg.kvalitet["tekst"]
+        fisk = k["tilstand"].get("fisk", {})
+        print(f"  kvalitet      fisk vist {fisk.get('vist', 0)}, ukjent "
+              f"{fisk.get('ukjent', 0)}; uenige i tilstanden "
+              f"{h.get('b_uenige_i_tilstanden', 0)}; avsnitt over grensa "
+              f"{tx['avsnitt_over_grensa']}; påstander uten kilde "
+              f"{tx['paastander_uten_kilde_eller_dato']}  (kvalitet.json)")
+    else:
+        print("  kvalitet      IKKE SKREVET")
     print(f"  byggetid      {total:8.1f} s")
     for merke, t in tider.items():
         print(f"    {merke:22} {t:7.1f} s  ({t / total * 100:4.1f} %)")

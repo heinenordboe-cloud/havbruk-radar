@@ -247,7 +247,7 @@ _XLSX = "kystloggen-lusetall-31397-2026-34.xlsx"
 _ZIP = "kystloggen-lusetall-31397-2026-34.zip"
 
 
-def _side(**overstyr) -> str:
+def _side(_maaler=None, **overstyr) -> str:
     """En rendret lokalitetsside av konstruerte data.
 
     Konstruerte og ikke ekte: suiten skal aldri lese datarepoet. Formen
@@ -363,6 +363,9 @@ def _side(**overstyr) -> str:
     lok.setdefault("sammendrag", nettsted.lokalitetssammendrag(lok))
     # Ikke i Mattilsynets liste over søknader om unntaksvekst.
     lok.setdefault("unntak", None)
+    # Kvalitetsrapporten teller den samme dicten som malen får.
+    if _maaler is not None:
+        _maaler.lokalitet(lok)
     lok["register"] = _visning(lok["register"])
     lok["endringer"] = _endringsrader(lok["endringer"])
     for t_ in lok["tillatelser"]:
@@ -908,8 +911,9 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
                           "rendring_og_skriving", "produksjonsomraader",
                           "selskaper", "forside", "indekser",
                           "endringssider", "feeder", "maskinfiler",
-                          "sokeindeks"}
-    for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html"):
+                          "kvalitet", "sokeindeks"}
+    for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html",
+                "kvalitet.json", "kvalitet/index.html"):
         assert (ut / fil).is_file(), fil
     assert logg.indekssider == 3
     for sti in ("lokalitet", "produksjonsomrade", "selskap"):
@@ -5999,6 +6003,22 @@ def test_b_uenige_om_samme_uke_vises_begge_med_dato():
     assert '<strong class="uenige">uenige</strong>' in html
 
 
+def test_b_uenige_telles_i_kvalitetsrapporten():
+    """16 sider feilet i bygget 21.10.2026: «uenige» var den eneste påstanden
+    uten nivå, og testbygget har ingen konflikt som kunne vist det."""
+    import kvalitet
+
+    k = kvalitet.Kvalitet()
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", "Ja", "2026-08-31") | {"arter_tilstede": "Laks"}],
+        ["2026-09-15"])
+    _side(_maaler=k, biolag=biolag, lus_serie=[_lusuke("2026-08-31", "True")])
+    assert k.hull["b_uenige_i_tilstanden"] == 1
+    assert k.tilstand[("uenige", "vist")] == 1
+    # Lusestatusen og den uenige påstanden: begge BarentsWatchs, begge vurdert.
+    assert k.per_kilde[("lusetall", "vurdert")] == 2
+
+
 def test_b_ulike_perioder_er_ikke_uenige_men_begge_star():
     """Hillersvik: rapporten for 30.09 og lusetallsuka 21.09 er to påstander
     om hver sin periode. Ingen «uenige», og begge står i tilstanden."""
@@ -6072,3 +6092,60 @@ def test_stempelet_proves_mot_fila_og_ikke_mot_navnet(datamappe, tmp_path,
 
     m.write_text(f"# test\n{'0' * 64}  {sti}\n", encoding="utf-8")
     assert nettsted.bevis(("akvakultur",))[0]["stempel"] == ""
+
+
+# ==================================== kvalitetsrapporten
+#
+# JSON + én kort side per bygg. Påstandene telles mens sidene bygges,
+# teksten måles av den ferdige HTML-en. Se kvalitet.py.
+
+def test_kvalitetsrapporten_teller_det_sidene_viser(datamappe, tmp_path):
+    import json
+
+    ut = tmp_path / "nettsted"
+    logg, _tider = nettsted.skriv_alle(ut)
+    rapport = json.loads((ut / "kvalitet.json").read_text(encoding="utf-8"))
+    assert rapport == logg.kvalitet
+    assert rapport["lokalitetssider"] == logg.sider == 2
+    # Hver lokalitetsside har stedet i tilstanden — det står alltid.
+    assert rapport["tilstand"]["sted"]["vist"] == 2
+    # Teksten er målt av sidene, og porten er grønn på dem.
+    tekst = rapport["tekst"]
+    import publiseringsvakt
+    lange = [f"{s.relative_to(ut)}: {f.utdrag}" for s in ut.rglob("*.html")
+             if "pagefind" not in s.parts
+             for f in publiseringsvakt.sidefunn(s.relative_to(ut).as_posix(),
+                                                s.read_text(encoding="utf-8"))]
+    assert tekst["avsnitt_over_grensa"] == 0, lange
+    assert tekst["paastander_uten_kilde_eller_dato"] == 0
+    assert tekst["synlige_ord"]["lokalitet"]["sider"] == 2
+    # Siden er kort, og den lenker til hele rapporten.
+    side = (ut / "kvalitet" / "index.html").read_text(encoding="utf-8")
+    assert 'href="/kvalitet.json"' in side
+    assert "Avsnitt over 110 tegn" in side
+    # Navnet på sidetypen, ikke nøkkelen i JSON-en.
+    assert '<th scope="row">Lokalitetslista</th>' in side
+    assert "indeks-lokalitet" not in side
+    om = (ut / "om" / "index.html").read_text(encoding="utf-8")
+    assert 'href="/kvalitet/"' in om
+
+
+def test_kvalitetsrapporten_teller_hullene_a_til_g():
+    import kvalitet
+
+    k = kvalitet.Kvalitet()
+    lok = {"paastander": {
+        "fisk": {"verdi": "Ja", "vist": "ukjent", "utgaatt": True,
+                 "nivaa": "oppgitt", "herkomst": {"kilde": "biomasselag"}},
+        "kapasitet": {"verdi": "428,74 tonn", "utgaatt": False, "nivaa": "oppgitt",
+                      "herkomst": {"kilde": "akvakultur"}},
+        "mtb": {"verdi": "585 tonn", "utgaatt": False, "nivaa": "oppgitt",
+                "herkomst": {"kilde": "eierskap"}},
+        "uenige": None},
+        "fisk_mot_lus": [{"konflikt": True}, {"konflikt": False}],
+        "samme_posisjon": [{"loknr": "40317"}], "tillatelser_oppgitt": 0}
+    k.lokalitet(lok)
+    assert k.hull["a_ja_eldre_enn_grensa"] == 1 and k.hull["a_vist_som_ja"] == 0
+    assert k.hull["b_uenige_maaneder"] == 1 and k.hull["c_ulike"] == 1
+    assert k.hull["g_delt_posisjon"] == 1 and k.hull["g_uten_tillatelser"] == 1
+    assert k.tilstand[("fisk", "ukjent")] == 1

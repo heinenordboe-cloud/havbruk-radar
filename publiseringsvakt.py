@@ -1971,6 +1971,45 @@ def paastandsfunn(rel: str, rot) -> list[Funn]:
     return funn
 
 
+_ORDTEGN = re.compile(r"[0-9A-Za-zÆØÅæøåÉéÜüÖöÄä]")
+# SVG ER MED her, til forskjell fra avsnittsprøven: aksetallene i en graf
+# er tekst leseren ser. Tittel og beskrivelse er ikke.
+_UTEN_ORD = frozenset({"script", "style", "template", "noscript", "title",
+                       "desc", "head"})
+
+
+def synlige_ord(rot) -> int:
+    """Ord en leser ser uten å klikke, på en side lest av `_tre()`.
+
+    Ikke skript, SVG-tittel, skjulte deler eller hoppelenka, og i en
+    lukket <details> bare <summary>. En <details> med `data-lukk-ved-js`
+    er lukket: den er åpen uten skript, og skriptet lukker den. Ord er
+    blankskilte biter med minst én bokstav eller ett siffer.
+
+    MÅLT 20.10.2026 mot nettleserens `innerText` på åtte sider: ±1 ord.
+    """
+    antall = 0
+
+    def gaa(n, lukket: bool):
+        nonlocal antall
+        for b in n.barn:
+            if isinstance(b, str):
+                if not lukket:
+                    antall += sum(1 for o in b.split() if _ORDTEGN.search(o))
+                continue
+            klasse = (b.attr.get("class") or "").split()
+            if (b.tag in _UTEN_ORD or "hidden" in b.attr
+                    or "visuelt-skjult" in klasse or "hopp" in klasse):
+                continue
+            if lukket and b.tag != "summary":
+                continue
+            inni = b.tag == "details" and ("open" not in b.attr
+                                           or "data-lukk-ved-js" in b.attr)
+            gaa(b, inni)
+    gaa(rot, False)
+    return antall
+
+
 def sidefunn(rel: str, tekst: str) -> list[Funn]:
     """Avsnitts- og påstandsprøven på én HTML-side, med ÉN lesing."""
     rot = _tre(tekst.split("<body", 1)[-1])

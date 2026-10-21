@@ -165,9 +165,9 @@
         {#- KILDENE ER UENIGE OM SAMME UKE. Begge står, hver med sin dato:
             en konflikt slås aldri sammen til én verdi. Se
             `paastand.konflikt()`. #}
-        <span class="uenige"{{ merke(ps.uenige.herkomst, "vurdert") }}><strong>Uenige:</strong>
+        <span class="uenige"{{ merke(ps.uenige.herkomst, ps.uenige.nivaa) }}><strong>Uenige:</strong>
           <span data-felt="brakklagt">{{ ps.uenige.vist }}</span>
-          {{ herkomst(ps.uenige.herkomst, merknad="vurdert") }}</span>
+          {{ herkomst(ps.uenige.herkomst, merknad=ps.uenige.nivaa) }}</span>
         {%- endif %}</dd>
     </div>
     {% endif %}
@@ -1072,8 +1072,8 @@
   </details>
   {% else %}
   <p class="tomt">
-    Ingen av kildene oppgir egne datoer for denne lokaliteten — verken
-    første klarering, tildeling eller journalført overføring.
+    Ingen kilde oppgir dato for første klarering, tildeling eller
+    journalført overføring.
   </p>
   {% endif %}
 </section>
