@@ -1043,3 +1043,54 @@ def test_forste_skjermbilde_paa_selskapssiden_svarer_paa_hva_som_har_skjedd(side
         if tall is None or tall > 844 or (seksjon is not None and seksjon >= 844):
             for_lave.append((orgnr, tall, seksjon))
     assert not for_lave, f"{len(for_lave)} sider svarer ikke øverst: {for_lave[:5]}"
+
+
+# ---- avsnittsgrensa ---------------------------------------------------
+#
+# PORTEN TELLER TEGN, NETTLESEREN TELLER LINJER. `publiseringsvakt`
+# feller en blokk over AVSNITTSGRENSE tegn fordi den ikke har en
+# nettleser; regelen er «ingen avsnitt over tre linjer på 390 px». Denne
+# prøven holder de to sammen: hver blokk porten slipper gjennom, skal
+# være høyst tre linjer når den faktisk rendres.
+#
+# BARE BLOKKER I FULL BREDDE (minst 300 av 358 px). Grensa er kalibrert
+# for dem; en verdi i en faktaliste med to spalter brekker etter 16 tegn,
+# og er en verdi, ikke et avsnitt. Lukkede <details> åpnes først, så
+# også teksten bak et klikk måles.
+
+AVSNITT_JS = """
+(grense) => {
+  for (const d of document.querySelectorAll('details')) d.open = true;
+  const tagger = 'p, li, figcaption, summary, caption, blockquote';
+  const ut = [];
+  for (const el of document.querySelectorAll(tagger)) {
+    if (el.querySelector(tagger)) continue;          // bare de innerste
+    if (el.closest('.siterbar, [data-felt], nav, [hidden], .visuelt-skjult')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 300 || r.height === 0) continue;
+    const tekst = el.innerText.replace(/\\s+/g, ' ').trim();
+    if (!tekst || tekst.length > grense) continue;
+    const cs = getComputedStyle(el);
+    let lh = parseFloat(cs.lineHeight);
+    if (isNaN(lh)) lh = parseFloat(cs.fontSize) * 1.2;
+    const indre = r.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    const linjer = Math.round(indre / lh);
+    if (linjer > 3) ut.push(`${linjer} linjer, ${tekst.length} tegn: ${tekst.slice(0, 70)}`);
+  }
+  return ut;
+}
+"""
+
+AVSNITTSIDER = SIDER + ("/lokalitet/10204/", "/lokalitet/10300/",
+                        "/selskap/974526441/", "/endringer/2026-43/annet/")
+
+
+@pytest.mark.parametrize("sti", AVSNITTSIDER)
+def test_avsnittsgrensen_holder_mot_nettleseren(side, tjener, sti):
+    import publiseringsvakt
+    if not (Path(ROT) / sti.strip("/") / "index.html").exists() and sti != "/":
+        pytest.skip(f"{sti} finnes ikke i dette bygget")
+    side.goto(tjener + sti, wait_until="load")
+    side.evaluate("document.fonts.ready")
+    for_lange = side.evaluate(AVSNITT_JS, publiseringsvakt.AVSNITTSGRENSE)
+    assert not for_lange, f"{sti}: " + "; ".join(for_lange[:5])

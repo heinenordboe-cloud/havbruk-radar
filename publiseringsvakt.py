@@ -499,7 +499,7 @@ class Funn:
                      # | ukjent_partisjon | feilerklaert_partisjon
                      # | uferdig | raatt_tidsstempel | reposti
                      # | uten_kontakt | nedtatt | immutable_uten_hash
-                     # | innholdstype | jsonld
+                     # | innholdstype | jsonld | avsnitt | paastand
     utdrag: str
     antall: int = 1
 
@@ -1725,6 +1725,261 @@ def gransk_innhold(rel: str, data: bytes, orgnr_ok: set[str],
                      kvittert)
 
 
+# ------------------------------------------- teksten og påstandene
+#
+# TO PRØVER PÅ HVER HTML-SIDE, fra tekstreglene 20.10.2026 (BRIEF.md):
+#
+#   avsnitt   ingen tekstblokk over tre linjer på 390 px — heller ikke
+#             bak en lukket <details>
+#   påstand   på en lokalitetsside: hver verdi fra en kilde ligger i en
+#             påstand med kilde og gjelder-dato, og begge vises
+#
+# Begge leser SIDEN, ikke dataene, av samme grunn som resten av porten:
+# det er generatoren de skal fange. En ny verdi i en mal uten herkomst er
+# en påstand uten kilde, uansett hvor riktig dataene bak er.
+
+# TRE LINJER PÅ 390 PX, som tegn. MÅLT 20.10.2026 med Chromium på 390 px,
+# 13 sider, ~3 000 blokker: tegn per linje er median 41 ved 16 px og 38,5
+# ved 19 px (oppsummeringen), 44 ved 13 px. Ved 110 tegn var INGEN p, li,
+# figcaption eller summary over tre linjer; 34 blokker over 110 var det
+# ikke. Grensa er altså streng for liten skrift, med vilje: den skal
+# aldri slippe gjennom en blokk som ER over tre linjer.
+#
+# Prøven `test_avsnittsgrensen_holder_mot_nettleseren` i
+# tests/test_smalskjerm.py måler det samme på et bygget nettsted.
+AVSNITTSGRENSE = 110
+
+# BLOKKENE SOM ER AVSNITT. Ikke td/th: en tabellcelle er en verdi, og et
+# kort med fem celler er ikke fem avsnitt. dd ER med: en lang dd i en
+# faktaliste leses som et avsnitt.
+AVSNITTSTAGGER = frozenset({"p", "li", "dd", "figcaption", "summary",
+                            "caption", "blockquote"})
+
+# BEHOLDERE SOM ER EN GRENSE, ikke et avsnitt. Teksten i en <div> i en
+# <li> er ikke lias tekst: en tidslinjepost er en overskrift (<p>) og en
+# verdi (<div>), og verdien er data — en liste tillatelsesnumre, eller et
+# felt kilden sendte. Den måles ikke som prosa.
+AVSNITTSGRENSER = frozenset({"div", "table", "ul", "ol", "dl", "figure",
+                             "section", "nav", "form", "details",
+                             "header", "footer", "article", "aside"})
+
+# SITERINGEN ER ÉN KOPIERBAR ENHET, ikke prosa. Forfatter, år, tittel,
+# dato, sjekksum og adresse må stå sammen for å kunne limes inn; delt på
+# tre avsnitt er den tre biter ingen kan kopiere i ett.
+AVSNITT_UNNTATT = frozenset({"siterbar"})
+
+# OG KILDENS EGEN TEKST. En blokk som selv bærer `data-felt` er en verdi
+# fra kilden — departementets beslutningssitat, gjengitt ordrett. Den
+# kortes ikke av oss; den legges bak et klikk. Regelen gjelder VÅR tekst.
+
+_UTEN_TEKST = frozenset({"script", "style", "template", "noscript", "svg",
+                         "title", "head"})
+_TOMME = frozenset({"area", "base", "br", "col", "embed", "hr", "img",
+                    "input", "link", "meta", "source", "track", "wbr"})
+
+LOKALITETSSIDE = re.compile(r"^lokalitet/\d+/index\.html$")
+ISODATO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class _Node:
+    __slots__ = ("tag", "attr", "barn", "far")
+
+    def __init__(self, tag, attr, far):
+        self.tag, self.attr, self.far = tag, attr, far
+        self.barn: list = []       # _Node og tekst, i rekkefølge
+
+
+def _tre(tekst: str) -> "_Node":
+    """Siden som et lite tre: tag, attributter, barn og egen tekst.
+
+    `html.parser` og ikke regex: avsnittene er nøstet (en <p> i en <li>,
+    en <li> i en <details>), og en påstand er et forhold mellom et element
+    og dets forfedre."""
+    from html.parser import HTMLParser
+
+    rot = _Node("#rot", {}, None)
+
+    class Bygger(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.her = rot
+
+        def handle_starttag(self, tag, attrs):
+            node = _Node(tag, dict(attrs), self.her)
+            self.her.barn.append(node)
+            if tag not in _TOMME:
+                self.her = node
+
+        def handle_endtag(self, tag):
+            n = self.her
+            while n is not rot and n.tag != tag:
+                n = n.far
+            if n is not rot:
+                self.her = n.far
+
+        def handle_data(self, data):
+            self.her.barn.append(data)
+
+    b = Bygger()
+    b.feed(tekst)
+    return rot
+
+
+def _synlig_tekst(node) -> str:
+    """Teksten i elementet, uten skript, SVG og skjulte deler."""
+    deler: list[str] = []
+
+    def gaa(n):
+        for b in n.barn:
+            if isinstance(b, str):
+                deler.append(b)
+            elif (b.tag not in _UTEN_TEKST and "hidden" not in b.attr
+                  and "visuelt-skjult" not in (b.attr.get("class") or "").split()):
+                gaa(b)
+    gaa(node)
+    return " ".join("".join(deler).split())
+
+
+def _noder(rot):
+    stabel = [rot]
+    while stabel:
+        n = stabel.pop()
+        for b in reversed(n.barn):
+            if not isinstance(b, str):
+                yield b
+                stabel.append(b)
+
+
+def _skjult(n) -> bool:
+    while n is not None:
+        if n.tag in _UTEN_TEKST or "hidden" in n.attr or \
+                "visuelt-skjult" in (n.attr.get("class") or "").split():
+            return True
+        n = n.far
+    return False
+
+
+def avsnittsfunn(rel: str, rot) -> list[Funn]:
+    """Tekstblokker over `AVSNITTSGRENSE` tegn. Den INNERSTE blokken eier
+    teksten sin: en <p> i en <li> måles for seg, og lia uten den."""
+    funn: list[Funn] = []
+    for n in _noder(rot):
+        if n.tag not in AVSNITTSTAGGER or _skjult(n):
+            continue
+        if AVSNITT_UNNTATT & set((n.attr.get("class") or "").split()) \
+                or "data-felt" in n.attr:
+            continue
+        # Bare blokkens EGEN tekst: barn som selv er blokker telles der.
+        deler: list[str] = []
+
+        def gaa(x):
+            for b in x.barn:
+                if isinstance(b, str):
+                    deler.append(b)
+                elif b.tag in AVSNITTSTAGGER or b.tag in _UTEN_TEKST \
+                        or b.tag in AVSNITTSGRENSER or "hidden" in b.attr:
+                    continue
+                else:
+                    gaa(b)
+        gaa(n)
+        tekst = " ".join("".join(deler).split())
+        if len(tekst) > AVSNITTSGRENSE:
+            funn.append(Funn(rel, "avsnitt",
+                             f"<{n.tag}> {len(tekst)} tegn, grensa er "
+                             f"{AVSNITTSGRENSE}: «{tekst[:60]}…»"))
+    return funn
+
+
+def _kortnavn() -> dict[str, str]:
+    import visningsord
+    return visningsord.KILDE_KORT
+
+
+def _seksjon(n):
+    while n is not None and n.tag not in ("section", "#rot"):
+        n = n.far
+    return n
+
+
+def paastandsfunn(rel: str, rot) -> list[Funn]:
+    """Påstander uten kilde eller gjelder-dato, på en lokalitetsside.
+
+    Fire krav, og hvert er et sted en påstand kan miste herkomsten:
+
+      1. Hver verdi (`data-felt`) ligger i en påstand: et element, seg
+         selv eller en forelder, med `data-kilde` og en ISO-dato i
+         `data-gjelder`.
+      2. Påstanden VISER datoen: en `<time datetime>` med den datoen i
+         elementet, eller i en herkomstlinje i samme seksjon.
+      3. Påstanden VISER kilden: utgiverens korte navn i en herkomstlinje
+         i elementet eller i samme seksjon.
+      4. Ingen påstand har nivået «indikasjon» (paastand.INDIKASJON).
+    """
+    funn: list[Funn] = []
+    kort = _kortnavn()
+    herkomst_i: dict[int, tuple[set[str], str]] = {}
+
+    def herkomst(omraade) -> tuple[set[str], str]:
+        """(datoer, tekst) i herkomstlinjene under `omraade`."""
+        if id(omraade) not in herkomst_i:
+            datoer, tekst = set(), []
+            for h in _noder(omraade):
+                if "herkomst" in (h.attr.get("class") or "").split():
+                    tekst.append(_synlig_tekst(h))
+                    datoer |= {t.attr.get("datetime", "")[:10]
+                               for t in _noder(h) if t.tag == "time"}
+            herkomst_i[id(omraade)] = (datoer, " ".join(tekst))
+        return herkomst_i[id(omraade)]
+
+    sett: set[int] = set()
+    for n in _noder(rot):
+        if n.attr.get("data-nivaa") == "indikasjon":
+            funn.append(Funn(rel, "paastand",
+                             f"<{n.tag}> har nivået «indikasjon», som aldri "
+                             f"vises"))
+        if "data-felt" not in n.attr or _skjult(n):
+            continue
+        p = n
+        while p is not None and not ("data-kilde" in p.attr
+                                     and "data-gjelder" in p.attr):
+            p = p.far
+        felt = n.attr.get("data-felt", "")
+        if p is None or not p.attr["data-kilde"] \
+                or not ISODATO.match(p.attr["data-gjelder"]):
+            funn.append(Funn(rel, "paastand",
+                             f"data-felt={felt} står uten kilde og "
+                             f"gjelder-dato"))
+            continue
+        if id(p) in sett:
+            continue
+        sett.add(id(p))
+        kilde, gjelder = p.attr["data-kilde"], p.attr["data-gjelder"]
+        egne = {t.attr.get("datetime", "")[:10] for t in _noder(p)
+                if t.tag == "time"}
+        seksjon = _seksjon(p)
+        datoer, tekst = herkomst(seksjon)
+        egen_herkomst = herkomst(p)[1]
+        if gjelder not in egne and gjelder not in datoer:
+            funn.append(Funn(rel, "paastand",
+                             f"{kilde} {gjelder} (data-felt={felt}): "
+                             f"datoen står ikke på siden"))
+        navn = kort.get(kilde, kilde)
+        if navn not in tekst and navn not in egen_herkomst:
+            funn.append(Funn(rel, "paastand",
+                             f"{kilde} {gjelder} (data-felt={felt}): "
+                             f"«{navn}» står ikke i noen herkomstlinje"))
+    return funn
+
+
+def sidefunn(rel: str, tekst: str) -> list[Funn]:
+    """Avsnitts- og påstandsprøven på én HTML-side, med ÉN lesing."""
+    rot = _tre(tekst.split("<body", 1)[-1])
+    funn = avsnittsfunn(rel, rot)
+    if LOKALITETSSIDE.match(rel.replace("\\", "/")):
+        funn += paastandsfunn(rel, rot)
+    return funn
+
+
 def tekstfunn(rel: str, endelse: str, tekst: str, orgnr_ok: set[str],
               navn_ok: set[str], tvetydige: Iterable[str] = (),
               kvittert: dict | None = None) -> list[Funn]:
@@ -1740,6 +1995,10 @@ def tekstfunn(rel: str, endelse: str, tekst: str, orgnr_ok: set[str],
     funn.extend(repostier(tekst, fil=rel))
     # KART UTEN KARTVERKETS NAVN. Et lisensvilkår, ikke hygiene.
     funn.extend(kart_uten_attribusjon(tekst, fil=rel))
+    # AVSNITT OVER TRE LINJER, og PÅSTANDER UTEN KILDE OG DATO. Se
+    # `sidefunn()` — tekstreglene fra 20.10.2026.
+    if endelse in (".html", ".htm"):
+        funn.extend(sidefunn(rel, tekst))
     if endelse in KOLONNETYPER:
         funn.extend(gransk_csv(tekst, orgnr_ok, navn_ok, fil=rel,
                                avgrenser=KOLONNETYPER[endelse]))
