@@ -54,29 +54,22 @@
   <article class="om-tekst">
 
 <h2 id="hva">Hva dette er</h2>
-<p>
-  Offentlige registerdata om norsk akvakultur, hentet én gang i uka og
-  lagret som daterte øyeblikksbilder. Registrene selv viser
-  <em>nåtilstanden</em>, og den skrives over: slår du opp en lokalitet i
-  dag, får du dagens tall, og gårsdagens er borte. Det denne siden
-  legger til er <strong>tidsaksen</strong> — hva registeret sa forrige
-  uke, og hva som har endret seg siden.
-</p>
-<p>
-  Alt du ser her finnes fra før hos Fiskeridirektoratet,
-  Brønnøysundregistrene, BarentsWatch og Lovdata. Sammenstillingen og
-  historikken er min. Tallene er gjengitt uendret; ingen av etatene går
-  god for hvordan de er satt sammen.
-</p>
+<p>Offentlige registerdata om norsk akvakultur, hentet én gang i uka og
+  lagret med dato.</p>
+<p>Registrene viser <em>nåtilstanden</em>, og den skrives over: gårsdagens tall er borte.</p>
+<p>Det denne siden legger til er <strong>tidsaksen</strong>: hva registeret sa forrige
+  uke, og hva som har endret seg.</p>
+<p>Alt du ser her finnes fra før hos Fiskeridirektoratet, Brønnøysundregistrene,
+  BarentsWatch og Lovdata.</p>
+<p>Sammenstillingen og historikken er min. Tallene er gjengitt uendret.</p>
+<p>Ingen av etatene går god for hvordan de er satt sammen.</p>
 
 {# HVEM STÅR BAK, rett etter hva dette er. Briefens tabell: «hva og hvem
    i tre avsnitt» øverst, metode, kilder og sitering under. Sto som
    sjette del til 08.10.2026. #}
 <h2 id="hvem">Hvem som står bak</h2>
-<p>
-  {{ om.forfatter }}. Koden, beslutningsloggen og målingene ligger åpent:
-  <a href="{{ om.repo }}">{{ om.repo }}</a>.
-</p>
+<p>{{ om.forfatter }}. Koden, beslutningsloggen og målingene ligger åpent:</p>
+<p><a href="{{ om.repo }}">{{ om.repo }}</a></p>
 <p>
   {% if om.kontakt %}
   Kontakt: <a href="mailto:{{ om.kontakt }}">{{ om.kontakt }}</a>.
@@ -86,29 +79,23 @@
 </p>
 
 <h2 id="innsamling">Hvordan det samles inn, og hvor ofte</h2>
-<p>
-  Én kjøring i uka. Hver kjøring henter hver kilde, skriver ett
-  øyeblikksbilde per kilde og sammenligner med forrige — differansen blir en
-  endringslogg som er den egentlige verdien. Snapshotene skrives
-  <strong>én gang og aldri om</strong>: en fil for en gitt dato røres
-  ikke igjen, og en ny henting av samme dato får løpenummer i stedet for
-  å overskrive. Det er derfor historikken kan etterprøves.
-</p>
-<p>
-  Datoen på en rad er datoen <em>raden gjelder for</em>, ikke datoen vi
-  hentet den. For lusetall er det ISO-uka tellingen gjelder; for
-  eierskapshistorikk er det journalføringsåret. Hvor ferske dataene bak
-  denne siden er:
-</p>
+<p>Én kjøring i uka. Hver kjøring henter hver kilde og sammenligner med forrige.</p>
+<p>Differansen blir en endringslogg, og den er den egentlige verdien.</p>
+<p>Hver henting skrives <strong>én gang og aldri om</strong>. En ny henting av samme
+  dato får løpenummer.</p>
+<p>Det er derfor historikken kan etterprøves.</p>
+<p>Datoen på en rad er datoen <em>raden gjelder for</em>, ikke datoen vi hentet den.</p>
+<p>For lusetall er det ISO-uka; for eierskapshistorikk journalføringsåret.</p>
+<p>Hvor ferske dataene bak denne siden er:</p>
 
-<p class="tabelltittel" id="om-ferskhet-tittel">Nyeste øyeblikksbilde per kilde denne siden bygger på.</p>
+<p class="tabelltittel" id="om-ferskhet-tittel">Nyeste henting per kilde denne siden bygger på.</p>
 <div class="tabellramme tabellramme--ruller" role="region"
      aria-labelledby="om-ferskhet-tittel" tabindex="0">
 <table id="om-ferskhet" aria-labelledby="om-ferskhet-tittel">
   <thead>
     <tr>
       <th scope="col">Kilde</th>
-      <th scope="col">Nyeste øyeblikksbilde</th>
+      <th scope="col">Nyeste henting</th>
       <th scope="col">Hva datoen er</th>
     </tr>
   </thead>
@@ -158,10 +145,10 @@
     kilden ikke oppgir noe tall for.</p>
   <p>En hårstrek på nullinja er en uke som er målt til null.</p>
   <p>Den lave stripa under aksen er uker lokaliteten var brakklagt.</p>
-  <p>Den stiplede linja er tiltaksgrensa slik BarentsWatch oppgir den uke
-    for uke («Lusegrense uke») — ikke en strek vi har satt.</p>
+  <p>Den stiplede linja er tiltaksgrensa BarentsWatch oppgir uke for uke —
+    ikke en strek vi har satt.</p>
   <p>Over grensa: voksne hunnlus per fisk, avrundet til to desimaler, på
-    eller over grensa den uka — slik BarentsWatch selv regner.</p>
+    eller over uka sin grense.</p>
   <p>«Brakklagt» er BarentsWatchs vurdering «Trolig uten fisk», ikke noe
     oppdretteren har rapportert.</p>
   <p>En produksjonsperiode er sammenhengende uker BarentsWatch ikke regner
@@ -190,8 +177,8 @@
   <p>Datoen er som hovedregel når VI så endringen. Registeret oppgir ikke
     når det gjorde den.</p>
   <p>Endringen kan altså ha skjedd når som helst i uka før.</p>
-  <p>Datoer lenger ned kan være eldre: kilder som daterer en observasjon
-    til uka den gjelder for, oppgir sin egen dato.</p>
+  <p>Datoer lenger ned kan være eldre: noen kilder daterer en observasjon
+    til uka den gjelder for.</p>
   <p>Det gjelder sykdomsflaggene fra BarentsWatch: de er datert til uka de
     gjelder for.</p>
   <p><strong>Tekniske endringer</strong>: koordinater flyttet under
@@ -202,6 +189,8 @@
     står samlet, ikke borte.</p>
   <p>Måleseriene telles ikke som endringer. Lusetall og sjøtemperatur
     leverer et nytt tall hver uke.</p>
+  <p>Ny trafikklysfarge i registeret: forskriften dateres til vedtaksåret,
+    og uka er den registeret fulgte den opp.</p>
 </details>
 
 <details class="forklaring" id="lesing-ila">
@@ -236,6 +225,18 @@
     laget.</p>
 </details>
 
+<details class="forklaring" id="lesing-biomasse">
+  <summary>Biomasse per område</summary>
+  <p>Fiskeridirektoratet publiserer biomassefila på nytt den 20. hver
+    måned.</p>
+  <p>Hver publisering kan endre tall helt tilbake til 2017: lokaliteter
+    blir omklassifisert mellom områder.</p>
+  <p>Målt 25.08.2026 mot en arkivkopi fra 07.08.2024: 490 av 3 973 felles
+    rader endret, i hvert år i serien.</p>
+  <p>To hentinger som er uenige om 2018, er derfor ikke en feil. Det er to
+    påstander om samme tidspunkt.</p>
+</details>
+
 <details class="forklaring" id="lesing-tillatelser">
   <summary>Tillatelser og kapasitet</summary>
   <p>Lokalitetens kapasitet er det stedet er klarert for. Tillatelsenes er
@@ -258,6 +259,16 @@
     lar seg ikke gjøre med offentlige data.</p>
 </details>
 
+<details class="forklaring" id="lesing-selskap">
+  <summary>Selskapssidene</summary>
+  <p>En selskapsside viser bare tillatelser der organisasjonsnummeret står
+    som eier i registeret.</p>
+  <p>En tillatelse der kilden ikke oppgir eier, står på lokalitetssiden,
+    merket «ikke oppgitt av kilden».</p>
+  <p>Vesentlig og teknisk skilles etter samme regel som på
+    lokalitetssidene.</p>
+</details>
+
 <details class="forklaring" id="lesing-register">
   <summary>Registerfeltene og historikken</summary>
   <p>Navnet står i registerfeltene i registerets egen skrivemåte.
@@ -274,64 +285,56 @@
   <summary>Bevis og sjekksum</summary>
   <p>Summen er sha256 av svaret kilden sendte oss den dagen. Den endrer
     seg hvis ett tegn i svaret endres.</p>
-  <p>Filene er stemplet med OpenTimestamps: summen deres er forankret i
-    Bitcoin-kjeden på en dato ingen av oss kan flytte.</p>
+  <p>Filene er stemplet med OpenTimestamps: summen er forankret i
+    Bitcoin-kjeden.</p>
+  <p>Datoen for stempelet kan ingen av oss flytte.</p>
   <p>Arkivet er ikke offentlig. Vil du etterprøve en sum, skriv til oss,
     så sender vi svaret summen gjelder.</p>
 </details>
 
 <h2 id="dekning">Hva dekningen er</h2>
-<p>
-  {{ tall(om.med_eier) }} av
+<p>{{ tall(om.med_eier) }} av
   {{ antall(om.lokaliteter, "lokalitet", "lokaliteter") }}
   ({{ prosent(om.dekning) }}) har minst én tillatelse vi kan knytte til et
-  navngitt selskap. De øvrige {{ tall(om.uten_eier) }} har det ikke,
-  og de fordeler seg slik:
-</p>
+  navngitt selskap.</p>
+<p>De øvrige {{ tall(om.uten_eier) }} har det ikke, og de fordeler seg slik:</p>
 <ul>
   <li>{{ tall(om.uten_eier_med_tillatelse) }} har tillatelser
       i Akvakulturregisteret som vi ikke kan navngi eieren av.
-      Fiskeridirektoratet oppgir ikke organisasjonsnummer for eiere som
-      er privatpersoner, og en eier vi ikke kan klassifisere slipper
-      ikke gjennom personvernfilteret vårt. Tillatelsene står på
-      lokalitetssidene med «ikke oppgitt av kilden» — ikke som tom
-      celle.</li>
+      <p>Kilden oppgir ikke nummer for privatpersoner, og vi navngir ingen vi
+        ikke kan klassifisere.</p>
+      <p>Tillatelsene står på lokalitetssidene med «ikke oppgitt av kilden».</p></li>
   <li>{{ tall(om.uten_tillatelse_noe_sted) }} har ingen aktiv
       tillatelse i registeret i det hele tatt.</li>
 </ul>
-<p>
-  Hvem som er permanent utelatt, og hvorfor. Foretak som
-  SSB plasserer i sektor 8200 (husholdninger) eller 2300 (personlige
-  foretak) hentes ikke inn — enkeltpersonforetak, ansvarlige selskaper,
-  delt ansvar og partrederier. For et slikt foretak er navn, kommune,
-  postnummer og konkursflagg opplysninger om et navngitt menneske, og
-  verken dette nettstedet eller datagrunnlaget bak skal være et
-  personregister. Prisen er kjent og målt: den koster noen få lokaliteter
-  dekning, og skjevheten peker samme vei hver gang — de som forsvinner er
-  små, personeide anlegg. En analyse av «hvor stor andel eies av de ti
-  største» regner derfor på et utvalg der de minste eierne mangler per
-  konstruksjon.
-</p>
+<p>Hvem som er permanent utelatt, og hvorfor.</p>
+<p>Foretak som SSB plasserer i sektor 8200 (husholdninger) eller 2300
+  (personlige foretak) hentes ikke.</p>
+<p>Det gjelder enkeltpersonforetak, ansvarlige selskaper, delt ansvar og
+  partrederier.</p>
+<p>For et slikt foretak er navn, kommune og konkursflagg opplysninger om et
+  navngitt menneske.</p>
+<p>Verken nettstedet eller datagrunnlaget bak skal være et personregister.</p>
+<p>Prisen er målt: noen få lokaliteter dekning. De som forsvinner er
+  små, personeide anlegg.</p>
+<p>En analyse av «andel eid av de ti største» regner derfor på et utvalg
+  uten de minste eierne.</p>
 
 <h2 id="gjenbruk">Gjenbruk</h2>
-<p>
-  Dataene på disse sidene kommer fra kildene i tabellen under, og
-  gjenbruk følger kildens lisens og attribusjonskrav slik de står der.
-  Bygger en side på flere kilder, gjelder vilkårene til hver av dem.
-</p>
+<p>Gjenbruk følger kildens lisens og attribusjonskrav, slik de står i
+  tabellen under.</p>
+<p>Bygger en side på flere kilder, gjelder vilkårene til hver av dem.</p>
 
 <h2 id="kilder">Kildene, med lisens og attribusjon</h2>
-<p>
-  En kilde vi ikke har funnet lisensvilkåret for, vises ikke her. Den
-  kan brukes i analyse.
+<p>En kilde vi ikke har funnet lisensvilkåret for, vises ikke her. Den
+  kan brukes i analyse.</p>
   {% if om.ubelagte %}
-  I dag gjelder det
+<p>I dag gjelder det
   {% for u in om.ubelagte %}{% if not loop.first %}, {% endif %}
   {%- if u.url %}<a href="{{ u.url }}">{{ u.vist }}</a>
-  {%- else %}{{ u.vist }}{% endif %}{% endfor %} — vilkåret er lett
-  etter og ikke funnet.
+  {%- else %}{{ u.vist }}{% endif %}{% endfor %}.</p>
+<p>Vilkåret er lett etter og ikke funnet.</p>
   {% endif %}
-</p>
 
 <p class="tabelltittel" id="om-lisenser-tittel">Kildene med lisens, hjemmel og ordrett attribusjon.</p>
 <div class="tabellramme tabellramme--ruller" role="region"
@@ -363,27 +366,21 @@
   </tbody>
 </table>
 </div>
-<p class="tabellnote">
-  Kilder merket «nei» i siste kolonne samles inn, men vises ikke på noen
-  publisert side. Datoen sier når vi sist leste vilkåret.
-</p>
+<p class="tabellnote">Kilder merket «nei» samles inn, men vises ikke på noen publisert side.</p>
+<p class="tabellnote">Datoen sier når vi sist leste vilkåret.</p>
 
 <h2 id="hva-vi-ikke-gjor">Hva som bevisst ikke hentes</h2>
-<p>
-  Ingen roller, ingen gateadresser, ingen fødselsnumre, ingen
-  personopplysninger fra Enhetsregisteret. Vi bruker bare det frie nivået
-  av registeret. Det autoriserte API-et med rolledata er en annen lisens
-  og en grense vi ikke krysser — det betyr også at siden ikke kan si noe
-  om konsernstruktur eller hvem som sitter i styrene.
-</p>
+<p>Ingen roller, ingen gateadresser, ingen fødselsnumre, ingen
+  personopplysninger fra Enhetsregisteret.</p>
+<p>Vi bruker bare det frie nivået av registeret. Rolledataene er en annen
+  lisens og en grense vi ikke krysser.</p>
+<p>Derfor kan siden ikke si noe om konsernstruktur eller hvem som sitter i
+  styrene.</p>
 
 <h2 id="sitering">Sitering</h2>
-<p>
-  Siden er bygget
-  <time datetime="{{ om.bygget }}">{{ om.bygget }}</time> av øyeblikksbilder
-  datert per kilde. Oppgi byggedatoen: innholdet endres når kildene
-  endres, og en referanse uten dato viser til noe annet neste uke.
-</p>
+<p>Siden er bygget
+  <time datetime="{{ om.bygget }}">{{ om.bygget }}</time> av hentinger datert per kilde.</p>
+<p>Oppgi byggedatoen: en referanse uten dato viser til noe annet neste uke.</p>
 <p class="siterbar">
   {{ om.forfatter }} ({{ om.bygget[:4] }}).
   <em>Kystloggen: sammenstilte registerdata om norsk akvakultur.</em>
@@ -395,13 +392,11 @@
     `basisurl` kommer fra konfigurasjonen, ikke som bokstav i malen: en
     forhåndsvisning skal ikke oppgi en adresse som ikke serverer
     innholdet. Se `_basisurl()`. #}
-<p>
-  Dette er den GENERELLE referansen til nettstedet. Siterer du et
-  bestemt tall, bruk «Siter denne siden» på den siden tallet står på:
-  den bærer lokaliteten eller uka, øyeblikksbildets dato og sjekksummen
-  som identifiserer det. En referanse til forsiden kan ikke etterprøves
-  mot noe bestemt.
-</p>
+<p>Dette er den GENERELLE referansen til nettstedet.</p>
+<p>Siterer du et bestemt tall, bruk «Siter denne siden» på siden tallet
+  står på.</p>
+<p>Den bærer lokaliteten eller uka, datoen og sjekksummen som
+  identifiserer tallet.</p>
 {# ------------------------------------------------------- GJENBRUK #}
 {# SEKSJONEN ER FJERNET, IKKE GLEMT. Den sto som utkast fram til
    24.09.2026 — en skisse av grensen mellom fri og avtalt bruk, merket
@@ -439,8 +434,7 @@
       Et tall i en mal som teller noe malen selv løkker over, skal
       telles av malen. #}
   Tabellen over gjelder dataene. Selve siden låner
-  {{ antall(laan|length, "ting", "ting") }} til, og de ligger alle i det
-  som publiseres:
+  {{ antall(laan|length, "ting", "ting") }} til:
 </p>
 <p class="tabelltittel" id="om-laan-tittel">Tredjepartsmateriale i nettstedet, med lisens og hvor teksten står.</p>
 <div class="tabellramme tabellramme--ruller" role="region"
@@ -475,35 +469,30 @@
 </table>
 </div>
 <p class="tabellnote">
-  Ingen av dem hentes fra et nett ved visning. De tre fontene og
-  herobildet ligger på nettstedet selv, og kartgeometrien er tegnet
-  inn i sidene ved bygging — en side som henter en fil fra en CDN
-  slutter å se riktig ut den dagen den tjenesten gjør det, og forteller
-  dem hvem som leser den så lenge den virker.
+  Ingen av dem hentes fra et nett ved visning.</p>
+<p class="tabellnote">Fontene og herobildet ligger på nettstedet selv, og kartene er tegnet
+  inn i sidene ved bygging.</p>
+<p class="tabellnote">En fil fra en CDN forteller tjenesten hvem som leser siden.
   {#- IKKE «DE TO SISTE». Setningen pekte på rader ved posisjon, og
       posisjonene flyttet seg da herofotografiet gikk inn igjen
       27.09.2026: «de to siste» var da Kartverket, som KREVER
       navngiving, og Natural Earth, som ikke gjør det. En setning som
       peker på en plass i en tabell, er usann fra den dagen tabellen
-      endrer seg. Nå navngis radene. #}
-  Bare én av dem krever noe: Kartverkets CC BY 4.0 vil ha «© Kartverket»
-  der kartet vises, og det står under hvert kart og i bunnteksten.
-  Herofotografiet og Natural Earth krever ingen navngiving, og er
-  navngitt likevel — en side som ikke sier hvor et bilde eller en
-  kystlinje kommer fra, kan ingen etterprøve. Fontenes OFL krever at
-  lisensteksten følger fila, og den ligger på adressen raden lenker til.
-</p>
+      endrer seg. Nå navngis radene. #}</p>
+<p class="tabellnote">Bare én krever noe: Kartverkets CC BY 4.0 vil ha «© Kartverket» der
+  kartet vises.</p>
+<p class="tabellnote">Det står under hvert kart og i bunnteksten.</p>
+<p class="tabellnote">Herofotografiet og Natural Earth krever ingen navngiving, og er
+  navngitt likevel.</p>
+<p class="tabellnote">Fontenes OFL krever at lisensteksten følger fila. Den ligger der
+  raden lenker.</p>
 
-<p>
-  Siterer du tallene, må kildenes egen attribusjon følge med
-  — den står i bunnteksten på hver side, ordrett slik lisensgiverne
-  krever den. Den er ikke valgfri, og den erstattes ikke av en referanse
-  til dette nettstedet.
-</p>
-<p>
-  Lusetallserien for en lokalitet ligger som CSV med kommentarhode på
-  hver lokalitetsside, og den er ment å siteres direkte.
-</p>
+<p>Siterer du tallene, må kildenes egen attribusjon følge med.</p>
+<p>Den står i bunnteksten på hver side, ordrett slik lisensgiverne krever
+  den.</p>
+<p>Den er ikke valgfri, og den erstattes ikke av en referanse hit.</p>
+<p>Lusetallserien for en lokalitet ligger som CSV på hver lokalitetsside,
+  ment å siteres direkte.</p>
   </article>
 </div>
 {% endblock %}

@@ -75,13 +75,8 @@
      søkefelt, og den er den eneste som virker uten skript. #}
   <div class="sok-uten">
     <h2>Uten søk: hele lista</h2>
-    <p>
-      Søkefeltet over krever JavaScript. Er det slått av, eller vil du
-      heller bla, står alt i listene under. Lokalitetene og selskapene
-      er delt i sider på {{ d.per_side }}, og hver side lenker til alle
-      de andre med spennet den dekker — bruk nettleserens egen
-      søkefunksjon på siden:
-    </p>
+    <p>Søkefeltet over krever JavaScript. Uten det står alt i listene under.</p>
+    <p>Listene er delt i sider på {{ d.per_side }}. Bruk nettleserens søk på siden:</p>
     <ul>
       <li><a href="/lokalitet/">{{ alle(d.lokaliteter, "lokaliteten", "lokalitetene") }}</a>
         — nummer, navn, kommune, fylke, produksjonsområde og arter</li>

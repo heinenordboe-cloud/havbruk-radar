@@ -83,18 +83,15 @@
     </ol>
     <p class="rundenote">
       Fargen som <strong>gjelder nå</strong> er
-      <span class="rute-foran {{ po.naa.klasse }}">{{ po.naa.farge }}</span>,
-      slik Akvakulturregisteret oppgir den på hver lokalitet i området
-      per <time datetime="{{ po.akva_dato }}">{{ po.akva_dato|dato }}</time>.
-      Den er ikke alltid den samme som den nyeste forskriften navngir:
-      en forskrift nevner bare områder der noe endrer seg, mens
-      registeret fører fargen videre.
+      <span class="rute-foran {{ po.naa.klasse }}">{{ po.naa.farge }}</span>
+      <span class="herkomst">Akvakulturregisteret ·
+        <time datetime="{{ po.akva_dato }}">{{ po.akva_dato|kortdato }}</time></span></p>
+    <p class="rundenote">En forskrift nevner bare områder der noe endres;
+      registeret fører fargen videre.</p>
       {% if po.naa.uenig %}
-      <strong>Kildene er uenige her:</strong> {{ po.naa.uenig }}. Det er
-      en uenighet i registeret, og den står framfor at én av verdiene
-      vinner ved et sammentreff.
+    <p class="rundenote"><strong>Kildene er uenige her:</strong> {{ po.naa.uenig }}.</p>
+    <p class="rundenote">Det er en uenighet i registeret, og begge verdiene står.</p>
       {% endif %}
-    </p>
     <p class="rundenote"><a href="#kilder-for-fargen">Kildene for fargen, runde for runde</a></p>
   </section>
 </div>
@@ -130,8 +127,8 @@
       </div>
       {% endif %}
     </dl>
-    <p class="marg-note">Kapasiteten er registerets, per lokalitet. Lusegrensa
-      er BarentsWatchs tiltaksgrense for uka, regnet som BarentsWatch regner.</p>
+    <p class="marg-note">Kapasiteten er registerets, per lokalitet.</p>
+    <p class="marg-note">Lusegrensa er BarentsWatchs tiltaksgrense for uka.</p>
   </section>
 
   <section class="marg-blokk" aria-labelledby="marg-kart">
@@ -211,22 +208,17 @@
   </figure>
 
   {# REVISJONSFORBEHOLDET. Ikke en fotnote: dette er det leseren må vite
-     for å lese grafen riktig. CLAUDE.md 1b-5. #}
-  <p class="tabellnote">
-    <strong>Grafen viser nyeste påstand om hver måned, ikke tallet
-    slik det sto den gangen.</strong> Fiskeridirektoratet publiserer
-    biomassefila på nytt den 20. hver måned, og hver publisering kan
-    endre tall helt tilbake til 2017 — lokaliteter blir omklassifisert
-    mellom produksjonsområder i ettertid. Målt 25.08.2026 mot en
-    arkivkopi fra 07.08.2024 var 490 av 3 973 felles rader endret, i
-    hvert eneste år i serien. To øyeblikksbilder som er uenige om 2018
-    er derfor ikke en feil; det er to påstander om samme tidspunkt,
-    gjort på hver sin dato.
+     for å lese grafen riktig. CLAUDE.md 1b-5. Hovedsetningen står her;
+     hvorfor og hvor mye (490 av 3 973 rader) står én gang, på
+     /om/#lesing-biomasse. #}
+  <p class="tabellnote"><strong>Grafen viser nyeste påstand om hver måned, ikke tallet
+    slik det sto den gangen.</strong></p>
+  <p class="tabellnote">Kilden reviderer fila hver måned, helt tilbake til 2017.
+    <a href="/om/#lesing-biomasse">Mer</a></p>
     {% if po.biomasse_utgitt %}
-    Denne utgaven er utgitt av kilden
-    <time datetime="{{ po.biomasse_utgitt[:10] }}">{{ po.biomasse_utgitt[:10]|dato }}</time>.
+  <p class="tabellnote">Denne utgaven er utgitt av kilden
+    <time datetime="{{ po.biomasse_utgitt[:10] }}">{{ po.biomasse_utgitt[:10]|dato }}</time>.</p>
     {% endif %}
-  </p>
 
   <details class="tallboks">
     <summary>Tallene i tabell — siste
@@ -264,18 +256,12 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">
-      Serien har {{ antall(po.biomasse_maaneder, "måned", "måneder") }}; tabellen viser de
-      siste {{ po.biomasse_rader|length }}. Tallene er gjengitt uendret
-      fra kilden — grafen over regner om til tonn, tabellen gjør det
-      ikke.
-    </p>
+    <p class="tabellnote">Serien har {{ antall(po.biomasse_maaneder, "måned", "måneder") }}; tabellen viser de
+      siste {{ po.biomasse_rader|length }}.</p>
+    <p class="tabellnote">Tallene er kildens. Grafen regner om til tonn, tabellen gjør det ikke.</p>
   </details>
   {% else %}
-  <p class="tomt">
-    Ingen biomassetall for dette området i noen av øyeblikksbildene vi
-    har av biomassefila.
-  </p>
+  <p class="tomt">Ingen biomassetall for området i noen av hentingene av biomassefila.</p>
   {% endif %}
 </section>
 </div>
@@ -362,12 +348,12 @@
       </g>
     </svg>
     <figcaption>
-      <span class="kartkreditt">Kystlinje:
+      <p class="kartkreditt">Kystlinje:
         <a href="{{ kartverket_url }}">{{ kartverket }}</a>,
-        {{ "N500" if po.kart.serie == "n500" else "N2000" }} Kartdata</span>
-      Områdegrensa er Fiskeridirektoratets offisielle polygon.
-      {{ antall(po.kart.lokaliteter|length, "lokalitet", "lokaliteter") }}
-      tegnet; alle står i tabellen under.
+        {{ "N500" if po.kart.serie == "n500" else "N2000" }} Kartdata</p>
+      <p>Områdegrensa er Fiskeridirektoratets.
+        {{ antall(po.kart.lokaliteter|length, "lokalitet", "lokaliteter") }} tegnet,
+        alle i tabellen under.</p>
     </figcaption>
   </figure>
 </section>
@@ -388,7 +374,7 @@
     </form>
   </div>
 
-  <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">Lokalitetene i området, øyeblikksbilde
+  <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">Lokalitetene i området, hentet
       <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
       <span data-teller="Viser alle {{ tall(po.lokaliteter_antall) }}">Viser
         alle {{ tall(po.lokaliteter_antall) }}</span>.</p>
@@ -436,20 +422,15 @@
     </tbody>
   </table>
   </div>
-  <p class="tabellnote">
-    Hele lista står her — den er ikke paginert, og søkefeltet filtrerer
-    den på stedet når JavaScript er på. Uten JavaScript sender skjemaet
-    til søkesiden, som viser veien til
-    <a href="/lokalitet/">lokalitetslista</a> over hele landet.
-    «Kapasitet» er lokalitetens klarerte kapasitet fra registeret, ikke
-    summen av tillatelsenes MTB — de to er ulike størrelser, og en
-    tillatelse kan brukes på flere lokaliteter.
+  {#- At søket virker uten JavaScript, og hvorfor kapasiteten ikke er
+      summen av MTB, står på /om/#lesing-tillatelser. #}
+  <p class="tabellnote">Hele lista står her. Søkefeltet filtrerer den når JavaScript er på.</p>
+  <p class="tabellnote">«Kapasitet» er lokalitetens klarerte kapasitet, ikke summen av
+    tillatelsenes MTB. <a href="/om/#lesing-tillatelser">Mer</a></p>
     {% if po.uten_kjent_eier %}
-    For {{ antall(po.uten_kjent_eier, "lokalitet", "lokaliteter") }} kan vi ikke gjøre rede for
-    innehaveren. Raden står likevel; se
-    <a href="/om/#dekning">hva dekningen er</a>.
+  <p class="tabellnote">For {{ antall(po.uten_kjent_eier, "lokalitet", "lokaliteter") }} kan vi ikke gjøre rede for
+    innehaveren. Raden står likevel. <a href="/om/#dekning">Dekningen</a></p>
     {% endif %}
-  </p>
 </section>
 
 {# ---------------------------------------------------------------- 3
@@ -466,10 +447,8 @@
 
   <h3>Om selve området</h3>
   <p class="historikk-forklaring">
-    Vedtak som gjelder produksjonsområdet: fargen, og hvor sterkt den er
-    belagt. Datoen er runden vedtaket gjelder for, ikke dagen vi hentet
-    det — <code>trafikklysvedtak</code> dateres til vedtaksåret.
-  </p>
+    Vedtak om området: fargen, og hvor sterkt den er belagt.</p>
+  <p class="historikk-forklaring">Datoen er runden vedtaket gjelder for, ikke dagen vi hentet det.</p>
   <p class="tabelltittel" id="trafikklysvedtak-endringer-tittel">Registerendringer om området, nyest først.
       {{ antall(po.endringer|length, "endring", "endringer") }}.</p>
   <div class="tabellramme" role="region"
@@ -545,20 +524,15 @@
     </tbody>
   </table>
   </div>
-  <p class="tabellnote">
-    Måleseriene telles ikke som endringer her. Biomasse leverer nye
-    beholdningstall hver måned — for dette området
-    {{ tall(po.maaleserie_rader) }} slike tall mot {{ po.endringer|length }}
-    vedtaksendringer.
+  <p class="tabellnote">Ikke regnet som endringer: {{ tall(po.maaleserie_rader) }} måletall
+    (biomasse) mot {{ po.endringer|length }} vedtaksendringer.</p>
     {% if po.ubelagte_rader %}
-    {{ antall(po.ubelagte_rader, "endring", "endringer") }} er dessuten holdt utenfor fordi
-    lisensen ikke er dokumentert for
-    {{ po.ubelagte_kilder|map("kildenavn")|join(", ") }}: vilkåret for å
-    republisere er lett etter og ikke funnet, så tallene kan brukes i
-    analyse men ikke vises her. Se
-    <a href="/om/#kilder">kildene, med lisens</a>.
+  <p class="tabellnote">{{ antall(po.ubelagte_rader, "endring", "endringer") }} er holdt utenfor fordi
+    lisensen ikke er dokumentert.</p>
+  <p class="tabellnote">Det gjelder {{ po.ubelagte_kilder|map("kildenavn")|join(", ") }}.</p>
+  <p class="tabellnote">Tallene kan brukes i analyse, men ikke vises her.
+    <a href="/om/#kilder">Kildene, med lisens</a></p>
     {% endif %}
-  </p>
 </section>
 
 {# ---------------------------------------------------------------- 4
@@ -602,9 +576,8 @@
         <p class="runde-ellers{% if not e.enig %} runde-ellers--uenig{% endif %}">
           {% if e.enig %}også{% else %}men{% endif %}
           {{ e.kilde }}:
-          <span data-felt="farge">{{ e.farge }}</span>,
-          {{ e.lesemaate_tekst }}
-        </p>
+          <span data-felt="farge">{{ e.farge }}</span></p>
+        <p class="runde-belegg">{{ e.lesemaate_tekst }}</p>
         {% endfor %}
         {% if r.sitat %}
         {# SITATET STÅR PÅ SIDEN, ikke bare i koden. En farge som ikke
@@ -657,9 +630,9 @@
               {{ t.tekst }}
               <span class="rundefakta-hvor">({{ t.hvor }})</span>
               {% if t.avvik %}
-              <span class="rundefakta-avvik">{{ t.avvik_hvor }} i samme
+              <p class="rundefakta-avvik">{{ t.avvik_hvor }} i samme
                 melding sier <strong>{{ t.avvik }}</strong>; runden
-                fulgte beslutningsavsnittet.</span>
+                fulgte beslutningsavsnittet.</p>
               {% endif %}
             </li>
             {% endfor %}
@@ -684,25 +657,24 @@
        dato og lenke, og uten et sammendrag foran: hvorfor en farge ble
        som den ble, er ikke vår sak å veie. #}
     {% for m in po.saerskilt %}
-    <div class="saerskilt">
-      <p class="etikett">Departementet vurderte området særskilt i
-        <time datetime="{{ m.aar }}">{{ m.aar }}</time></p>
+    {#- ORDRETT, OG BAK ET KLIKK. Sitatet er kildens egen tekst og kortes
+        ikke; det lukkes, som rundesitatene over (tekstreglene 20.10.2026). #}
+    <details class="saerskilt">
+      <summary class="etikett">Departementet vurderte området særskilt i
+        <time datetime="{{ m.aar }}">{{ m.aar }}</time></summary>
       <blockquote data-felt="beslutningssitat">{{ m.sitat }}</blockquote>
       <p class="runde-kilde">
         Nærings- og fiskeridepartementet,
         <time datetime="{{ m.dato }}">{{ m.dato|dato }}</time> ·
         <a href="{{ m.url }}">regjeringen.no ↗</a>
       </p>
-    </div>
+    </details>
     {% endfor %}
 
   <h3 id="hvor-sterkt">Hvor sterkt fargen er belagt</h3>
-  <p>
-    Fargen har tre ulike grader av belegg, og hver runde over sier
-    hvilken som gjelder. De tre er ikke like sterke, og forskjellen er
-    hele grunnen til at den står oppgitt: en analyse som behandler dem
-    likt, behandler en utledning som en lesning.
-  </p>
+  <p>Fargen har tre grader av belegg, og hver runde over sier hvilken som gjelder.</p>
+  <p>De er ikke like sterke: en analyse som behandler dem likt, behandler en
+    utledning som en lesning.</p>
   <dl class="grader">
     <dt>Ordrett</dt>
     <dd>Fargeordet står i bestemmelsen selv.</dd>
@@ -710,9 +682,9 @@
     <dd>Fargeordet står i overskriften på kapittelet området er
         plassert under, ikke i bestemmelsen.</dd>
     <dt>Kapittelhjemmel</dt>
-    <dd>Fargen står ikke skrevet noe sted. Den er utledet av hvilket
-        kapittel området er plassert i — det eneste leddet der vi tar
-        et steg kilden ikke tar.</dd>
+    <dd>Fargen står ikke skrevet noe sted. Den er utledet av kapittelet
+        området er plassert i.
+        <p>Det er det eneste leddet der vi tar et steg kilden ikke tar.</p></dd>
   </dl>
 </section>
 
@@ -720,31 +692,24 @@
 <section class="ark seksjon" aria-labelledby="hva-siden-ikke-sier">
   <details class="tallboks forbehold">
   <summary><h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2></summary>
-  <p>
-    <strong>Ingenting om at inndelingen blir værende.</strong> Området
-    er en regulatorisk inndeling, ikke en naturgitt grense. Den kan tas
-    om igjen, og et område som endrer grenser eller nummer er et annet
-    område enn det som lå her før. Siden sier hva inndelingen var på
-    datoen over.
-  </p>
-  <p>
-    <strong>Ingenting om hvorfor fargen ble som den ble.</strong>
-    Trafikklysordningen bygger på en faglig vurdering av
-    lakselusindusert villfiskdødelighet, og koblingen mellom den
-    vurderingen og fargen i forskriften finnes ikke i regelverket vi
-    kan lese. Siden viser vedtaket og siterer departementet der det har
+  <p><strong>Ingenting om at inndelingen blir værende.</strong> Området er en
+    regulatorisk inndeling, ikke en naturgitt grense.</p>
+  <p>Et område som endrer grenser eller nummer er et annet område. Siden sier
+    hva inndelingen var på datoen over.</p>
+  <p><strong>Ingenting om hvorfor fargen ble som den ble.</strong></p>
+  <p>Ordningen bygger på en faglig vurdering av lakselusindusert
+    villfiskdødelighet.</p>
+  <p>Koblingen mellom vurderingen og fargen finnes ikke i regelverket vi kan lese.</p>
+  <p>Siden viser vedtaket og siterer departementet der det har
     skrevet noe, men forklarer ikke fargen selv.
     {#- «Siden viser vedtaket, ikke begrunnelsen» sto til 06.10.2026, på
         de samme sidene som siterer departementets særskilte vurdering
         ordrett lenger opp (PO 2, 4, 5, 8, 9). Ordlyden er valgt av
         Heine blant tre forslag, og sier bare det sidene gjør. #}
   </p>
-  <p>
-    <strong>Ingenting om foreslåtte inndelinger.</strong> Det finnes
-    forslag om å dele kysten finere enn dagens tretten områder. De er
-    ikke blandet inn her: denne siden handler om den inndelingen som
-    gjelder.
-  </p>
+  <p><strong>Ingenting om foreslåtte inndelinger.</strong> Det finnes forslag om
+    å dele kysten finere.</p>
+  <p>De er ikke blandet inn her: siden handler om inndelingen som gjelder.</p>
   </details>
 </section>
 
@@ -760,12 +725,9 @@
       Øyeblikksbilde {{ po.siter.uke }}, {{ po.siter.dato }},
       sjekksum {{ po.siter.sjekksum[:8] }}…{{ po.siter.sjekksum[-4:] }}.
       {{ po.siter.url }}</p>
-    <p class="siterboks-note">
-      Sjekksummen gjelder Akvakulturregisteret, som gir lokalitetene og
-      fargen som gjelder nå. Forskriftsrundene har sin egen proveniens:
-      hver runde lenker til LTI-versjonen på Lovdata, altså teksten slik
-      den ble kunngjort.
-    </p>
+    <p class="siterboks-note">Sjekksummen gjelder Akvakulturregisteret, som gir lokalitetene og
+      fargen nå.</p>
+    <p class="siterboks-note">Hver forskriftsrunde lenker til teksten på Lovdata slik den ble kunngjort.</p>
   </div>
 </section>
 {% endblock %}

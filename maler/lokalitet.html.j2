@@ -364,18 +364,18 @@
           registerfeltene over. Kartverkets kreditt står fordi lisensen
           krever navnet der kartet brukes. #}
       <figcaption{{ merke(ps.sted.herkomst) }}>
-        <span class="tall-mono" data-felt="koordinat">{{ pk.koordinat }}</span>
+        <p><span class="tall-mono" data-felt="koordinat">{{ pk.koordinat }}</span>
         · {{ pk.km|round|int }} km bredt
-        {%- if pk.naboer %} · {{ antall(pk.naboer|length, "annen lokalitet", "andre lokaliteter") }}{% endif %}
-        {%- if not pk.hav %} · <strong>ingen kystlinje i utsnittet</strong>{% endif %}
+        {%- if pk.naboer %} · {{ antall(pk.naboer|length, "annen lokalitet", "andre lokaliteter") }}{% endif %}</p>
+        {%- if not pk.hav %}<p><strong>Ingen kystlinje i utsnittet</strong></p>{% endif %}
         {%- if lok.samme_posisjon %}
         {#- SAMME KOORDINAT SOM EN ANNEN LOKALITET. Kartet tegner dem som
             én prikk, og uten setningen ser den andre ut til å mangle. #}
-        <span class="fakta-bi">Samme posisjon som
-          {% for s in lok.samme_posisjon %}<a href="/lokalitet/{{ s.loknr }}/">{{ s.navn }} ({{ s.loknr }})</a>{% if not loop.last %}, {% endif %}{% endfor %}</span>
+        <p class="fakta-bi">Samme posisjon som
+          {% for s in lok.samme_posisjon %}<a href="/lokalitet/{{ s.loknr }}/">{{ s.navn }} ({{ s.loknr }})</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
         {%- endif %}
-        <span class="kartkreditt">Kystlinje:
-          <a href="{{ kartverket_url }}">{{ kartverket }}</a>, N500 Kartdata</span>
+        <p class="kartkreditt">Kystlinje:
+          <a href="{{ kartverket_url }}">{{ kartverket }}</a>, N500 Kartdata</p>
       </figcaption>
     </figure>
     {% else %}
@@ -457,11 +457,11 @@
       {#- HVER KILDE MED SIN DATO. At datoer lenger ned kan være eldre
           (sykdomsflaggene er datert til uka de gjelder for) står på
           /om/#lesing, ikke på hver side. #}
-      <p class="tidsakse-verdi">
+      <div class="tidsakse-verdi">
         {%- for d in post.dekning %}{{ d.navn }} <time datetime="{{ d.fra }}">{{ d.fra|kortdato }}</time>
-        {%- if not loop.last %} · {% endif %}{% endfor %}</p>
+        {%- if not loop.last %} · {% endif %}{% endfor %}</div>
       {% else %}
-      <p class="tidsakse-verdi">
+      <div class="tidsakse-verdi">
         {# MERKINGEN FØLGER VERDIEN, ikke kolonnen: en tom verdi
            merkes `verdi_mangler` og ikke med kildens feltnavn. En
            tankestrek i en celle merket `eier_navn` er ikke et ukjent
@@ -482,7 +482,7 @@
         <span class="tidsakse-forklaring">(registeret:
           <span data-felt="versjon_aarsak">{{ post.forklaring }}</span>)</span>
         {%- endif %}
-      </p>
+      </div>
       {% endif %}
     </li>
   {% endmacro %}
@@ -618,12 +618,9 @@
     </div>
     </details>
     {% else %}
-    <p class="tomt">
-      Lokaliteten står ikke i biomasselaget i noen av de
-      øyeblikksbildene vi har av det.
-      Laget dekker lokaliteter med innsendt månedsrapport; en lokalitet
-      uten fisk, eller uten rapportplikt, står ikke der.
-    </p>
+    {#- Hvorfor en lokalitet kan mangle i laget, står på /om/#lesing-fisk. #}
+    <p class="tomt">Ingen månedsrapport i biomasselaget, i noen av hentingene.
+      <a href="/om/#lesing-fisk">Om laget</a></p>
     {% endif %}
   </section>
 
@@ -721,10 +718,12 @@
     {#- TALLENE GRAFEN ER TEGNET AV, som etiketter. Hva tomrom, hårstrek og
         grenselinje betyr, står én gang på /om/#lesing-lus — ikke på hver
         av 1 781 sider. Hvert tall står fortsatt. #}
-    <dl class="fakta fakta--tett" aria-label="Tallene i grafen">
+    {#- EN SAMMENSTILLING AV SERIEN, regnet av oss: nivået er «regnet», og
+        perioden står i «Uker med tall». #}
+    <dl class="fakta fakta--tett" aria-label="Tallene i grafen"{{ merke({"kilde": "lusetall", "gjelder": g.til}, "regnet") }}>
       <div><dt>Høyeste</dt><dd data-felt="voksne_hunnlus">{{ g.maks }}</dd></div>
       <div><dt>Uker med tall</dt><dd>{{ tall(g.uker_med_tall) }} av {{ tall(g.uker) }}
-        <span class="fakta-etikett">fra <time datetime="{{ g.fra }}">{{ g.fra[:4] }}</time></span></dd></div>
+        <span class="fakta-etikett"><time datetime="{{ g.fra }}">{{ g.fra[:4] }}</time>–<time datetime="{{ g.til }}">{{ g.til[:4] }}</time></span></dd></div>
       <div><dt>Målt null</dt><dd>{{ tall(g.nuller) }}</dd></div>
       {% if g.uten_tall %}
       <div><dt>Uten tall</dt><dd>{{ tall(g.uten_tall) }}
@@ -1091,7 +1090,7 @@
   <summary>Bevis</summary>
   <dl class="bevisliste">
     {% for b in lok.bevis %}
-    <div>
+    <div{{ merke({"kilde": b.kilde, "gjelder": b.dato}) }}>
       <dt>{{ b.navn }} <span class="herkomst">{{ b.kort }}</span></dt>
       {#- UTEN HENTETIDSPUNKT, INGEN DATO. Et gammelt snapshot kan være
           skrevet før `fetched_at` fantes, og `datetime=""` er ugyldig. #}

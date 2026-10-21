@@ -61,16 +61,15 @@
   {% if tekniske %}
   {% for a in u.artsbegrensninger %}
   <p class="uke-ingress">
-    I øyeblikksbildet <time datetime="{{ a.dato }}">{{ a.dato|dato }}</time>
-    hadde Fiskeridirektoratet endret artsbegrensningene for
-    {{ antall(a.lokaliteter, "lokalitet", "lokaliteter") }}:
-    {{ tall(a.mistet_alle) }} mistet alle, og {{ tall(a.fikk_forste) }}
-    fikk sine første.
-  </p>
+    Hentet <time datetime="{{ a.dato }}">{{ a.dato|dato }}</time>:
+    Fiskeridirektoratet hadde endret artsbegrensningene for
+    {{ antall(a.lokaliteter, "lokalitet", "lokaliteter") }}.</p>
+  <p class="uke-ingress">{{ tall(a.mistet_alle) }} mistet alle, og {{ tall(a.fikk_forste) }}
+    fikk sine første.</p>
   {% endfor %}
   {% endif %}
-  <p class="lok-undertittel">
-    {{ u.merke }}. Permalenke:
+  <p class="lok-undertittel">{{ u.merke }}.</p>
+  <p class="lok-undertittel">Permalenke:
     {# VERTSNAVNET KOMMER FRA KONFIGURASJONEN, ikke fra malen: en
        forhåndsvisning skal ikke oppgi en permalenke som ikke serverer
        innholdet. `kanonisk` er siden selv. #}
@@ -114,10 +113,12 @@
     {#- `overskriftstall` OG IKKE ET EGET UTTRYKK HER. Metabeskrivelsen
         bruker samme tall — se `_ukens_overskriftstall()`. #}
     <p>{{ overskriftstall }} av {{ antall(u.antall_rader, "rad", "rader") }} i {{ u.vist }} er
-      {{ valgt.navn|lower }} — {{ valgt.hva }}.</p>
+      {{ valgt.navn|lower }}.</p>
+    <p class="sammendrag-bi">{{ valgt.hva[:1]|upper }}{{ valgt.hva[1:] }}.</p>
+    {% if valgt.get("forbehold") %}<p class="tabellnote">{{ valgt.forbehold }}</p>{% endif %}
     {% else %}
-    <p>{{ antall(overskriftstall, "endring", "endringer") }} observert i {{ u.vist }}:
-      {{ u.ledet_slag }}.</p>
+    <p>{{ antall(overskriftstall, "endring", "endringer") }} i {{ u.vist }}.</p>
+    <p class="sammendrag-bi">{{ u.ledet_slag[:1]|upper }}{{ u.ledet_slag[1:] }}.</p>
     {% endif %}
     {#- TRE FAKTASETNINGER om ukas vesentlige endringer: eierskifter, fisk
         til stede og kapasitet. Bygget av radene i tabellen under — se
@@ -147,13 +148,13 @@
     {% if u.utenfor_tellingen and not valgt %}
     <p class="tabellnote">
       {{ antall(u.utenfor_tellingen, "rad", "rader") }} til står i tabellen uten å telle
-      med: de sier at kilden begynte eller sluttet å oppgi et felt om en
-      oppføring, ikke at noe skjedde med oppføringen.
+      med.</p>
+    <p class="tabellnote">De sier at kilden begynte eller sluttet å oppgi et felt, ikke at
+      noe skjedde.</p>
       {% if u.antall_egen_del %}
-      {{ antall(u.antall_egen_del, "endring", "endringer") }} i selskapsdata står lenger ned,
-      i sin egen del.
+    <p class="tabellnote">{{ antall(u.antall_egen_del, "endring", "endringer") }} i selskapsdata står lenger ned,
+      i sin egen del.</p>
       {% endif %}
-    </p>
     {% endif %}
   </div>
 
@@ -196,11 +197,12 @@
       </li>
     </ol>
     <figcaption>
-      {{ antall(fl.antall, "produksjonsområde", "produksjonsområder") }} fikk ny trafikklysfarge i
-      Akvakulturregisteret, ført på hver av de
-      {{ antall(fl.lokaliteter, "lokaliteten", "lokalitetene") }} i dem. Utgivelsen er
-      <strong>kildens</strong> tidspunkt, observasjonen er
-      <strong>vårt</strong>. {{ fl.note }}
+      <p>{{ antall(fl.antall, "produksjonsområde", "produksjonsområder") }} fikk ny trafikklysfarge i
+        Akvakulturregisteret.</p>
+      <p>Fargen er ført på hver av de {{ antall(fl.lokaliteter, "lokaliteten", "lokalitetene") }} i dem.</p>
+      <p>Utgivelsen er <strong>kildens</strong> tidspunkt, observasjonen er
+        <strong>vårt</strong>.</p>
+      {% for s in (fl.note or "").split("\n") if s %}<p>{{ s }}</p>{% endfor %}
     </figcaption>
   </figure>
   {% endif %}
@@ -292,12 +294,8 @@
   {% if tekniske %}
   <details class="tallboks tekniske-endringer">
     <summary>{{ antall(tekniske|length, "teknisk endring", "tekniske endringer") }}</summary>
-    <p class="tabellnote">
-      Koordinatjusteringer under {{ koordinatterskel }} meter,
-      versjonsdato og versjonsårsak, artsbegrensninger, sykdomsflagg som
-      bare kom inn i eller falt ut av kilden uten å være satt, og felt som
-      gjentar eller følger av en annen endring samme uke.
-    </p>
+    {#- HVA SOM ER TEKNISK står én gang, på /om/#lesing-endringer. #}
+    <p class="tabellnote"><a href="/om/#lesing-endringer">Hva som regnes som teknisk</a></p>
     <div class="tabellramme" role="region"
          aria-labelledby="endringer-uke-tekniske-tittel" tabindex="0">
     <p class="visuelt-skjult" id="endringer-uke-tekniske-tittel">Tekniske endringer i {{ u.vist }}</p>
@@ -331,13 +329,11 @@
       <span class="egen-del-tall">{{ egen|length }}</span>
       {{ "endring" if egen|length == 1 else "endringer" }} i selskapsdata
     </summary>
-    <p class="tabellnote">
-      Ansatte, næringskode, adresse, regnskap, kapital og konkurs fra
-      Enhetsregisteret. Radene er ekte — de er kontrollert mot
-      Brønnøysunds egne svar — men de er løpende registervedlikehold og
-      ikke hendelser i havbruket, og de telles derfor ikke i tallet
-      over.
-    </p>
+    <p class="tabellnote">Ansatte, næringskode, adresse, regnskap, kapital og konkurs fra
+      Enhetsregisteret.</p>
+    <p class="tabellnote">Radene er kontrollert mot Brønnøysunds egne svar.</p>
+    <p class="tabellnote">De er registervedlikehold, ikke hendelser i havbruket, og telles
+      ikke i tallet over.</p>
     <p class="tabelltittel" id="endringer-selskapsdata-tittel">{{ alle(egen|length, "selskapsdataendringen", "selskapsdataendringene") }} i {{ u.vist }}.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="endringer-selskapsdata-tittel" tabindex="0">
@@ -370,18 +366,15 @@
   </details>
   {% endif %}
 
-  <p class="tabellnote">
-    <strong>«Observert»</strong> er datoen vi så endringen i
-    øyeblikksbildet, ikke datoen registeret gjorde den. Registeret
-    oppgir ikke det siste, så endringen kan ha skjedd når som helst i
-    uka før.
-    {% if u.utenfor_uka %}
-    {{ antall(u.utenfor_uka, "endring", "endringer") }} står utenfor ukesregnskapet fordi
-    kilden daterer dem til perioden de HANDLER OM og ikke til dagen vi
-    hentet dem — forskriftsrunder, journalførte overføringer og
-    månedlige beholdningstall. De står på entitetenes egne sider.
-    {% endif %}
-  </p>
+  {#- HVA «OBSERVERT» BETYR står én gang, på /om/#lesing-endringer. #}
+  <p class="tabellnote"><strong>«Observert»</strong> er dagen vi så endringen.
+    <a href="/om/#lesing-endringer">Slik leser du tallene</a></p>
+  {% if u.utenfor_uka %}
+  <p class="tabellnote">{{ antall(u.utenfor_uka, "endring", "endringer") }} står utenfor uka: kilden
+    daterer dem til perioden de gjelder.</p>
+  <p class="tabellnote">Det er forskriftsrunder, journalførte overføringer og månedlige
+    beholdningstall. De står på sidene de gjelder.</p>
+  {% endif %}
 
   {# NEDLASTINGEN STÅR SOM VERKTØYLINJA i sidehodet: lenker med ↓ for
      det som lastes ned. Notaten sier hva filene inneholder. #}
@@ -410,11 +403,8 @@
       {{ siter.spenn }},
       sjekksum {{ siter.sjekksum[:8] }}…{{ siter.sjekksum[-4:] }}.
       {{ siter.url }}</p>
-    <p class="siterboks-note">
-      Adressen er permanent: {{ siter.uke }} betyr den uka for alltid.
-      Innholdet er en sammenligning av to øyeblikksbilder vi aldri
-      skriver over, så siden kan bygges opp igjen fra kilden.
-    </p>
+    <p class="siterboks-note">Adressen er permanent: {{ siter.uke }} betyr den uka for alltid.</p>
+    <p class="siterboks-note">Innholdet sammenligner to hentinger vi aldri skriver over.</p>
   </div>
 </section>
 {% endblock %}

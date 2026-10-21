@@ -20,17 +20,15 @@
 <div class="med-marg">
 <div class="med-marg-hoved">
 <h1>Alle produksjonsområder</h1>
-<p class="historikk-forklaring">
-  {{ antall(d.antall, "produksjonsområde", "produksjonsområder") }}, fastsatt i forskrift. {{ d.uten_omraade }}
-  Fargen under
-  er den NYESTE fastsatte runden; hver områdeside viser alle rundene med
-  hvor sterkt fargen er belagt i forskriftsteksten.
-  {{ antall(d.uten_po, "lokalitet", "lokaliteter") }} ligger utenfor inndelingen og hører ikke
-  til noe område — de finnes i
-  <a href="/lokalitet/">lokalitetslisten</a>.
-</p>
+<p class="historikk-forklaring">{{ antall(d.antall, "produksjonsområde", "produksjonsområder") }}, fastsatt i forskrift.</p>
+{% for s in d.uten_omraade.split("\n") if s %}<p class="historikk-forklaring">{{ s }}</p>
+{% endfor %}
+<p class="historikk-forklaring">Fargen under er den NYESTE fastsatte runden; hver områdeside viser
+  alle rundene.</p>
+<p class="historikk-forklaring">{{ antall(d.uten_po, "lokalitet", "lokaliteter") }} hører ikke til noe område. De står i
+  <a href="/lokalitet/">lokalitetslista</a>.</p>
 
-<p class="tabelltittel" id="trafikklysvedtak-alle-tittel">Produksjonsområdene med nyeste trafikklysfarge, øyeblikksbilde
+<p class="tabelltittel" id="trafikklysvedtak-alle-tittel">Produksjonsområdene med nyeste trafikklysfarge, hentet
     <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="trafikklysvedtak-alle-tittel" tabindex="0">
@@ -59,11 +57,8 @@
   </tbody>
 </table>
 </div>
-<p class="tabellnote">
-  Der forskriften ikke oppgir farge for området i nyeste runde, står det
-  i klartekst framfor en tom celle. Hver områdeside viser alle rundene
-  med hvor sterkt fargen er belagt i forskriftsteksten.
-</p>
+<p class="tabellnote">Der forskriften ikke oppgir farge for området i nyeste runde, står det
+  i klartekst.</p>
 </div>
 
 {# KARTET. Hvert område er en lenke til områdesiden, og navnet og fargen

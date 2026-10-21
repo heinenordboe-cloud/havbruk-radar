@@ -96,14 +96,11 @@
   {# HVA TALLENE OVER GJELDER. Forbeholdet sto som første avsnitt i
      innholdet til 08.10.2026; det hører til tallene, og står nå rett
      under dem. #}
-  <p class="sidehode-note">
-    Siden viser bare tillatelser der <strong>dette</strong>
-    organisasjonsnummeret står som eier i registeret, etter
-    eierskapsøyeblikksbildet
-    <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato|dato }}</time>.
-    En tillatelse der kilden ikke oppgir eier havner ikke her — den står
-    på lokalitetssiden sin, merket som ugjort rede for.
-  </p>
+  {#- At en tillatelse uten oppgitt eier står på lokalitetssiden og ikke
+      her, står på /om/#lesing-selskap. #}
+  <p class="sidehode-note">Bare tillatelser der <strong>dette</strong> organisasjonsnummeret
+    står som eier i registeret
+    <span class="herkomst">Fiskeridir. · <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato|kortdato }}</time></span></p>
 
   <ul class="handlinger" aria-label="Følg, siter og slå opp">
     <li><a class="handling" href="feed.xml">Følg selskapet (feed)</a></li>
@@ -169,7 +166,6 @@
           det samlede tallet som alt står i nøkkeltallene. #}
       {%- if lang %}De nyeste av {{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
       {%- else %}{{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}{% endif %}
-      på selskapets lokaliteter og tillatelser
       {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
       <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %},
       nyest først.</p>
@@ -183,16 +179,13 @@
   {% endif %}
   {% else %}
   <p class="tomt">
-    Ingen vesentlige endringer på selskapets lokaliteter og tillatelser
+    Ingen vesentlige endringer
     {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
     <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %}.
   </p>
   {% endif %}
-  <p class="tabellnote">
-    Vesentlig og teknisk skilles etter samme regel som på
-    lokalitetssidene; de tekniske står der. Datoen er når vi så
-    endringen, ikke når registeret gjorde den.
-  </p>
+  <p class="tabellnote">De tekniske endringene står på lokalitetssidene.
+    <a href="/om/#lesing-endringer">Slik leser du tallene</a></p>
 </section>
 {% endif %}
 </div>
@@ -237,7 +230,7 @@
     {% if lang %}<details class="tallboks liste-lukket">
       <summary>Vis {{ alle(sel.lokaliteter_antall, "lokaliteten", "lokalitetene")|lower }}</summary>{% endif %}
     <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">De {{ antall(sel.lokaliteter_antall, "lokaliteten", "lokalitetene") }} selskapets
-        tillatelser ligger på, øyeblikksbilde
+        tillatelser ligger på, hentet
         <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
@@ -277,12 +270,10 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">
-      «Overføring journalført» er den ELDSTE journalførte overføringen
-      til dette selskapet blant tillatelsene på lokaliteten. En tom celle
-      betyr at ingen overføring er journalført; tillatelsen kan ha vært
-      selskapets siden den ble tildelt.
-    </p>
+    <p class="tabellnote">«Overføring journalført» er den eldste journalførte overføringen hit
+      på lokaliteten.</p>
+    <p class="tabellnote">Tom celle: ingen journalført overføring. Tillatelsen kan ha vært
+      selskapets fra tildelingen.</p>
     {% if lang %}</details>{% endif %}
   </section>
 
@@ -292,7 +283,7 @@
     {% if lang %}<details class="tallboks liste-lukket">
       <summary>Vis {{ alle(sel.tillatelser_antall, "tillatelsen", "tillatelsene")|lower }}</summary>{% endif %}
     <p class="tabelltittel" id="eierskap-tillatelser-tittel">De {{ antall(sel.tillatelser_antall, "tillatelsen", "tillatelsene") }} selskapet eier,
-        øyeblikksbilde
+        hentet
         <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
@@ -325,11 +316,8 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">
-      «Tildelt» er da tillatelsen ble gitt første gang, og til hvem —
-      ikke nødvendigvis til dette selskapet. Hvem den ble gitt til står
-      på lokalitetssidene.
-    </p>
+    <p class="tabellnote">«Tildelt» er da tillatelsen ble gitt første gang, ikke nødvendigvis til
+      dette selskapet.</p>
     {% if lang %}</details>{% endif %}
   </section>
 </div>
@@ -346,20 +334,13 @@
       <h2 id="eier-tittel">Eierskap over tid</h2>
     </div>
   </div>
-  <p class="historikk-forklaring">
-    Tillatelser som har kommet til eller gått ut, slik
-    eierskapshistorikken journalfører det. <strong>Datoen er
-    kildens</strong>, ikke vår — dette er ikke det samme som
-    endringsloggen på en lokalitetsside, der datoen er når vi så noe.
-  </p>
-  <p class="historikk-forklaring">
-    <strong>«Gikk ut» er utledet.</strong> Registeret journalfører hver
-    overføring TIL et organisasjonsnummer, men ikke noen VEKK fra det —
-    en tillatelse som er overført videre står som en ankomst hos
-    mottakeren. Vi leser derfor neste overføring i rekka som
-    avgangen. Datoen er den nye mottakerens ankomst, og den kan ligge
-    etter at selskapet faktisk ga slipp.
-  </p>
+  <p class="historikk-forklaring">Tillatelser som har kommet til eller gått ut, slik registeret
+    journalfører det. <strong>Datoen er kildens</strong>, ikke vår.</p>
+  <p class="historikk-forklaring"><strong>«Gikk ut» er utledet.</strong> Registeret journalfører
+    overføringer TIL et nummer, ikke VEKK.</p>
+  <p class="historikk-forklaring">Vi leser neste overføring i rekka som avgangen. Datoen er
+    mottakerens ankomst.</p>
+  <p class="historikk-forklaring">Den kan ligge etter at selskapet faktisk ga slipp.</p>
 
   {% if sel.eierskapslinje %}
   {% set lang = sel.eierskapslinje|length > sel.aapen_liste %}
@@ -399,21 +380,12 @@
     </tbody>
   </table>
   </div>
-  <p class="tabellnote">
-    <strong>«Journalført senest denne datoen»</strong> er ikke det samme
-    som overdragelsesdato. Journaldatoen er da saken ble ført, og
-    overdragelsen kan ha skjedd før. Serien skiller heller ikke
-    konserninterne flyttinger fra ekte oppkjøp; det lar seg ikke gjøre
-    med offentlige data.
-  </p>
+  {#- Hva «journalført senest» betyr, står på /om/#lesing-tillatelser. #}
+  <p class="tabellnote"><a href="/om/#lesing-tillatelser">Hva «journalført senest» betyr</a></p>
   {% if lang %}</details>{% endif %}
   {% else %}
-  <p class="tomt">
-    Ingen journalførte overføringer til dette selskapet.
-    Eierskapshistorikken dekker overføringer Fiskeridirektoratet har
-    journalført; en tillatelse selskapet har hatt siden tildelingen står
-    ikke der.
-  </p>
+  <p class="tomt">Ingen journalførte overføringer til dette selskapet.</p>
+  <p class="tomt">En tillatelse selskapet har hatt siden tildelingen, står ikke i historikken.</p>
   {% endif %}
 </section>
 
@@ -429,7 +401,7 @@
   {% set lang = sel.register|length > sel.aapen_liste %}
   {% if lang %}<details class="tallboks liste-lukket">
     <summary>Vis {{ alle(sel.register|length, "registerfeltet", "registerfeltene")|lower }}</summary>{% endif %}
-  <p class="tabelltittel" id="enhetsregisteret-selskap-tittel">Registerfeltene om selskapet, øyeblikksbilde
+  <p class="tabelltittel" id="enhetsregisteret-selskap-tittel">Registerfeltene om selskapet, hentet
       <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="enhetsregisteret-selskap-tittel" tabindex="0">
@@ -468,13 +440,10 @@
   </div>
   {% if lang %}</details>{% endif %}
   {% if not sel.har_registerdata %}
-  <p class="tabellnote">
-    Vi har ingen registerdata for dette selskapet.
-    {{ sel.uten_registerdata_tekst }} — uttrekket vårt er avgrenset til
-    et sett næringskoder, og et selskap som eier en tillatelse uten å ha
-    en av dem, faller utenfor. Navnet over er det Fiskeridirektoratet
-    oppgir i eierskapsregisteret.
-  </p>
+  <p class="tabellnote">Vi har ingen registerdata for dette selskapet.</p>
+  <p class="tabellnote">{{ sel.uten_registerdata_tekst }}: uttrekket er avgrenset til et sett
+    næringskoder.</p>
+  <p class="tabellnote">Navnet over er det Fiskeridirektoratet oppgir.</p>
   {% endif %}
 </section>
 
@@ -484,27 +453,17 @@
 <section class="ark seksjon" aria-labelledby="hva-siden-ikke-sier">
   <details class="tallboks forbehold">
   <summary><h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2></summary>
-  <p>
-    <strong>Ingenting om konsern.</strong> At to selskaper har samme
-    mor, er ikke noe eierskapsregisteret oppgir, og å utlede det av
-    navnelikhet ville vært et gjett. Konsernstrukturen står i
-    Enhetsregisterets rolledata, og roller er persondata som dette
-    prosjektet bevisst ikke henter — se
-    <a href="/om/#hva-vi-ikke-gjor">hva som bevisst ikke hentes</a>.
-    Feltet «Er i konsern» i tabellen over er registerets eget ja/nei, og
-    sier ikke hvilket.
-  </p>
-  <p>
-    <strong>Ingenting om hvem som står bak.</strong> Daglig leder,
-    styre og aksjonærer er roller, og de hentes ikke. Et selskap er her
-    et organisasjonsnummer med tillatelser, ikke en gruppe mennesker.
-  </p>
-  <p>
-    <strong>Ingenting om hva selskapet faktisk produserer.</strong>
-    Kapasiteten er den tillatelsene gir rom for, ikke det som står i
-    sjøen. Hvor mye fisk som faktisk er der, finnes offentlig bare per
-    produksjonsområde — se områdesidene.
-  </p>
+  <p><strong>Ingenting om konsern.</strong> At to selskaper har samme mor, oppgir ikke
+    registeret.</p>
+  <p>Konsernstrukturen står i Enhetsregisterets rolledata, og roller hentes ikke.
+    <a href="/om/#hva-vi-ikke-gjor">Hva vi ikke henter</a></p>
+  <p>«Er i konsern» i tabellen over er registerets eget ja/nei, og sier ikke hvilket.</p>
+  <p><strong>Ingenting om hvem som står bak.</strong> Daglig leder, styre og
+    aksjonærer er roller.</p>
+  <p>Et selskap er her et organisasjonsnummer med tillatelser, ikke en gruppe mennesker.</p>
+  <p><strong>Ingenting om hva selskapet produserer.</strong> Kapasiteten er det
+    tillatelsene gir rom for.</p>
+  <p>Hvor mye fisk som står i sjøen, finnes offentlig bare per produksjonsområde.</p>
   </details>
 </section>
 
@@ -521,11 +480,9 @@
       Øyeblikksbilde {{ sel.siter.uke }}, {{ sel.siter.dato }},
       sjekksum {{ sel.siter.sjekksum[:8] }}…{{ sel.siter.sjekksum[-4:] }}.
       {{ sel.siter.url }}</p>
-    <p class="siterboks-note">
-      Sjekksummen gjelder eierskapsregisteret, som er kilden til hvilke
-      tillatelser selskapet eier. Registerfeltene fra Enhetsregisteret
-      har sitt eget øyeblikksbilde, datert i tabellen over.
-    </p>
+    <p class="siterboks-note">Sjekksummen gjelder tillatelsesregisteret, kilden til hvilke
+      tillatelser selskapet eier.</p>
+    <p class="siterboks-note">Registerfeltene fra Enhetsregisteret er datert i tabellen over.</p>
   </div>
 </section>
 {% endblock %}

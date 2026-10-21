@@ -106,12 +106,12 @@ def _grunn(undermappe: str = "", **over) -> dict:
         "attribusjon": ["Kilde: Fiskeridirektoratet"],
         # Fraskrivelsen `_grunnkontekst()` utleder av attribusjonene.
         # Se `nettsted.fraskrivelse()`.
-        "fraskrivelse": "Fiskeridirektoratet",
+        "fraskrivelse": "Fiskeridirektoratet", "fraskrivelse_antall": 1,
         "basisurl": "https://kystloggen.no",
         "stilark": _stilark(undermappe),
         "bygget": "2026-09-20",
         "bygget_vist": "20. september 2026",
-        "proveniens": "Bygget fra øyeblikksbildet for uke 38, 2026.",
+        "proveniens": "Data hentet 14. september 2026 kl. 04.00 UTC, uke 38, 2026.",
         "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
         "kontakt": "",
         "meny_aktiv": "",
@@ -2353,7 +2353,9 @@ def test_arkivtallet_skjuler_ikke_at_det_er_lite():
     """Seks øyeblikksbilder er seks uker, og et arkiv som later som det
     er eldre enn det er, er verdiløst den dagen noen sjekker."""
     flat = " ".join(_forside().split())
-    assert "6</strong> ukentlige øyeblikksbilder siden" in flat
+    # «Henting», ikke «øyeblikksbilde» (tekstreglene 20.10.2026: ordet står
+    # bare i siteringsformatet).
+    assert "6</strong> ukentlige hentinger fra" in flat
     assert "17. august 2026" in flat
     assert "sjekksum" in flat
 
@@ -2496,7 +2498,7 @@ def test_lokalitetsindeksen_har_hoyrespalta_med_kart_og_arter():
     flat = " ".join(html.split())
     assert 'class="med-marg"' in html and 'class="marg"' in html
     assert 'class="mini-prikker"' in html
-    assert "5 av 5 lokaliteter har koordinater og er tegnet" in flat
+    assert "5 av 5 lokaliteter tegnet" in flat
     assert "Per produksjonsområde" not in html
     # Hovedspalta før høyrespalta: på telefon kommer lista først.
     assert html.index('id="akvakultur-alle"') < html.index('class="marg"')
@@ -4885,7 +4887,8 @@ def test_borte_paastar_ikke_at_noe_forsvant_fra_registeret():
     etiketter = {k["id"]: k["navn"] for k in nettsted.ENDRINGSTYPER}
     assert etiketter["borte"] == "Ute av vårt utvalg"
     assert etiketter["ny"] == "Ny i vårt utvalg"
-    hva = {k["id"]: k["hva"] for k in nettsted.ENDRINGSTYPER}
+    hva = {k["id"]: k["hva"] + " " + k.get("forbehold", "")
+           for k in nettsted.ENDRINGSTYPER}
     assert "næringskode" in hva["borte"], (
         "forklaringen må si hvorfor en oppføring kan forsvinne uten å "
         "være slettet — ellers er etiketten bare vagere, ikke sannere")
@@ -5079,7 +5082,7 @@ def test_tallet_sier_hva_det_teller():
     assert uke["ledet_slag"] == "trafikklys"
     setninger = nettsted._sammendrag(uke)
     tekst = " ".join(s["tekst"] for s in setninger)
-    assert "1 endringer observert i uke 39, 2026: trafikklys." in tekst
+    assert "1 endringer observert i uke 39, 2026.\nTrafikklys." in tekst
     assert "selskapsdata" in tekst, "leseren skal få vite hvor de 402 ble av"
     # ... og den setningen er BRØDTEKST, ikke ukas sak. Se `_sammendrag()`.
     [bi] = [s for s in setninger if s["brod"]]
@@ -5895,7 +5898,7 @@ def test_ukesidens_hovedsetning_staar_foer_faktalista():
     Til da sto faktalista i sidehodet, og hovedsetningen kom etter den."""
     mal = (Path(__file__).resolve().parents[1] / "maler"
            / "endringer-uke.html.j2").read_text(encoding="utf-8")
-    hoved = mal.index('"endring", "endringer") }} observert i {{ u.vist }}')
+    hoved = mal.index('"endring", "endringer") }} i {{ u.vist }}')
     fakta = mal.index('<ul class="uke-fakta">')
     assert hoved < fakta
     assert mal.index("{% block innhold %}") < fakta, "faktalista står i sidehodet"

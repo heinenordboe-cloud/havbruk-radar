@@ -26,7 +26,7 @@
    meny som byttet ord ville flyttet en URL i leserens hode. #}
 <h1>Alle innehavere av akvakulturtillatelse</h1>
 <p class="lok-undertittel">
-  {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse i eierskapsøyeblikksbildet
+  {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse, hentet
   <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato }}</time>.
 </p>
 {# SØKET, øverst på hver side i lista. Samme skjema som /sok/: det
@@ -45,20 +45,14 @@
   sortert på navn. Søkefeltet øverst søker i alle.
 </p>
 {% endif %}
-<p class="historikk-forklaring">
-  {{ d.uten_registerdata }} av dem har vi ingen registerdata
-  for. Uttrekket vårt fra Enhetsregisteret er avgrenset til et
-  sett næringskoder, og et selskap som eier en tillatelse uten å ha en av
-  dem faller utenfor. De har side likevel, og siden sier hva som mangler.
-</p>
+<p class="historikk-forklaring">{{ d.uten_registerdata }} av dem har vi ingen registerdata for:
+  uttrekket er avgrenset til et sett næringskoder.</p>
+<p class="historikk-forklaring">De har side likevel, og siden sier hva som mangler.</p>
 {% if d.personeiere %}
-<p class="historikk-forklaring">
-  {{ d.personeiere }} eier(e) står ikke i lista og har ingen
-  side. Kilden klassifiserer dem som person — et partrederi
-  eller en annen personlig sammenslutning — og verken dette nettstedet
-  eller datagrunnlaget bak det skal være et personregister.
-  Tillatelsene deres står på lokalitetssidene sine, uten eiernavn.
-</p>
+<p class="historikk-forklaring">{{ d.personeiere }} eier(e) står ikke i lista og har ingen side.</p>
+<p class="historikk-forklaring">Kilden klassifiserer dem som person, og nettstedet skal ikke være
+  et personregister.</p>
+<p class="historikk-forklaring">Tillatelsene deres står på lokalitetssidene sine, uten eiernavn.</p>
 {% endif %}
 
 {% set sidenav_etikett = "Sidene i selskapslista" %}
@@ -113,9 +107,8 @@
           talt fra <time datetime="{{ m.vindu.fra }}">{{ m.vindu.fra|dato }}</time>{% endif %}</span></dd>
       </div>
     </dl>
-    <p class="marg-note">Samme telling som på hver selskapsside: endringer
-      på selskapets lokaliteter og tillatelser.
-      <a href="/endringer/">Endringene uke for uke</a>.</p>
+    <p class="marg-note">Samme telling som på hver selskapsside.</p>
+    <p class="marg-note"><a href="/endringer/">Endringene uke for uke</a></p>
   </section>
   {% endif %}
 
@@ -123,9 +116,9 @@
   <section class="marg-blokk" aria-labelledby="marg-tonn">
     <h2 class="etikett" id="marg-tonn">Størst etter kapasitet</h2>
     {{ marg.fordeling(m.tonn, "marg-tonn") }}
-    <p class="marg-note">Summen av tillatelsenes kapasitet i tonn.
-      {{ antall(m.andre_enheter, "tillatelse", "tillatelser") }} har kapasitet i
-      andre enheter — stykk, dekar, kilo — og er ikke med.</p>
+    <p class="marg-note">Summen av tillatelsenes kapasitet i tonn.</p>
+    <p class="marg-note">{{ antall(m.andre_enheter, "tillatelse", "tillatelser") }} i andre enheter
+      (stykk, dekar, kilo) er ikke med.</p>
   </section>
   {% endif %}
 

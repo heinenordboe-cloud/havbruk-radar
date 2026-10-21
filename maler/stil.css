@@ -1306,6 +1306,8 @@ main > .visuelt-skjult + .seksjon { padding-block-start: var(--rom-32); }
   color: var(--ink-dempet);
 }
 
+ul.arkivtall { list-style: none; padding: 0; }
+
 .arkivtall strong {
   display: block;
   font-family: var(--skrift-tittel);

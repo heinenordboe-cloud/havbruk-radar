@@ -491,16 +491,18 @@ def proveniens(observed_at: str, fetched_at: str, tillegg: str = "") -> str:
     Mangler hentetidspunktet, utelates leddet. Å skrive
     `observed_at` der ville vært å påstå at vi hentet på gyldighets-
     datoen, og det er den samme feilen `published_at`-regelen stengte.
+
+    ÉN OPPLYSNING PER LINJE, skilt med linjeskift, og bunnteksten gjør
+    hver linje til sitt eget avsnitt. Til 20.10.2026 var det én setning på
+    155 tegn — fire linjer på 390 px — med «øyeblikksbildet» i, et internt
+    ord (tekstreglene: det står bare i siteringsformatet).
     """
     uka = visningsord.uke(observed_at)
-    linje = f"Bygget fra øyeblikksbildet for {uka}"
     hentet = visningsord.tidspunkt(fetched_at)
-    if hentet:
-        linje += f", hentet {hentet}"
-    linje += "."
+    linjer = [f"Data hentet {hentet}, {uka}." if hentet else f"Data fra {uka}."]
     if tillegg:
-        linje += f" {tillegg}"
-    return linje
+        linjer.append(tillegg)
+    return "\n".join(linjer)
 
 
 def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
@@ -543,6 +545,8 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
         # attribusjonssetninger. Se `fraskrivelse()`.
         "fraskrivelse": visningsord.liste(
             fraskrivelse(kilder, i_tillegg=siterte_organ), "eller"),
+        # «Verken X går god for den» med ett navn er ikke norsk.
+        "fraskrivelse_antall": len(fraskrivelse(kilder, i_tillegg=siterte_organ)),
         "kanonisk": kanonisk_url(sti, rot),
         "jsonld": jsonld,
         # BUNNTEKSTENS SETNINGER, og Kartverkets i tillegg når siden
@@ -2052,13 +2056,16 @@ ENDRINGSTYPER = (
     # svakeste sanne utsagnet det eneste vi har lov til å trykke.
     {"id": "ny", "navn": "Ny i vårt utvalg", "kort": "nye oppføringer",
      "hva": "en lokalitet, tillatelse eller et selskap som ikke var med "
-            "forrige uke. Utvalget vårt er et søk, så «ny for oss» er "
-            "ikke det samme som «ny i registeret»"},
+            "forrige uke",
+     # FORBEHOLDET STÅR FOR SEG, i sitt eget avsnitt der det vises. Til
+     # 20.10.2026 var det klistret til `hva`, og definisjonen ble 157 tegn.
+     "forbehold": "Utvalget vårt er et søk, så «ny for oss» er ikke det "
+                  "samme som «ny i registeret»."},
     {"id": "borte", "navn": "Ute av vårt utvalg",
      "kort": "oppføringer som gikk ut",
-     "hva": "en oppføring som var med forrige uke og ikke er det nå. "
-            "Den kan være slettet fra registeret, eller ha fått en "
-            "næringskode utenfor søket vårt — vi kan ikke se hvilket"},
+     "hva": "en oppføring som var med forrige uke og ikke er det nå",
+     "forbehold": "Den kan være slettet fra registeret, eller ha fått en "
+                  "næringskode utenfor søket vårt. Vi kan ikke se hvilket."},
 
     # FELTET KOM ELLER GIKK, ikke entiteten. Telles ikke i ukas tall:
     # at et selskap begynner å oppgi antall ansatte er en opplysning om
@@ -2076,8 +2083,8 @@ ENDRINGSTYPER = (
     {"id": "biomasse", "navn": "Fisk til stede", "kort": "fisk til stede",
      "hva": "om det står fisk på lokaliteten"},
     {"id": "sykdom", "navn": "Sykdom (ILA/PD)", "kort": "sykdomsflagg",
-     "hva": "ILA- eller PD-flagget satt eller fjernet i BarentsWatch. "
-            "Kilden sier ikke om flagget betyr mistanke eller påvist"},
+     "hva": "ILA- eller PD-flagget satt eller fjernet i BarentsWatch",
+     "forbehold": "Kilden sier ikke om flagget betyr mistanke eller påvist."},
     # SELSKAPSDATA STÅR FOR SEG, og telles ikke i ukas overskriftstall.
     #
     # MÅLT uke 39: 402 av 440 telte endringer var dette ene slaget, og
@@ -6233,8 +6240,7 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
             jsonld=jsonld(lok),
             proveniens_tekst=proveniens(
                 lok["akva_dato"], lok["akva_hentet"],
-                "Lusetallene er hentet fra BarentsWatch og gjelder uka "
-                "de er datert til."),
+                "Lusetallene gjelder uka de er datert til."),
             meny_aktiv="lokalitet",
             # KARTET ER PÅ SIDEN, og da må Kartverkets navn være det
             # også — i bunnteksten og under kartet. Se `KARTVERKET`.
@@ -6777,7 +6783,9 @@ def endringer_datasett(uke: dict, vilkaar=None,
         stempler = [_hentet_snapshot(k, d) for k, d in par if k == kilde]
         for setning in _hentet_spenn(stempler, kilde):
             hentet.append(setning)
-    typer = "; ".join(f"{t['id']}: {t['hva']}" for t in ENDRINGSTYPER)
+    typer = "; ".join(f"{t['id']}: {t['hva']}"
+                      + (f" ({t['forbehold']})" if t.get("forbehold") else "")
+                      for t in ENDRINGSTYPER)
     return nedlasting.Datasett(
         stamme=endringer_stamme(uke["slug"]),
         tittel=f"Endringer observert i {uke['vist']}",
@@ -6987,8 +6995,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
                                        "../" if slag else ""),
                     proveniens_tekst=proveniens(
                         uke["siste_dato"], _ukens_hentet(uke),
-                        f"Sammenligning av øyeblikksbildene for "
-                        f"{uke['vist']} og uka før."),
+                        f"Sammenligner {uke['vist']} med uka før."),
                     meny_aktiv="endringer",
                     sidetype="Endringsuke",
                     undertittel=(f"{valgt['navn']}{SKILLE}{uke['merke']}"
@@ -9158,9 +9165,12 @@ def _sammendrag(uke: dict | None) -> list[dict]:
     # TALLET SIER HVA DET TELLER. «38 endringer» alene lar leseren tro
     # det er alt som skjedde; setningen navngir slagene, og neste
     # setning sier hvor selskapsdataene ble av.
+    # TO LINJER: tallet, og slagene det teller. Med fem slag ble én setning
+    # 125 tegn (tekstreglene: ingen avsnitt over tre linjer på 390 px).
+    slag = uke["ledet_slag"]
     setninger = [
         sak(f"{visningsord.tall(uke['antall'])} endringer observert i "
-            f"{uke['vist']}: {uke['ledet_slag']}.")
+            f"{uke['vist']}.\n{slag[:1].upper()}{slag[1:]}.")
     ]
     if uke["antall_egen_del"]:
         # BRØDTEKST. Setningen sier hvor noe IKKE er, og en henvisning
@@ -9173,12 +9183,12 @@ def _sammendrag(uke: dict | None) -> list[dict]:
 
     storst = med_tall[0]
     if storst["id"] == "trafikklys":
+        # At forskriften dateres til vedtaksåret, og at dette er uka
+        # registeret fulgte den opp, står på /om/#lesing-endringer.
         setninger.append(sak(
             f"Akvakulturregisteret oppgir ny trafikklysfarge for "
             f"{visningsord.tall(storst['antall'])} "
-            f"{'produksjonsområde' if storst['antall'] == 1 else 'produksjonsområder'}"
-            f" — forskriften dateres til vedtaksåret, og dette er uka "
-            f"registeret fulgte den opp."))
+            f"{'produksjonsområde' if storst['antall'] == 1 else 'produksjonsområder'}."))
     else:
         setninger.append(sak(
             f"Flest endringer gjaldt {storst['kort']} "
@@ -9259,10 +9269,12 @@ def _forskriftslinje(felles: Felles, uke: dict | None) -> dict | None:
         # alene later som det var 362 vedtak.
         "lokaliteter": sum(h.get("omfang", 1) for h in trafikklys),
         "runde": runder[-1][:4],
-        "note": ("Koblingen mellom de to datoene er vår lesning. Ingen "
-                 "felt i noen av kildene viser til den andre — "
-                 "forskriften sier ikke når registeret skal følge opp, "
-                 "og registeret sier ikke hvilken forskrift det følger."),
+        # TRE KORTE LINJER, skilt med linjeskift; malen gjør hver til et
+        # avsnitt (tekstreglene 20.10.2026).
+        "note": ("Koblingen mellom de to datoene er vår lesning.\n"
+                 "Ingen felt i noen av kildene viser til den andre.\n"
+                 "Forskriften sier ikke når registeret skal følge opp, og "
+                 "registeret ikke hvilken forskrift det følger."),
     }
 
 
@@ -9341,12 +9353,15 @@ TEGNFORKLARING = (
 # slakterier, og 299 er sjølokaliteter for skjell, alger eller annen
 # fisk. Og 56 er lakselokaliteter i sjø, som forklaringen ikke dekket i
 # det hele tatt.
+# TRE KORTE SETNINGER, skilt med linjeskift, og malene gjør hver til sitt
+# eget avsnitt. Til 20.10.2026 var det én på 260 tegn (tekstreglene: ingen
+# avsnitt over tre linjer på 390 px).
 UTEN_OMRAADE_TEKST = (
-    "Produksjonsområdene gjelder oppdrett av laks og ørret i sjø. "
-    "{forklart} av de {uten} lokalitetene uten område er landanlegg, "
-    "ferskvannslokaliteter, slakterier eller sjølokaliteter for andre "
-    "arter. {rest} lakselokaliteter i sjø står også uten område i "
-    "registeret; registeret sier ikke hvorfor."
+    "Produksjonsområdene gjelder laks og ørret i sjø.\n"
+    "{forklart} av de {uten} lokalitetene uten område er på land, i "
+    "ferskvann, slakterier eller for andre arter.\n"
+    "{rest} lakselokaliteter i sjø står også uten område; registeret sier "
+    "ikke hvorfor."
 )
 
 

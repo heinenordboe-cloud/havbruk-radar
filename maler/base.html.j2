@@ -220,6 +220,7 @@
       <h2>Arkivet</h2>
       <ul class="bunn-lenker">
         <li><a href="/om/">Om Kystloggen</a></li>
+        <li><a href="/om/#lesing">Slik leser du tallene</a></li>
         <li><a href="/om/#innsamling">Metode og innsamling</a></li>
         <li><a href="/om/#sitering">Slik siterer du</a></li>
         <li><a href="/om/#dekning">Dekning og begrensninger</a></li>
@@ -242,10 +243,8 @@
       <p class="mangler">Ingen kontaktadresse er satt i denne
          byggingen.</p>
       {% endif %}
-      <p>
-        Feil i dataene? Skriv, så rettes det og noteres i loggen med
-        dato. Vi skriver aldri over et øyeblikksbilde.
-      </p>
+      {#- At vi aldri skriver over det vi har hentet, står på /om/#innsamling. #}
+      <p>Feil i dataene? Skriv, så retter vi det og noterer det med dato.</p>
     </div>
   </div>
 
@@ -255,16 +254,21 @@
      fordi en side som bare oppgir det ene lar leseren tro at de er det
      samme. #}
   <div class="ark bunn-proveniens">
-    <p>{{ proveniens }}</p>
-    <p>
-      {#- FRASKRIVELSEN ER UTLEDET av kildenes egne attribusjonssetninger
-          — se `nettsted.fraskrivelse()`. Fram til 24.09.2026 sto fire
-          navn her som fast tekst, og Lovdata og regjeringen.no manglet
-          på sidene som bruker dem. #}
-      Tallene er gjengitt uendret fra kildene; sammenstillingen er vår,
-      og verken {{ fraskrivelse }} går god for den.
-      Siden er bygget <time datetime="{{ bygget }}">{{ bygget_vist }}</time>.
-    </p>
+    {#- ÉN LINJE PER OPPLYSNING. Se `nettsted.proveniens()`. #}
+    {% for linje in proveniens.split("\n") %}<p>{{ linje }}</p>
+    {% endfor %}
+    {#- FRASKRIVELSEN ER UTLEDET av kildenes egne attribusjonssetninger
+        — se `nettsted.fraskrivelse()`. Fram til 24.09.2026 sto fire
+        navn her som fast tekst, og Lovdata og regjeringen.no manglet
+        på sidene som bruker dem.
+
+        TO AVSNITT, ikke ett. Med fem organer var setningen 201 tegn;
+        «Verken … går god for den.» er høyst 107 (MÅLT 20.10.2026 over
+        alle sidene: lengste navneliste 83 tegn). #}
+    <p>Tallene er gjengitt uendret fra kildene; sammenstillingen er vår.</p>
+    <p>{% if fraskrivelse_antall == 1 %}{{ fraskrivelse }} går ikke god for den.
+      {%- else %}Verken {{ fraskrivelse }} går god for den.{% endif %}</p>
+    <p>Siden er bygget <time datetime="{{ bygget }}">{{ bygget_vist }}</time>.</p>
   </div>
 </footer>
 </body>

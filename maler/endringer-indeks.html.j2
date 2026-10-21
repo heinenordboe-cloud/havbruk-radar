@@ -36,18 +36,15 @@
     <li><a class="handling" href="/endringer/feed.xml">Følg alle
       endringer (feed)</a></li>
   </ul>
-  <p class="historikk-forklaring">
-    Hver uke vi har hentet registrene og sammenlignet med forrige
-    øyeblikksbilde. <strong>Datoen er når VI så endringen</strong> —
-    registeret oppgir ikke når det gjorde den.
-    {% if utenfor %}
-    {{ antall(utenfor, "endring", "endringer") }} står utenfor dette regnskapet fordi kilden
-    daterer dem til perioden de HANDLER OM og ikke til dagen vi hentet
-    dem: forskriftsrunder dateres til vedtaksåret, journalførte
-    overføringer til journalåret, og biomassetall til månedsslutt. De
-    står på entitetenes egne sider.
-    {% endif %}
-  </p>
+  <p class="historikk-forklaring">Hver uke vi har hentet registrene og sammenlignet med uka før.</p>
+  <p class="historikk-forklaring"><strong>Datoen er når VI så endringen</strong>, ikke når
+    registeret gjorde den. <a href="/om/#lesing-endringer">Mer</a></p>
+  {% if utenfor %}
+  <p class="historikk-forklaring">{{ antall(utenfor, "endring", "endringer") }} står utenfor: kilden
+    daterer dem til perioden de gjelder.</p>
+  <p class="historikk-forklaring">Forskriftsrunder til vedtaksåret, overføringer til journalåret,
+    biomassetall til månedsslutt.</p>
+  {% endif %}
   {% if uker %}
   {# NYESTE UKE, som en «videre»-lenke: det er den de fleste kommer for. #}
   <a class="videre" href="/endringer/{{ uker[0].slug }}/">Se nyeste uke,
@@ -77,10 +74,9 @@
         </li>
         {% endfor %}
       </ol>
-      <figcaption>Én stolpe per uke, {{ diagram.forste }} til venstre og
-        {{ diagram.siste }} til høyre. Hver rad har sin egen skala: den
-        høyeste stolpen er radens største uke, og summen står ved siden
-        av. Tallene står i tabellen under.</figcaption>
+      <figcaption><p>Én stolpe per uke, {{ diagram.forste }} til venstre og
+        {{ diagram.siste }} til høyre.</p>
+        <p>Hver rad har sin egen skala, og summen står ved siden av.</p></figcaption>
     </figure>
   </section>
   {% endif %}
@@ -137,12 +133,11 @@
   <dl class="grader">
     {% for k in typer %}
     <dt>{{ k.navn }}</dt>
-    <dd>{{ k.hva }}</dd>
+    <dd>{{ k.hva[:1]|upper }}{{ k.hva[1:] }}.
+      {%- if k.get("forbehold") %}<p class="grader-forbehold">{{ k.forbehold }}</p>{% endif %}</dd>
     {% endfor %}
   </dl>
-  <p>
-    Slaget er utledet av hvilken kilde og hvilket felt raden kom fra.
-    Et felt som ikke er klassifisert, faller til «Annet».
-  </p>
+  <p>Slaget er utledet av kilden og feltet raden kom fra.</p>
+  <p>Et felt som ikke er klassifisert, faller til «Annet».</p>
 </section>
 {% endblock %}

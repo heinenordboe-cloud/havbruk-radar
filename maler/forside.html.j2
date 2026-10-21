@@ -146,9 +146,8 @@
     </div>
     {% if f.uke %}
     <p class="uke-datoer">
-      <time datetime="{{ f.uke.aar }}-W{{ f.uke.ukenr }}">{{ f.uke.vist }}</time>.
-      {{ f.uke.merke }}
-    </p>
+      <time datetime="{{ f.uke.aar }}-W{{ f.uke.ukenr }}">{{ f.uke.vist }}</time></p>
+    <p class="uke-datoer">{{ f.uke.merke }}</p>
     {% endif %}
   </div>
 
@@ -171,7 +170,8 @@
     <div class="uke-sammendrag">
       {% for setning in f.sammendrag %}
       {% if loop.first %}
-      <p>{{ setning.tekst }}</p>
+      {% for s in setning.tekst.split("\n") %}<p{% if not loop.first %} class="sammendrag-bi"{% endif %}>{{ s }}</p>
+      {% endfor %}
       {% if f.uke and f.uke.fakta %}
       <ul class="uke-fakta">
         {% for s in f.uke.fakta %}<li>{{ s }}</li>
@@ -211,7 +211,7 @@
      metoden, rett under ukas tall — samme linje som stod nederst i
      arkivlinja til 08.10.2026. Arkivtallene står i sin egen rad under. #}
   <p class="arkivnote uke-proveniens">
-    Siste øyeblikksbilde:
+    Siste henting:
     <time datetime="{{ f.siste_snapshot }}">{{ f.siste_snapshot|dato }}</time>
     · sjekksum <code>{{ f.sjekksum[:8] }}…{{ f.sjekksum[-4:] }}</code>
     · <a href="/om/#innsamling">Slik samler vi inn</a>
@@ -235,29 +235,29 @@
 <section class="arkivlinje-flate" aria-labelledby="arkiv-tittel">
 <div class="ark arkivlinje">
   <h2 class="visuelt-skjult" id="arkiv-tittel">Arkivet</h2>
-  <p class="arkivtall">
+  <ul class="arkivtall">
     {# TALLET STÅR I <strong>, SUBSTANTIVET UTENFOR — derfor ikke
        `antall()`, som gir begge som én streng. Formen velges på samme
        måte, og `|tall` gir samme tusenskille som resten av siden. #}
-    <span><strong>{{ f.lokaliteter|tall }}</strong>
-      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</span>
-    <span><strong>{{ f.selskaper|tall }}</strong>
-      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</span>
-    <span><strong>{{ f.snapshots|tall }}</strong>
-      {{ "ukentlig øyeblikksbilde" if f.snapshots == 1
-         else "ukentlige øyeblikksbilder" }}
-      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></span>
+    <li><strong>{{ f.lokaliteter|tall }}</strong>
+      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</li>
+    <li><strong>{{ f.selskaper|tall }}</strong>
+      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</li>
+    <li><strong>{{ f.snapshots|tall }}</strong>
+      {{ "ukentlig henting" if f.snapshots == 1
+         else "ukentlige hentinger" }}
+      fra <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></li>
     {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
         lar leseren regne seg til at serien går til i dag, og det gjør den
         ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
         har er uke 35. Begge datoene kommer fra `felles.lusetall_snapshots`
         ved bygging. #}
-    <span><strong>{{ f.luke_uker|tall }}</strong>
+    <li><strong>{{ f.luke_uker|tall }}</strong>
       {{ "uke" if f.luke_uker == 1 else "uker" }} med lusetall, fra
       <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time>
       til og med
-      <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></span>
-  </p>
+      <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></li>
+  </ul>
 </div>
 </section>
 
@@ -281,11 +281,9 @@
         <p class="etikett">Kysten</p>
         <h2 id="kyst-tittel">{{ antall(f.produksjonsomraader, "produksjonsområde", "produksjonsområder") }}</h2>
       </div>
-      <p class="kyst-ingress">
-        Trafikklyset fastsettes annethvert år. Forskriften navngir bare
-        områder der noe skjer — de øvrige fargene står i departementets
-        egen kunngjøring, og stripa viser begge.
-      </p>
+      <p class="kyst-ingress">Trafikklyset fastsettes annethvert år.</p>
+      <p class="kyst-ingress">Forskriften navngir bare områder der noe skjer.
+        De andre fargene står i departementets kunngjøring.</p>
     </div>
 
     <div class="kyst-to">
@@ -349,12 +347,11 @@
         {#- KARTVERKETS NAVN UNDER KARTET. CC BY 4.0 krever navnet der
             produktet BRUKES, med lenke «der det er mogleg». Det står i
             bunnteksten også; her står det der kartet er. #}
-        <span class="kartkreditt">Kystlinje:
-          <a href="{{ kartverket_url }}">{{ kartverket }}</a></span>
-        Områdegrensene er Fiskeridirektoratets offisielle polygoner.
-        Fargen er den Akvakulturregisteret oppgir nå, ikke den
-        forskriften sist navnga — de to er ikke alltid de samme, og
-        stripa i tabellen viser forskjellen.
+        <p class="kartkreditt">Kystlinje:
+          <a href="{{ kartverket_url }}">{{ kartverket }}</a></p>
+        <p>Grenser: Fiskeridirektoratet. Farge: det Akvakulturregisteret
+          oppgir nå.</p>
+        <p>Forskriften kan ha sagt noe annet; stripa i tabellen viser det.</p>
         {# VED NULL SKRIVES DEN IKKE. Regelen om at et tall skal stå
            også når det er null, gjelder et tall man kan følge over tid
            — som brikkene på ukesiden. Dette er en SETNING om en mangel,
@@ -362,11 +359,9 @@
            lokalitetslista» peker på en liste som da er tom. Tallet står
            uansett i byggeloggen, hver kjøring. #}
         {% if f.uten_koordinater_antall %}
-        {{ tall(f.uten_koordinater_antall) }} av
-        {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }}
-        mangler koordinater i registeret;
-        <a href="/lokalitet/#akvakultur-uten-koordinater">de står oppført
-        på lokalitetslista</a>.
+        <p>{{ tall(f.uten_koordinater_antall) }} av
+        {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} uten koordinater:
+        <a href="/lokalitet/#akvakultur-uten-koordinater">på lokalitetslista</a>.</p>
         {% endif %}
       </figcaption>
       </figure>
@@ -428,19 +423,20 @@
         <p class="dekningsnote">
           {{ tall(f.i_omraade) }} av
           {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} ligger i
-          et produksjonsområde.
+          et produksjonsområde.</p>
+        <p class="dekningsnote">
           {#- SETNINGEN ER UTLEDET AV DATAENE, ett sted for tre sider —
               se `nettsted.uten_omraade_tekst()`. Den gamle sa
               «landbaserte anlegg og ferskvannslokaliteter har ingen»,
               og det dekket ikke de 44 slakteriene, de 299
               sjølokalitetene for andre arter eller de 56
               lakselokalitetene i sjø. #}
-          {{ f.uten_omraade }}
+        {% for s in f.uten_omraade.split("\n") %}{% if not loop.first %}<p class="dekningsnote">{% endif %}{{ s }}</p>
+        {% endfor %}
           {% if f.kart.mangler_geometri %}
-          {{ antall(f.kart.mangler_geometri|length, "område", "områder") }} mangler geometri i
-          kartfila og er derfor ikke tegnet; de står i tabellen.
+        <p class="dekningsnote">{{ antall(f.kart.mangler_geometri|length, "område", "områder") }} uten
+          geometri i kartfila: ikke tegnet, men i tabellen.</p>
           {% endif %}
-        </p>
       </div>
     </div>
   </div>
@@ -471,13 +467,9 @@
       <h2 id="folg-tittel">Få beskjed når noe endrer seg</h2>
     </div>
   </div>
-  <p>
-    Hver lokalitet, hvert produksjonsområde og hvert selskap har sin
-    egen feed, og <a href="/endringer/feed.xml">én feed dekker alt</a>.
-    Legg den inn i en feedleser. Ingen konto, ingen e-postadresse,
-    ingen sporing — en feed er en fil du henter, og vi får aldri vite
-    at du gjorde det.
-  </p>
+  <p>Hver lokalitet, hvert område og hvert selskap har sin egen feed.
+    <a href="/endringer/feed.xml">Én feed dekker alt</a>.</p>
+  <p>Ingen konto og ingen sporing: en feed er en fil du henter.</p>
   <details class="feedmonstre">
     <summary>Adressene til feedene for én lokalitet, ett område eller
       ett selskap</summary>
@@ -512,11 +504,8 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">
-      Feeden for en lokalitet ligger i lokalitetens egen mappe, ved siden
-      av siden og CSV-en. Kopierer du mappa, følger alt tre med — se
-      <a href="/om/#sitering">Slik siterer du</a>.
-    </p>
+    <p class="tabellnote">Lokalitetens feed ligger i dens egen mappe, sammen
+      med siden og CSV-en. <a href="/om/#sitering">Slik siterer du</a></p>
   </details>
 </section>
 
