@@ -2515,7 +2515,8 @@ def test_omraadeindeksens_kart_har_tabellens_farge():
     rader = [{"nr": str(i), "navn": f"Område {i}", "lokaliteter": i,
               "siste_runde": "2026", "farge": "gul" if i != 2 else "ikke oppgitt",
               "farge_felt": "farge", "farge_klasse": "lys-gul" if i != 2 else "",
-              "lesemaate": "ordrett"} for i in range(1, 14)]
+              "lesemaate_tekst": nettsted.LESEMAATE["ordrett"]}
+             for i in range(1, 14)]
     d = {"rader": rader, "antall": 13, "kart": nettsted.kart.minikart(),
          "akva_dato": "2026-10-05", "uten_po": 0, "uten_omraade": ""}
     html = nettsted._miljo().get_template(

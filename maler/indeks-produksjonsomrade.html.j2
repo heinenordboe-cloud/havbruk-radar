@@ -39,7 +39,7 @@
       <th scope="col">Lokaliteter</th>
       <th scope="col">Nyeste runde</th>
       <th scope="col">Farge</th>
-      <th scope="col">Lesemåte</th>
+      <th scope="col">Grunnlag</th>
     </tr>
   </thead>
   <tbody>
@@ -50,7 +50,7 @@
       <td class="tall" data-felt="lokaliteter_antall">{{ tall(r.lokaliteter) }}</td>
       <td data-felt="runde"><time datetime="{{ r.siste_runde }}">{{ r.siste_runde }}</time></td>
       <td{% if r.farge_klasse %} class="{{ r.farge_klasse }}"{% endif %} data-felt="{{ r.farge_felt }}">{{ r.farge }}</td>
-      <td data-felt="farge__lesemaate">{{ r.lesemaate }}</td>
+      <td data-felt="farge__lesemaate">{{ r.lesemaate_tekst }}</td>
     </tr>
     {% endfor %}
   </tbody>

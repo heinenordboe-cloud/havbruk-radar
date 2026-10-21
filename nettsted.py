@@ -8682,7 +8682,7 @@ def bygg_poindeks(felles: Felles) -> dict:
             "farge": siste["farge"] if siste else "",
             "farge_felt": siste["farge_felt"] if siste else "farge",
             "farge_klasse": siste["farge_klasse"] if siste else "",
-            "lesemaate": siste["lesemaate"] if siste else "",
+            "lesemaate_tekst": siste["lesemaate_tekst"] if siste else "",
         })
     return {"rader": rader, "antall": len(rader),
             # KARTET ved tabellen, fylt med TABELLENS farge — nyeste
@@ -10093,7 +10093,7 @@ def jsonld_po(po: dict, vilkaar: dict) -> Markup:
                 f"trafikklysfarge per runde og lokaliteter",
         "description": (
             f"Trafikklysfargen for produksjonsområde {po['nr']} "
-            f"{po['navn']} i hver fastsatt runde, med lesemåte, og de "
+            f"{po['navn']} i hver fastsatt runde, med grunnlag, og de "
             f"{po['lokaliteter_antall']} akvakulturlokalitetene i området."),
         "identifier": {
             "@type": "PropertyValue",
@@ -10131,7 +10131,7 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
             tittel=f"Produksjonsområde {d['nr']} {d['navn']} — Kystloggen",
             beskrivelse=(
                 f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "
-                f"{d['navn']}, med lesemåte, og de {d['lokaliteter_antall']} "
+                f"{d['navn']}, med grunnlag, og de {d['lokaliteter_antall']} "
                 f"lokalitetene i området."),
             jsonld=jsonld_po(d, felles.vilkaar),
             proveniens_tekst=proveniens(
