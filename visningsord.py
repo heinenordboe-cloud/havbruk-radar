@@ -418,6 +418,21 @@ KILDE_KORT = {
     "kystloggen": "Kystloggen",
 }
 
+# DATASETTET ALENE, uten utgiveren: «Akvakulturregisteret». Der utgiveren
+# allerede står i en grå linje ved siden av, eller siden handler om én
+# utgiver, er «Fiskeridirektoratet, Akvakulturregisteret» to ord for mye
+# per rad. Kilde-id-en («akvakultur») er vårt mappenavn og står aldri i
+# synlig tekst.
+DATASETT = {
+    "akvakultur": "Akvakulturregisteret",
+    "biomasse": "Biomassestatistikken",
+    "biomasselag": "Biomasselaget",
+    "eierskap": "Tillatelsene",
+    "eierskap_historikk": "Eierhistorikken",
+    "lusetall": "Lusetall",
+    "sjotemperatur": "Sjøtemperatur",
+}
+
 # ------------------------------------------------------------- oppslag
 
 def felt(navn: str) -> str:
@@ -447,6 +462,17 @@ def kilde(navn: object) -> str:
     if tekst in KILDENAVN:
         return KILDENAVN[tekst]
     UKJENTE[("(kildenavn)", tekst)] += 1
+    return tekst
+
+
+def datasett(navn: object) -> str:
+    """Datasettets navn uten utgiveren. Se `DATASETT`."""
+    tekst = "" if navn is None else str(navn).strip()
+    if not tekst:
+        return ""
+    if tekst in DATASETT:
+        return DATASETT[tekst]
+    UKJENTE[("(datasett)", tekst)] += 1
     return tekst
 
 

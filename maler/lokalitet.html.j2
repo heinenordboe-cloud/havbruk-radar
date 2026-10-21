@@ -416,7 +416,7 @@
       {#- KILDENE ENDRINGENE KOMMER FRA, én gang for seksjonen. Datoen står
           på hver post. #}
       {% set ok = lok.observert|map(attribute="kilde")|select|map("kildekort")|unique|list %}
-      <span class="herkomst">{{ (ok or ["Kystloggen"])|join(" · ") }}</span>
+      {% if ok %}<span class="herkomst">{{ ok|join(" · ") }}</span>{% endif %}
     </div>
   </div>
 
@@ -427,9 +427,11 @@
   {% set vesentlige = lok.observert|selectattr("klasse", "equalto", "vesentlig")|list %}
   {% set tekniske = lok.observert|selectattr("klasse", "equalto", "teknisk")|list %}
   {% macro tidslinjepost(post) %}
-    <li{% if post.forste %} class="tidsakse-forste"{% endif %}
-        title="{{ post.uke }}" data-kilde="{{ post.kilde or 'kystloggen' }}"
-        data-gjelder="{{ post.dato[:10] }}" data-nivaa="oppgitt">
+    {#- HVER POST ER EN KILDES PÅSTAND, datert. «Første henting» er det
+        ikke: den er vår opplysning om hva loggen dekker, og merkes ikke. #}
+    <li{% if post.forste %} class="tidsakse-forste"{% else %} data-kilde="{{ post.kilde }}"
+        data-gjelder="{{ post.dato[:10] }}" data-nivaa="oppgitt"{% endif %}
+        title="{{ post.uke }}">
       <span class="tidsakse-punkt" aria-hidden="true"></span>
       <p class="tidsakse-topp">
         <time datetime="{{ post.dato }}">{{ post.dato|dato }}</time>
@@ -449,18 +451,12 @@
         {% endif %}
       </p>
       {% if post.forste %}
+      {#- HVER KILDE MED SIN DATO. At datoer lenger ned kan være eldre
+          (sykdomsflaggene er datert til uka de gjelder for) står på
+          /om/#lesing, ikke på hver side. #}
       <p class="tidsakse-verdi">
-        {#- HVA SETNINGEN GJELDER. «Alt før dette står ikke i loggen
-            vår» var for bredt: sykdomsflaggene er datert til UKA de
-            gjelder for, og en slik dato kan ligge FØR første
-            øyeblikksbilde og stå lenger ned på samme tidslinje. Da
-            motsier siden seg selv. Kildene står i `post.dekker`, utledet
-            av `_dekning_fra()`. #}
-        Første gang vi hentet {{ post.dekker }}. Endringer i
-        registerfeltene under er fra denne datoen og senere. Datoer
-        lenger ned kan være eldre: kilder som daterer en observasjon til
-        uka den gjelder for, oppgir sin egen dato.
-      </p>
+        {%- for d in post.dekning %}{{ d.navn }} <time datetime="{{ d.fra }}">{{ d.fra|kortdato }}</time>
+        {%- if not loop.last %} · {% endif %}{% endfor %}</p>
       {% else %}
       <p class="tidsakse-verdi">
         {# MERKINGEN FØLGER VERDIEN, ikke kolonnen: en tom verdi
@@ -487,7 +483,13 @@
       {% endif %}
     </li>
   {% endmacro %}
-  {% if lok.observert|length > 1 %}
+  {#- «INGEN ENDRINGER SIDEN …» STÅR ÉN GANG, i oppsummeringen øverst,
+      med datoen der alle kildene er dekket (`endringsvindu()`). Til
+      20.10.2026 sto en egen setning her med datoen for den FØRSTE kilden,
+      og 382 sider sa «siden 17. august» og «siden 2. september» om det
+      samme. Tidslinja viser nå bare første henting når ingenting har
+      skjedd. #}
+  {% if lok.observert %}
   <ol class="tidsakse tidsakse--observert">
     {% for post in vesentlige %}{{ tidslinjepost(post) }}{% endfor %}
   </ol>
@@ -499,13 +501,6 @@
     </ol>
   </details>
   {% endif %}
-  {% else %}
-  <p class="tomt">
-    Ingen endringer siden første øyeblikksbilde
-    {% if lok.dekning_fra %}
-    <time datetime="{{ lok.dekning_fra[0].fra }}">{{ lok.dekning_fra[0].fra|dato }}</time>{% endif %}.
-    Feltene står som de sto da vi begynte å se.
-  </p>
   {% endif %}
 
   {#- OM TALLENE PÅ DENNE SIDEN. Forklaringene sto spredt over siden, like
@@ -741,6 +736,12 @@
    og tilstanden står ved siden av mens man leser den. #}
   <section class="seksjon blokk" id="lakselus" aria-labelledby="lus-tittel">
     <h2 id="lus-tittel">Lakselus, voksne hunnlus per fisk</h2>
+    {% if lok.lus_siste_uke %}
+    {#- SISTE KOMPLETTE UKE, som etikett. Hvorfor den er fire uker gammel
+        står på /om/#lesing. #}
+    <p class="etikettlinje">Siste komplette uke: <time datetime="{{ lok.lus_siste_uke }}">{{ lok.lus_siste_uke|uke }}</time>
+      <span class="herkomst">{{ "lusetall"|kildekort }}</span></p>
+    {% endif %}
     {% if lok.lusegraf %}
     {% set g = lok.lusegraf %}
     <p class="blokk-ingress">
@@ -1009,9 +1010,7 @@
             feil — eller at de tre er tomme uker i fila. Se
             `manglende_uker()`. #}
         {% if lok.lus_mangler_tekst %}{{ lok.lus_mangler_tekst }}{% endif %}
-        Datoen er mandag i ISO-uka, og tallet
-        hentes fire uker på etterskudd fordi ferskere uker er
-        ufullstendige. <strong>«{{ "–" }}» betyr at kilden ikke oppgir
+        <strong>«{{ "–" }}» betyr at kilden ikke oppgir
         noe tall</strong> — ikke at tallet var null.
         {% endif %}
         Hele serien: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a>
@@ -1215,8 +1214,12 @@
           {#- `feltmerke()` merker tankestreken som fravær og ikke som en
               verdi fra kilden — se `VERDI_MANGLER_FELT`. #}
           <span data-felt="{{ feltmerke(o.orgnr, 'tildelt_orgnr') }}">{{ o.orgnr or VERDI_MANGLER }}</span>
-          <span class="dempet">(i dag:
-            <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>)</span>
+          {#- PÅ ÉN LINJE. Linjeskiftet og innrykket mellom «i dag:» og navnet
+              ble til «(i dag:  Halibut AS)» i hvert tekstuttrekk, og så ut
+              som et avkortet navn. Det er ikke det: MÅLT 20.10.2026 sender
+              kilden «HALIBUT AS» for 975359050, og Brønnøysund har samme
+              navn (aksjeselskap, slettet 12.12.2013). #}
+          <span class="dempet">(i dag: <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>)</span>
         </td>
         {%- else %}
         <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"

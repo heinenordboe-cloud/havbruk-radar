@@ -4393,7 +4393,7 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
         poster.append({
             "dato": fra,
             "uke": visningsord.isouke(fra),
-            "etikett": "Første øyeblikksbilde",
+            "etikett": "Første henting",
             # DEN FØRSTE POSTEN ER EN OBSERVASJON: dette er dagen vi
             # begynte å hente, ikke en periode noe handler om.
             "datoslag": "henting",
@@ -4414,11 +4414,15 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
             "forklaring": "",
             "samlet": 0,
             "endringstype": "",
-            # HVILKE KILDER DATOEN GJELDER. Setningen på siden sier
-            # «registerfeltene», og her står navnene den bygger på, så
-            # de to ikke kan bli uenige.
-            "dekker": visningsord.liste(sorted(d["kilde"]
-                                               for d in dekning_fra)),
+            # HVER KILDE MED SIN EGEN DATO. Posten står på den eldste, men
+            # kildene startet ikke samtidig: akvakultur 17.08.2026,
+            # eierskap 02.09.2026. Til 20.10.2026 sto «Første gang vi
+            # hentet akvakultur og eierskap» under 17. august — kilde-id-er,
+            # og én dato for to kilder. Se `_dekning_fra()`.
+            "dekning": [{"kilde": d["kilde"],
+                         "navn": visningsord.datasett(d["kilde"]),
+                         "fra": d["fra"]}
+                        for d in sorted(dekning_fra, key=lambda d: d["fra"])],
         })
     # KRONOLOGISK, og ikke «sist i lista».
     #
@@ -5225,6 +5229,11 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # uker ikke skille «vi har ikke sett etter» fra «vi har sett i
         # 764 uker og ikke funnet den».
         "lusetall_snapshots": len(lusedatoer),
+        # SISTE KOMPLETTE UKE hos BarentsWatch, for alle lokaliteter: den
+        # nyeste uka vi har hentet. Vi henter fire uker på etterskudd med
+        # vilje (`kilder.lusetall.uker_etterslep`), og siden sier hvilken
+        # uke det er som en etikett — ikke som en forklaring.
+        "lus_siste_uke": lusedatoer[-1] if lusedatoer else "",
         # HVA DATAENE SIER OM HVORFOR den mangler. Se `_lus_fravaer()`.
         "lus_fravaer": _lus_fravaer(a),
         # Telles her og skrives ikke inn i malen for hånd. Et tall i en

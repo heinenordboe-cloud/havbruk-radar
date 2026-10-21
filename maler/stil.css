@@ -2318,6 +2318,10 @@ figcaption {
 td .uenige, .uenige strong { color: var(--rust-moerk); }
 strong.uenige { display: inline; }
 
+/* EN ETIKETT OVER EN SERIE: «Siste komplette uke: uke 39, 2026». */
+.etikettlinje { margin-block: 0 var(--rom-16); font-size: var(--tekst-s); }
+.etikettlinje .herkomst { display: inline; margin-inline-start: var(--rom-8); }
+
 /* EN FORKLARING ETT KLIKK UNNA. Lukket som standard. */
 .forklaring { margin-block: var(--rom-8) var(--rom-16); font-size: var(--tekst-s); }
 .forklaring > summary { cursor: pointer; color: var(--ink-dempet); }

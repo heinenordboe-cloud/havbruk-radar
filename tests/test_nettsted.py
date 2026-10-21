@@ -292,7 +292,7 @@ def _side(**overstyr) -> str:
         "lus": nettsted.til_visning([_uke_raa()]),
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
-        "lusetall_snapshots": 765,
+        "lusetall_snapshots": 765, "lus_siste_uke": "2026-08-17",
         "lus_mangler": [], "lus_mangler_tekst": "",
         "lus_fravaer": "",
         "xlsx_filnavn": _XLSX,
@@ -2999,7 +2999,42 @@ def test_forste_oyeblikksbilde_staar_kronologisk():
     assert datoer == sorted(datoer, reverse=True), datoer
     forste = next(p for p in poster if p["forste"])
     assert poster.index(forste) == 1, "mellom 21.09 og 06.07"
-    assert forste["dekker"] == "akvakultur"
+    # HVER KILDE MED SIN DATO, og datasettets navn — ikke kilde-id-en.
+    assert forste["dekning"] == [{"kilde": "akvakultur",
+                                  "navn": "Akvakulturregisteret",
+                                  "fra": "2026-08-17"}]
+
+
+def test_d_ingen_endringer_star_en_gang_med_en_dato():
+    """Hull d, MÅLT 20.10.2026: 382 sider sa både «Ingen endringer siden
+    første øyeblikksbilde 17. august» og «ingen vesentlige endringer siden
+    2. september». Nå står påstanden én gang — i oppsummeringen, med
+    datoen der begge kildene er dekket — og tidslinja viser første henting
+    per kilde."""
+    dekning = [{"kilde": "akvakultur", "fra": "2026-08-17"},
+               {"kilde": "eierskap", "fra": "2026-09-02"}]
+    html = _side(endringer=[], dekning_fra=dekning,
+                 akva_dato="2026-10-19", eierskap_dato="2026-10-19")
+    flat = " ".join(re.sub(r"<[^>]+>", " ", html).split())
+    assert flat.count("endringer siden") == 1, flat.count("endringer siden")
+    assert "ingen vesentlige endringer siden 2. september 2026" in flat
+    assert "Første øyeblikksbilde" not in flat
+    assert "Akvakulturregisteret 17.08.2026 · Tillatelsene 02.09.2026" in flat
+
+
+def test_e_navnet_i_dag_staar_paa_samme_linje():
+    """Hull e: «(i dag:  Halibut AS)» var et linjeskift i malen, ikke et
+    avkortet navn. Kilden og Brønnøysund sier begge «HALIBUT AS»."""
+    html = _side()
+    assert re.search(r"\(i dag: <span[^>]*>Salmar Nord AS</span>\)", html)
+    assert not re.search(r"\(i dag:\s*\n", html)
+
+
+def test_f_siste_komplette_uke_er_en_etikett_og_ikke_en_forklaring():
+    html = " ".join(_side().split())
+    assert ('Siste komplette uke: <time datetime="2026-08-17">uke 34, 2026</time>'
+            in html)
+    assert "hentes fire uker på etterskudd" not in html
 
 
 def test_ingen_vist_kilde_staar_som_nei():
