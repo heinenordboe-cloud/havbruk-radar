@@ -1411,7 +1411,8 @@ def _po(**overstyr) -> str:
              "sitat": "Fem produksjonsområder får gult lys: Ryfylke (PO2)",
              "sitat_dato": "2024-03-06",
              "sitat_url": "https://www.regjeringen.no/no/aktuelt/x/id3028522/",
-             "ellers": [{"lesemaate_tekst": "utledet av kapittel",
+             "ellers": [{"lesemaate_tekst":
+                             nettsted.LESEMAATE["kapittelhjemmel"],
                          "kilde": "FOR-2024-03-22-515", "farge": "gul",
                          "enig": True}]},
         ],

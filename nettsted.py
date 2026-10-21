@@ -3217,18 +3217,12 @@ def les_endringsuker(felles: Felles) -> list[dict]:
 FARGEORD = visningsord.FARGE
 
 # Hva lesemåten BETYR, i klartekst på siden. Nøkkelen er kildens verdi.
-LESEMAATE = {
-    "ordrett": "fargen står i forskriften",
-    "kapitteloverskrift": "fargeordet står i kapitteloverskriften området "
-                          "er plassert under",
-    "kapittelhjemmel": "utledet av kapittelet området står i",
-    # TREDJE BELEGGSGRAD, fra 23.09.2026. Fargen står ikke i noen
-    # forskrift, og det er ikke en mangel i kilden: trafikklyset
-    # avgjøres i to trinn, og et GULT område krever ingen bestemmelse.
-    # Den står i departementets kunngjøring av fargeleggingen. Se
-    # `beslutning.py`.
-    "beslutning": "fargen står i departementets kunngjøring",
-}
+#
+# Fra 21.10.2026 er det SAMME ordliste som endringstabellen og
+# områdelista bruker. Rundelista sa «fargen står i forskriften» der
+# tegnforklaringen under sa «fargeordet står i forskriften» og /om/
+# sa «I forskriften»: tre navn på ett grunnlag.
+LESEMAATE = visningsord.LESEMAATE
 
 # Teksten når forskriften ikke oppgir farge for et område i en runde.
 # Ikke tom celle — samme regel som `EIER_UKJENT`, og av samme grunn:

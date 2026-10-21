@@ -155,6 +155,13 @@ LESEMAATE = {
     "ordrett": "i forskriften",
     "kapitteloverskrift": "i kapitteloverskriften",
     "kapittelhjemmel": "utledet",
+    # TREDJE BELEGGSGRAD, fra 23.09.2026. Fargen står ikke i noen
+    # forskrift, og det er ikke en mangel i kilden: trafikklyset
+    # avgjøres i to trinn, og et GULT område krever ingen bestemmelse.
+    # Den står i departementets kunngjøring av fargeleggingen. Se
+    # `beslutning.py`. Ikke en verdi i `farge__lesemaate` — nettstedet
+    # setter den — men den har ett navn som de andre.
+    "beslutning": "i kunngjøringen",
 }
 
 JANEI = {"True": "ja", "False": "nei", "true": "ja", "false": "nei"}
