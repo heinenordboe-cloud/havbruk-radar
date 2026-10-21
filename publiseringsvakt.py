@@ -2680,7 +2680,10 @@ def utdrag_dekker_indeksen(katalog: Path) -> tuple[int, int]:
 #
 # Prøven leser setningen fra malen og ikke en egen kopi: to steder som
 # skal si det samme er formen F6 og F7 hadde.
-UTEN_KONTAKT = "Ingen kontaktadresse er satt i denne"
+#
+# Fra 21.10.2026 viser reserven til GitHub. Det er en vei inn, men ikke
+# den produksjonen skal ha, så prøven står.
+UTEN_KONTAKT = '<p class="mangler">Kontakt via'
 
 # SIDER SOM ER TATT NED, og som ikke skal finnes i bygget — verken som
 # mappe eller som adresse i en annen fil (lenke, sitemap, stilark).

@@ -36,14 +36,11 @@
     <li><a class="handling" href="/endringer/feed.xml">Følg alle
       endringer (feed)</a></li>
   </ul>
-  <p class="historikk-forklaring">Hver uke vi har hentet registrene og sammenlignet med uka før.</p>
-  <p class="historikk-forklaring"><strong>Datoen er når VI så endringen</strong>, ikke når
-    registeret gjorde den. <a href="/om/#lesing-endringer">Mer</a></p>
+  <p class="historikk-forklaring">Hver uke sammenlignes registrene med uka før.
+    <strong>Datoen er når vi så endringen.</strong> <a href="/om/#lesing-endringer">Mer</a></p>
   {% if utenfor %}
-  <p class="historikk-forklaring">{{ antall(utenfor, "endring", "endringer") }} står utenfor: kilden
-    daterer dem til perioden de gjelder.</p>
-  <p class="historikk-forklaring">Forskriftsrunder til vedtaksåret, overføringer til journalåret,
-    biomassetall til månedsslutt.</p>
+  <p class="historikk-forklaring">{{ antall(utenfor, "endring", "endringer") }} har kildens egen
+    dato og står på sidene de gjelder.</p>
   {% endif %}
   {% if uker %}
   {# NYESTE UKE, som en «videre»-lenke: det er den de fleste kommer for. #}
@@ -76,7 +73,7 @@
       </ol>
       <figcaption><p>Én stolpe per uke, {{ diagram.forste }} til venstre og
         {{ diagram.siste }} til høyre.</p>
-        <p>Hver rad har sin egen skala, og summen står ved siden av.</p></figcaption>
+        <p>Hver rad har egen skala.</p></figcaption>
     </figure>
   </section>
   {% endif %}
@@ -125,9 +122,6 @@
     </tbody>
   </table>
   </div>
-  <p class="tabellnote">
-    En type med 0 er ikke en lenke.
-  </p>
 
   <h2>Hva slagene betyr</h2>
   <dl class="grader">
@@ -137,7 +131,6 @@
       {%- if k.get("forbehold") %}<p class="grader-forbehold">{{ k.forbehold }}</p>{% endif %}</dd>
     {% endfor %}
   </dl>
-  <p>Slaget er utledet av kilden og feltet raden kom fra.</p>
-  <p>Et felt som ikke er klassifisert, faller til «Annet».</p>
+  <p>Typen følger av kilden og feltet. Det som ikke passer, havner i «Annet».</p>
 </section>
 {% endblock %}

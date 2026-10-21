@@ -98,8 +98,8 @@
      under dem. #}
   {#- At en tillatelse uten oppgitt eier står på lokalitetssiden og ikke
       her, står på /om/#lesing-selskap. #}
-  <p class="sidehode-note">Bare tillatelser der <strong>dette</strong> organisasjonsnummeret
-    står som eier i registeret
+  <p class="sidehode-note">Tillatelser registrert på <strong>dette</strong>
+    organisasjonsnummeret
     <span class="herkomst">Fiskeridir. · <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato|kortdato }}</time></span></p>
 
   <ul class="handlinger" aria-label="Følg, siter og slå opp">
@@ -270,10 +270,8 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">«Overføring journalført» er den eldste journalførte overføringen hit
-      på lokaliteten.</p>
-    <p class="tabellnote">Tom celle: ingen journalført overføring. Tillatelsen kan ha vært
-      selskapets fra tildelingen.</p>
+    <p class="tabellnote">Tom celle: ingen overføring journalført. Tillatelsen kan ha vært
+      selskapets siden tildelingen.</p>
     {% if lang %}</details>{% endif %}
   </section>
 
@@ -334,13 +332,10 @@
       <h2 id="eier-tittel">Eierskap over tid</h2>
     </div>
   </div>
-  <p class="historikk-forklaring">Tillatelser som har kommet til eller gått ut, slik registeret
-    journalfører det. <strong>Datoen er kildens</strong>, ikke vår.</p>
-  <p class="historikk-forklaring"><strong>«Gikk ut» er utledet.</strong> Registeret journalfører
-    overføringer TIL et nummer, ikke VEKK.</p>
-  <p class="historikk-forklaring">Vi leser neste overføring i rekka som avgangen. Datoen er
-    mottakerens ankomst.</p>
-  <p class="historikk-forklaring">Den kan ligge etter at selskapet faktisk ga slipp.</p>
+  <p class="historikk-forklaring">Tillatelser inn og ut, med registerets datoer.</p>
+  <p class="historikk-forklaring"><strong>«Gikk ut» er utledet:</strong> registeret fører bare
+    overføringer hit, så datoen er neste eiers.</p>
+  <p class="historikk-forklaring">Den kan være senere enn salget.</p>
 
   {% if sel.eierskapslinje %}
   {% set lang = sel.eierskapslinje|length > sel.aapen_liste %}
@@ -453,17 +448,9 @@
 <section class="ark seksjon" aria-labelledby="hva-siden-ikke-sier">
   <details class="tallboks forbehold">
   <summary><h2 id="hva-siden-ikke-sier">Hva denne siden ikke sier</h2></summary>
-  <p><strong>Ingenting om konsern.</strong> At to selskaper har samme mor, oppgir ikke
-    registeret.</p>
-  <p>Konsernstrukturen står i Enhetsregisterets rolledata, og roller hentes ikke.
-    <a href="/om/#hva-vi-ikke-gjor">Hva vi ikke henter</a></p>
-  <p>«Er i konsern» i tabellen over er registerets eget ja/nei, og sier ikke hvilket.</p>
-  <p><strong>Ingenting om hvem som står bak.</strong> Daglig leder, styre og
-    aksjonærer er roller.</p>
-  <p>Et selskap er her et organisasjonsnummer med tillatelser, ikke en gruppe mennesker.</p>
-  <p><strong>Ingenting om hva selskapet produserer.</strong> Kapasiteten er det
-    tillatelsene gir rom for.</p>
-  <p>Hvor mye fisk som står i sjøen, finnes offentlig bare per produksjonsområde.</p>
+  <p>Siden viser ikke konsern, eiere eller produksjon, bare tillatelsene på dette
+    nummeret.</p>
+  <p><a href="/om/#hva-vi-ikke-gjor">Hva vi ikke henter</a></p>
   </details>
 </section>
 
@@ -480,9 +467,7 @@
       Øyeblikksbilde {{ sel.siter.uke }}, {{ sel.siter.dato }},
       sjekksum {{ sel.siter.sjekksum[:8] }}…{{ sel.siter.sjekksum[-4:] }}.
       {{ sel.siter.url }}</p>
-    <p class="siterboks-note">Sjekksummen gjelder tillatelsesregisteret, kilden til hvilke
-      tillatelser selskapet eier.</p>
-    <p class="siterboks-note">Registerfeltene fra Enhetsregisteret er datert i tabellen over.</p>
+    <p class="siterboks-note">Sjekksummen gjelder tillatelsesregisteret.</p>
   </div>
 </section>
 {% endblock %}

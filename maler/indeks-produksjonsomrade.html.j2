@@ -23,8 +23,7 @@
 <p class="historikk-forklaring">{{ antall(d.antall, "produksjonsområde", "produksjonsområder") }}, fastsatt i forskrift.</p>
 {% for s in d.uten_omraade.split("\n") if s %}<p class="historikk-forklaring">{{ s }}</p>
 {% endfor %}
-<p class="historikk-forklaring">Fargen under er den NYESTE fastsatte runden; hver områdeside viser
-  alle rundene.</p>
+<p class="historikk-forklaring">Fargen er fra siste runde. Hver områdeside viser alle.</p>
 <p class="historikk-forklaring">{{ antall(d.uten_po, "lokalitet", "lokaliteter") }} hører ikke til noe område. De står i
   <a href="/lokalitet/">lokalitetslista</a>.</p>
 
@@ -57,8 +56,6 @@
   </tbody>
 </table>
 </div>
-<p class="tabellnote">Der forskriften ikke oppgir farge for området i nyeste runde, står det
-  i klartekst.</p>
 </div>
 
 {# KARTET. Hvert område er en lenke til områdesiden, og navnet og fargen

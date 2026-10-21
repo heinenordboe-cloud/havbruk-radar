@@ -45,14 +45,12 @@
   sortert på navn. Søkefeltet øverst søker i alle.
 </p>
 {% endif %}
-<p class="historikk-forklaring">{{ d.uten_registerdata }} av dem har vi ingen registerdata for:
-  uttrekket er avgrenset til et sett næringskoder.</p>
-<p class="historikk-forklaring">De har side likevel, og siden sier hva som mangler.</p>
+<p class="historikk-forklaring">{{ d.uten_registerdata }} mangler data fra Enhetsregisteret, men
+  har egen side.</p>
 {% if d.personeiere %}
-<p class="historikk-forklaring">{{ d.personeiere }} eier(e) står ikke i lista og har ingen side.</p>
-<p class="historikk-forklaring">Kilden klassifiserer dem som person, og nettstedet skal ikke være
-  et personregister.</p>
-<p class="historikk-forklaring">Tillatelsene deres står på lokalitetssidene sine, uten eiernavn.</p>
+<p class="historikk-forklaring">{{ antall(d.personeiere, "eier", "eiere") }} er
+  {{ "privatperson" if d.personeiere == 1 else "privatpersoner" }} og vises ikke. Tillatelsene står
+  på lokalitetssidene, uten navn.</p>
 {% endif %}
 
 {% set sidenav_etikett = "Sidene i selskapslista" %}
@@ -85,10 +83,6 @@
 </table>
 </div>
 {% include "sidenav.html.j2" %}
-<p class="tabellnote">
-  Organisasjonsnummeret er Brønnøysundregistrenes og er nøkkelen til
-  selskapssiden.
-</p>
 </div>
 
 {# HØYRESPALTA. Hvem som er størst, målt to måter, og hvor mange som har
@@ -107,7 +101,6 @@
           talt fra <time datetime="{{ m.vindu.fra }}">{{ m.vindu.fra|dato }}</time>{% endif %}</span></dd>
       </div>
     </dl>
-    <p class="marg-note">Samme telling som på hver selskapsside.</p>
     <p class="marg-note"><a href="/endringer/">Endringene uke for uke</a></p>
   </section>
   {% endif %}
@@ -116,9 +109,8 @@
   <section class="marg-blokk" aria-labelledby="marg-tonn">
     <h2 class="etikett" id="marg-tonn">Størst etter kapasitet</h2>
     {{ marg.fordeling(m.tonn, "marg-tonn") }}
-    <p class="marg-note">Summen av tillatelsenes kapasitet i tonn.</p>
-    <p class="marg-note">{{ antall(m.andre_enheter, "tillatelse", "tillatelser") }} i andre enheter
-      (stykk, dekar, kilo) er ikke med.</p>
+    <p class="marg-note">Sum kapasitet i tonn.
+      {{ antall(m.andre_enheter, "tillatelse", "tillatelser") }} i andre enheter er ikke med.</p>
   </section>
   {% endif %}
 

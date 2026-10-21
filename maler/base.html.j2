@@ -240,11 +240,10 @@
          config.yml, og en påfunnet adresse ville vært verre enn ingen —
          den ville sett ut som en vei inn som ikke finnes. Se
          `_kontakt()`. #}
-      <p class="mangler">Ingen kontaktadresse er satt i denne
-         byggingen.</p>
+      <p class="mangler">Kontakt via <a href="{{ repo }}">GitHub</a>.</p>
       {% endif %}
       {#- At vi aldri skriver over det vi har hentet, står på /om/#innsamling. #}
-      <p>Feil i dataene? Skriv, så retter vi det og noterer det med dato.</p>
+      <p>Ser du en feil? Si fra, så retter vi den og noterer datoen.</p>
     </div>
   </div>
 
@@ -265,10 +264,10 @@
         TO AVSNITT, ikke ett. Med fem organer var setningen 201 tegn;
         «Verken … går god for den.» er høyst 107 (MÅLT 20.10.2026 over
         alle sidene: lengste navneliste 83 tegn). #}
-    <p>Tallene er gjengitt uendret fra kildene; sammenstillingen er vår.</p>
+    <p>Tallene er kildenes, uendret. Sammenstillingen er vår.</p>
     <p>{% if fraskrivelse_antall == 1 %}{{ fraskrivelse }} går ikke god for den.
       {%- else %}Verken {{ fraskrivelse }} går god for den.{% endif %}</p>
-    <p>Siden er bygget <time datetime="{{ bygget }}">{{ bygget_vist }}</time>.</p>
+    <p>Oppdatert <time datetime="{{ bygget }}">{{ bygget_vist }}</time>.</p>
   </div>
 </footer>
 </body>

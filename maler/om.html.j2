@@ -61,8 +61,7 @@
   uke, og hva som har endret seg.</p>
 <p>Alt du ser her finnes fra før hos Fiskeridirektoratet, Brønnøysundregistrene,
   BarentsWatch og Lovdata.</p>
-<p>Sammenstillingen og historikken er min. Tallene er gjengitt uendret.</p>
-<p>Ingen av etatene går god for hvordan de er satt sammen.</p>
+<p>Tallene er gjengitt uendret. Sammenstillingen er vår, og ingen av etatene står bak den.</p>
 
 {# HVEM STÅR BAK, rett etter hva dette er. Briefens tabell: «hva og hvem
    i tre avsnitt» øverst, metode, kilder og sitering under. Sto som
@@ -80,10 +79,9 @@
 
 <h2 id="innsamling">Hvordan det samles inn, og hvor ofte</h2>
 <p>Én kjøring i uka. Hver kjøring henter hver kilde og sammenligner med forrige.</p>
-<p>Differansen blir en endringslogg, og den er den egentlige verdien.</p>
-<p>Hver henting skrives <strong>én gang og aldri om</strong>. En ny henting av samme
-  dato får løpenummer.</p>
-<p>Det er derfor historikken kan etterprøves.</p>
+<p>Forskjellen blir en endringslogg.</p>
+<p>Hver henting lagres <strong>én gang og skrives aldri over</strong>. Derfor kan
+  historikken etterprøves.</p>
 <p>Datoen på en rad er datoen <em>raden gjelder for</em>, ikke datoen vi hentet den.</p>
 <p>For lusetall er det ISO-uka; for eierskapshistorikk journalføringsåret.</p>
 <p>Hvor ferske dataene bak denne siden er:</p>
@@ -135,6 +133,7 @@
   ikke når vi hentet den.</p>
 <p>Hvor mange som er ukjent eller uenige i dette bygget:
   <a href="/kvalitet/">kvalitetsrapporten</a>.</p>
+<p>Artsnavnene er oversatt fra kildens koder. Verdien i dataene er uendret.</p>
 
 <details class="forklaring" id="lesing-lus">
   <summary>Lakselus</summary>
@@ -147,8 +146,7 @@
     kilden ikke oppgir noe tall for.</p>
   <p>En hårstrek på nullinja er en uke som er målt til null.</p>
   <p>Den lave stripa under aksen er uker lokaliteten var brakklagt.</p>
-  <p>Den stiplede linja er tiltaksgrensa BarentsWatch oppgir uke for uke —
-    ikke en strek vi har satt.</p>
+  <p>Den stiplede linja er tiltaksgrensa BarentsWatch oppgir uke for uke.</p>
   <p>Over grensa: voksne hunnlus per fisk, avrundet til to desimaler, på
     eller over uka sin grense.</p>
   <p>«Brakklagt» er BarentsWatchs vurdering «Trolig uten fisk», ikke noe
@@ -176,7 +174,7 @@
   <summary>Endringer vi har sett</summary>
   <p>Første henting er dagen vi begynte å hente kilden. Endringer i
     registerfeltene er fra den dagen og senere.</p>
-  <p>Datoen er som hovedregel når VI så endringen. Registeret oppgir ikke
+  <p>Datoen er som hovedregel når vi så endringen. Registeret oppgir ikke
     når det gjorde den.</p>
   <p>Endringen kan altså ha skjedd når som helst i uka før.</p>
   <p>Datoer lenger ned kan være eldre: noen kilder daterer en observasjon
@@ -279,7 +277,7 @@
     ikke at det aldri har endret seg.</p>
   <p>«Historikk kildene selv fører» er ikke det samme som «Endringer vi
     har sett».</p>
-  <p>Der er datoen når VI så noe; her er datoen kildens egen påstand om
+  <p>Der er datoen når vi så noe; her er datoen kildens egen påstand om
     når noe skjedde.</p>
 </details>
 
@@ -293,6 +291,19 @@
   <p>Arkivet er ikke offentlig. Vil du etterprøve en sum, skriv til oss,
     så sender vi svaret summen gjelder.</p>
 </details>
+
+{# TRAFIKKLYSET. Fra 21.10.2026 står forklaringen av de tre grunnlagene
+   her én gang, og ikke på hver av de tretten områdesidene. #}
+<h2 id="trafikklys">Trafikklyset</h2>
+<p>Trafikklyset settes annethvert år.</p>
+<p>Forskriften nevner bare områder som får ny farge; registeret fører resten videre.</p>
+<p>Fargen har tre grunnlag:</p>
+<p><strong>I forskriften:</strong> fargeordet står i bestemmelsen.</p>
+<p><strong>I kapitteloverskriften:</strong> fargen står over kapittelet området er
+  plassert i.</p>
+<p><strong>Utledet:</strong> fargen står ikke skrevet. Vi leser den av kapittelet. Det
+  er det eneste stedet vi tolker.</p>
+<p>En analyse bør ikke behandle de tre likt.</p>
 
 <h2 id="dekning">Hva dekningen er</h2>
 <p>{{ tall(om.med_eier) }} av
@@ -322,6 +333,10 @@
   personeide anlegg.</p>
 <p>En analyse av «andel eid av de ti største» regner derfor på et utvalg
   uten de minste eierne.</p>
+<p><strong>Områdesidene</strong> sier ikke hvorfor et område fikk sin farge.</p>
+<p>Ordningen bygger på en faglig vurdering av lusedødelighet hos villfisk.</p>
+<p>Koblingen til fargen står ikke i regelverket.</p>
+<p>Foreslåtte nye inndelinger er ikke med. Et område med nye grenser er et nytt område.</p>
 
 <h2 id="gjenbruk">Gjenbruk</h2>
 <p>Gjenbruk følger kildens lisens og attribusjonskrav, slik de står i
@@ -395,11 +410,8 @@
     `basisurl` kommer fra konfigurasjonen, ikke som bokstav i malen: en
     forhåndsvisning skal ikke oppgi en adresse som ikke serverer
     innholdet. Se `_basisurl()`. #}
-<p>Dette er den GENERELLE referansen til nettstedet.</p>
-<p>Siterer du et bestemt tall, bruk «Siter denne siden» på siden tallet
-  står på.</p>
-<p>Den bærer lokaliteten eller uka, datoen og sjekksummen som
-  identifiserer tallet.</p>
+<p>Dette er referansen til hele nettstedet. Siterer du ett tall, bruk «Siter denne
+  siden» der tallet står.</p>
 {# ------------------------------------------------------- GJENBRUK #}
 {# SEKSJONEN ER FJERNET, IKKE GLEMT. Den sto som utkast fram til
    24.09.2026 — en skisse av grensen mellom fri og avtalt bruk, merket
@@ -489,6 +501,8 @@
   navngitt likevel.</p>
 <p class="tabellnote">Fontenes OFL krever at lisensteksten følger fila. Den ligger der
   raden lenker.</p>
+<p class="tabellnote">Kartene er i UTM 33N (EUREF89). Oversiktskartet har gradnett hver
+  femte grad.</p>
 
 <p>Siterer du tallene, må kildenes egen attribusjon følge med.</p>
 <p>Den står i bunnteksten på hver side, ordrett slik lisensgiverne krever

@@ -148,14 +148,13 @@ VERSJONSAARSAK = {
 }
 
 # Tre, ikke to. `kapitteloverskrift` står ikke i nyeste vedtak, men i
-# changeloggen: 4 rader fra 2020-12-31, PO 4 og PO 5. Ordene er kildens
-# egne og oversettes ikke — de er termer med en definisjon i
-# `sources/trafikklysvedtak.py`, og en omskriving her ville vært en ny
-# definisjon ved siden av den.
+# changeloggen: 4 rader fra 2020-12-31, PO 4 og PO 5. Definisjonen står i
+# `sources/trafikklysvedtak.py`; fra 21.10.2026 vises den med leserens
+# ord (Heines tekstrunde), og kildens verdi i dataene er uendret.
 LESEMAATE = {
-    "ordrett": "ordrett",
-    "kapitteloverskrift": "kapitteloverskrift",
-    "kapittelhjemmel": "kapittelhjemmel",
+    "ordrett": "i forskriften",
+    "kapitteloverskrift": "i kapitteloverskriften",
+    "kapittelhjemmel": "utledet",
 }
 
 JANEI = {"True": "ja", "False": "nei", "true": "ja", "false": "nei"}
@@ -313,7 +312,7 @@ FELTNAVN = {
     "tillatelse_nr": "Tillatelse",
     # trafikklysvedtak
     "farge": "Farge",
-    "farge__lesemaate": "Lesemåte",
+    "farge__lesemaate": "Grunnlag",
     # enhetsregisteret
     "aksjekapital": "Aksjekapital",
     "aktivitet": "Aktivitet",

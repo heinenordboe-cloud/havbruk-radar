@@ -244,9 +244,9 @@
     <li><strong>{{ f.selskaper|tall }}</strong>
       {{ "selskap" if f.selskaper == 1 else "selskaper" }}</li>
     <li><strong>{{ f.snapshots|tall }}</strong>
-      {{ "ukentlig henting" if f.snapshots == 1
-         else "ukentlige hentinger" }}
-      fra <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></li>
+      {{ "uke arkivert" if f.snapshots == 1
+         else "uker arkivert" }}
+      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></li>
     {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
         lar leseren regne seg til at serien går til i dag, og det gjør den
         ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
@@ -281,9 +281,8 @@
         <p class="etikett">Kysten</p>
         <h2 id="kyst-tittel">{{ antall(f.produksjonsomraader, "produksjonsområde", "produksjonsområder") }}</h2>
       </div>
-      <p class="kyst-ingress">Trafikklyset fastsettes annethvert år.</p>
-      <p class="kyst-ingress">Forskriften navngir bare områder der noe skjer.
-        De andre fargene står i departementets kunngjøring.</p>
+      <p class="kyst-ingress">Trafikklyset settes annethvert år.
+        <a href="/om/#trafikklys">Mer</a></p>
     </div>
 
     <div class="kyst-to">
@@ -302,12 +301,11 @@
            står i tabellen ved siden av.">
         <title id="kysttittel">Kart over de
           {{ antall(f.produksjonsomraader, "produksjonsområdet", "produksjonsområdene") }}</title>
-        <desc id="kystbeskrivelse">Fiskeridirektoratets offisielle
-          polygoner, fylt med trafikklysfargen Akvakulturregisteret
-          oppgir nå. Landflatene er Natural Earth 1:10 millioner.
-          Ekvirektangulær projeksjon med breddekorreksjon, gradnett hver
-          femte grad. Alle navn, farger og tall står i tabellen ved
-          siden av.</desc>
+        {#- KARTGRUNNLAGET OG PROJEKSJONEN står på /om/#hva-nettstedet-laaner.
+            «Ekvirektangulær» sto her til 21.10.2026, men kartet har vært
+            UTM 33N siden 25.09.2026 — se `kart.Projeksjon`. #}
+        <desc id="kystbeskrivelse">Fargen som gjelder nå. Alle tall står i
+          tabellen.</desc>
         {# Rekkefølgen er lagdelingen: SVG har ingen z-indeks. #}
         {# GRADNETTET ER POLYLINJER, ikke rette streker. I UTM krummer
            en breddegrad, og en lengdegrad heller — to rette streker
@@ -349,9 +347,7 @@
             bunnteksten også; her står det der kartet er. #}
         <p class="kartkreditt">Kystlinje:
           <a href="{{ kartverket_url }}">{{ kartverket }}</a></p>
-        <p>Grenser: Fiskeridirektoratet. Farge: det Akvakulturregisteret
-          oppgir nå.</p>
-        <p>Forskriften kan ha sagt noe annet; stripa i tabellen viser det.</p>
+        <p>Grenser: Fiskeridirektoratet · farge: Akvakulturregisteret</p>
         {# VED NULL SKRIVES DEN IKKE. Regelen om at et tall skal stå
            også når det er null, gjelder et tall man kan følge over tid
            — som brikkene på ukesiden. Dette er en SETNING om en mangel,
@@ -360,16 +356,17 @@
            uansett i byggeloggen, hver kjøring. #}
         {% if f.uten_koordinater_antall %}
         <p>{{ tall(f.uten_koordinater_antall) }} av
-        {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }} uten koordinater:
-        <a href="/lokalitet/#akvakultur-uten-koordinater">på lokalitetslista</a>.</p>
+        {{ antall(f.lokaliteter, "lokalitet", "lokaliteter") }}
+        <a href="/lokalitet/#akvakultur-uten-koordinater">mangler posisjon</a>
+        og er ikke tegnet.</p>
         {% endif %}
       </figcaption>
       </figure>
 
       <div class="kyst-tabell">
-        <p class="tabelltittel" id="trafikklysvedtak-oversikt-tittel">{{ "Det ene produksjonsområdet" if f.produksjonsomraader == 1 else "De " ~ f.produksjonsomraader ~ " produksjonsområdene" }} med
-            fargen som gjelder nå{% if f.runder %}, og fargen i hver av
-            de {{ f.runder|length }} forskriftsrundene{% endif %}.</p>
+        <p class="tabelltittel" id="trafikklysvedtak-oversikt-tittel">{{ "Det ene området" if f.produksjonsomraader == 1 else "De " ~ f.produksjonsomraader ~ " områdene" }}:
+            farge nå{% if f.runder %} og i hver av de {{ f.runder|length }}
+            rundene{% endif %}.</p>
         <div class="tabellramme" role="region"
              aria-labelledby="trafikklysvedtak-oversikt-tittel" tabindex="0">
         <table id="trafikklysvedtak-oversikt" aria-labelledby="trafikklysvedtak-oversikt-tittel" data-pagefind-ignore>
@@ -434,8 +431,8 @@
         {% for s in f.uten_omraade.split("\n") %}{% if not loop.first %}<p class="dekningsnote">{% endif %}{{ s }}</p>
         {% endfor %}
           {% if f.kart.mangler_geometri %}
-        <p class="dekningsnote">{{ antall(f.kart.mangler_geometri|length, "område", "områder") }} uten
-          geometri i kartfila: ikke tegnet, men i tabellen.</p>
+        <p class="dekningsnote">{{ antall(f.kart.mangler_geometri|length, "område", "områder") }}
+          mangler kartgrense og står bare i tabellen.</p>
           {% endif %}
       </div>
     </div>
@@ -467,14 +464,14 @@
       <h2 id="folg-tittel">Få beskjed når noe endrer seg</h2>
     </div>
   </div>
-  <p>Hver lokalitet, hvert område og hvert selskap har sin egen feed.
-    <a href="/endringer/feed.xml">Én feed dekker alt</a>.</p>
-  <p>Ingen konto og ingen sporing: en feed er en fil du henter.</p>
+  <p><a href="/endringer/feed.xml">Alle endringer</a>, eller bare én
+    lokalitet, ett område eller ett selskap.</p>
+  <p>Ingen konto, ingen sporing.</p>
   <details class="feedmonstre">
-    <summary>Adressene til feedene for én lokalitet, ett område eller
-      ett selskap</summary>
-    <p class="tabelltittel" id="feeder-tittel">Atom-feedene, bygget av
-        endringsloggen.</p>
+    {#- SUMMARY KAN IKKE VÆRE TOM: da skriver nettleseren «Details». #}
+    <summary>Adressene</summary>
+    <p class="tabelltittel visuelt-skjult" id="feeder-tittel">Atom-feedene,
+        bygget av endringsloggen.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="feeder-tittel" tabindex="0">
     <table id="feeder" aria-labelledby="feeder-tittel">
@@ -504,8 +501,7 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">Lokalitetens feed ligger i dens egen mappe, sammen
-      med siden og CSV-en. <a href="/om/#sitering">Slik siterer du</a></p>
+    <p class="tabellnote"><a href="/om/#sitering">Slik siterer du</a></p>
   </details>
 </section>
 

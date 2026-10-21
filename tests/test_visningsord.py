@@ -57,7 +57,7 @@ def test_kodene_i_oppgaven(felt, raa, ventet):
 def test_feltnavn_blir_etikett():
     """«farge__lesemaate» er et kolonnenavn i en parquet-fil. Det skal
     aldri stå på en publisert side."""
-    assert visningsord.felt("farge__lesemaate") == "Lesemåte"
+    assert visningsord.felt("farge__lesemaate") == "Grunnlag"
     assert visningsord.felt("artsbegrensninger_antall") == "Artsbegrensninger"
 
 
@@ -385,6 +385,10 @@ def test_ingen_mal_skriver_et_bart_tall_foran_et_substantiv():
             if not any(ord_.startswith(s) for s in SUBST):
                 continue
             if "antall(" in uttrykk or "alle(" in uttrykk:
+                continue
+            # UTTRYKKET ER SELV FORMVALGET, ikke et tall: «{{ "uke arkivert"
+            # if … else "uker arkivert" }} siden» er et ord foran «siden».
+            if " if " in uttrykk and " else " in uttrykk:
                 continue
             # Formen velges av en `if` rett etter tallet — se
             # arkivlinja, der tallet står inne i <strong>.

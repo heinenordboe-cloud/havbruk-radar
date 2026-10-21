@@ -111,9 +111,8 @@
     tekst(hode, treff.length
       ? "Viser " + Math.min(treff.length, TAK) + " av " + treff.length
         + " treff på «" + q + "»."
-      : "Ingen treff på «" + q + "». Prøv et lokalitetsnummer, et "
-        + "kommunenavn eller et selskapsnavn — eller bla i de flate "
-        + "listene under.");
+      : "Ingen treff på «" + q + "». Prøv lokalitetsnummer, kommune "
+        + "eller selskap.");
     ut.appendChild(hode);
     if (!treff.length) return;
 
@@ -187,8 +186,7 @@
       })
       .then(function (r) { if (felt.value.trim() === q) vis(r.results, q); })
       .catch(function () {
-        melding("Søkeindeksen kunne ikke lastes. Listene under virker "
-                + "uansett.");
+        melding("Søket virker ikke akkurat nå. Listene under kan brukes.");
       });
   }
 

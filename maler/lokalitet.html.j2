@@ -251,9 +251,9 @@
   {% if ps.mtb and ps.kapasitet and ps.mtb.verdi != ps.kapasitet.verdi %}
   <details class="forklaring">
     <summary>Hvorfor to kapasiteter?</summary>
-    <p>Lokaliteten: det stedet er klarert for. Tillatelsene: summen av
-      MTB, altså det innehaverne kan ha i alt.</p>
-    <p>En tillatelse kan gjelde flere lokaliteter, så summen er ikke stedets tall.</p>
+    <p>Lokaliteten: hva stedet er klarert for.</p>
+    <p>Tillatelsene: hvor mye innehaverne kan ha i alt (MTB), også på andre
+      lokaliteter.</p>
   </details>
   {% endif %}
 
@@ -513,8 +513,8 @@
       bare det som er DENNE sidens tall. Ankeret `#om-tallene` blir
       stående. #}
   <p class="etikettlinje" id="om-tallene">
-    {%- if lok.maaleserie_rader %}Ikke regnet som endringer: {{ tall(lok.maaleserie_rader) }} måletall
-    (mot {{ antall(lok.endringer|length, "registerendring", "registerendringer") }}) · {% endif -%}
+    {%- if lok.maaleserie_rader %}Lusetall og temperatur regnes ikke som endringer:
+    {{ tall(lok.maaleserie_rader) }} måletall · {% endif -%}
     <a href="/om/#lesing">Slik leser du tallene</a></p>
 
 </section>
@@ -619,7 +619,7 @@
     </details>
     {% else %}
     {#- Hvorfor en lokalitet kan mangle i laget, står på /om/#lesing-fisk. #}
-    <p class="tomt">Ingen månedsrapport i biomasselaget, i noen av hentingene.
+    <p class="tomt">Ingen månedsrapporter i biomasselaget.
       <a href="/om/#lesing-fisk">Om laget</a></p>
     {% endif %}
   </section>
@@ -769,8 +769,8 @@
       </div>
       {% endfor %}
     </dl>
-    <p class="etikettlinje">Periodegrense: BarentsWatchs vurdering «Trolig uten fisk»
-      <a href="/om/#lesing-lus">(om tallene)</a></p>
+    <p class="etikettlinje">En periode slutter der BarentsWatch melder «trolig uten
+      fisk». <a href="/om/#lesing-lus">(om tallene)</a></p>
     {% endif %}
 
     {% else %}
@@ -864,8 +864,6 @@
         {%- if lok.lus_mangler_kort %} Mangler hos kilden: {{ lok.lus_mangler_kort }}.{% endif %}</p>
       <p class="tabellnote"><strong>«–»</strong> betyr at kilden ikke oppgir noe tall, ikke null.</p>
       {% endif %}
-      <p class="tabellnote">Hele serien: <a href="{{ lok.xlsx_filnavn }}">Excel (.xlsx)</a>
-        eller <a href="{{ lok.zip_filnavn }}">Data (.zip)</a>, med kildens egne verdier.</p>
     </details>
   </section>
 
@@ -916,11 +914,9 @@
       {{ herkomst(lok.paastander.sted.herkomst) }}</p>
     {% endif %}
     {% if lok.tillatelser_uten_eier %}
-    <p class="tabellnote">
-      For {{ lok.tillatelser_uten_eier }} av
-      {{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }} vet vi ikke hvem eieren er.</p>
-    <p class="tabellnote">Kilden oppgir ikke nummer for privatpersoner, og vi
-      navngir ingen vi ikke kan klassifisere. <a href="/om/#dekning">Dekningen</a></p>
+    <p class="tabellnote">Eier ikke vist for {{ lok.tillatelser_uten_eier }} av
+      {{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }}:
+      privatpersoner navngis ikke. <a href="/om/#dekning">Dekningen</a></p>
     {% endif %}
     {# KAPASITET 0. Registeret oppgir 0 for noen tillatelser — særlig
        der lokaliteten er klarert i stykk. Uten et ord ble «0 stykk» lest
@@ -983,7 +979,7 @@
       </tbody>
     </table>
     </div>
-    <p class="tabellnote">«—» i siste kolonne: ingen endring i loggen vår.
+    <p class="tabellnote">«—»: ingen endring siden vi begynte å hente.
       <a href="/om/#lesing-register">Om feltene</a></p>
     </details>
   </section>

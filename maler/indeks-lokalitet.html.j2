@@ -57,8 +57,7 @@
   {% if d.side and d.side.antall > 1 %}Lista er delt i {{ antall(d.side.antall, "side", "sider") }}
   sortert på lokalitetsnummer. Søkefeltet øverst søker i alle.
   {% else %}Hele lista står på denne siden.{% endif %}</p>
-<p class="historikk-forklaring">{{ tall(d.uten_po) }} av dem har tom PO-celle: registeret oppgir
-  ikke noe produksjonsområde.</p>
+<p class="historikk-forklaring">{{ tall(d.uten_po) }} har ikke produksjonsområde i registeret.</p>
 {% for s in d.uten_omraade.split("\n") if s %}<p class="historikk-forklaring">{{ s }}</p>
 {% endfor %}
 
@@ -98,9 +97,7 @@
 </table>
 </div>
 {% include "sidenav.html.j2" %}
-<p class="tabellnote">Lokalitetsnummeret er Fiskeridirektoratets og er nøkkelen til
-  lokalitetssiden.</p>
-<p class="tabellnote">Artsnavnene er oversatt fra kildens koder; verdien i dataene er uendret.</p>
+{#- At artsnavnene er oversatt fra kildens koder, står på /om/#lesing. #}
 
 {% if not d.side or d.side.nr == 1 %}
 {# LOKALITETER UTEN KOORDINATER. Lista lå på forsiden ved siden av
@@ -114,9 +111,7 @@
    Se docs/REGEL-UENIGE-KILDER.md. #}
 <h2 id="uten-koordinater">Lokaliteter uten koordinater</h2>
 <p>{{ tall(d.uten_koordinater_antall) }} av {{ antall(d.antall, "lokalitet", "lokaliteter") }} mangler
-  breddegrad eller lengdegrad i Akvakulturregisteret.</p>
-<p>{% if d.uten_koordinater %}De står her, slik at et punkt som mangler ikke bare forsvinner:
-  {%- else %}Ingen mangler i denne hentingen.{% endif %}</p>
+  posisjon i registeret{% if d.uten_koordinater %}:{% else %}.{% endif %}</p>
 {% if d.uten_koordinater %}
 <p class="tabelltittel" id="akvakultur-uten-koordinater-tittel">Lokaliteter uten breddegrad eller lengdegrad, hentet
     <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.</p>
@@ -141,9 +136,6 @@
   </tbody>
 </table>
 </div>
-<p class="tabellnote">
-  De har side som alle andre — det er bare kartet de ikke kan være på.
-</p>
 {% endif %}
 {% endif %}
 </div>

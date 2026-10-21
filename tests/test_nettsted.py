@@ -1344,7 +1344,7 @@ def test_sida_SIER_at_eieren_mangler(monkeypatch):
     # docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md), og en test
     # som låser linjeskiftene feller neste ombrekking uten grunn.
     flat = " ".join(html.split())
-    assert "For 2 av 2 tillatelser vet vi ikke hvem eieren er" in flat
+    assert "Eier ikke vist for 2 av 2 tillatelser" in flat
     assert "privatpersoner" in flat
     assert "H-SO-0318" in flat and "H-SO-0329" in flat
 
@@ -1619,16 +1619,17 @@ def test_lesemaaten_staar_paa_siden_og_forklares():
 
 
 def test_maaleserier_og_ubelagte_telles_paa_po_siden():
-    """Begge utelatelsene er SAGT. Biomasse er 941 rader mot 1
-    registerendring, og ekspertgruppen er UBELAGT — antallet står slik at
-    utelatelsen ikke er stille."""
+    """Den ubelagte utelatelsen er SAGT: ekspertgruppen er UBELAGT, og
+    antallet står slik at utelatelsen ikke er stille. Måletallene for
+    biomasse (941 rader) står ikke lenger på siden — tekstrunden
+    21.10.2026 slettet noten."""
     html = " ".join(_po().split())
     # TALLET og KILDEN, ikke setningen rundt dem. Prøven het på en
     # ordrett formulering fram til 20.09.2026 og falt da noten ble
     # skrevet om — den målte prosaen, ikke at utelatelsen var sagt.
-    assert "941" in html, "måleserieraden er ikke telt"
+    assert "941" not in html
     assert "56" in html, "utelatelsen er stille"
-    assert "lisensen ikke er dokumentert" in html, "utelatelsen er stille"
+    assert "lisensen er avklart" in html, "utelatelsen er stille"
     # KILDENS EGET NAVN, ikke mappa i data/raw — se `visningsord.kilde()`.
     assert "Ekspertgruppen for vurdering av lusepåvirkning" in html, \
         "kilden er ikke navngitt"
@@ -1639,16 +1640,13 @@ def test_po_siden_lenker_til_hver_lokalitet():
 
 
 def test_po_siden_sier_at_inndelingen_er_dagens():
-    """Området er en regulatorisk inndeling som kan tas om igjen, ikke
-    en naturgitt grense. Siden sier hva inndelingen var PÅ EN DATO, og
-    at et område som endrer grenser eller nummer er et annet område."""
+    """Området er en regulatorisk inndeling som kan tas om igjen. Siden
+    bærer datoen, og at et område med nye grenser er et annet område,
+    står på /om/#dekning fra 21.10.2026."""
     flat = " ".join(_po().split())
-    assert "regulatorisk inndeling, ikke en naturgitt grense" in flat
-    assert "Siden sier hva inndelingen var på datoen over" in flat
     assert "2026-09-14" in flat
-    assert "2026-09-14" in flat
-    assert "regulatorisk inndeling" in flat
-    assert "ikke en naturgitt grense" in flat
+    assert "Et område med nye grenser er et nytt område." in \
+        " ".join(_om().split())
 
 
 def test_po_siden_bruker_ikke_UBELAGT_kilde_i_bunnteksten():
@@ -1842,7 +1840,9 @@ def test_selskapssiden_lenker_til_lokalitet_og_produksjonsomrade():
 def test_selskapssiden_sier_at_den_ikke_viser_konsern():
     """Rolledata er persondata og hentes ikke. At det er et VALG og ikke
     en mangel, skal stå på siden."""
-    assert "Ingenting om konsern" in _selskap()
+    flat = " ".join(_selskap().split())
+    assert "Siden viser ikke konsern" in flat
+    assert "Hva vi ikke henter" in flat
 
 
 def test_en_eier_kilden_kaller_person_faar_ingen_side():
@@ -2359,7 +2359,7 @@ def test_arkivtallet_skjuler_ikke_at_det_er_lite():
     flat = " ".join(_forside().split())
     # «Henting», ikke «øyeblikksbilde» (tekstreglene 20.10.2026: ordet står
     # bare i siteringsformatet).
-    assert "6</strong> ukentlige hentinger fra" in flat
+    assert "6</strong> uker arkivert siden" in flat
     assert "17. august 2026" in flat
     assert "sjekksum" in flat
 
@@ -2402,8 +2402,7 @@ def test_selskapsindeksen_utelater_personeier_MEN_sier_det():
     html = nettsted._miljo().get_template("indeks-selskap.html.j2").render(
         d=d, **_grunn("lokalitet"))
     flat = " ".join(html.split())
-    assert "1 eier(e) står ikke i lista og har ingen side" in flat
-    assert "personregister" in flat
+    assert "1 eier er privatperson og vises ikke" in flat
     assert "954744469" not in html
 
 
@@ -2588,8 +2587,7 @@ def test_lokaliteter_uten_koordinater_star_paa_indeksen():
     html = nettsted._miljo().get_template("indeks-lokalitet.html.j2").render(
         d=d, **_grunn("lokalitet"))
     assert 'id="akvakultur-uten-koordinater"' in html
-    assert "slik at et punkt som mangler ikke bare forsvinner" in \
-        " ".join(html.split())
+    assert "mangler posisjon i registeret:" in " ".join(html.split())
     # Prøven ser etter pagineringsKONTROLLER, ikke etter ordet: sida
     # forklarer selv at den IKKE er paginert, og en prøve på ordet felte
     # sin egen begrunnelse.
@@ -3589,7 +3587,8 @@ def test_grenselinja_staar_paa_siden_med_tegnforklaring():
     assert "<dt>Tiltaksgrense</dt><dd>0,5" in " ".join(html.split())
     assert "ikke oppgitt</dd>" not in html
     # AT STREKEN ER KILDENS, står én gang, på metodesiden.
-    assert "ikke en strek vi har satt" in " ".join(_om().split())
+    assert "tiltaksgrensa BarentsWatch oppgir uke for uke" in \
+        " ".join(_om().split())
 
 
 def test_baandene_dekker_brakklagte_uker_og_bare_dem():
@@ -3743,8 +3742,8 @@ def test_omraadesiden_sier_ikke_at_den_mangler_begrunnelsen_den_siterer():
            / "produksjonsomrade.html.j2").read_text(encoding="utf-8")
     flat = " ".join(re.sub(r"\{#.*?#\}", "", mal, flags=re.S).split())
     assert "ikke begrunnelsen" not in flat
-    assert ("Siden viser vedtaket og siterer departementet der det har "
-            "skrevet noe, men forklarer ikke fargen selv.") in flat
+    # Forbeholdet om fargen står på /om/#dekning fra 21.10.2026.
+    assert "ikke begrunnelsen" not in " ".join(_om().split())
 
 
 def _raa(felt, fra, til, dato="2026-09-21", kilde="akvakultur",
@@ -3807,7 +3806,7 @@ def test_versjonsaarsaken_blir_staaende_naar_den_er_alene(monkeypatch):
 # ---- lokalitetssiden: vesentlig først, forklaringene samlet --------------
 
 FORKLARINGENE = (
-    "Datoen er som hovedregel når VI så endringen",
+    "Datoen er som hovedregel når vi så endringen",
     "Måleseriene telles ikke som endringer.",
     "ILA- og PD-flaggene er unntaket.",
     "betyr at flagget står, ikke at sykdommen er påvist.",
@@ -3818,7 +3817,7 @@ FORKLARINGENE = (
     "«Journalført senest denne datoen»</strong> er ikke det samme",
     "Navnet står i registerfeltene i registerets egen skrivemåte.",
     "Tomrom betyr ikke null.",
-    "ikke en strek vi har satt",
+    "tiltaksgrensa BarentsWatch oppgir uke for uke.",
 )
 
 
@@ -3845,9 +3844,10 @@ def test_sidens_egne_tall_star_der_forklaringen_stod():
     """Antallet måletall som ikke regnes som endringer er DENNE sidens tall,
     og det står — bare når det finnes."""
     med = _side()
-    assert "Ikke regnet som endringer: 1\u00a0284 måletall" in med
+    # Bare blank og linjeskift slås sammen: `split()` ville spist tusenskillet.
+    assert "regnes ikke som endringer: 1\u00a0284 måletall" in re.sub(r"[ \n]+", " ", med)
     uten = " ".join(_side(maaleserie_rader=0).split())
-    assert "Ikke regnet som endringer" not in uten
+    assert "regnes ikke som endringer" not in uten
 
 
 def _post(felt, klasse, dato, kilde="akvakultur", fra="a", til="b"):
@@ -5032,7 +5032,8 @@ def test_beslutning_er_en_egen_beleggsgrad():
     """Tre grader, og de sier hver sin ting om HVOR fargen står."""
     assert set(nettsted.LESEMAATE) >= {"ordrett", "kapittelhjemmel",
                                        "beslutning"}
-    assert "ikke i forskriften" in nettsted.LESEMAATE["beslutning"]
+    assert "kunngjøring" in nettsted.LESEMAATE["beslutning"]
+    assert "forskriften" in nettsted.LESEMAATE["ordrett"]
 
 
 # ================================ selskapsdata står for seg
@@ -5378,7 +5379,8 @@ def test_404_gjetter_ikke(tmp_path):
     forskjellige ting."""
     mal = (Path(__file__).resolve().parents[1]
            / "maler" / "404.html.j2").read_text(encoding="utf-8")
-    assert "Vi gjetter ikke" in mal
+    assert "nedlagt før 2026, feilskrevet eller utenfor utvalget vårt" in \
+        " ".join(mal.split())
     assert 'href="/lokalitet/"' in mal and 'href="/sok/"' in mal
 
 
@@ -5968,7 +5970,7 @@ def test_siden_sier_at_periodegrensen_er_barentswatchs():
     tekst = " ".join(html.split())
     assert "Inneværende produksjonsperiode" in tekst
     assert "Forrige produksjonsperiode" in tekst
-    assert "BarentsWatchs vurdering «Trolig uten fisk»" in tekst
+    assert "der BarentsWatch melder «trolig uten fisk»" in tekst
     assert "1 av 2 uker med lusetall" in tekst
 
 

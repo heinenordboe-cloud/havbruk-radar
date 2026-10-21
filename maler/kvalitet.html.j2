@@ -32,9 +32,9 @@
     <div><dt>Sider med uenige måneder</dt><dd>{{ tall(k.hull.get("b_sider_med_uenige_maaneder", 0)) }}</dd></div>
     <div><dt>«Ja» eldre enn grensa</dt><dd>{{ tall(k.hull.get("a_ja_eldre_enn_grensa", 0)) }}
       <span class="fakta-etikett">vist som ja: {{ tall(k.hull.get("a_vist_som_ja", 0)) }}</span></dd></div>
-    <div><dt>To kapasiteter, ulike</dt><dd>{{ tall(k.hull.get("c_ulike", 0)) }}
+    <div><dt>Ulike kapasitetstall</dt><dd>{{ tall(k.hull.get("c_ulike", 0)) }}
       <span class="fakta-etikett">av {{ tall(k.hull.get("c_begge_kapasiteter", 0)) }}</span></dd></div>
-    <div><dt>Midlertidig ulik ordinær</dt><dd>{{ tall(k.hull.get("c_midlertidig_ulik_ordinaer", 0)) }}</dd></div>
+    <div><dt>Midlertidig ≠ ordinær kapasitet</dt><dd>{{ tall(k.hull.get("c_midlertidig_ulik_ordinaer", 0)) }}</dd></div>
     <div><dt>Delt posisjon</dt><dd>{{ tall(k.hull.get("g_delt_posisjon", 0)) }}</dd></div>
     <div><dt>Uten tillatelser</dt><dd>{{ tall(k.hull.get("g_uten_tillatelser", 0)) }}</dd></div>
   </dl>

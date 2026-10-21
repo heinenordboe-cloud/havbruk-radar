@@ -2060,8 +2060,8 @@ ENDRINGSTYPER = (
             "forrige uke",
      # FORBEHOLDET STÅR FOR SEG, i sitt eget avsnitt der det vises. Til
      # 20.10.2026 var det klistret til `hva`, og definisjonen ble 157 tegn.
-     "forbehold": "Utvalget vårt er et søk, så «ny for oss» er ikke det "
-                  "samme som «ny i registeret»."},
+     "forbehold": "«Ny i vårt utvalg» betyr ikke nødvendigvis ny i "
+                  "registeret."},
     {"id": "borte", "navn": "Ute av vårt utvalg",
      "kort": "oppføringer som gikk ut",
      "hva": "en oppføring som var med forrige uke og ikke er det nå",
@@ -3218,17 +3218,16 @@ FARGEORD = visningsord.FARGE
 
 # Hva lesemåten BETYR, i klartekst på siden. Nøkkelen er kildens verdi.
 LESEMAATE = {
-    "ordrett": "fargeordet står ordrett i bestemmelsen",
+    "ordrett": "fargen står i forskriften",
     "kapitteloverskrift": "fargeordet står i kapitteloverskriften området "
                           "er plassert under",
-    "kapittelhjemmel": "utledet av hvilket kapittel området er plassert i",
+    "kapittelhjemmel": "utledet av kapittelet området står i",
     # TREDJE BELEGGSGRAD, fra 23.09.2026. Fargen står ikke i noen
     # forskrift, og det er ikke en mangel i kilden: trafikklyset
     # avgjøres i to trinn, og et GULT område krever ingen bestemmelse.
     # Den står i departementets kunngjøring av fargeleggingen. Se
     # `beslutning.py`.
-    "beslutning": "fargeordet står i departementets kunngjøring av "
-                  "fargeleggingen, ikke i forskriften",
+    "beslutning": "fargen står i departementets kunngjøring",
 }
 
 # Teksten når forskriften ikke oppgir farge for et område i en runde.
@@ -9212,8 +9211,7 @@ def _sammendrag(uke: dict | None) -> list[dict]:
         # satt i samme skrift som ukas sak leses som ukas sak.
         setninger.append({
             "tekst": (f"{visningsord.tall(uke['antall_egen_del'])} "
-                      f"endringer i selskapsdata — ansatte, næringskode, "
-                      f"adresse, regnskap — står for seg på ukessiden."),
+                      f"endringer i selskapsdata står for seg på ukessiden."),
             "brod": True})
 
     storst = med_tall[0]
@@ -9662,7 +9660,7 @@ SELSKAPSFELT = (
 
 # Teksten når vi ikke har registerdata for eieren i det hele tatt.
 # 122 av 482. Ikke en tom tabell — samme regel som `EIER_UKJENT`.
-UTEN_REGISTERDATA = ("selskapet står ikke i vårt enhetsregister-uttrekk")
+UTEN_REGISTERDATA = ("ikke med i vårt uttrekk fra Enhetsregisteret")
 
 SELSKAPSKILDER = ("akvakultur", "eierskap", "eierskap_historikk",
                   "enhetsregisteret")
