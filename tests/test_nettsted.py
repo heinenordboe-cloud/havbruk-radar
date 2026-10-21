@@ -349,6 +349,7 @@ def _side(**overstyr) -> str:
         lok["lus_serie"][-1]["dato"] if lok["lus_serie"] else ""))
     # PÅSTANDENE OG OPPSUMMERINGEN regnes av det samme, av samme grunn —
     # påstandene først, fordi oppsummeringen er satt sammen av dem.
+    lok.setdefault("fisk_mot_lus", nettsted.fisk_mot_lus(lok))
     lok.setdefault("paastander", nettsted.lokalitetspaastander(lok))
     lok.setdefault("referanse", nettsted.referansedato(lok))
     lok.setdefault("sammendrag", nettsted.lokalitetssammendrag(lok))
@@ -5926,3 +5927,49 @@ def test_siden_sier_at_periodegrensen_er_barentswatchs():
     assert "Forrige produksjonsperiode" in tekst
     assert "BarentsWatchs vurdering «Trolig uten fisk»" in tekst
     assert "1 av 2 uker med lusetall" in tekst
+
+
+# ==================================== konflikt mellom fisk og lus
+#
+# Samme periode, samme arter, motsatt svar: begge vises med dato, aldri
+# slått sammen. Se `paastand.konflikt()` og `nettsted.fisk_mot_lus()`.
+
+def _lusuke(dato, brakklagt, laks="True", land="False", slakte="False"):
+    rad = dict(_uke_raa(), dato=dato, brakklagt=brakklagt,
+               har_laksefisk=laks)
+    rad.update(er_landbasert=land, er_slaktemerd=slakte)
+    return rad
+
+
+def _fisk_og_lus(rapport, har_fisk, lusuke, brakklagt, **lus):
+    biolag = nettsted._biolagstripe(
+        [_rute("2026-09-15", har_fisk, rapport) | {"arter_tilstede": "Laks"}],
+        ["2026-09-15"])
+    return _side(biolag=biolag, lus_serie=[_lusuke(lusuke, brakklagt, **lus)])
+
+
+def test_b_uenige_om_samme_uke_vises_begge_med_dato():
+    html = _fisk_og_lus("2026-08-31", "Ja", "2026-08-31", "True")
+    flat = " ".join(html.split())
+    # Tilstanden: begge påstandene, hver med sin kilde og dato.
+    assert "Uenige:" in flat
+    assert re.search(r'data-kilde="biomasselag" data-gjelder="2026-08-31"', html)
+    assert re.search(r'class="uenige" data-kilde="lusetall" data-gjelder="2026-08-31" '
+                     r'data-nivaa="vurdert"', html)
+    # Tabellen: BarentsWatchs påstand for samme uke, merket uenige.
+    assert '<strong class="uenige">uenige</strong>' in html
+
+
+def test_b_ulike_perioder_er_ikke_uenige_men_begge_star():
+    """Hillersvik: rapporten for 30.09 og lusetallsuka 21.09 er to påstander
+    om hver sin periode. Ingen «uenige», og begge står i tilstanden."""
+    html = _fisk_og_lus("2026-09-30", "Ja", "2026-09-21", "True")
+    assert "Uenige:" not in html and ">uenige<" not in html
+    assert 'data-kilde="biomasselag" data-gjelder="2026-09-30"' in html
+    assert 'data-kilde="lusetall" data-gjelder="2026-09-21"' in html
+
+
+def test_a_landanlegg_er_utenfor_barentswatchs_univers():
+    html = _fisk_og_lus("2025-12-31", "Ja", "2025-12-29", "True",
+                        laks="False", land="True")
+    assert "Uenige:" not in html and ">uenige<" not in html

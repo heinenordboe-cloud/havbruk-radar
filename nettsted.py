@@ -1005,6 +1005,8 @@ def les_felles() -> Felles:
                 per_lok[str(eid)][str(felt)] = verdi
             for eid, raa in per_lok.items():
                 uke = {felt: (raa.get(felt) or "") for felt in LUSEFELT}
+                for felt in LUSEUNIVERS:
+                    uke[felt] = sys.intern(str(raa.get(felt) or ""))
                 uke["dato"] = dato
                 uke["iso_aar"] = str(aar)
                 uke["iso_uke"] = f"{ukenr:02d}"
@@ -1228,6 +1230,13 @@ LUSEFELT = ("voksne_hunnlus", "lus_er_rapportert", "har_laksefisk",
             "brakklagt", "har_medikamentell_behandling",
             "har_mekanisk_fjerning", "har_rensefisk")
 
+# HVA BARENTSWATCH UTTALER SEG OM, uke for uke. Ikke i `LUSEFELT`: de er
+# ikke kolonner i tabellen eller i nedlastingene, men grensa for når
+# BarentsWatchs «brakklagt» er en påstand om fisken. Tellingen gjelder
+# laksefisk i sjø; et landanlegg eller en slaktemerd er utenfor
+# (MALING-FUNN-OKTOBER F4.2, «UNIVERS»). `har_laksefisk` står i LUSEFELT.
+LUSEUNIVERS = ("er_landbasert", "er_slaktemerd")
+
 # Det som står i cellen når kilden ikke har noen verdi. Ikke «0», og
 # ikke blankt.
 #
@@ -1316,6 +1325,8 @@ def _lusserie(loknr: str) -> list[dict]:
             raa = {str(f): v for f, v in
                    sub.select(["field", "value"]).iter_rows()}
             uke = {felt: (raa.get(felt) or "") for felt in LUSEFELT}
+            for felt in LUSEUNIVERS:
+                uke[felt] = sys.intern(str(raa.get(felt) or ""))
             aar, ukenr = _isouke(dato)
             uke["dato"] = dato
             uke["iso_aar"] = str(aar)
@@ -4928,11 +4939,73 @@ def lokalitetspaastander(lok: dict) -> dict:
     ut["tillatelser"] = vis(Paastand(
         "tillatelser", "eierskap", eier,
         str(len(lok.get("tillatelser") or [])), felt="tillatelser"), ref)
+
+    # UENIGE OM SISTE RAPPORT: BarentsWatch sier det motsatte samme uke.
+    # Begge vises, hver med sin dato — aldri slått sammen til én verdi.
+    mot = lok.get("fisk_mot_lus") or []
+    if mot and mot[-1]["konflikt"]:
+        ut["uenige"] = mot[-1]["bw"]
     return ut
 
 
 PAASTANDSTEMAER = ("fisk", "lus", "innehaver", "journalfort", "kapasitet",
-                   "mtb", "midlertidig", "sted", "tillatelser")
+                   "mtb", "midlertidig", "sted", "tillatelser", "uenige")
+
+# BarentsWatchs «brakklagt», i ordene tilstanden bruker.
+BRAKK_VIST = {"True": "brakklagt", "False": "ikke brakklagt"}
+
+
+def fisk_mot_lus(lok: dict) -> list[dict]:
+    """Hver månedsrapport holdt mot BarentsWatch-uka som inneholder
+    månedsslutten. Én rad per rapport, i samme rekkefølge som
+    `biolag.maaneder`.
+
+        {"dato": månedsslutt, "uke": mandagen eller "",
+         "bw": {"vist", "verdi", "herkomst"} eller None, "konflikt": bool}
+
+    `bw` er None når uka ikke er hentet — uka med 30.09.2026 hentes fire
+    uker etter — eller lokaliteten ikke står i den. Raden er HISTORIKK, og
+    aldersprøves ikke: en påstand om uke 36 er like sann om uke 36 i dag.
+
+    KONFLIKTEN ER `paastand.konflikt()`: samme periode, samme arter,
+    motsatt svar. BarentsWatch uttaler seg om laksefisk i sjø, og bare
+    innenfor det universet.
+
+    MÅLT 20.10.2026 over alle hentinger av biomasselaget: 2 201 rapporter
+    (lokalitet, måned). 1 364 enige, 51 i konflikt (28 «fisk» mot
+    «brakklagt», 23 «ingen fisk» mot «ikke brakklagt»), 87 utenfor
+    universet og 702 uten lusuke ennå.
+    """
+    from paastand import LAKSEFISK, UKE, VURDERT, Paastand, herkomst, konflikt
+
+    per_uke = {u["dato"]: u for u in lok.get("lus_serie") or []}
+    ut = []
+    for m in (lok.get("biolag") or {}).get("maaneder") or []:
+        d = dt.date.fromisoformat(m["dato"])
+        mandag = (d - dt.timedelta(days=d.weekday())).isoformat()
+        u = per_uke.get(mandag)
+        if not u:
+            ut.append({"dato": m["dato"], "uke": "", "bw": None,
+                       "konflikt": False})
+            continue
+        arter = frozenset(a.strip() for a in (m.get("arter") or "").split(";")
+                          if a.strip())
+        fisk = Paastand("fisk", "biomasselag", m["dato"], m["har_fisk"],
+                        felt="har_fisk",
+                        arter=(arter or None) if m["har_fisk"] == "Ja" else None)
+        univers = (u.get("har_laksefisk") == "True"
+                   and u.get("er_landbasert") == "False"
+                   and u.get("er_slaktemerd") == "False")
+        brakk = Paastand("brakklagt", "lusetall", mandag,
+                         u.get("brakklagt") or "", nivaa=VURDERT,
+                         felt="brakklagt", periode=UKE,
+                         arter=LAKSEFISK if univers else frozenset())
+        ut.append({"dato": m["dato"], "uke": mandag,
+                   "bw": {"verdi": brakk.verdi,
+                          "vist": BRAKK_VIST.get(brakk.verdi, brakk.verdi),
+                          "herkomst": herkomst(brakk)},
+                   "konflikt": konflikt(fisk, brakk)})
+    return ut
 
 # Biomasselagets ja og nei, i små bokstaver som resten av tilstanden.
 # Eksakt, som `JANEI`: noe annet kommer ordrett igjennom.
@@ -5245,6 +5318,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
     }
     # REGNES AV DET SIDEN ALLEREDE VISER, ikke slått opp på nytt.
     # Påstandene først: oppsummeringen er satt sammen av dem.
+    lok["fisk_mot_lus"] = fisk_mot_lus(lok)
     lok["paastander"] = lokalitetspaastander(lok)
     lok["referanse"] = referansedato(lok)
     lok["sammendrag"] = lokalitetssammendrag(lok)
@@ -5794,6 +5868,7 @@ def _miljo() -> Environment:
     miljo.globals["attribusjonslenke"] = ATTRIBUSJONSLENKE
     miljo.globals["SKJULT_NAVN_FELT"] = publiseringsvakt.SKJULT_NAVN_FELT
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER
+    miljo.globals["VERDI_MANGLER_FELT"] = VERDI_MANGLER_FELT
     return miljo
 
 

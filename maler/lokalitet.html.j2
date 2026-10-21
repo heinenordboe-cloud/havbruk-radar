@@ -156,7 +156,15 @@
         {%- if p.utgaatt %}<span class="mangler" data-felt="paastand_utgaatt">ukjent</span>
         {{ herkomst(p.herkomst, for_dato="siste rapport") }}
         {%- else %}<span data-felt="har_fisk">{{ p.vist }}</span>
-        {{ herkomst(p.herkomst) }}{% endif %}</dd>
+        {{ herkomst(p.herkomst) }}{% endif %}
+        {%- if ps.uenige %}
+        {#- KILDENE ER UENIGE OM SAMME UKE. Begge står, hver med sin dato:
+            en konflikt slås aldri sammen til én verdi. Se
+            `paastand.konflikt()`. #}
+        <span class="uenige"{{ merke(ps.uenige.herkomst, "vurdert") }}><strong>Uenige:</strong>
+          <span data-felt="brakklagt">{{ ps.uenige.vist }}</span>
+          {{ herkomst(ps.uenige.herkomst, merknad="vurdert") }}</span>
+        {%- endif %}</dd>
     </div>
     {% endif %}
     {% if ps.lus %}{% set p = ps.lus %}
@@ -639,8 +647,11 @@
         verden. Til 20.10.2026 sto en stripe her med én rute per HENTING, og
         Hendneset (10204) fikk «7 av 7 observerte uker med fisk» av én
         rapport fra desember 2025 lest sju ganger. Se `_rapportmaaneder()`. #}
+    {% set mot = lok.fisk_mot_lus %}
+    {% set med_bw = mot|selectattr("bw")|list %}
     <p class="tabelltittel" id="biomasselag-maaned-tittel">Månedsrapporter
-      <span class="herkomst">{{ "biomasselag"|kildekort }}</span></p>
+      <span class="herkomst">{{ "biomasselag"|kildekort }}
+        {%- if med_bw %} · {{ "lusetall"|kildekort }} samme uke{% endif %}</span></p>
     <div class="tabellramme" role="region"
          aria-labelledby="biomasselag-maaned-tittel" tabindex="0">
     <table id="biomasselag-maaned" aria-labelledby="biomasselag-maaned-tittel">
@@ -650,16 +661,30 @@
           <th scope="col">Fisk</th>
           <th scope="col">Arter</th>
           <th scope="col">Status</th>
+          {% if med_bw %}<th scope="col">BarentsWatch</th>{% endif %}
         </tr>
       </thead>
       <tbody>
         {% for m in b.maaneder|reverse %}
+        {% set x = mot[(b.maaneder|length) - loop.index] %}
         <tr data-kilde="biomasselag" data-gjelder="{{ m.dato }}" data-nivaa="oppgitt">
           <th scope="row"><time datetime="{{ m.dato }}">{{ m.dato|kortdato }}</time></th>
           <td data-felt="{{ feltmerke(m.har_fisk, 'har_fisk') }}">{{ m.har_fisk or VERDI_MANGLER }}
             {%- if m.for %} <span class="dempet">(før: {% for v in m.for %}<span data-felt="har_fisk">{{ v }}</span>{% if not loop.last %}, {% endif %}{% endfor %})</span>{% endif %}</td>
           <td data-felt="{{ feltmerke(m.arter, 'arter_tilstede') }}">{{ m.arter or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(m.status, 'lokalitet_status') }}">{{ m.status or VERDI_MANGLER }}</td>
+          {% if med_bw %}
+          {#- BARENTSWATCHS PÅSTAND OM SAMME UKE, med sin egen dato og sitt
+              eget nivå. «Uenige» bare når `paastand.konflikt()` sier det:
+              samme uke, samme arter, motsatt svar. #}
+          {% if x.bw %}
+          <td data-felt="brakklagt"{{ merke(x.bw.herkomst, "vurdert") }}>{{ x.bw.vist }}
+            <time datetime="{{ x.bw.herkomst.gjelder }}">{{ x.bw.herkomst.vist }}</time>
+            {%- if x.konflikt %} <strong class="uenige">uenige</strong>{% endif %}</td>
+          {% else %}
+          <td data-felt="{{ VERDI_MANGLER_FELT }}">{{ VERDI_MANGLER }}</td>
+          {% endif %}
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>

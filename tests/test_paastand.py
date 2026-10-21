@@ -104,3 +104,67 @@ def test_vis_beholder_kildens_verdi_ved_siden_av_den_viste():
     v = paastand.vis(_fisk("2026-09-30"), "2026-10-19", "ja")
     assert (v["verdi"], v["vist"], v["nivaa"], v["utgaatt"]) == \
         ("Ja", "ja", OPPGITT, False)
+
+
+# ---- konflikt: samme periode, samme arter, motsatt svar ------------------
+
+def _fisk_arter(gjelder, verdi, arter):
+    return Paastand("fisk", "biomasselag", gjelder, verdi, felt="har_fisk",
+                    arter=frozenset(arter) if arter is not None else None)
+
+
+def _brakk(uke, verdi, univers=True):
+    return Paastand("brakklagt", "lusetall", uke, verdi, nivaa=VURDERT,
+                    felt="brakklagt", periode=UKE,
+                    arter=paastand.LAKSEFISK if univers else frozenset())
+
+
+def test_b_hillersvik_30_september_og_uke_39_er_ULIKE_perioder():
+    """MÅLT 20.10.2026: «fisk» i rapporten for 30.09 og «brakklagt» i uke 39
+    (21.–27.09). 60 slike lokaliteter i siste uke, og ingen av dem gjelder
+    samme periode — 30.09 ligger i uke 40, som ikke er hentet ennå."""
+    fisk = _fisk_arter("2026-09-30", "Ja", {"Laks"})
+    brakk = _brakk("2026-09-21", "True")
+    assert not paastand.samme_periode(fisk, brakk)
+    assert not paastand.konflikt(fisk, brakk)
+
+
+def test_b_samme_uke_og_motsatt_svar_er_konflikt():
+    """31.08.2026 er mandag i uke 36: månedsslutten ligger i uka."""
+    fisk = _fisk_arter("2026-08-31", "Ja", {"Laks"})
+    brakk = _brakk("2026-08-31", "True")
+    assert paastand.samme_periode(fisk, brakk)
+    assert paastand.konflikt(fisk, brakk)
+    assert paastand.konflikt(brakk, fisk)          # symmetrisk
+
+
+def test_b_ingen_fisk_mot_ikke_brakklagt_er_konflikt_ogsaa():
+    """Den andre retningen: 23 av de 51 målte 20.10.2026."""
+    fisk = _fisk_arter("2026-08-31", "Nei", None)
+    assert paastand.konflikt(fisk, _brakk("2026-09-06", "False"))
+
+
+def test_b_enige_kilder_er_ikke_i_konflikt():
+    assert not paastand.konflikt(_fisk_arter("2026-08-31", "Ja", {"Laks"}),
+                                 _brakk("2026-08-31", "False"))
+    assert not paastand.konflikt(_fisk_arter("2026-08-31", "Nei", None),
+                                 _brakk("2026-08-31", "True"))
+
+
+def test_a_hendneset_kveite_paa_land_er_ikke_i_konflikt():
+    """Biomasselaget sier «Ja, Kveite» for 31.12.2025, BarentsWatch sier
+    «brakklagt» uka etter jul. Samme periode — men BarentsWatch teller
+    laksefisk i sjø, og et kveiteanlegg på land er utenfor."""
+    fisk = _fisk_arter("2025-12-31", "Ja", {"Kveite"})
+    utenfor = _brakk("2025-12-29", "True", univers=False)
+    assert paastand.samme_periode(fisk, utenfor)
+    assert not paastand.konflikt(fisk, utenfor)
+    # Og selv i universet snakker de om hver sin fisk.
+    assert not paastand.konflikt(fisk, _brakk("2025-12-29", "True"))
+
+
+def test_en_paastand_som_ikke_sier_noe_om_fisk_er_aldri_i_konflikt():
+    lus = Paastand("lus", "lusetall", "2026-08-31", "0.12",
+                   felt="voksne_hunnlus", periode=UKE)
+    assert paastand.til_stede(lus) is None
+    assert not paastand.konflikt(_fisk_arter("2026-08-31", "Nei", None), lus)

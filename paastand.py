@@ -47,6 +47,13 @@ Et etterslep VI har valgt trekkes fra før grensa prøves. Lusetall hentes
 fire uker på etterskudd med vilje (`kilder.lusetall.uker_etterslep`), og
 uten fradraget ville hver lusepåstand vært utgått den dagen den ble
 hentet. Etterslepet står ett sted, i kildens egen konfigurasjon.
+
+## Konflikt
+
+To påstander er i konflikt når de gjelder SAMME PERIODE, de SAMME
+ARTENE, og den ene sier fisk og den andre ingen fisk. Se `konflikt()`.
+En konflikt slås aldri sammen til én verdi: begge vises, hver med sin
+kilde og sin dato.
 """
 
 from __future__ import annotations
@@ -71,6 +78,14 @@ DAG = "dag"
 UKE = "uke"
 PERIODER = (DAG, UKE)
 
+# ARTENE BARENTSWATCH UTTALER SEG OM. Lusetellingen gjelder laksefisk i
+# sjø, og «Trolig uten fisk» er en slutning av den tellingen — den sier
+# ingenting om kveite på land. Navnene er biomasselagets egne
+# (`arter_tilstede`), målt 20.10.2026: Laks, Regnbueørret, Torsk, Kveite
+# og Røye. Røye er laksefisk; Ørret står med fordi laget kan sende den.
+LAKSEFISK = frozenset({"Laks", "Regnbueørret", "Ørret", "Røye"})
+
+
 class Indikasjon(ValueError):
     """En påstand på nivået `indikasjon` ble bedt vist."""
 
@@ -88,6 +103,11 @@ class Paastand:
     nivaa: str = OPPGITT
     felt: str = ""
     periode: str = DAG
+    # HVILKE ARTER PÅSTANDEN UTTALER SEG OM. `None` er alle — «ingen fisk»
+    # i biomasselaget gjelder hver art. En tom mengde er INGEN: en
+    # BarentsWatch-uke for et landanlegg sier ingenting om fisken der.
+    arter: frozenset[str] | None = None
+
     def __post_init__(self):
         if self.nivaa not in NIVAAER:
             raise ValueError(f"ukjent nivå {self.nivaa!r}")
@@ -144,6 +164,74 @@ def utgaatt(p: Paastand, referanse: str) -> bool:
     """Er påstanden eldre enn kildens grense? Da er svaret «ukjent»."""
     grense = aldersgrense(p.kilde)
     return grense is not None and alder(p, referanse) > grense
+
+
+# --------------------------------------------------------------- konflikt
+
+
+def spenn(p: Paastand) -> tuple[_dt.date, _dt.date]:
+    """Første og siste dag påstanden gjelder for."""
+    d = _dato(p.gjelder)
+    if p.periode == UKE:
+        mandag = d - _dt.timedelta(days=d.weekday())
+        return mandag, mandag + _dt.timedelta(days=6)
+    return d, d
+
+
+def samme_periode(a: Paastand, b: Paastand) -> bool:
+    """Overlapper spennene? En månedsslutt og en ISO-uke gjør det bare når
+    månedens siste dag ligger i uka.
+
+    MÅLT 20.10.2026: 60 lokaliteter hadde «fisk» i biomasselaget og
+    «brakklagt» i lusetall uke 39. Ingen av dem gjelder samme periode —
+    månedsslutten 30.09 ligger i uke 40, som ikke er hentet ennå. Å kalle
+    dem uenige ville vært å sammenligne 27. september med 30. september.
+    """
+    a0, a1 = spenn(a)
+    b0, b1 = spenn(b)
+    return a0 <= b1 and b0 <= a1
+
+
+# FISK ELLER IKKE FISK, slik hver kilde sier det. Kartet er EKSAKT, som
+# `nettsted.JANEI`: en verdi som ikke står her er ingen påstand om fisk,
+# og blir ikke en ved at noe ligner.
+#
+# BarentsWatchs `brakklagt` er «Trolig uten fisk»: True er INGEN fisk.
+TIL_STEDE = {
+    ("biomasselag", "har_fisk", "Ja"): True,
+    ("biomasselag", "har_fisk", "Nei"): False,
+    ("lusetall", "brakklagt", "True"): False,
+    ("lusetall", "brakklagt", "False"): True,
+}
+
+
+def til_stede(p: Paastand) -> bool | None:
+    """True: kilden sier fisk. False: ingen fisk. None: sier ingenting."""
+    return TIL_STEDE.get((p.kilde, p.felt, p.verdi))
+
+
+def konflikt(a: Paastand, b: Paastand) -> bool:
+    """Er to påstander uenige om det samme?
+
+    Tre vilkår, og alle må holde:
+
+      1. samme periode (`samme_periode`)
+      2. de samme artene: «Ja, Kveite» og BarentsWatchs «trolig uten
+         laksefisk» snakker ikke om samme fisk
+      3. motsatt svar på om det står fisk der
+
+    Begge må dessuten si noe om fisk i det hele tatt (`til_stede`).
+    """
+    sa, sb = til_stede(a), til_stede(b)
+    if sa is None or sb is None or sa == sb:
+        return False
+    if not samme_periode(a, b):
+        return False
+    if frozenset() in (a.arter, b.arter):
+        return False                    # den ene sier ingenting om noen art
+    if a.arter is not None and b.arter is not None and not (a.arter & b.arter):
+        return False                    # de snakker om hver sin fisk
+    return True
 
 
 # ----------------------------------------------------------------- visning

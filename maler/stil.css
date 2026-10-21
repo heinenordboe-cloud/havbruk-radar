@@ -2312,6 +2312,12 @@ figcaption {
   color: var(--ink-dempet);
 }
 
+/* TO KILDER UENIGE OM SAMME UKE. Begge står; markeringen er bare et ord,
+   ikke en farge som må leses. */
+.uenige { display: block; margin-block-start: var(--rom-4); font-size: var(--tekst-xs); }
+td .uenige, .uenige strong { color: var(--rust-moerk); }
+strong.uenige { display: inline; }
+
 /* EN FORKLARING ETT KLIKK UNNA. Lukket som standard. */
 .forklaring { margin-block: var(--rom-8) var(--rom-16); font-size: var(--tekst-s); }
 .forklaring > summary { cursor: pointer; color: var(--ink-dempet); }
