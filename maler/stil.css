@@ -2292,6 +2292,31 @@ figcaption {
   color: var(--ink-dempet);
 }
 
+/* EN RAD OVER HELE BREDDEN, for en verdi med to tall og hver sin etikett. */
+.fakta > .fakta-hel { grid-column: 1 / -1; }
+
+/* ETIKETTEN ETTER ET TALL: «585 tonn tillatelsene». Grå og liten, i
+   linja, så tallet og etiketten leses som ett. */
+.fakta-etikett {
+  font-size: var(--tekst-xs);
+  color: var(--ink-dempet);
+}
+
+/* HERKOMSTEN: hvem som påstår, og om hvilken dato. Én grå linje, ikke en
+   setning — se paastand.py. */
+.herkomst {
+  display: block;
+  margin-block-start: var(--rom-4);
+  font-size: var(--tekst-xs);
+  font-weight: 400;
+  color: var(--ink-dempet);
+}
+
+/* EN FORKLARING ETT KLIKK UNNA. Lukket som standard. */
+.forklaring { margin-block: var(--rom-8) var(--rom-16); font-size: var(--tekst-s); }
+.forklaring > summary { cursor: pointer; color: var(--ink-dempet); }
+.forklaring > p { margin-block: var(--rom-8) 0; }
+
 /* ---- to blokker ved siden av hverandre ---- */
 
 .to-spalter {

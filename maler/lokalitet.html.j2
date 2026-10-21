@@ -25,6 +25,7 @@
    som er `<a`. Cellen får merkingen for kontrakten, lenka for porten. #}
 {% extends "base.html.j2" %}
 {% from "verdiendring.html.j2" import verdiendring %}
+{% from "paastand.html.j2" import merke, herkomst %}
 
 {# ---------------------------------------------------------------- 1
    SIDEHODET: bare brødsmula. Navnet og resten av toppen står i
@@ -137,25 +138,56 @@
 
 
 <div class="lok-tilstand">
+  {#- TILSTANDEN ER PÅSTANDER, ikke fakta. Hver rad sier hvem som påstår
+      noe og om hvilken dato — se paastand.py. Fisk og lakselus har hver
+      sin dato og sin egen grå linje; registerfeltene under deler én,
+      fordi de er hentet samme dag fra samme utgiver.
+
+      UTGÅTT ER «UKJENT», med datoen for siste rapport. Hendneset (10204)
+      sto med «Fisk til stede» ti måneder etter siste rapport. #}
+  {% set ps = lok.paastander %}
   <section aria-labelledby="tilstand-tittel">
     <h2 class="etikett" id="tilstand-tittel">Tilstanden nå</h2>
   <dl class="fakta">
-    <div>
-      <dt>Kommune</dt>
-      <dd>{{ kommunenavn(lok.kommune, lok.fylke) or "—" }}</dd>
+    {% if ps.fisk %}{% set p = ps.fisk %}
+    <div{{ merke(p.herkomst, p.nivaa) }}>
+      <dt>Fisk</dt>
+      <dd>
+        {%- if p.utgaatt %}<span class="mangler" data-felt="paastand_utgaatt">ukjent</span>
+        {{ herkomst(p.herkomst, for_dato="siste rapport") }}
+        {%- else %}<span data-felt="har_fisk">{{ p.vist }}</span>
+        {{ herkomst(p.herkomst) }}{% endif %}</dd>
     </div>
-    <div>
+    {% endif %}
+    {% if ps.lus %}{% set p = ps.lus %}
+    {#- «VURDERT» er BarentsWatchs egen slutning «Trolig uten fisk», ikke
+        noe oppdretteren har rapportert (MALING-FUNN-OKTOBER F4.2). #}
+    <div{{ merke(p.herkomst, p.nivaa) }}>
+      <dt>Lakselus</dt>
+      <dd>
+        {%- if p.utgaatt %}<span class="mangler" data-felt="paastand_utgaatt">ukjent</span>
+        {{ herkomst(p.herkomst, for_dato="siste") }}
+        {%- else %}<span data-felt="{{ p.felt }}">{{ p.vist }}</span>
+        {{ herkomst(p.herkomst, merknad="vurdert" if p.nivaa == "vurdert" else "") }}{% endif %}</dd>
+    </div>
+    {% endif %}
+    <div{{ merke(ps.sted.herkomst) }}>
+      <dt>Kommune</dt>
+      <dd data-felt="kommune">{{ kommunenavn(lok.kommune, lok.fylke) or "—" }}</dd>
+    </div>
+    <div{{ merke(ps.sted.herkomst) }}>
       <dt>Produksjonsområde</dt>
       <dd>
         {% if lok.po_kode %}
-        <a href="/produksjonsomrade/{{ lok.po_kode }}/">{{ lok.po_kode }} {{ lok.po_navn }}</a>
-        <span class="fakta-bi rute-foran {{ lok.status_klasse }}">{{ lok.status }}</span>
+        <a href="/produksjonsomrade/{{ lok.po_kode }}/" data-felt="prodomraade_kode">{{ lok.po_kode }} {{ lok.po_navn }}</a>
+        <span class="fakta-bi rute-foran {{ lok.status_klasse }}" data-felt="prodomraade_status">{{ lok.status }}</span>
         {% else %}
         <span class="mangler">utenfor inndelingen</span>
         {% endif %}
       </dd>
     </div>
-    <div>
+    {% set p = ps.innehaver if ps.innehaver else ps.sted %}
+    <div{{ merke(p.herkomst) }}>
       <dt>Innehaver</dt>
       <dd>
         {% if lok.selskap.personform %}
@@ -163,43 +195,55 @@
            en personform, og et foretak som ER et menneske skal
            ikke navngis her. Raden forsvinner ikke — samme tekst
            som tabellen under bruker. Regel 3. #}
-        <span class="mangler">{{ lok.selskap.navn }}</span>
+        <span class="mangler" data-felt="{{ p.felt }}">{{ lok.selskap.navn }}</span>
         {% elif lok.selskap.navn %}
           {% if lok.selskap.url %}
-          <a class="eier" href="{{ lok.selskap.url }}">{{ lok.selskap.navn|selskapsnavn }}</a>
+          <a class="eier" href="{{ lok.selskap.url }}" data-felt="eier_navn">{{ lok.selskap.navn|selskapsnavn }}</a>
           {% else %}
-          <span class="eier">{{ lok.selskap.navn|selskapsnavn }}</span>
-          {% endif %}
-          {% if lok.selskap.siden %}
-          {#- HVA DATOEN ER, i tre ord istedenfor ett. «senest siden»
-              sa at eierskapet BEGYNTE en gang før datoen, og det er
-              en slutning; det kilden oppgir er at en overføring til
-              dette organisasjonsnummeret ble journalført den dagen.
-              Samme ord som kolonnen på selskapssiden — ett ord for
-              én ting. #}
-          <span class="fakta-bi">eier ifølge overføring journalført
-            <time datetime="{{ lok.selskap.siden }}">{{ lok.selskap.siden|dato }}</time></span>
+          <span class="eier" data-felt="eier_navn">{{ lok.selskap.navn|selskapsnavn }}</span>
           {% endif %}
           {% if lok.selskap.flere %}
-          <span class="fakta-bi">og {{ lok.selskap.flere }}
-            innehaver til</span>
+          <span class="fakta-bi">og {{ lok.selskap.flere }} til</span>
+          {% endif %}
+          {% if ps.journalfort %}
+          {#- EN HENDELSE MED EGEN DATO: overføringen til dette
+              organisasjonsnummeret ble journalført den dagen. Eierskapet
+              kan ha begynt før — journaldatoen er «senest da». #}
+          <span class="fakta-bi"{{ merke(ps.journalfort.herkomst) }}>journalført
+            <time datetime="{{ lok.selskap.siden }}">{{ lok.selskap.siden|kortdato }}</time></span>
           {% endif %}
         {% else %}
-        <span class="mangler">{{ lok.eier_ukjent }}</span>
+        <span class="mangler" data-felt="eier_ukjent">{{ lok.eier_ukjent }}</span>
         {% endif %}
       </dd>
     </div>
-    <div>
+    {#- BEGGE KAPASITETENE, med hver sin etikett. Lokalitetens er
+        registerets eget tall, tillatelsenes er summen av MTB-ene. MÅLT
+        20.10.2026: ulike for 1 215 av 1 716 lokaliteter der begge finnes.
+        Hvorfor står bak et klikk under. #}
+    <div class="fakta-hel"{{ merke(ps.kapasitet.herkomst if ps.kapasitet else ps.sted.herkomst) }}>
       <dt>Kapasitet</dt>
-      {# REGISTERETS EGEN KAPASITET, ikke summen av tillatelsenes
-         MTB. De to er ulike størrelser — se `bygg_lokalitet`. #}
-      <dd>{{ lok.kapasitet or "—" }}
-        <span class="fakta-bi">{{ antall(lok.tillatelser_oppgitt, "tillatelse", "tillatelser") }}</span></dd>
+      <dd><span data-felt="kapasitet">{{ lok.kapasitet or "—" }}</span>
+        <span class="fakta-etikett">lokaliteten</span>
+        {%- if ps.mtb %} ·
+        <span{{ merke(ps.mtb.herkomst, ps.mtb.nivaa) }} data-felt="kapasitet_tillatelser">{{ ps.mtb.vist }}</span>
+        <span class="fakta-etikett">{{ antall(lok.kapasitet_tillatelser_antall, "tillatelse", "tillatelser") }}</span>
+        {%- endif %}
+        {%- if ps.midlertidig %} ·
+        <span data-felt="kapasitet_midlertidig">{{ ps.midlertidig.vist }}</span>
+        <span class="fakta-etikett">midlertidig</span>
+        {%- endif %}</dd>
     </div>
   </dl>
-
-
-  </section>
+  {{ herkomst(ps.sted.herkomst) }}
+  {% if ps.mtb and ps.kapasitet and ps.mtb.verdi != ps.kapasitet.verdi %}
+  <details class="forklaring">
+    <summary>Hvorfor to kapasiteter?</summary>
+    <p>Lokaliteten: det stedet er klarert for. Tillatelsene: summen av
+      MTB, altså det innehaverne kan ha i alt.</p>
+    <p>En tillatelse kan gjelde flere lokaliteter, så summen er ikke stedets tall.</p>
+  </details>
+  {% endif %}
 
     {# POSISJONSKARTET. Statisk SVG, tegnet ved bygging av Natural
        Earths kystlinje. Ingen flis, ingen karttjeneste, ingen
@@ -304,20 +348,22 @@
           <text x="12" y="{{ pk.hoyde - 22 }}">{{ pk.malestokk.etikett }}</text>
         </g>
       </svg>
-      <figcaption>
+      {#- POSISJONEN ER REGISTERETS PÅSTAND, med samme grå linje som
+          registerfeltene over. Kartverkets kreditt står fordi lisensen
+          krever navnet der kartet brukes. #}
+      <figcaption{{ merke(ps.sted.herkomst) }}>
+        <span class="tall-mono" data-felt="koordinat">{{ pk.koordinat }}</span>
+        · {{ pk.km|round|int }} km bredt
+        {%- if pk.naboer %} · {{ antall(pk.naboer|length, "annen lokalitet", "andre lokaliteter") }}{% endif %}
+        {%- if not pk.hav %} · <strong>ingen kystlinje i utsnittet</strong>{% endif %}
+        {%- if lok.samme_posisjon %}
+        {#- SAMME KOORDINAT SOM EN ANNEN LOKALITET. Kartet tegner dem som
+            én prikk, og uten setningen ser den andre ut til å mangle. #}
+        <span class="fakta-bi">Samme posisjon som
+          {% for s in lok.samme_posisjon %}<a href="/lokalitet/{{ s.loknr }}/">{{ s.navn }} ({{ s.loknr }})</a>{% if not loop.last %}, {% endif %}{% endfor %}</span>
+        {%- endif %}
         <span class="kartkreditt">Kystlinje:
-          <a href="{{ kartverket_url }}">{{ kartverket }}</a>,
-          N500 Kartdata</span>
-        <span class="tall-mono">{{ pk.koordinat }}</span> · posisjon fra
-        Akvakulturregisteret · utsnittet er
-        {{ pk.km|round|int }} km bredt
-        {% if pk.naboer %}
-        · {{ antall(pk.naboer|length, "annen lokalitet", "andre lokaliteter") }}
-        i utsnittet
-        {% endif %}
-        {% if not pk.hav %}
-        · <strong>ingen kystlinje i utsnittet</strong>
-        {% endif %}
+          <a href="{{ kartverket_url }}">{{ kartverket }}</a>, N500 Kartdata</span>
       </figcaption>
     </figure>
     {% else %}
@@ -339,6 +385,7 @@
       <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato | dato }}</time>.
     </p>
     {% endif %}
+  </section>
 
 </div>
 
@@ -358,6 +405,10 @@
     <div>
       <p class="etikett">Observert av Kystloggen</p>
       <h2 id="observert-tittel">Endringer vi har sett</h2>
+      {#- KILDENE ENDRINGENE KOMMER FRA, én gang for seksjonen. Datoen står
+          på hver post. #}
+      {% set ok = lok.observert|map(attribute="kilde")|select|map("kildekort")|unique|list %}
+      <span class="herkomst">{{ (ok or ["Kystloggen"])|join(" · ") }}</span>
     </div>
   </div>
 
@@ -369,7 +420,8 @@
   {% set tekniske = lok.observert|selectattr("klasse", "equalto", "teknisk")|list %}
   {% macro tidslinjepost(post) %}
     <li{% if post.forste %} class="tidsakse-forste"{% endif %}
-        title="{{ post.uke }}">
+        title="{{ post.uke }}" data-kilde="{{ post.kilde or 'kystloggen' }}"
+        data-gjelder="{{ post.dato[:10] }}" data-nivaa="oppgitt">
       <span class="tidsakse-punkt" aria-hidden="true"></span>
       <p class="tidsakse-topp">
         <time datetime="{{ post.dato }}">{{ post.dato|dato }}</time>
@@ -582,50 +634,64 @@
     <h2 id="fisk-tittel">Fisk til stede</h2>
     {% if lok.biolag %}
     {% set b = lok.biolag %}
-    <p class="blokk-ingress">
-      Om det står fisk på lokaliteten, uke for uke vi har observert.
-      Kilde: Fiskeridirektoratets biomasselag.
-    </p>
-    <figure class="graf">
-      <ol class="ukestripe" aria-label="Fisk til stede per observert uke">
-        {% for r in b.ruter %}
-        <li class="ukerute{% if r.ja %} ukerute--fisk{% endif %}"
-            title="{{ r.tittel }}">
-          <span class="ukerute-uke">{{ r.uke }}</span>
-          <span class="ukerute-svar">{{ r.har_fisk or "—" }}</span>
-        </li>
+    {#- ÉN RAD PER MÅNEDSRAPPORT, nyest først, ikke én per uke vi hentet.
+        Datoen er månedsslutten rapporten gjelder for — påstandens dato i
+        verden. Til 20.10.2026 sto en stripe her med én rute per HENTING, og
+        Hendneset (10204) fikk «7 av 7 observerte uker med fisk» av én
+        rapport fra desember 2025 lest sju ganger. Se `_rapportmaaneder()`. #}
+    <p class="tabelltittel" id="biomasselag-maaned-tittel">Månedsrapporter
+      <span class="herkomst">{{ "biomasselag"|kildekort }}</span></p>
+    <div class="tabellramme" role="region"
+         aria-labelledby="biomasselag-maaned-tittel" tabindex="0">
+    <table id="biomasselag-maaned" aria-labelledby="biomasselag-maaned-tittel">
+      <thead>
+        <tr>
+          <th scope="col">Månedsslutt</th>
+          <th scope="col">Fisk</th>
+          <th scope="col">Arter</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in b.maaneder|reverse %}
+        <tr data-kilde="biomasselag" data-gjelder="{{ m.dato }}" data-nivaa="oppgitt">
+          <th scope="row"><time datetime="{{ m.dato }}">{{ m.dato|kortdato }}</time></th>
+          <td data-felt="{{ feltmerke(m.har_fisk, 'har_fisk') }}">{{ m.har_fisk or VERDI_MANGLER }}
+            {%- if m.for %} <span class="dempet">(før: {% for v in m.for %}<span data-felt="har_fisk">{{ v }}</span>{% if not loop.last %}, {% endif %}{% endfor %})</span>{% endif %}</td>
+          <td data-felt="{{ feltmerke(m.arter, 'arter_tilstede') }}">{{ m.arter or VERDI_MANGLER }}</td>
+          <td data-felt="{{ feltmerke(m.status, 'lokalitet_status') }}">{{ m.status or VERDI_MANGLER }}</td>
+        </tr>
         {% endfor %}
-      </ol>
-      <figcaption>
-        {{ b.med_fisk }} av {{ tall(b.observerte_uker) }} observerte uker med
-        fisk til stede.
-        <strong>Bare uker vi faktisk har hentet</strong> — stripa har
-        ingen ruter for uker vi ikke spurte i, fordi en tom rute ville
-        sett ut som «ingen fisk».
-      </figcaption>
-    </figure>
-    <p class="tabelltittel" id="biomasselag-uke-tittel">Biomasselaget, uke for uke. «Siste månedsrapport» er måneden
-        påstanden gjelder for — ikke uka vi hentet den.</p>
+      </tbody>
+    </table>
+    </div>
+    {#- HENTINGENE: når VI leste hver rapport. Beviset for at kilden sa det,
+        ikke en påstand om fisken — derfor bak et klikk. Ankeret
+        `#biomasselag-uke` er en adresse fra 22.09.2026 og blir stående. #}
+    <details class="tallboks">
+      <summary>Hentet {{ antall(b.observerte_uker, "gang", "ganger") }}</summary>
+    <p class="tabelltittel" id="biomasselag-uke-tittel">Rapporten slik vi leste den
+      <span class="herkomst">{{ "biomasselag"|kildekort }}</span></p>
     <div class="tabellramme" role="region"
          aria-labelledby="biomasselag-uke-tittel" tabindex="0">
     <table id="biomasselag-uke" aria-labelledby="biomasselag-uke-tittel">
       <thead>
         <tr>
-          <th scope="col">Observert</th>
+          <th scope="col">Hentet</th>
           <th scope="col">Fisk</th>
           <th scope="col">Arter</th>
-          <th scope="col">Siste månedsrapport</th>
+          <th scope="col">Månedsslutt</th>
           <th scope="col">Status</th>
         </tr>
       </thead>
       <tbody>
         {% for r in b.ruter %}
-        <tr>
-          <th scope="row"><time datetime="{{ r.dato }}">{{ r.dato }}</time></th>
+        <tr data-kilde="biomasselag" data-gjelder="{{ r.siste_rapport[:10] }}" data-nivaa="oppgitt">
+          <th scope="row"><time datetime="{{ r.dato }}">{{ r.dato|kortdato }}</time></th>
           <td data-felt="{{ feltmerke(r.har_fisk, 'har_fisk') }}">{{ r.har_fisk or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(r.arter, 'arter_tilstede') }}">{{ r.arter or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(r.siste_rapport, 'siste_rapport') }}">
-            {%- if r.siste_rapport %}<time datetime="{{ r.siste_rapport }}" data-felt="siste_rapport">{{ r.siste_rapport }}</time>
+            {%- if r.siste_rapport %}<time datetime="{{ r.siste_rapport[:10] }}" data-felt="siste_rapport">{{ r.siste_rapport|kortdato }}</time>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
           </td>
           <td data-felt="{{ feltmerke(r.status, 'lokalitet_status') }}">{{ r.status or VERDI_MANGLER }}</td>
@@ -634,6 +700,7 @@
       </tbody>
     </table>
     </div>
+    </details>
     {% else %}
     <p class="tomt">
       Lokaliteten står ikke i biomasselaget i noen av de
@@ -870,6 +937,7 @@
       <p class="tabelltittel" id="lusetall-uke-tittel">{% if lok.lus_uker %}
           Voksne hunnlus per fisk, de siste {{ lok.lus|length }} av
           {{ antall(lok.lus_uker, "uka", "ukene") }} vi har.
+          <span class="herkomst">{{ "lusetall"|kildekort }}</span>
           {% else %}
           Ingen lusetall for denne lokaliteten.
           {% endif %}</p>
@@ -891,13 +959,13 @@
         </thead>
         <tbody>
           {% for u in lok.lus %}
-          <tr>
+          <tr data-kilde="lusetall" data-gjelder="{{ u.dato }}" data-nivaa="oppgitt">
             <th scope="row">{{ u.uke }}</th>
             <td data-felt="dato"><time datetime="{{ u.dato }}">{{ u.dato }}</time></td>
             <td class="tall" data-felt="voksne_hunnlus">{{ u.voksne_hunnlus }}</td>
             <td data-felt="lus_er_rapportert">{{ u.lus_er_rapportert }}</td>
             <td data-felt="har_laksefisk">{{ u.har_laksefisk }}</td>
-            <td data-felt="brakklagt">{{ u.brakklagt }}</td>
+            <td data-felt="brakklagt" data-nivaa="vurdert">{{ u.brakklagt }}</td>
             <td data-felt="har_medikamentell_behandling">{{ u.har_medikamentell_behandling }}</td>
             <td data-felt="har_mekanisk_fjerning">{{ u.har_mekanisk_fjerning }}</td>
             <td data-felt="har_rensefisk">{{ u.har_rensefisk }}</td>
@@ -933,11 +1001,13 @@
    i en spalte på 2/3 ville begge tabellene vært for smale. #}
   <section class="seksjon blokk" id="tillatelser" aria-labelledby="till-tittel">
     <h2 id="till-tittel">Tillatelser</h2>
-    <p class="tabelltittel" id="eierskap-tillatelser-tittel">Hvem som eier tillatelsene nå. {{ antall(lok.tillatelser|length, "tillatelse", "tillatelser") }}, øyeblikksbilde
-        <time datetime="{{ lok.eierskap_dato }}">{{ lok.eierskap_dato }}</time>.</p>
+    {% set pt = lok.paastander.tillatelser %}
+    {% if lok.tillatelser %}
+    <p class="tabelltittel" id="eierskap-tillatelser-tittel">{{ antall(lok.tillatelser|length, "tillatelse", "tillatelser") }}
+      og hvem som eier dem {{ herkomst(pt.herkomst) }}</p>
     <div class="tabellramme" role="region"
          aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
-    <table id="eierskap-tillatelser" aria-labelledby="eierskap-tillatelser-tittel">
+    <table id="eierskap-tillatelser" aria-labelledby="eierskap-tillatelser-tittel"{{ merke(pt.herkomst) }}>
       <thead>
         <tr>
           <th scope="col">Tillatelse</th>
@@ -964,6 +1034,14 @@
       </tbody>
     </table>
     </div>
+    {% else %}
+    {#- INGEN TILLATELSER, sagt kort og datert. Til 20.10.2026 sto en tom
+        tabell med bare kolonneoverskrifter her (10560, 21335). Ankeret
+        står på linja, så en lenke til `#eierskap-tillatelser` fortsatt
+        lander her. #}
+    <p class="tomt" id="eierskap-tillatelser"{{ merke(lok.paastander.sted.herkomst) }}>Ingen tillatelser i registeret
+      {{ herkomst(lok.paastander.sted.herkomst) }}</p>
+    {% endif %}
     {% if lok.tillatelser_uten_eier %}
     <p class="tabellnote">
       For {{ lok.tillatelser_uten_eier }} av
@@ -1007,11 +1085,11 @@
         tilstanden øverst. Noten om navnet følger tabellen inn. #}
     <details class="tallboks registerfelt">
       <summary>Alle {{ antall(lok.register|length, "felt", "felt") }} slik registeret oppgir dem</summary>
-    <p class="tabelltittel" id="akvakultur-register-tittel">Hva Akvakulturregisteret sier, øyeblikksbilde
-        <time datetime="{{ lok.akva_dato }}">{{ lok.akva_dato }}</time>.</p>
+    <p class="tabelltittel" id="akvakultur-register-tittel">Akvakulturregisteret
+        {{ herkomst(lok.paastander.sted.herkomst) }}</p>
     <div class="tabellramme" role="region"
          aria-labelledby="akvakultur-register-tittel" tabindex="0">
-    <table id="akvakultur-register" aria-labelledby="akvakultur-register-tittel">
+    <table id="akvakultur-register" aria-labelledby="akvakultur-register-tittel"{{ merke(lok.paastander.sted.herkomst) }}>
       <thead>
         <tr>
           <th scope="col">Felt</th>
@@ -1090,7 +1168,7 @@
     </thead>
     <tbody>
       {% for o in lok.oppgitt %}
-      <tr>
+      <tr data-kilde="{{ o.kilde }}" data-gjelder="{{ o.dato }}" data-nivaa="oppgitt">
         <th scope="row"><time datetime="{{ o.dato }}">{{ o.dato }}</time></th>
         <td data-felt="{{ o.felt }}">{{ o.slag }}: {{ o.hva }}</td>
         {% if o.navn %}

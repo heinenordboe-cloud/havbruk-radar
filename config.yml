@@ -329,6 +329,40 @@ nettsted:
   # den andre hvem en etat skal nå når vi henter for mye.
   kontakt: "kontakt@kystloggen.no"
 
+  # HVOR LENGE EN PÅSTAND STÅR SEG på lokalitetssiden, i dager. Eldre enn
+  # grensa vises den som «ukjent» med datoen for siste rapport, ikke som
+  # «Ja». Se paastand.py.
+  #
+  # GRENSA ER TO RAPPORTERINGSPERIODER, og perioden er MÅLT 20.10.2026 per
+  # kilde, ikke gjettet:
+  #
+  #   biomasselag  intervall mellom to påfølgende månedsrapporter for samme
+  #                lokalitet: 30 eller 31 dager i 987 av 1 105 (89 %). Resten
+  #                er hoppede måneder (61, 92, ... dager). Fra månedsslutt til
+  #                vi ser rapporten: median 15 dager (min 5, maks 80).
+  #                Periode 31 -> 62.
+  #   lusetall     uker med tall for samme lokalitet: 7 dager mellom i
+  #                384 594 av 402 734 (95,5 %). Periode 7 -> 14, regnet ETTER
+  #                etterslepet vi har valgt (kilder.lusetall.uker_etterslep).
+  #   akvakultur,  registrene har ingen rapporteringsperiode; påstanden
+  #   eierskap     gjelder dagen vi så den, og vi henter hver 7. dag (9 av 9
+  #                intervaller for akvakultur, 5 av 6 for eierskap, ett på
+  #                12). Periode 7 -> 14.
+  #   eierskap_historikk   journalførte overføringer er HENDELSER. En
+  #                hendelse foreldes ikke, og grensa er derfor tom.
+  #
+  # En kilde som ikke står her kan ikke vises på lokalitetssiden: modellen
+  # kaster heller enn å gjette en rytme (paastand.aldersgrense).
+  #
+  # Grensene flytter seg ikke av seg selv (CLAUDE.md 1b-4). Endres en, er
+  # det fordi rytmen er målt på nytt.
+  aldersgrense:
+    biomasselag: {periode: maaned, dager: 62}
+    lusetall: {periode: uke, dager: 14}
+    akvakultur: {periode: henting, dager: 14}
+    eierskap: {periode: henting, dager: 14}
+    eierskap_historikk: null
+
 publisering:
   # NORMALBÅNDET for automatisk publisering (publiser_ci.py automatisk,
   # vilkår d). Et databygg går ut av seg selv bare når ukas tall ligger

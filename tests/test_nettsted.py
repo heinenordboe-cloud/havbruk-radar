@@ -312,6 +312,9 @@ def _side(**overstyr) -> str:
         "arter": "laks", "klareringstype": "permanent",
         "vanntype": "saltvann", "plassering": "i sjø",
         "kapasitet": "8 000 tonn", "kapasitet_midlertidig": "8 000 tonn",
+        # Én tillatelse på 1 022 tonn, se `tillatelser` over.
+        "kapasitet_tillatelser": "1 022 tonn", "kapasitet_tillatelser_antall": 1,
+        "samme_posisjon": [],
         "selskap": {"navn": "SALMAR OPPDRETT AS", "orgnr": "928957489",
                     "url": "/selskap/928957489/", "siden": "2022-12-30",
                     "antall": 1, "flere": 0, "personform": False},
@@ -344,7 +347,10 @@ def _side(**overstyr) -> str:
     lok.setdefault("lusperioder", nettsted.produksjonsperioder(
         lok["lus_serie"],
         lok["lus_serie"][-1]["dato"] if lok["lus_serie"] else ""))
-    # OPPSUMMERINGEN regnes av det samme, av samme grunn.
+    # PÅSTANDENE OG OPPSUMMERINGEN regnes av det samme, av samme grunn —
+    # påstandene først, fordi oppsummeringen er satt sammen av dem.
+    lok.setdefault("paastander", nettsted.lokalitetspaastander(lok))
+    lok.setdefault("referanse", nettsted.referansedato(lok))
     lok.setdefault("sammendrag", nettsted.lokalitetssammendrag(lok))
     # Ikke i Mattilsynets liste over søknader om unntaksvekst.
     lok.setdefault("unntak", None)
@@ -1312,9 +1318,14 @@ def test_sida_SIER_at_eieren_mangler(monkeypatch):
     """Ende til ende i markupen: tallene, grunnen, og ingen tom tabell."""
     import publiseringsvakt as vakt
 
+    # INNEHAVEREN ER UKJENT OGSÅ I TILSTANDEN: uten en tillatelse med kjent
+    # eier har `_lokalitetens_selskap()` ingen å navngi. Fra 20.10.2026 er
+    # navnet i tilstanden merket `eier_navn`, så fiksturens standard-
+    # innehaver ville stått som et navn ved siden av to ukjente.
     html = _side(tillatelser=nettsted._tillatelsesrader(
                      {}, ["H-SO-0318", "H-SO-0329"]),
-                 tillatelser_oppgitt=2, tillatelser_uten_eier=2)
+                 tillatelser_oppgitt=2, tillatelser_uten_eier=2,
+                 selskap=nettsted._lokalitetens_selskap({}, [], {}))
 
     # Mellomrom normaliseres: captionteksten er FRI (se
     # docs/beslutninger/2026-09-19-markup-er-en-kontrakt.md), og en test
@@ -2286,7 +2297,11 @@ def test_lokaliteten_langt_fra_kysten_far_kart_som_alle_andre():
     assert "data-kart" in html
     assert "utenfor kystbeltet" not in html
     assert "58°37,9′ N, 6°09,8′ Ø" in html
-    assert "posisjon fra" in html
+    # POSISJONEN ER REGISTERETS PÅSTAND, merket som en (fra 20.10.2026).
+    # «posisjon fra Akvakulturregisteret» sto som en setning i
+    # bildeteksten; nå er det herkomstlinja og merkingen som sier det.
+    assert re.search(r'<figcaption data-kilde="akvakultur" data-gjelder="\d{4}-\d{2}-\d{2}"',
+                     html)
 
 
 def test_hvert_kart_har_rolle_og_etikett():
@@ -5541,28 +5556,44 @@ def _tekst(ledd):
     return "".join(b[1] if b[0] == "tekst" else b[2] for b in ledd)
 
 
-def test_fisk_siden_uka_tilstanden_skiftet():
-    biolag = nettsted._biolagstripe(
-        [_rute("2026-09-15", "Nei"), _rute("2026-09-22", "Ja")],
+def _fiskepaastand(ruter, uker, akva_dato="2026-09-22"):
+    """Fiskepåstanden slik lokalitetssiden regner den, av et biomasselag."""
+    lok = {"akva_dato": akva_dato, "eierskap_dato": akva_dato,
+           "biolag": nettsted._biolagstripe(ruter, uker)}
+    return nettsted.lokalitetspaastander(lok)["fisk"]
+
+
+def test_fisk_oppgir_maanedsslutten_og_ikke_uka_vi_hentet():
+    """DATOEN ER PÅSTANDENS. Til 20.10.2026 sa setningen «Fisk til stede
+    siden uke 39» — uka VI så skiftet. Rapporten gjelder månedsslutten."""
+    fisk = _fiskepaastand(
+        [_rute("2026-09-15", "Nei", "2026-07-31"),
+         _rute("2026-09-22", "Ja", "2026-08-31")],
         ["2026-09-15", "2026-09-22"])
-    assert _tekst(nettsted._fiskeledd(biolag)) == \
-        "Fisk til stede siden uke 39, 2026"
+    ledd = nettsted._fiskeledd(fisk)
+    assert _tekst(ledd) == "fisk per 31.08.2026"
+    assert ("tid", "2026-08-31", "31.08.2026") in ledd
+    assert "uke 39" not in _tekst(ledd)
 
 
-def test_fisk_uten_skifte_oppgir_maanedsrapporten_ikke_en_startdato():
+def test_samme_rapport_lest_to_ganger_er_EN_paastand():
+    """Hendneset (10204): «7 av 7 observerte uker med fisk» var én rapport
+    fra desember 2025, lest sju ganger."""
     biolag = nettsted._biolagstripe(
-        [_rute("2026-09-15", "Ja"), _rute("2026-09-22", "Ja")],
+        [_rute(d, "Ja", "2025-12-31") for d in ("2026-09-15", "2026-09-22")],
         ["2026-09-15", "2026-09-22"])
-    tekst = _tekst(nettsted._fiskeledd(biolag))
-    assert tekst == "Fisk til stede ifølge månedsrapporten for august 2026"
+    assert len(biolag["maaneder"]) == 1
+    assert biolag["maaneder"][0]["sett"] == ["2026-09-15", "2026-09-22"]
 
 
-def test_fisk_utelates_naar_lokaliteten_ikke_er_i_nyeste_uke():
-    """Laget dekker bare lokaliteter med innsendt rapport. En gammel rute
-    er ikke en påstand om i dag."""
-    biolag = nettsted._biolagstripe(
-        [_rute("2026-09-15", "Ja")], ["2026-09-15", "2026-09-22"])
-    assert nettsted._fiskeledd(biolag) is None
+def test_en_gammel_rapport_er_ukjent_og_ikke_ja():
+    """En påstand eldre enn kildens grense er «ukjent», med datoen for siste
+    rapport — ikke utelatt, og aldri «Ja»."""
+    fisk = _fiskepaastand([_rute("2026-10-19", "Ja", "2025-12-31")],
+                          ["2026-10-19"], akva_dato="2026-10-19")
+    assert fisk["utgaatt"] and fisk["vist"] == "ukjent"
+    assert _tekst(nettsted._fiskeledd(fisk)) == \
+        "fisk ukjent, siste rapport 31.12.2025"
     assert nettsted._fiskeledd(None) is None
 
 
@@ -5609,8 +5640,8 @@ def test_oppsummeringen_staar_oeverst_med_time_og_stor_forbokstav():
     m = re.search(r'<p class="lok-sammendrag">(.*?)</p>', html, re.S)
     assert m, "oppsummeringen mangler"
     setning = m.group(1)
-    assert setning.startswith("Fisk til stede")
-    assert '<time datetime="2026-08">august 2026</time>' in setning
+    assert setning.startswith("Fisk per <time")
+    assert '<time datetime="2026-08-31">31.08.2026</time>' in setning
     # Står over tilstanden, altså før faktalista.
     assert html.index("lok-sammendrag") < html.index('class="fakta"')
 

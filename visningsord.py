@@ -395,6 +395,29 @@ KILDENAVN = {
     "unntaksvekst": "Mattilsynet, søknader om unntaksvekst 2025/2026",
 }
 
+# HERKOMSTLINJA BRUKER BARE UTGIVEREN, forkortet: «Fiskeridir. ·
+# 30.09.2026». Linja står under hver påstand på lokalitetssiden, og hele
+# navnet fra `KILDENAVN` ville gjort en grå linje om til en setning.
+# Datasettet står i beviset under, der det er plass (se `paastand.py`).
+#
+# Samme regel som `KILDENAVN`: en kilde som ikke står her kommer ordrett
+# igjennom og telles, og et forkortet navn finnes ikke uten et fullt.
+KILDE_KORT = {
+    "akvakultur": "Fiskeridir.",
+    "biomasse": "Fiskeridir.",
+    "biomasselag": "Fiskeridir.",
+    "eierskap": "Fiskeridir.",
+    "eierskap_historikk": "Fiskeridir.",
+    "romming": "Fiskeridir.",
+    "enhetsregisteret": "Brønnøysund",
+    "lusetall": "BarentsWatch",
+    "sjotemperatur": "BarentsWatch",
+    "trafikklysvedtak": "Lovdata",
+    # VÅRE EGNE PÅSTANDER: at vi begynte å hente, at vi ikke har sett noe
+    # endre seg. Ikke en kilde i data/raw/, og derfor ikke i `KILDENAVN`.
+    "kystloggen": "Kystloggen",
+}
+
 # ------------------------------------------------------------- oppslag
 
 def felt(navn: str) -> str:
@@ -424,6 +447,17 @@ def kilde(navn: object) -> str:
     if tekst in KILDENAVN:
         return KILDENAVN[tekst]
     UKJENTE[("(kildenavn)", tekst)] += 1
+    return tekst
+
+
+def kilde_kort(navn: object) -> str:
+    """Utgiveren forkortet, til herkomstlinja. Se `KILDE_KORT`."""
+    tekst = "" if navn is None else str(navn).strip()
+    if not tekst:
+        return ""
+    if tekst in KILDE_KORT:
+        return KILDE_KORT[tekst]
+    UKJENTE[("(kildenavn kort)", tekst)] += 1
     return tekst
 
 
@@ -680,6 +714,19 @@ def dato(iso: object) -> str:
     if d is None:
         return tekst
     return f"{d.day}. {MAANEDER[d.month - 1]} {d.year}"
+
+
+def kortdato(iso: object) -> str:
+    """«2026-09-30» -> «30.09.2026». For HERKOMSTLINJA, ikke løpende tekst.
+
+    Linja under en påstand skal være kort nok til å stå på én linje på
+    390 px ved siden av utgiveren. Det som ikke er en dato kommer
+    uendret ut, som i `dato()`.
+    """
+    tekst, d = _dagen(iso)
+    if d is None:
+        return tekst
+    return f"{d.day:02d}.{d.month:02d}.{d.year}"
 
 
 def maaned(iso: object) -> str:

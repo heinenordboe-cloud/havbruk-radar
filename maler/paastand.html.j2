@@ -1,0 +1,22 @@
+{# PÅSTANDENE PÅ LOKALITETSSIDEN. Ett sted for hvordan en påstand merkes
+   og hvordan herkomsten står. Se paastand.py.
+
+   TO BITER, og de er ikke det samme:
+
+     merke     attributtene `data-kilde`, `data-gjelder` og `data-nivaa`
+               på elementet som bærer påstanden. Det er dem porten leser.
+     herkomst  den grå linja en leser ser: «Fiskeridir. · 30.09.2026».
+               Utgiveren og gjelder-datoen, ikke en setning.
+
+   `h` er `paastand.herkomst()`: kilde, kort, gjelder og vist. #}
+
+{#- På ÉN linje, og mellomrommet foran er med vilje: makroen står rett
+    etter tag-navnet, `<div{{ merke(h) }}>`. #}
+{% macro merke(h, nivaa="oppgitt") %} data-kilde="{{ h.kilde }}" data-gjelder="{{ h.gjelder }}" data-nivaa="{{ nivaa }}"{% endmacro %}
+
+{# `for_dato` står foran datoen («siste rapport»), `merknad` bak den
+   («vurdert», «sum»). Begge er korte ord, aldri en forklaring. #}
+{% macro herkomst(h, merknad="", for_dato="") -%}
+<span class="herkomst">{{ h.kort }} · {% if for_dato %}{{ for_dato }} {% endif %}<time datetime="{{ h.gjelder }}">{{ h.vist }}</time>
+{%- if merknad %} · {{ merknad }}{% endif %}</span>
+{%- endmacro %}

@@ -4646,6 +4646,7 @@ def _biolagstripe(serie: list[dict], alle_uker: list[str]) -> dict | None:
         })
     return {
         "ruter": ruter,
+        "maaneder": _rapportmaaneder(ruter),
         "observerte_uker": len(ruter),
         "alle_uker": len(alle_uker),
         "med_fisk": sum(1 for r in ruter if r["ja"]),
@@ -4656,6 +4657,37 @@ def _biolagstripe(serie: list[dict], alle_uker: list[str]) -> dict | None:
         # `lokalitetssammendrag()`.
         "siste_uke": alle_uker[-1] if alle_uker else "",
     }
+
+
+def _rapportmaaneder(ruter: list[dict]) -> list[dict]:
+    """Én rad per MÅNEDSRAPPORT, eldst først — ikke én per uke vi hentet.
+
+    Det er påstanden som har en dato i verden, og den er `siste_rapport`.
+    Uka vi så den er vår. MÅLT 20.10.2026: Hendneset (10204) sto med «7 av
+    7 observerte uker med fisk», og alle sju var rapporten for desember
+    2025 lest på nytt. Som én rad er det én påstand, og den er ti måneder
+    gammel.
+
+    `sett` er hentedatoene vi leste rapporten på. Endret kilden verdien
+    for samme måned mellom to hentinger, står den forrige i `for`, og den
+    nyeste vinner — samme regel som `_siste()`.
+    """
+    per: dict[str, dict] = {}
+    for r in ruter:
+        mnd = (r.get("siste_rapport") or "")[:10]
+        if not mnd:
+            continue
+        rad = per.get(mnd)
+        if rad is None:
+            rad = per[mnd] = {"dato": mnd, "har_fisk": r["har_fisk"],
+                              "arter": r["arter"], "status": r["status"],
+                              "sett": [], "for": []}
+        elif r["har_fisk"] != rad["har_fisk"]:
+            rad["for"].append(rad["har_fisk"])
+            rad.update(har_fisk=r["har_fisk"], arter=r["arter"],
+                       status=r["status"])
+        rad["sett"].append(r["dato"])
+    return [per[m] for m in sorted(per)]
 
 
 # ---------------------------------------------------- oppsummeringen
@@ -4672,37 +4704,27 @@ def _biolagstripe(serie: list[dict], alle_uker: list[str]) -> dict | None:
 SAMMENDRAG_UKER = 12
 
 
-def _fiskeledd(biolag: dict | None) -> list[tuple] | None:
-    """«Fisk til stede siden uke 40, 2026», eller tilsvarende.
+def _fiskeledd(fisk: dict | None) -> list[tuple] | None:
+    """«fisk per 30.09.2026», eller «fisk ukjent, siste rapport 31.12.2025».
 
-    BARE NÅR LOKALITETEN STÅR I DEN NYESTE UKA AV LAGET. Laget dekker
-    lokaliteter med innsendt månedsrapport; en lokalitet som har falt ut,
-    har ingen påstand om i dag, og den forrige er ikke en.
+    PÅSTANDEN OG IKKE VÅR OBSERVASJON. Datoen er månedsslutten rapporten
+    gjelder for, aldri uka vi hentet den. Til 20.10.2026 sto «Fisk til
+    stede siden uke 40» her — uka VI så skiftet — og «ifølge
+    månedsrapporten for desember 2025» om en rapport ti måneder gammel.
+    Det første er vår tid brukt som verdens, det andre en påstand som
+    har gått ut. Se paastand.py.
 
-    «SIDEN» ER UKA VI FØRST SÅ DEN NYE TILSTANDEN, etter en observasjon
-    av den motsatte. Uten et slikt skifte i serien vet vi ikke når
-    tilstanden begynte, og da står månedsrapporten kilden oppgir i
-    stedet — den er det kilden selv sier at påstanden gjelder for.
+    `fisk` er `paastand.vis()` for temaet «fisk», eller None.
     """
-    if not biolag or not biolag.get("ruter"):
+    if not fisk:
         return None
-    ruter = biolag["ruter"]
-    siste = ruter[-1]
-    if not siste.get("har_fisk") or siste["dato"] != biolag.get("siste_uke"):
-        return None
-    ledd: list[tuple] = [("tekst", "Fisk til stede" if siste["ja"]
-                          else "Ingen fisk til stede")]
-    skifte = next((ruter[i] for i in range(len(ruter) - 1, 0, -1)
-                   if ruter[i]["ja"] != ruter[i - 1]["ja"]
-                   and ruter[i - 1].get("har_fisk")), None)
-    if skifte:
-        ledd += [("tekst", " siden "),
-                 ("tid", skifte["dato"], visningsord.uke(skifte["dato"]))]
-    elif siste.get("siste_rapport"):
-        ledd += [("tekst", " ifølge månedsrapporten for "),
-                 ("tid", siste["siste_rapport"][:7],
-                  visningsord.maaned(siste["siste_rapport"]))]
-    return ledd
+    h = fisk["herkomst"]
+    if fisk["utgaatt"]:
+        return [("tekst", "fisk ukjent, siste rapport "),
+                ("tid", h["gjelder"], h["vist"])]
+    tekst = {"Ja": "fisk", "Nei": "ingen fisk"}.get(fisk["verdi"],
+                                                    f"fisk: {fisk['vist']}")
+    return [("tekst", f"{tekst} per "), ("tid", h["gjelder"], h["vist"])]
 
 
 def _eierledd(selskap: dict) -> list[tuple] | None:
@@ -4784,8 +4806,9 @@ def _endringsledd(observert: list[dict], dekning_fra: list[dict],
 def lokalitetssammendrag(lok: dict) -> list[list[tuple]]:
     """Leddene i oppsummeringssetningen, i rekkefølge. Tom liste: ingen
     setning."""
+    ps = lok.get("paastander") or lokalitetspaastander(lok)
     ledd = [
-        _fiskeledd(lok.get("biolag")),
+        _fiskeledd(ps.get("fisk")),
         _eierledd(lok.get("selskap") or {}),
         _endringsledd(lok.get("observert") or [], lok.get("dekning_fra") or [],
                       max(lok.get("akva_dato") or "",
@@ -4797,6 +4820,123 @@ def lokalitetssammendrag(lok: dict) -> list[list[tuple]]:
         s = ledd[0][0][1]
         ledd[0][0] = ("tekst", s[:1].upper() + s[1:])
     return ledd
+
+
+# ------------------------------------------------------ påstandene
+#
+# TILSTANDEN ØVERST PÅ LOKALITETSSIDEN er en liste påstander, og hver av
+# dem går gjennom `paastand`: kilde, gjelder-dato, verdi og nivå, og
+# alderen prøvd mot kildens grense. Se modulens docstring for hvorfor.
+
+
+def referansedato(lok: dict) -> str:
+    """Datoen alderen regnes fra: de nyeste dataene siden er bygget av.
+
+    Dataenes dato og ikke klokka, som `endringsvindu()`. Samme side bygget
+    om to dager skal si det samme om hva som er gammelt.
+    """
+    return max(lok.get("akva_dato") or "", lok.get("eierskap_dato") or "",
+               (lok.get("biolag") or {}).get("siste_uke") or "")
+
+
+def lokalitetspaastander(lok: dict) -> dict:
+    """Tilstandens påstander, regnet av det siden allerede viser.
+
+    Nøkkelen er temaet, verdien er `paastand.vis()`. En påstand uten data
+    er None, og malen utelater raden: den gjetter ikke. Hver nøkkel i
+    `PAASTANDSTEMAER` finnes, så `StrictUndefined` feller en skrivefeil i
+    malen i stedet for å vise ingenting.
+
+    REGNES AV `lok`, som `lokalitetssammendrag()`, så en prøve som bytter
+    en serie bytter påstanden med den.
+    """
+    from paastand import OPPGITT, REGNET, UKE, VURDERT, Paastand, vis
+
+    ref = referansedato(lok)
+    akva, eier = lok["akva_dato"], lok["eierskap_dato"]
+    ut: dict = dict.fromkeys(PAASTANDSTEMAER)
+
+    # FISK: siste månedsrapport i biomasselaget. Gjelder månedsslutten.
+    maaneder = (lok.get("biolag") or {}).get("maaneder") or []
+    if maaneder:
+        r = maaneder[-1]
+        ut["fisk"] = vis(Paastand("fisk", "biomasselag", r["dato"],
+                                  r["har_fisk"], felt="har_fisk"),
+                         ref, JANEI_FISK.get(r["har_fisk"], r["har_fisk"]))
+
+    # LAKSELUS: siste uke lokaliteten står i hos BarentsWatch. BARE der
+    # BarentsWatch oppgir laksefisk: tellingen gjelder laks og ørret i
+    # sjø, og «brakklagt» om et kveiteanlegg på land er ingen påstand om
+    # fisken der (Hendneset, 10204).
+    serie = lok.get("lus_serie") or []
+    if serie and serie[-1].get("har_laksefisk") == "True":
+        u = serie[-1]
+        if u.get("brakklagt") == "True":
+            p, vist = Paastand("lus", "lusetall", u["dato"], "True",
+                               nivaa=VURDERT, felt="brakklagt",
+                               periode=UKE), "brakklagt"
+        elif (u.get("voksne_hunnlus") or "").strip():
+            p = Paastand("lus", "lusetall", u["dato"], u["voksne_hunnlus"],
+                         felt="voksne_hunnlus", periode=UKE)
+            vist = f"{visningsord.tall(u['voksne_hunnlus'])} voksne hunnlus"
+        else:
+            p, vist = Paastand("lus", "lusetall", u["dato"],
+                               u.get("lus_er_rapportert") or "",
+                               felt="lus_er_rapportert",
+                               periode=UKE), "ikke rapportert"
+        ut["lus"] = vis(p, ref, vist)
+
+    # INNEHAVER, og siden når: to kilder, to datoer. Eieren er
+    # tillatelsesregisterets påstand i dag; datoen er en journalført
+    # overføring, og en hendelse foreldes ikke.
+    sel = lok.get("selskap") or {}
+    if sel.get("navn"):
+        ut["innehaver"] = vis(Paastand(
+            "innehaver", "eierskap", eier, sel["navn"],
+            felt=EIER_PERSONFORM_FELT if sel.get("personform") else "eier_navn"),
+            ref)
+        if sel.get("siden"):
+            ut["journalfort"] = vis(Paastand(
+                "overforing", "eierskap_historikk", sel["siden"],
+                sel["siden"], felt="journal_dato"), ref)
+
+    # KAPASITETEN, BEGGE TO. Lokalitetens er registerets eget tall;
+    # tillatelsenes er summen av MTB-ene, og en sum av flere er vår
+    # regning. De er ulike størrelser — se `bygg_lokalitet` — og ingen
+    # av dem står i stedet for den andre.
+    if lok.get("kapasitet"):
+        ut["kapasitet"] = vis(Paastand("kapasitet", "akvakultur", akva,
+                                       lok["kapasitet"], felt="kapasitet"),
+                              ref)
+    if lok.get("kapasitet_tillatelser"):
+        n = lok.get("kapasitet_tillatelser_antall", 0)
+        ut["mtb"] = vis(Paastand("kapasitet_tillatelser", "eierskap", eier,
+                                 lok["kapasitet_tillatelser"],
+                                 nivaa=REGNET if n > 1 else OPPGITT,
+                                 felt="kapasitet"), ref)
+    if lok.get("kapasitet_midlertidig") and \
+            lok["kapasitet_midlertidig"] != lok.get("kapasitet"):
+        ut["midlertidig"] = vis(Paastand(
+            "kapasitet_midlertidig", "akvakultur", akva,
+            lok["kapasitet_midlertidig"], felt="kapasitet_midlertidig"), ref)
+
+    # STEDET: kommune og produksjonsområde, begge fra registeret.
+    ut["sted"] = vis(Paastand("sted", "akvakultur", akva,
+                              lok.get("kommune") or "", felt="kommune"), ref)
+    # TILLATELSESTABELLEN, som én påstand: hvem eier hva, slik
+    # tillatelsesregisteret sa det den dagen vi hentet.
+    ut["tillatelser"] = vis(Paastand(
+        "tillatelser", "eierskap", eier,
+        str(len(lok.get("tillatelser") or [])), felt="tillatelser"), ref)
+    return ut
+
+
+PAASTANDSTEMAER = ("fisk", "lus", "innehaver", "journalfort", "kapasitet",
+                   "mtb", "midlertidig", "sted", "tillatelser")
+
+# Biomasselagets ja og nei, i små bokstaver som resten av tilstanden.
+# Eksakt, som `JANEI`: noe annet kommer ordrett igjennom.
+JANEI_FISK = {"Ja": "ja", "Nei": "nei"}
 
 
 # NABOLISTA, bygget én gang per `Felles`.
@@ -5054,7 +5194,17 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
                                        a.get("kapasitet_enhet", "")),
         "kapasitet_midlertidig": visningsord.maalt(
             a.get("kapasitet_midlertidig", ""), a.get("kapasitet_enhet", "")),
+        # SUMMEN AV TILLATELSENES MTB, i lokalitetens enhet. Står VED SIDEN
+        # AV lokalitetens kapasitet, aldri i stedet for den: MÅLT 20.10.2026
+        # er de ulike for 1 215 av 1 716 lokaliteter der begge finnes
+        # (Hendneset: 428,74 mot 585 tonn).
+        **_tillatelsenes_kapasitet(mine_till, a.get("kapasitet_enhet", "")),
         "selskap": _lokalitetens_selskap(mine_till, overforingsrader, eierskap),
+        # ANDRE LOKALITETER PÅ NØYAKTIG SAMME KOORDINAT. MÅLT 20.10.2026: to
+        # par (36179/40317 og 36957/36977). Kartet tegner dem som én
+        # prikk, og siden sier hvem den andre er.
+        "samme_posisjon": _samme_posisjon(
+            loknr, akva, id(felles) if felles else id(akva)),
 
         # ---- kartet ----
         #
@@ -5094,8 +5244,51 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         },
     }
     # REGNES AV DET SIDEN ALLEREDE VISER, ikke slått opp på nytt.
+    # Påstandene først: oppsummeringen er satt sammen av dem.
+    lok["paastander"] = lokalitetspaastander(lok)
+    lok["referanse"] = referansedato(lok)
     lok["sammendrag"] = lokalitetssammendrag(lok)
     return lok
+
+
+def _tillatelsenes_kapasitet(mine_till: dict, enhet: str) -> dict:
+    """Summen av tillatelsenes kapasitet i `enhet`, og hvor mange som telte.
+
+    Bare tillatelser i SAMME enhet som lokaliteten summeres: 585 tonn og
+    200 000 stykk har ingen sum. Ingen i samme enhet: tom streng, og
+    siden viser bare lokalitetens tall.
+    """
+    sum_, n = Decimal(0), 0
+    for d in mine_till.values():
+        if (d.get("kapasitet_enhet") or "").strip() != (enhet or "").strip():
+            continue
+        try:
+            sum_ += Decimal(str(d.get("kapasitet") or "").strip())
+        except InvalidOperation:
+            continue
+        n += 1
+    return {"kapasitet_tillatelser": visningsord.maalt(str(sum_), enhet) if n else "",
+            "kapasitet_tillatelser_antall": n}
+
+
+_SAMME_POSISJON: dict[int, dict[tuple[str, str], list[str]]] = {}
+
+
+def _samme_posisjon(loknr: str, akva: dict, nokkel: int) -> list[dict]:
+    """Andre lokaliteter med NØYAKTIG samme bredde- og lengdegrad.
+
+    Bygget én gang per uttrekk, som `_naboer()`."""
+    if nokkel not in _SAMME_POSISJON:
+        per: dict[tuple[str, str], list[str]] = defaultdict(list)
+        for nr, d in akva.items():
+            if d.get("breddegrad") and d.get("lengdegrad"):
+                per[(d["breddegrad"], d["lengdegrad"])].append(nr)
+        _SAMME_POSISJON[nokkel] = per
+    a = akva[loknr]
+    andre = _SAMME_POSISJON[nokkel].get(
+        (a.get("breddegrad", ""), a.get("lengdegrad", "")), [])
+    return [{"loknr": nr, "navn": visningsord.tittelform(akva[nr].get("navn", ""))}
+            for nr in sorted(andre) if nr != loknr]
 
 
 # ---------------------------------------------------- den siterbare CSV-en
@@ -5558,6 +5751,8 @@ def _miljo() -> Environment:
     miljo.filters["isouke"] = visningsord.isouke
     miljo.filters["ukespenn"] = visningsord.ukespenn
     miljo.filters["maaned"] = visningsord.maaned
+    miljo.filters["kortdato"] = visningsord.kortdato
+    miljo.filters["kildekort"] = visningsord.kilde_kort
     miljo.filters["tidspunkt"] = visningsord.tidspunkt
     miljo.filters["tall"] = visningsord.tall
     # NAVN I VISNINGEN. Registrene skriver navn i versaler; sidene viser
