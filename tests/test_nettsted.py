@@ -1640,6 +1640,27 @@ def test_po_siden_lenker_til_hver_lokalitet():
     assert '<a href="/lokalitet/31397/">31397</a>' in _po()
 
 
+def test_trafikklys_paa_om_bruker_tegnforklaringens_navn():
+    """Ett grunnlag, ett navn. «Mer» ved tegnforklaringen på områdesiden
+    lander på /om/#trafikklys, og der skal hvert navn i tegnforklaringen
+    forklares under nøyaktig det navnet — og ingen andre."""
+    po = _po()
+    blokk = po[po.index('aria-label="Hva fyllet betyr"'):]
+    blokk = blokk[:blokk.index("</ul>")]
+    tegn = {" ".join(re.sub(r"<[^>]+>", "", li).split())
+            for li in re.findall(r"<li>(.*?)</li>", blokk, re.S)}
+    assert len(tegn) == 4
+    assert '<a href="/om/#trafikklys">Mer</a>' in po
+
+    om = _om()
+    seksjon = om[om.index('<h2 id="trafikklys">'):]
+    seksjon = seksjon[:seksjon.index("<h2", 1)]
+    forklart = {" ".join(n.split()).lower()
+                for n in re.findall(r"<strong>([^<]+):</strong>", seksjon)}
+    assert forklart == tegn
+    assert "Fargen har fire grunnlag:" in seksjon
+
+
 def test_po_siden_sier_at_inndelingen_er_dagens():
     """Området er en regulatorisk inndeling som kan tas om igjen. Siden
     bærer datoen, og at et område med nye grenser er et annet område,
