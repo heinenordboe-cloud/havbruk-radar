@@ -1386,7 +1386,7 @@ def _po(**overstyr) -> str:
             # tomme ruta, og den er stiplet, ikke fylt.
             {"aar": "2018", "farge": nettsted.FARGE_MANGLER,
              "farge_felt": nettsted.FARGE_MANGLER_FELT, "farge_klasse": "",
-             "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese",
+             "lesemaate": "", "lesemaate_tekst": nettsted.LESEMAATE["ingen"],
              "sitat": "", "sitat_dato": "", "sitat_url": "",
              "ellers": []},
             {"aar": "2020", "farge": "rød", "farge_felt": "farge",
@@ -1675,6 +1675,14 @@ def test_hvert_grunnlag_er_forklart_paa_om():
     forklart = _forklart_paa_om(_om())
     assert kan_vises - forklart == set(), "uforklart på /om/#trafikklys"
     assert forklart - kan_vises == set(), "forklart, men vises ikke"
+
+    # CELLEN UTEN KILDE, lest av generatoren og ikke av ordlista: den
+    # het «ingen bestemmelse å lese» til 22.10.2026 uten å stå i lista,
+    # og ingen celle i bygget var i den, så ingen prøve så navnet.
+    from types import SimpleNamespace
+    tom = nettsted._fargerad("4", "1999", SimpleNamespace(po_farger={}))
+    assert tom["farge"] == nettsted.FARGE_MANGLER
+    assert tom["lesemaate_tekst"] in forklart
 
 
 # ---- grunnlagene i det bygde nettstedet --------------------------------

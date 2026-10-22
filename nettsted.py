@@ -3348,7 +3348,7 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
         return {
             "aar": aar, "farge": FARGE_MANGLER,
             "farge_felt": FARGE_MANGLER_FELT, "farge_klasse": "",
-            "lesemaate": "", "lesemaate_tekst": "ingen bestemmelse å lese",
+            "lesemaate": "", "lesemaate_tekst": LESEMAATE["ingen"],
             "sitat": "", "sitat_dato": "", "sitat_url": "", "ellers": [],
         }
 

@@ -162,6 +162,14 @@ LESEMAATE = {
     # `beslutning.py`. Ikke en verdi i `farge__lesemaate` — nettstedet
     # setter den — men den har ett navn som de andre.
     "beslutning": "i kunngjøringen",
+    # INGEN KILDE: verken forskriften eller kunngjøringen nevner området i
+    # runden. Nøkkelen er klassen malen setter (`runde--ingen`, skravert
+    # som «ikke oppgitt» i tegnforklaringen). Til 22.10.2026 sto «ingen
+    # bestemmelse å lese» her — et navn fra før kunngjøringen ble lest, da
+    # forskriften var eneste kilde. MÅLT 22.10.2026: ingen forskriftsrad
+    # har tom farge, så tilstanden er nøyaktig «ingen kilde sier», og
+    # ingen av de 65 cellene i dag er i den.
+    "ingen": "ikke oppgitt",
 }
 
 JANEI = {"True": "ja", "False": "nei", "true": "ja", "false": "nei"}
