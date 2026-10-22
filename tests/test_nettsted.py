@@ -1640,25 +1640,82 @@ def test_po_siden_lenker_til_hver_lokalitet():
     assert '<a href="/lokalitet/31397/">31397</a>' in _po()
 
 
-def test_trafikklys_paa_om_bruker_tegnforklaringens_navn():
-    """Ett grunnlag, ett navn. «Mer» ved tegnforklaringen på områdesiden
-    lander på /om/#trafikklys, og der skal hvert navn i tegnforklaringen
-    forklares under nøyaktig det navnet — og ingen andre."""
-    po = _po()
-    blokk = po[po.index('aria-label="Hva fyllet betyr"'):]
+def _tegnforklaringen(html: str) -> set[str]:
+    """Navnene i «Hva fyllet betyr» på en områdeside."""
+    blokk = html[html.index('aria-label="Hva fyllet betyr"'):]
     blokk = blokk[:blokk.index("</ul>")]
-    tegn = {" ".join(re.sub(r"<[^>]+>", "", li).split())
+    return {" ".join(re.sub(r"<[^>]+>", "", li).split())
             for li in re.findall(r"<li>(.*?)</li>", blokk, re.S)}
+
+
+def _forklart_paa_om(html: str) -> set[str]:
+    """Grunnlagsnavnene /om/#trafikklys forklarer, med liten forbokstav."""
+    seksjon = html[html.index('<h2 id="trafikklys">'):]
+    seksjon = seksjon[:seksjon.index("<h2", 1)]
+    return {" ".join(n.split()).lower()
+            for n in re.findall(r"<strong>([^<]+):</strong>", seksjon)}
+
+
+def test_hvert_grunnlag_er_forklart_paa_om():
+    """Ett grunnlag, ett navn, og hvert navn forklart. «Mer» ved
+    tegnforklaringen lander på /om/#trafikklys.
+
+    IKKE BARE TEGNFORKLARINGEN. Til 22.10.2026 prøvde denne bare de fire
+    der, og «i kapitteloverskriften» sto i endringstabellen på to
+    områdesider uten forklaring. Navnene generatoren kan skrive i en
+    grunnlagscelle er tegnforklaringens OG `visningsord.LESEMAATE`;
+    prøven mot et faktisk bygg er
+    `test_hvert_grunnlag_i_bygget_er_forklart_paa_om`."""
+    po = _po()
+    tegn = _tegnforklaringen(po)
     assert len(tegn) == 4
     assert '<a href="/om/#trafikklys">Mer</a>' in po
 
-    om = _om()
-    seksjon = om[om.index('<h2 id="trafikklys">'):]
-    seksjon = seksjon[:seksjon.index("<h2", 1)]
-    forklart = {" ".join(n.split()).lower()
-                for n in re.findall(r"<strong>([^<]+):</strong>", seksjon)}
-    assert forklart == tegn
-    assert "Fargen har fire grunnlag:" in seksjon
+    kan_vises = tegn | set(visningsord.LESEMAATE.values())
+    forklart = _forklart_paa_om(_om())
+    assert kan_vises - forklart == set(), "uforklart på /om/#trafikklys"
+    assert forklart - kan_vises == set(), "forklart, men vises ikke"
+
+
+# ---- grunnlagene i det bygde nettstedet --------------------------------
+#
+# Krever et ferdig bygg, som `tests/test_kart.py`. Uten `HAVBRUK_NETTSTED`
+# hoppes den over og sier hvorfor.
+
+import os                                                  # noqa: E402
+
+NETTSTED = os.environ.get("HAVBRUK_NETTSTED", "")
+
+# Grunnlagscellene, slik malene skriver dem. «Felt»-cella i
+# endringstabellen bærer også `data-felt="farge__lesemaate"`, men verdien
+# der er FELTNAVNET («Grunnlag»), ikke et grunnlag.
+GRUNNLAGSCELLE = re.compile(
+    r'data-felt="farge__lesemaate"(?![^>]*data-label="Felt")[^>]*>([^<]+)<'
+    r'|class="runde-belegg">([^<]+)<')
+
+
+@pytest.mark.skipif(
+    not NETTSTED,
+    reason="HAVBRUK_NETTSTED peker ikke på et bygget nettsted — "
+           "bygg med `python nettsted.py --alle --ut <mappe>` først")
+def test_hvert_grunnlag_i_bygget_er_forklart_paa_om():
+    """Hvert grunnlagsnavn som FOREKOMMER i bygget — i tegnforklaringen,
+    i rundelista og i hver endringscelle — er forklart på
+    /om/#trafikklys i samme bygg."""
+    rot = Path(NETTSTED)
+    forklart = _forklart_paa_om((rot / "om" / "index.html").read_text())
+    funnet: dict[str, str] = {}
+    for side in sorted(rot.rglob("*.html")):
+        html = side.read_text()
+        navn = {" ".join((a or b).split()) for a, b in
+                GRUNNLAGSCELLE.findall(html)}
+        if 'aria-label="Hva fyllet betyr"' in html:
+            navn |= _tegnforklaringen(html)
+        for n in navn:
+            funnet.setdefault(n.lower(), str(side.relative_to(rot)))
+    assert "i kapitteloverskriften" in funnet, "fant ikke de eldre cellene"
+    uforklart = {n: s for n, s in funnet.items() if n not in forklart}
+    assert uforklart == {}, "uforklart på /om/#trafikklys"
 
 
 def test_po_siden_sier_at_inndelingen_er_dagens():
