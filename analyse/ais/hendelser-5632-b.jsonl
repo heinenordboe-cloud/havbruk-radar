@@ -1,0 +1,674 @@
+{"t": "2026-10-28T14:44:47.357081Z", "hendelse": "start", "varighet_s": 3600.0, "vert": "153.44.253.27", "port": 5632}
+{"t": "2026-10-28T14:44:47.377001Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T14:48:02.133451Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 715}
+{"t": "2026-10-28T14:48:03.151569Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T14:50:03.249973Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T14:50:04.268097Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T14:52:04.366548Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T14:52:05.384943Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T14:54:05.483166Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T14:54:06.501650Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T14:57:09.871635Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 67297}
+{"t": "2026-10-28T14:57:10.889592Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T14:59:10.988180Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T14:59:12.007054Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:01:12.104773Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T15:01:13.123067Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:03:13.223288Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T15:03:14.241522Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:05:53.624731Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 9026}
+{"t": "2026-10-28T15:05:54.643084Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:07:54.738988Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T15:07:55.760044Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:09:55.854320Z", "hendelse": "brudd", "grunn": "TimeoutError('timed out')", "bytes": 0}
+{"t": "2026-10-28T15:09:56.872834Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:10:41.343839Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:10:42.361842Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:10:42.398021Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:10:43.416679Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:10:53.988011Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:10:55.005933Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:10:55.022449Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:10:56.040246Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:07.429240Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:08.447105Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:08.463594Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:09.481409Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:20.654391Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:21.672870Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:21.707987Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:22.726146Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:32.032196Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:33.049793Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:33.066320Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:34.083893Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:45.472660Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:46.490289Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:46.506774Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:47.524188Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:58.729942Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:11:59.750725Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:11:59.767059Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:00.784773Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:10.076473Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:11.094382Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:11.111149Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:12.128544Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:22.473403Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:23.491669Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:23.508071Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:24.525394Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:34.775160Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:35.793001Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:35.811742Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:36.829448Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:47.953512Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:48.974112Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:12:48.990490Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:12:50.008442Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:00.093135Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:01.111738Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:01.128321Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:02.146047Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:12.316785Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:13.334772Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:13.351278Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:14.369303Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:24.573226Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:25.590351Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:25.606759Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:26.624440Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:37.799055Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:38.816899Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:38.833441Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:39.850753Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:50.173330Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:51.191862Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:13:51.208711Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:13:52.226477Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:02.583049Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:03.601045Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:03.617739Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:04.635145Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:15.066357Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:16.083895Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:16.100678Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:17.118690Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:28.388953Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:29.411262Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:29.427928Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:30.445498Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:40.735452Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:41.753339Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:41.770093Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:42.788117Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:52.053260Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:53.071748Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:14:53.089978Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:14:54.107589Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:04.486529Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:05.504842Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:05.521150Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:06.538553Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:17.778037Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:18.795352Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:18.812079Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:19.829564Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:30.106785Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:31.124726Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:31.179511Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:32.197007Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:42.488875Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:43.510330Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:43.526874Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:44.544884Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:54.956661Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:55.974782Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:15:55.991277Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:15:57.008470Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:08.238117Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:09.255541Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:09.271973Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:10.289760Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:21.431675Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:22.453957Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:22.470455Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:23.488159Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:33.670167Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:34.692377Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:34.710030Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:35.727583Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:46.085053Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:47.102700Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:47.119087Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:16:48.136221Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:16:59.513705Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:00.533501Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:00.549920Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:01.567979Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:11.741290Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:12.759200Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:12.775667Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:13.793066Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:23.106157Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:24.123766Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:24.140302Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:25.157441Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:35.406250Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:36.424205Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:36.440784Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:37.458720Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:48.656712Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:49.678350Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:17:49.694692Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:17:50.712147Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:02.030502Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:03.053483Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:03.070082Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:04.088056Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:15.351672Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:16.373841Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:16.390423Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:17.407674Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:28.744158Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:29.766123Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:29.782595Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:30.800519Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:40.957832Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:41.980243Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:41.996890Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:43.013991Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:54.357858Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:55.375290Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:18:55.391831Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:18:56.409484Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:07.756158Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:08.774766Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:08.791302Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:09.809019Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:20.040410Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:21.058899Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:21.075234Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:22.092891Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:33.375771Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:34.393449Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:34.410205Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:35.428264Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:45.615337Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:46.637329Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:46.653969Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:47.671756Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:57.899532Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:58.917975Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:19:58.934737Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:19:59.952508Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:09.083546Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:10.101090Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:10.117469Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:11.135064Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:22.390464Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:23.411240Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:23.427804Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:24.445693Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:35.845323Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:36.868669Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:36.885254Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:37.902812Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:47.196987Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:48.214954Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:48.231707Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:20:49.249156Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:20:59.588857Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:00.606711Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:00.623351Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:01.640355Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:12.857892Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:13.875702Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:13.892672Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:14.910039Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:25.095379Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:26.113269Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:26.129647Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:27.147236Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:37.399156Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:38.421242Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:38.437515Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:39.455047Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:49.634999Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:50.652929Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:21:50.669698Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:21:51.687317Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:01.915413Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:02.933122Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:02.949448Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:03.967270Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:14.210995Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:15.233019Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:15.250203Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:16.267625Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:27.612908Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:28.630790Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:28.647194Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:29.664895Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:39.984847Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:41.002646Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:41.019335Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:42.037523Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:53.498898Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:54.516849Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:22:54.533417Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:22:55.550620Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:06.950310Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:07.968371Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:07.985220Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:09.003497Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:20.445568Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:21.463650Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:21.480274Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:22.497998Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:33.865148Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:34.883011Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:34.899995Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:35.917480Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:45.112424Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:46.130091Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:46.146644Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:47.163618Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:58.451729Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:23:59.469355Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:23:59.485879Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:00.503360Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:11.781798Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:12.799636Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:12.816337Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:13.834426Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:24.009704Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:25.027093Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:25.043463Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:26.060655Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:37.522158Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:38.539810Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:38.556145Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:39.573926Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:51.002652Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:52.024173Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:24:52.040448Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:24:53.058082Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:04.388379Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:05.410059Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:05.426889Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:06.444135Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:17.831879Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:18.850065Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:18.866733Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:19.884850Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:29.170093Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:30.188127Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:30.204680Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:31.222044Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:42.545525Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:43.563639Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:43.580202Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:44.597660Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:55.916231Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:56.933988Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:25:56.950834Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:25:57.968282Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:07.208449Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:08.226039Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:08.242590Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:09.260437Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:19.449108Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:20.471124Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:20.487768Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:21.505032Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:32.882394Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:33.900427Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:33.940501Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:34.958330Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:45.275229Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:46.296535Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:46.312960Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:47.330059Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:57.726858Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:58.744625Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:26:58.761082Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:26:59.778474Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:09.032653Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:10.050536Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:10.067086Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:11.084322Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:21.402496Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:22.420168Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:22.438491Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:23.456142Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:34.634381Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:35.652374Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:35.668873Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:36.686466Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:48.023171Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:49.041020Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:27:49.057811Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:27:50.075428Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:01.502185Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:02.520523Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:02.537023Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:03.554536Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:15.031418Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:16.049311Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:16.066069Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:17.083213Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:28.434845Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:29.456988Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:29.473680Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:30.490942Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:41.835738Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:42.853658Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:42.870434Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:43.888306Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:53.192541Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:54.210471Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:28:54.227474Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:28:55.245058Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:05.575178Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:06.592676Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:06.609480Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:07.626847Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:17.891809Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:18.911491Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:18.928149Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:19.946128Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:30.120144Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:31.139218Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:31.156760Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:32.174281Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:43.480957Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:44.499173Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:44.515646Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:45.533522Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:55.801570Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:56.819408Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:29:56.835890Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:29:57.853769Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:07.080481Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:08.098224Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:08.114882Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:09.132284Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:20.408905Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:21.426415Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:21.443116Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:22.460951Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:33.875966Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:34.893805Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:34.910221Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:35.929052Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:45.095287Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:46.117096Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:46.133673Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:47.151670Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:57.428118Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:58.445465Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:30:58.461909Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:30:59.479170Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:10.871452Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:11.889687Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:11.907118Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:12.924996Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:23.218923Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:24.236926Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:24.253548Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:25.271317Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:35.550518Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:36.572502Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:36.589252Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:37.606677Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:47.918566Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:48.936485Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:31:48.952829Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:31:49.970018Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:00.244921Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:01.262879Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:01.279489Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:02.297695Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:13.501501Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:14.519639Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:14.536172Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:15.553581Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:25.787986Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:26.805402Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:26.821794Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:27.839286Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:37.115157Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:38.133093Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:38.149723Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:39.166853Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:49.404696Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:50.427147Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:32:50.443582Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:32:51.461084Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:02.755657Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:03.773159Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:03.789562Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:04.806790Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:15.177810Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:16.195449Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:16.212141Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:17.229692Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:27.490183Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:28.507905Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:28.524814Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:29.542821Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:39.793393Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:40.815287Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:40.831977Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:41.849464Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:52.223463Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:53.240909Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:33:53.268983Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:33:54.286416Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:05.639875Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:06.658025Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:06.674671Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:07.692902Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:18.007927Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:19.026246Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:19.043090Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:20.061283Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:31.288845Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:32.306998Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:32.323409Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:33.340829Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:44.558086Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:45.577145Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:45.593738Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:46.610978Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:56.872321Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:57.889940Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:34:57.906285Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:34:58.923864Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:09.347954Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:10.366036Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:10.382474Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:11.400020Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:22.604981Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:23.627287Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:23.643819Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:24.661020Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:34.872545Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:35.891649Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:35.908097Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:36.925699Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:46.092243Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:47.110358Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:47.126692Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:48.143840Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:58.437369Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:35:59.459235Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:35:59.475727Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:00.492961Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:11.648926Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:12.666393Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:12.682895Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:13.700455Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:24.074973Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:25.093103Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:25.109507Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:26.127484Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:36.391422Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:37.413030Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:37.429732Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:38.447927Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:48.833368Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:49.856044Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:36:49.872336Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:36:50.889737Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:01.133840Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:02.156167Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:02.172653Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:03.190269Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:14.512762Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:15.531035Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:15.548284Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:16.576566Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:26.999726Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:28.017370Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:28.034005Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:29.051187Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:40.241483Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:41.263845Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:41.280358Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:42.297652Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:53.559710Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:54.581242Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:37:54.598058Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:37:55.615430Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:05.877876Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:06.899113Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:06.915731Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:07.933133Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:18.133998Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:19.151525Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:19.168474Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:20.186145Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:31.541736Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:32.559547Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:32.576274Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:33.594156Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:43.952351Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:44.970473Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:44.986901Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:46.004002Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:57.265543Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:58.287910Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:38:58.304509Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:38:59.321862Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:10.649263Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:11.667313Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:11.683780Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:12.701345Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:23.028565Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:24.046535Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:24.062964Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:25.080122Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:36.327088Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:37.344741Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:37.361075Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:38.378423Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:49.760329Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:50.777891Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:39:50.794283Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:39:51.812043Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:01.036304Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:02.054230Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:02.070565Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:03.088389Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:14.359185Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:15.377185Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:15.394533Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:16.411906Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:27.629230Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:28.647006Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:28.663760Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:29.681575Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:39.930115Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:40.947921Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:40.964332Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:41.981821Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:51.396563Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:52.413967Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:40:52.430331Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:40:53.448208Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:04.758584Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:05.776177Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:05.792778Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:06.810570Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:17.170693Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:18.188593Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:18.205257Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:19.222949Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:29.642739Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:30.660012Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:30.676393Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:31.693932Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:41.955071Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:42.976617Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:43.017585Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:44.034988Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:55.255138Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:56.277105Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:41:56.293750Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:41:57.311668Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:07.805099Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:08.822650Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:08.838929Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:09.856598Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:19.194279Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:20.212332Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:20.228870Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:21.246125Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:31.508030Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:32.525994Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:32.542353Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:33.560052Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:43.917149Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:44.938593Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:44.955074Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:45.972781Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:56.194105Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:57.212191Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:42:57.229388Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:42:58.246632Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:09.648259Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:10.670290Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:10.686652Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:11.703917Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:21.009134Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:22.027158Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:22.043830Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:23.061729Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:33.514643Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:34.535151Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:34.551837Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:35.569256Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:46.906705Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:47.924900Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:47.941527Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:43:48.959500Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:43:59.297290Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:00.314583Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:00.331079Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:01.348422Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:11.629533Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:12.653087Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:12.669375Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:13.687137Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:23.116083Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:24.136687Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:24.153310Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:25.170698Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:36.479955Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:37.497579Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:37.514176Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:38.531910Z", "hendelse": "tilkoblet"}
+{"t": "2026-10-28T15:44:49.817164Z", "hendelse": "brudd", "grunn": "eof", "bytes": 0}
+{"t": "2026-10-28T15:44:49.817395Z", "hendelse": "ferdig"}

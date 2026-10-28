@@ -11,7 +11,11 @@ Kildens klokke står i `msgtime` inne i linja (CLAUDE.md 1b-7).
 Tokenet hentes ved hver tilkobling og logges aldri. Brudd og
 gjenoppkoblinger logges som JSON-linjer i en egen fil.
 
-    python3 fang_bw.py <sekunder> <ut.txt> <hendelser.jsonl>
+    python3 fang_bw.py <sekunder> <ut.txt> <hendelser.jsonl> [full]
+
+Uten `full`: GET /v1/ais, slik timen 28.10 ble fanget. Med `full`: POST
+/v1/ais med downsample=false og alle include-flagg, uten filter. GET er
+nedsamplet (målt 28.10.2026, se MALING-AIS F2.8).
 """
 import json
 import sys
@@ -24,6 +28,9 @@ NOKKEL = "/etc/kystvakt/barentswatch-ais.env"
 TOKEN_URL = "https://id.barentswatch.no/connect/token"
 STROM_URL = "https://live.ais.barentswatch.no/v1/ais"
 TIDSAVBRUDD = 120  # s uten data regnes som brudd
+FULL = {"downsample": False, "includePosition": True, "includeStatic": True,
+        "includeAton": True, "includeSafetyRelated": True,
+        "includeBinaryBroadcastMetHyd": True}
 
 
 def naa() -> str:
@@ -45,17 +52,23 @@ def token() -> str:
 
 def main() -> None:
     varighet, ut_sti, hend_sti = float(sys.argv[1]), sys.argv[2], sys.argv[3]
+    full = len(sys.argv) > 4 and sys.argv[4] == "full"
     slutt = time.monotonic() + varighet  # hvor lenge VI kjører: monotonic
     with open(ut_sti, "ab") as ut, open(hend_sti, "a") as hend:
         def logg(**k):
             hend.write(json.dumps({"t": naa(), **k}) + "\n")
             hend.flush()
 
-        logg(hendelse="start", varighet_s=varighet, url=STROM_URL)
+        logg(hendelse="start", varighet_s=varighet, url=STROM_URL,
+             metode="POST" if full else "GET", body=FULL if full else None)
         while time.monotonic() < slutt:
             try:
-                req = urllib.request.Request(
-                    STROM_URL, headers={"Authorization": "Bearer " + token()})
+                hdr = {"Authorization": "Bearer " + token()}
+                data = None
+                if full:
+                    hdr["Content-Type"] = "application/json"
+                    data = json.dumps(FULL).encode()
+                req = urllib.request.Request(STROM_URL, data, hdr)
                 r = urllib.request.urlopen(req, timeout=TIDSAVBRUDD)
             except Exception as e:  # noqa: BLE001 — alt logges, ingenting stopper fangsten
                 logg(hendelse="tilkobling_feilet", feil=repr(e)[:300])

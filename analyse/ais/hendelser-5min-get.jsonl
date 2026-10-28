@@ -1,0 +1,4 @@
+{"t": "2026-10-28T17:16:54.576889Z", "hendelse": "start", "varighet_s": 300.0, "url": "https://live.ais.barentswatch.no/v1/ais", "metode": "GET", "body": null}
+{"t": "2026-10-28T17:16:55.257129Z", "hendelse": "tilkoblet", "status": 200, "headers": {"content-type": "text/event-stream", "date": "Wed, 28 Oct 2026 17:16:54 GMT", "transfer-encoding": "chunked", "strict-transport-security": "max-age=31536000; includeSubDomains; preload;", "connection": "close"}}
+{"t": "2026-10-28T17:21:54.600774Z", "hendelse": "slutt", "bytes": 4535332}
+{"t": "2026-10-28T17:21:54.601094Z", "hendelse": "ferdig"}
