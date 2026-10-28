@@ -16,7 +16,8 @@ ExecStart=/usr/bin/python3 /opt/kystvakt/lytter.py /srv/ais5632/raa 5632
 Restart=always
 RestartSec=10
 # 5632 kommer i støt: 666 s stillhet ble målt 28.10 uten at noe var galt.
-# Vakten må tåle det, så grensen er 30 minutter.
+# Vakten må tåle det, så grensen er 30 minutter. En tilkobling kilden
+# lukker uten data, gir 30 s pause (lytter.py, VENT_TOM).
 WatchdogSec=1800
 WatchdogSignal=SIGTERM
 LimitCORE=0

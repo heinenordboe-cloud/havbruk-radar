@@ -73,8 +73,9 @@ VENT_MAKS = 300.0
 # Tilkoblet, men kilden lukket uten å sende noe. Det er ikke en kilde som
 # ikke svarer, og ventetiden øker ikke: 5632 gjorde dette på 333 av 336
 # tilkoblinger 28.10 (median 9 s), og dataene kom i de tre som ble holdt
-# åpne. Økende ventetid ville gått glipp av dem.
-VENT_TOM = float(os.environ.get("AIS_VENT_TOM", 10))
+# åpne, i 159–195 s. 30 s fanger slike vinduer og er 120 tilkoblinger i
+# timen, ikke 360. Økende ventetid ville gått glipp av dem.
+VENT_TOM = float(os.environ.get("AIS_VENT_TOM", 30))
 # zstd-nivå. Målt 28.10.2026 på kystvakt-1 mot fem minutter BarentsWatch
 # uten nedsampling (248 MB/time fra kilden), med blokk hvert 10. s:
 # nivå 3 gir 592 MB/døgn og 0,6 s CPU per time; nivå 19 gir 345 MB/døgn,
