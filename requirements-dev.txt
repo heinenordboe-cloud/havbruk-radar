@@ -1,3 +1,6 @@
 -r requirements.txt
 
 pytest==8.4.2
+
+# analyse/ais (docs/MALING-AIS.md). Ikke innsamlingen.
+pyais==3.3.1
