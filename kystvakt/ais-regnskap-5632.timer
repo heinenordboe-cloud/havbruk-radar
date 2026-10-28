@@ -1,0 +1,9 @@
+[Unit]
+Description=AIS: regnskap for 5632 ti over hver time
+
+[Timer]
+OnCalendar=*-*-* *:10:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

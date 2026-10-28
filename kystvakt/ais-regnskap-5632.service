@@ -1,0 +1,16 @@
+# /etc/systemd/system/ais-regnskap-5632.service: kvalitetsregnskap per
+# ferdig time for 5632, skrevet ved siden av råfilene. Se kystvakt/regnskap.py.
+[Unit]
+Description=AIS: regnskap per time for 5632
+
+[Service]
+Type=oneshot
+User=ais5632
+Group=ais5632
+ExecStart=/usr/bin/python3 /opt/kystvakt/regnskap.py time 5632 /srv/ais5632/raa bw /srv/ais/bw /srv/ais/klokke
+Nice=10
+TimeoutStartSec=15min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/ais5632

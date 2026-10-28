@@ -1,0 +1,9 @@
+[Unit]
+Description=AIS: chrony-tilstand hvert minutt
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

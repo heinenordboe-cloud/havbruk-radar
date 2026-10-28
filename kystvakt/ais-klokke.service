@@ -1,0 +1,14 @@
+# /etc/systemd/system/ais-klokke.service: chrony-tilstanden én gang i
+# minuttet, til regnskapet (kystvakt/regnskap.py klokke).
+[Unit]
+Description=AIS: chrony-tilstand til /srv/ais/klokke
+
+[Service]
+Type=oneshot
+User=ais
+Group=ais
+ExecStart=/usr/bin/python3 /opt/kystvakt/regnskap.py klokke /srv/ais/klokke
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/ais
