@@ -1,0 +1,31 @@
+# /etc/systemd/system/ais-bw.service på kystvakt-1.
+# BarentsWatch Live AIS rått til /srv/ais/bw. Se kystvakt/lytter.py.
+[Unit]
+Description=AIS-lytter: BarentsWatch Live AIS rått til /srv/ais/bw
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=ais
+Group=ais
+ExecStart=/usr/bin/python3 /opt/kystvakt/lytter.py /srv/ais/bw bw
+Restart=always
+RestartSec=10
+# Livstegn: hele tiden mens den prøver å koble til, bare ved data når
+# den er tilkoblet. Strømmen leverer flere meldinger i sekundet; 120 s
+# stillhet med åpen tilkobling er en hengt strøm.
+WatchdogSec=120
+WatchdogSignal=SIGTERM
+LimitCORE=0
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/ais
+
+[Install]
+WantedBy=multi-user.target

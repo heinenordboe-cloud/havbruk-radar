@@ -1,8 +1,13 @@
-"""AIS-lytteren på kystvakt-1. Lagrer Kystverkets strøm rått, time for time.
+"""AIS-lytteren på kystvakt-1. Lagrer en AIS-strøm rått, time for time.
+
+To kilder, samme lagring:
+
+    python3 lytter.py <rot> bw       BarentsWatch Live AIS, GET /v1/ais
+    python3 lytter.py <rot> <port>   Kystverkets TCP-strøm (5632, 5631)
 
 Hver linje lagres uendret, med VÅR mottakstid foran og en tabulator
-imellom. Kildens klokke står i c:-feltet inne i linja. To klokker, to
-eiere (CLAUDE.md 1b-7):
+imellom. Kildens klokke står inne i linja: `msgtime` hos BarentsWatch,
+c: i TAG-blokka hos Kystverket. To klokker, to eiere (CLAUDE.md 1b-7):
 
     <mottatt UTC, ISO, mikrosek>\t<linja slik den kom, med terminator>
 
@@ -21,28 +26,58 @@ stedet for å overskrive. En .delvis som ligger igjen etter et krasj,
 røres ikke innvendig: den lenkes til `.avbrutt.txt.zst` og føres i
 manifestet. Siste zstd-blokk kan være avkortet; alt før den leses.
 
-Systemd-vakten (WatchdogSec) får livstegn bare når det kom DATA. Har
-det ikke kommet noe på fem minutter, dreper systemd prosessen og
-Restart=always starter den igjen. Vakten måler om strømmen leverer,
-ikke om prosessen lever (1b-2: et forsøk er ikke et resultat).
+## Vakthunden
 
-    python3 lytter.py <rot> [port]
+Systemd-vakten (WatchdogSec) skal drepe en lytter som ER tilkoblet og
+har sluttet å få data, og ingen annen (1b-2: et forsøk er ikke et
+resultat, men et mislykket forsøk er heller ikke en hengt prosess).
+
+- Tilkoblet: livstegn bare når det kom DATA. Lytteren har ikke noe eget
+  tidsavbrudd for stillhet; det er vakten som avgjør, med WatchdogSec
+  satt etter kildens lengste normale pause.
+- Ikke tilkoblet: livstegn hele tiden, også mens vi venter. Et forsøk
+  som feiler, logges, og neste venter dobbelt så lenge (5 s til 5 min).
+  Ingen drap, ingen krasjrapport. En tilkobling som lyktes, men som
+  kilden lukket uten data, er ikke et feilet forsøk: fast 10 s pause.
+
+Vakten sender SIGTERM (WatchdogSignal i unit-fila), ikke SIGABRT: timen
+lukkes ordentlig, og det blir ingen kjernedump i /var/crash.
 """
 import hashlib
+import http.client
+import json
 import os
 import signal
 import socket
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from compression import zstd
 from datetime import datetime, timezone
 from pathlib import Path
 
 VERT = os.environ.get("AIS_VERT", "153.44.253.27")  # miljøvariabel bare for prøvene
-TIDSAVBRUDD = 60     # s uten data før vi kobler til på nytt
+BW_NOKKEL = os.environ.get("AIS_BW_NOKKEL", "/etc/kystvakt/barentswatch-ais.env")
+BW_TOKEN_URL = os.environ.get("AIS_BW_TOKEN_URL", "https://id.barentswatch.no/connect/token")
+BW_STROM_URL = os.environ.get("AIS_BW_URL", "https://live.ais.barentswatch.no/v1/ais")
 # s mellom zstd-blokker til disk, også når strømmen tier. Det er det
-# som kan gå tapt om prosessen drepes: vakten dreper med SIGABRT.
+# som kan gå tapt om maskinen mister strømmen.
 BLOKK_HVERT = float(os.environ.get("AIS_BLOKK_S", 10))
+VENT_MIN = float(os.environ.get("AIS_VENT_MIN", 5))  # miljøvariabel bare for prøvene
+VENT_MAKS = 300.0
+# Tilkoblet, men kilden lukket uten å sende noe. Det er ikke en kilde som
+# ikke svarer, og ventetiden øker ikke: 5632 gjorde dette på 333 av 336
+# tilkoblinger 28.10 (median 9 s), og dataene kom i de tre som ble holdt
+# åpne. Økende ventetid ville gått glipp av dem.
+VENT_TOM = float(os.environ.get("AIS_VENT_TOM", 10))
+# zstd-nivå. Målt 28.10.2026 på kystvakt-1 mot én time BarentsWatch
+# (52 MB fra kilden), med blokk hvert 10. s: nivå 3 gir 152 MB/døgn og
+# 0,1 s CPU per time; nivå 19 gir 71 MB/døgn, 27 s CPU per time og 89 MB
+# minne. Disken har 15 GB ledig, så nivå 19 er forskjellen på 100 og 200
+# dager før kopien utenfor serveren må finnes.
+ZSTD_NIVA = int(os.environ.get("AIS_ZSTD_NIVA", 19))
 STOPPSIGNALER = {signal.SIGTERM, signal.SIGINT}
 
 
@@ -106,7 +141,7 @@ class Time:
         self.sti = mappe / f".{self.stamme}.delvis"
         fd = os.open(self.sti, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
         self.f = os.fdopen(fd, "wb")
-        self.z = zstd.ZstdCompressor(level=3)
+        self.z = zstd.ZstdCompressor(level=ZSTD_NIVA)
         self.sist_blokk = time.monotonic()
 
     def skriv(self, data: bytes) -> None:
@@ -129,15 +164,115 @@ class Time:
         lenk_ferdig(self.sti, self.stamme)
 
 
-
 def stempel() -> bytes:
     # Veggklokke: mottakstiden handler om verden (1b-1).
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ").encode()
 
 
+class Tcp:
+    """Kystverkets rå NMEA-strøm over TCP."""
+
+    def __init__(self, port: int):
+        self.port = port
+        self.s: socket.socket | None = None
+
+    def navn(self) -> str:
+        return f"{VERT}:{self.port}"
+
+    def koble(self) -> None:
+        self.s = socket.create_connection((VERT, self.port), timeout=15)
+        # Kort tidsavbrudd så blokka tømmes mens strømmen tier. Det er
+        # ikke et brudd; stillhet avgjøres av vakten.
+        self.s.settimeout(BLOKK_HVERT)
+
+    def les(self) -> bytes | None:
+        """Bytes, b"" ved eof, None når det bare var stille en stund."""
+        try:
+            return self.s.recv(65536)
+        except TimeoutError:
+            return None
+
+    def lukk(self) -> None:
+        if self.s:
+            self.s.close()
+            self.s = None
+
+
+class BarentsWatch:
+    """BarentsWatch Live AIS: JSON, én melding per linje, med token.
+
+    Tokenet finnes bare i minnet til denne prosessen. Det skrives ikke
+    til disk og logges aldri; nøklene det lages av, ligger i BW_NOKKEL,
+    som bare brukeren `ais` kan lese. Det fornyes ti minutter før det
+    utløper, også midt i en tilkobling, så en ny tilkobling aldri må
+    vente på et tokenkall som feiler.
+    """
+
+    def __init__(self):
+        self.c = self.r = None
+        self.token: str | None = None
+        self.utloper = 0.0
+
+    def navn(self) -> str:
+        return BW_STROM_URL
+
+    def hent_token(self) -> str:
+        # Veggklokke: om tokenet er utløpt hos BarentsWatch, handler om
+        # verden, og verden sover ikke når vi gjør det (F13).
+        if self.token and time.time() < self.utloper:
+            return self.token
+        env = dict(l.split("=", 1) for l in open(BW_NOKKEL).read().splitlines() if "=" in l)
+        data = urllib.parse.urlencode({
+            "client_id": env["BW_AIS_CLIENT_ID"],
+            "client_secret": env["BW_AIS_CLIENT_SECRET"],
+            "grant_type": "client_credentials",
+            "scope": "ais",
+        }).encode()
+        try:
+            with urllib.request.urlopen(BW_TOKEN_URL, data, timeout=30) as r:
+                d = json.load(r)
+        except urllib.error.HTTPError as e:
+            # Bare status og feilkode fra svaret; aldri det vi sendte.
+            raise RuntimeError(f"tokenkall {e.code} {e.read()[:80]!r}") from None
+        self.token = d["access_token"]
+        self.utloper = time.time() + int(d.get("expires_in", 3600)) - 600
+        logg(f"nytt token, gyldig {int(d.get('expires_in', 3600))} s")
+        return self.token
+
+    def koble(self) -> None:
+        u = urllib.parse.urlsplit(BW_STROM_URL)
+        kobling = http.client.HTTPConnection if u.scheme == "http" else http.client.HTTPSConnection
+        self.c = kobling(u.hostname, u.port, timeout=30)  # http bare for prøvene
+        self.c.request("GET", u.path, headers={
+            "Authorization": "Bearer " + self.hent_token()})
+        r = self.c.getresponse()
+        if r.status != 200:
+            if r.status == 401:
+                self.token = None  # serveren vet best (F13); neste forsøk henter nytt
+            raise RuntimeError(f"strøm {r.status} {r.read(200)!r}")
+        # Lesingen har ikke noe eget tidsavbrudd for stillhet: et
+        # tidsavbrudd midt i en chunk ville latt http.client stå i en
+        # ukjent tilstand. Stillhet mens vi er tilkoblet er vaktens sak.
+        self.c.sock.settimeout(None)
+        self.r = r
+
+    def les(self) -> bytes | None:
+        if time.time() >= self.utloper:
+            try:
+                self.hent_token()  # fornyes før det trengs, mens strømmen står
+            except Exception as e:  # noqa: BLE001 — prøves igjen ved neste lesing
+                logg(f"tokenfornying feilet: {e}")
+        return self.r.read1(65536)
+
+    def lukk(self) -> None:
+        if self.c:
+            self.c.close()
+        self.c = self.r = None
+
+
 class Lytter:
-    def __init__(self, rot: Path, port: int):
-        self.rot, self.port = rot, port
+    def __init__(self, rot: Path, kilde):
+        self.rot, self.kilde = rot, kilde
         self.aapen: Time | None = None
 
     def blokk(self) -> None:
@@ -152,7 +287,7 @@ class Lytter:
         # Et signal mellom compress() og write(), eller midt i et
         # timeskifte, ville latt kompressoren ha spist data som aldri nådde
         # fila. Stoppsignalene venter til skrivingen er ferdig; de leveres
-        # i recv(), connect() eller sleep().
+        # i lesingen, tilkoblingen eller ventingen.
         signal.pthread_sigmask(signal.SIG_BLOCK, STOPPSIGNALER)
         try:
             self._skriv(linjer)
@@ -169,49 +304,59 @@ class Lytter:
             self.aapen = Time(self.rot, time_)
         self.aapen.skriv(b"".join(t + b"\t" + l + b"\n" for l in linjer))
 
+    def vent(self, s: float) -> None:
+        """Venter uten å bli tatt for en hengt lytter: livstegn underveis."""
+        slutt = time.monotonic() + s  # hvor lenge VI venter: monotonic
+        while (igjen := slutt - time.monotonic()) > 0:
+            sd_notify("WATCHDOG=1")
+            time.sleep(min(igjen, 5))
+        sd_notify("WATCHDOG=1")
+
     def lytt(self) -> None:
+        vent = VENT_MIN
+        forsok = 0
         while True:
+            sd_notify("WATCHDOG=1")
+            forsok += 1
             try:
-                s = socket.create_connection((VERT, self.port), timeout=15)
-            except OSError as e:
-                logg(f"tilkobling feilet: {e!r}")
-                time.sleep(10)
+                self.kilde.koble()
+            except Exception as e:  # noqa: BLE001 — alt som hindrer tilkobling
+                self.kilde.lukk()
+                logg(f"tilkobling feilet (forsøk {forsok}): {e}; venter {vent:g} s")
+                self.vent(vent)
+                vent = min(vent * 2, VENT_MAKS)
                 continue
-            # Kort tidsavbrudd så blokka tømmes mens strømmen tier; brudd
-            # først etter TIDSAVBRUDD uten data.
-            s.settimeout(BLOKK_HVERT)
-            logg(f"tilkoblet {VERT}:{self.port}")
+            logg(f"tilkoblet {self.kilde.navn()} (forsøk {forsok})")
             buf = b""
-            sist_data = time.monotonic()
+            fikk_data = False
             try:
                 while True:
-                    try:
-                        bit = s.recv(65536)
-                    except TimeoutError:
+                    bit = self.kilde.les()
+                    if bit is None:
                         self.blokk()
-                        if time.monotonic() - sist_data > TIDSAVBRUDD:
-                            logg(f"brudd: ingen data på {TIDSAVBRUDD} s")
-                            break
                         continue
-                    sist_data = time.monotonic()
                     if not bit:
-                        logg("brudd: eof")
+                        logg("brudd: eof" + ("" if fikk_data else " uten data"))
                         break
                     buf += bit
                     *hele, buf = buf.split(b"\n")
                     if hele:
                         self.skriv(hele)
                         sd_notify("WATCHDOG=1")
-            except OSError as e:
+                        if not fikk_data:
+                            fikk_data, vent, forsok = True, VENT_MIN, 0
+            except Stopp:
+                raise
+            except Exception as e:  # noqa: BLE001
                 logg(f"brudd: {e!r}")
             finally:
-                s.close()
+                self.kilde.lukk()
                 if buf:
                     # Halen etter siste \n kom aldri ferdig. Den lagres
                     # likevel, med vår \n som postskille, og nevnes her.
                     logg(f"ufullstendig hale: {len(buf)} B")
                     self.skriv([buf])
-            time.sleep(2)
+            self.vent(2 if fikk_data else VENT_TOM)
 
     def lukk(self) -> None:
         if self.aapen:
@@ -221,7 +366,8 @@ class Lytter:
 
 def main() -> None:
     rot = Path(sys.argv[1])
-    port = int(sys.argv[2]) if len(sys.argv) > 2 else 5631
+    hva = sys.argv[2] if len(sys.argv) > 2 else "5631"
+    kilde = BarentsWatch() if hva == "bw" else Tcp(int(hva))
     rot.mkdir(parents=True, exist_ok=True)
     rydd_avbrutte(rot)
 
@@ -230,7 +376,7 @@ def main() -> None:
 
     for sig in STOPPSIGNALER:
         signal.signal(sig, stopp)
-    lytter = Lytter(rot, port)
+    lytter = Lytter(rot, kilde)
     sd_notify("READY=1")
     try:
         lytter.lytt()

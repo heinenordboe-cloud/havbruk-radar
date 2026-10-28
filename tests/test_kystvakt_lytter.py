@@ -1,5 +1,6 @@
 """kystvakt/lytter.py: rått inn, rått ut, én fil per time, aldri overskrevet."""
 import hashlib
+import json
 import os
 import signal
 import socket
@@ -154,3 +155,174 @@ def test_stille_strom_mister_ikke_det_som_kom_for_drap(tmp_path):
     [delvis] = tmp_path.glob("*/.*.delvis")
     data = zstd.ZstdDecompressor().decompress(delvis.read_bytes())
     assert data.endswith(b"\t" + LINJER[0][:-1] + b"\n")
+
+
+# --- Vakthunden og BarentsWatch (28.10.2026) ---------------------------------
+
+def notify_socket(tmp_path):
+    """En falsk systemd: tar imot sd_notify og husker hva som kom, når."""
+    import tempfile
+    # AF_UNIX tåler ikke macOS' lange tmp_path; /tmp er kort nok
+    sti = str(Path(tempfile.mkdtemp(dir="/tmp")) / "n.sock")
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    s.bind(sti)
+    s.settimeout(0.1)
+    mottatt = []
+
+    def les():
+        while True:
+            try:
+                mottatt.append((time.monotonic(), s.recv(100)))
+            except TimeoutError:
+                continue
+            except OSError:
+                return
+
+    threading.Thread(target=les, daemon=True).start()
+    return sti, mottatt
+
+
+def test_lytter_som_ikke_far_koblet_til_lever_og_venter_lenger(tmp_path):
+    """Porten svarer ikke. Lytteren skal prøve igjen med økende ventetid,
+    logge hvert forsøk, og gi vakten livstegn hele tiden: den er ikke hengt."""
+    ledig = socket.socket()
+    ledig.bind(("127.0.0.1", 0))
+    port = ledig.getsockname()[1]
+    ledig.close()  # ingen lytter på porten: tilkoblingen nektes
+    sti, notes = notify_socket(tmp_path)
+    env = {**os.environ, "AIS_VERT": "127.0.0.1", "AIS_VENT_MIN": "0.2",
+           "NOTIFY_SOCKET": sti}
+    p = subprocess.Popen([sys.executable, str(LYTTER), str(tmp_path / "raa"), str(port)],
+                         env=env, stderr=subprocess.PIPE)
+    time.sleep(2.5)
+    p.send_signal(signal.SIGTERM)
+    _, err = p.communicate(timeout=10)
+    err = err.decode()
+    assert p.returncode == 0, err
+    assert "venter 0.2 s" in err and "venter 0.4 s" in err and "venter 0.8 s" in err
+    assert "forsøk 3" in err
+    vakt = [t for t, m in notes if m == b"WATCHDOG=1"]
+    assert len(vakt) >= 4
+    # aldri lenger enn ventetiden mellom to livstegn
+    assert max(b - a for a, b in zip(vakt, vakt[1:])) < 1.5
+
+
+def test_tilkoblet_og_stille_gir_ingen_livstegn(tmp_path):
+    """Tilkoblet, én linje, så stillhet. Etter linja skal vakten ikke få
+    flere livstegn: det er nettopp den lytteren vakten skal drepe."""
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    s.listen(1)
+    holdt = []
+
+    def svar():
+        k, _ = s.accept()
+        k.sendall(LINJER[0])
+        holdt.append(k)
+
+    threading.Thread(target=svar, daemon=True).start()
+    sti, notes = notify_socket(tmp_path)
+    env = {**os.environ, "AIS_VERT": "127.0.0.1", "AIS_BLOKK_S": "0.2",
+           "NOTIFY_SOCKET": sti}
+    p = subprocess.Popen([sys.executable, str(LYTTER), str(tmp_path / "raa"),
+                          str(s.getsockname()[1])], env=env, stderr=subprocess.PIPE)
+    time.sleep(2.5)
+    p.send_signal(signal.SIGTERM)
+    _, err = p.communicate(timeout=10)
+    vakt = [t for t, m in notes if m == b"WATCHDOG=1"]
+    # ett før tilkoblingen, ett for linja; ingenting i de to stille sekundene
+    assert len(vakt) == 2, (vakt, err)
+    assert time.monotonic() - vakt[-1] > 2
+
+
+def bw_server(linjer: list[bytes], tokens: list[str], strom_status=200):
+    """Falsk BarentsWatch: tokenendepunkt og strøm over vanlig http."""
+    import http.server
+    import urllib.parse
+
+    sett = {"token_kall": [], "auth": []}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *a):
+            pass
+
+        def do_POST(self):
+            n = int(self.headers["Content-Length"])
+            sett["token_kall"].append(urllib.parse.parse_qs(self.rfile.read(n).decode()))
+            tok = tokens[min(len(sett["token_kall"]) - 1, len(tokens) - 1)]
+            body = json.dumps({"access_token": tok, "expires_in": 3600}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            sett["auth"].append(self.headers["Authorization"])
+            if strom_status != 200:
+                self.send_response(strom_status)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            data = b"".join(linjer)
+            for i in range(0, len(data), 11):  # chunker som deler linjer
+                bit = data[i:i + 11]
+                self.wfile.write(f"{len(bit):x}\r\n".encode() + bit + b"\r\n")
+                self.wfile.flush()
+            self.wfile.write(b"0\r\n\r\n")
+            self.close_connection = True
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, sett
+
+
+BW_LINJER = [
+    b'{"type":"Position","messageType":1,"mmsi":257090580,"msgtime":"2026-10-28T14:44:46+00:00","stream":"terra"}\n',
+    b'{"type":"Staticdata","messageType":5,"mmsi":258028100,"msgtime":"2026-10-28T14:44:47+00:00","name":"\xc3\x86GIR"}\n',
+]
+
+
+def kjor_bw(tmp_path, srv, sekunder=1.5):
+    nokkel = tmp_path / "bw.env"
+    nokkel.write_text("BW_AIS_CLIENT_ID=epost@x.no:prove\nBW_AIS_CLIENT_SECRET=hemmelig-verdi\n")
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    env = {**os.environ, "AIS_BW_NOKKEL": str(nokkel), "AIS_BW_TOKEN_URL": base + "/token",
+           "AIS_BW_URL": base + "/v1/ais", "AIS_VENT_MIN": "0.2"}
+    p = subprocess.Popen([sys.executable, str(LYTTER), str(tmp_path / "raa"), "bw"],
+                         env=env, stderr=subprocess.PIPE)
+    time.sleep(sekunder)
+    p.send_signal(signal.SIGTERM)
+    _, err = p.communicate(timeout=10)
+    assert p.returncode == 0, err
+    return err.decode()
+
+
+def test_bw_linjene_lagres_uendret_og_tokenet_logges_aldri(tmp_path):
+    srv, sett = bw_server(BW_LINJER, ["tok-AAA"])
+    err = kjor_bw(tmp_path, srv, 3.0)  # data, så 2 s pause, så ny tilkobling
+    srv.shutdown()
+    filer = ferdige(tmp_path / "raa")
+    p = [x for f in filer for x in poster(f)]
+    # serveren lukker etter hver runde; første runde er de to linjene
+    assert [l for _, l in p[:2]] == [l[:-1] for l in BW_LINJER]
+    assert sett["auth"][0] == "Bearer tok-AAA"
+    q = sett["token_kall"][0]
+    assert q["scope"] == ["ais"] and q["grant_type"] == ["client_credentials"]
+    assert "tok-AAA" not in err and "hemmelig-verdi" not in err
+    # samme token gjenbrukes ved gjenoppkobling, det hentes ikke på nytt hver gang
+    assert len(sett["auth"]) >= 2 and len(sett["token_kall"]) == 1
+
+
+def test_bw_401_henter_nytt_token_og_venter_lenger(tmp_path):
+    srv, sett = bw_server(BW_LINJER, ["tok-gammelt", "tok-nytt"], strom_status=401)
+    err = kjor_bw(tmp_path, srv, 1.2)
+    srv.shutdown()
+    assert "strøm 401" in err and "venter 0.2 s" in err and "venter 0.4 s" in err
+    assert sett["auth"][:2] == ["Bearer tok-gammelt", "Bearer tok-nytt"]
+    assert "tok-" not in err
