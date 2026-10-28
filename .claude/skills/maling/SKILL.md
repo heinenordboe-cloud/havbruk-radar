@@ -58,8 +58,11 @@ om at teksten over ikke er endret.
 Før push (CLAUDE.md §8) kjøres kontrolløren på dokumentet, og den får
 bare stien:
 
-    claude -p --agent kontrollor --add-dir ../havbruk-radar-data \
-        "Kontroller docs/MALING-<navn>.md"
+    claude -p "Kontroller docs/MALING-<navn>.md" \
+        --agent kontrollor --add-dir ../havbruk-radar-data
+
+Prompten står først: `--add-dir` tar flere verdier og sluker en prompt
+som står etter den.
 
 Fra en økt som startet etter at `.claude/agents/kontrollor.md` fantes,
 kan den også kalles som subagent. Avvik den finner, rettes med en
