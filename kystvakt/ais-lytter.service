@@ -1,0 +1,27 @@
+# /etc/systemd/system/ais-lytter.service på kystvakt-1.
+# Se kystvakt/lytter.py for hva den gjør og ikke gjør.
+[Unit]
+Description=AIS-lytter: Kystverkets strøm rått til /srv/ais/raa
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=ais
+Group=ais
+ExecStart=/usr/bin/python3 /opt/kystvakt/lytter.py /srv/ais/raa 5631
+Restart=always
+RestartSec=10
+# Livstegn sendes bare når det kom data. Fem minutter uten: omstart.
+WatchdogSec=300
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/ais
+
+[Install]
+WantedBy=multi-user.target
