@@ -1,0 +1,31 @@
+# /etc/systemd/system/ais-5632.service på kystvakt-1.
+# Kystverkets port 5632 (satellitt, MALING-AIS F1.4–F1.5) rått til
+# /srv/ais5632/raa. Se kystvakt/lytter.py.
+[Unit]
+Description=AIS-lytter: Kystverket 5632 rått til /srv/ais5632/raa
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=ais5632
+Group=ais5632
+ExecStart=/usr/bin/python3 /opt/kystvakt/lytter.py /srv/ais5632/raa 5632
+Restart=always
+RestartSec=10
+# 5632 kommer i støt: 666 s stillhet ble målt 28.10 uten at noe var galt.
+# Vakten må tåle det, så grensen er 30 minutter.
+WatchdogSec=1800
+WatchdogSignal=SIGTERM
+LimitCORE=0
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/ais5632
+
+[Install]
+WantedBy=multi-user.target
