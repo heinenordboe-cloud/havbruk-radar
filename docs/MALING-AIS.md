@@ -233,3 +233,75 @@ Teksten over er ikke endret. Kontrolløren trakk tre påstander (frø
   anta begge deler for å få 0,78 i F1.6.
 
 Bare én kjøring av kontrolløren, bestemt på forhånd.
+
+## Tillegg 28.10.2026: BarentsWatch Live AIS
+
+Teksten over er ikke endret. Dette tillegget måler den samme åpne
+AIS-dataen slik BarentsWatch leverer den (oppdraget «AIS via
+BarentsWatch», punkt 1). Skriptene er `analyse/ais/fang_bw.py`
+(strømmen), `fang.py` (5632 i samme time) og tellerne som navngis
+under.
+
+### Hva som ble observert før fangsten
+
+- **Tokenet.** Lusetallklienten får `400 invalid_scope` for `scope=ais`
+  (14:2x UTC). AIS krever en EGEN klient under «AIS API» på Min side
+  (developer.barentswatch.no/docs/tutorial, lest 28.10.2026, EKSTERN).
+  Den nye klienten ga `invalid_client` til secreten ble satt på nytt;
+  fra 14:43 gir den `200`, `scope ais`, `aud ais`, `expires_in 3600`.
+  Nøklene ligger bare på kystvakt-1, lesbare bare for `ais`.
+- **OpenAPI** (`live.ais.barentswatch.no/live/openapi/ais/openapi.json`,
+  sha256 `2a33f30f04b7cbc43cb42cafccec09580085bdce4b3dbfcc810cf17e1993a7f6`,
+  og historikk-API-ets `historic.ais.barentswatch.no/open/openapi/ais/openapi.json`,
+  sha256 `29e875f8733d2a821949917e70f172f0be8eb3726b3eb0c257a93c763abc6f1e`)
+  sier — EKSTERN til de er arkivert:
+  - `GET /v1/ais` er en strøm, «JSON streaming», én melding per linje
+    så lenge vi er koblet til. `/v1/sse/ais` er det samme som SSE.
+    POST-variantene filtrerer og kan nedsample (maks én melding per
+    minutt per MMSI). Vi bruker GET: ingen filter, ingen nedsampling.
+  - Meldingene er DEKODET JSON, ikke NMEA. Typene: 1, 2, 3, 9, 18, 19,
+    27 som `Position`; 5 og 24 som `StaticData` (navn, kallesignal,
+    `shipType`, `shipLength`, `shipWidth`, dimensjon A–D, `draught`);
+    8 som `BinaryBroadcastMessageMetHyd`; 21 som `Aton`. Hver melding har
+    `msgtime` (date-time) og `stream`. Hva `msgtime` er — kildens
+    mottak, Kystverkets eller BarentsWatchs — står ikke.
+  - Begrensninger (developer.barentswatch.no/docs/AIS/live-ais-api):
+    norsk økonomisk sone, fiskevernsonen ved Svalbard og vernesonen
+    ved Jan Mayen; ingen fiskefartøy under 15 m; ingen fritids- eller
+    seilfartøy under 45 m; ingen data eldre enn 14 dager. Lisensen i
+    OpenAPI-dokumentet er NLOD. Vilkårssiden utviklerdokumentasjonen
+    viser til (`barentswatch.no/om/api-vilkar`) gir 404.
+  - Historikk-API-et har spor PER FARTØY
+    (`/v1/historic/tracks/{mmsi}/{fra}/{til}`, `filterSatellitePositions`
+    er sann som standard) og en liste over MMSI i et område
+    (`POST /v1/historic/mmsiinarea`, høyst 7 dager). Et helt område kan
+    ikke hentes i ett kall.
+- **Kystverkets nedlasting** (`ais-public.kystverket.no/ais-download/`)
+  svarte ikke 14:35 UTC, fra Macen eller fra kystvakt-1: TCP opp, TLS
+  nullstilt i håndtrykket. Over http svarer Azure med «Azure Container
+  App - Unavailable» (404). 1e kan ikke måles.
+
+### STOPPREGEL (BarentsWatch)
+
+*Skrevet 28.10.2026 ca. 14:50 UTC, FØR strømmen er åpnet.*
+
+> **Lytteren mot BarentsWatch bygges ikke (punkt 2 og utover) hvis ett
+> av disse slår til i timen som fanges:**
+>
+> 1. Under 95 % av linjene er JSON med `mmsi` og en `msgtime` som kan
+>    leses som et tidspunkt.
+> 2. `msgtime` er ikke kildens klokke. Prøven: posisjonsmeldinger som
+>    finnes i BÅDE BarentsWatch-strømmen og 5632 i samme time, matchet
+>    på MMSI og posisjon. Er medianavstanden mellom `msgtime` og 5632s
+>    `c:` over 60 s, er `msgtime` et senere stempel enn kildens, og
+>    oppdraget sier stopp («API-et gir ikke posisjoner med kildens
+>    tidsstempel»).
+> 3. Strømmen leverer under 10 meldinger i minuttet over timen.
+>
+> Brudd stopper ikke målingen. De telles, og lytteren må tåle dem.
+
+60 s er valgt fordi 5632s c: har sekundoppløsning og stasjonene på
+bakken stempler innen sekunder; et senere stempel i en mellomledd
+ville vist seg som minutter eller timer (F1.4: median 1,7 t for
+satellitt). Er det for få matchede posisjoner til en median (under
+30), er punkt 2 ikke avgjort, og det sies.
