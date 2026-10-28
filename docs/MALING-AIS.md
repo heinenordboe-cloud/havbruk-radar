@@ -217,3 +217,19 @@ feilet eller gitt et hopp i c:. Ingen tilkobling feilet.
   `.N`-filer i samme time.
 - Tallene for 5631 finnes ikke. Hvilken port som skal arkiveres, og om
   lytteren skal stå klar mot 5631 til den svarer, avgjør Heine.
+
+## Etterskrift 28.10.2026: kontrolløren
+
+Teksten over er ikke endret. Kontrolløren trakk tre påstander (frø
+1381581499): to TREFF og ett avvik.
+
+- **F1.7 skal ha merket MÅLBAR, ikke det merket som står.** «0 eof» og
+  «ingen brudd fra kilden» er talt i `analyse/ais/hendelser-5632.jsonl`,
+  vår egen logg, som ikke ligger i arkivet og ikke har noen sha256.
+  Kroppen kan bare vise hullene (13 over 60 s, lengste 666 s), og de
+  stemmer. At ingen av dem var at kilden lukket, står bare i loggen.
+- **MB betyr 10⁶ byte**, og «kildebytes» er linjene slik kilden sendte
+  dem, med `\r\n` (alle 10 650 linjer ender slik). Kontrolløren måtte
+  anta begge deler for å få 0,78 i F1.6.
+
+Bare én kjøring av kontrolløren, bestemt på forhånd.
