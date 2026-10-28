@@ -1,0 +1,20 @@
+# /etc/systemd/system/ais-hulljeger.service: henter hull i BarentsWatch-
+# lytterens timer fra historikk-API-et. Se kystvakt/hulljeger.py.
+[Unit]
+Description=AIS: hulljeger for BarentsWatch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ais
+Group=ais
+# Seks timer arbeid, så stopper den mellom to vinduer; resten neste natt.
+ExecStart=/usr/bin/python3 /opt/kystvakt/hulljeger.py /srv/ais/bw 21600
+TimeoutStartSec=infinity
+Nice=10
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/ais
