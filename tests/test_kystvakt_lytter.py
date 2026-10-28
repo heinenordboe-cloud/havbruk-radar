@@ -240,7 +240,7 @@ def bw_server(linjer: list[bytes], tokens: list[str], strom_status=200):
     import http.server
     import urllib.parse
 
-    sett = {"token_kall": [], "auth": []}
+    sett = {"token_kall": [], "auth": [], "strom_body": []}
 
     class H(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -250,6 +250,9 @@ def bw_server(linjer: list[bytes], tokens: list[str], strom_status=200):
 
         def do_POST(self):
             n = int(self.headers["Content-Length"])
+            if self.path == "/v1/ais":
+                sett["strom_body"].append(json.loads(self.rfile.read(n)))
+                return self.strom()
             sett["token_kall"].append(urllib.parse.parse_qs(self.rfile.read(n).decode()))
             tok = tokens[min(len(sett["token_kall"]) - 1, len(tokens) - 1)]
             body = json.dumps({"access_token": tok, "expires_in": 3600}).encode()
@@ -258,7 +261,7 @@ def bw_server(linjer: list[bytes], tokens: list[str], strom_status=200):
             self.end_headers()
             self.wfile.write(body)
 
-        def do_GET(self):
+        def strom(self):
             sett["auth"].append(self.headers["Authorization"])
             if strom_status != 200:
                 self.send_response(strom_status)
@@ -315,6 +318,11 @@ def test_bw_linjene_lagres_uendret_og_tokenet_logges_aldri(tmp_path):
     q = sett["token_kall"][0]
     assert q["scope"] == ["ais"] and q["grant_type"] == ["client_credentials"]
     assert "tok-AAA" not in err and "hemmelig-verdi" not in err
+    # POST uten nedsampling og uten filter: GET er nedsamplet (F2.8)
+    assert sett["strom_body"][0] == {
+        "downsample": False, "includePosition": True, "includeStatic": True,
+        "includeAton": True, "includeSafetyRelated": True,
+        "includeBinaryBroadcastMetHyd": True}
     # samme token gjenbrukes ved gjenoppkobling, det hentes ikke på nytt hver gang
     assert len(sett["auth"]) >= 2 and len(sett["token_kall"]) == 1
 
@@ -326,3 +334,11 @@ def test_bw_401_henter_nytt_token_og_venter_lenger(tmp_path):
     assert "strøm 401" in err and "venter 0.2 s" in err and "venter 0.4 s" in err
     assert sett["auth"][:2] == ["Bearer tok-gammelt", "Bearer tok-nytt"]
     assert "tok-" not in err
+
+
+def test_startet_skrives_en_gang(tmp_path):
+    kjor(tmp_path, LINJER[0])
+    forste = (tmp_path / "STARTET").read_bytes()
+    kjor(tmp_path, LINJER[1])
+    assert (tmp_path / "STARTET").read_bytes() == forste
+    assert len(forste) == 28 and forste.endswith(b"Z\n")

@@ -2,7 +2,7 @@
 
 To kilder, samme lagring:
 
-    python3 lytter.py <rot> bw       BarentsWatch Live AIS, GET /v1/ais
+    python3 lytter.py <rot> bw       BarentsWatch Live AIS, POST /v1/ais
     python3 lytter.py <rot> <port>   Kystverkets TCP-strøm (5632, 5631)
 
 Hver linje lagres uendret, med VÅR mottakstid foran og en tabulator
@@ -65,6 +65,9 @@ BW_STROM_URL = os.environ.get("AIS_BW_URL", "https://live.ais.barentswatch.no/v1
 # s mellom zstd-blokker til disk, også når strømmen tier. Det er det
 # som kan gå tapt om maskinen mister strømmen.
 BLOKK_HVERT = float(os.environ.get("AIS_BLOKK_S", 10))
+BW_ALT = {"downsample": False, "includePosition": True, "includeStatic": True,
+          "includeAton": True, "includeSafetyRelated": True,
+          "includeBinaryBroadcastMetHyd": True}
 VENT_MIN = float(os.environ.get("AIS_VENT_MIN", 5))  # miljøvariabel bare for prøvene
 VENT_MAKS = 300.0
 # Tilkoblet, men kilden lukket uten å sende noe. Det er ikke en kilde som
@@ -72,11 +75,12 @@ VENT_MAKS = 300.0
 # tilkoblinger 28.10 (median 9 s), og dataene kom i de tre som ble holdt
 # åpne. Økende ventetid ville gått glipp av dem.
 VENT_TOM = float(os.environ.get("AIS_VENT_TOM", 10))
-# zstd-nivå. Målt 28.10.2026 på kystvakt-1 mot én time BarentsWatch
-# (52 MB fra kilden), med blokk hvert 10. s: nivå 3 gir 152 MB/døgn og
-# 0,1 s CPU per time; nivå 19 gir 71 MB/døgn, 27 s CPU per time og 89 MB
-# minne. Disken har 15 GB ledig, så nivå 19 er forskjellen på 100 og 200
-# dager før kopien utenfor serveren må finnes.
+# zstd-nivå. Målt 28.10.2026 på kystvakt-1 mot fem minutter BarentsWatch
+# uten nedsampling (248 MB/time fra kilden), med blokk hvert 10. s:
+# nivå 3 gir 592 MB/døgn og 0,6 s CPU per time; nivå 19 gir 345 MB/døgn,
+# 139 s CPU per time (under 4 % av én kjerne) og 89 MB minne. Disken har
+# 15 GB ledig: nivå 19 er forskjellen på 25 og 43 dager før kopien
+# utenfor serveren må finnes.
 ZSTD_NIVA = int(os.environ.get("AIS_ZSTD_NIVA", 19))
 STOPPSIGNALER = {signal.SIGTERM, signal.SIGINT}
 
@@ -127,6 +131,19 @@ def rydd_avbrutte(rot: Path) -> None:
         stamme = delvis.name[1:-len(".delvis")]
         logg(f"fant avbrutt {delvis.name}")
         lenk_ferdig(delvis, stamme, "avbrutt")
+
+
+def merk_start(rot: Path) -> None:
+    """<rot>/STARTET: når denne lytteren lyttet første gang, skrevet én
+    gang. Regnskapet teller timer fra den, så en time uten en eneste
+    linje blir ført som tom, ikke borte. Uten den kan ingen skille «stille
+    time» fra «lytteren fantes ikke ennå» når kilden aldri har sendt noe."""
+    try:
+        fd = os.open(rot / "STARTET", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o444)
+    except FileExistsError:
+        return
+    with os.fdopen(fd, "wb") as f:
+        f.write(stempel() + b"\n")
 
 
 class Time:
@@ -201,6 +218,11 @@ class Tcp:
 class BarentsWatch:
     """BarentsWatch Live AIS: JSON, én melding per linje, med token.
 
+    POST med downsample=false og alle include-flagg, ikke GET: GET er
+    nedsamplet til omtrent én posisjon per fartøy per minutt, uten at
+    dokumentasjonen sier det (MALING-AIS F2.8, målt 28.10.2026). Ingen
+    filter på område, MMSI, skipstype eller land.
+
     Tokenet finnes bare i minnet til denne prosessen. Det skrives ikke
     til disk og logges aldri; nøklene det lages av, ligger i BW_NOKKEL,
     som bare brukeren `ais` kan lese. Det fornyes ti minutter før det
@@ -243,8 +265,9 @@ class BarentsWatch:
         u = urllib.parse.urlsplit(BW_STROM_URL)
         kobling = http.client.HTTPConnection if u.scheme == "http" else http.client.HTTPSConnection
         self.c = kobling(u.hostname, u.port, timeout=30)  # http bare for prøvene
-        self.c.request("GET", u.path, headers={
-            "Authorization": "Bearer " + self.hent_token()})
+        self.c.request("POST", u.path, body=json.dumps(BW_ALT), headers={
+            "Authorization": "Bearer " + self.hent_token(),
+            "Content-Type": "application/json"})
         r = self.c.getresponse()
         if r.status != 200:
             if r.status == 401:
@@ -369,6 +392,7 @@ def main() -> None:
     hva = sys.argv[2] if len(sys.argv) > 2 else "5631"
     kilde = BarentsWatch() if hva == "bw" else Tcp(int(hva))
     rot.mkdir(parents=True, exist_ok=True)
+    merk_start(rot)
     rydd_avbrutte(rot)
 
     def stopp(*_):
