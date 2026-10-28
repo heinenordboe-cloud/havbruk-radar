@@ -26,6 +26,7 @@ def test_regnskap_teller_og_sammenligner(tmp_path, monkeypatch):
     timefil(bw, "2026-10-28T14Z", [(b"2026-10-28T14:00:00.500000Z", BW[0]),
                                    (b"2026-10-28T14:10:00.000000Z", BW[1])])
     timefil(k5632, "2026-10-28T14Z", [(b"2026-10-28T14:20:00.000000Z", NMEA)])
+    (k5632 / "STARTET").write_text("2026-10-28T13:59:00.000000Z\n")
     klokke.mkdir()
     (klokke / "2026-10-28.csv").write_text(
         "2026-10-28T14:01:00Z,65D8456C,x,3,1,0.0001,0,0,0,0,0,0,0,64,Normal\n"
@@ -45,7 +46,9 @@ def test_regnskap_teller_og_sammenligner(tmp_path, monkeypatch):
 def test_time_uten_filer_far_regnskap_med_null(tmp_path, monkeypatch):
     rot, annen, klokke = tmp_path / "a", tmp_path / "b", tmp_path / "k"
     timefil(rot, "2026-10-28T10Z", [(b"2026-10-28T10:00:01.000000Z", NMEA)])
+    (rot / "STARTET").write_text("2026-10-28T09:58:00.000000Z\n")
     annen.mkdir()
+    (annen / "STARTET").write_text("2026-10-28T11:30:00.000000Z\n")
     klokke.mkdir()
 
     class Naa(datetime):
@@ -55,11 +58,19 @@ def test_time_uten_filer_far_regnskap_med_null(tmp_path, monkeypatch):
 
     monkeypatch.setattr(regnskap, "datetime", Naa)
     regnskap.kjør_time("5632", rot, "bw", annen, klokke)
-    tom = json.loads((rot / "2026-10-28" / "2026-10-28T11Z.regnskap.json").read_text())
+    dag = rot / "2026-10-28"
+    # timen lytteren startet i, og timen før: før lytteren regnes ingenting
+    assert not (dag / "2026-10-28T08Z.regnskap.json").exists()
+    assert json.loads((dag / "2026-10-28T09Z.regnskap.json").read_text())["meldinger"] == 0
+    tom = json.loads((dag / "2026-10-28T11Z.regnskap.json").read_text())
     assert tom["meldinger"] == 0 and tom["lengste_pause_s"] == 3600.0 and tom["filer"] == {}
-    assert tom["annen"] is None and "ingen ferdig time" in tom["annen_mangler"]
-    # 13 er ikke ferdig nok til å gi opp den andre kilden ennå
-    assert not (rot / "2026-10-28" / "2026-10-28T13Z.regnskap.json").exists()
+    # den andre startet 11:30: timen 10 er ikke dens
+    ti = json.loads((dag / "2026-10-28T10Z.regnskap.json").read_text())
+    assert ti["annen"] is None and ti["annen_mangler"] == "bw: lyttet ikke ennå"
+    # 12: den andre lyttet, men sendte ingenting: tom mengde, ikke ukjent
+    tolv = json.loads((dag / "2026-10-28T12Z.regnskap.json").read_text())
+    assert tolv["annen"] == {"kilde": "bw", "unike_mmsi": 0, "felles_mmsi": 0,
+                             "bare_her": 0, "bare_der": 0}
     # og et regnskap skrives aldri om
     regnskap.kjør_time("5632", rot, "bw", annen, klokke)
-    assert oct((rot / "2026-10-28" / "2026-10-28T11Z.regnskap.json").stat().st_mode & 0o777) == "0o444"
+    assert oct((dag / "2026-10-28T11Z.regnskap.json").stat().st_mode & 0o777) == "0o444"

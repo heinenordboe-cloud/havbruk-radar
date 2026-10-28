@@ -142,6 +142,14 @@ def klokke_for(klokkemappe: Path, time_: str) -> dict:
     }
 
 
+def startet(rot: Path) -> str | None:
+    """Timen lytteren startet i (lytter.py skriver <rot>/STARTET), eller None."""
+    try:
+        return (rot / "STARTET").read_text().strip()[:13]
+    except FileNotFoundError:
+        return None
+
+
 def regnskap_for(kilde, rot, annen, annen_rot, klokkemappe, time_, naa) -> dict | None:
     leser = les_bw if kilde == "bw" else les_nmea
     annen_leser = les_bw if annen == "bw" else les_nmea
@@ -155,14 +163,17 @@ def regnskap_for(kilde, rot, annen, annen_rot, klokkemappe, time_, naa) -> dict 
 
     annen_svar = None
     grunn = None
-    if ferdig(annen_rot, time_, naa) and timefiler(annen_rot, time_):
+    annen_start = startet(annen_rot)
+    if annen_start and annen_start <= time_ and ferdig(annen_rot, time_, naa):
+        # En time uten filer hos den andre er en tom time, ikke en ukjent.
         _, amm, _, _, _ = les_time(annen_rot, time_, annen_leser)
         annen_svar = {"kilde": annen, "unike_mmsi": len(amm), "felles_mmsi": len(mmsi & amm),
                       "bare_her": len(mmsi - amm), "bare_der": len(amm - mmsi)}
     elif datetime.fromisoformat(time_ + ":00:00+00:00") + timedelta(hours=1) + VENT_PAA_ANNEN > naa:
         return None  # vent på den andre kilden
     else:
-        grunn = f"{annen}: ingen ferdig time etter {VENT_PAA_ANNEN}"
+        grunn = (f"{annen}: lyttet ikke ennå" if not annen_start or annen_start > time_
+                 else f"{annen}: timen ikke ferdig etter {VENT_PAA_ANNEN}")
 
     return {
         "kilde": kilde,
@@ -196,13 +207,12 @@ def skriv_en_gang(sti: Path, data: dict) -> None:
 
 def kjør_time(kilde, rot, annen, annen_rot, klokkemappe) -> None:
     naa = datetime.now(timezone.utc)
-    med_filer = sorted({p.name[:13] for p in rot.glob("*/*.txt.zst")}
-                       | {p.name[1:14] for p in rot.glob("*/.*.delvis")})
-    if not med_filer:
+    forste = startet(rot)
+    if not forste:
         return
     # Hver time fra lytterens første, også de uten en eneste fil: en time
     # uten data er det regnskapet finnes for å vise.
-    timer, t = [], datetime.fromisoformat(med_filer[0] + ":00:00+00:00")
+    timer, t = [], datetime.fromisoformat(forste + ":00:00+00:00")
     while t + timedelta(hours=1) <= naa:
         timer.append(t.strftime("%Y-%m-%dT%H"))
         t += timedelta(hours=1)
