@@ -42,7 +42,7 @@ PermitRootLogin no
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PubkeyAuthentication yes
-AllowUsers vakt
+AllowUsers vakt utlevering
 C
   sshd -t
   systemctl reload ssh
