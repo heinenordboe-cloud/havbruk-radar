@@ -1,0 +1,20 @@
+# /etc/systemd/system/ais-kopi.service: kopierer ferdige AIS-filer til
+# Storage Box og bekrefter dem med boksens egen sha256. Se kystvakt/kopi.py.
+[Unit]
+Description=AIS: nattlig kopi til Storage Box
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ais
+Group=ais
+ExecStart=/usr/bin/python3 /opt/kystvakt/kopi.py /srv/ais/kopi /srv/ais/bw /srv/ais/bw/etterhentet /srv/ais5632/raa
+TimeoutStartSec=6h
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/ais/kopi

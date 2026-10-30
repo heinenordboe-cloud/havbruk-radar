@@ -1,0 +1,20 @@
+# /etc/systemd/system/ais-rydd.service: sletter lokale bw-filer eldre enn
+# 14 døgn som boksen bekrefter nå. Se kystvakt/rydd.py.
+[Unit]
+Description=AIS: rydding av lokale filer boksen har bekreftet
+After=network-online.target ais-kopi.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ais
+Group=ais
+ExecStart=/usr/bin/python3 /opt/kystvakt/rydd.py 14 /srv/ais/bw /srv/ais/bw/etterhentet
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/ais/bw

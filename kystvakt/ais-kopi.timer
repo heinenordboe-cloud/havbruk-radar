@@ -1,0 +1,12 @@
+[Unit]
+Description=AIS: kopi til Storage Box hver natt
+
+[Timer]
+# Etter døgnskiftet og regnskapet for 23Z (00:10), før hulljegeren
+# (01:30) er ferdig med sine seks timer. Det hulljegeren henter i natt,
+# går med neste natt.
+OnCalendar=*-*-* 00:40:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

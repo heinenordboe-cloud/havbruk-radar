@@ -1,0 +1,9 @@
+[Unit]
+Description=AIS: rydding om morgenen, etter kopien og hulljegeren
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
