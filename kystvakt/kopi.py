@@ -4,8 +4,8 @@
 
 Hver <rot> er en mappe under /srv (/srv/ais/bw, /srv/ais/bw/etterhentet,
 /srv/ais5632/raa), og den samme relative stien brukes på boksen:
-/srv/ais/bw/2026-10-29/x.txt.zst blir ais/bw/2026-10-29/x.txt.zst under
-underkontoens hjemmemappe. Boksen er ssh-verten `boks` i ~/.ssh/config.
+/srv/ais/bw/2026-10-29/x.txt.zst blir kystvakt/ais/bw/2026-10-29/x.txt.zst
+der. Boksen er ssh-verten `boks` i ~/.ssh/config.
 
 Hva som kopieres, per dagsmappe:
 
@@ -44,6 +44,7 @@ from pathlib import Path
 
 SRV = Path(os.environ.get("AIS_SRV", "/srv"))  # miljøvariabel bare for prøvene
 BOKS = "boks"
+FJERN_ROT = "kystvakt"  # alt vi legger på boksen, ligger under denne
 DATO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -92,7 +93,7 @@ def rsync(relative: list[str], ignorer_eksisterende: bool) -> None:
         cmd.append("--ignore-existing")
     else:
         cmd.append("--checksum")
-    subprocess.run([*cmd, f"{SRV}/", f"{BOKS}:"], input="\0".join(relative).encode(),
+    subprocess.run([*cmd, f"{SRV}/", f"{BOKS}:{FJERN_ROT}/"], input="\0".join(relative).encode(),
                    check=True, timeout=6 * 3600)
 
 
@@ -100,13 +101,13 @@ def fjern_sha256(relative: list[str]) -> dict[str, str]:
     """sha256 slik boksen regner den. En fil boksen ikke har, mangler i svaret."""
     if not relative:
         return {}
-    r = subprocess.run(["ssh", BOKS, "sha256sum", *relative], capture_output=True,
-                       timeout=3600)
+    r = subprocess.run(["ssh", BOKS, "sha256sum", *(f"{FJERN_ROT}/{p}" for p in relative)],
+                       capture_output=True, timeout=3600)
     ut = {}
     for linje in r.stdout.decode().splitlines():
         s, _, navn = linje.partition("  ")
         if re.fullmatch(r"[0-9a-f]{64}", s):
-            ut[navn] = s
+            ut[navn.removeprefix(f"{FJERN_ROT}/")] = s
     return ut
 
 

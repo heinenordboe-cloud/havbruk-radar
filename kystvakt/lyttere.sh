@@ -18,7 +18,7 @@
 #
 # Storage Box: `ais` har en egen nøkkel (/srv/ais/.ssh/boks_ed25519) og
 # vertsnøkkelen festet. Nøkkelen lages her; den legges inn på boksen av
-# Heine, som skriver underkontoens passord selv (MALING-AIS, 30.10.2026).
+# Heine, som skriver passordet selv.
 # Råfilene er lesbare for alle (åpne data), slik at hver kildes regnskap
 # kan sammenligne med den andre. Nøkkelfila er det ikke.
 set -euo pipefail

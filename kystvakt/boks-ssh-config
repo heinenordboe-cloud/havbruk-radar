@@ -1,0 +1,12 @@
+# /srv/ais/.ssh/config: Storage Box. Alt vi skriver, ligger under kystvakt/ der.
+Host boks
+    HostName u705336.your-storagebox.de
+    User u705336
+    Port 23
+    IdentityFile /srv/ais/.ssh/boks_ed25519
+    IdentitiesOnly yes
+    BatchMode yes
+    StrictHostKeyChecking yes
+    UserKnownHostsFile /srv/ais/.ssh/known_hosts
+    ServerAliveInterval 30
+    ServerAliveCountMax 4
