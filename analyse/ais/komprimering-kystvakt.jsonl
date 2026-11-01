@@ -1,0 +1,22 @@
+{"ordbok_trening": {"kode": 0, "cpu_s": 30.4, "maks_rss_mb": 62.4, "feil": ""}, "bytes": 112640, "sha256": "6d05ea3b18c4ada104bfc9469344e70ea4a0b9e9399aa153f9bfbbc96aab67a2"}
+{"time": "2026-10-29T03Z.txt.zst", "kandidat": "cli zstd -19", "kode": 0, "cpu_s": 140.3, "maks_rss_mb": 214.4, "feil": "", "bytes": 11510450, "andel_av_lagret": 0.999, "sha256_lik": true, "utpakk_cpu_s": 0.2, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T03Z.txt.zst", "kandidat": "cli zstd -19 --long=27", "kode": -9, "cpu_s": 48.0, "maks_rss_mb": 327.3, "feil": ""}
+{"time": "2026-10-29T03Z.txt.zst", "kandidat": "cli zstd -19 ordbok", "kode": 0, "cpu_s": 133.3, "maks_rss_mb": 217.0, "feil": "", "bytes": 12146647, "andel_av_lagret": 1.054, "sha256_lik": true, "utpakk_cpu_s": 0.2, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T03Z.txt.zst", "kandidat": "cli xz -9", "kode": -9, "cpu_s": 3995.0, "maks_rss_mb": 327.7, "feil": ""}
+{"time": "2026-10-29T03Z.txt.zst", "kandidat": "lytter zstd 19", "kode": 0, "cpu_s": 122.7, "maks_rss_mb": 105.0, "feil": "", "bytes": 11524778, "andel_av_lagret": 1.0, "sha256_lik": true, "utpakk_cpu_s": 0.2, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T03Z.txt.zst", "kandidat": "lytter zstd 19 vindu 27", "kode": 0, "cpu_s": 140.7, "maks_rss_mb": 291.5, "feil": "", "bytes": 10491740, "andel_av_lagret": 0.91, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 133.4}
+{"time": "2026-10-29T03Z.txt.zst", "kandidat": "lytter zstd 19 ordbok", "kode": 0, "cpu_s": 67.0, "maks_rss_mb": 34.7, "feil": "", "bytes": 16149404, "andel_av_lagret": 1.401, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T07Z.txt.zst", "kandidat": "cli zstd -19", "kode": 0, "cpu_s": 178.8, "maks_rss_mb": 215.0, "feil": "", "bytes": 15432231, "andel_av_lagret": 0.997, "sha256_lik": true, "utpakk_cpu_s": 0.2, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T07Z.txt.zst", "kandidat": "cli zstd -19 --long=27", "kode": -9, "cpu_s": 48.4, "maks_rss_mb": 327.0, "feil": ""}
+{"time": "2026-10-29T07Z.txt.zst", "kandidat": "cli zstd -19 ordbok", "kode": 0, "cpu_s": 170.0, "maks_rss_mb": 217.0, "feil": "", "bytes": 16025316, "andel_av_lagret": 1.035, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T07Z.txt.zst", "kandidat": "cli xz -9", "kode": -9, "cpu_s": 53.1, "maks_rss_mb": 327.5, "feil": ""}
+{"time": "2026-10-29T07Z.txt.zst", "kandidat": "lytter zstd 19", "kode": 0, "cpu_s": 148.6, "maks_rss_mb": 107.2, "feil": "", "bytes": 15482167, "andel_av_lagret": 1.0, "sha256_lik": true, "utpakk_cpu_s": 0.2, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T07Z.txt.zst", "kandidat": "lytter zstd 19 vindu 27", "kode": 0, "cpu_s": 170.7, "maks_rss_mb": 291.4, "feil": "", "bytes": 14433556, "andel_av_lagret": 0.932, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 133.3}
+{"time": "2026-10-29T07Z.txt.zst", "kandidat": "lytter zstd 19 ordbok", "kode": 0, "cpu_s": 81.6, "maks_rss_mb": 34.7, "feil": "", "bytes": 20945219, "andel_av_lagret": 1.353, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T14Z.txt.zst", "kandidat": "cli zstd -19", "kode": 0, "cpu_s": 180.3, "maks_rss_mb": 214.9, "feil": "", "bytes": 15734520, "andel_av_lagret": 0.996, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T14Z.txt.zst", "kandidat": "cli zstd -19 --long=27", "kode": -9, "cpu_s": 47.5, "maks_rss_mb": 327.1, "feil": ""}
+{"time": "2026-10-29T14Z.txt.zst", "kandidat": "cli zstd -19 ordbok", "kode": 0, "cpu_s": 175.1, "maks_rss_mb": 217.1, "feil": "", "bytes": 16336679, "andel_av_lagret": 1.035, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T14Z.txt.zst", "kandidat": "cli xz -9", "kode": -9, "cpu_s": 8.5, "maks_rss_mb": 327.4, "feil": ""}
+{"time": "2026-10-29T14Z.txt.zst", "kandidat": "lytter zstd 19", "kode": 0, "cpu_s": 158.0, "maks_rss_mb": 107.4, "feil": "", "bytes": 15788708, "andel_av_lagret": 1.0, "sha256_lik": true, "utpakk_cpu_s": 0.2, "utpakk_rss_mb": 34.7}
+{"time": "2026-10-29T14Z.txt.zst", "kandidat": "lytter zstd 19 vindu 27", "kode": 0, "cpu_s": 174.2, "maks_rss_mb": 291.5, "feil": "", "bytes": 14721381, "andel_av_lagret": 0.932, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 133.4}
+{"time": "2026-10-29T14Z.txt.zst", "kandidat": "lytter zstd 19 ordbok", "kode": 0, "cpu_s": 83.2, "maks_rss_mb": 34.7, "feil": "", "bytes": 21370082, "andel_av_lagret": 1.353, "sha256_lik": true, "utpakk_cpu_s": 0.3, "utpakk_rss_mb": 34.7}

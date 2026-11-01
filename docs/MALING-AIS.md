@@ -678,3 +678,108 @@ nesten ikke leverte.
 Én kjøring, bestemt på forhånd (frø 458890695): tre påstander trukket,
 tre treff (225 felles MMSI, 52 MB i timen, 3814 MMSI i `mmsiinarea`),
 ingen avvik.
+
+## Tillegg 01.11.2026: komprimering av rålaget og Parquet
+
+Teksten over er ikke endret. Spørsmålet: finnes det noe bedre enn zstd
+-19 for lytterens filer, innenfor 10 % CPU og 300 MB RAM på kystvakt-1
+(1 vCPU, 927 MB)? Og hva ville Parquet som analyselag koste?
+
+### STOPPREGEL (skrevet 29.10 i planen, før resultatet)
+
+Vi bytter bare hvis lytterens egen modus sparer minst 15 %, pakkes ut
+med standardinnstillinger og holder begge grensene. Ordbok avvises
+med mindre den sparer over 25 %. Målingen må ikke kunne ta lytteren:
+hver kandidat kjører under `MemoryMax=350M`, uten swap, `nice -n19`.
+En kandidat som blir drept, er over grensa; det er et svar.
+
+### Utfallet
+
+Ingen kandidat nådde 15 %. Lytteren står på zstd -19, og ingen filer
+er endret. Første kjøring stoppet ved første OOM-drap, fordi systemd
+stoppet hele scopet; den ble kjørt om med `OOMPolicy=continue`.
+
+### Kroppene
+
+Tre timer fra 29.10 og sha256 for de lagrede filene. Rådata skal ikke i
+git, så kroppene ligger på kystvakt-1. Summene står i
+`data/arkiv/ais-manifest/bw/2026-10-29.SHA256SUMS`. Tallene er derfor
+merket MÅLBAR, ikke holdt mot en arkivert kropp.
+
+| time | sha256 (lagret fil) | rå bytes | meldinger |
+|---|---|---|---|
+| 03Z natt | `9a4afbbd4f9d3cb34cfd0da02548fb17ca86b4167cf8c457e9b9f0add6cbefd1` | 234 237 817 | 732 377 |
+| 07Z morgen | `6e510324a97f2824bb21e37b1977c0525d744db6bccb15babba9fafc5a9e68f2` | 295 448 783 | 926 621 |
+| 14Z ettermiddag | `6cbeaab71d98cc5e7362a633316f9f757124477014b054f26d0dbe054c333845` | 301 044 092 | 944 538 |
+
+Skript og utskrift: `analyse/ais/komprimering.py` →
+`komprimering-kystvakt.jsonl`, `analyse/ais/komprimering_mac.py` →
+`komprimering-mac.jsonl`, `analyse/ais/parquet_maling.py` →
+`parquet-mac.jsonl`. Ordboka ble trent på 16 MB fra hver av 28.10T20Z,
+29.10T10Z og 29.10T20Z (30 s CPU, 62 MB, 112 640 byte).
+
+### Utskriften
+
+Størrelse i forhold til den lagrede fila, CPU-sekunder per time og
+maks RSS. Alle kandidater som ble ferdige, ga tilbake samme sha256.
+
+```
+kandidat                    03Z       07Z       14Z     CPU s     RSS MB
+lytter zstd 19              1,000     1,000     1,000   123–158      107
+lytter zstd 19 vindu 27     0,910     0,932     0,932   141–174      292
+lytter zstd 19 ordbok       1,401     1,353     1,353    67–83        35
+cli zstd -19                0,999     0,997     0,996   140–180      215
+cli zstd -19 ordbok         1,054     1,035     1,035   133–175      217
+cli zstd -19 --long=27      drept ved 327 MB på kystvakt-1
+cli xz -9                   drept ved 328 MB på kystvakt-1
+Mac, zstd -19 --long=27     0,910     0,930     0,932
+Mac, xz -9                  1,095     1,112     1,114
+Mac, Parquet zstd 3         1,314     1,328     1,328
+Mac, Parquet zstd 19        1,041     1,013     1,013
+```
+
+### Funnene
+
+**F3.1 — zstd -19 er fortsatt riktig for lytteren.** MÅLBAR. Vindu 27
+sparer 7–9 %, under kravet på 15 %, og bruker 292 MB, åtte under
+grensa, på en maskin der lytteren alt har 117 MB. Omregnet: ~10 GB i
+året av en boks på 1 TB med fast pris.
+*Feil hvis:* timene ikke er typiske. Lavsesong og uvær er ikke målt.
+
+**F3.2 — Ordbok gjør filene større.** MÅLBAR. Hele fila blir 3,5–5,4 %
+større. Tallet for lytterens modus (+35–40 %) er ikke sammenlignbart:
+35 MB RSS og halv CPU tyder på at nivå 19 ikke ble brukt sammen med
+ordboka i `compression.zstd`. Årsaken er UBELAGT, og den endrer ikke
+utfallet.
+*Feil hvis:* en større eller annerledes trent ordbok gjør det bedre.
+Bare én ordbok er prøvd.
+
+**F3.3 — xz -9 taper på alle tre.** MÅLBAR, størrelsen fra Mac-en. 9,5–11,4 %
+større enn lytterens filer og over minnegrensa på serveren.
+*Feil hvis:* xz med større vindu enn -9 gir et annet svar. Det er ikke
+prøvd.
+
+**F3.4 — Parquet beholder alt, men sparer ingenting.** MÅLBAR. 0 av
+2 603 536 rader avviker fra JSON-en etter tilbakelesing, med `rad` og
+`mottatt` som ekstra kolonner. Med nivå 19 er fila 1–4 % større enn
+rålaget, med nivå 3 31–33 %. Parquet er et lag for raskere lesing, ikke
+for lagring, og det er ikke byte-likt med rålaget.
+*Feil hvis:* andre kolonnetyper eller radgrupper endrer tallet.
+Standardvalgene i polars 1.36.1 er brukt.
+
+**F3.5 — Skjemaet er ikke fast.** MÅLBAR. 67 JSON-nøkler i 03Z og 07Z,
+70 i 14Z; `destinationMmsi` står i én melding. Et analyselag må tåle
+nye felt fra time til time.
+*Feil hvis:* feltene kommer fra en engangsfeil hos kilden. Det er ikke
+undersøkt.
+
+### De tre sterkeste funnene
+
+**1. F3.1:** avgjør kandidaten som faktisk kunne vært brukt, i
+lytterens egen modus med ekte blokkgrenser. **2. F3.4:** rundtrippen
+er rad for rad over alle tre timene. **3. F3.2:** CLI-tallet er rent,
+men bare én ordbok er prøvd.
+
+Svakere: F3.3 og Parquet er målt på Mac-en, så bare størrelse og
+rundtur gjelder, ikke CPU og RAM på kystvakt-1. Alt hviler på tre timer
+fra ett døgn.
