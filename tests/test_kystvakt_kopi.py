@@ -148,3 +148,22 @@ def test_rydd_maaler_vaar_mtime_ikke_mappedatoen(oppsett):
     ferdig(dag, "x.etterhentet.jsonl.zst", b"hull")
     kopi.kopier_rot(srv / "ais/bw/etterhentet", kv)
     assert rydd.rydd_rot(srv / "ais/bw/etterhentet", 14, time.time()) == (0, 0)
+
+
+def test_rydd_torrkjor_sletter_ingenting(oppsett, monkeypatch):
+    srv, boks, kv = oppsett
+    dag = srv / "ais/bw/2026-10-10"
+    for n in ("a.txt.zst", "b.txt.zst"):
+        ferdig(dag, n, n.encode())
+    kopi.kopier_rot(srv / "ais/bw", kv)
+    (boks / "ais/bw/2026-10-10/b.txt.zst").unlink()
+    for n in ("a.txt.zst", "b.txt.zst"):
+        gammel(dag / n, 15)
+    assert rydd.rydd_rot(srv / "ais/bw", 14, time.time(), torrkjor=True) == (1, 1)
+    assert (dag / "a.txt.zst").exists() and (dag / "b.txt.zst").exists()
+
+    monkeypatch.setattr(sys, "argv", ["rydd.py", "--torrkjor", "14", str(srv / "ais/bw")])
+    with pytest.raises(SystemExit) as e:
+        rydd.main()
+    assert e.value.code == 1
+    assert (dag / "a.txt.zst").exists()

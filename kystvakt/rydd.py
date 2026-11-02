@@ -1,6 +1,9 @@
 """Ryddejobben: sletter lokale AIS-filer som boksen har, og som er gamle nok.
 
-    python3 rydd.py <dager> <rot>...
+    python3 rydd.py [--torrkjor] <dager> <rot>...
+
+`--torrkjor` stiller boksen de samme spørsmålene og skriver
+`[ville slettet]` der den ellers ville slettet. Ingenting fjernes.
 
 Kjøres som `ais` for /srv/ais/bw og /srv/ais/bw/etterhentet. 5632 ryddes
 ikke: den leverer lite, og ryddingen skulle da trengt skrivetilgang til
@@ -40,8 +43,9 @@ import kopi  # noqa: E402
 sys.path.pop(0)
 
 
-def rydd_rot(rot: Path, dager: float, naa: float) -> tuple[int, int]:
-    """(slettet, beholdt fordi boksen ikke bekreftet)."""
+def rydd_rot(rot: Path, dager: float, naa: float, torrkjor: bool = False) -> tuple[int, int]:
+    """(slettet, beholdt fordi boksen ikke bekreftet). I tørrkjøring er
+    «slettet» det som ville blitt slettet."""
     slettet = beholdt = 0
     rel_rot = rot.relative_to(kopi.SRV)
     for dag in kopi.dagsmapper(rot):
@@ -60,6 +64,9 @@ def rydd_rot(rot: Path, dager: float, naa: float) -> tuple[int, int]:
             elif fjern.get(rel[n]) != s:
                 kopi.logg(f"[beholdt] {dag / n}: boksen sier {fjern.get(rel[n], 'mangler')}")
                 beholdt += 1
+            elif torrkjor:
+                kopi.logg(f"[ville slettet] {dag / n}")
+                slettet += 1
             else:
                 (dag / n).unlink()
                 kopi.logg(f"[slettet] {dag / n}")
@@ -68,13 +75,18 @@ def rydd_rot(rot: Path, dager: float, naa: float) -> tuple[int, int]:
 
 
 def main() -> None:
-    dager = float(sys.argv[1])
+    a = sys.argv[1:]
+    torrkjor = a[:1] == ["--torrkjor"]
+    if torrkjor:
+        a = a[1:]
+    dager = float(a[0])
     naa = time.time()
     slettet = beholdt = 0
-    for r in sys.argv[2:]:
-        s, b = rydd_rot(Path(r), dager, naa)
+    for r in a[1:]:
+        s, b = rydd_rot(Path(r), dager, naa, torrkjor)
         slettet, beholdt = slettet + s, beholdt + b
-    kopi.logg(f"[ferdig] {slettet} slettet, {beholdt} beholdt fordi boksen ikke bekreftet")
+    kopi.logg(f"[ferdig] {slettet} {'ville blitt slettet (tørrkjøring)' if torrkjor else 'slettet'}, "
+              f"{beholdt} beholdt fordi boksen ikke bekreftet")
     sys.exit(1 if beholdt else 0)
 
 
