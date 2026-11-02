@@ -178,6 +178,8 @@ Tre kanaler, og hver av dem svarer på sitt eget spørsmål:
 | Issuen «Innsamlingen trenger tilsyn» | Kjøringen endte DELVIS eller rød | Varsel fra GitHub når den opprettes eller kommenteres. Du nevnes med @ |
 | `HEARTBEAT_URL` | Kjøringen skjedde i det hele tatt | E-post fra overvåkingstjenesten når signalet uteblir |
 | Issuen «Publiseringen trenger tilsyn» | kystloggen.no svarte ikke som bygget sa, etter en publisering fra `publiser.yml` | Som innsamlingens issue. Se «Publisering fra GitHub» |
+| Rød «Publiser» og issuen «Automatisk publisering stoppet» | Et automatisk bygg ble ikke lagt ut; det venter på «ja» | E-post fra GitHub og issuevarsel |
+| Issuen «Automatisk tilbakerullet» | Røyktesten feilet etter en automatisk utlegging, og kystloggen.no ble rullet tilbake (eller ikke — issuen sier hvorfor) | Issuevarsel. Lukkes for hånd |
 
 Issuen lages og lukkes av `.github/varsel.py` i datarepoet, som siste
 steg i `samle.yml`. Den lukkes av seg selv når en kjøring som faktisk
@@ -403,38 +405,66 @@ finnes ikke miljøer med påkrevd godkjenner.
 ### Automatisk publisering av databygg
 
 Heine bestemte 12.10.2026 at en uke der bare DATA er nytt, kan gå ut av
-seg selv. `bygg.yml` starter `publiser.yml` med `automatisk=ja` og sitt
+seg selv, og 02.11.2026 at ny kode kan det også når `test.yml` er grønn
+på den. `bygg.yml` starter `publiser.yml` med `automatisk=ja` og sitt
 eget run_id etter et grønt bygg. `publiser.yml` stoler ikke på det: den
 leser kvitteringen og datarepoet selv (`publiser_ci.py automatisk`), og
 legger ut bare når alle fire holder:
 
 | | Vilkår | Leses av |
 |---|---|---|
-| a | koden er den produksjon kjører | `kode_commit` i kvitteringen mot siste produksjonslinje i publiseringsloggen |
+| a | `test.yml` er grønn på akkurat koden bygget er laget med | nyeste kjøring av `test.yml` i kodrepoet med `head_sha` lik `kode_commit` i kvitteringen (Actions-API-et). Etter en tilbakerulling også: koden er den produksjon kjører |
 | b | porten fant null ukvitterte funn | `port` i kvitteringen |
 | c | uka er ikke DELVIS | emnelinjen på hver innsamlingscommit (skrev `data/health.json` og `data/raw/`) i ISO-uka til den siste, fram til `data_commit` |
 | d | ukas tall er i normalbåndet | `maal` i kvitteringen mot `publisering.normalbaand` i `config.yml` |
 
-**Holder ett ikke**, legges ingenting ut. Jobben er grønn, issuen
-«Automatisk publisering stoppet» sier hvilket vilkår og hvorfor, og
-bygget venter på «ja» som før (stegene under, med `run_id` fra issuen).
-Issuen lukkes av neste publisering som består røyktesten.
+**Holder ett ikke**, legges ingenting ut. Jobben ender **rød** (fra
+02.11.2026; før det var den grønn), issuen «Automatisk publisering
+stoppet» sier hvilket vilkår og hvorfor, og bygget venter på «ja» som før
+(stegene under, med `run_id` fra issuen). Issuen lukkes av neste
+publisering som består røyktesten. Det røde steget er det siste i jobben
+og heter «Automatisk utlegging stoppet — bygget venter på «ja»».
+Innsamlingen er ikke berørt: ingenting leser Publisers konklusjon som et
+signal om den (MÅLT 02.11.2026: `tilsyn.py` har `stillhet: null` for
+`publiser.yml`, `varsel.py` leser stegenes utfall).
+
+**Det manuelle «ja» står igjen som nødvei.** Et menneske som har sagt
+ja, stoppes ikke av vilkårene, og den automatiske tilbakerullingen
+gjelder ikke en manuell utlegging.
+
+**Vilkår a før og etter 02.11.2026.** Fram til da het det «koden er den
+produksjon kjører». Uke 45 stoppet på det fordi kodrepoet hadde nye
+commits, selv om ingen av dem rørte en fil bygget leser (issue #11 i
+datarepoet). Nå spørres den som vet: består koden prøvene?
+`publiser_ci.py testkjoring()` henter den nyeste kjøringen av `test.yml`
+på hele shaen (en forkortet sha gir 0 treff, ikke en feil). Ikke kjørt,
+ikke ferdig, ikke `success`, eller API-et svarer ikke: vilkåret holder
+ikke.
+
+**`test.yml` i kodrepoet har aldri kjørt** (MÅLT 02.11.2026: 0 kjøringer
+siden den ble registrert 05.09.2026, ingen `github-actions`-suite på noen
+commit, Actions påslått). Til den gjør det, holder vilkår a aldri, og
+hver uke venter på «ja». Uke 45 ville stoppet også med det nye vilkåret,
+på «har ikke kjørt».
 
 **Går bygget ut**, kommer issuen «Automatisk publisert» med ukas tall,
 kvitteringen og kommandoen som ruller tilbake til utrullingen som var
 ute før — med Cloudflares `deployment_id`, ikke et run_id. Se
 «Tilbakerulling» under.
 
-**DELVIS stopper i dag hver uke.** Alle åtte ukene 2026-35 til 2026-42
-er DELVIS (MÅLT 13.10.2026; fra uke 37 med «tilsyn: true» fordi
-innholdsvarsler står til rotårsaken er fikset). Vilkår a, b og d ville
-holdt for uke 42. Så lenge et innholdsvarsel står, går ingen uke ut av
-seg selv.
+**DELVIS stoppet uke 35–42, ikke alle uker.** Alle åtte ukene 2026-35
+til 2026-42 var DELVIS (MÅLT 13.10.2026; fra uke 37 med «tilsyn: true»).
+Fra uke 43 har ingen innsamlingscommit merket `DELVIS:` (git log på
+`data/health.json`, 02.11.2026), og vilkår c holdt for uke 44 og 45.
+Uke 44 gikk ut automatisk 27.10.2026 (issue #10). Står et innholdsvarsel
+igjen, stopper uka på c som før.
 
 **Normalbåndet** er målt over alle uker og står med metoden i
-`config.yml`. Det flytter seg ikke av seg selv (CLAUDE.md 1b-4), og fordi
-vilkår a krever koden produksjon kjører, går et nytt bånd ut med «ja»
-før det kan slippe noe gjennom.
+`config.yml`. Det flytter seg ikke av seg selv (CLAUDE.md 1b-4). Fra
+02.11.2026 kan et nytt bånd gå ut automatisk: `config.yml` ligger i
+kodrepoet, og vilkår a krever bare grønn `test.yml` på commiten —
+`test_baandet_i_config_er_det_som_er_maalt` er det som holder igjen et
+bånd som er endret uten at prøven fulgte med.
 
 **`bygg.yml` endrer ikke innsamlingen.** Den starter først når
 `samle.yml` er ferdig, og den eneste skrivingen er logglinja. Bygger den
@@ -513,7 +543,35 @@ rullet bort, og slipper den ut igjen automatisk. Med den:
 | rullet tilbake for data, samme kode | holder |
 | målutrullingen finnes ikke i loggen | holder ikke — koden er ukjent |
 
-Vilkår b, c og d leser ikke loggen.
+Vilkår b, c og d leser ikke loggen. Grønn `test.yml` er i tillegg et
+krav i alle tre radene.
+
+### Automatisk tilbakerulling
+
+Fra 02.11.2026. **Feiler røyktesten etter en AUTOMATISK utlegging**,
+ruller `publiser.yml` kystloggen.no tilbake av seg selv, samme vei som
+over:
+
+1. Før opplastingen leser steget «Forrige produksjon i loggen»
+   (`publiser_ci.py i-loggen`) siste linje med `miljo` `produksjon` eller
+   `tilbakerulling` og dens `deployment_id`. Etterpå er siste linje
+   utleggingen selv.
+2. Røyktesten feiler → «Automatisk tilbakerulling» kaller
+   `publiser_ci.py tilbakerull` mot den id-en. Oppga Cloudflare en annen
+   id før opplastingen (steget «Produksjon før utleggingen»), står en
+   advarsel; loggens id brukes.
+3. Logglinja `tilbakerulling` og røyktesten mot utrullingens egen
+   adresse, når rollback er sendt — som jobben `tilbakerull`.
+4. Issuen **«Automatisk tilbakerullet»** sier hva som feilet, målet, og
+   røyktesten etterpå. Ble rollback ikke sendt (ingen `deployment_id` i
+   loggen, kode eldre enn `i-loggen`, eller Cloudflare nektet før
+   kallet), sier issuen at **det feilede bygget er ute**, og gir
+   kommandoen over. Den lukkes for hånd.
+
+«Publiseringen trenger tilsyn» fra den første røyktesten står åpen for
+bygget som feilet. Mandagen etter stopper vilkår a koden som ble rullet
+bort (tabellen over), så den samme feilen går ikke ut igjen av seg
+selv. En manuell utlegging med «ja» rulles aldri tilbake automatisk.
 
 ### Fra mobilen
 
@@ -542,8 +600,10 @@ hvilken: `bekreft` var ikke `ja` (og `automatisk` ikke satt), summen
 avvek (ingenting er lastet opp), en Cloudflare-nøkkel mangler (ingenting
 er lastet opp), eller røyktesten feilet (siden ER ute — da kommer issuen
 «Publiseringen trenger tilsyn», og den lukkes av neste røyktest som
-går). En automatisk kjøring som vilkårene stoppet, er GRØNN; signalet er
-issuen «Automatisk publisering stoppet».
+går). En automatisk kjøring som vilkårene stoppet, er RØD fra
+02.11.2026, i det siste steget; grunnen står i issuen «Automatisk
+publisering stoppet». En automatisk kjøring med rød røyktest er rullet
+tilbake, eller sier i «Automatisk tilbakerullet» hvorfor ikke.
 
 Røyktesten krever at kontaktadressen står som klartekst
 (`mailto:kontakt@kystloggen.no`) på alle fem sidene. Cloudflares **Email
