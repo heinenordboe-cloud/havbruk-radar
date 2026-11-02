@@ -217,20 +217,93 @@ def _logg(sti: Path, *linjer: tuple[str, str, str]) -> Path:
     return sti
 
 
-def test_a_holder_naar_koden_er_den_produksjon_kjorer(tmp_path):
+def _gronn(sha):
+    return {"id": 1, "head_sha": sha, "status": "completed",
+            "conclusion": "success", "html_url": "u"}
+
+
+def test_a_holder_naar_testen_er_gronn_paa_koden(tmp_path):
+    """Koden er ny, og testen er grønn på akkurat den: holder. Det gamle
+    spørsmålet («samme kode som produksjon?») teller ikke lenger."""
     logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"),
                  ("forhandsvisning", ANNEN, "d2"))
     siste = publiser_ci.siste_produksjon(logg)
     assert siste["kode_commit"] == KODE      # forhåndsvisningen teller ikke
-    assert publiser_ci.vilkar_kode({"kode_commit": KODE}, siste).holder
-    v = publiser_ci.vilkar_kode({"kode_commit": ANNEN}, siste)
-    assert not v.holder and "koden er ny" in v.tekst
+    for kode in (KODE, ANNEN):
+        assert publiser_ci.vilkar_kode({"kode_commit": kode}, siste,
+                                       _gronn).holder
+
+
+def test_a_uke_45_ville_gaatt_ut_med_gronn_test(tmp_path):
+    """02.11.2026 (issue #11): bygget var laget med 59099ddc67c1, produksjon
+    kjørte b61c9c35673a, og vilkår a stoppet det. Med grønn test på
+    59099ddc67c1 holder det. Hva test.yml faktisk svarte, se commiten."""
+    logg = _logg(tmp_path / "l.tsv",
+                 ("produksjon", "b61c9c35673a83f90200770cb67b82aca9f841f2", "d1"))
+    k = {"kode_commit": "59099ddc67c1f5a13395324030a9f6950a643927"}
+    sett = []
+    v = publiser_ci.vilkar_kode(k, publiser_ci.siste_produksjon(logg),
+                                lambda sha: sett.append(sha) or _gronn(sha))
+    assert v.holder, v.tekst
+    assert sett == [k["kode_commit"]]        # hele shaen, ikke en forkortelse
+
+
+@pytest.mark.parametrize("kjoring,ord_", [
+    (None, "har ikke kjørt"),
+    ({"status": "in_progress", "conclusion": None}, "ikke ferdig"),
+    ({"status": "completed", "conclusion": "failure"}, "«failure»"),
+    ({"status": "completed", "conclusion": "cancelled"}, "«cancelled»"),
+])
+def test_a_holder_ikke_uten_gronn_test(tmp_path, kjoring, ord_):
+    logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"))
+    v = publiser_ci.vilkar_kode({"kode_commit": KODE},
+                                publiser_ci.siste_produksjon(logg),
+                                lambda sha: kjoring)
+    assert not v.holder and ord_ in v.tekst, v.tekst
+
+
+def test_a_holder_ikke_naar_github_ikke_svarer(tmp_path):
+    def nede(sha):
+        raise publiser.Stopp("GitHub svarte 502")
+    logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"))
+    v = publiser_ci.vilkar_kode({"kode_commit": KODE},
+                                publiser_ci.siste_produksjon(logg), nede)
+    assert not v.holder and "kunne ikke leses" in v.tekst
+
+
+@pytest.mark.parametrize("kode", ["", "a" * 12, None])
+def test_a_holder_ikke_uten_hel_kode_commit(tmp_path, kode):
+    """En forkortet sha gir total_count 0 hos GitHub (MÅLT 02.11.2026) —
+    den ville lest som «ikke kjørt». Den stoppes før spørsmålet."""
+    logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"))
+    v = publiser_ci.vilkar_kode({"kode_commit": kode} if kode is not None else {},
+                                publiser_ci.siste_produksjon(logg), _gronn)
+    assert not v.holder
+
+
+def test_testkjoring_velger_den_nyeste_paa_akkurat_shaen():
+    kjoringer = [
+        {"id": 3, "head_sha": KODE, "created_at": "2026-11-02T10:00:00Z",
+         "status": "completed", "conclusion": "failure"},
+        {"id": 5, "head_sha": KODE, "created_at": "2026-11-02T11:00:00Z",
+         "status": "completed", "conclusion": "success"},
+        {"id": 9, "head_sha": ANNEN, "created_at": "2026-11-02T12:00:00Z",
+         "status": "completed", "conclusion": "failure"},
+    ]
+    sti = []
+    r = publiser_ci.testkjoring(KODE, lambda s: sti.append(s) or
+                                {"workflow_runs": kjoringer})
+    assert r["id"] == 5
+    assert f"head_sha={KODE}" in sti[0] and "test.yml" in sti[0]
+    assert publiser_ci.testkjoring(KODE, lambda s: {"total_count": 0,
+                                                    "workflow_runs": []}) is None
 
 
 def test_a_holder_ikke_uten_produksjonslinje(tmp_path):
     logg = _logg(tmp_path / "l.tsv", ("forhandsvisning", KODE, "d1"))
     assert publiser_ci.siste_produksjon(logg) is None
-    assert not publiser_ci.vilkar_kode({"kode_commit": KODE}, None).holder
+    assert not publiser_ci.vilkar_kode({"kode_commit": KODE}, None,
+                                       _gronn).holder
     assert publiser_ci.siste_produksjon(tmp_path / "finnes-ikke.tsv") is None
 
 
@@ -390,6 +463,8 @@ def test_alle_fire_holder_og_doera_er_aapen(repo, tmp_path, monkeypatch):
     ut = tmp_path / "output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
     monkeypatch.setattr(publiser_ci, "normalbaand", lambda: BAND)
+    monkeypatch.setattr(publiser_ci, "testkjoring",
+                        lambda sha: _gronn(sha) if sha == KODE else None)
     rapport = tmp_path / "rapport.md"
     assert publiser_ci.main(["automatisk", "--kvittering", str(k),
                              "--datarepo", str(repo.rot), "--rapport", str(rapport)]) == 0
@@ -402,7 +477,7 @@ def test_ett_vilkar_som_ikke_holder_lukker_doera(repo, tmp_path, monkeypatch, vi
     k = _hel_kvittering(repo, tmp_path)
     kv = json.loads(k.read_text())
     if vilkar == "a":
-        kv["kode_commit"] = ANNEN
+        kv["kode_commit"] = ANNEN            # test.yml har ikke kjørt på den
     elif vilkar == "b":
         del kv["port"]
     elif vilkar == "c":
@@ -413,6 +488,8 @@ def test_ett_vilkar_som_ikke_holder_lukker_doera(repo, tmp_path, monkeypatch, vi
     ut = tmp_path / "output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
     monkeypatch.setattr(publiser_ci, "normalbaand", lambda: BAND)
+    monkeypatch.setattr(publiser_ci, "testkjoring",
+                        lambda sha: _gronn(sha) if sha == KODE else None)
     rapport = tmp_path / "rapport.md"
     publiser_ci.main(["automatisk", "--kvittering", str(k),
                       "--datarepo", str(repo.rot), "--rapport", str(rapport)])
@@ -456,11 +533,11 @@ def _for_og_etter_tilbakerulling(sti: Path, tilbake_kode: str) -> Path:
     """W ute 13.10, X ut 19.10, så rullet tilbake til W 20.10."""
     return _logg7(
         sti,
-        ("2026-10-13T22:06:52+00:00", "produksjon", "w" * 40, "d1", "2026-42",
+        ("2026-10-13T22:06:52+00:00", "produksjon", "c" * 40, "d1", "2026-42",
          GAMMEL, "etterfylt"),
-        ("2026-10-19T10:45:14+00:00", "produksjon", "x" * 40, "d2", "2026-43",
+        ("2026-10-19T10:45:14+00:00", "produksjon", "d" * 40, "d2", "2026-43",
          GOD, "wrangler"),
-        ("2026-10-20T09:00:00+00:00", "forhandsvisning", "x" * 40, "d3",
+        ("2026-10-20T09:00:00+00:00", "forhandsvisning", "d" * 40, "d3",
          "2026-43", "", ""),
         ("2026-10-20T10:00:00+00:00", "tilbakerulling", tilbake_kode, "d1",
          "2026-42", GAMMEL, "tilbakerulling"))
@@ -469,21 +546,21 @@ def _for_og_etter_tilbakerulling(sti: Path, tilbake_kode: str) -> Path:
 def test_a_etter_tilbakerulling_slipper_ikke_ut_koden_som_ble_rullet_bort(tmp_path):
     """Mandagen etter: main har fortsatt koden X, produksjon kjører W.
     Siste PRODUKSJONSlinje sier X — leste vilkår a den, holdt det."""
-    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "w" * 40)
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "c" * 40)
     siste = publiser_ci.siste_produksjon(logg)
     assert siste["miljo"] == "tilbakerulling"
-    v = publiser_ci.vilkar_kode({"kode_commit": "x" * 40}, siste)
+    v = publiser_ci.vilkar_kode({"kode_commit": "d" * 40}, siste, _gronn)
     assert not v.holder
-    assert "produksjon kjører wwwwwwwwwwww" in v.tekst
+    assert "kjører cccccccccccc" in v.tekst
     assert "tilbakerullet til 6c147962" in v.tekst
 
 
 def test_a_etter_tilbakerulling_stopper_ikke_samme_kode(tmp_path):
     """Rullet tilbake for DATA, med samme kode: neste databygg med den
     koden skal kunne gå ut, som før tilbakerullingen."""
-    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "w" * 40)
-    v = publiser_ci.vilkar_kode({"kode_commit": "w" * 40},
-                                publiser_ci.siste_produksjon(logg))
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "c" * 40)
+    v = publiser_ci.vilkar_kode({"kode_commit": "c" * 40},
+                                publiser_ci.siste_produksjon(logg), _gronn)
     assert v.holder, v.tekst
 
 
@@ -492,16 +569,19 @@ def test_a_etter_tilbakerulling_til_ukjent_kode_holder_ikke(tmp_path):
     holder aldri — heller ikke for en kvittering som også mangler den."""
     logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "")
     siste = publiser_ci.siste_produksjon(logg)
-    for kode in ("x" * 40, "w" * 40, ""):
-        v = publiser_ci.vilkar_kode({"kode_commit": kode}, siste)
-        assert not v.holder and "vet ikke hvilken kode" in v.tekst
+    for kode in ("d" * 40, "c" * 40, ""):
+        v = publiser_ci.vilkar_kode({"kode_commit": kode}, siste, _gronn)
+        assert not v.holder
+    assert "vet ikke hvilken kode" in publiser_ci.vilkar_kode(
+        {"kode_commit": "d" * 40}, siste, _gronn).tekst
 
 
 def test_a_leser_fortsatt_en_logg_med_fem_kolonner(tmp_path):
     """Loggen fra før 20.10.2026 har ingen deployment-kolonner."""
     logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"))
     assert publiser_ci.vilkar_kode({"kode_commit": KODE},
-                                   publiser_ci.siste_produksjon(logg)).holder
+                                   publiser_ci.siste_produksjon(logg),
+                                   _gronn).holder
 
 
 class Cloudflare:
@@ -576,7 +656,7 @@ def test_rollback_som_aldri_blir_ute_feiler_men_logges_og_royktestes(
     rødt — men produksjon kan være endret, så sendt=ja står, og stegene
     publiser.yml kjører på det (logglinja, røyktesten, issuen) gjør jobben.
     Røyktesten spør Cloudflare igjen og blir rød."""
-    _for_og_etter_tilbakerulling(publiser.LOGG, "w" * 40)
+    _for_og_etter_tilbakerulling(publiser.LOGG, "c" * 40)
     for args in (["add", "-A"], ["commit", "-qm", "logg"], ["push", "-q"]):
         subprocess.run(["git", "-C", str(datarepo), *args], check=True,
                        capture_output=True)
@@ -608,7 +688,7 @@ def test_rollback_som_aldri_blir_ute_feiler_men_logges_og_royktestes(
 
 
 def test_tilbakerullingslinja_baerer_maalets_kode_data_og_uke(datarepo):
-    _for_og_etter_tilbakerulling(publiser.LOGG, "w" * 40)
+    _for_og_etter_tilbakerulling(publiser.LOGG, "c" * 40)
     for args in (["add", "-A"], ["commit", "-qm", "logg"], ["push", "-q"]):
         subprocess.run(["git", "-C", str(datarepo), *args], check=True,
                        capture_output=True)
@@ -616,9 +696,9 @@ def test_tilbakerullingslinja_baerer_maalets_kode_data_og_uke(datarepo):
     siste = publiser.les_logg(publiser.LOGG)[-1]
     assert (siste["miljo"], siste["kode_commit"], siste["data_commit"],
             siste["uke"], siste["deployment_id"], siste["deployment_kilde"]) == \
-        ("tilbakerulling", "x" * 40, "d2", "2026-43", GOD, "tilbakerulling")
+        ("tilbakerulling", "d" * 40, "d2", "2026-43", GOD, "tilbakerulling")
     assert _pa_origin(datarepo).rstrip("\n").splitlines()[-1].split("\t")[1:] == \
-        ["tilbakerulling", "x" * 40, "d2", "2026-43", GOD, "tilbakerulling"]
+        ["tilbakerulling", "d" * 40, "d2", "2026-43", GOD, "tilbakerulling"]
 
 
 def test_tilbakerulling_til_en_id_loggen_ikke_kjenner(datarepo):
@@ -626,7 +706,7 @@ def test_tilbakerulling_til_en_id_loggen_ikke_kjenner(datarepo):
     assert publiser_ci.logg_tilbakerulling(GAMMEL) == ""
     siste = publiser_ci.siste_produksjon(publiser.LOGG)
     assert (siste["kode_commit"], siste["deployment_id"]) == ("", GAMMEL)
-    assert not publiser_ci.vilkar_kode({"kode_commit": KODE}, siste).holder
+    assert not publiser_ci.vilkar_kode({"kode_commit": KODE}, siste, _gronn).holder
 
 
 def test_logg_tar_deployment_id_fra_miljoet(datarepo, tmp_path, monkeypatch):
@@ -661,7 +741,7 @@ def test_i_produksjon_krev_stopper_paa_feil_utrulling(tmp_path, monkeypatch):
     cf = Cloudflare(GOD, {})
     monkeypatch.setattr(publiser_ci, "cloudflare", cf)
     monkeypatch.setattr(publiser_ci.time, "sleep", lambda s: None)
-    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "w" * 40)
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "c" * 40)
     ut = tmp_path / "output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
     publiser_ci.main(["i-produksjon", "--krev", GOD, "--logg", str(logg)])

@@ -277,10 +277,10 @@ def logg(k: dict, miljo: str, forsok: int = 3, deployment_id: str = "") -> str:
 # ikke på kalleren: `automatisk=ja` betyr «vurder», ikke «gå». Vurderingen
 # er her, og alle fire vilkår må holde:
 #
-#   a  kode       kvitteringens kode_commit er den samme som i siste
-#                 produksjonslinje i publiseringsloggen. Bare data er nytt;
-#                 ny kode går ut med «ja», som før.
-#   b  porten     null ukvitterte funn, slik kvitteringen sier det.
+#   a  kode       test.yml er grønn på AKKURAT kvitteringens kode_commit i
+#                 kodrepoet. Etter en tilbakerulling også: samme kode som
+#                 produksjon kjører (`vilkar_kode()`).
+#   b  porten    null ukvitterte funn, slik kvitteringen sier det.
 #   c  delvis     ukas innsamling er ikke DELVIS. Lest av innsamlingens egen
 #                 commit, ikke av noe som ligner.
 #   d  båndet     ukas endringer og antall lokaliteter ligger i
@@ -318,30 +318,110 @@ def siste_produksjon(logg_sti: Path) -> dict | None:
     return prod[-1] if prod else None
 
 
-def vilkar_kode(k: dict, siste: dict | None) -> Vilkar:
+# VILKÅR A SPØR DEN SOM VET OM KODEN, fra 02.11.2026. Før det het det
+# «samme kode som produksjon», og uke 45 stoppet på det fordi kodrepoet
+# hadde nye commits — selv om ingen av dem rørte en fil bygget leser
+# (issue #11 i datarepoet). Det spørsmålet var en stedfortreder: det vi vil
+# vite, er om koden bygget er laget med, består prøvene. test.yml svarer
+# på det for akkurat den commiten.
+#
+# MÅLT 02.11.2026 mot API-et: `head_sha` må være hele shaen (12 tegn gir
+# total_count 0, ikke en feil), og en sha uten kjøring gir total_count 0.
+# Kodrepoet er offentlig, så kjøringene kan leses uten nøkkel.
+#
+# Etter en tilbakerulling holder grønn test ikke alene: koden som ble
+# rullet BORT, har ofte grønne prøver — det var noe annet som var galt.
+# Da går bare koden produksjon kjører ut automatisk, som før.
+KODEREPO = "heinenordboe-cloud/havbruk-radar"
+TESTFIL = "test.yml"
+SHA = re.compile(r"[0-9a-f]{40}")
+
+
+def _github(sti: str) -> dict:
+    """GET mot GitHub-API-et, med GH_TOKEN når den finnes. Nekter nøkkelen
+    (401/403/404 — en nøkkel fra datarepoet er ikke prøvd mot kodrepoet),
+    spørres det på nytt uten: kodrepoet er offentlig."""
+    import royktest
+
+    url = f"https://api.github.com/{sti}"
+    hode = {"Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"}
+    nokkel = os.environ.get("GH_TOKEN", "").strip()
+    for med in ([True, False] if nokkel else [False]):
+        h = dict(hode, **({"Authorization": f"Bearer {nokkel}"} if med else {}))
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=h),
+                                        timeout=30, context=royktest._tls()) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if med and e.code in (401, 403, 404):
+                continue
+            raise Stopp(f"GitHub svarte {e.code} på {sti.split('?')[0]}")
+        except (urllib.error.URLError, OSError, ValueError) as e:
+            raise Stopp(f"GitHub kunne ikke nås: {e}")
+    raise Stopp(f"GitHub svarte ikke på {sti.split('?')[0]}")
+
+
+def testkjoring(sha: str, kall=None) -> dict | None:
+    """Den NYESTE kjøringen av test.yml på akkurat `sha`. None: ingen.
+
+    Nyeste, ikke beste: en rød kjøring etterfulgt av en grønn gjenkjøring
+    er grønn, og en grønn fulgt av en rød er rød."""
+    kall = kall or _github
+    svar = kall(f"repos/{KODEREPO}/actions/workflows/{TESTFIL}/runs"
+                f"?head_sha={sha}&per_page=20")
+    kjoringer = [r for r in svar.get("workflow_runs") or []
+                 if r.get("head_sha") == sha]
+    if not kjoringer:
+        return None
+    return max(kjoringer, key=lambda r: (r.get("created_at", ""), r.get("id", 0)))
+
+
+def vilkar_kode(k: dict, siste: dict | None, test=None) -> Vilkar:
+    test = test or testkjoring
     if siste is None:
         return Vilkar("a kode", False, "publiseringsloggen har ingen "
                       "produksjonslinje å sammenligne med")
+    kode = k.get("kode_commit", "")
+    if not SHA.fullmatch(kode):
+        return Vilkar("a kode", False, f"kvitteringen har ingen hel "
+                      f"kode_commit ({kode!r})")
     tilbake = siste.get("miljo") == "tilbakerulling"
-    hvor = (f"tilbakerullet til {(siste.get('deployment_id') or '?')[:8]} "
-            f"{siste.get('tidspunkt', '')[:10]}" if tilbake
-            else siste.get("tidspunkt", "")[:10])
-    if not siste.get("kode_commit"):
-        # «Vet ikke» holder aldri. En tom kode_commit er like lik «» som
-        # en kvittering uten felt — og da ville den holdt.
+    if tilbake:
+        hvor = (f"tilbakerullet til {(siste.get('deployment_id') or '?')[:8]} "
+                f"{siste.get('tidspunkt', '')[:10]}")
+        if not siste.get("kode_commit"):
+            # «Vet ikke» holder aldri. En tom kode_commit er like lik «» som
+            # en kvittering uten felt — og da ville den holdt.
+            return Vilkar("a kode", False,
+                          f"loggen vet ikke hvilken kode produksjon kjører "
+                          f"({hvor}): målutrullingen har ingen linje med "
+                          f"kode_commit. Bygget går ut med «ja».")
+        if kode != siste["kode_commit"]:
+            return Vilkar("a kode", False,
+                          f"produksjon er {hvor} og kjører "
+                          f"{siste['kode_commit'][:12]}; bygget er laget med "
+                          f"{kode[:12]}. Etter en tilbakerulling går ny kode "
+                          f"ut med «ja».")
+    try:
+        r = test(kode)
+    except Stopp as e:
+        return Vilkar("a kode", False, f"{TESTFIL} på {kode[:12]} kunne ikke "
+                      f"leses: {str(e).strip()}")
+    if r is None:
         return Vilkar("a kode", False,
-                      f"loggen vet ikke hvilken kode produksjon kjører ({hvor}"
-                      f"): målutrullingen har ingen linje med kode_commit. "
+                      f"{TESTFIL} har ikke kjørt på {kode[:12]} i kodrepoet. "
                       f"Bygget går ut med «ja».")
-    if k.get("kode_commit") != siste.get("kode_commit"):
-        return Vilkar("a kode", False,
-                      f"koden er ny: bygget er laget med "
-                      f"{k.get('kode_commit', '')[:12]}, produksjon kjører "
-                      f"{siste.get('kode_commit', '')[:12]} "
-                      f"({hvor}). Ny kode går ut med «ja».")
-    return Vilkar("a kode", True, f"samme kode som produksjon "
-                  f"({k['kode_commit'][:12]}"
-                  f"{', ' + hvor if tilbake else ''}); bare data er nytt")
+    lenke = r.get("html_url", "")
+    if r.get("status") != "completed":
+        return Vilkar("a kode", False, f"{TESTFIL} på {kode[:12]} er ikke "
+                      f"ferdig ({r.get('status')}): {lenke}")
+    if r.get("conclusion") != "success":
+        return Vilkar("a kode", False, f"{TESTFIL} på {kode[:12]} endte "
+                      f"«{r.get('conclusion')}»: {lenke}")
+    return Vilkar("a kode", True,
+                  f"{TESTFIL} grønn på {kode[:12]} ({lenke})"
+                  + (f"; samme kode som produksjon, {hvor}" if tilbake else ""))
 
 
 def vilkar_port(k: dict) -> Vilkar:
