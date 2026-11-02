@@ -3,6 +3,21 @@ name: Tester
 # Kjører på hver push og PR. Poenget: du skal aldri oppdage en regresjon
 # i core/ mandag 05:00 i produksjon mot ekte API. Suiten tar under ett
 # sekund og bruker ikke nett.
+#
+# Vilkår a for automatisk publisering (publiser_ci.py, fra 02.11.2026)
+# krever at DENNE workflowen er grønn på akkurat koden bygget er laget med.
+# Begge jobbene må være grønne for at kjøringen er det.
+#
+# TO JOBBER, FORDI KODEN KJØRER PÅ TO PYTHONER. Innsamlingen kjører på
+# 3.12 i Actions (.python-version, samle.yml). kystvakt/ kjører på
+# kystvakt-1 med systemets python3: MÅLT 02.11.2026, 3.14.4
+# (/usr/bin/python3.14, Ubuntu 26.04.1). regnskap.py og hulljeger.py
+# bruker `compression.zstd`, som finnes først i 3.14, og 1461ec3 ble rød
+# på det. test_kystvakt_lytter.py hoppet i tillegg over seg selv på 3.12
+# (`importorskip`) — en grønn jobb som ikke prøvde lytteren.
+#
+# Hovedjobben tar derfor ikke tests/test_kystvakt_*.py (--ignore-glob), og
+# kystvakt-jobben tar bare dem, på 3.14. Ingen prøve hoppes over.
 
 on:
   push:
@@ -34,4 +49,25 @@ jobs:
 
       - run: pip install -r requirements-dev.txt
 
-      - run: python -m pytest tests/ -q
+      - run: python -m pytest tests/ -q --ignore-glob='tests/test_kystvakt_*.py'
+
+  # kystvakt/ bruker bare standardbiblioteket, og prøvene også (conftest.py
+  # likeså). Samme minor som kystvakt-1; oppgraderes serveren til en ny
+  # minor, oppgraderes denne.
+  kystvakt:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      # Samme pinning som requirements-dev.txt.
+      - run: pip install pytest==8.4.2
+
+      - run: python -m pytest tests/test_kystvakt_*.py -q
