@@ -791,7 +791,7 @@ fra teksten om BarentsWatch, tre treff. Tillegget over har ingen
 påstander kontrolløren kan trekke, siden kroppene ikke ligger i arkivet.
 
 Etterskrift 01.11.2026: to ting kontrolløren så utenfor trekningen, i
-F2.2, som står urettet over. «p99 2,8 s for land» er p99 for alle
+F2.3, som står urettet over. «p99 2,8 s for land» er p99 for alle
 strømmer samlet; terra alene gir 2,7 s. Og «38 av dem fra terra» blir
 39 hvis «msgtime etter mottakstid» leses som forsinkelse under 0. Det
 siste er kontrollørens tolkning og er ikke etterprøvd her.
