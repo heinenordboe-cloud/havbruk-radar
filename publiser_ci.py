@@ -9,6 +9,7 @@
                                                         publiser.yml: vilkårene
     python publiser_ci.py i-produksjon [--krev ID] [--logg L]
                                                         hva Cloudflare har ute
+    python publiser_ci.py i-loggen --logg L             hva loggen sier er ute
     python publiser_ci.py tilbakerull --deployment-id ID --logg L
                                                         publiser.yml: rollback
     python publiser_ci.py logg-tilbakerulling --deployment-id ID
@@ -669,6 +670,26 @@ def tilbakerull(maal: str, kall=None, forsok: int = VENT_FORSOK,
     return u
 
 
+def i_loggen(logg_sti: Path) -> dict:
+    """Produksjonslinja som sier hva kystloggen.no kjører, med
+    deployment_id. `Stopp` når loggen ikke kan svare.
+
+    Målet for den AUTOMATISKE tilbakerullingen (publiser.yml, fra
+    02.11.2026). Lest FØR opplastingen: etterpå er siste linje den nye
+    utleggingen selv. Samme linje som vilkår a leser, så en tilbakerulling
+    fra før er med — produksjon kjører da målutrullingen, og det er den
+    som er «forrige».
+    """
+    siste = siste_produksjon(logg_sti)
+    if siste is None:
+        raise Stopp(f"\n  STOPPET: {logg_sti} har ingen produksjonslinje.")
+    if not UUID.fullmatch(siste.get("deployment_id") or ""):
+        raise Stopp(f"\n  STOPPET: siste produksjonslinje "
+                    f"({siste.get('tidspunkt', '')[:16]}) har ingen "
+                    f"deployment_id.")
+    return siste
+
+
 def logg_tilbakerulling(maal: str, forsok: int = 3) -> str:
     """Logglinja for en tilbakerulling. Tom streng når den er på origin.
 
@@ -712,6 +733,9 @@ def main(argv: list[str] | None = None) -> int:
     ip.add_argument("--krev", help="stopp med mindre det er denne deployment_id-en")
     ip.add_argument("--logg", type=Path,
                     help="publiseringsloggen, for uka og tidspunktet")
+
+    il = sub.add_parser("i-loggen", help="produksjonen loggen sier er ute")
+    il.add_argument("--logg", type=Path, required=True)
 
     tb = sub.add_parser("tilbakerull", help="sett en produksjonsutrulling tilbake")
     tb.add_argument("--deployment-id", required=True)
@@ -770,6 +794,12 @@ def main(argv: list[str] | None = None) -> int:
               f"{', uke ' + r['uke'] if r.get('uke') else ''})")
         utdata(deployment_id=c["id"], opprettet=c.get("created_on", ""),
                uke=r.get("uke", ""))
+    elif a.kommando == "i-loggen":
+        r = i_loggen(a.logg)
+        print(f"  i produksjon ifølge loggen: {r['deployment_id']} "
+              f"({r.get('miljo')} {r.get('tidspunkt', '')[:16]}, uke "
+              f"{r.get('uke') or '?'}, kode {(r.get('kode_commit') or '?')[:12]})")
+        utdata(deployment_id=r["deployment_id"], uke=r.get("uke", ""))
     elif a.kommando == "tilbakerull":
         r = maalet(a.logg, a.deployment_id)
         print(f"Tilbakerulling til {a.deployment_id}: "

@@ -749,3 +749,35 @@ def test_i_produksjon_krev_stopper_paa_feil_utrulling(tmp_path, monkeypatch):
                                            "opprettet=", "uke=2026-43"]
     with pytest.raises(publiser.Stopp, match=f"ikke {GAMMEL}"):
         publiser_ci.main(["i-produksjon", "--krev", GAMMEL])
+
+
+# ---- automatisk tilbakerulling: målet leses av loggen ------------------
+
+def test_i_loggen_er_siste_produksjonslinje_ogsaa_etter_tilbakerulling(tmp_path):
+    """Etter en tilbakerulling kjører produksjon MÅLET for den, og det er
+    dit en ny automatisk tilbakerulling skal."""
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "c" * 40)
+    assert publiser_ci.i_loggen(logg)["deployment_id"] == GAMMEL
+    logg = _logg7(tmp_path / "m.tsv",
+                  ("2026-10-27T03:25:50+00:00", "produksjon", "a" * 40, "d1",
+                   "2026-44", GOD, "wrangler"),
+                  ("2026-10-27T23:03:25+00:00", "forhandsvisning", "f" * 40,
+                   "d2", "2026-44", "", ""))
+    assert publiser_ci.i_loggen(logg)["deployment_id"] == GOD
+
+
+def test_i_loggen_uten_deployment_id_stopper(tmp_path):
+    logg = _logg(tmp_path / "l.tsv", ("produksjon", KODE, "d1"))
+    with pytest.raises(publiser.Stopp, match="ingen deployment_id"):
+        publiser_ci.i_loggen(logg)
+    with pytest.raises(publiser.Stopp, match="ingen produksjonslinje"):
+        publiser_ci.i_loggen(_logg(tmp_path / "f.tsv",
+                                   ("forhandsvisning", KODE, "d1")))
+
+
+def test_i_loggen_skriver_utdata(tmp_path, monkeypatch):
+    ut = tmp_path / "output"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(ut))
+    logg = _for_og_etter_tilbakerulling(tmp_path / "l.tsv", "c" * 40)
+    assert publiser_ci.main(["i-loggen", "--logg", str(logg)]) == 0
+    assert ut.read_text() == f"deployment_id={GAMMEL}\nuke=2026-42\n"
