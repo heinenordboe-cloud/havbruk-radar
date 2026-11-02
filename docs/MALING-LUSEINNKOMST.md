@@ -301,3 +301,35 @@ høytrafikk (`docs/KILDE-LUSETALL.md`, plikt 2), men det er vår
 vurdering, ikke deres.
 *Feil hvis:* summen av `byte_linje` for de fem første kallene i
 kallogg ikke er 633 571.
+
+## Etterskrift 02.11.2026: tidspunktet for stoppregelen, og første fangst
+
+Teksten over er ikke endret.
+
+**Rettelse.** Under «Stoppregel» står den skrevet «kl. 19.15 UTC». Det
+er feil. Tidspunktet var gjettet da regelen ble skrevet, og 19.15 ligger
+etter hentingen (18.59.32). Regelen ble skrevet, og setningen «STOPP
+også» endret, mellom 18.57 og 18.59 UTC, før første kall. Rekkefølgen
+som betyr noe, regel før resultat, holder; klokkeslettet i teksten gjør
+det ikke.
+
+**Første fangst for hånd**, `arkiver_luseinnkomst.py` fra commit
+`ab3b062` på origin/main, 19.14.46–19.14.51 UTC. Logg:
+`lusetall-innkomst/2026-11-02.fangst.logg.json`. Uke 45, 43, 42 og 41
+var uendret mot kroppene fra 18.59. Uke 44 var ny:
+`lusetall-innkomst/2026-10-26.2.json.gz`, sha256
+`6f259d10f076c34d94ebaefe6d850ae8ac7eb79f296547181501808c5e5d3cb5`.
+Mellom de to kroppene for uke 44 har tre lokaliteter fått
+`hasReportedLice: true` og et lusetall (35777, 45233, 31637), og ingen
+andre felt eller lokaliteter er endret. 188 → 191 av 620.
+
+To ting følger, begge holdt mot de to kroppene:
+
+* **Tjenesten oppdateres også om kvelden, ikke bare om natta.**
+  Spesifikasjonens «updated nightly» (F1.5) holder ikke for dette
+  endepunktet: tre rapporter kom inn i løpet av femten minutter en
+  mandagskveld. Én henting i døgnet avgrenser en rapport til et døgn,
+  ikke til natta.
+* **`localityWeekId` er den samme før og etter rapporten** for alle
+  1 782 lokaliteter, også de tre. Id-en sier altså ikke når eller om en
+  lokalitet rapporterte (F1.7, første del).
