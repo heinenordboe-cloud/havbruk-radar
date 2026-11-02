@@ -177,6 +177,8 @@ Tre kanaler, og hver av dem svarer på sitt eget spørsmål:
 | Rød jobb | En kilde mangler i snapshotet, eller noe stoppet kjøringen | E-post fra GitHub |
 | Issuen «Innsamlingen trenger tilsyn» | Kjøringen endte DELVIS eller rød | Varsel fra GitHub når den opprettes eller kommenteres. Du nevnes med @ |
 | `HEARTBEAT_URL` | Kjøringen skjedde i det hele tatt | E-post fra overvåkingstjenesten når signalet uteblir |
+| `TILSYN_HEARTBEAT_URL` | `tilsyn.yml` kjørte til slutten (fra 02.11.2026) | Som over |
+| `PULS_URL` på kystvakt-1 | BarentsWatch-lytteren har meldinger i siste regnskapsførte time, uavhengig av GitHub (fra 02.11.2026) | Som over |
 | Issuen «Publiseringen trenger tilsyn» | kystloggen.no svarte ikke som bygget sa, etter en publisering fra `publiser.yml` | Som innsamlingens issue. Se «Publisering fra GitHub» |
 | Rød «Publiser» og issuen «Automatisk publisering stoppet» | Et automatisk bygg ble ikke lagt ut; det venter på «ja» | E-post fra GitHub og issuevarsel |
 | Issuen «Automatisk tilbakerullet» | Røyktesten feilet etter en automatisk utlegging, og kystloggen.no ble rullet tilbake (eller ikke — issuen sier hvorfor) | Issuevarsel. Lukkes for hånd |
@@ -231,6 +233,56 @@ det.*
 
 Adressen er en hemmelighet: den som har den, kan holde vakten grønn.
 Den står derfor i secrets og ikke i workflowen.
+
+**Byttet 02.11.2026.** Adressen til `havbruk-radar innsamling` hadde
+stått i et skjermbilde. Ny sjekk med samme tidsplan og frist (tabellen
+under); den gamle slettes etter mandag 09.11.
+
+### Tre sjekker fra 02.11.2026
+
+Tilsynet kjører på GitHub, og stopper Actions, stopper varslene også.
+Derfor to sjekker til i samme tjeneste, hver med sin egen adresse:
+
+| Navn i Healthchecks | Tidsplan | Frist | Sender | Adressen ligger i |
+|---|---|---|---|---|
+| `havbruk-radar innsamling 2` | cron `0 5 * * 1`, UTC | 2 dager | `samle.yml`, når innsamlingen skjedde | secret `HEARTBEAT_URL` i datarepoet |
+| `havbruk-radar tilsyn` | periode 1 dag | 2 timer (se under) | `tilsyn.yml`, siste steg, uansett utfall | secret `TILSYN_HEARTBEAT_URL` i datarepoet |
+| `kystvakt-1 ais-bw` | periode 1 time | 1 time | `regnskap.py time bw` (:10 hver time), når den nyeste timen som fikk regnskap har meldinger med MMSI | `/etc/kystvakt/puls-ais.env`, linja `PULS_URL=…`, `ais:ais` 0400 |
+
+**Tilsynets frist er knapp.** MÅLT 02.11.2026: 23,1–25,8 timer mellom
+planlagte kjøringer siden 13.10 (cron 06:00, start 10–14 UTC). Periode
+1 dag + 2 timer er 26 timer; største målte avstand er 25,8. Gir den
+falsk «down», er fristen det som skal opp — ikke signalet som skal
+flyttes.
+
+**Tilsynet sender uansett utfall.** At det fant stillhet, sier den røde
+haken, og den varsler GitHub selv. Signalet sier bare at tilsynet kjørte.
+
+**Kystvakt-1 sender fra regnskapet**, ikke fra lytteren: regnskapet er
+det som har talt meldingene. Den nyeste timen avgjør — tas flere timer
+igjen og den siste er tom, uteblir signalet. Står regnskapsjobben, uteblir
+det også. Regnskapet for en time venter opptil to timer på 5632 (se
+`regnskap.py`); da kommer signalet senere enn timen, og en frist på én
+time kan gi «down» uten at bw er stille. Det er ikke målt ennå.
+
+**Adressene går aldri gjennom chatten eller en kommando Claude kjører.**
+Secrets settes fra din egen terminal; `gh` spør etter verdien uten å
+vise den:
+
+```bash
+gh secret set HEARTBEAT_URL -R heinenordboe-cloud/havbruk-radar-data
+```
+
+```bash
+gh secret set TILSYN_HEARTBEAT_URL -R heinenordboe-cloud/havbruk-radar-data
+```
+
+Fila på kystvakt-1 skriver du selv, som `barentswatch-ais.env`: lim inn
+adressen og trykk Enter (den skrives etter `PULS_URL=`).
+
+```bash
+ssh -t vakt@kystvakt 'sudo sh -c "umask 077; { printf PULS_URL=; head -n1; } > /etc/kystvakt/puls-ais.env; chown ais:ais /etc/kystvakt/puls-ais.env; chmod 400 /etc/kystvakt/puls-ais.env"'
+```
 
 ## Publisering: `publiser.py`
 

@@ -74,3 +74,79 @@ def test_time_uten_filer_far_regnskap_med_null(tmp_path, monkeypatch):
     # og et regnskap skrives aldri om
     regnskap.kjør_time("5632", rot, "bw", annen, klokke)
     assert oct((dag / "2026-10-28T11Z.regnskap.json").stat().st_mode & 0o777) == "0o444"
+
+
+# ---- puls til overvåkingen utenfra (fra 02.11.2026) ----------------------
+
+def _r(time_, meldinger, uten_mmsi=0):
+    return {"time": time_, "meldinger": meldinger, "uten_mmsi": uten_mmsi}
+
+
+def test_puls_naar_nyeste_time_har_meldinger():
+    sendt = []
+    ut = regnskap.puls([_r("2026-11-02T18Z", 0), _r("2026-11-02T19Z", 41000)],
+                       url="https://hc-ping.example/x", send=sendt.append)
+    assert sendt == ["https://hc-ping.example/x"] and "puls sendt" in ut
+
+
+def test_ingen_puls_naar_nyeste_time_er_tom():
+    """Tre timer tatt igjen, den siste tom: lytteren er stille NÅ."""
+    sendt = []
+    regnskap.puls([_r("2026-11-02T17Z", 40000), _r("2026-11-02T19Z", 0),
+                   _r("2026-11-02T18Z", 39000)], url="u", send=sendt.append)
+    assert sendt == []
+
+
+def test_ingen_puls_uten_ny_time_eller_adresse(tmp_path, monkeypatch):
+    sendt = []
+    assert regnskap.puls([], url="u", send=sendt.append) == "ingen ny time"
+    monkeypatch.setattr(regnskap, "PULS", str(tmp_path / "finnes-ikke.env"))
+    assert regnskap.puls_url(str(tmp_path / "finnes-ikke.env")) is None
+    assert "mangler" in regnskap.puls([_r("2026-11-02T19Z", 1)], send=sendt.append)
+    assert sendt == []
+
+
+def test_puls_som_feiler_stopper_ikke_regnskapet():
+    def nede(url):
+        raise OSError("nett nede")
+    assert "kom ikke fram" in regnskap.puls([_r("2026-11-02T19Z", 1)], url="u",
+                                            send=nede)
+
+
+def test_puls_url_leses_fra_fila(tmp_path):
+    f = tmp_path / "puls-ais.env"
+    f.write_text('# signal\nPULS_URL="https://hc-ping.example/abc"\n')
+    assert regnskap.puls_url(str(f)) == "https://hc-ping.example/abc"
+    f.write_text("ANNET=1\n")
+    assert regnskap.puls_url(str(f)) is None
+
+
+def test_kjor_time_sender_puls_bare_for_bw(tmp_path, monkeypatch):
+    bw, k5632, klokke = tmp_path / "bw", tmp_path / "5632", tmp_path / "klokke"
+    timefil(bw, "2026-10-28T14Z", [(b"2026-10-28T14:00:00.500000Z", BW[0])])
+    (bw / "STARTET").write_text("2026-10-28T14:00:00Z\n")
+    (k5632 / "2026-10-28").mkdir(parents=True)
+    (k5632 / "STARTET").write_text("2026-10-28T14:00:00Z\n")
+    klokke.mkdir()
+
+    class Klokke(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 10, 28, 15, 10, tzinfo=timezone.utc)
+    monkeypatch.setattr(regnskap, "datetime", Klokke)
+    sendt = []
+    monkeypatch.setattr(regnskap, "_send", sendt.append)
+    monkeypatch.setattr(regnskap, "puls_url", lambda sti=None: "https://hc-ping.example/bw")
+    regnskap.kjør_time("5632", k5632, "bw", bw, klokke)
+    assert sendt == []
+    regnskap.kjør_time("bw", bw, "5632", k5632, klokke)
+    assert sendt == ["https://hc-ping.example/bw"]
+
+
+def test_ingen_puls_naar_timen_bare_har_linjer_uten_mmsi():
+    """En feilside etter 200 lagres linje for linje av lytteren og telles
+    som meldinger. Den skal ikke holde vakten grønn."""
+    sendt = []
+    ut = regnskap.puls([_r("2026-11-02T19Z", 12, uten_mmsi=12)], url="u",
+                       send=sendt.append)
+    assert sendt == [] and "ingen med MMSI" in ut

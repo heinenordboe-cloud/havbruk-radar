@@ -1,5 +1,7 @@
 # /etc/systemd/system/ais-regnskap-bw.service: kvalitetsregnskap per
 # ferdig time for bw, skrevet ved siden av råfilene. Se kystvakt/regnskap.py.
+# Sender også pulsen til overvåkingen utenfra når den nyeste timen har
+# meldinger; adressen leses av regnskap.py fra /etc/kystvakt/puls-ais.env.
 [Unit]
 Description=AIS: regnskap per time for bw
 

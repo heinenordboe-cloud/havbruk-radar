@@ -13,6 +13,10 @@ Sammenligningen med den andre kilden venter til den andres time også er
 ferdig, men ikke lenger enn to timer: da skrives regnskapet med
 `annen: null`, og grunnen står i fila. Et regnskap skrives aldri om.
 
+Etter `time bw` sendes et signal til overvåkingen utenfra (Healthchecks,
+periode 1 time) når den NYESTE timen som fikk regnskap i denne kjøringen,
+har meldinger med MMSI. Se `puls()`.
+
 `klokke` legger én linje i minuttet fra `chronyc -c tracking` i
 <klokkemappe>/<dato>.csv, med vår tid foran. Regnskapet leser den: om
 chrony var synkronisert, er et spørsmål om timen, ikke om øyeblikket
@@ -27,11 +31,16 @@ import os
 import statistics
 import subprocess
 import sys
+import urllib.request
 from compression import zstd
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 VENT_PAA_ANNEN = timedelta(hours=2)
+# Adressen til signalet, i en fil som bare `ais` kan lese, skrevet av Heine
+# (som barentswatch-ais.env). Adressen er en hemmelighet: den som har den,
+# kan holde vakten grønn. Miljøvariabelen er bare for prøvene.
+PULS = os.environ.get("AIS_PULS", "/etc/kystvakt/puls-ais.env")
 
 
 def ts(s: str) -> float:
@@ -205,6 +214,58 @@ def skriv_en_gang(sti: Path, data: dict) -> None:
         os.fsync(f.fileno())
 
 
+def puls_url(sti: str = PULS) -> str | None:
+    """`PULS_URL=` fra fila. None når fila ikke finnes eller ikke kan leses."""
+    try:
+        linjer = open(sti).read().splitlines()
+    except FileNotFoundError:
+        return None
+    except OSError as e:
+        print(f"puls: {sti} kan ikke leses ({e.__class__.__name__})", flush=True)
+        return None
+    env = dict(l.split("=", 1) for l in linjer if "=" in l)
+    return env.get("PULS_URL", "").strip().strip('"') or None
+
+
+def _send(url: str) -> None:
+    with urllib.request.urlopen(url, timeout=30) as r:
+        r.read()
+
+
+def puls(nye: list[dict], url=None, send=None) -> str:
+    """Signal til overvåkingen utenfra når bw-timen har meldinger.
+
+    Den NYESTE timen som fikk regnskap nå, ikke en hvilken som helst: tas
+    tre timer igjen etter et opphold, og den siste er tom, er lytteren
+    stille NÅ — et signal fra en eldre time ville skjult det.
+
+    Meldinger MED MMSI, ikke linjer: lytteren lagrer alt som kommer etter
+    en 200 urørt, også en feilside, og regnskapet teller hver linje som en
+    melding (MALING-DRIFT, 02.11.2026). En time med bare søppel er en stille
+    time.
+
+    Ingen ny time, ingen signal. Står regnskapsjobben, uteblir signalet
+    like mye som når lytteren står; begge er det overvåkingen finnes for.
+    En feil her stopper aldri regnskapet: det er skrevet før dette kalles.
+    """
+    if not nye:
+        return "ingen ny time"
+    siste = max(nye, key=lambda r: r["time"])
+    gyldige = siste["meldinger"] - siste.get("uten_mmsi", 0)
+    if gyldige <= 0:
+        return (f"{siste['time']}: {siste['meldinger']} meldinger, ingen med "
+                f"MMSI, ingen puls")
+    send = send or _send
+    adr = url if url is not None else puls_url()
+    if not adr:
+        return f"{siste['time']}: {PULS} mangler, ingen puls"
+    try:
+        send(adr)
+    except Exception as e:  # noqa: BLE001 — se docstringen
+        return f"{siste['time']}: puls kom ikke fram ({e.__class__.__name__})"
+    return f"{siste['time']}: {gyldige} meldinger med MMSI, puls sendt"
+
+
 def kjør_time(kilde, rot, annen, annen_rot, klokkemappe) -> None:
     naa = datetime.now(timezone.utc)
     forste = startet(rot)
@@ -216,6 +277,7 @@ def kjør_time(kilde, rot, annen, annen_rot, klokkemappe) -> None:
     while t + timedelta(hours=1) <= naa:
         timer.append(t.strftime("%Y-%m-%dT%H"))
         t += timedelta(hours=1)
+    nye = []
     for time_ in timer:
         (rot / time_[:10]).mkdir(exist_ok=True)
         sti = rot / time_[:10] / f"{time_}Z.regnskap.json"
@@ -225,8 +287,11 @@ def kjør_time(kilde, rot, annen, annen_rot, klokkemappe) -> None:
         if r is None:
             continue
         skriv_en_gang(sti, r)
+        nye.append(r)
         print(f"{sti.name}: {r['meldinger']} meldinger, {r['unike_mmsi']} MMSI, "
               f"lengste pause {r['lengste_pause_s']:.0f} s", flush=True)
+    if kilde == "bw":
+        print(f"puls: {puls(nye)}", flush=True)
 
 
 def kjør_klokke(klokkemappe: Path) -> None:

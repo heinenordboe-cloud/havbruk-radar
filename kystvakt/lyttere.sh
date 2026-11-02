@@ -29,10 +29,15 @@ done
 
 install -d -m 755 -o ais -g ais /srv/ais /srv/ais/bw /srv/ais/klokke
 install -d -m 755 -o ais5632 -g ais5632 /srv/ais5632 /srv/ais5632/raa
-if [ -f /etc/kystvakt/barentswatch-ais.env ]; then
-  chown ais:ais /etc/kystvakt/barentswatch-ais.env
-  chmod 400 /etc/kystvakt/barentswatch-ais.env
-fi
+# puls-ais.env (fra 02.11.2026): adressen regnskapet signaliserer til hver
+# time bw har meldinger (regnskap.py puls()). Skrives av Heine, som
+# nøkkelfila; samme eier og rettigheter.
+for f in /etc/kystvakt/barentswatch-ais.env /etc/kystvakt/puls-ais.env; do
+  if [ -f "$f" ]; then
+    chown ais:ais "$f"
+    chmod 400 "$f"
+  fi
+done
 
 install -d -m 755 -o ais -g ais /srv/ais/kopi
 install -d -m 700 -o ais -g ais /srv/ais/.ssh
