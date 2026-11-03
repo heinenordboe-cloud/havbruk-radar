@@ -31,6 +31,10 @@ kroppen.
 `published_at` leses fra `Last-Modified` der tjenesten sender den, og
 står ellers tom — aldri hentetidspunktet (CLAUDE.md 1b-7).
 
+En kropp som er kortere enn halvparten av forrige versjon, eller som
+mangler partens kjennetegn, går i karantene (`regler()`, core/karantene.py)
+i stedet for inn i serien, og kjøringen ender rød.
+
 ## Hvorfor dette ikke er en kilde
 
 En vilkårsside er ikke data om havbruk, og den gir ingen `Observation`.
@@ -53,12 +57,14 @@ docs/beslutninger/2026-10-06-arkivkropper-kodeproveniens.md.
 
 import argparse
 import datetime as dt
+import gzip
 import hashlib
 import json
 import sys
 
 import httpx
 
+from core import karantene
 from core import kodeproveniens
 from core import raw as raw_arkiv
 from core.karantene import synlig_tekst
@@ -85,8 +91,57 @@ SIDER = {
 
 LOGG_KILDE = "vilkar"
 
+# ## Når en kropp er mistenkt (MALING-DRIFT F1.1, fra 03.11.2026)
+#
+# Til 03.11.2026 lagret skriptet alt som kom med status 200: en feilside,
+# en tom liste og en halv kropp ble fem nye kropper hver, og kjøringen var
+# grønn. Nå går en mistenkt kropp i karantene (core/karantene.py), og
+# kjøringen ender rød.
+#
+# Mot forrige versjon av samme vilkår:
+#   * synlig tekst minst HALVPARTEN av forrige versjons, og
+#   * kjennetegnet under i den synlige teksten.
+# Første versjon av et vilkår har ingen forrige, og ikke noe målt
+# kjennetegn: der gjelder bare minstelengden.
+#
+# KJENNETEGNET er målt i arkivet 03.11.2026, i hver kropp som lå der (2–3
+# per part, analyse/drift/kjennetegn.txt). Fire av sidene nevner lisensen
+# de er arkivert for, NLOD; Mattilsynets side nevner den ikke, men hviler
+# på opphavsretten. Forsvinner ordet, er det enten ikke vilkårssiden
+# lenger, eller så har vilkåret endret seg — begge deler skal en leser se
+# før kroppen blir forrige versjon.
+KJENNETEGN = {
+    "barentswatch": "NLOD",
+    "fiskeridir": "NLOD",
+    "brreg": "NLOD",
+    "lovdata": "NLOD",
+    "mattilsynet": "opphavsrett",
+}
+# Halvparten av den korteste synlige teksten i arkivet, vilkar-brreg med
+# 1 480 tegn (analyse/drift/kjennetegn.txt). Samme halvering som regelen
+# mot forrige versjon; feilsiden i MALING-DRIFT har 62.
+MINSTE_TEKST = 740
+ANDEL_AV_FORRIGE = 0.5
+
+
 def kilde(part: str) -> str:
     return f"vilkar-{part}"
+
+
+def regler(part: str) -> list:
+    """Reglene for en ny kropp for `part`, mot det som ligger i serien."""
+    tidligere = raw_arkiv.kropper(kilde(part))
+    if not tidligere:
+        return [karantene.ikke_tom, karantene.minst_tekst(MINSTE_TEKST)]
+    with gzip.open(tidligere[-1], "rb") as f:
+        forrige = f.read()
+    ut = [karantene.ikke_tom, karantene.andel_av_forrige(forrige, ANDEL_AV_FORRIGE)]
+    if part in KJENNETEGN:
+        ut.append(karantene.nevner(KJENNETEGN[part]))
+    else:
+        print(f"::warning::Vilkårsarkivering: {part} har ingen målt KJENNETEGN. "
+              f"Mål det i arkivet (analyse/drift/kjennetegn.py) og før det opp.")
+    return ut
 
 
 def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
@@ -105,12 +160,18 @@ def arkiver(klient: httpx.Client, part: str, url: str, dato: str,
     tekst_sha = hashlib.sha256(synlig_tekst(kropp).encode("utf-8")).hexdigest()
     post = {"part": part, "url": url, "byte": len(kropp),
             "tekst_sha256": tekst_sha, "published_at": utgitt}
+    grunner = karantene.vurder(kropp, regler(part))
     if torr:
-        print(f"  ville arkivert  {len(kropp):>7} B  {url}")
-        return dict(post, torrkjoring=True)
+        print(f"  {'ville satt i karantene' if grunner else 'ville arkivert'}  "
+              f"{len(kropp):>7} B  {url}" + (f"  ({'; '.join(grunner)})" if grunner else ""))
+        return dict(post, torrkjoring=True, grunn=grunner)
 
     # Når VI hentet kroppen (CLAUDE.md 1b-7: OSS, ikke kilden).
     hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    if grunner:
+        return dict(post, **karantene.sett_inn(
+            kilde(part), dato, kropp, grunner, jobb="vilkar", fetched_at=hentet,
+            url=url, published_at=utgitt, tekst_sha256=tekst_sha))
     sha, ny = raw_arkiv.arkiver_ny(kilde(part), dato, kropp)
     print(f"  {'NY' if ny else 'uendret':<8} {len(kropp):>7} B  "
           f"{sha[:16]}…  tekst {tekst_sha[:12]}…  {url}")
@@ -152,7 +213,12 @@ def main(argv=None) -> int:
 
     nye = sum(1 for r in logg if r.get("ny"))
     feil = sum(1 for r in logg if "feil" in r)
-    print(f"\n{len(logg)} side(r), {nye} ny(e) kropp(er), {feil} feil.")
+    # En tørrkjøring som ville satt noe i karantene, er like rød som den
+    # ekte ville vært: det er det den finnes for å si.
+    karantenert = sum(1 for r in logg if r.get("status") == karantene.STATUS
+                      or (r.get("torrkjoring") and r.get("grunn")))
+    print(f"\n{len(logg)} side(r), {nye} ny(e) kropp(er), {feil} feil, "
+          f"{karantenert} i karantene.")
 
     if not a.torrkjor:
         mappe = raw_arkiv.ARKIV_DIR / LOGG_KILDE
@@ -164,8 +230,9 @@ def main(argv=None) -> int:
 
     # RØD ved én eneste feil. Kjøringen er månedlig, og en vilkårsside som
     # ikke kan hentes er en måned uten belegg for den parten. De andre
-    # sidene er arkivert uansett.
-    return 1 if feil else 0
+    # sidene er arkivert uansett. En kropp i karantene er det samme: den
+    # er tatt vare på, men parten har ingen ny versjon i serien.
+    return 1 if feil or karantenert else 0
 
 
 if __name__ == "__main__":

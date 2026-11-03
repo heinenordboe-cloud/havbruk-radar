@@ -1,0 +1,144 @@
+Kjennetegn og grenser for punkt 2–4, målt i arkivet
+arkiv: /Users/nordboe/havbruk-radar-data/data/arkiv
+
+vilkar: synlig tekst og kjennetegn per kropp
+  vilkar-barentswatch/2026-10-06.bin.gz      5459 tegn  «NLOD» True  9a7c5b00e1ed69d96083f3e8455b7687a9c340530d2f0d72913a0fd1e3773fc9
+  vilkar-barentswatch/2026-11-02.bin.gz      5510 tegn  «NLOD» True  573408e59b7b17d51cdd2bc7aa35a68ec5509d6959d496b196fbe6a055390bf0
+  vilkar-fiskeridir/2026-10-06.bin.gz      2086 tegn  «NLOD» True  b8a4b969f53d17093cfb8671cc7de88fc4b984f866d8dcc3e6690c0af4e28638
+  vilkar-fiskeridir/2026-11-02.bin.gz      2086 tegn  «NLOD» True  021c8692f14104b1986de78ad8f198948ab6ea52b699fec7034feb657ffdb0a3
+  vilkar-brreg/2026-10-06.bin.gz      1480 tegn  «NLOD» True  478b1b7fb9ddd047b4ce01cc90506d14fb7471ee22894d07d00a01ed70de0ad6
+  vilkar-brreg/2026-10-08.bin.gz      1480 tegn  «NLOD» True  9e7b980f7f2e356b340796363d763f6d0267d834dbe12151334daa21065f99b6
+  vilkar-brreg/2026-11-02.bin.gz      1480 tegn  «NLOD» True  341ca866e75ff37904f2bb55e1d3ca94c0d24784a800f51c1464746254204744
+  vilkar-lovdata/2026-10-06.bin.gz      6129 tegn  «NLOD» True  33f46a49695d9cc70563216f070ad61234ac37dca7dded834cfb3e0ae412b91d
+  vilkar-lovdata/2026-11-02.bin.gz      6129 tegn  «NLOD» True  4ef5a05f2e3e0266272663dd9b9ec12de8b3803e93d284fa6cb6b3f966564bcc
+  vilkar-mattilsynet/2026-10-09.bin.gz      3143 tegn  «opphavsrett» True  a60b9ca7c35e889623407242670b93e63558dfcec092379377bb5ac66816373c
+  vilkar-mattilsynet/2026-11-02.bin.gz      3143 tegn  «opphavsrett» True  28333f596dc97b7c4045063a9d79276a045191bd826d6fec154ee0069ae7d262
+  korteste synlige tekst: 1480 tegn (vilkar-brreg/2026-10-06.bin.gz); halvparten: 740
+
+havbruksfond: «havbruksfond» i synlig tekst, etter hva loggen sier kroppen var
+  havbruksfondet/2026-10-12.10.bin.gz   vedlegg                    False b'PK\x03\x04\x14' 66e57b9ee9118ec923df9ca4df8842110f16fb3fd8143fd07a1658b34392c2ab
+  havbruksfondet/2026-10-12.11.bin.gz   vedlegg                    True  b'%PDF-'       f855e14d60349543c693b66034bf331a4a0472785c0988c31a96e8a74fa1af8a
+  havbruksfondet/2026-10-12.12.bin.gz   instruks-2024-09-27        True  b'%PDF-'       a47f03cf9327614f68c618e84c9399e92bc932725f366f38c25a9de69606b925
+  havbruksfondet/2026-10-12.13.bin.gz   instruks-2022-11-30        False b'%PDF-'       fb3ae757c1e585ee80e424da115ac13759496b790fd50ee91783037de7d15232
+  havbruksfondet/2026-10-12.14.bin.gz   supplerende-instruks-2023  True  b'%PDF-'       ef32a8ce9736f4f8653496df21a77c31686955ab22cb84f3d74a30aa0cd44628
+  havbruksfondet/2026-10-12.2.bin.gz    vedlegg                    True  b'%PDF-'       7268d3366bcb79c70e04fce9b33676355d6bdc29d713f21d4b0b5acded2f4fda
+  havbruksfondet/2026-10-12.3.bin.gz    vedlegg                    False b'PK\x03\x04\x14' b783d48a02fdc05276702aa44eb27e1b15b161102bcd8f81cff6ac2798d64eb2
+  havbruksfondet/2026-10-12.4.bin.gz    vedlegg                    False b'PK\x03\x04\x14' e2730993adf48dee40ca5a23c17eaded531cdec98942cd27925635d5a69a6921
+  havbruksfondet/2026-10-12.5.bin.gz    vedlegg                    False b'PK\x03\x04\x14' 83d9e9b49554829da467920f4a12c93d6024f4b77cf214becc498fcc15977d46
+  havbruksfondet/2026-10-12.6.bin.gz    vedlegg                    False b'PK\x03\x04\x14' 4f91134c9b9768e2d2cd85685ce3b4f1a2d17b5dfab701a2496277ccb6056fd5
+  havbruksfondet/2026-10-12.7.bin.gz    vedlegg                    False b'PK\x03\x04\x14' 4a56b3c077e3695f55971a95d51f1f9f82d52aa0db29c18220c93db52cb3ba55
+  havbruksfondet/2026-10-12.8.bin.gz    vedlegg                    False b'PK\x03\x04\x14' e26cfffe259153d0f9fd9d84c3f2a89b3d904e290c0f48f5978a667e38308b76
+  havbruksfondet/2026-10-12.9.bin.gz    vedlegg                    False b'PK\x03\x04\x14' 98d41826d4dca8afefaedb482ae354c7e0fb09afeae213eb2ebe33f7863e65ad
+  havbruksfondet/2026-10-12.bin.gz      side                       True  b'\n<!do'      c1a2f596b3f7bfcf1a0422664dae431a957f6b468c278bccce9557266c4d6951
+  havbruksfondet/2026-10-19.bin.gz      side                       True  b'\n<!do'      3176b7001fe0ef66b9480a561dadced849371beb06dbc2f45620fefa3196d738
+  havbruksfondet/2026-10-23.bin.gz      side                       True  b'\n<!do'      7381c605edfa6eec4dc8de667e14c20309f3d2e00b4bdc7c11aca3b3f6a09c3f
+  havbruksfondet/2026-10-27.bin.gz      side                       True  b'\n<!do'      9e8fc99ef95a74fa6fd895632fbf3161d15a2f38db3f39ef69f9cd70f7ee4f87
+  havbruksfondet/2026-10-28.2.bin.gz    side                       True  b'\n<!do'      36e6bd650c6c6ef78a107b353e57a5507b30b42cae01c2db462f4c7297663331
+  havbruksfondet/2026-10-28.bin.gz      side                       True  b'\n<!do'      40b98b7666e72d42ad3c11b7ac4005991f21df669b899db4f9b32ca8d9dabe96
+  regjeringen-pressemeldinger/2017-10-30.bin.gz      (ikke i loggene)           False b'<!DOC'       896b9570c2d91346f06513fddba7bd7c45b1a5235950fb83f0410210b54eadda
+  regjeringen-pressemeldinger/2020-02-04.bin.gz      (ikke i loggene)           False b'<!DOC'       f02cd9a1494e908b6dc145b0551795c69b8f75425983b44dae1386e275ed9c6b
+  regjeringen-pressemeldinger/2022-06-07.bin.gz      (ikke i loggene)           False b'<!DOC'       637168e536c51114259825401ff0396425f75944b54f1b95af4b03ab0c5501c9
+  regjeringen-pressemeldinger/2024-03-06.bin.gz      (ikke i loggene)           False b'<!DOC'       c5681d286a37cf49304349c076b5e58af99ffbfc129ff0db0be261e670ef9c22
+  regjeringen-pressemeldinger/2024-06-06.bin.gz      fastpris-2024              True  b'<!DOC'       ced658f6756116387248c7410e7d902cc3b1c2f958658b687943ccb3fe1200b7
+  regjeringen-pressemeldinger/2024-06-25.bin.gz      auksjon-2024               True  b'<!DOC'       ce7c58a074e794350d850bf64919d52ece1c242403c67594a99bd543e67046aa
+  regjeringen-pressemeldinger/2025-11-10.bin.gz      utbetaling-2025            True  b'<!DOC'       35b92f454817a8bc6430314b69b2b799a296e84f2feee60d0a1fe6d2396b8a69
+  regjeringen-pressemeldinger/2026-06-19.bin.gz      (ikke i loggene)           False b'<!DOC'       b804dafd845a9908e14601e9dc855180c2115edaa4771402212496d610bdc194
+  regjeringen-pressemeldinger/2026-09-10.bin.gz      (ikke i loggene)           False b'<!DOC'       7237cbafc063088bb288449b458e3bc9d04c636b67d11d98b8b53fabfc1f6c5d
+  ntb-pressemeldinger/: ingen kropper
+
+auksjon: tom og <html
+  auksjon/2026-09-14.2.bin.gz       22734 B  tom False <html True  a188d3256bd32cd26fa811972c00bddcc8af19c0fdec85da12f7edf98e9ebb8e
+  auksjon/2026-09-14.3.bin.gz       27813 B  tom False <html True  6beea1a0927417630ca014940b09eaf07511e80e0bf57b5815eb483769c35646
+  auksjon/2026-09-14.4.bin.gz       28441 B  tom False <html True  be15964680b30a67e5391e4b769dcae320ab5eb11853fabc8d741ab7617c1d55
+  auksjon/2026-09-14.5.bin.gz       24517 B  tom False <html True  2c989817128bd89916300f00eaf85e1ab1fb6d3f1670a8370e2503b67031d370
+  auksjon/2026-09-14.6.bin.gz       22699 B  tom False <html True  186fcb825a5b1b7aacc09769dc456bc64e283edee30b80370ac5d99bebf6cbed
+  auksjon/2026-09-14.7.bin.gz       23162 B  tom False <html True  ac5cd856a20e28ddb5a939ab68d8a64069df7e244ddfbb24f5898824f8ca7d13
+  auksjon/2026-09-14.bin.gz         19069 B  tom False <html True  72423963e2f7c8cb4fa4c5d1afd2e2c965fe54c55d68542903bee52279434fef
+  auksjon/2026-09-20.2.bin.gz       22734 B  tom False <html True  3436a9440276dc98c879c1bfd85b9e9e29a110a18a10edc7e74535de7a610980
+  auksjon/2026-09-20.3.bin.gz       27813 B  tom False <html True  80195508cd68e6c524e2914e5c10d5f9ff9f224dc0ffea3b2596309913a42467
+  auksjon/2026-09-20.4.bin.gz       28441 B  tom False <html True  6a359a5ce416c4e76ec5767f8834322b6024fb4172bd27817719e384dc6daac2
+  auksjon/2026-09-20.5.bin.gz       24517 B  tom False <html True  393983b0756269e9e1d562eec999d5bcf000e2eb1fe08526969abe7541e00a17
+  auksjon/2026-09-20.6.bin.gz       22699 B  tom False <html True  c56377340323de341c02161e61ea89b0ff9634b7b8fd92e016d9d8868e95ab4b
+  auksjon/2026-09-20.7.bin.gz       23162 B  tom False <html True  1c6499c20697916d4183cd33cbb37f2856dfd98d6822e5eaa52b18e02775b02c
+  auksjon/2026-09-20.bin.gz         19069 B  tom False <html True  79458a143a402cda8594ce74bb0456511492f5253bf309454da846b636e57919
+  auksjon/2026-09-21.10.bin.gz      27813 B  tom False <html True  4bb3c4935b3f1e006aea8181846d645e4a3e59ab57c8bc35908a9c256e4a0b12
+  auksjon/2026-09-21.11.bin.gz      28441 B  tom False <html True  bc842ccab051f45959618d684b354edf9f927ff14b796f73123c444f0b6c02d4
+  auksjon/2026-09-21.12.bin.gz      24517 B  tom False <html True  1100098379a4fe8022ab48518095e6c39d21b3e4b5b6ef5725c985d34a623b5f
+  auksjon/2026-09-21.13.bin.gz      22699 B  tom False <html True  351ac4ca8c1a24e887469cf1dc191a60cb06b7b37afb3eb800615ade971a0e34
+  auksjon/2026-09-21.14.bin.gz      23162 B  tom False <html True  da1a5b857ea29d6a315020f28c918c83b4af7dbceda9974b6cbe76cbb04923f4
+  auksjon/2026-09-21.2.bin.gz       22734 B  tom False <html True  0ae3bdbe2b91639e101469d7510d99748c31da00b384b3de23de05323632f7d8
+  auksjon/2026-09-21.3.bin.gz       27813 B  tom False <html True  91eb3f0625caec9cec9502ed86cd9cf9bbdaa0f5123d1ecebdd12dded6f807cf
+  auksjon/2026-09-21.4.bin.gz       28441 B  tom False <html True  48921428802264e372627a9f34e8dc6d841594e809ef2483a5be0371d66d186d
+  auksjon/2026-09-21.5.bin.gz       24517 B  tom False <html True  86c9a4bbce86c3e06b2bc9992b72f48c9377130916a2bd0b5f2caf4e14ff697c
+  auksjon/2026-09-21.6.bin.gz       22699 B  tom False <html True  46477aa84519f4d44fa793d11783312bde4819d6f29bcf953d40ef97fcc66eee
+  auksjon/2026-09-21.7.bin.gz       23162 B  tom False <html True  d47bf5fea80d64674813bb967e0a6ceb99b86454b38f23aed929deebd4bf0801
+  auksjon/2026-09-21.8.bin.gz       19069 B  tom False <html True  4f5a37de3ae67ee2d6549ac6b64ecbbc5204b85b2367001f0482922ca7a611e8
+  auksjon/2026-09-21.9.bin.gz       22734 B  tom False <html True  2c49a32ae27dc9057106aea45225d71f683c6bace303a39ebf67375311434c6b
+  auksjon/2026-09-21.bin.gz         19069 B  tom False <html True  27241a6ea0ba677f5e43bdb8af09d8ae84429152ca68048f794989bccd26b448
+  auksjon/2026-09-23.10.bin.gz      27863 B  tom False <html True  c2b5ceb1c617fd119dbe875cc6c99de338f7873fc9ad13b29787b79b08c9fa36
+  auksjon/2026-09-23.11.bin.gz      28493 B  tom False <html True  ca1078692618ff8225981aaf3aa981255a64a2ffeaf8abba6cf0b641b80200fb
+  auksjon/2026-09-23.12.bin.gz      24578 B  tom False <html True  bd7dfcecd1d0a24812e18f0dbde31609968dde3407e8a03f79217ecb068c4423
+  auksjon/2026-09-23.13.bin.gz      22736 B  tom False <html True  ddbab141acf5565a3c9cfec305cca74af5b36d5b585553be0aa83c2c857393ae
+  auksjon/2026-09-23.14.bin.gz      23207 B  tom False <html True  11f81f47e0a2ed4905557be68e1f35ccc41020131a9476cd9f8e894b88e8cc87
+  auksjon/2026-09-23.2.bin.gz       22734 B  tom False <html True  272a3b7ba8b5a4db6c3eaf2919c40aee8f5c708c36472dda4e3fbf9a525eb25a
+  auksjon/2026-09-23.3.bin.gz       27813 B  tom False <html True  8809a72fe02cc69686c97290f92443893ddedf8e0d4914ae2dacf2d2e46a709f
+  auksjon/2026-09-23.4.bin.gz       28441 B  tom False <html True  483ffd70fb6fad2075b3794689c67b1b7fd70b93760df9a225752987856e6e6d
+  auksjon/2026-09-23.5.bin.gz       24517 B  tom False <html True  474cf2148fadbac28431412c4f89585e5fc1789f74f22fc7a8419532427ff592
+  auksjon/2026-09-23.6.bin.gz       22699 B  tom False <html True  0000f44a1881fd268c319a76e354f68546f99c1c494df90875ecb9210ddee9cf
+  auksjon/2026-09-23.7.bin.gz       23162 B  tom False <html True  52fe9fb2b8933b9ab466505aadb8e6320fd239e4f9ccca85382112c619b6304a
+  auksjon/2026-09-23.8.bin.gz       19143 B  tom False <html True  f58d2534808ba25573e08ad55f11e13d37a236cad882e6a727713e1fcc749b66
+  auksjon/2026-09-23.9.bin.gz       22765 B  tom False <html True  55dd871af9bbe36db7e397e80748c42d64124d55ce9418580e0121b6b9853951
+  auksjon/2026-09-23.bin.gz         19069 B  tom False <html True  28b357b2638924e1fdf10f617027e0601934ef4440c4061b412aeda216f21eba
+  auksjon/2026-09-29.10.bin.gz      27877 B  tom False <html True  c5efa4f8bfe07607cf217d8b3b94048453617430f00204a3c1360daca074347e
+  auksjon/2026-09-29.11.bin.gz      28507 B  tom False <html True  467fe7c659314aa1b86302383cd09fa6f48f8cbdb9b7ce1765652e2c705205f2
+  auksjon/2026-09-29.12.bin.gz      24592 B  tom False <html True  3c8bbf74900e71af3264fd50d46dc5e4da9600e41cd6b6b27697d9d9f8d6fac2
+  auksjon/2026-09-29.13.bin.gz      22750 B  tom False <html True  619249f2265c721b34d6823e7cd52586d2a91c545d31010fc9821587bc6ea1e5
+  auksjon/2026-09-29.14.bin.gz      23221 B  tom False <html True  0e4b4c55ec4ae4f5b2ca8902ed2432109114fa77c9ac9fb8108f0e5ecba7d20d
+  auksjon/2026-09-29.2.bin.gz       22779 B  tom False <html True  1c0c241e1b459caa53b6f69cea78c88deea2762f3b6613e39820a48d7c4cdffa
+  auksjon/2026-09-29.3.bin.gz       27877 B  tom False <html True  bc5709b9ee60cc1dfe6f1617f0e3702c76f14c6078454dd0c5fbd58af84beb9a
+  auksjon/2026-09-29.4.bin.gz       28507 B  tom False <html True  751017493ad8c394d4c923697a92bf4bcc60c897f9409234bcf693ff7939c1b5
+  auksjon/2026-09-29.5.bin.gz       24592 B  tom False <html True  52af3a7a1a70b6f68e4cfdde78d951e460b87a3914c6ce0433feff508c656e59
+  auksjon/2026-09-29.6.bin.gz       22750 B  tom False <html True  8dad976f4a9a7ecbf3ab51c01252c50c39cf94737ebf533df9fc15e958ed92c5
+  auksjon/2026-09-29.7.bin.gz       23221 B  tom False <html True  c7034afe86b43103ab5e4e88ceabda838d4525e5b58f8e067a2597c930b173e4
+  auksjon/2026-09-29.8.bin.gz       19157 B  tom False <html True  31c512f82692752bc5967a51351e9c56b2667bd8e15433ab25aa7f2974ce7e66
+  auksjon/2026-09-29.9.bin.gz       22779 B  tom False <html True  0fc7077d74df33e1bb8e7652080195b12c267c697c63f62a733ca87366f07876
+  auksjon/2026-09-29.bin.gz         19157 B  tom False <html True  322eb31797f1d695e731e5840183806ad9cf952318aa0f75b7ee42a9fef6a600
+  auksjon/2026-10-06.2.bin.gz       22779 B  tom False <html True  705c1c74336c5d83961b094312f7df96b7dc6be86c10bb980fe2f1469e046f6a
+  auksjon/2026-10-06.3.bin.gz       27877 B  tom False <html True  2270955039004cf847be0c229c5520cbd7667147f7d4e94f4c6add396941d9a9
+  auksjon/2026-10-06.4.bin.gz       28507 B  tom False <html True  da53fab6b4b1187864569f68baab173552d5801921eb3d6934499b8583281d08
+  auksjon/2026-10-06.5.bin.gz       24592 B  tom False <html True  a5f6f76cbdc4d28afaa80c3bc005cb18ce8a1c33f67b16197897bd817dc9206c
+  auksjon/2026-10-06.6.bin.gz       22750 B  tom False <html True  3291da7f3028bb09c78f21b8b02c15d485582c22967110cdf385e4793f77e45c
+  auksjon/2026-10-06.7.bin.gz       23221 B  tom False <html True  84f598f1293b1e1be91c4a3dc59610a5f8722b49c3a77c5f5e9d7976bf5a5aef
+  auksjon/2026-10-06.bin.gz         19157 B  tom False <html True  affae3be6614f5752cd226b72ac7a8821f1bc1471eff7b2de93c43b4fcb2984c
+  auksjon/2026-10-19.2.bin.gz       22779 B  tom False <html True  fcc5eba0a400f7b924fe7128ce7c288b88520745a41c8ee1aaa6179cb3ed7666
+  auksjon/2026-10-19.3.bin.gz       27877 B  tom False <html True  5c846a27046a7cac6779a56e59cd22d89d1cb005d60ca4ee4eb7c9491c89b896
+  auksjon/2026-10-19.4.bin.gz       28507 B  tom False <html True  60d95c685df4998d12656cc7100378b70ede00c1e2dcaebf73ad1bc3efe5adff
+  auksjon/2026-10-19.5.bin.gz       24592 B  tom False <html True  ab7c5947c1a4122d38462fca89decdcb8144290d047387e2a64f382e25c05731
+  auksjon/2026-10-19.6.bin.gz       22750 B  tom False <html True  5fae63431d1b75b4240a5fd20cb0e5a397ea799588b91d23e0351c8fc83c4a07
+  auksjon/2026-10-19.7.bin.gz       23221 B  tom False <html True  0fbadbc51507d33bf6ed5af87108f98b5824d2b59da8b976f704b13392555fe4
+  auksjon/2026-10-19.bin.gz         19157 B  tom False <html True  35a0bf915443851181c359b58edc43e4ad4eeef5044f814e01e2d5818538223c
+  auksjon/2026-10-23.2.bin.gz       25007 B  tom False <html True  a25e5ef56fd44a41825de93539bb3c72ca32d915afa0c81d1a9afdc356ea9f04
+  auksjon/2026-10-23.3.bin.gz       29840 B  tom False <html True  e5d4e5968d560438164ba9a6209d242c2387bff7dc73bd3fbd258bbe29b72b84
+  auksjon/2026-10-23.4.bin.gz       30456 B  tom False <html True  0c8fd704c1c84b85d722e62927d860c82c113e80f135dcac288caa6ffedce698
+  auksjon/2026-10-23.5.bin.gz       26536 B  tom False <html True  100d94c486dc7864f260794a3e69fe616cfd6b503bda72336713e325e6b32910
+  auksjon/2026-10-23.6.bin.gz       25020 B  tom False <html True  1bbd069c1c3fdae5dd894d6a3fe9d97d5eb224049ca95ec0f5f17c271b2123f6
+  auksjon/2026-10-23.7.bin.gz       25321 B  tom False <html True  b24674d07632caa6c731bca00e54d8a290d25eda09d762754278f21f4a4cb88c
+  auksjon/2026-10-23.bin.gz         20891 B  tom False <html True  4d118bfe61d3758031981295e1a589a7cb573f3fcbbdfb00d98edb0422eb3efe
+  auksjon/2026-10-27.2.bin.gz       25029 B  tom False <html True  0aac642064a2e818882debcdccb24a3ac1db35bdd6692c60c0f88083273200b5
+  auksjon/2026-10-27.3.bin.gz       29862 B  tom False <html True  6737c9cf4ed21a2c36d86488598b7719b0bf5a22f034f3295b9d65fcd8d53fcb
+  auksjon/2026-10-27.4.bin.gz       30478 B  tom False <html True  438887c07540138acf1001d2d34ad8c1770fa66e3c2391373ceb78e51ba50eb0
+  auksjon/2026-10-27.5.bin.gz       26558 B  tom False <html True  20c4e07cce6564fda9bd65056ca754abc711c1e851a009e67c4bcaf9e0703b55
+  auksjon/2026-10-27.6.bin.gz       25042 B  tom False <html True  93973ecad824a62c190907896e70111de2cbe3718808cd881792fb9becea50e7
+  auksjon/2026-10-27.7.bin.gz       25205 B  tom False <html True  b01c13549e9cf3e93abc7bc8b21e1bd558827d24c0b574625037b94eb61d23d1
+  auksjon/2026-10-27.8.bin.gz       25343 B  tom False <html True  0e26bf72f46ac3e0b2ee047478fcff9536275558758ca31c2b31b4fff1d61e9f
+  auksjon/2026-10-27.bin.gz         21359 B  tom False <html True  25e3a3a09ed6de5ac46591bb2d97f0f7e7798de40c979583e6a3a3feb84db616
+  auksjon/2026-10-28.bin.gz         25354 B  tom False <html True  54f04a72780e87feb2ec1dac1ec753bf6ae01dbd99d01319ab5824ecb36b8fed
+  auksjon/2026-10-29.2.bin.gz       25029 B  tom False <html True  7d7f8665c5becf87a12b8156e8771a2a40280cd0f775b99325479072bde1f1d3
+  auksjon/2026-10-29.3.bin.gz       29862 B  tom False <html True  dc74fc320e0d860ab4ad29704ee1dc42bfb70170eb2cc4a900f6da500f1dec49
+  auksjon/2026-10-29.4.bin.gz       30478 B  tom False <html True  42a0197ba471a750ffe7ef1b10d7ac5a8af2012fa25e465bce49dcec67a53300
+  auksjon/2026-10-29.5.bin.gz       26558 B  tom False <html True  7efbf487d3dc07f7b7cf5f116007ac724f07f1b4c6b4ed06d7e655989cbaba14
+  auksjon/2026-10-29.6.bin.gz       25042 B  tom False <html True  e1f2cc195d5c5be33abca3f0e19f6f1aa7902bb9e90b265228035dcb8b362a46
+  auksjon/2026-10-29.7.bin.gz       25354 B  tom False <html True  5abfad226ae24a7a099d4ba8e1f264b283c013111d4db6df332579cf0d9cab1a
+  auksjon/2026-10-29.8.bin.gz       25343 B  tom False <html True  5229c96ba73cfcc560771968638f59ed03489faef17576f99bf6963ce0117ff6
+  auksjon/2026-10-29.bin.gz         21359 B  tom False <html True  ec349d722235fb7400c3b3c652c413483f1d5b2bc78096d0e88f04ca67c6c9ed
+  94 kropper: tom=False <html=True: 94
