@@ -96,6 +96,19 @@ def _timer(v) -> bool:
     return isinstance(v, list) and all(isinstance(t, str) and TIME.match(t) for t in v)
 
 
+def _per_time(v) -> bool:
+    """{time: {"meldinger", "uten_mmsi"}} med ikke-negative heltall, og ikke
+    flere uten MMSI enn meldinger. Fra utlevering.py 03.11.2026; eldre
+    utleveringer har ikke feltet, og tilsynet sier fra om det selv."""
+    def heltall(x):
+        return isinstance(x, int) and not isinstance(x, bool) and x >= 0
+    return isinstance(v, dict) and all(
+        isinstance(t, str) and TIME.match(t) and isinstance(r, dict)
+        and heltall(r.get("meldinger")) and heltall(r.get("uten_mmsi"))
+        and r["uten_mmsi"] <= r["meldinger"]
+        for t, r in v.items())
+
+
 def feil_i(data) -> list[str]:
     """Hva som er galt med utleveringen. Tom liste: ingenting.
 
@@ -128,6 +141,9 @@ def feil_i(data) -> list[str]:
                     and _timer(r.get("mangler"))):
                 ut.append(f"regnskap for {kilde!r} har ikke timer, tomme og "
                           f"mangler som timer: {r!r}"[:300])
+            elif "per_time" in r and not _per_time(r["per_time"]):
+                ut.append(f"regnskap for {kilde!r} har per_time, men ikke som "
+                          f"timer med meldinger og uten_mmsi: {r['per_time']!r}"[:300])
     manifester = data.get("manifester")
     if not isinstance(manifester, list):
         ut.append(f"manifester er ikke en liste: {type(manifester).__name__}")

@@ -24,7 +24,9 @@ def test_status_tomme_og_manglende_timer_og_lukkede_dogn(tmp_path, monkeypatch):
         (bw / "2026-10-29" / f"2026-10-29T{h:02}Z.regnskap.json").write_text('{"meldinger": 5}')
     for h in range(0, 6):
         m = 0 if h == 3 else 5
-        (bw / "2026-10-30" / f"2026-10-30T{h:02}Z.regnskap.json").write_text(f'{{"meldinger": {m}}}')
+        u = 2 if h == 4 else 0
+        (bw / "2026-10-30" / f"2026-10-30T{h:02}Z.regnskap.json").write_text(
+            f'{{"meldinger": {m}, "uten_mmsi": {u}}}')
     (bw / "2026-10-29" / "2026-10-29T10Z.regnskap.json").unlink()
     eh = tmp_path / "ais/bw/etterhentet"
     for dato in ("2026-10-14", "2026-10-16"):
@@ -37,6 +39,12 @@ def test_status_tomme_og_manglende_timer_og_lukkede_dogn(tmp_path, monkeypatch):
     r = s["regnskap"]["bw"]
     assert r["timer"] == ["2026-10-29T06Z", "2026-10-30T05Z"]
     assert r["tomme"] == ["2026-10-30T03Z"] and r["mangler"] == ["2026-10-29T10Z"]
+    # Linjetallene per time, for tilsynets grense på andelen uten MMSI.
+    assert len(r["per_time"]) == 23, "alle med regnskap, ikke den som mangler"
+    assert r["per_time"]["2026-10-30T04Z"] == {"meldinger": 5, "uten_mmsi": 2}
+    assert r["per_time"]["2026-10-29T06Z"] == {"meldinger": 5, "uten_mmsi": 0}, \
+        "et regnskap uten feltet teller null"
+    assert r["per_time"]["2026-10-30T03Z"]["meldinger"] == 0
     assert len(s["regnskap"]["5632"]["mangler"]) == 24
     assert s["kopi_sist_ok"] == "2026-10-30T00:41:00Z"
     # Lytterens døgn er lukket når datoen er forbi; hulljegerens etter 15.

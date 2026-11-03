@@ -85,6 +85,9 @@ GAMMEL = '{"skrevet": "2026-10-29T08:30:00Z"}\n'
                                             "mangler": []}})).encode(),
      "regnskap for 'bw'"),
     (json.dumps(utlevering(kopi_sist_ok=17)).encode(), "kopi_sist_ok"),
+    (json.dumps(utlevering(regnskap={"bw": dict(REGNSKAP["bw"], per_time={
+        "2026-10-30T05Z": {"meldinger": 3, "uten_mmsi": 4}})})).encode(),
+     "har per_time, men"),
 ])
 def test_mistenkt_utlevering_gaar_i_karantene_og_status_staar(data, monkeypatch,
                                                              capsys, kropp, grunn):
@@ -124,3 +127,12 @@ def test_den_ekte_formen_fra_kystvakt_1_slipper_gjennom(data, monkeypatch):
     inn(monkeypatch, json.dumps(st).encode())
     assert ais_manifest.main() == 0
     assert json.loads((data / "ais/status.json").read_text())["kopi_sist_ok"] is None
+
+
+def test_per_time_fra_utleveringen_skrives_med_statusen(data, monkeypatch):
+    pt = {"2026-10-30T05Z": {"meldinger": 824418, "uten_mmsi": 0}}
+    st = utlevering(regnskap={"bw": dict(REGNSKAP["bw"], per_time=pt)})
+    inn(monkeypatch, json.dumps(st).encode())
+    assert ais_manifest.main() == 0
+    skrevet = json.loads((data / "ais/status.json").read_text())
+    assert skrevet["regnskap"]["bw"]["per_time"] == pt

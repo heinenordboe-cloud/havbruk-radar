@@ -9,12 +9,19 @@ henter, og ais_manifest.py i kodrepoet skriver.
     {"skrevet": UTC,
      "disk": {"brukt_prosent", "ledig_bytes"},           /srv
      "kopi_sist_ok": UTC | null,                          kopi.py
-     "regnskap": {kilde: {"timer", "tomme", "mangler"}},  siste 24 timer
+     "regnskap": {kilde: {"timer", "tomme", "mangler",    siste 24 timer
+                          "per_time"}},
      "manifester": [{"kilde", "dato", "innhold"}]}        lukkede døgn
 
 Et regnskap er tomt når `meldinger` er 0, og det mangler når timen er
 ferdig regnet (tre timer siden: én time, to timers venting på den andre
 kilden, ti minutter) uten at fila finnes.
+
+`per_time` er `meldinger` og `uten_mmsi` for hver time i vinduet som har
+regnskap (fra 03.11.2026). Lytteren lagrer alt som kommer etter en 200
+urørt, også en feilside, og tilsyn.py er rødt når andelen uten MMSI i en
+time passerer grensen MALING-DRIFT 0c målte. Uten tallene her kan
+tilsynet ikke se det.
 
 Et døgn er lukket for lytterne når UTC-datoen er forbi. For hulljegeren
 først etter 15 døgn: den kan legge nye filer i et døgn så lenge
@@ -38,16 +45,20 @@ DATO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 def regnskap(rot: Path, naa: datetime) -> dict:
     siste = (naa - timedelta(hours=3, minutes=10)).replace(minute=0, second=0, microsecond=0)
     timer = [siste - timedelta(hours=i) for i in range(24)][::-1]
-    tomme, mangler = [], []
+    tomme, mangler, per_time = [], [], {}
     for t in timer:
         navn = t.strftime("%Y-%m-%dT%HZ")
         sti = rot / navn[:10] / f"{navn}.regnskap.json"
         if not sti.exists():
             mangler.append(navn)
-        elif json.loads(sti.read_text()).get("meldinger", 0) == 0:
+            continue
+        r = json.loads(sti.read_text())
+        per_time[navn] = {"meldinger": r.get("meldinger", 0),
+                          "uten_mmsi": r.get("uten_mmsi", 0)}
+        if per_time[navn]["meldinger"] == 0:
             tomme.append(navn)
     return {"timer": [timer[0].strftime("%Y-%m-%dT%HZ"), timer[-1].strftime("%Y-%m-%dT%HZ")],
-            "tomme": tomme, "mangler": mangler}
+            "tomme": tomme, "mangler": mangler, "per_time": per_time}
 
 
 def manifester(naa: datetime) -> list[dict]:
