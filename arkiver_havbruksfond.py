@@ -104,6 +104,7 @@ import sys
 
 import httpx
 
+from core import karantene
 from core import kodeproveniens
 from core import raw as raw_arkiv
 from core.karantene import synlig_tekst
@@ -113,6 +114,15 @@ KILDE = "havbruksfondet"
 PRESSE = "regjeringen-pressemeldinger"
 
 SIDE = "https://www.fiskeridir.no/akvakultur/havbruksfondet"
+
+# SIDEN SKAL NEVNE FONDET før den lagres (MALING-DRIFT F1.2, fra
+# 03.11.2026). Til da lagret `--daglig` en feilside, en tom liste og en
+# halv kropp som en ny versjon av siden, med exit 0. Målt i arkivet
+# 03.11.2026: alle seks versjonene av siden har «havbruksfond» i den
+# synlige teksten (analyse/drift/kjennetegn.txt). Regelen gjelder bare
+# siden: åtte av ti vedlegg er regneark uten ordet, og ingen kropp fra NTB
+# er arkivert ennå, så for dem finnes ingenting å måle en regel mot.
+SIDE_REGLER = (karantene.nevner("havbruksfond"),)
 
 UA = "havbruk-radar/1.0 (kildearkivering; kontakt via repoet)"
 
@@ -258,7 +268,10 @@ def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
 
 def _arkiver(klient, hva: str, url: str, kilde: str, dato: str,
              torr: bool, logg: list, kropp_og_utgitt=None,
-             ekstra: dict | None = None) -> bytes | None:
+             ekstra: dict | None = None, regler=()) -> bytes | None:
+    """Henter, vurderer og arkiverer én kropp. Returnerer kroppen, eller
+    None når den ikke kunne hentes eller gikk i karantene — da skal ingen
+    lese lenker ut av den."""
     try:
         kropp, utgitt = kropp_og_utgitt or _hent(klient, url)
     except Exception as e:
@@ -278,13 +291,21 @@ def _arkiver(klient, hva: str, url: str, kilde: str, dato: str,
     meta = pdf_metadata(kropp)
     if meta:
         post["pdf"] = meta
+    grunner = karantene.vurder(kropp, regler)
     if torr:
-        print(f"  ville arkivert  {len(kropp):>7} B  {kilde}/{dato}  {hva}")
-        logg.append(dict(post, torrkjoring=True))
-        return kropp
+        print(f"  {'ville satt i karantene' if grunner else 'ville arkivert'}  "
+              f"{len(kropp):>7} B  {kilde}/{dato}  {hva}"
+              + (f"  ({'; '.join(grunner)})" if grunner else ""))
+        logg.append(dict(post, torrkjoring=True, grunn=grunner))
+        return None if grunner else kropp
 
     # Når VI hentet kroppen (CLAUDE.md 1b-7: OSS, ikke kilden).
     hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    if grunner:
+        logg.append(dict(post, **karantene.sett_inn(
+            kilde, dato, kropp, grunner, jobb="havbruksfond", fetched_at=hentet,
+            hva=hva, url=url, published_at=utgitt)))
+        return None
     sha, ny = raw_arkiv.arkiver_ny(kilde, dato, kropp)
     print(f"  {'NY' if ny else 'uendret':<8} {len(kropp):>7} B  {sha[:16]}…  "
           f"{kilde}/{dato}  {hva}")
@@ -389,7 +410,8 @@ def main(argv=None) -> int:
     with httpx.Client(timeout=60.0, follow_redirects=True,
                       headers={"User-Agent": UA}) as klient:
         print("\nFiskeridirektoratet:")
-        side = _arkiver(klient, "side", SIDE, KILDE, dato, a.torrkjor, logg)
+        side = _arkiver(klient, "side", SIDE, KILDE, dato, a.torrkjor, logg,
+                        regler=SIDE_REGLER)
         lenker = vedlegg(side) if side else []
         if side is not None and not lenker:
             # Siden har lenket ni regneark og ett brev siden før 12.10.2026.
@@ -417,15 +439,17 @@ def main(argv=None) -> int:
 
     nye = sum(1 for r in logg if r.get("ny"))
     feil = sum(1 for r in logg if "feil" in r)
+    karantenert = sum(1 for r in logg if r.get("status") == karantene.STATUS
+                      or (r.get("torrkjoring") and r.get("grunn")))
     print(f"\n{sum(1 for r in logg if 'url' in r)} adresse(r), {nye} ny(e) "
-          f"kropp(er), {feil} feil.")
+          f"kropp(er), {feil} feil, {karantenert} i karantene.")
 
     # Med --daglig skrives en ny logg bare første kjøring på en dato, eller
     # når noe nytt kom inn. Ellers ville tre kjøringer i døgnet gitt tre
     # commits om dagen uten nytt innhold. Første logg per dato blir
     # stående som kvittering på at jobben kjørte.
     mappe = raw_arkiv.ARKIV_DIR / KILDE
-    stille = (a.daglig and not nye
+    stille = (a.daglig and not nye and not karantenert
               and (mappe / f"{dato}.logg.json").exists())
     if not a.torrkjor and not stille:
         mappe.mkdir(parents=True, exist_ok=True)
@@ -439,9 +463,10 @@ def main(argv=None) -> int:
 
     if a.daglig:
         # Som arkiver_auksjon: én død adresse skal ikke koste dagens funn,
-        # men en dag der ALT feilet, skal være rød.
-        return 1 if feil and nye == 0 else 0
-    return 1 if feil else 0
+        # men en dag der ALT feilet, skal være rød. En kropp i karantene er
+        # rød uansett: den er tatt vare på, men noen må se på den.
+        return 1 if karantenert or (feil and nye == 0) else 0
+    return 1 if feil or karantenert else 0
 
 
 if __name__ == "__main__":

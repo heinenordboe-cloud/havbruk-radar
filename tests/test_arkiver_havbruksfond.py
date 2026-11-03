@@ -17,8 +17,9 @@ V1 = ("/akvakultur/havbruksfondet/_/attachment/download/aa:bb/"
       "Beregning%20utbetaling%202025.xlsx")
 V2 = ("/akvakultur/havbruksfondet/_/attachment/inline/cc:dd/"
       "Orientering%202025.pdf")
-SIDE = (f'<html><body><a href="{V1}">2025</a><a href="{V2}">brev</a>'
-        f'<a href="{V1}">igjen</a><a href="/annet">x</a></body></html>').encode()
+SIDE = (f'<html><body><h1>Havbruksfondet</h1><a href="{V1}">2025</a>'
+        f'<a href="{V2}">brev</a><a href="{V1}">igjen</a><a href="/annet">x</a>'
+        f'</body></html>').encode()
 PM = (b"<html><body><p>Pressemelding | Dato: 10.11.2025 | "
       b"N\xc3\xa6rings- og fiskeridepartementet</p></body></html>")
 
@@ -92,7 +93,7 @@ def test_published_at_er_tom_uten_header_aldri_hentetidspunktet(
 
 
 def test_side_uten_vedlegg_gir_advarsel_i_loggen(arkiv, monkeypatch):
-    _svar(monkeypatch, side=b"<html>ingen lenker</html>")
+    _svar(monkeypatch, side=b"<html><h1>Havbruksfondet</h1>ingen lenker</html>")
     ark.main(["--dato", "2026-10-12"])
     logg = json.loads((arkiv / "havbruksfondet" / "2026-10-12.logg.json")
                       .read_text())
@@ -243,3 +244,64 @@ def test_daglig_uten_noe_nytt_skriver_ingen_ny_logg(arkiv, monkeypatch):
     ark.main(["--daglig", "--dato", "2026-11-12"])
     assert [p.name for p in (arkiv / "havbruksfondet").glob("*.logg.json")] \
         == ["2026-11-12.logg.json"]
+
+
+
+# ---------------------------------------------------------------- karantene
+#
+# MALING-DRIFT F1.2: `--daglig` lagret feilside, tom liste, tom kropp og
+# halv kropp som en ny versjon av siden, med exit 0.
+
+FEILSIDE = (b"<!DOCTYPE html><html><head><title>Feil</title></head><body>"
+            b"<h1>Tjenesten er midlertidig utilgjengelig</h1></body></html>")
+
+
+@pytest.mark.parametrize("side", [FEILSIDE, b"[]", b""])
+def test_daglig_side_uten_fondet_gaar_i_karantene_og_er_rod(arkiv, monkeypatch,
+                                                           capsys, side):
+    _daglig(monkeypatch, rss=b"<rss><channel></channel></rss>")
+    hentet = []
+
+    def hent(klient, url):
+        hentet.append(url)
+        return (side, "") if url == ark.SIDE else (b"%PDF-1.7", "")
+    monkeypatch.setattr(ark, "_hent", hent)
+
+    assert ark.main(["--daglig", "--dato", "2026-11-12"]) == 1
+    assert hentet == [ark.SIDE], "ingen vedlegg lest ut av en mistenkt side"
+    assert raw_arkiv.kropper("havbruksfondet") == []
+    [kropp] = (arkiv / "havbruksfondet" / "karantene").glob("*.gz")
+    assert gzip.open(kropp).read() == side
+    logg = json.loads((arkiv / "havbruksfondet" / "2026-11-12.logg.json")
+                      .read_text())
+    [post] = [r for r in logg if r.get("status") == "karantene"]
+    assert post["grunn"] == ["synlig tekst nevner ikke «havbruksfond»"]
+    assert post["hva"] == "side" and post["kode_commit"] == "a" * 40
+    assert "::error::Karantene (havbruksfond)" in capsys.readouterr().out
+
+
+def test_daglig_karantene_skriver_logg_selv_om_dagens_finnes(arkiv, monkeypatch):
+    """Den stille regelen (ingen ny logg uten noe nytt) skal ikke svelge en
+    karantene: posten er det eneste som sier hvorfor kjøringen var rød."""
+    _daglig(monkeypatch, rss=b"<rss><channel></channel></rss>")
+    ark.main(["--daglig", "--dato", "2026-11-12"])
+    monkeypatch.setattr(ark, "_hent", lambda k, url: (FEILSIDE, ""))
+    assert ark.main(["--daglig", "--dato", "2026-11-12"]) == 1
+    assert sorted(p.name for p in (arkiv / "havbruksfondet").glob("*.logg.json")) \
+        == ["2026-11-12.2.logg.json", "2026-11-12.logg.json"]
+
+
+def test_vedlegg_uten_ordet_er_ikke_mistenkt(arkiv, monkeypatch):
+    """Regelen gjelder siden. Regnearkene nevner ikke fondet (8 av 10 i
+    arkivet 03.11.2026), og skal fortsatt inn."""
+    _daglig(monkeypatch, rss=b"<rss><channel></channel></rss>")
+    assert ark.main(["--daglig", "--dato", "2026-11-12"]) == 0
+    assert len(raw_arkiv.kropper("havbruksfondet")) == 3
+
+
+def test_torrkjoring_sier_fra_om_karantene(arkiv, monkeypatch, capsys):
+    _daglig(monkeypatch, rss=b"<rss><channel></channel></rss>")
+    monkeypatch.setattr(ark, "_hent", lambda k, url: (FEILSIDE, ""))
+    assert ark.main(["--daglig", "--torrkjor", "--dato", "2026-11-12"]) == 1
+    assert "ville satt i karantene" in capsys.readouterr().out
+    assert not (arkiv / "havbruksfondet").exists()
