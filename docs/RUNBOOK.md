@@ -1192,6 +1192,47 @@ kalendre som har det.
 Feiler `ots stamp` (kalendrene svarer ikke), blir jobben rød, manifestet
 committes likevel, og neste kjøring stempler det.
 
+## AIS: en ny `utlevering.py` på kystvakt-1
+
+`ais-manifest.yml` henter `data/ais/status.json` og dagsmanifestene ved å
+logge inn som `utlevering` med nøkkelen i secreten
+`AIS_UTLEVERING_NOKKEL`. Hva klienten ber om, ignoreres:
+`/var/lib/utlevering/.ssh/authorized_keys` har
+`restrict,command="/usr/bin/python3 /opt/kystvakt/utlevering.py"`. Det er
+derfor fila under `/opt/kystvakt/` som må byttes når
+`kystvakt/utlevering.py` endres i kodrepoet — og bare den. Nøkkelen,
+`authorized_keys` og sshd røres ikke.
+
+Fila eies av `root:root` med 644. Første gang gjort 03.11.2026 (gammel
+sha256 `e6116000…`, ny `ddc02405…`, med `per_time` til tilsynets
+MMSI-grense). Fra kodrepoet, med `<dato>` som dagens dato:
+
+```bash
+sha256sum kystvakt/utlevering.py
+ssh kystvakt 'sudo -n stat -c "%U:%G %a" /opt/kystvakt/utlevering.py; sudo -n sha256sum /opt/kystvakt/utlevering.py'
+ssh kystvakt 'sudo -n cp -p /opt/kystvakt/utlevering.py /opt/kystvakt/utlevering.py.<dato> && cat > /tmp/utlevering.py.ny && sha256sum /tmp/utlevering.py.ny' < kystvakt/utlevering.py
+ssh kystvakt 'sudo -n install -o root -g root -m 644 /tmp/utlevering.py.ny /opt/kystvakt/utlevering.py && rm /tmp/utlevering.py.ny && sudo -n sha256sum /opt/kystvakt/utlevering.py'
+```
+
+Den første linja og den siste skal gi samme sha256. Prøv den tvungne
+kommandoen som brukeren `utlevering`, og kjør svaret gjennom
+`ais_manifest.py` i en tom datamappe — ikke i datarepoet:
+
+```bash
+ssh kystvakt 'sudo -n -u utlevering /usr/bin/python3 /opt/kystvakt/utlevering.py' > /tmp/utlevering.json
+mkdir -p /tmp/aisprove/data && HAVBRUK_DATA_DIR=/tmp/aisprove/data .venv/bin/python ais_manifest.py < /tmp/utlevering.json
+```
+
+`ais_manifest.py` skal ende med exit 0 og ikke legge noe i
+`/tmp/aisprove/data/arkiv/ais-manifest/karantene/`. Den virkelige prøven
+er neste kjøring av «AIS-manifest», som går med nøkkelen; start den med
+`gh workflow run ais-manifest.yml --repo heinenordboe-cloud/havbruk-radar-data`.
+Feiler noe, legges den gamle tilbake:
+
+```bash
+ssh kystvakt 'sudo -n install -o root -g root -m 644 /opt/kystvakt/utlevering.py.<dato> /opt/kystvakt/utlevering.py'
+```
+
 ## Ved behov: en eldre utgivelse inn i serien
 
 ```bash
