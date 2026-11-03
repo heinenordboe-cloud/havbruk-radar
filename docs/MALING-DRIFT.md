@@ -201,3 +201,36 @@ nedre grense for antallet i fangsten (UBELAGT om den trengs).
 Kjørt `.venv/bin/python analyse/drift/kroppssjekk.py`, se
 `analyse/drift/kroppssjekk.txt` (uendret). Linjene for samle er én per
 kilde og kropp; `rå arkivert` teller filer under `data/arkiv/`.
+
+## Etterskrift 03.11.2026: fire målinger før rettingen (økt 3b, punkt 0)
+
+Teksten over er ikke endret. Denne delen står før noe av funnene over er
+rettet, og reglene under ble skrevet og committet før 0b, 0c og 0d ble
+kjørt. Resultatene står under reglene.
+
+### Reglene, skrevet før målingen
+
+**0b, stoppregel.** Målingen kjører changeloggen og endringsdeteksjonen
+(`diff.compare`, `changelog.skriv_per_dato`, `signals.score`) mot
+snapshotet fra den halve sjøtemperaturkroppen, og leter i tillegg i
+ARKIVET etter et halvt snapshot som allerede har gitt falske hendelser.
+Et halvt snapshot er her et snapshot i `data/raw/<kilde>/` med færre enn
+90 % (volumvaktens `STANDARD_MIN_ANDEL`) av entitetene i snapshotet
+foran, der snapshotet etter igjen har minst 90 %. En falsk hendelse er
+en `borte`-rad i `data/changelog/<kilde>/` på datoen til et slikt
+snapshot, for en entitet som står som `ny` på datoen etter. Finnes én
+eneste: arbeidet stopper før punkt 1, radene listes, og Heine avgjør.
+
+**0c, grensen for lytterne.** Grunnlaget er hvert timeregnskap siden
+28.10.2026 med minst én melding, per kilde, og andelen er
+`uten_mmsi / meldinger`. Grensen per kilde blir den høyeste timeandelen i
+grunnlaget, rundet opp til nærmeste hele prosent, så grunnlaget selv gir
+null alarmer. Ligger den høyeste andelen på 50 % eller mer, eller spenner
+timene over mer enn 20 prosentpoeng, bygges ingen grense i punkt 6:
+fordelingen rapporteres, og grunnen står her.
+
+**0d, luseinnkomsten.** For hver uke i `data/arkiv/lusetall-innkomst/`:
+antallet lokaliteter i hver kropp, i rekkefølgen kroppene ble hentet
+(`fetched_at` i fangstloggene, løpenummeret der loggen mangler). Går
+antallet ned fra én kropp til den neste for samme uke, bygges ikke
+regelen i punkt 9; kroppene listes i stedet.
