@@ -69,9 +69,9 @@ import sys
 
 import httpx
 
-from arkiver_vilkar import synlig_tekst
 from core import kodeproveniens
 from core import raw as raw_arkiv
+from core.karantene import synlig_tekst
 from sources import _http
 
 DOKUMENTER = {

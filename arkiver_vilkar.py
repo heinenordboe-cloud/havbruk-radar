@@ -54,15 +54,14 @@ docs/beslutninger/2026-10-06-arkivkropper-kodeproveniens.md.
 import argparse
 import datetime as dt
 import hashlib
-import html
 import json
-import re
 import sys
 
 import httpx
 
 from core import kodeproveniens
 from core import raw as raw_arkiv
+from core.karantene import synlig_tekst
 from sources import _http
 
 # Én mappe per part, så `arkiver_ny()` sammenligner hver side bare med
@@ -88,15 +87,6 @@ LOGG_KILDE = "vilkar"
 
 def kilde(part: str) -> str:
     return f"vilkar-{part}"
-
-
-def synlig_tekst(kropp: bytes) -> str:
-    """Teksten en leser ser, uten skript, stil og tagger. Grovt med vilje:
-    den skal bare kunne si om ordene er de samme som sist."""
-    t = kropp.decode("utf-8", "replace")
-    t = re.sub(r"(?is)<(script|style|noscript)\b.*?</\1>", " ", t)
-    t = re.sub(r"(?s)<[^>]+>", " ", t)
-    return " ".join(html.unescape(t).split())
 
 
 def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
