@@ -794,8 +794,17 @@ def oppdater(
             volum_strekk = gammel.get("volum_lavt_paa_rad", 0)
             volum_varsel = None
 
+        # UFULLSTENDIG: kilden leverte, men volumvakten slo til, og run.py
+        # skrev snapshotet merket (se `ufullstendig()`). Fra 03.11.2026 er
+        # det som en tom levering: et halvt svar er et forsøk, ikke et
+        # resultat (1b-2). `sist_ok` røres ikke, så frekvensvakten regner
+        # uka som uhentet og tirsdagens gjenkjøring prøver på nytt; gir den
+        # også et ufullstendig snapshot, ser tilsynet uka som manglende
+        # etter fristen i jobber.yml. Snapshotet blir stående (regel 2).
+        ufullstendig_naa = r.ok and not tom and volum_varsel is not None
+
         ny[r.source] = {
-            "sist_ok": (observed_at if r.ok and not tom
+            "sist_ok": (observed_at if r.ok and not tom and not ufullstendig_naa
                         else gammel.get("sist_ok")),
             "sist_forsok": observed_at,
             "feil_paa_rad": strekk,
@@ -816,6 +825,11 @@ def oppdater(
         # Datoen for siste tomme levering, båret videre som `sist_ok`.
         if gammel.get("sist_tom") and not tom:
             ny[r.source]["sist_tom"] = gammel["sist_tom"]
+        # Og for siste ufullstendige, på samme måte.
+        if ufullstendig_naa:
+            ny[r.source]["sist_ufullstendig"] = observed_at
+        elif gammel.get("sist_ufullstendig"):
+            ny[r.source]["sist_ufullstendig"] = gammel["sist_ufullstendig"]
 
         # Feltvakt: kun når kilden faktisk leverte. En nede kilde har
         # ingen felter, og skal ikke få referansen sin rasert.

@@ -1,0 +1,26 @@
+Halv mandag og hel tirsdag gjennom run.py, uten --tving
+datarepo: /Users/nordboe/havbruk-radar-data/data
+  halv    62954 B  sha256 74325650fc74c4ce2edd206abe1d68f462c7e0c2db01b23a5a1c9caa2ebba621
+  hel    125908 B  sha256 8e3ed284fde0eff10305373e95228bbb60756e742e65649052f1dfd67df95d40
+
+  volum_referanse 2739, sist_ok før mandag 2026-10-26
+
+2026-11-02 (halv): exit 0
+    [ok  ] sjotemperatur          1355 observasjoner
+    [delvis] sjotemperatur        snapshotet skrives merket ufullstendig; changeloggen lager ingen «borte» fra det
+    health: sist_ok 2026-10-26, sist_forsok 2026-11-02, sist_ufullstendig 2026-11-02
+    snapshot 2026-10-05.parquet: 1355 rader, ufullstendig ['ja']
+    changelog 2026-10-05 ny          8 rader
+    changelog 2026-10-05 endret    294 rader
+    changelog 2026-10-05 borte       0 rader
+
+2026-11-03 (hel): exit 0
+    [delvis] sjotemperatur        2026-10-05 ligger bare som ufullstendig snapshot; hentes på nytt
+    [ok  ] sjotemperatur          2733 observasjoner
+    health: sist_ok 2026-11-03, sist_forsok 2026-11-03, sist_ufullstendig 2026-11-02
+    snapshot 2026-10-05.2.parquet: 2733 rader, ufullstendig ['nei']
+    snapshot 2026-10-05.parquet: 1355 rader, ufullstendig ['ja']
+    changelog 2026-10-05 ny         17 rader
+    changelog 2026-10-05 endret    599 rader
+    changelog 2026-10-05 borte      12 rader
+

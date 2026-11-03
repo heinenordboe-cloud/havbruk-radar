@@ -464,9 +464,27 @@ def main() -> int:
     # stedene en kilde faller ut ikke kvitteres ut her.
     hoppet: dict[str, str] = {}
 
+    # Kilder med en dato som bare ligger som ufullstendige snapshots. De
+    # hentes på nytt (se under), og changeloggen for datoen skal da være
+    # det hele snapshotets, også når det ikke gir en eneste endring.
+    gjentatt: set[str] = set()
+
     if not args.torrkjor and not args.tving:
-        ferdige = [k for k in kilder
+        skrevet = [k for k in kilder
                    if k.name in snapshot.finnes_allerede(k.gjelder_for(kjoredato))]
+        # LIGGER DATOEN BARE UFULLSTENDIG, er uka ikke hentet (fra
+        # 03.11.2026). Mandagens halve snapshot blir stående, og
+        # gjenkjøringen skriver et nytt ved siden av (løpenummer). Det er
+        # frekvensvakten over som slipper kilden gjennom — health.oppdater
+        # gir et ufullstendig snapshot ingen `sist_ok` — og her den ikke
+        # skal stoppes igjen.
+        for kilde in skrevet:
+            gjelder = kilde.gjelder_for(kjoredato)
+            if not snapshot.helt_skrevet(kilde.name, gjelder):
+                gjentatt.add(kilde.name)
+                print(f"  [delvis] {kilde.name:<20} {gjelder} ligger bare som "
+                      f"ufullstendig snapshot; hentes på nytt")
+        ferdige = [k for k in skrevet if k.name not in gjentatt]
         for kilde in ferdige:
             gjelder = kilde.gjelder_for(kjoredato)
             print(f"  [har]  {kilde.name:<20} {gjelder} "
@@ -556,6 +574,12 @@ def main() -> int:
 
     # 7. Legg til i endringsloggen (egen fil per dato, aldri omskriving)
     changelog.skriv_per_dato(endringer)
+    # En gjenkjøring etter et ufullstendig snapshot som ikke ga en eneste
+    # endring: radene fra det ufullstendige skal ikke bli stående.
+    for r in resultater:
+        if (r.ok and r.source in gjentatt and r.count
+                and endringer.filter(pl.col("source") == r.source).is_empty()):
+            changelog.tom_for(r.source, r.gjelder_for)
 
     # 8. Oppdater helsetilstand
     #

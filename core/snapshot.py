@@ -583,7 +583,41 @@ def previous(source: str, before: str) -> pl.DataFrame | None:
     if not aktuelle:
         return None
 
-    return forrige_versjon(source, max(aktuelle))
+    return gjeldende(source, max(aktuelle))
+
+
+def gjeldende(source: str, observed_at: str) -> pl.DataFrame | None:
+    """Snapshotet som GJELDER for datoen, for diff og changelog.
+
+    Nyeste påstand (`forrige_versjon()`), med ett unntak fra 03.11.2026: en
+    versjon merket ufullstendig gjelder bare når hver versjon av datoen er
+    det. En uke med en halv mandag og en hel tirsdag har to snapshots, og
+    det hele er uka — også om noen skulle kjørt en ufullstendig etter den.
+    Det merkede blir stående (regel 2); det brukes bare aldri framfor et
+    helt. None: datoen finnes ikke.
+    """
+    versjonene = versjoner(source, observed_at)
+    if not versjonene:
+        return None
+    hele = [ramme for _, ramme in versjonene if not ufullstendig_i(ramme)]
+    return (hele or [ramme for _, ramme in versjonene])[-1]
+
+
+def helt_skrevet(source: str, observed_at: str) -> bool:
+    """Har datoen et snapshot som ikke er merket ufullstendig?
+
+    Spurt av run.py før den hopper over en kilde fordi datoen «ligger
+    skrevet fra før»: ligger den bare som ufullstendige snapshots, skal
+    gjenkjøringen hente den på nytt.
+    """
+    try:
+        versjonene = versjoner(source, observed_at)
+    except (OSError, pl.exceptions.PolarsError):
+        # En fil som ikke kan leses, er ikke et helt snapshot vi kan stå
+        # på. Fallback er å hente: en uke som ikke hentes, kan ikke hentes
+        # igjen, mens en henting for mye er et løpenummer (runner, 1b).
+        return False
+    return any(not ufullstendig_i(ramme) for _, ramme in versjonene)
 
 
 def versjon_av(sti: Path) -> int:
@@ -919,5 +953,8 @@ def les_mellom(source: str, fra: str, til: str) -> list[tuple[str, pl.DataFrame]
     lest = [(_dato_og_versjon(p.stem), _les(p))
             for p in target_dir.glob("*.parquet")
             if fra <= _dato_og_versjon(p.stem)[0] <= til]
-    lest.sort(key=lambda par: (par[0][0], publisert(par[1]), par[0][1]))
+    # Innenfor en dato står de ufullstendige først, så det SISTE innslaget
+    # kallerne tar som gjeldende er det samme som `gjeldende()` velger.
+    lest.sort(key=lambda par: (par[0][0], not ufullstendig_i(par[1]),
+                               publisert(par[1]), par[0][1]))
     return [(nokkel[0], ramme) for nokkel, ramme in lest]

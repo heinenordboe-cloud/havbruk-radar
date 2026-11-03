@@ -229,6 +229,25 @@ def skriv_per_dato(endringer: pl.DataFrame) -> list[Path]:
     return skrevet
 
 
+def tom_for(kilde: str, observed_at: str) -> Path | None:
+    """Erstatter kildens fil for datoen med en uten rader, når den finnes.
+
+    For gjenkjøringen etter et ufullstendig snapshot (run.py, fra
+    03.11.2026): det hele snapshotet er det som gjelder for changeloggen,
+    og `skriv()` overskriver datoens fil med det. Men gir det hele ingen
+    endringer, skriver `skriv()` ingenting, og radene fra det ufullstendige
+    ville blitt stående som datoens endringer. Fila er avledet og kan
+    regnes ut på nytt (regel 2, unntaket for changelog).
+    """
+    sti = CHANGELOG_DIR / kilde / f"{observed_at}.parquet"
+    if not sti.exists():
+        return None
+    from core.diff import CHANGE_SCHEMA
+
+    pl.DataFrame(schema=CHANGE_SCHEMA).write_parquet(sti)
+    return sti
+
+
 # Kilder der en entitet bærer sin egen startdato, og hvilket felt det er.
 #
 # Brukes bare av merk_utvalgsutvidelse() under, altså på HISTORISKE rader

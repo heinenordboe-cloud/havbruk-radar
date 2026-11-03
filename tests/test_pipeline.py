@@ -2610,11 +2610,12 @@ def test_steg_2b_skriver_kvitteringen_gjennom_main(tmp_path, monkeypatch):
     forfalt (sist_ok i en gammel ISO-uke), men gyldighetsdatoen ligger
     skrevet fra før, så 2b hopper over den uten å hente.
     """
-    # Gyldighetsdatoen ligger skrevet. finnes_allerede() ser bare på om
-    # fila finnes, så innholdet er uten betydning her.
-    ferdig = tmp_path / "raw" / "fastdato" / "2026-06-29.parquet"
-    ferdig.parent.mkdir(parents=True)
-    ferdig.touch()
+    # Gyldighetsdatoen ligger skrevet, som et ekte snapshot: fra 03.11.2026
+    # leser 2b det for å se om det er merket ufullstendig, og en fil som
+    # ikke kan leses, hentes på nytt (snapshot.helt_skrevet).
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    kilde = FastdatoKilde()
+    snapshot.write(list(kilde.parse(kilde.fetch(""), "2026-06-29")), "2026-06-29")
 
     # Begge kildene er forfalte: sist_ok ligger i en ISO-uke langt bak.
     kode, _ = _kjor_main(
@@ -5282,3 +5283,120 @@ def test_mistenkt_i_torrkjoring_skriver_ingenting(tmp_path, monkeypatch):
     monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
     _, [r] = runner.run_all([MistenktKilde()], "2026-11-02", arkiver=False)
     assert not r.ok and not list(tmp_path.iterdir())
+
+
+# ---- gjenkjøringen etter et ufullstendig snapshot ---------------------
+#
+# Fra 03.11.2026: et ufullstendig snapshot gir ingen sist_ok, så
+# tirsdagens gjenkjøring prøver på nytt og skriver et nytt snapshot ved
+# siden av. Det hele er det som gjelder for diff og changelog.
+
+class Ukentlig(UkeKilde):
+    """Gjelder for mandagen i kjøredatoens ISO-uke, som akvakultur."""
+
+    min_dager_mellom = 7
+
+    def gjelder_for(self, kjoredato):
+        from datetime import date, timedelta
+        d = date.fromisoformat(kjoredato)
+        return (d - timedelta(days=d.weekday())).isoformat()
+
+
+def _dag(tmp_path, monkeypatch, kilde, dag, lokaliteter, verdi):
+    """run.py uten --tving, med klokka satt til `dag`."""
+    import datetime as dt
+
+    import run
+
+    class Klokke(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return dt.datetime.fromisoformat(dag + "T06:00:00+00:00")
+
+    monkeypatch.setattr(run, "datetime", Klokke)
+    kilde.lokaliteter, kilde.verdi = lokaliteter, verdi
+    kode, _ = _kjor_main(tmp_path, monkeypatch, [kilde], ["run.py"])
+    return kode, health.les()["uker"]
+
+
+def _ukelogg(tmp_path, dato):
+    sti = tmp_path / "changelog" / "uker" / f"{dato}.parquet"
+    return pl.read_parquet(sti) if sti.exists() else None
+
+
+def test_halv_mandag_og_hel_tirsdag_gir_sist_ok_tirsdag_og_ingen_falske(
+        tmp_path, monkeypatch, capsys):
+    k = Ukentlig()
+    _dag(tmp_path, monkeypatch, k, "2026-11-02", range(10), "1")
+
+    _, h = _dag(tmp_path, monkeypatch, k, "2026-11-09", range(4), "2")
+    assert h["sist_ok"] == "2026-11-02", "et halvt snapshot er ikke et resultat"
+    assert h["sist_ufullstendig"] == "2026-11-09"
+
+    kode, h = _dag(tmp_path, monkeypatch, k, "2026-11-10", range(10), "2")
+    assert kode == 0 and h["sist_ok"] == "2026-11-10"
+    assert "[delvis] uker" in capsys.readouterr().out
+    raw = tmp_path / "raw" / "uker"
+    assert {p.name: sorted(set(pl.read_parquet(p)["ufullstendig"]))
+            for p in sorted(raw.glob("2026-11-09*.parquet"))} == {
+        "2026-11-09.parquet": ["ja"], "2026-11-09.2.parquet": ["nei"]}, \
+        "det merkede blir stående, gjenkjøringen skriver ved siden av"
+    e = _ukelogg(tmp_path, "2026-11-09")
+    assert set(e["change_type"]) == {"endret"} and e.height == 10, \
+        "changeloggen for uka er det hele snapshotets, mot uka før"
+    assert set(e["forrige_observed_at"]) == {"2026-11-02"}
+
+    _dag(tmp_path, monkeypatch, k, "2026-11-16", range(10), "3")
+    e = _ukelogg(tmp_path, "2026-11-16")
+    assert set(e["change_type"]) == {"endret"} and e.height == 10, "ingen «ny»"
+    assert set(e["old_value"]) == {"2"}, "mot det hele snapshotet for uka før"
+
+
+def test_halv_begge_dager_gir_ingen_sist_ok(tmp_path, monkeypatch):
+    k = Ukentlig()
+    _dag(tmp_path, monkeypatch, k, "2026-11-02", range(10), "1")
+    _dag(tmp_path, monkeypatch, k, "2026-11-09", range(4), "2")
+    _, h = _dag(tmp_path, monkeypatch, k, "2026-11-10", range(3, 8), "2")
+
+    assert h["sist_ok"] == "2026-11-02", \
+        "uka W46 har ingen sist_ok: tilsynet ser den som manglende fra onsdag"
+    assert h["sist_ufullstendig"] == "2026-11-10" and h["volum_lavt_paa_rad"] == 2
+    assert sorted(p.name for p in (tmp_path / "raw" / "uker").glob("2026-11-09*")) == \
+        ["2026-11-09.2.parquet", "2026-11-09.parquet"]
+    e = _ukelogg(tmp_path, "2026-11-09")
+    assert "borte" not in set(e["change_type"]), "det merkede gir aldri «borte»"
+
+
+def test_en_hel_gjenkjoring_uten_endringer_toemmer_datoens_logg(tmp_path, monkeypatch):
+    """Det hele snapshotet gjelder for changeloggen, også når det ikke gir
+    en eneste endring mot uka før."""
+    k = Ukentlig()
+    _dag(tmp_path, monkeypatch, k, "2026-11-02", range(10), "1")
+    _dag(tmp_path, monkeypatch, k, "2026-11-09", range(4), "2")
+    assert _ukelogg(tmp_path, "2026-11-09").height == 4
+    _dag(tmp_path, monkeypatch, k, "2026-11-10", range(10), "1")
+    assert _ukelogg(tmp_path, "2026-11-09").height == 0
+
+
+def test_det_hele_snapshotet_gjelder_ogsaa_naar_det_merkede_er_nyest(
+        tmp_path, monkeypatch):
+    k = Ukentlig()
+    _dag(tmp_path, monkeypatch, k, "2026-11-02", range(10), "1")
+    # Et merket snapshot skrevet ETTER et helt for samme dato (--tving).
+    _kjor_main(tmp_path, monkeypatch, [k], ["run.py", "--tving"])
+    k.lokaliteter = range(4)
+    _kjor_main(tmp_path, monkeypatch, [k], ["run.py", "--tving"])
+    dato = k.gjelder_for("2026-11-02")
+    gjeldende = snapshot.gjeldende("uker", dato)
+    assert gjeldende.height == 10 and snapshot.ufullstendig_i(gjeldende) is not True
+    assert snapshot.previous("uker", before="2026-11-09").height == 10
+    assert snapshot.les_mellom("uker", dato, dato)[-1][1].height == 10
+
+
+def test_en_snapshotfil_som_ikke_kan_leses_hentes_paa_nytt(tmp_path, monkeypatch):
+    """Fallback er å hente (1b): en uke som ikke hentes, kan ikke hentes
+    igjen, mens en henting for mye er et løpenummer."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    (tmp_path / "raw" / "uker").mkdir(parents=True)
+    (tmp_path / "raw" / "uker" / "2026-11-09.parquet").write_bytes(b"ikke parquet")
+    assert snapshot.helt_skrevet("uker", "2026-11-09") is False
