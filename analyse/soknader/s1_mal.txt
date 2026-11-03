@@ -1,0 +1,93 @@
+Tjenesten: copyrightText «Fiskeridirektoratet», lag [(0, 'Akvakultursøknad under behandling'), (1, 'Akvakultursøknad forankringspunkt'), (2, 'Akvakultursøknad flate'), (6, 'Gammel flate'), (4, 'Akvakultursøknad ferdigbehandlet'), (7, 'Akvakultursøknad forankringspunkt ferdigbehandlet'), (5, 'Akvakultursøknad flate ferdigbehandlet')], tabeller []
+
+== 1a. Lagene
+lag 0 under behandling: 296 poster, timeInfo None, editingInfo None, supportsQueryWithHistoricMoment None, relationships []
+   felt: objectid, shape, applicationno, applicantorganisationname, applicantorganisationnumber, type, soeknadstype, status_application, submittedat, sitenr, sitename, sitelatitudedecimaldegree, sitelongitudedecimaldegree, municipalityname, countymunicipalityname, isareachanged, desiredbiomass_value, plannedprod_value, plannedfeedsize_value, productioncycle_value, maxfeedoutsize_value, netdata_typedescription, netdata_depth_value, netdata_treatment, sitedata_prodareaname, art_popularname, art_scientificname, nonfish_prod_value, nonfish_productionsize_unit, licensedata_newlicenses, numtilsagn
+lag 1 forankringspunkt: 3509 poster, timeInfo None, editingInfo None, supportsQueryWithHistoricMoment None, relationships []
+   felt: objectid, shape, applicationno, applicantorganisationname, applicantorganisationnumber, soeknadstype, status_application, sitenr, sitename
+lag 2 flate: 149 poster, timeInfo None, editingInfo None, supportsQueryWithHistoricMoment None, relationships []
+   felt: objectid, shape, applicationno, applicantorganisationname, applicantorganisationnumber, soeknadstype, status_application, sitenr, sitename, originalarea, isareachanged
+lag 4 ferdigbehandlet: 664 poster, timeInfo None, editingInfo None, supportsQueryWithHistoricMoment None, relationships []
+   felt: objectid, shape, applicationno, applicantorganisationname, applicantorganisationnumber, soeknadstype, status_application, submittedat, withdrawnat, evaluation_result, evaluationfinishedat, sitenr, sitename, sitelatitudedecimaldegree, sitelongitudedecimaldegree, municipalityname, countymunicipalityname, isareachanged, desiredbiomass_value, plannedprod_value, plannedfeedsize_value, productioncycle_value, maxfeedoutsize_value, netdata_typedescription, netdata_depth_value, netdata_treatment, sitedata_prodareaname, art_popularname, art_scientificname, nonfish_prod_value, nonfish_productionsize_unit, licensedata_newlicenses, numtilsagn
+lag 5 flate ferdigbehandlet: 297 poster, timeInfo None, editingInfo None, supportsQueryWithHistoricMoment None, relationships []
+   felt: objectid, status_application, shape, applicationno, applicantorganisationname, applicantorganisationnumber, soeknadstype, sitenr, sitename, isareachanged, withdrawnat, evaluation_result
+lag 6 gammel flate: 125 poster, timeInfo None, editingInfo None, supportsQueryWithHistoricMoment None, relationships []
+   felt: objectid, status_application, shape, applicationno, applicantorganisationname, applicantorganisationnumber, soeknadstype, sitenr, sitename, evaluation_result, originalarea, withdrawnat, isareachanged
+lag 7 forankringspunkt ferdigbehandlet: 5223 poster, timeInfo None, editingInfo None, supportsQueryWithHistoricMoment None, relationships []
+   felt: objectid, shape, applicationno, applicantorganisationname, applicantorganisationnumber, soeknadstype, status_application, sitenr, sitename
+lag 0, historicMoment 01.09.2026 12 UTC (IKKE arkivert): sha256 77b22b6dbe370ba9, lik spørringen uten: True
+lag 4, historicMoment 01.09.2026 12 UTC (IKKE arkivert): sha256 ba5e5c229981409e, lik spørringen uten: True
+
+lag 0 (under behandling), 296 poster
+   status_application: {'SUBMITTED': 260, 'RETURNED': 36}
+   soeknadstype: {'Endring av lokalitet for laks, ørret og regnbueørret i sjø.': 74, 'Ny lokalitet for laks, ørret og regnbueørret i sjø.': 40, 'Akvakultur på land': 34, 'Ny tillatelse til andre fiskearter enn laks, ørret og regnbueørret.': 33, 'Søknad om samlokalisering': 32, 'Særlige formå': 32, 'Endring av flåte eller forankring': 14, 'SPECIAL_INTENTION_SITE_CLEARANCE': 11, 'Ny tillatelse til andre arter enn fisk': 8, 'RESEARCH': 7, 'Havbeite': 3, 'Melding om samlokalisering': 3, 'RESEARCH_EXPERIMENT_PLAN': 3, 'Fangstbasert akvakultur': 1, 'RESEARCH_EXTENSION': 1}
+   type: {'CHANGE_SITE': 74, 'NEW_SITE': 40, 'LAND_BASED_AQUACULTURE': 34, 'OTHER_FISH_SPECIES': 33, 'CO_LOCATION_APPLICATION': 32, 'SPECIAL_INTENTION': 32, 'MINOR_AREA_CHANGES': 14, 'SPECIAL_INTENTION_SITE_CLEARANCE': 11, 'NON_FISH_SPECIES': 8, 'RESEARCH': 7, 'SEA_FARMING': 3, 'CO_LOCATION_MESSAGE': 3, 'RESEARCH_EXPERIMENT_PLAN': 3, 'CATCH_BASED_AQUACULTURE': 1, 'RESEARCH_EXTENSION': 1}
+   submittedat: 296 satt, 2023-02-16 – 2026-11-03
+   desiredbiomass_value (omsøkt MTB) satt i 112
+   applicationno: 296 ulike, 0 går igjen
+
+lag 4 (ferdigbehandlet), 664 poster
+   status_application: {'PROCESSED': 573, 'WITHDRAWN': 91}
+   evaluation_result: {'GRANTED': 492, None: 91, 'DENIED': 81}
+   soeknadstype: {'Endring av lokalitet for laks, ørret og regnbueørret i sjø.': 230, 'Søknad om samlokalisering': 222, 'Ny lokalitet for laks, ørret og regnbueørret i sjø.': 50, 'Særlige formå': 34, 'Akvakultur på land': 30, 'Ny tillatelse til andre arter enn fisk': 24, 'SPECIAL_INTENTION_SITE_CLEARANCE': 21, 'Endring av flåte eller forankring': 18, 'Melding om samlokalisering': 17, 'Ny tillatelse til andre fiskearter enn laks, ørret og regnbueørret.': 11, 'Havbeite': 3, 'RESEARCH_EXPERIMENT_PLAN': 2, 'Fangstbasert akvakultur': 1, 'RESEARCH': 1}
+   submittedat: 664 satt, 2023-02-16 – 2026-10-28
+   withdrawnat: 91 satt, 2023-03-20 – 2026-11-02
+   evaluationfinishedat: 573 satt, 2023-06-05 – 2026-11-03
+   desiredbiomass_value (omsøkt MTB) satt i 165
+   applicationno: 664 ulike, 0 går igjen
+siste 30 døgn før 2026-11-03: 34 innsendt (lag 0, submittedat)
+siste 30 døgn før 2026-11-03: 3 innsendt (lag 4, submittedat)
+siste 30 døgn før 2026-11-03: 16 ferdigbehandlet (lag 4, evaluationfinishedat)
+siste 30 døgn før 2026-11-03: 3 trukket (lag 4, withdrawnat)
+
+søknadsnummer i både lag 0 og lag 4: 0
+lag 4: 657 innsendt før 01.09.2026, 65 av dem var ikke avsluttet da (etter datoene); 1 har verken evaluationfinishedat eller withdrawnat
+lag 0: 239 innsendt før 01.09.2026, 0 uten submittedat (status: {})
+
+== 1b. Søker
+ulike søkernummer i alle lag: 222, ni siffer: 222, tomme: 0
+Brreg: {'ok': 214, 'slettet': 7, 'http 404': 1}
+former: {'AS': 207, 'FYLK': 5, 'ASA': 3, 'ORGL': 3, 'STI': 2, 'FLI': 1, '—': 1}
+sektor 8200/2300: 0
+lag 0: 296 poster, {'slipper': 295, 'vet': 1}
+lag 1: 3509 poster, {'slipper': 3508, 'vet': 1}
+lag 2: 149 poster, {'slipper': 148, 'vet': 1}
+lag 4: 664 poster, {'slipper': 664}
+lag 5: 297 poster, {'slipper': 297}
+lag 6: 125 poster, {'slipper': 125}
+lag 7: 5223 poster, {'slipper': 5223}
+
+== 1d. Kobling til lokalitetsnummer
+akvakultur-kropper: 31, 2026-08-17.json.gz (1779 lokaliteter, sha256 b1d36b5caedf4c3d) – 2026-11-03.daglig.2.json.gz (1785, sha256 5b53e1b336d980f6); 1790 ulike lokalitetsnummer i alle
+lag 0: uten sitenr, med koordinater: 166
+lag 0: med sitenr, avstand søknad–register (grader/100): median 0.007 km, under 0,5 km i 128 av 130
+lag 0: 296 poster, sitenr satt i 130, av dem i registeret 130 (første gang sett etter 2026-08-17.json.gz: 0); uten sitenr 166 (soeknadstype {'Ny lokalitet for laks, ørret og regnbueørret i sjø.': 40, 'Særlige formå': 32, 'Ny tillatelse til andre fiskearter enn laks, ørret og regnbueørret.': 26, 'Fangstbasert akvakultur': 1, 'Akvakultur på land': 34, 'Havbeite': 3, 'Ny tillatelse til andre arter enn fisk': 8, 'SPECIAL_INTENTION_SITE_CLEARANCE': 11, 'RESEARCH_EXTENSION': 1, 'RESEARCH': 7, 'RESEARCH_EXPERIMENT_PLAN': 3}), av dem 40 innen 500 m av en lokalitet i registeret
+lag 4: uten sitenr, med koordinater: 167
+lag 4: med sitenr, avstand søknad–register (grader/100): median 0.000 km, under 0,5 km i 494 av 497
+lag 4: 664 poster, sitenr satt i 497, av dem i registeret 497 (første gang sett etter 2026-08-17.json.gz: 0); uten sitenr 167 (soeknadstype {'Ny lokalitet for laks, ørret og regnbueørret i sjø.': 50, 'Ny tillatelse til andre arter enn fisk': 17, 'Akvakultur på land': 30, 'Særlige formå': 34, 'Ny tillatelse til andre fiskearter enn laks, ørret og regnbueørret.': 8, 'Fangstbasert akvakultur': 1, 'Havbeite': 3, 'SPECIAL_INTENTION_SITE_CLEARANCE': 21, 'RESEARCH': 1, 'RESEARCH_EXPERIMENT_PLAN': 2}), av dem 81 innen 500 m av en lokalitet i registeret
+   lag 4 innvilget uten sitenr: 83
+
+Logg: 2026-11-03.s1.logg.json
+      200     4335 11968be906ae9bec 2026-11-03.json.gz   2026-11-03T21:55:47+00:00  tjenesten, metadata
+      200    15661 b510145721a3fd28 2026-11-03.2.json.gz 2026-11-03T21:55:47+00:00  lag 0, metadata
+      200   309468 77b22b6dbe370ba9 —                    2026-11-03T21:55:48+00:00  lag 0, poster fra 0 (IKKE arkivert)
+      200   309468 77b22b6dbe370ba9 —                    2026-11-03T21:55:48+00:00  lag 0, historicMoment 01.09.2026 12 UTC (IKKE arkivert)
+      200     4978 b912488d5fe7a327 2026-11-03.3.json.gz 2026-11-03T21:55:48+00:00  lag 1, metadata
+      200   615712 cac7581f789cfbc2 —                    2026-11-03T21:55:48+00:00  lag 1, poster fra 0 (IKKE arkivert)
+      200   461574 3cbe6d14227f17d6 —                    2026-11-03T21:55:48+00:00  lag 1, poster fra 2000 (IKKE arkivert)
+      200    11749 04337bdfb804f334 2026-11-03.4.json.gz 2026-11-03T21:55:49+00:00  lag 2, metadata
+      200    52166 05e39ef419a7b25c —                    2026-11-03T21:55:49+00:00  lag 2, poster fra 0 (IKKE arkivert)
+      200     9150 412fb0e6d7d15dd2 2026-11-03.5.json.gz 2026-11-03T21:55:49+00:00  lag 4, metadata
+      200   737501 ba5e5c229981409e —                    2026-11-03T21:55:49+00:00  lag 4, poster fra 0 (IKKE arkivert)
+      200   737501 ba5e5c229981409e —                    2026-11-03T21:55:49+00:00  lag 4, historicMoment 01.09.2026 12 UTC (IKKE arkivert)
+      200     5369 6af497379e52a8ed 2026-11-03.6.json.gz 2026-11-03T21:55:50+00:00  lag 5, metadata
+      200   112030 a13016a21310c3b3 —                    2026-11-03T21:55:50+00:00  lag 5, poster fra 0 (IKKE arkivert)
+      200     5392 01a999334deef255 2026-11-03.7.json.gz 2026-11-03T21:55:50+00:00  lag 6, metadata
+      200    50472 8857944c75227aea —                    2026-11-03T21:55:50+00:00  lag 6, poster fra 0 (IKKE arkivert)
+      200     5089 ccdb5fa04449f908 2026-11-03.8.json.gz 2026-11-03T21:55:50+00:00  lag 7, metadata
+      200   619832 f8b9d9d7df8138dc —                    2026-11-03T21:55:50+00:00  lag 7, poster fra 0 (IKKE arkivert)
+      200   613825 1d4a0bca644f81bf —                    2026-11-03T21:55:50+00:00  lag 7, poster fra 2000 (IKKE arkivert)
+      200   378634 8fcd23cb68e18128 —                    2026-11-03T21:55:51+00:00  lag 7, poster fra 4000 (IKKE arkivert)
+  avledet   317694 ffe1c6efe5e45029 2026-11-03.9.json.gz 2026-11-03T21:56:00+00:00  lag 0, etter persondatafilteret
+  avledet    51293 be41567aa60ff3e4 2026-11-03.10.json.gz 2026-11-03T21:56:00+00:00  lag 2, etter persondatafilteret
+  avledet   765534 7ce188024ead66a8 2026-11-03.11.json.gz 2026-11-03T21:56:00+00:00  lag 4, etter persondatafilteret
