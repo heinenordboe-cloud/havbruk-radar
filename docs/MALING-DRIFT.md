@@ -401,3 +401,32 @@ linjeskift, i den rekkefølgen skriptet leser kroppene — partene i
 `SIDER`-rekkefølgen i arkiver_vilkar.py for vilkar, og `raw.orden()`
 innenfor hver mappe. Kontrolløren fant formatet ved å prøve; alfabetisk
 rekkefølge for vilkar gir en annen hash.
+
+## Etterskrift 03.11.2026, kveld: tre av punktene som ikke var rettet
+
+Teksten over er ikke endret. Tre av punktene under «Det som ikke er
+rettet» er rettet samme kveld:
+
+* **En uke med bare et ufullstendig snapshot får ikke lenger `sist_ok`**
+  (kodrepoet `98a98c9`). Steg 2b i run.py henter på nytt en dato som bare
+  ligger som ufullstendige snapshots, og det merkede blir stående ved
+  siden av det nye. For en uke med begge er det hele snapshotet det som
+  gjelder for diff og changelog (`snapshot.gjeldende`). Gjennom
+  `run.main()` uten `--tving` (`analyse/drift/gjenkjoring_etter.py`,
+  utskriften i `gjenkjoring_etter.txt`, MÅLBAR): halv kropp mandag gir
+  `2026-10-05` merket «ja» og uendret `sist_ok`; hel kropp tirsdag gir
+  `2026-10-05.2` merket «nei», `sist_ok` tirsdag, og changeloggen for uka
+  blir den hele kroppens 628 rader mot 2026-09-28. Gir også gjenkjøringen
+  et ufullstendig snapshot, er tilsynet rødt fra onsdag. Ingen terskel er
+  endret (prøven i datarepoet, `e4e6d68`).
+* **kystvakt/utlevering.py er installert på kystvakt-1**: sha256
+  `e6116000ade275347a59ef228bfa1535cd397b70cee3bcea6777a2a0906e97a7` ut,
+  `ddc024051e5652f513694434a76becdf469bc63714e717e82c1dff8689318d7f` inn,
+  samme eier og rettigheter, og kommandoene står i RUNBOOK (`43f1df2`).
+  «AIS-manifest» startet for hånd (run 41693343894) var grønn og
+  leverte `per_time` for alle 24 timene i bw. Tilsynet startet for hånd
+  (run 41693500788) er ikke lenger rødt for manglende tall, bare for
+  5632s tomme døgn, som er ventet.
+* **ais-manifest.yml committer også når skrivesteget er rødt**
+  (datarepoet `90d8706`), så en utlevering i karantene blir ikke
+  liggende igjen på runneren. Jobben ender fortsatt rød.
