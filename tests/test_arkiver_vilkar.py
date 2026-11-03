@@ -190,3 +190,15 @@ def test_torrkjoring_sier_hva_som_ville_gaatt_i_karantene(arkiv, monkeypatch, ca
 
 def test_kjennetegnene_er_maalt_for_hver_part():
     assert set(ark.KJENNETEGN) == set(ark.SIDER)
+
+
+def test_andre_kjoring_samme_dag_faar_egen_logg(arkiv, monkeypatch):
+    # Til 03.11.2026 ble loggen hoppet over når dagens fantes, og kroppene
+    # fra kjøring nummer to sto uten fetched_at og kode_commit.
+    _sider(monkeypatch, lambda url: (SIDE, ""))
+    ark.main(["--dato", "2026-11-03"])
+    _sider(monkeypatch, lambda url: (SIDE + b"<p>Nytt punkt.</p>", ""))
+    assert ark.main(["--dato", "2026-11-03"]) == 0
+    andre = json.loads((arkiv / "vilkar" / "2026-11-03.2.logg.json").read_text())
+    assert all(r["ny"] and r["kode_commit"] == "0" * 40 for r in andre)
+    assert all(r["ny"] for r in _logg(arkiv, "2026-11-03")), "den første står urørt"

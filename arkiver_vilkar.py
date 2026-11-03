@@ -245,10 +245,15 @@ def main(argv=None) -> int:
     if not a.torrkjor:
         mappe = raw_arkiv.ARKIV_DIR / LOGG_KILDE
         mappe.mkdir(parents=True, exist_ok=True)
-        sti = mappe / f"{dato}.logg.json"
-        if not sti.exists():
-            sti.write_text(json.dumps(logg, indent=2, ensure_ascii=False))
-            print(f"Logg: {sti}")
+        # Løpenummer ved flere kjøringer samme dag, som de andre skriptene.
+        # Til 03.11.2026 ble loggen hoppet over når dagens fantes: en
+        # kjøring for hånd samme dag som en annen la nye kropper i arkivet
+        # uten fetched_at og kode_commit (docs/MALING-NYE-KILDER.md).
+        sti, n = mappe / f"{dato}.logg.json", 2
+        while sti.exists():
+            sti, n = mappe / f"{dato}.{n}.logg.json", n + 1
+        sti.write_text(json.dumps(logg, indent=2, ensure_ascii=False))
+        print(f"Logg: {sti}")
 
     # RØD ved én eneste feil. Kjøringen er månedlig, og en vilkårsside som
     # ikke kan hentes er en måned uten belegg for den parten. De andre
