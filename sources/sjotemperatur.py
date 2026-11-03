@@ -195,18 +195,24 @@ def _les_csv(tekst: str) -> list[dict[str, str]]:
     kolonnene så helt friske ut.
     """
     leser = csv.DictReader(io.StringIO(tekst.lstrip("﻿")))
-    rader = list(leser)
-    if not rader:
-        return []
 
-    mangler = [k for k in PAAKREVDE if k not in rader[0]]
+    # KOLONNENE SJEKKES FØR RADENE, også når det ikke kommer noen rader
+    # (MALING-DRIFT F3.2, fra 03.11.2026). Til da returnerte en kropp uten
+    # rader en tom liste før kolonnene ble sett på, og en feilside på én
+    # linje, `[]` og en tom kropp ga `ok` med 0 rader: overskriften var
+    # feilsiden selv, og det fantes ingen rad å sjekke den mot. Nå kaster
+    # alt som ikke har kolonnene. En eksport med riktige kolonner og ingen
+    # rader er fortsatt tom, ikke feil.
+    kolonner = leser.fieldnames or []
+    mangler = [k for k in PAAKREVDE if k not in kolonner]
     if mangler:
         raise Kolonnefeil(
             f"Eksporten mangler kolonnen(e) {', '.join(mangler)}. "
-            f"Fikk: {', '.join(rader[0])}. Formatet er endret — rå-CSV-en "
-            f"er arkivert, så dette er en re-parse og ikke tapt historikk."
+            f"Fikk: {', '.join(kolonner)[:200] or '(ingen)'}. Formatet er "
+            f"endret, eller kroppen er ikke en eksport — rå-CSV-en er "
+            f"arkivert, så dette er en re-parse og ikke tapt historikk."
         )
-    return rader
+    return list(leser)
 
 
 def _tall(tekst: str | None) -> float | None:

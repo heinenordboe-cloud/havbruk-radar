@@ -1,0 +1,24 @@
+Det halve snapshotet gjennom run.py, etter rettingen (økt 3b punkt 7)
+datarepo: /Users/nordboe/havbruk-radar-data/data
+  halv     62954 B  sha256 74325650fc74c4ce2edd206abe1d68f462c7e0c2db01b23a5a1c9caa2ebba621
+  hel42   125911 B  sha256 1ff0ccbf852f1bd4b1c1e182c5d6c36b664cf351409022f9f9ba4f3306d867fd
+
+  volum_referanse for sjotemperatur i health.json: 2739
+
+uke 2026-10-05 (halv, kjøredato 2026-11-02): exit 0
+    [ok  ] sjotemperatur          1355 observasjoner
+    [delvis] sjotemperatur        snapshotet skrives merket ufullstendig; changeloggen lager ingen «borte» fra det
+    KREVER TILSYN: sjotemperatur (volum 49% av referanse 2739: 1355 observasjoner, kjøring 1), sjotemperatur.sjotemperatur (innhold 293 under gulvet 376 —
+    ::warning::KREVER TILSYN: sjotemperatur (volum 49% av referanse 2739: 1355 observasjoner, kjøring 1), sjotemperatur.sjotemperatur (innhold 293 under g
+    snapshot 2026-10-05: 1355 rader, 528 lokaliteter, ufullstendig ['ja']
+    changelog ny          8 rader     8 lokaliteter  mot ['2026-09-28']
+    changelog endret    294 rader   294 lokaliteter  mot ['2026-09-28']
+    changelog borte       0 rader     0 lokaliteter  mot []
+
+uke 2026-10-12 (hel42, kjøredato 2026-11-09): exit 0
+    [ok  ] sjotemperatur          2733 observasjoner
+    snapshot 2026-10-12: 2733 rader, 1060 lokaliteter, ufullstendig ['nei']
+    changelog ny          9 rader     9 lokaliteter  mot ['2026-09-28']
+    changelog endret    305 rader   305 lokaliteter  mot ['2026-09-28']
+    changelog borte      12 rader    10 lokaliteter  mot ['2026-09-28']
+

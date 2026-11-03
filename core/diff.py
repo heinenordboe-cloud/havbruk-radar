@@ -192,7 +192,7 @@ CHANGE_SCHEMA = {
 
 
 def compare(current: pl.DataFrame, observed_at: str,
-            startdatofelt: str = "") -> pl.DataFrame:
+            startdatofelt: str = "", ufullstendig: bool = False) -> pl.DataFrame:
     """Endringer mot forrige snapshot, per kilde.
 
     To slags «nytt» undertrykkes eller merkes her, og de er samme klasse
@@ -221,169 +221,41 @@ def compare(current: pl.DataFrame, observed_at: str,
     nyregistrering som forsvinner i støyen fra utvidelsen er samme tap
     som utvidelsen selv skaper, bare med motsatt fortegn. Tom streng:
     kilden kan ikke etterprøves, og da merkes alle nye entiteter.
+
+    ## Et ufullstendig snapshot (MALING-DRIFT F3.1, fra 03.11.2026)
+
+    `ufullstendig=True` sier at snapshotet som sammenlignes, er merket
+    ufullstendig av volumvakten (run.py, `health.ufullstendig`). Da lages
+    ingen «borte»: at en lokalitet mangler i en halv kropp, sier ingenting
+    om lokaliteten. «ny» og «endret» står; det som kom, kom.
+
+    Er FORRIGE snapshot merket, sammenlignes ikke mot det som om det var
+    helt. Det som står i det, sammenlignes mot det; resten mot snapshotet
+    før, bakover til et som ikke er merket (`_forrige_lag`). Uten det
+    stod hver lokalitet den halve kroppen manglet, som «ny» uka etter —
+    532 av 532 i prøven, MALING-DRIFT 0b. Finnes ikke noe umerket
+    snapshot bak, sammenlignes resten ikke, som for en første kjøring.
+
+    Et snapshot uten merket (alt før 03.11.2026) leses som helt.
     """
     changes = []
 
     for (source,), group in current.group_by(["source"]):
-        old = snapshot.previous(str(source), before=observed_at)
-        if old is None:
-            continue  # første kjøring for denne kilden: alt er "nytt", ikke interessant
-
-        # Snapshots skrevet før dedupliseringen kom inn i to_frame() kan ha
-        # flere rader per (entity_id, field). De filene er append-only og kan
-        # ikke rettes i ettertid — men joinen under fanner ut på dem, og da
-        # rapporteres SAMME endring én gang per duplikat den uka verdien
-        # endrer seg. Verifisert: to like gamle rader ga to identiske
-        # endringer. Leseren må derfor forsvare seg mot historikk den ikke
-        # kan reparere.
-        old = old.unique(subset=snapshot.NOKKEL, keep="first", maintain_order=True)
-
-        # Felter som ikke fantes i forrige snapshot i det hele tatt er en
-        # SKJEMAUTVIDELSE, ikke en hendelse. Utvider du kilden med 24 nye
-        # felter, er 23 000 "ny"-rader den uka støy som drukner de ekte
-        # endringene. Entiteter som er nye telles fortsatt — det er bare
-        # nye FELTNAVN som filtreres.
-        gamle_felter = set(old["field"].unique().to_list())
-
-        # Ble utvalget bredere siden sist? Sant bare når BEGGE snapshots
-        # oppgir hva de ba om. Et snapshot fra før 24.08 har tom
-        # `utvalg`, og da er svaret usant: vi kan ikke påstå en utvidelse
-        # vi ikke kan se. Se utvalg.er_utvidet for hvorfor fallbacken går
-        # denne veien og ikke den andre.
-        utvidet = utvalg.er_utvidet(snapshot.utvalg_i(old),
-                                    snapshot.utvalg_i(group))
-
-        # Entitetene som fantes sist. Trengs bare når utvalget er utvidet
-        # — ellers er en "ny"-rad en "ny"-rad uansett hvem den gjelder.
-        gamle_entiteter = (
-            set(old["entity_id"].to_list()) if utvidet else set()
-        )
-
-        # Datoen vi sammenligner MOT, tatt fra radene i det gamle
-        # snapshotet og ikke fra filnavnet. `write()` håndhever at de to
-        # er like, og radene er det som faktisk ble observert.
-        forrige_dato = ""
-        forrige_datoer = set(old["observed_at"].to_list())
-        if len(forrige_datoer) == 1:
-            forrige_dato = str(forrige_datoer.pop())
-
-        # Hentetidspunktet vi sammenligner mot. Tom streng når det gamle
-        # snapshotet ikke bærer ett entydig — snapshots fra før feltet
-        # fantes gjør ikke det, og de skal fortsatt kunne diffes.
-        forrige_hentet = snapshot.fetched_at_i(old) or ""
-        forrige_utgitt = snapshot.published_at_i(old) or ""
-        utgitt = snapshot.published_at_i(group) or ""
-
-        # Domenet bæres videre til raden selv om `compare()` ikke bruker
-        # det til en prøve — se kommentaren ved "borte" under. Den som
-        # leser changeloggen om to år skal kunne se hva kroppen uttalte
-        # seg om uten å gå til snapshotet.
-        dom = snapshot.domene_i(group)
-
-        # Endepunktet bæres på samme måte: proveniens, ikke en prøve.
-        endepunkt = snapshot.endepunkt_i(group) or ""
-        forrige_endepunkt = snapshot.endepunkt_i(old) or ""
-
-        # Entitetene som ble til i verden etter forrige snapshot. De
-        # skal STÅ som "ny" selv i en utvidelsesuke — se docstringen.
-        # Tom mengde når kilden ikke oppgir noe startdatofelt, eller når
-        # vi ikke vet hvilken dato vi sammenligner mot.
-        egenfodte: set[str] = set()
-        if utvidet and startdatofelt and forrige_dato:
-            egenfodte = set(
-                group.filter(
-                    (pl.col("field") == startdatofelt)
-                    & (pl.col("value") > pl.lit(forrige_dato))
-                )["entity_id"].to_list()
-            )
-
-        # TYPEN FØLGER MED FRA DET GAMLE SNAPSHOTET, og det er ikke
-        # kosmetikk. For en «borte»-rad finnes entiteten ikke i `group`,
-        # så `row["entity_type"]` er None — og MÅLT 24.09.2026 var
-        # feltet derfor tomt i 65 575 av loggens borte-rader og utfylt i
-        # hver eneste ny/endret-rad. Et oppslag i den ene av to rammer,
-        # riktig i alle tilfellene der begge har entiteten.
-        #
-        # NAVNET hentes IKKE på samme vis. En oppføring som er borte
-        # navngis ikke: `publiseringsvakt.hviteliste()` bygges av nyeste
-        # øyeblikksbilde, og et navn som ikke står der kan porten ikke gå
-        # god for. MÅLT 22.09.2026 stoppet den publiseringen med 341
-        # slike funn. Typen er en kategori og ikke en identitet.
-        key = ["entity_id", "field"]
-        joined = group.join(
-            old.select(key + ["value", "entity_type"]).rename(
-                {"value": "old_value", "entity_type": "gammel_entity_type"}),
-            on=key,
-            how="full",
-            coalesce=True,
-        )
-
-        for row in joined.iter_rows(named=True):
-            new_value, old_value = row.get("value"), row.get("old_value")
-            if new_value == old_value:
-                continue
-
-            if old_value is None:
-                if row["field"] not in gamle_felter:
-                    continue   # nytt felt i kilden, ikke ny opplysning
-                # Ny entitet + bredere utvalg = vi begynte å spørre etter
-                # den. Merket gjelder HELE entiteten, ikke bare feltet:
-                # er selskapet nytt for oss, er hver eneste rad om det
-                # like mye en følge av utvidelsen.
-                ny_for_oss = (utvidet
-                              and row["entity_id"] not in gamle_entiteter)
-                change_type = (
-                    UTVALGSUTVIDELSE
-                    if ny_for_oss and row["entity_id"] not in egenfodte
-                    else "ny"
-                )
-            elif new_value is None:
-                # MERK at taushetsprøven IKKE står her, men bare i
-                # `revisjon_mellom()`. Det er et skille mellom aksene, og
-                # det er målt:
-                #
-                # Tidsaksen sammenligner TO ULIKE observed_at. «PO5 har
-                # ingen metode_bur_kategori i 2021» er en sann påstand om
-                # 2021, uansett om kroppen tidde eller uttalte seg — året
-                # har ingen slik verdi hos oss. Av ekspertgruppens 358
-                # borte-rader er 318 et helt felt som forsvant fra
-                # rapportserien, og det ER en endring i hva kilden
-                # publiserer.
-                #
-                # Revisjonsaksen sammenligner samme observed_at sett av
-                # TO KROPPER. Der er taushet en usann påstand: at
-                # 2026-forskriften ikke gjentar PO9s farge for 2024
-                # betyr ikke at fargen ble trukket tilbake.
-                #
-                # Det gjenstår en svakhet her: for en kilde med hull er
-                # «borte» på tidsaksen et hull og ikke et fravær av
-                # verdi. Den er dokumentert i
-                # docs/KILDE-TRAFIKKLYSVEDTAK.md punkt 8 og er et annet
-                # spørsmål enn dette feltet løser.
-                change_type = "borte"
+        rest = group
+        dekket = group.select(_PAR).clear()
+        for old in _forrige_lag(str(source), observed_at):
+            merket = bool(snapshot.ufullstendig_i(old))
+            # Par et nyere, ufullstendig lag allerede har sammenlignet.
+            del_ = old.join(dekket, on=_PAR, how="anti")
+            if merket:
+                par = del_.select(_PAR).unique()
+                mot = rest.join(par, on=_PAR, how="semi")
+                rest = rest.join(par, on=_PAR, how="anti")
+                dekket = pl.concat([dekket, par])
             else:
-                change_type = "endret"
-
-            changes.append({
-                "entity_id": row["entity_id"],
-                "entity_type": (row.get("entity_type")
-                                or row.get("gammel_entity_type") or ""),
-                "entity_name": row.get("entity_name") or "",
-                "field": row["field"],
-                "old_value": old_value,
-                "new_value": new_value,
-                "change_type": change_type,
-                "source": str(source),
-                "observed_at": observed_at,
-                "forrige_observed_at": forrige_dato,
-                "forrige_fetched_at": forrige_hentet,
-                "published_at": utgitt,
-                "forrige_published_at": forrige_utgitt,
-                "domene": dom,
-                "forrige_domene": snapshot.domene_i(old),
-                "endepunkt": endepunkt,
-                "forrige_endepunkt": forrige_endepunkt,
-            })
+                mot, rest = rest, rest.clear()
+            changes += _endringer(mot, group, old, del_, str(source), observed_at,
+                                  startdatofelt, uten_borte=ufullstendig)
 
     if not changes:
         return pl.DataFrame(schema=CHANGE_SCHEMA)
@@ -407,6 +279,200 @@ def compare(current: pl.DataFrame, observed_at: str,
     # gitt riktig type uansett, men rammen rakk aldri å bli bygget.
     return pl.DataFrame(changes, infer_schema_length=None) \
         .select(list(CHANGE_SCHEMA)).cast(CHANGE_SCHEMA)
+
+
+_PAR = ["entity_id", "field"]
+
+
+def _forrige_lag(source: str, observed_at: str) -> list[pl.DataFrame]:
+    """Snapshotene diffen sammenlignes mot, nyeste først.
+
+    Normalt ett: forrige snapshot. Er det merket ufullstendig, kommer
+    snapshotet før det også, og så videre til det første som ikke er
+    merket. Tom liste: kilden har ikke skrevet noe før (første kjøring).
+    """
+    ut = []
+    old = snapshot.previous(source, before=observed_at)
+    while old is not None:
+        ut.append(old)
+        dato = snapshot._en_verdi(old, "observed_at")
+        if not snapshot.ufullstendig_i(old) or not dato:
+            break
+        old = snapshot.previous(source, before=dato)
+    return ut
+
+
+def _endringer(group: pl.DataFrame, hele: pl.DataFrame, lag: pl.DataFrame,
+               old: pl.DataFrame, source: str, observed_at: str,
+               startdatofelt: str, uten_borte: bool) -> list[dict]:
+    """Radene for ett lag: `group` (det som sammenlignes nå) mot `old`.
+
+    `hele` er hele den nye rammen og `lag` hele det gamle snapshotet;
+    proveniensen på radene, feltnavnene og utvalget leses av dem, ikke av
+    utsnittene, så et utsnitt ikke endrer hva et nytt felt eller en
+    utvidelse er. `uten_borte`: det nye snapshotet er ufullstendig.
+    """
+    changes = []
+    # Snapshots skrevet før dedupliseringen kom inn i to_frame() kan ha
+    # flere rader per (entity_id, field). De filene er append-only og kan
+    # ikke rettes i ettertid — men joinen under fanner ut på dem, og da
+    # rapporteres SAMME endring én gang per duplikat den uka verdien
+    # endrer seg. Verifisert: to like gamle rader ga to identiske
+    # endringer. Leseren må derfor forsvare seg mot historikk den ikke
+    # kan reparere.
+    old = old.unique(subset=snapshot.NOKKEL, keep="first", maintain_order=True)
+
+    # Felter som ikke fantes i forrige snapshot i det hele tatt er en
+    # SKJEMAUTVIDELSE, ikke en hendelse. Utvider du kilden med 24 nye
+    # felter, er 23 000 "ny"-rader den uka støy som drukner de ekte
+    # endringene. Entiteter som er nye telles fortsatt — det er bare
+    # nye FELTNAVN som filtreres.
+    gamle_felter = set(lag["field"].unique().to_list())
+
+    # Ble utvalget bredere siden sist? Sant bare når BEGGE snapshots
+    # oppgir hva de ba om. Et snapshot fra før 24.08 har tom
+    # `utvalg`, og da er svaret usant: vi kan ikke påstå en utvidelse
+    # vi ikke kan se. Se utvalg.er_utvidet for hvorfor fallbacken går
+    # denne veien og ikke den andre.
+    utvidet = utvalg.er_utvidet(snapshot.utvalg_i(lag),
+                                snapshot.utvalg_i(hele))
+
+    # Entitetene som fantes sist. Trengs bare når utvalget er utvidet
+    # — ellers er en "ny"-rad en "ny"-rad uansett hvem den gjelder.
+    gamle_entiteter = (
+        set(lag["entity_id"].to_list()) if utvidet else set()
+    )
+
+    # Datoen vi sammenligner MOT, tatt fra radene i det gamle
+    # snapshotet og ikke fra filnavnet. `write()` håndhever at de to
+    # er like, og radene er det som faktisk ble observert.
+    forrige_dato = ""
+    forrige_datoer = set(lag["observed_at"].to_list())
+    if len(forrige_datoer) == 1:
+        forrige_dato = str(forrige_datoer.pop())
+
+    # Hentetidspunktet vi sammenligner mot. Tom streng når det gamle
+    # snapshotet ikke bærer ett entydig — snapshots fra før feltet
+    # fantes gjør ikke det, og de skal fortsatt kunne diffes.
+    forrige_hentet = snapshot.fetched_at_i(lag) or ""
+    forrige_utgitt = snapshot.published_at_i(lag) or ""
+    utgitt = snapshot.published_at_i(hele) or ""
+
+    # Domenet bæres videre til raden selv om `compare()` ikke bruker
+    # det til en prøve — se kommentaren ved "borte" under. Den som
+    # leser changeloggen om to år skal kunne se hva kroppen uttalte
+    # seg om uten å gå til snapshotet.
+    dom = snapshot.domene_i(hele)
+
+    # Endepunktet bæres på samme måte: proveniens, ikke en prøve.
+    endepunkt = snapshot.endepunkt_i(hele) or ""
+    forrige_endepunkt = snapshot.endepunkt_i(lag) or ""
+
+    # Entitetene som ble til i verden etter forrige snapshot. De
+    # skal STÅ som "ny" selv i en utvidelsesuke — se docstringen.
+    # Tom mengde når kilden ikke oppgir noe startdatofelt, eller når
+    # vi ikke vet hvilken dato vi sammenligner mot.
+    egenfodte: set[str] = set()
+    if utvidet and startdatofelt and forrige_dato:
+        egenfodte = set(
+            group.filter(
+                (pl.col("field") == startdatofelt)
+                & (pl.col("value") > pl.lit(forrige_dato))
+            )["entity_id"].to_list()
+        )
+
+    # TYPEN FØLGER MED FRA DET GAMLE SNAPSHOTET, og det er ikke
+    # kosmetikk. For en «borte»-rad finnes entiteten ikke i `group`,
+    # så `row["entity_type"]` er None — og MÅLT 24.09.2026 var
+    # feltet derfor tomt i 65 575 av loggens borte-rader og utfylt i
+    # hver eneste ny/endret-rad. Et oppslag i den ene av to rammer,
+    # riktig i alle tilfellene der begge har entiteten.
+    #
+    # NAVNET hentes IKKE på samme vis. En oppføring som er borte
+    # navngis ikke: `publiseringsvakt.hviteliste()` bygges av nyeste
+    # øyeblikksbilde, og et navn som ikke står der kan porten ikke gå
+    # god for. MÅLT 22.09.2026 stoppet den publiseringen med 341
+    # slike funn. Typen er en kategori og ikke en identitet.
+    key = ["entity_id", "field"]
+    joined = group.join(
+        old.select(key + ["value", "entity_type"]).rename(
+            {"value": "old_value", "entity_type": "gammel_entity_type"}),
+        on=key,
+        how="full",
+        coalesce=True,
+    )
+
+    for row in joined.iter_rows(named=True):
+        new_value, old_value = row.get("value"), row.get("old_value")
+        if new_value == old_value:
+            continue
+
+        if old_value is None:
+            if row["field"] not in gamle_felter:
+                continue   # nytt felt i kilden, ikke ny opplysning
+            # Ny entitet + bredere utvalg = vi begynte å spørre etter
+            # den. Merket gjelder HELE entiteten, ikke bare feltet:
+            # er selskapet nytt for oss, er hver eneste rad om det
+            # like mye en følge av utvidelsen.
+            ny_for_oss = (utvidet
+                          and row["entity_id"] not in gamle_entiteter)
+            change_type = (
+                UTVALGSUTVIDELSE
+                if ny_for_oss and row["entity_id"] not in egenfodte
+                else "ny"
+            )
+        elif new_value is None:
+            # Et ufullstendig snapshot sier ingenting om det som
+            # mangler i det. Se docstringen til compare().
+            if uten_borte:
+                continue
+            # MERK at taushetsprøven IKKE står her, men bare i
+            # `revisjon_mellom()`. Det er et skille mellom aksene, og
+            # det er målt:
+            #
+            # Tidsaksen sammenligner TO ULIKE observed_at. «PO5 har
+            # ingen metode_bur_kategori i 2021» er en sann påstand om
+            # 2021, uansett om kroppen tidde eller uttalte seg — året
+            # har ingen slik verdi hos oss. Av ekspertgruppens 358
+            # borte-rader er 318 et helt felt som forsvant fra
+            # rapportserien, og det ER en endring i hva kilden
+            # publiserer.
+            #
+            # Revisjonsaksen sammenligner samme observed_at sett av
+            # TO KROPPER. Der er taushet en usann påstand: at
+            # 2026-forskriften ikke gjentar PO9s farge for 2024
+            # betyr ikke at fargen ble trukket tilbake.
+            #
+            # Det gjenstår en svakhet her: for en kilde med hull er
+            # «borte» på tidsaksen et hull og ikke et fravær av
+            # verdi. Den er dokumentert i
+            # docs/KILDE-TRAFIKKLYSVEDTAK.md punkt 8 og er et annet
+            # spørsmål enn dette feltet løser.
+            change_type = "borte"
+        else:
+            change_type = "endret"
+
+        changes.append({
+            "entity_id": row["entity_id"],
+            "entity_type": (row.get("entity_type")
+                            or row.get("gammel_entity_type") or ""),
+            "entity_name": row.get("entity_name") or "",
+            "field": row["field"],
+            "old_value": old_value,
+            "new_value": new_value,
+            "change_type": change_type,
+            "source": str(source),
+            "observed_at": observed_at,
+            "forrige_observed_at": forrige_dato,
+            "forrige_fetched_at": forrige_hentet,
+            "published_at": utgitt,
+            "forrige_published_at": forrige_utgitt,
+            "domene": dom,
+            "forrige_domene": snapshot.domene_i(lag),
+            "endepunkt": endepunkt,
+            "forrige_endepunkt": forrige_endepunkt,
+        })
+    return changes
 
 
 def _vilkaar(eldre: pl.DataFrame, nyere: pl.DataFrame, source: str,

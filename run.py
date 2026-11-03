@@ -520,6 +520,9 @@ def main() -> int:
     endringsdeler = []
     filer = []
     kilde_per_navn = {k.name: k for k in kilder}
+    # Helsetilstanden FØR denne kjøringen, lest én gang: volumvaktens
+    # referanse er den samme for merket her og for varselet i steg 8.
+    helse_for = health.les()
 
     for r in resultater:
         if not r.ok:
@@ -527,6 +530,14 @@ def main() -> int:
         egne = [o for o in observasjoner if o.source == r.source]
         if not egne:
             continue
+        # UFULLSTENDIG, spurt før snapshotet skrives (MALING-DRIFT F3.1).
+        # Snapshotet skrives likevel, så uka ikke blir et hull; merket står
+        # på radene, og diffen lager ingen «borte» fra det. Volumvarselet i
+        # steg 8 står som før.
+        merke = health.ufullstendig(r.source, r.count, helse_for)
+        if merke == "ja":
+            print(f"  [delvis] {r.source:<20} snapshotet skrives merket "
+                  f"ufullstendig; changeloggen lager ingen «borte» fra det")
         # `startdatofelt` er kildens eget navn på entitetens fødselsdato.
         # Uten det ville en ekte nyregistrering i en utvidelsesuke blitt
         # merket utvalgsutvidelse sammen med de gamle — se diff.compare.
@@ -534,8 +545,9 @@ def main() -> int:
         endringsdeler.append(diff.compare(
             snapshot.to_frame(egne), r.gjelder_for,
             startdatofelt=getattr(kilde, "startdatofelt", ""),
+            ufullstendig=merke == "ja",
         ))
-        filer += snapshot.write(egne, r.gjelder_for)
+        filer += snapshot.write(egne, r.gjelder_for, ufullstendig=merke)
 
     endringer = diff.slaa_sammen(endringsdeler)
 

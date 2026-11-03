@@ -5151,3 +5151,108 @@ def test_bygg_feltnormal_bare_en_kilde_tar_de_andre_uendret_med(tmp_path, monkey
     assert ny["kilder"]["annen"] == annen, "en annen kildes referanse er urørt"
     assert ny["kilder"]["falsk"]["flagg"]["dodt_fra"] == "2023-04-24"
     assert "uendret fra 2026-10-09" in ny["begrunnelse"]
+
+
+# ---- ufullstendig snapshot (MALING-DRIFT F3.1) --------------------------
+#
+# En halv sjøtemperaturkropp ga 1 355 av 2 733 rader og `ok=True`. Mot
+# forrige uke ble 532 lokaliteter «borte», og uka etter kom de samme 532
+# tilbake som «ny» (MALING-DRIFT 0b). Snapshotet skrives fortsatt, så uka
+# ikke blir et hull — men merket, og uten falske hendelser.
+
+class UkeKilde(FalskKilde):
+    """Lokalitetene 0..antall-1 i uka `dato`, alle med verdien `verdi`."""
+
+    name = "uker"
+    entity_type = "lokalitet"
+
+    def __init__(self):
+        self.dato, self.lokaliteter, self.verdi = "2026-10-05", range(10), "1"
+
+    def gjelder_for(self, kjoredato):
+        return self.dato
+
+    def fetch(self, kjoredato):
+        return [{"nr": str(i), "v": self.verdi} for i in self.lokaliteter]
+
+    def parse(self, raw, observed_at):
+        for r in raw:
+            yield Observation(entity_id=r["nr"], entity_type=self.entity_type,
+                              entity_name=f"Lokalitet {r['nr']}", field="temp",
+                              value=r["v"], source=self.name,
+                              observed_at=observed_at)
+
+
+def _uke(tmp_path, monkeypatch, kilde, dato, lokaliteter, verdi):
+    kilde.dato, kilde.lokaliteter, kilde.verdi = dato, lokaliteter, verdi
+    kode, _ = _kjor_main(tmp_path, monkeypatch, [kilde], ["run.py", "--tving"])
+    snap = pl.read_parquet(tmp_path / "raw" / "uker" / f"{dato}.parquet")
+    sti = tmp_path / "changelog" / "uker" / f"{dato}.parquet"
+    return kode, snap, (pl.read_parquet(sti) if sti.exists() else None)
+
+
+def _gamle(endringer):
+    return {r["entity_id"]: (r["change_type"], r["old_value"], r["forrige_observed_at"])
+            for r in endringer.iter_rows(named=True)}
+
+
+def test_et_halvt_snapshot_skrives_merket_og_gir_ingen_falske_hendelser(
+        tmp_path, monkeypatch, capsys):
+    k = UkeKilde()
+    _, uke1, _ = _uke(tmp_path, monkeypatch, k, "2026-10-05", range(10), "1")
+    assert set(uke1["ufullstendig"]) == {""}, "ingen referanse ennå: ikke vurdert"
+
+    kode, uke2, e2 = _uke(tmp_path, monkeypatch, k, "2026-10-12", range(4), "2")
+    assert kode == 0, "et kvalitetsvarsel, ikke en tapt uke"
+    assert uke2.height == 4 and set(uke2["ufullstendig"]) == {"ja"}
+    assert snapshot.ufullstendig_i(uke2) is True, "tidsaksen kan lese merket"
+    assert set(e2["change_type"]) == {"endret"} and e2.height == 4, \
+        "ingen «borte» for de seks den halve kroppen manglet"
+    assert "[delvis] uker" in capsys.readouterr().out
+
+    _, uke3, e3 = _uke(tmp_path, monkeypatch, k, "2026-10-19", range(10), "3")
+    assert set(uke3["ufullstendig"]) == {"nei"}
+    gamle = _gamle(e3)
+    assert {t for t, *_ in gamle.values()} == {"endret"}, \
+        "ingen «ny» for de seks som manglet i det halve snapshotet"
+    assert gamle["0"] == ("endret", "2", "2026-10-12"), "mot det halve, der den sto"
+    assert gamle["9"] == ("endret", "1", "2026-10-05"), "mot uka før, der den sto sist"
+
+
+def test_to_halve_paa_rad_sammenlignes_bakover_til_det_hele(tmp_path, monkeypatch):
+    k = UkeKilde()
+    _uke(tmp_path, monkeypatch, k, "2026-10-05", range(10), "1")
+    _uke(tmp_path, monkeypatch, k, "2026-10-12", range(0, 4), "2")
+    _uke(tmp_path, monkeypatch, k, "2026-10-19", range(3, 7), "3")
+    # Lokalitet 9 er borte i virkeligheten fra uke fire.
+    _, _, e4 = _uke(tmp_path, monkeypatch, k, "2026-10-26", range(9), "4")
+    gamle = _gamle(e4)
+    assert gamle["0"] == ("endret", "2", "2026-10-12")
+    assert gamle["5"] == ("endret", "3", "2026-10-19")
+    assert gamle["8"] == ("endret", "1", "2026-10-05")
+    assert gamle["9"] == ("borte", "1", "2026-10-05"), \
+        "det som er borte siden det hele snapshotet, er borte"
+    assert len(gamle) == 10
+
+
+def test_et_ufullstendig_forste_snapshot_gir_ingen_ny(tmp_path, monkeypatch):
+    """Finnes ikke noe umerket snapshot bak, sammenlignes resten ikke —
+    som for en første kjøring."""
+    k = UkeKilde()
+    # Referansen finnes (kilden har levert ti før), men intet snapshot.
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    health.skriv({"uker": {"sist_ok": "2026-01-01", "sist_forsok": "2026-01-01",
+                           "feil_paa_rad": 0, "antall_sist": 10,
+                           "volum_referanse": 10, "volum_lavt_paa_rad": 0}})
+    _, uke2, e2 = _uke(tmp_path, monkeypatch, k, "2026-10-12", range(4), "2")
+    assert set(uke2["ufullstendig"]) == {"ja"} and e2 is None
+    _, _, e3 = _uke(tmp_path, monkeypatch, k, "2026-10-19", range(10), "3")
+    gamle = _gamle(e3)
+    assert set(gamle) == {"0", "1", "2", "3"}, "de seks har ingen hel uke å sammenlignes mot"
+
+
+def test_merket_godtar_bare_kjente_verdier(tmp_path, monkeypatch):
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    with pytest.raises(ValueError):
+        snapshot.write(list(FalskKilde().parse(FalskKilde().fetch(""), "2026-10-05")),
+                       "2026-10-05", ufullstendig="kanskje")

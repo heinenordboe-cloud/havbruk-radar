@@ -56,6 +56,19 @@ SCHEMA = [
     # 23.09.2026 leser slik, og de blir stående — append-only.
     "kode_commit",
     "kode_rent",
+    # OM SNAPSHOTET ER HELT, slik volumvakten så det FØR det ble skrevet:
+    # «ja» (under volumvaktens andel av referansen — MALING-DRIFT F3.1, en
+    # halv sjøtemperaturkropp ga 1 355 av 2 733 rader og ble skrevet som
+    # en hel uke), «nei» (vurdert og i orden), eller tom streng (ikke
+    # vurdert: skrevet før 03.11.2026, backfill, eller ingen referanse
+    # ennå). Stemples av `write()` som kodeproveniensen.
+    #
+    # Snapshotet skrives likevel, så uka ikke blir et hull. Merket er det
+    # som hindrer at det gir falske hendelser: `diff.compare()` lager
+    # ingen «borte» fra et ufullstendig snapshot, og sammenligner ikke
+    # neste uke mot det som om det var helt. Les det med
+    # `ufullstendig_i()`.
+    "ufullstendig",
 ]
 
 # Kolonnene som gjelder KJØRINGEN og ikke observasjonen.
@@ -64,7 +77,10 @@ SCHEMA = [
 # felt en kilde kan fylle, og en kilde som oppga sin egen commit ville
 # kunnet oppgi feil. `write()` stempler dem, i den ene veien alt går
 # gjennom.
-KJORINGSFELT = ("kode_commit", "kode_rent")
+KJORINGSFELT = ("kode_commit", "kode_rent", "ufullstendig")
+
+# Verdiene `ufullstendig` kan ha. Se SCHEMA.
+UFULLSTENDIG = ("", "ja", "nei")
 
 
 # Én kilde skal levere én verdi per entitet og felt per kjøring. Dette er
@@ -187,7 +203,8 @@ def _dato_og_versjon(stem: str) -> tuple[str, int]:
     return dato, int(versjon) if versjon else 1
 
 
-def write(observations: list[Observation], observed_at: str) -> list[Path]:
+def write(observations: list[Observation], observed_at: str,
+          ufullstendig: str = "") -> list[Path]:
     """Én parquet-fil per kilde per kjøring. Skriver aldri om — kolliderer
     filnavnet med et som finnes, får den neste et løpenummer.
 
@@ -222,11 +239,15 @@ def write(observations: list[Observation], observed_at: str) -> list[Path]:
     # noe — se `kodeproveniens.krev_sporbar()`. Her stemples det som er
     # sant, også når det er «urent»: en fil som sier at treet var
     # skittent er uendelig mye mer verdt enn en fil som tier.
+    if ufullstendig not in UFULLSTENDIG:
+        raise ValueError(f"ufullstendig må være ett av {UFULLSTENDIG}, "
+                         f"ikke {ufullstendig!r}")
     if not frame.is_empty():
         sha, tilstand = kodeproveniens.commit(), kodeproveniens.rent()
         frame = frame.with_columns(
             pl.lit(sha, dtype=pl.Utf8).alias("kode_commit"),
-            pl.lit(tilstand, dtype=pl.Utf8).alias("kode_rent"))
+            pl.lit(tilstand, dtype=pl.Utf8).alias("kode_rent"),
+            pl.lit(ufullstendig, dtype=pl.Utf8).alias("ufullstendig"))
 
     written = []
 
@@ -410,6 +431,13 @@ def _les_med_tall(
     for kol in ("kode_commit", "kode_rent"):
         if kol not in frame.columns:
             frame = frame.with_columns(pl.lit("", dtype=pl.Utf8).alias(kol))
+
+    # Og snapshots skrevet før 03.11.2026 har ingen `ufullstendig`. De
+    # leses som «ikke vurdert», ikke som «hel»: volumvakten så dem, men
+    # ingen skrev ned hva den sa.
+    if "ufullstendig" not in frame.columns:
+        frame = frame.with_columns(
+            pl.lit("", dtype=pl.Utf8).alias("ufullstendig"))
     return frame, fjernet, personer, list(raa.columns)
 
 
@@ -448,6 +476,17 @@ def published_at_i(frame: pl.DataFrame) -> str | None:
     på.
     """
     return _en_verdi(frame, "published_at") or None
+
+
+def ufullstendig_i(frame: pl.DataFrame) -> bool | None:
+    """Er snapshotet merket ufullstendig? None = ikke vurdert, eller radene
+    spriker. Se `ufullstendig` i SCHEMA.
+
+    Bare «ja» er ufullstendig. «Ikke vurdert» leses som helt av
+    `diff.compare()` — det er slik hvert snapshot før 03.11.2026 ble lest,
+    og et gjett i den andre retningen ville undertrykt ekte hendelser."""
+    verdi = _en_verdi(frame, "ufullstendig")
+    return None if not verdi else verdi == "ja"
 
 
 def endepunkt_i(frame: pl.DataFrame) -> str | None:

@@ -51,6 +51,21 @@ def test_manglende_kolonne_kaster_med_navns_nevnelse():
         _les_csv(tekst)
 
 
+@pytest.mark.parametrize("kropp", [
+    "<!DOCTYPE html><html><body><h1>Tjenesten er midlertidig utilgjengelig"
+    "</h1></body></html>",
+    "[]",
+    "",
+    "\ufeff",
+])
+def test_kropp_uten_kolonnene_kaster_ogsaa_uten_rader(kropp):
+    """MALING-DRIFT F3.2: feilside, tom liste og tom kropp ga `ok` med 0
+    rader, fordi overskriften var feilsiden selv og det ikke fantes noen rad
+    å sjekke den mot. Nå kaster parse(); kroppen er arkivert før parse."""
+    with pytest.raises(Kolonnefeil):
+        list(Sjotemperatur().parse(kropp, "2026-10-05"))
+
+
 def test_tom_csv_er_ikke_en_feil_men_en_tom_uke():
     """2010 og 2011 gir 200 OK med tom liste. Backfillens stoppvilkår
     teller rader, så tomt skal gi tomt — ikke en exception."""

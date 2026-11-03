@@ -162,6 +162,29 @@ def _vurder_volum(kilde: str, antall: int, gammel: dict) -> tuple[int, int, str 
     return max(antall, referanse), 0, None
 
 
+def ufullstendig(kilde: str, antall: int, tilstand: dict | None = None) -> str:
+    """Merket snapshotet skal bære: «ja», «nei», eller tom streng.
+
+    SAMME vurdering som volumvakten gjør i `oppdater()`, mot samme
+    referanse — men spurt FØR snapshotet skrives, så merket kan stå på
+    radene (snapshot.SCHEMA, `ufullstendig`). `oppdater()` kjører etter
+    skrivingen og kan ikke merke noe; den varsler, og varselet står som
+    før.
+
+    Tom streng når volumvakten ikke kan svare: ingen referanse ennå, eller
+    ingen rader (da skrives heller ikke noe snapshot). Fraværet av en dom
+    er ikke en dom (CLAUDE.md 1b-7) — snapshotet leses da som før.
+
+    MALING-DRIFT F3.1 er grunnen: en halv sjøtemperaturkropp ga 1 355 av
+    2 733 rader, `ok=True`, og et snapshot som gjorde 532 lokaliteter
+    «borte» og samme 532 «ny» uka etter.
+    """
+    gammel = (les() if tilstand is None else tilstand).get(kilde, {})
+    if not antall or not gammel.get("volum_referanse"):
+        return ""
+    return "ja" if _vurder_volum(kilde, antall, gammel)[2] else "nei"
+
+
 def _vurder_felter(
     kilde: str, felt_naa: dict[str, int], gammel: dict
 ) -> tuple[dict, str | None]:
