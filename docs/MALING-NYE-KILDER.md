@@ -443,3 +443,122 @@ gjennom de åpne API-ene. Det `arkiver_lovdata.py` hentet, er fire
 enkeltdokumenter. Hvilket av de to dokumentene som gjelder for en
 robot, er ikke målbart her.
 *Feil hvis:* den synlige teksten i kroppen ikke nevner NLOD 2.0.
+
+### Punkt 1 og 2: søknadslaget
+
+**STOPP-regelen** er oppdragets egen, gitt før målingen: fangst bygges
+bare hvis tilstanden ikke kan hentes bakover, vilkåret er avklart og
+persondatafilteret holder; ellers fanges ingenting, og det står her.
+Skriptet ble prøvekjørt to ganger mot en kopi i scratch (21.54 UTC)
+før kjøringen mot arkivet (21.55); tallene var de samme.
+
+Postene slik de kom, er ikke arkivert (søkers navn og nummer uten
+organisasjonsform). Etter filteret er lag 0, 2 og 4 arkivert i
+`maling-soknader/` (`.9.json.gz` `ffe1c6efe5e45029`, `.10.json.gz`
+`be41567aa60ff3e4`, `.11.json.gz` `7ce188024ead66a8`). Filteret tok én
+søknad i lag 0 og 2 og ingen i lag 4, så tall om lag 4 er holdt mot
+kroppen, og tall om lag 0 med 296 poster er EKSTERN (295 står i
+kroppen).
+
+**F8.1 — Sju lag, ingen historikk. MÅLT.** Metadata for tjenesten og
+hvert lag er arkivert (`maling-soknader/2026-11-03.json.gz` til
+`.8.json.gz`). Lag 0 under behandling, 1 forankringspunkt, 2 flate, 4
+ferdigbehandlet, 5 flate ferdigbehandlet, 6 gammel flate, 7
+forankringspunkt ferdigbehandlet; ingen tabeller. Alle har
+`timeInfo`, `editingInfo` og `supportsQueryWithHistoricMoment` tomme,
+og `relationships` er tom liste. Lag 0 og 4 har søknadsnummer, søker,
+type, `status_application`, `submittedat`, lokalitetsnummer og -navn,
+koordinater, kommune, omsøkt MTB (`desiredbiomass_value`), planlagt
+produksjon, art og antall nye tillatelser; lag 4 har i tillegg
+`withdrawnat`, `evaluation_result` og `evaluationfinishedat`. Ingen
+felt sier når posten sist ble endret.
+*Feil hvis:* metadata for lag 0 eller 4 har et datofelt for endring,
+eller `relationships` er ikke tom.
+
+**F8.2 — `historicMoment` ignoreres. EKSTERN.** Lag 0 og 4 spurt med
+`historicMoment` for 01.09.2026 12 UTC ga samme sha256 som uten
+(`77b22b6dbe370ba9`, `ba5e5c229981409e`, loggen `s1`). De samme to
+hashene kom i prøvekjøringen ett minutt før, så svaret er byte-stabilt.
+Kroppene er ikke arkivert, se over.
+*Feil hvis:* de to `historicMoment`-radene i `s1`-loggen har en annen
+sha256 enn spørringen uten.
+
+**F8.3 — En ferdigbehandlet søknad beholder ikke statusforløpet. MÅLT
+for lag 4.** 664 søknader: `PROCESSED` 573, `WITHDRAWN` 91;
+`evaluation_result` `GRANTED` 492, `DENIED` 81, tom 91. Det som finnes
+om forløpet, er tre datoer: `submittedat` (664), `evaluationfinishedat`
+(573) og `withdrawnat` (91). Domenet for `status_application` har sju
+koder (`CREATED`, `SUBMITTED`, `COMPLETE`, `INCOMPLETE`, `PROCESSED`,
+`WITHDRAWN`, `RETURNED`); lag 0 viser bare `SUBMITTED` 260 og
+`RETURNED` 36 (EKSTERN). Av søknadene i lag 4 var 657 sendt inn før
+01.09.2026 og 65 av dem ikke avsluttet da, etter datoene; hvilken
+status og hvilken omsøkt MTB de hadde 01.09, står ikke noe sted. 0
+søknadsnumre står i både lag 0 og lag 4.
+*Feil hvis:* lag 4-kroppen har et annet antall `PROCESSED` enn 573.
+
+**Tilstanden 01.09.2026 kan altså ikke hentes**, bare delvis regnes ut:
+at en søknad var under behandling, men ikke hva den sa.
+
+**F8.4 — Hvor ofte endres en søknad: bare datoene kan svare. MÅLT for
+lag 4.** De siste 30 døgnene før 03.11.2026: 34 sendt inn (lag 0,
+EKSTERN), 16 ferdigbehandlet og 3 trukket (lag 4). Endringer uten ny
+dato (`RETURNED` tilbake til `SUBMITTED`, ny MTB, ny flate) kan ikke ses
+i én henting. Det er det fangsten skal måle. UBELAGT inntil den har gått
+en stund.
+
+**F8.5 — Ingen av søkerne er personer; én er ukjent. EKSTERN.** 222
+ulike søkernummer i alle sju lag, alle ni siffer, ingen tomme. Brreg:
+214 aktive, 7 slettet, 1 svarer 404. Former: AS 207, FYLK 5, ASA 3,
+ORGL 3, STI 2, FLI 1, ukjent 1. Ingen i sektor 8200 eller 2300, ingen
+ENK, DA, ANS eller PRE. Filteret (vet ikke = ut) tok den ene ukjente:
+én post i lag 0, 1 og 2, ingen i 4–7. Brreg-svarene er ikke arkivert;
+utskriften har bare tellingene.
+
+**F8.6 — Vilkåret er NLOD. MÅLT.** Tjenesten har `copyrightText`
+«Fiskeridirektoratet» (`maling-soknader/2026-11-03.json.gz`).
+`vilkar-fiskeridir/2026-11-02.bin.gz` (`021c8692f14104b1`): «All bruk av
+data fra Fiskeridirektoratet er underlagt Norsk lisens for offentlige
+data (NLOD).» Siden arkiveres månedlig av `arkiver_vilkar.py` fra før.
+Rad i LISENSKJEDE. `gis.fiskeridir.no/robots.txt` svarer 404 (EKSTERN,
+ikke arkivert).
+*Feil hvis:* den synlige teksten i `vilkar-fiskeridir/2026-11-02.bin.gz`
+ikke nevner NLOD.
+
+**F8.7 — Kobling: 627 søknader har lokalitetsnummer, alle i registeret.
+MÅLT for lag 4.** Mot de 31 akvakultur-kroppene i arkivet
+(`akvakultur/2026-08-17.json.gz` `b1d36b5caedf4c3d` til
+`2026-11-03.daglig.2.json.gz` `5b53e1b336d980f6`, 1790 ulike
+lokalitetsnummer):
+
+    lag 0   296 søknader, sitenr i 130, alle 130 i registeret;
+            166 uten, 40 av dem innen 500 m av en lokalitet i registeret
+    lag 4   664 søknader, sitenr i 497, alle 497 i registeret;
+            167 uten, 81 av dem innen 500 m; 83 innvilget uten sitenr
+
+Ingen av lokalitetsnumrene ble sett første gang etter
+`2026-08-17.json.gz`; vinduet er bare 17.08–03.11, så «kom senere i
+registeret» kan ikke måles lenger bakover. Feltene
+`sitelatitudedecimaldegree` og `sitelongitudedecimaldegree` er grader
+ganger 100 (6588,035 for 65,881 i registeret, lokalitet 36017). Delt på
+100 er medianavstanden mellom søknad og register 0,000 km i lag 4 og
+0,007 km i lag 0, og under 0,5 km for 494 av 497 og 128 av 130.
+*Feil hvis:* en søknad i lag 4-kroppen har et `sitenr` som ikke finnes i
+noen akvakultur-kropp.
+
+**F8.8 — Bygget: `arkiver_soknader.py`, daglig.** Lag 0, 2, 4, 5 og 6
+(forankringspunktene, lag 1 og 7, er utelatt med vilje). Hvert
+søkernummer slås opp hos Brreg før noe skrives; feiler oppslaget,
+skrives ingenting, heller ikke karantene. Kroppssjekk og karantene som
+`arkiver_flater.py`. Egen sti `data/arkiv/akvakultur-soknader/` og
+jobben `soknader` i `daglig.yml`, med frist 2 døgn i `jobber.yml`; de
+tre workflow-filene er skrevet, ikke lagt inn.
+
+**F8.9 — Første kjøring for hånd. MÅLT.** Kodrepoets `97e8655`, fra en
+fersk klone (som jobben i Actions), 03.11.2026 22.11.40 UTC. Lagret
+`akvakultur-soknader/2026-11-03.json.gz`, sha256 `ac5f99e37de8811a`,
+1 525 094 byte utpakket og 199 675 byte gzippet, med 295, 148, 664, 297 og
+125 poster i lag 0, 2, 4, 5 og 6, og loggen
+`2026-11-03.fangst.logg.json` (`kode_rent` «ja», `filtrert`: «vet ikke»
+1 i lag 0 og 1 i lag 2). Kroppen har 221 ulike søkernummer, alle ni
+siffer; geometri bare i lag 2, 5 og 6.
+*Feil hvis:* kroppen har et annet antall poster i lag 0 enn 295.
