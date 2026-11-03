@@ -64,6 +64,7 @@ import sys
 import time
 from pathlib import Path
 
+from core import karantene
 from core import kodeproveniens
 from core import raw as raw_arkiv
 from sources import _barentswatch
@@ -85,23 +86,59 @@ def siste_kropp(mandag: str) -> Path | None:
     return filer[-1] if filer else None
 
 
+def mistenkt(rå: dict, forrige: bytes | None, aar: int, uke: int) -> list[str]:
+    """Grunnene til at kroppen ikke skal inn i serien. Tom liste: ingen.
+
+    Tom liste med lokaliteter: 2010 og 2011 gir 200 med tom liste
+    (BARENTSWATCH-FUNN punkt 3), og en tom uke N er ikke en uke uten lus.
+    Til 03.11.2026 kastet den og tok kroppen med seg; nå går den i
+    karantene som resten.
+
+    FÆRRE LOKALITETER enn forrige kropp for samme uke (MALING-DRIFT F4.2,
+    fra 03.11.2026). En uke fyller seg opp med rapporter, men lista over
+    lokaliteter krymper ikke: målt 03.11.2026 i 12 uker med 2–3 hentinger
+    hver, og antallet gikk aldri ned (MALING-DRIFT 0d,
+    analyse/drift/luseinnkomst_ned.txt). For uke N til N-4 er grunnlaget
+    én kveld, 02.11.2026; for de sju eldre ukene opptil 75 døgn. En kropp
+    med færre er en halv kropp, ikke en uke der lokaliteter forsvant.
+    """
+    lokaliteter = rå.get("localities") if isinstance(rå, dict) else None
+    if not lokaliteter:
+        return [f"uke {uke}/{aar}: svaret har ingen lokaliteter"]
+    if forrige is not None:
+        n = len(json.loads(forrige).get("localities") or [])
+        if len(lokaliteter) < n:
+            return [f"uke {uke}/{aar}: {len(lokaliteter)} lokaliteter, færre enn "
+                    f"{n} i forrige kropp for uka"]
+    return []
+
+
 def fang_uke(kilde, aar: int, uke: int, klient, torr: bool) -> dict:
     mandag = _barentswatch.mandag(aar, uke)
     hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     rå = kilde.hent_uke(aar, uke, klient)
-    if not rå.get("localities"):
-        # 2010 og 2011 gir 200 med tom liste (BARENTSWATCH-FUNN punkt 3).
-        # En tom uke N er ikke en uke uten lus, og skal ikke lagres som en.
-        raise ValueError(f"uke {uke}/{aar}: svaret har ingen lokaliteter")
-    data, ext = raw_arkiv._serialiser(rå)
-    sha = hashlib.sha256(data).hexdigest()
 
     forrige = siste_kropp(mandag)
-    sammenlignet = None
+    lagret = None
     if forrige is not None:
         with gzip.open(forrige, "rb") as f:
-            sammenlignet = {"fil": forrige.name,
-                            "sha256": hashlib.sha256(f.read()).hexdigest()}
+            lagret = f.read()
+    grunner = mistenkt(rå, lagret, aar, uke)
+    if grunner:
+        if torr:
+            return {"aar": aar, "uke": uke, "observed_at": mandag,
+                    "status": "ville karantene", "grunn": grunner}
+        return dict(karantene.sett_inn(
+            MAPPE, mandag, rå, grunner, jobb="luseinnkomst", fetched_at=hentet,
+            published_at="", sammenlignet_med=forrige.name if forrige else None),
+            aar=aar, uke=uke)
+
+    data, ext = raw_arkiv._serialiser(rå)
+    sha = hashlib.sha256(data).hexdigest()
+    sammenlignet = None
+    if lagret is not None:
+        sammenlignet = {"fil": forrige.name,
+                        "sha256": hashlib.sha256(lagret).hexdigest()}
     ny = sammenlignet is None or sammenlignet["sha256"] != sha
 
     aktive, rapportert, andel = rapportert_andel(rå)
@@ -154,7 +191,7 @@ def main(argv=None, kilde=None) -> int:
         print(f"  kode        {sha[:12]}  rent, på origin/main")
 
     kilde = kilde or Lusetall()
-    feil = nye = 0
+    feil = nye = karantenert = 0
     klient = kilde._klient()
     try:
         for k in UKER:
@@ -169,6 +206,11 @@ def main(argv=None, kilde=None) -> int:
                 feil += 1
                 continue
             logg["uker"].append(post)
+            if post["status"] in (karantene.STATUS, "ville karantene"):
+                karantenert += 1
+                print(f"  N-{k} {uke:>2}/{aar}  {post['status']:<8} "
+                      f"{'; '.join(post['grunn'])}")
+                continue
             nye += post["status"] == "ny"
             print(f"  N-{k} {uke:>2}/{aar}  {post['status']:<8} "
                   f"{post['rapportert']:>4}/{post['aktive']:<4} {post['andel']:>7.1%}  "
@@ -180,8 +222,9 @@ def main(argv=None, kilde=None) -> int:
 
     if not a.torrkjor:
         print(f"  logg        {skriv_logg(dato, logg).name}")
-    print(f"\n{len(UKER)} uke(r), {nye} ny(e) kropp(er), {feil} feil.")
-    return 1 if feil else 0
+    print(f"\n{len(UKER)} uke(r), {nye} ny(e) kropp(er), {feil} feil, "
+          f"{karantenert} i karantene.")
+    return 1 if feil or karantenert else 0
 
 
 if __name__ == "__main__":

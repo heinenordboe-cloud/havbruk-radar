@@ -158,3 +158,50 @@ def test_malingens_logg_teller_ikke_som_kropp(arkiv):
     (arkiv / "2026-11-02.maling.logg.json").write_text("[]")
     ark.main(["--dato", "2026-11-02"], kilde=Falsk({}))
     assert ark.siste_kropp("2026-11-02").name == "2026-11-02.json.gz"
+
+
+# ---- karantene (MALING-DRIFT F4.2) -------------------------------------
+
+def test_tom_uke_gaar_i_karantene_og_er_tatt_vare_paa(arkiv, capsys):
+    tom = {"year": 2026, "week": 45, "localities": []}
+    assert ark.main(["--dato", "2026-11-02"], kilde=Falsk({(2026, 45): tom})) == 1
+    [kropp] = (arkiv / "karantene").glob("*.gz")
+    assert kropp.name == "2026-11-02.json.gz"
+    assert json.loads(gzip.decompress(kropp.read_bytes())) == tom
+    [logg] = logger(arkiv)
+    [u45] = [u for u in logg["uker"] if u["uke"] == 45]
+    assert u45["status"] == "karantene"
+    assert "::error::Karantene (luseinnkomst)" in capsys.readouterr().out
+
+
+def test_faerre_lokaliteter_enn_forrige_kropp_gaar_i_karantene(arkiv):
+    ark.main(["--dato", "2026-11-02"], kilde=Falsk({}))
+    halv = ukesvar(2026, 44, rapportert=2)
+    halv["localities"] = halv["localities"][:3]
+
+    assert ark.main(["--dato", "2026-11-03"], kilde=Falsk({(2026, 44): halv})) == 1
+    assert [n for n in kropper(arkiv) if n.startswith("2026-10-26")] == \
+        ["2026-10-26.json.gz"], "forrige kropp står som siste for uka"
+    [u44] = [u for u in logger(arkiv)[1]["uker"] if u["uke"] == 44]
+    assert u44["grunn"] == ["uke 44/2026: 3 lokaliteter, færre enn 5 i forrige kropp for uka"]
+    assert u44["sammenlignet_med"] == "2026-10-26.json.gz"
+
+    # Neste dag er uka hel igjen, og sammenlignes mot den gode kroppen.
+    assert ark.main(["--dato", "2026-11-04"],
+                    kilde=Falsk({(2026, 44): ukesvar(2026, 44, rapportert=2)})) == 0
+    assert "2026-10-26.2.json.gz" in kropper(arkiv)
+
+
+def test_flere_lokaliteter_er_en_vanlig_ny_kropp(arkiv):
+    ark.main(["--dato", "2026-11-02"], kilde=Falsk({}))
+    assert ark.main(["--dato", "2026-11-03"],
+                    kilde=Falsk({(2026, 44): ukesvar(2026, 44, fallow=2)})) == 0
+    assert "2026-10-26.2.json.gz" in kropper(arkiv)
+
+
+def test_torrkjoring_sier_fra_om_karantene(arkiv, capsys):
+    tom = {"year": 2026, "week": 45, "localities": []}
+    assert ark.main(["--dato", "2026-11-02", "--torrkjor"],
+                    kilde=Falsk({(2026, 45): tom})) == 1
+    assert "ville karantene" in capsys.readouterr().out
+    assert not arkiv.exists() or not any(arkiv.iterdir())
