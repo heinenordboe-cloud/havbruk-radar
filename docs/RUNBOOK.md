@@ -236,7 +236,7 @@ Den står derfor i secrets og ikke i workflowen.
 
 **Byttet 02.11.2026.** Adressen til `havbruk-radar innsamling` hadde
 stått i et skjermbilde. Ny sjekk med samme tidsplan og frist (tabellen
-under); den gamle slettes etter mandag 09.11.
+under); den gamle slettes tirsdag 10.11.
 
 ### Tre sjekker fra 02.11.2026
 
@@ -246,14 +246,14 @@ Derfor to sjekker til i samme tjeneste, hver med sin egen adresse:
 | Navn i Healthchecks | Tidsplan | Frist | Sender | Adressen ligger i |
 |---|---|---|---|---|
 | `havbruk-radar innsamling 2` | cron `0 5 * * 1`, UTC | 2 dager | `samle.yml`, når innsamlingen skjedde | secret `HEARTBEAT_URL` i datarepoet |
-| `havbruk-radar tilsyn` | periode 1 dag | 2 timer (se under) | `tilsyn.yml`, siste steg, uansett utfall | secret `TILSYN_HEARTBEAT_URL` i datarepoet |
-| `kystvakt-1 ais-bw` | periode 1 time | 1 time | `regnskap.py time bw` (:10 hver time), når den nyeste timen som fikk regnskap har meldinger med MMSI | `/etc/kystvakt/puls-ais.env`, linja `PULS_URL=…`, `ais:ais` 0400 |
+| `havbruk-radar tilsyn` | periode 1 dag | 4 timer (se under) | `tilsyn.yml`, siste steg, uansett utfall | secret `TILSYN_HEARTBEAT_URL` i datarepoet |
+| `kystvakt-1 ais-bw` | periode 1 time | 3 timer (se under) | `regnskap.py time bw` (:10 hver time), når den nyeste timen som fikk regnskap har meldinger med MMSI | `/etc/kystvakt/puls-ais.env`, linja `PULS_URL=…`, `ais:ais` 0400 |
 
-**Tilsynets frist er knapp.** MÅLT 02.11.2026: 23,1–25,8 timer mellom
-planlagte kjøringer siden 13.10 (cron 06:00, start 10–14 UTC). Periode
-1 dag + 2 timer er 26 timer; største målte avstand er 25,8. Gir den
-falsk «down», er fristen det som skal opp — ikke signalet som skal
-flyttes.
+**Tilsynets frist er 4 timer, ikke 2.** MÅLT 02.11.2026: 23,1–25,8
+timer mellom planlagte kjøringer siden 13.10 (cron 06:00, start 10–14
+UTC). Med 2 timer ville 1 dag + frist vært 26 timer, bare 12 minutter
+over største målte avstand. Med 4 timer er det 28. Gir den likevel falsk
+«down», er fristen det som skal opp — ikke signalet som skal flyttes.
 
 **Tilsynet sender uansett utfall.** At det fant stillhet, sier den røde
 haken, og den varsler GitHub selv. Signalet sier bare at tilsynet kjørte.
@@ -261,9 +261,10 @@ haken, og den varsler GitHub selv. Signalet sier bare at tilsynet kjørte.
 **Kystvakt-1 sender fra regnskapet**, ikke fra lytteren: regnskapet er
 det som har talt meldingene. Den nyeste timen avgjør — tas flere timer
 igjen og den siste er tom, uteblir signalet. Står regnskapsjobben, uteblir
-det også. Regnskapet for en time venter opptil to timer på 5632 (se
-`regnskap.py`); da kommer signalet senere enn timen, og en frist på én
-time kan gi «down» uten at bw er stille. Det er ikke målt ennå.
+det også. **Fristen er 3 timer**, fordi regnskapet for en time venter
+opptil to timer på 5632 (se `regnskap.py`). Signalet kan altså komme to
+timer etter timen det gjelder, uten at bw er stille, og en frist på én
+time ville gitt falsk «down».
 
 **Adressene går aldri gjennom chatten eller en kommando Claude kjører.**
 Secrets settes fra din egen terminal; `gh` spør etter verdien uten å
@@ -283,6 +284,42 @@ adressen og trykk Enter (den skrives etter `PULS_URL=`).
 ```bash
 ssh -t vakt@kystvakt 'sudo sh -c "umask 077; { printf PULS_URL=; head -n1; } > /etc/kystvakt/puls-ais.env; chown ais:ais /etc/kystvakt/puls-ais.env; chmod 400 /etc/kystvakt/puls-ais.env"'
 ```
+
+### Slik prøves «down»: `/fail` på ping-adressen
+
+Send et feilsignal fra din egen terminal, med adressen fra Healthchecks
+(den skal ikke gjennom chatten):
+
+```bash
+curl -fsS -m 10 https://hc-ping.com/<uuid>/fail
+```
+
+Sjekken går «down» med en gang, og e-posten kommer. Neste vanlige signal
+gjør den «up» igjen og gir en UP-e-post. For `kystvakt-1 ais-bw` kommer
+det innen en time av seg selv. For de to andre kan det ta et døgn eller
+en uke, så send et vanlig signal (samme adresse uten `/fail`) når du har
+sett DOWN-e-posten.
+
+**Ikke prøv ved å endre tidsplanen eller fristen.** Sjekken går «down» i
+dashbordet, men det kommer ingen e-post. Det prøver altså ikke varslingen,
+som er det eneste som teller.
+
+**Ikke prøv ved å stoppe senderen** uten å regne på fristen først. Med
+periode 1 time + 3 timer må `ais-regnskap-bw.timer` stå i over fire timer
+før noe skjer.
+
+Prøvd natt til 03.11.2026, sett av Heine i Healthchecks:
+
+- Ny tidsplan tvang en sjekk «down», men ga ingen e-post.
+- Pulsen fra kystvakt-1 kl. 01:10 UTC gjorde `kystvakt-1 ais-bw` «up»
+  og ga UP-e-post.
+- `/fail` mot ping-adressen gjorde den «down» og ga DOWN-e-post innen
+  to minutter.
+- Testknappen på e-postkanalen leverte.
+- Regnskapstimeren sto stille 22:10–00:25 UTC 02.–03.11. Det ga aldri
+  «down», fordi 2 t 15 min er under periode + frist (4 timer). Etter at timeren
+  ble startet igjen, tok regnskapet igjen 22Z og 23Z, og pulsen gikk
+  00:26:15.
 
 ## Publisering: `publiser.py`
 
