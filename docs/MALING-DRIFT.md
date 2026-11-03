@@ -234,3 +234,80 @@ antallet lokaliteter i hver kropp, i rekkefølgen kroppene ble hentet
 (`fetched_at` i fangstloggene, løpenummeret der loggen mangler). Går
 antallet ned fra én kropp til den neste for samme uke, bygges ikke
 regelen i punkt 9; kroppene listes i stedet.
+
+### Utfallet
+
+**Ingen av de tre reglene stoppet arbeidet.** 0b fant ingen falske
+hendelser i arkivet, 0c ga en grense for bw (og ingen for 5632, fordi
+det ikke finnes et grunnlag), og 0d fant ingen uke der antallet gikk ned.
+
+**0a. Slik arkiveres kroppene i dag.** MÅLBAR, lest i koden
+(`havbruk-radar` på `0a78bbf`) og i workflowene i datarepoet, lest i
+kopiene som lastes opp med `last-opp.sh`.
+
+| Jobb | Hvor kroppen havner | «ny» mot «uendret» | Commit når skriptet er rødt |
+|---|---|---|---|
+| samle | `data/arkiv/<kilde>/<gjelder_for>.<ext>.gz`, `.2` ved kollisjon (`raw.arkiver`, `core/runner.py:279`), FØR parse | ingen: hver henting blir en fil | ja (`if: always()`), alt under `data/` utenom de andre jobbenes stier |
+| vilkar | `vilkar-<part>/<dato>.bin.gz` (`raw.arkiver_ny`) | sha256 mot ALLE kropper i mappa | ja |
+| auksjon | `auksjon/<dato>.bin.gz` (`raw.arkiver_ny`) | som vilkar | ja |
+| havbruksfond | `havbruksfondet/`, og pressemeldingene under sin egen «Dato:» (`raw.arkiver_ny`) | som vilkar | ja |
+| daglig | `<kilde>/<dato>.daglig.<ext>.gz` (`raw.arkiver` med merket `DAGLIG`) | kanonisk sha256 mot SISTE kropp, daglig eller ukentlig | ja, men bare navn som matcher `*.daglig.*` i toppen av mappa |
+| luseinnkomst | `lusetall-innkomst/<mandag>.json.gz`, `.2` … (`raw.arkiver`) | sha256 mot siste kropp for SAMME uke | ja |
+| ais-manifest | `ais-manifest/<kilde>/<dato>.SHA256SUMS`, og `data/ais/status.json` overskrevet hver kjøring | manifest: skrives én gang; status: alltid | NEI: commit bare når skrivesteget lyktes |
+
+Den felles hjelperen finnes for SKRIVINGEN: `core/raw.py` eier
+serialiseringen, navnene og løpenummeret (`_serialiser`, `_ledig_sti`,
+`arkiver`, `arkiver_ny`, `kropper`, `orden`). Det finnes ingen felles
+sjekk av kroppen, og tre ulike svar på «er den ny». Hver jobb skriver sin
+egen logg.
+*Feil hvis:* en av jobbene i tabellen kaller en felles funksjon som
+vurderer innholdet i kroppen før den skrives.
+
+**0b. Det halve snapshotet.** MÅLBAR: den halve kroppen er konstruert,
+kroppen den er halvert fra er `data/arkiv/sjotemperatur/2026-10-05.txt.gz`
+(utpakket 125 908 B, sha256
+`8e3ed284fde0eff10305373e95228bbb60756e742e65649052f1dfd67df95d40`).
+Skriptet er `analyse/drift/halvt_snapshot.py`, utskriften
+`analyse/drift/halvt_snapshot.txt`.
+
+Mot snapshotet 2026-09-28 gir den hele kroppen 628 changelog-rader, den
+halve 1683. **532 lokaliteter blir «borte» bare med den halve kroppen**
+(534 mot 2), og **0 blir «endret»** uten også å være det med den hele: de
+294 endringene er en delmengde av den hele kroppens 599. Kommer uka etter
+hel, står **alle 532 som «ny»** (1378 rader). Ingen av dem treffer en
+signalregel, og sjøtemperatur er en måleserie, så nettstedet viser dem
+ikke som hendelser i dag. Tidsaksen ville lest dem.
+
+I ARKIVET: 0 falske hendelser etter stoppregelen. Hele `data/raw/` ble
+lest; de eneste snapshotene med under 90 % av entitetene foran og minst
+90 % etter er to år i `eierskap_historikk` (2017 og 2021), en årsserie
+med nye entiteter hvert år. Ingen av de 86 entitetene som ble «borte»
+der, kom tilbake som «ny» året etter.
+*Feil hvis:* `diff.compare` mot 2026-09-28 gir et annet antall
+lokaliteter med `borte` for den halve kroppen enn 534.
+
+**0c. Linjer uten MMSI.** EKSTERN: timeregnskapene ligger på kystvakt-1,
+ikke i arkivet. sha256 over stien og sha256 for hver av de 272 filene:
+`83d54f8c3ae51152591836060493205c3d28319a7012d2e82b997e799adc2bc7`.
+Skriptet er `analyse/drift/mmsi_andel.py`, utskriften
+`analyse/drift/mmsi_andel.txt`.
+
+bw: 136 timer fra 2026-10-28T16Z til 2026-11-03T07Z, alle med meldinger
+(74 459 til 957 333 i timen). Høyeste andel uten MMSI er 0,0013 % (1 av
+74 459 i den første timen); i 132 av timene er den 0. Regelen gir **1 %**.
+5632: alle 136 timene er tomme, så det finnes ingen fordeling å bygge en
+grense på. 5632 får ingen grense i punkt 6; den tomme kilden er allerede
+rød i tilsynet etter et døgn (`AIS_TOM_FEIL`).
+*Feil hvis:* et timeregnskap for bw i perioden har `uten_mmsi` over 1 %
+av `meldinger`.
+
+**0d. Luseinnkomsten.** MÅLT, holdt mot kroppene med sha256 i
+`analyse/drift/luseinnkomst_ned.txt` (skriptet
+`analyse/drift/luseinnkomst_ned.py`). 12 uker har 2–3 hentinger hver,
+og i ingen av dem går antallet lokaliteter ned. Uke N til N−4 er bare
+hentet i ett tidsrom, 02.11.2026 13.14–19.24 UTC; de sju eldre ukene er
+hentet to ganger med opptil 75 døgn imellom (2016-10-10: 1 674 i august
+og 1 674 i november). Regelen i punkt 9 bygges, men grunnlaget er én
+kveld for de ukene den gjelder.
+*Feil hvis:* en uke i `lusetall-innkomst/` har en henting med færre
+lokaliteter enn hentingen før.

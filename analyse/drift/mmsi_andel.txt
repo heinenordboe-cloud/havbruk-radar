@@ -1,0 +1,23 @@
+MALING-DRIFT 0c — linjer uten MMSI per time, per lytter
+grunnlag: timeregnskapene fra 2026-10-28, kystvakt-1 over ssh (sudo -n tar, bare lesing)
+
+bw: 136 timer (2026-10-28T16Z – 2026-11-03T07Z), 136 med minst én melding, 0 tomme
+  meldinger per time: min 74459, median 824418, maks 957333
+  andel uten MMSI:    min 0.0000%  median 0.0000%  p95 0.0000%  p99 0.0002%  maks 0.0013%
+  spenn 0.00 prosentpoeng
+  de fem høyeste timene:
+    2026-10-28T16Z        1 av   74459  0.0013%
+    2026-10-28T17Z        1 av  464583  0.0002%
+    2026-11-02T03Z        1 av  722247  0.0001%
+    2026-11-03T06Z        1 av  896341  0.0001%
+    2026-10-28T18Z        0 av  818273  0.0000%
+  de fem laveste timene:
+    2026-10-28T18Z        0 av  818273  0.0000%
+    2026-10-28T19Z        0 av  812461  0.0000%
+    2026-10-28T20Z        0 av  788042  0.0000%
+    2026-10-28T21Z        0 av  766044  0.0000%
+    2026-10-28T22Z        0 av  757375  0.0000%
+  regelen: maks 0.0013% rundet opp til hele prosent = 1%
+
+5632: 136 timer (2026-10-28T16Z – 2026-11-03T07Z), 0 med minst én melding, 136 tomme
+sha256 over (sti, sha256) for hver fil, sortert: 83d54f8c3ae51152591836060493205c3d28319a7012d2e82b997e799adc2bc7
