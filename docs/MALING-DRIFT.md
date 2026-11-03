@@ -513,3 +513,16 @@ alltid logg. Ikke kjørt gjennom skriptet over.
 `arkiver_lovdata.py`, `utgivelsesvakt.py` og, fra `4b8019b`,
 `arkiver_vilkar.py` skriver `<dato>.N.logg.json` når dagens finnes. MÅLBAR,
 lest i koden. Det samme gjør den nye `arkiver_soknader.py`.
+
+**Rettelse samme natt, etter kontrolløren** (én kjøring på hele
+dokumentet, frø 1987274077: to treff, ett avvik). Teksten over er ikke
+endret. Avviket gjelder 0d: «12 uker har 2–3 hentinger hver» holder
+ikke for uka 2026-10-05. Den er hentet fem ganger, ikke tre: innsamlingen
+13.14, målingen 18.59.38 og 18.59.39 («N-4» og «N-4 igjen» i
+`lusetall-innkomst/2026-11-02.maling.logg.json`) og fangsten 19.14 og
+19.24. `luseinnkomst_ned.py` talte bare målingskall som ga en egen fil,
+og de to kallene for uka ga samme bytes som innsamlingens kropp. Grunnlaget
+omfatter også innsamlingens kropper i `data/arkiv/lusetall/`, som regelen
+for 0d ikke nevner; sha256 for hver henting står i
+`analyse/drift/luseinnkomst_ned.txt`. Konklusjonen står: ingen uke har en
+henting med færre lokaliteter enn hentingen før.

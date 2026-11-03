@@ -634,3 +634,59 @@ og snapshotene viser som ILA- og PD-flagg, er feil for disse
 lokalitetene, målt mot Mattilsynets egne tilfeller. Ingenting er rettet,
 og ingenting er tolket utover tabellen. Utvalget er bare uenige
 lokaliteter; hvor stor andel av alle flaggene som er feil, er ikke målt.
+
+### Punkt 5: Lovdatas åpne datasett
+
+**STOPP-regel**, skrevet etter at robots.txt for api.lovdata.no var lest
+for første gang (utforskende, ikke arkivert) og før noe annet ble målt:
+er hentestedet stengt for `*` i sin egen robots.txt, lastes ingen pakke
+ned. Lista, spesifikasjonen og robots.txt hentes én gang hver og
+arkiveres, og spørsmålet om forskriftene er med, står åpent til Heine
+har bestemt om robots.txt gjelder.
+
+**F10.1 — Datasettene finnes, uten nøkkel. MÅLT.**
+`api.lovdata.no/v1/publicData/list` (`maling-lovdata/2026-11-03.7.bin.gz`,
+`67a4b176082398e4`) lister seks pakker, alle med `lastModified`
+03.11.2026 02.31–02.32 UTC: `gjeldende-lover.tar.bz2` (5 810 283 B),
+`gjeldende-sentrale-forskrifter.tar.bz2` (21 516 248 B),
+`lovtidend-avd1-2001-2025.tar.bz2` (69 320 068 B),
+`lovtidend-avd1-2026.tar.bz2` (1 642 194 B) og to for avdeling II
+(lokale forskrifter). Spesifikasjonen (`.8.bin.gz`, `fbcaf3f97d310318`)
+sier at de to første er «free datasets […] no user or authentication
+required», og at `publicData`-endepunktene ikke krever nøkkel. Den har
+ingen `info.license`.
+*Feil hvis:* lista i `.7.bin.gz` har et annet antall pakker enn seks.
+
+**F10.2 — Lisensen står i brukeravtalen, ikke i API-et. MÅLT.**
+`vilkar-lovdata/2026-11-02.bin.gz` (`4ef5a05f2e3e0266`): NLOD 2.0 for
+regelverk i Norsk Lovtidend, gjeldende lover og gjeldende sentrale
+forskrifter, med kilde «Lovdata». Samme avsnitt viser større
+nedlastinger til «våre åpne API-er», med lenke til
+`api.lovdata.no/swagger#/Public%20data`. Se F7.5.
+
+**F10.3 — Hentestedet er stengt i sin egen robots.txt. MÅLT.**
+`api.lovdata.no/robots.txt` er 25 byte, `User-agent: *` og
+`Disallow: /` (`maling-lovdata/2026-11-03.2.bin.gz`, `efdb5938a9736727`).
+Wayback har seks kopier fra 25.01.2025 til 23.03.2026, alle med samme
+digest (`.6.bin.gz`), og kopien fra 23.03.2026 er byte-lik vår. Etter
+sin robots.txt er hentestedet altså ikke tillatt. Brukeravtalen
+(F10.2) sender likevel brukerne dit. STOPP-regelen er utløst, og ingen
+pakke er lastet ned.
+*Feil hvis:* `.2.bin.gz` har noe annet enn de to linjene.
+
+**F10.4 — Er trafikklysforskriften og kapasitetsjusteringen med?
+UBELAGT.** Ingen pakke er åpnet. Beskrivelsene peker på hvor de ville
+ligget: FOR-2017-01-16-61 er en sentral forskrift (dokumenttypen `SF`
+hos Lovdata, den samme `arkiver_lovdata.py` hentet), altså i
+`gjeldende-sentrale-forskrifter`; kapasitetsjusteringsforskriftene er
+kunngjøringer i Lovtidend avdeling I (`LTI`), altså i
+`lovtidend-avd1-2001-2025` og, for runden 2026, `lovtidend-avd1-2026`.
+Det er en lesning av navnene, ikke av innholdet.
+
+**Forslag til utgivelsesvakten: ikke gitt.** Kravet var at hentestedet
+holder, og etter robots.txt gjør det ikke. Bestemmer Heine at
+brukeravtalens henvisning går foran robots.txt for et API, er forslaget
+dette: ukentlig henting av `publicData/list` i `utgivelsesvakt.py`, med
+ny kropp og issue når `sizeBytes` for `gjeldende-sentrale-forskrifter`
+endres. Ikke `lastModified`: alle seks pakkene har samme natt, så feltet
+kan være byggetiden og ikke endringen (én henting, ikke målt over tid).
