@@ -1,0 +1,71 @@
+== a. Flatelaget, fiskeridirWMS_akva/MapServer/19
+metadata 2026-11-03.json.gz: copyrightText='Fiskeridirektoratet / Akvakulturregister'
+  felt: ['objectid', 'loknr', 'navn', 'lokalitet', 'status_lokalitet', 'plassering', 'vannmiljo', 'fylke', 'kommune', 'areal_m2']
+  timeInfo=None editingInfo=None supportsQueryWithHistoricMoment=None
+henting 1 2026-11-03.2.json.gz 0345f18838ff2669… 358587 B, henting 2 sha 0345f18838ff2669… lik: True, 2026-11-03T19:09:13+00:00 / 2026-11-03T19:09:33+00:00
+  1398 flater, 1398 ulike loknr, exceededTransferLimit=None
+  loknr med mer enn én flate: 0
+  poster med geometri: 0
+  status_lokalitet: {'AKTIV': 1398}
+  de ti delte lokalitetene i laget: [(10181, 1), (10229, 1), (11015, 1), (11665, 1), (13246, 1), (13527, 1), (14679, 1), (19755, 1), (33797, 1), (45002, 1)]
+lag 80 metadata 2026-11-03.27.json.gz: name='Flate_ihht_Akvakulturregisteret' copyrightText='Fiskeridirektoratet / Akvakulturregister' geometryType='esriGeometryPolygon' timeInfo=None editingInfo=None
+lag 80 henting 1 2026-11-03.28.json.gz 27982e4893d0d7c1… 947162 B; henting 2 lik: True; historicMoment lik dagens: True
+  1372 flater, 1372 ulike loknr, mer enn én flate: 0, exceededTransferLimit=None
+  med polygon: 1372, ringer 1428, punkter 9435
+  felt: ['areal_m2', 'fylke', 'globalid', 'kommune', 'lokalitet', 'loknr', 'navn', 'objectid', 'plassering', 'st_area(shape)', 'st_perimeter(shape)', 'status_lokalitet', 'vannmiljo']
+  loknr i 19 og ikke i 80: 26; i 80 og ikke i 19: 0
+  de ti delte lokalitetene i lag 80: [(10181, 1), (10229, 1), (11015, 1), (11665, 1), (13246, 1), (13527, 1), (14679, 1), (19755, 1), (33797, 1), (45002, 1)]
+historicMoment 2026-11-03.3.json.gz: error=False, 5 rader, attributtene lik dagens for alle: True
+wayback available 2026-11-03.4.json.gz: {}; cdx 2026-11-03.5.json.gz: 0 rader
+akvakultur/2026-11-03.daglig.json.gz 7a29fc77dfb88eb2…: 1784 lokaliteter; med flate i lag 80 1371, flate uten lokalitet i kroppen 1
+
+== b. Fiskehelse
+lag 26 2026-11-03.6.json.gz: 29 rader; status {'påvist': 27, 'mistanke': 2}
+lag 27 2026-11-03.7.json.gz: 14 rader; status {'påvist': 9, 'mistanke': 5}
+uke 36/2026 i dag 2026-11-03.18.json.gz 94ac7149d96f7030… mot innsamlingen lusetall/2026-08-31.json.gz f8fe2cfb9bd2b17b…: lik=False
+  lokaliteter i dag 1777, i innsamlingen 1777, felles 1777
+  avgAdultFemaleLice     ulik i 1
+  hasCleanerfishDeployed ulik i 0
+  hasIla                 ulik i 0
+  hasMechanicalRemoval   ulik i 1
+  hasPd                  ulik i 0
+  hasReportedLice        ulik i 1
+  hasSalmonoids          ulik i 4
+  hasSubstanceTreatments ulik i 0
+  inFilteredSelection    ulik i 0
+  isFallow               ulik i 0
+  isOnLand               ulik i 0
+  isSlaughterHoldingCage ulik i 2
+  lat                    ulik i 0
+  localityWeekId         ulik i 0
+  lon                    ulik i 0
+  municipality           ulik i 0
+  municipalityNo         ulik i 0
+  name                   ulik i 0
+  ILA i dag 16, PD i dag 46; ILA i innsamlingen 16, PD 46
+  v3 10041 2026-11-03.20.json.gz: 5 tilfeller; [('PANKREASSYKDOM', 'DIAGNOSED', '2024-11-01', '2024-11-21', '2025-08-30'), ('PANKREASSYKDOM', 'DIAGNOSED', '2026-05-12', '2026-06-02', ''), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2014-06-04', '2015-09-15'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2018-02-08', '2018-11-22'), ('INFEKSIOES_LAKSEANEMI', 'DIAGNOSED', '', '2018-10-26', '2019-01-11')]
+  v3 10045 2026-11-03.21.json.gz: 3 tilfeller; [('PANKREASSYKDOM', 'DIAGNOSED', '2024-02-28', '2024-03-06', '2025-09-01'), ('PANKREASSYKDOM', 'DIAGNOSED', '2026-05-12', '2026-05-29', ''), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2013-08-05', '2014-06-23')]
+  v3 10054 2026-11-03.22.json.gz: 6 tilfeller; [('PANKREASSYKDOM', 'DIAGNOSED', '2024-07-03', '2024-07-19', '2025-07-18'), ('PANKREASSYKDOM', 'DIAGNOSED', '2020-06-29', '2020-07-08', '2021-08-31'), ('INFEKSIOES_LAKSEANEMI', 'DIAGNOSED', '2022-10-19', '2022-12-09', '2023-08-16'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2014-02-07', '2015-05-26'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2020-07-08', ''), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2018-03-22', '2019-05-14')]
+  v3 10232 2026-11-03.23.json.gz: 7 tilfeller; [('PANKREASSYKDOM', 'DIAGNOSED', '2025-12-17', '2026-01-26', ''), ('PANKREASSYKDOM', 'DIAGNOSED', '2024-07-24', '2024-08-14', '2024-12-14'), ('PANKREASSYKDOM', 'DIAGNOSED', '2020-06-05', '2020-09-23', '2021-01-01'), ('PANKREASSYKDOM', 'DIAGNOSED', '2021-12-07', '2021-12-15', '2022-12-08'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2013-11-01', '2015-03-03'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2018-08-06', '2018-12-07'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2020-09-23', '2021-01-15')]
+  v3 10256 2026-11-03.24.json.gz: 6 tilfeller; [('INFEKSIOES_LAKSEANEMI', 'SUSPECTED', '2026-05-26', '', ''), ('INFEKSIOES_LAKSEANEMI', 'SUSPECTED', '2024-07-26', '', ''), ('PANKREASSYKDOM', 'DIAGNOSED', '2019-09-05', '2020-01-15', '2020-11-29'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2014-09-17', '2015-04-08'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2018-07-02', '2019-01-29'), ('PANKREASSYKDOM', 'DIAGNOSED', '', '2019-01-15', '2020-11-07')]
+  v3 10298 2026-11-03.25.json.gz: 2 tilfeller; [('PANKREASSYKDOM', 'DIAGNOSED', '2024-11-11', '2024-11-20', '2025-05-25'), ('PANKREASSYKDOM', 'DIAGNOSED', '2020-11-02', '2020-11-13', '2021-05-21')]
+  v2 ilaprotectionzone uke 36/2026 2026-11-03.26.json.gz: list med 5 elementer
+  v2 pdprotectionzone uke 36/2026 2026-11-03.5.json.gz: list med 0 elementer
+
+== f. v1 mot v2, samme minutt
+uke 45/2026  v1 2026-11-03.8.json.gz   763457 B  v2 2026-11-03.9.json.gz  1208760 B  lok v1 1782 v2 1782 felles 1782  ulik: snitt hunnlus 0, rapportert 0, brakk 0, ILA 26, PD 53, localityWeekId 0
+    ILA 14 bare v1 / 12 bare v2; PD 35 bare v1 / 18 bare v2; laksefisk 0 bare v1 / 0 bare v2; slaktemerd 0 bare v1 / 0 bare v2; på land 0 bare v1 / 0 bare v2; behandling 0 bare v1 / 0 bare v2; navn ulik 0, kommunenr ulik 0
+uke 44/2026  v1 2026-11-03.10.json.gz   763090 B  v2 2026-11-03.11.json.gz  1227162 B  lok v1 1782 v2 1782 felles 1782  ulik: snitt hunnlus 0, rapportert 0, brakk 0, ILA 26, PD 53, localityWeekId 0
+    ILA 14 bare v1 / 12 bare v2; PD 35 bare v1 / 18 bare v2; laksefisk 0 bare v1 / 0 bare v2; slaktemerd 0 bare v1 / 0 bare v2; på land 0 bare v1 / 0 bare v2; behandling 0 bare v1 / 0 bare v2; navn ulik 0, kommunenr ulik 0
+uke 43/2026  v1 2026-11-03.12.json.gz   762254 B  v2 2026-11-03.13.json.gz  1227225 B  lok v1 1780 v2 1780 felles 1780  ulik: snitt hunnlus 0, rapportert 0, brakk 0, ILA 26, PD 56, localityWeekId 0
+    ILA 14 bare v1 / 12 bare v2; PD 35 bare v1 / 21 bare v2; laksefisk 0 bare v1 / 0 bare v2; slaktemerd 0 bare v1 / 0 bare v2; på land 0 bare v1 / 0 bare v2; behandling 0 bare v1 / 0 bare v2; navn ulik 0, kommunenr ulik 0
+uke 42/2026  v1 2026-11-03.14.json.gz   761773 B  v2 2026-11-03.15.json.gz  1226654 B  lok v1 1779 v2 1779 felles 1779  ulik: snitt hunnlus 0, rapportert 0, brakk 0, ILA 26, PD 56, localityWeekId 0
+    ILA 14 bare v1 / 12 bare v2; PD 35 bare v1 / 21 bare v2; laksefisk 0 bare v1 / 0 bare v2; slaktemerd 0 bare v1 / 0 bare v2; på land 0 bare v1 / 0 bare v2; behandling 0 bare v1 / 0 bare v2; navn ulik 0, kommunenr ulik 0
+uke 41/2026  v1 2026-11-03.16.json.gz   761758 B  v2 2026-11-03.17.json.gz  1226912 B  lok v1 1779 v2 1779 felles 1779  ulik: snitt hunnlus 0, rapportert 0, brakk 0, ILA 27, PD 56, localityWeekId 0
+    ILA 14 bare v1 / 13 bare v2; PD 35 bare v1 / 21 bare v2; laksefisk 0 bare v1 / 0 bare v2; slaktemerd 0 bare v1 / 0 bare v2; på land 0 bare v1 / 0 bare v2; behandling 0 bare v1 / 0 bare v2; navn ulik 0, kommunenr ulik 0
+uke 36/2026  v1 2026-11-03.18.json.gz   760965 B  v2 2026-11-03.19.json.gz  1224960 B  lok v1 1777 v2 1777 felles 1777  ulik: snitt hunnlus 0, rapportert 0, brakk 0, ILA 28, PD 55, localityWeekId 0
+    ILA 15 bare v1 / 13 bare v2; PD 35 bare v1 / 20 bare v2; laksefisk 0 bare v1 / 0 bare v2; slaktemerd 0 bare v1 / 0 bare v2; på land 0 bare v1 / 0 bare v2; behandling 0 bare v1 / 0 bare v2; navn ulik 0, kommunenr ulik 0
+v2 toppnivåfelt: ['diseases', 'geometry', 'hasSalmonoidLicense', 'isFiltered', 'isSlaughterHoldingCage', 'liceReport', 'liceTreatments', 'locality', 'localityWeekId', 'municipality']
+v2 liceReport-felt: ['adultFemaleLice', 'hasReported', 'isFallow', 'mobileLice', 'seaTemperature', 'stationaryLice', 'totalLice']
+v2 sykdomsnavn (siste uke over): {'PANKREASSYKDOM': 31, 'INFEKSIOES_LAKSEANEMI': 14, 'FRANCISELLOSE': 2}
+v1 felt: ['avgAdultFemaleLice', 'hasCleanerfishDeployed', 'hasIla', 'hasMechanicalRemoval', 'hasPd', 'hasReportedLice', 'hasSalmonoids', 'hasSubstanceTreatments', 'inFilteredSelection', 'isFallow', 'isOnLand', 'isSlaughterHoldingCage', 'lat', 'localityNo', 'localityWeekId', 'lon', 'municipality', 'municipalityNo', 'name']

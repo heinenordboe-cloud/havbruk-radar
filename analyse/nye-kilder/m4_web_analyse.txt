@@ -1,0 +1,120 @@
+ 200      289 bda17626edcf3834  2026-11-03.bin.gz        c: robots.txt www.ilaks.no
+       User-agent *: ['Crawl-delay: 1']
+ 200       24 e5c4b84484ee4216  2026-11-03.2.bin.gz      c: robots.txt www.kyst.no
+       User-agent *: ['Disallow:']
+ 200     1861 349f2319b45a6d63  2026-11-03.3.bin.gz      c: robots.txt www.fiskeribladet.no
+       User-agent *: ['Disallow: /forgotpw/*']
+       User-agent *: ['Disallow: /auth/user/login/*']
+       User-agent *: ['Disallow: /myprofile/*']
+       User-agent *: ['Disallow: /subscription/*']
+       User-agent *: ['Disallow: /test_frontpage']
+       User-agent *: ['Disallow: /front']
+       User-agent GPTBot: ['Disallow: /']
+       User-agent ChatGPT-User: ['Disallow: /']
+       User-agent anthropic-ai: ['Disallow: /']
+       User-agent Claude-Web: ['Disallow: /']
+       User-agent ClaudeBot: ['Disallow: /']
+       User-agent Google-Extended: ['Disallow: /']
+       User-agent CCBot: ['Disallow: /']
+       User-agent PerplexityBot: ['Disallow: /']
+       User-agent FacebookBot: ['Disallow: /']
+       User-agent Omgili: ['Disallow: /']
+       User-agent Omgilibot: ['Disallow: /']
+       User-agent Bytespider: ['Disallow: /']
+       User-agent cohere-ai: ['Disallow: /']
+       User-agent Applebot-Extended: ['Disallow: /']
+       User-agent Amazonbot: ['Disallow: /']
+       User-agent Diffbot: ['Disallow: /']
+       User-agent UbiCrawler: ['Disallow: /']
+       User-agent DOC: ['Disallow: /']
+       User-agent Zao: ['Disallow: /']
+       User-agent Zealbot: ['Disallow: /']
+       User-agent MSIECrawler: ['Disallow: /']
+       User-agent SiteSnagger: ['Disallow: /']
+       User-agent WebStripper: ['Disallow: /']
+       User-agent WebCopier: ['Disallow: /']
+       User-agent Fetch: ['Disallow: /']
+       User-agent Offline Explorer: ['Disallow: /']
+       User-agent Teleport: ['Disallow: /']
+       User-agent TeleportPro: ['Disallow: /']
+       User-agent linko: ['Disallow: /']
+       User-agent Microsoft.URL.Control: ['Disallow: /']
+       User-agent wget: ['Disallow: /']
+       User-agent grub-client: ['Disallow: /']
+       User-agent WebReaper: ['Disallow: /']
+ 200     1857 01efc419aac9564a  2026-11-03.4.bin.gz      c: robots.txt www.intrafish.no
+       User-agent *: ['Disallow: /forgotpw/*']
+       User-agent *: ['Disallow: /auth/user/login/*']
+       User-agent *: ['Disallow: /myprofile/*']
+       User-agent *: ['Disallow: /subscription/*']
+       User-agent *: ['Disallow: /test_frontpage']
+       User-agent *: ['Disallow: /front']
+       User-agent GPTBot: ['Disallow: /']
+       User-agent ChatGPT-User: ['Disallow: /']
+       User-agent anthropic-ai: ['Disallow: /']
+       User-agent Claude-Web: ['Disallow: /']
+       User-agent ClaudeBot: ['Disallow: /']
+       User-agent Google-Extended: ['Disallow: /']
+       User-agent CCBot: ['Disallow: /']
+       User-agent PerplexityBot: ['Disallow: /']
+       User-agent FacebookBot: ['Disallow: /']
+       User-agent Omgili: ['Disallow: /']
+       User-agent Omgilibot: ['Disallow: /']
+       User-agent Bytespider: ['Disallow: /']
+       User-agent cohere-ai: ['Disallow: /']
+       User-agent Applebot-Extended: ['Disallow: /']
+       User-agent Amazonbot: ['Disallow: /']
+       User-agent Diffbot: ['Disallow: /']
+       User-agent UbiCrawler: ['Disallow: /']
+       User-agent DOC: ['Disallow: /']
+       User-agent Zao: ['Disallow: /']
+       User-agent Zealbot: ['Disallow: /']
+       User-agent MSIECrawler: ['Disallow: /']
+       User-agent SiteSnagger: ['Disallow: /']
+       User-agent WebStripper: ['Disallow: /']
+       User-agent WebCopier: ['Disallow: /']
+       User-agent Fetch: ['Disallow: /']
+       User-agent Offline Explorer: ['Disallow: /']
+       User-agent Teleport: ['Disallow: /']
+       User-agent TeleportPro: ['Disallow: /']
+       User-agent linko: ['Disallow: /']
+       User-agent Microsoft.URL.Control: ['Disallow: /']
+       User-agent wget: ['Disallow: /']
+       User-agent grub-client: ['Disallow: /']
+       User-agent WebReaper: ['Disallow: /']
+ 200    18799 8df347cf1ad416e6  —                        c: RSS iLaks (ikke arkivert)
+       12 saker, 12 dc:creator, 0 content:encoded, description-lengder [0, 698, 865, 740, 971, 785, 751, 730, 791, 940, 820, 791, 913], pubDate [['Tue, 03 Nov 2026 18:50:02 +0000'], ['Mon, 02 Nov 2026 15:25:56 +0000']]
+ 404        0 e3b0c44298fc1c14  —                        c: RSS-forsøk https://www.kyst.no/rss (ikke arkivert)
+ 404        0 e3b0c44298fc1c14  —                        c: RSS-forsøk https://www.kyst.no/feed (ikke arkivert)
+ 404    14495 6ad4d7ee7bfc2ae2  —                        c: RSS-forsøk https://www.fiskeribladet.no/rss (ikke arkivert)
+ 404    14504 871479a3319e8210  —                        c: RSS-forsøk https://www.intrafish.no/rss (ikke arkivert)
+ 200    15661 2c6100753f9cf3e6  2026-11-03.5.bin.gz      d: søknadslag 0, metadata
+       'Akvakultursøknad under behandling': felt ['objectid', 'shape', 'applicationno', 'applicantorganisationname', 'applicantorganisationnumber', 'type', 'soeknadstype', 'status_application', 'submittedat', 'sitenr', 'sitename', 'sitelatitudedecimaldegree', 'sitelongitudedecimaldegree', 'municipalityname', 'countymunicipalityname', 'isareachanged', 'desiredbiomass_value', 'plannedprod_value', 'plannedfeedsize_value', 'productioncycle_value', 'maxfeedoutsize_value', 'netdata_typedescription', 'netdata_depth_value', 'netdata_treatment', 'sitedata_prodareaname', 'art_popularname', 'art_scientificname', 'nonfish_prod_value', 'nonfish_productionsize_unit', 'licensedata_newlicenses', 'numtilsagn']
+ 200       13 b0b87415c40c3262  2026-11-03.6.bin.gz      d: søknadslag 0, antall
+       {'count': 296}
+ 200    11749 9cda510e5d72ed28  2026-11-03.7.bin.gz      d: søknadslag 2, metadata
+       'Akvakultursøknad flate': felt ['objectid', 'shape', 'applicationno', 'applicantorganisationname', 'applicantorganisationnumber', 'soeknadstype', 'status_application', 'sitenr', 'sitename', 'originalarea', 'isareachanged']
+ 200       13 830c91c799f380c5  2026-11-03.8.bin.gz      d: søknadslag 2, antall
+       {'count': 149}
+ 200     9150 3b6e5124f86102db  2026-11-03.9.bin.gz      d: søknadslag 4, metadata
+       'Akvakultursøknad ferdigbehandlet': felt ['objectid', 'shape', 'applicationno', 'applicantorganisationname', 'applicantorganisationnumber', 'soeknadstype', 'status_application', 'submittedat', 'withdrawnat', 'evaluation_result', 'evaluationfinishedat', 'sitenr', 'sitename', 'sitelatitudedecimaldegree', 'sitelongitudedecimaldegree', 'municipalityname', 'countymunicipalityname', 'isareachanged', 'desiredbiomass_value', 'plannedprod_value', 'plannedfeedsize_value', 'productioncycle_value', 'maxfeedoutsize_value', 'netdata_typedescription', 'netdata_depth_value', 'netdata_treatment', 'sitedata_prodareaname', 'art_popularname', 'art_scientificname', 'nonfish_prod_value', 'nonfish_productionsize_unit', 'licensedata_newlicenses', 'numtilsagn']
+ 200       13 3974d13791ea4898  2026-11-03.10.bin.gz     d: søknadslag 4, antall
+       {'count': 664}
+ 200    31719 e62b5686355a4586  2026-11-03.11.bin.gz     e: regomr.geojson
+ 200   218625 631c60a5a5a37c64  —                        e: ekspertgruppens rapportside (ikke arkivert, UBELAGT)
+ 200   128021 594bbb7f7e86d7de  —                        e: HIs rapportside (ikke arkivert, UBELAGT)
+ 403     5854 6fbc209ee96265ae  2026-11-03.14.bin.gz     e: regjeringen, trafikklyssystemet
+       tittel 'Just a moment...', challenges.cloudflare.com i kroppen: True
+ 403     5513 751528605cdafb86  2026-11-03.15.bin.gz     e: robots.txt regjeringen.no
+ 200      959 cbafdcc28cde8a5c  2026-11-03.16.bin.gz     e: robots.txt lovdata.no
+       User-agent Yandex: ['Crawl-delay: 5', 'Disallow: /filer', 'Disallow: /sok', 'Disallow: /eli/*', 'Disallow: /error/404', 'Disallow: /service/']
+       User-agent SiteimproveBot: ['Disallow: /']
+       User-agent SiteimproveBot-Crawler: ['Disallow: /']
+       User-agent ChatGPT-User: ['Disallow: /']
+       User-agent GPTBot: ['Disallow: /']
+       User-agent *: ['Disallow: /']
+ 405      316 2d3be0e7449c898b  2026-11-03.17.bin.gz     e: lovdata-søket, status
+ 200      433 de5fdb9cdea30e3a  2026-11-03.18.bin.gz     e: robots.txt hi.no
+       User-agent *: ['Disallow: /diverse', 'Disallow: /__data', 'Disallow: /galleri', 'Disallow: /albums', 'Disallow: /importer', 'Disallow: /contact']
+ 200        3 37517e5f3dc66819  2026-11-03.19.bin.gz     e: wayback cdx, regjeringen trafikklys
+       b'[]\n'
