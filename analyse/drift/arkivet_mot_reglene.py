@@ -17,8 +17,10 @@ den som ligger foran i samme rekkefølge — slik jobben ville sett den.
     ais-manifest   data/ais/status.json i hver commit i datarepoet
 
 Per jobb: antall kropper, hvor mange som ville gått i karantene, og
-sha256 over (sti, sha256) for hver kropp, sortert — så samme grunnlag kan
-kjennes igjen. Ingenting skrives.
+sha256 over én linje per kropp, `<sti fra data/arkiv/> <sha256>\n`, i
+den rekkefølgen kroppene leses (partene i SIDER-rekkefølge for vilkar,
+`raw.orden()` i hver mappe) — så samme grunnlag kan kjennes igjen.
+Ingenting skrives.
 """
 from __future__ import annotations
 

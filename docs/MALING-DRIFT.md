@@ -392,3 +392,12 @@ mot den, eller antallet kropper i en av mappene er et annet.
   tilsynet rødt med at tallene mangler.
 * **En uke med bare et ufullstendig snapshot har fortsatt `sist_ok`**,
   så tirsdagens gjenkjøring prøver ikke på nytt.
+
+**Rettelse samme dag, etter kontrolløren** (én kjøring, tre av tre
+trukne påstander i tabellen over stemte). Teksten over er ikke endret.
+«sortert som i utskriften» om sha256 over grunnlaget er upresist:
+hashen er over én linje per kropp, `<sti fra data/arkiv/> <sha256>` og
+linjeskift, i den rekkefølgen skriptet leser kroppene — partene i
+`SIDER`-rekkefølgen i arkiver_vilkar.py for vilkar, og `raw.orden()`
+innenfor hver mappe. Kontrolløren fant formatet ved å prøve; alfabetisk
+rekkefølge for vilkar gir en annen hash.
