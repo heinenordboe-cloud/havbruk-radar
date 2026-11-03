@@ -1,0 +1,121 @@
+Datarepo havbruk-radar-data på 0a59c42, kjørt 2026-11-03T21:51:25+00:00
+
+== vilkar.yml  logger i vilkar/: 6
+
+A. Kropper uten en loggrad med «ny» (første logg med samme bytene)
+   vilkar-fiskeribladet/2026-11-03.bin.gz      557ae4c19c007495  lagt til a726cc2 2026-11-03T19:52:15+00:00  ingen rad
+   vilkar-intrafish/2026-11-03.bin.gz      86e006771076aea9  lagt til a726cc2 2026-11-03T19:52:15+00:00  ingen rad
+   vilkar-kyst/2026-11-03.bin.gz      06f1ea9f10e1976a  lagt til a726cc2 2026-11-03T19:52:15+00:00  uendret i 2026-11-03.2.logg.json
+   vilkar-mattilsynet/2026-11-03.2.bin.gz    e1e889bcf05b4bb2  lagt til a726cc2 2026-11-03T19:52:15+00:00  uendret i 2026-11-03.2.logg.json
+   vilkar-nmdc/2026-11-03.bin.gz      7c680dff8dd36114  lagt til a726cc2 2026-11-03T19:52:15+00:00  uendret i 2026-11-03.2.logg.json
+   5 av 19 kropper har ingen rad med «ny» i noen logg.
+
+B. Actions-kjøringer og loggen de etterlot
+   37806229387 2026-10-08T16:06:50Z success   workflow_dispatch e6802c9 2026-10-08.logg.json
+   41468835803 2026-11-02T15:09:39Z success   schedule          d4ba4ed 2026-11-02.logg.json
+   2 kjøringer, 0 grønne uten logg.
+
+== auksjon.yml  logger i auksjon/: 46
+
+A. Kropper uten en loggrad med «ny» (første logg med samme bytene)
+   auksjon/2026-09-21.10.bin.gz   4bb3c4935b3f1e00  lagt til 090e87d 2026-09-21T19:07:04+00:00  uendret i 2026-09-22.logg.json
+   auksjon/2026-09-21.11.bin.gz   bc842ccab051f459  lagt til 090e87d 2026-09-21T19:07:04+00:00  uendret i 2026-09-22.logg.json
+   auksjon/2026-09-21.12.bin.gz   1100098379a4fe80  lagt til 090e87d 2026-09-21T19:07:04+00:00  uendret i 2026-09-22.logg.json
+   auksjon/2026-09-21.13.bin.gz   351ac4ca8c1a24e8  lagt til 090e87d 2026-09-21T19:07:04+00:00  uendret i 2026-09-22.logg.json
+   auksjon/2026-09-21.14.bin.gz   da1a5b857ea29d6a  lagt til 090e87d 2026-09-21T19:07:04+00:00  uendret i 2026-09-22.logg.json
+   auksjon/2026-09-21.8.bin.gz    4f5a37de3ae67ee2  lagt til 090e87d 2026-09-21T19:07:04+00:00  uendret i 2026-09-22.logg.json
+   auksjon/2026-09-21.9.bin.gz    2c49a32ae27dc905  lagt til 090e87d 2026-09-21T19:07:04+00:00  uendret i 2026-09-22.logg.json
+   auksjon/2026-09-23.10.bin.gz   c2b5ceb1c617fd11  lagt til afbf2c1 2026-09-23T18:18:56+00:00  uendret i 2026-09-24.logg.json
+   auksjon/2026-09-23.11.bin.gz   ca1078692618ff82  lagt til afbf2c1 2026-09-23T18:18:56+00:00  uendret i 2026-09-24.logg.json
+   auksjon/2026-09-23.12.bin.gz   bd7dfcecd1d0a248  lagt til afbf2c1 2026-09-23T18:18:56+00:00  uendret i 2026-09-24.logg.json
+   auksjon/2026-09-23.13.bin.gz   ddbab141acf5565a  lagt til afbf2c1 2026-09-23T18:18:56+00:00  uendret i 2026-09-24.logg.json
+   auksjon/2026-09-23.14.bin.gz   11f81f47e0a2ed49  lagt til afbf2c1 2026-09-23T18:18:56+00:00  uendret i 2026-09-24.logg.json
+   auksjon/2026-09-23.8.bin.gz    f58d2534808ba255  lagt til afbf2c1 2026-09-23T18:18:56+00:00  uendret i 2026-09-24.logg.json
+   auksjon/2026-09-23.9.bin.gz    55dd871af9bbe36d  lagt til afbf2c1 2026-09-23T18:18:56+00:00  uendret i 2026-09-24.logg.json
+   auksjon/2026-09-29.10.bin.gz   c5efa4f8bfe07607  lagt til b950873 2026-09-29T19:10:44+00:00  uendret i 2026-09-30.logg.json
+   auksjon/2026-09-29.11.bin.gz   467fe7c659314aa1  lagt til b950873 2026-09-29T19:10:44+00:00  uendret i 2026-09-30.logg.json
+   auksjon/2026-09-29.12.bin.gz   3c8bbf74900e71af  lagt til b950873 2026-09-29T19:10:44+00:00  uendret i 2026-09-30.logg.json
+   auksjon/2026-09-29.13.bin.gz   619249f2265c721b  lagt til b950873 2026-09-29T19:10:44+00:00  uendret i 2026-09-30.logg.json
+   auksjon/2026-09-29.14.bin.gz   0e4b4c55ec4ae4f5  lagt til b950873 2026-09-29T19:10:44+00:00  uendret i 2026-09-30.logg.json
+   auksjon/2026-09-29.2.bin.gz    1c0c241e1b459caa  lagt til 6648fbb 2026-09-29T11:52:09+00:00  ingen rad
+   auksjon/2026-09-29.3.bin.gz    bc5709b9ee60cc1d  lagt til 6648fbb 2026-09-29T11:52:09+00:00  ingen rad
+   auksjon/2026-09-29.4.bin.gz    751017493ad8c394  lagt til 6648fbb 2026-09-29T11:52:09+00:00  ingen rad
+   auksjon/2026-09-29.5.bin.gz    52af3a7a1a70b6f6  lagt til 6648fbb 2026-09-29T11:52:09+00:00  ingen rad
+   auksjon/2026-09-29.6.bin.gz    8dad976f4a9a7ecb  lagt til 6648fbb 2026-09-29T11:52:09+00:00  ingen rad
+   auksjon/2026-09-29.7.bin.gz    c7034afe86b43103  lagt til 6648fbb 2026-09-29T11:52:09+00:00  ingen rad
+   auksjon/2026-09-29.8.bin.gz    31c512f82692752b  lagt til b950873 2026-09-29T19:10:44+00:00  uendret i 2026-09-30.logg.json
+   auksjon/2026-09-29.9.bin.gz    0fc7077d74df33e1  lagt til b950873 2026-09-29T19:10:44+00:00  uendret i 2026-09-30.logg.json
+   auksjon/2026-09-29.bin.gz      322eb31797f1d695  lagt til 6648fbb 2026-09-29T11:52:09+00:00  ingen rad
+   28 av 94 kropper har ingen rad med «ny» i noen logg.
+
+B. Actions-kjøringer og loggen de etterlot
+   35504616311 2026-09-20T10:16:50Z success   schedule          94e54eb 2026-09-20.logg.json
+   35525463857 2026-09-20T17:18:52Z success   schedule          INGEN LOGG
+   35540580172 2026-09-20T22:05:24Z success   schedule          INGEN LOGG
+   35593986253 2026-09-21T11:25:36Z success   schedule          3b98202 2026-09-21.logg.json
+   35642673597 2026-09-21T19:06:05Z success   schedule          INGEN LOGG
+   35665231472 2026-09-21T22:56:59Z success   schedule          INGEN LOGG
+   35716679032 2026-09-22T10:33:55Z success   schedule          ab48d2f 2026-09-22.logg.json
+   35764117125 2026-09-22T17:58:28Z success   schedule          INGEN LOGG
+   35793266014 2026-09-22T22:36:20Z success   schedule          INGEN LOGG
+   35848913561 2026-09-23T10:27:39Z success   schedule          bc2c003 2026-09-23.logg.json
+   35901358278 2026-09-23T18:16:48Z success   schedule          INGEN LOGG
+   35929220443 2026-09-23T22:35:59Z success   schedule          INGEN LOGG
+   35988949965 2026-09-24T10:44:14Z success   schedule          98a5a70 2026-09-24.logg.json
+   36039953190 2026-09-24T18:15:20Z success   schedule          INGEN LOGG
+   36069980711 2026-09-24T22:54:20Z success   schedule          INGEN LOGG
+   36125956874 2026-09-25T10:48:24Z success   schedule          54e43ef 2026-09-25.logg.json
+   36172225455 2026-09-25T18:15:09Z success   schedule          INGEN LOGG
+   36199188556 2026-09-25T22:59:38Z success   schedule          INGEN LOGG
+   36235957661 2026-09-26T10:29:50Z success   schedule          4f219ae 2026-09-26.logg.json
+   36259712788 2026-09-26T17:37:55Z success   schedule          INGEN LOGG
+   36275784086 2026-09-26T22:17:21Z success   schedule          INGEN LOGG
+   36314387339 2026-09-27T11:01:18Z success   schedule          17a7c29 2026-09-27.logg.json
+   36339234198 2026-09-27T18:03:37Z success   schedule          INGEN LOGG
+   36356309065 2026-09-27T22:44:07Z success   schedule          INGEN LOGG
+   36421236146 2026-09-28T12:20:47Z success   schedule          22fa208 2026-09-28.logg.json
+   36478888543 2026-09-28T20:23:52Z success   schedule          INGEN LOGG
+   36501397714 2026-09-29T00:06:06Z success   schedule          39d3ad8 2026-09-29.logg.json
+   36563942750 2026-09-29T11:47:36Z success   schedule          INGEN LOGG
+   36617091443 2026-09-29T19:08:19Z success   schedule          INGEN LOGG
+   36644587555 2026-09-29T23:19:33Z success   schedule          INGEN LOGG
+   36709356462 2026-09-30T11:34:19Z success   schedule          fccba83 2026-09-30.logg.json
+   36761481567 2026-09-30T18:50:47Z success   schedule          INGEN LOGG
+   36790705977 2026-09-30T23:22:03Z success   schedule          INGEN LOGG
+   36859657395 2026-10-01T12:07:07Z success   schedule          afdee00 2026-10-01.logg.json
+   37002051150 2026-10-02T11:37:47Z success   schedule          2a1e86f 2026-10-02.logg.json
+   37117757559 2026-10-03T10:51:10Z success   schedule          1eda724 2026-10-03.logg.json
+   37199152811 2026-10-04T11:33:39Z success   schedule          84ff62f 2026-10-04.logg.json
+   37314349536 2026-10-05T13:07:05Z success   schedule          e087df1 2026-10-05.logg.json
+   37463513179 2026-10-06T12:28:42Z success   schedule          8f3f559 2026-10-06.logg.json
+   37620453514 2026-10-07T12:21:51Z success   schedule          b8db27e 2026-10-07.logg.json
+   37777468492 2026-10-08T12:31:26Z success   schedule          f24d238 2026-10-08.logg.json
+   37929290728 2026-10-09T12:19:40Z success   schedule          3b75609 2026-10-09.logg.json
+   38049096671 2026-10-10T11:38:01Z success   schedule          922239d 2026-10-10.logg.json
+   38137087009 2026-10-11T11:51:20Z success   schedule          c8acdcc 2026-10-11.logg.json
+   38259496454 2026-10-12T13:58:27Z success   schedule          024b7ee 2026-10-12.logg.json
+   38271956734 2026-10-12T15:40:27Z failure   push              INGEN LOGG
+   38410466422 2026-10-13T14:06:09Z success   schedule          8934cab 2026-10-13.logg.json
+   38558939961 2026-10-14T11:46:26Z success   schedule          776b6bc 2026-10-14.logg.json
+   38726856600 2026-10-15T11:22:21Z success   schedule          c3dd123 2026-10-15.logg.json
+   38892772877 2026-10-16T11:17:16Z success   schedule          6a5204b 2026-10-16.logg.json
+   39025592984 2026-10-17T10:37:15Z success   schedule          ada7c90 2026-10-17.logg.json
+   39121364969 2026-10-18T10:58:41Z success   schedule          39f7397 2026-10-18.logg.json
+   39257096725 2026-10-19T13:04:41Z success   schedule          29d5da0 2026-10-19.logg.json
+   39415411579 2026-10-20T11:30:17Z success   schedule          e37e6c0 2026-10-20.logg.json
+   39593929552 2026-10-21T11:42:23Z success   schedule          79dbe03 2026-10-21.logg.json
+   39773011035 2026-10-22T11:45:38Z success   schedule          32151e7 2026-10-22.logg.json
+   39946832243 2026-10-23T11:32:49Z success   schedule          0f908cc 2026-10-23.logg.json
+   40087644227 2026-10-24T10:52:38Z success   schedule          e849cc7 2026-10-24.logg.json
+   40188377797 2026-10-25T11:19:28Z success   schedule          7bf16e1 2026-10-25.logg.json
+   40326023820 2026-10-26T12:53:28Z success   schedule          6912acf 2026-10-26.logg.json
+   40500947680 2026-10-27T12:04:41Z success   schedule          2172fb0 2026-10-27.logg.json
+   40690450684 2026-10-28T12:45:25Z success   schedule          a3d5270 2026-10-28.logg.json
+   40877189190 2026-10-29T12:54:30Z success   schedule          61173b5 2026-10-29.logg.json
+   41058026575 2026-10-30T12:47:33Z success   schedule          11058d5 2026-10-30.logg.json
+   41200526554 2026-10-31T12:18:40Z success   schedule          60469f0 2026-10-31.logg.json
+   41310333432 2026-11-01T13:15:00Z success   schedule          23637c0 2026-11-01.logg.json
+   41474010311 2026-11-02T15:41:07Z success   schedule          888dc8b 2026-11-02.logg.json
+   41650212792 2026-11-03T14:05:05Z success   schedule          INGEN LOGG
+   68 kjøringer, 23 grønne uten logg.
+

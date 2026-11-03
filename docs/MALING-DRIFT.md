@@ -437,3 +437,79 @@ arkivet slik det sto på datarepoets `81e9d84` (03.11.2026 02.39 UTC),
 før dagens fangster. `lusetall-innkomst/` har fått åtte kropper siden
 (`cb14088`, `9ac6ebc`), og hashen over grunnlaget treffer de 13 som lå
 der. «Feil hvis» gjelder arkivet på den commiten.
+
+## Etterskrift 03.11.2026, natt: stille hopp før rettingen (økt 4b, punkt 4)
+
+Teksten over er ikke endret. Spørsmålet: har vilkårsarkiveringen hoppet
+over loggen før 03.11.2026, og gjør andre `arkiver_*.py` det samme?
+Fram til `4b8019b` skrev `arkiver_vilkar.py` ingen logg når dagens logg
+fantes (`if not sti.exists()`), og kjøringen endte grønn med kroppene
+skrevet. Skriptet er `analyse/drift/stille_hopp.py`, utskriften
+`analyse/drift/stille_hopp.txt`, og linjene fra Actions-loggene står i
+`analyse/drift/stille_hopp_actions.txt`.
+
+Et hopp etterlater to spor, og begge er lett etter:
+
+* **A.** en kropp som ingen logg har en rad med `ny` for. En senere
+  kjøring som finner de samme bytene, fører dem som `uendret`; det sier
+  at bytene fantes den dagen, ikke når de ble hentet.
+* **B.** en Actions-kjøring som endte `success` uten at en logg lagt til
+  av `havbruk-radar` mellom start og 15 minutter etter slutt ligger i
+  git.
+
+### Vilkårsarkiveringen
+
+**H1.1 — Ett hopp, 03.11.2026. MÅLT.** Fem kropper har ingen rad med
+`ny`, alle lagt til i `a726cc2` (03.11 19.52 UTC) fra kjøringen for hånd
+mellom loggene 09.06 og 19.51. Tre av dem (`vilkar-kyst/2026-11-03.bin.gz`
+`06f1ea9f10e1976a`, `vilkar-mattilsynet/2026-11-03.2.bin.gz`
+`e1e889bcf05b4bb2`, `vilkar-nmdc/2026-11-03.bin.gz` `7c680dff8dd36114`)
+står som `uendret` i `2026-11-03.2.logg.json`. To står ikke i noen logg:
+`vilkar-fiskeribladet/2026-11-03.bin.gz` (`557ae4c19c007495`) og
+`vilkar-intrafish/2026-11-03.bin.gz` (`86e006771076aea9`). Gjenkjøringen
+fikk andre bytes fra begge sidene, så den loggede kroppen er `.2`.
+De to har ingen `fetched_at` og ingen `kode_commit`, og får det aldri
+(regel 2).
+*Feil hvis:* en logg i `vilkar/` har en rad med `ny` for en av de to.
+
+**H1.2 — Ingen hopp i Actions. EKSTERN.** `vilkar.yml` har kjørt to
+ganger, 08.10 (`workflow_dispatch`) og 02.11 (`schedule`), begge
+`success`, og begge la til dagens logg (`e6802c9`, `d4ba4ed`). De
+øvrige loggene (06.10, 09.10, 03.11 ×2) er kjøringer for hånd.
+Kjøringslista er Actions-API-et, ikke arkivet.
+
+### Andre arkiver_*.py som hopper over når dagens logg finnes
+
+Listet, ikke rettet.
+
+**H2.1 — `arkiver_auksjon.py` har samme kode (`arkiver_auksjon.py:316`,
+`if not sti.exists()`), og har hoppet 23 ganger. EKSTERN for kjøringene,
+MÅLT for kroppene.** 68 kjøringer av `auksjon.yml`; 23 endte `success`
+uten logg i git:
+
+    20.–30.09   22 kjøringer, kjøring 2 og 3 hver dag (cron 06, 14 og 20)
+    03.11       1 kjøring, 14.05 UTC, etter Heines kjøring for hånd 09.06
+
+(én kjøring 12.10, `push`, endte `failure` og er ikke med). Fire av de 23
+skrev kropper, 7 hver, ifølge Actions-loggen: 21.09 (`090e87d`), 23.09
+(`afbf2c1`) og to 29.09 (`6648fbb`, `b950873`). Av de 28 kroppene står 21
+som `uendret` i loggen dagen etter. **Sju står ikke i noen logg:**
+`auksjon/2026-09-29.bin.gz` og `.2`–`.7.bin.gz` (`322eb31797f1d695`,
+`1c0c241e1b459caa`, `bc5709b9ee60cc1d`, `751017493ad8c394`,
+`52af3a7a1a70b6f6`, `8dad976f4a9a7ecb`, `c7034afe86b43103`), lagt til i
+`6648fbb`. De 19 andre hentet sju eller åtte adresser og fant ingenting
+nytt; de etterlot ingen spor i git, bare i Actions-loggen, som
+GitHub sletter etter 90 dager.
+*Feil hvis:* en logg i `auksjon/` har en rad med `ny` for en av de sju.
+
+**H2.2 — `arkiver_havbruksfond.py --daglig` hopper over loggen med
+vilje. MÅLBAR, lest i koden.** `stille` (linje 452–454) er sant når
+ingenting er nytt, ingenting er i karantene og dagens logg finnes; ellers
+skrives loggen med løpenummer. En kjøring som henter noe nytt, får altså
+alltid logg. Ikke kjørt gjennom skriptet over.
+
+**H2.3 — De øvrige bruker løpenummer.** `arkiver_daglig.py`,
+`arkiver_flater.py`, `arkiver_luseinnkomst.py`, `arkiver_mattilsynet.py`,
+`arkiver_lovdata.py`, `utgivelsesvakt.py` og, fra `4b8019b`,
+`arkiver_vilkar.py` skriver `<dato>.N.logg.json` når dagens finnes. MÅLBAR,
+lest i koden. Det samme gjør den nye `arkiver_soknader.py`.

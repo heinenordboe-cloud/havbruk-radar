@@ -1,0 +1,25 @@
+# gh run view --log for de grønne auksjonskjøringene uten logg i git (stille_hopp.txt, B), 03.11.2026 ca. 21.52 UTC.
+# Linjer fra Actions-loggen som sier hva kjøringen hentet; resten av loggen er utelatt.
+35525463857 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+35540580172 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+35642673597 7 adresse(r), 7 ny(e) kropp(er), 0 feil.|[main 090e87d] Auksjonsarkiv 2026-09-21: 7 ny(e) kropp(er)|
+35665231472 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+35764117125 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+35793266014 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+35901358278 7 adresse(r), 7 ny(e) kropp(er), 0 feil.|[main afbf2c1] Auksjonsarkiv 2026-09-23: 7 ny(e) kropp(er)|
+35929220443 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36039953190 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36069980711 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36172225455 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36199188556 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36259712788 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36275784086 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36339234198 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36356309065 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36478888543 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36563942750 7 adresse(r), 7 ny(e) kropp(er), 0 feil.|[main 6648fbb] Auksjonsarkiv 2026-09-29: 7 ny(e) kropp(er)|
+36617091443 7 adresse(r), 7 ny(e) kropp(er), 0 feil.|[main b950873] Auksjonsarkiv 2026-09-29: 7 ny(e) kropp(er)|
+36644587555 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36761481567 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+36790705977 7 adresse(r), 0 ny(e) kropp(er), 0 feil.|
+41650212792 8 adresse(r), 0 ny(e) kropp(er), 0 feil, 1 advarsel(er), 0 i karantene.|
