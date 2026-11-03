@@ -1,6 +1,14 @@
 """MALING-DRIFT: hva skjer når kilden svarer 200 med noe annet enn dataene?
 
     .venv/bin/python analyse/drift/kroppssjekk.py > analyse/drift/kroppssjekk.txt
+    .venv/bin/python analyse/drift/kroppssjekk.py --med-arkiv > analyse/drift/kroppssjekk.etter.txt
+
+Fra 03.11.2026 (økt 3b) skiller utskriften `lagret` (i serien) fra
+`karantene` (data/arkiv/<mappe>/karantene*/, core/karantene.py). Med
+`--med-arkiv` kjøres i tillegg vilkar, havbruksfond, auksjon og
+luseinnkomst med en KOPI av jobbens egne mapper i arkivet, så reglene
+som sammenligner med forrige kropp, har en forrige kropp — slik de har i
+drift. kroppssjekk.txt er utskriften fra 02.11.2026 og står uendret.
 
 Fire kropper, hver med status 200, mot hver jobb som fanger data:
 
@@ -29,6 +37,7 @@ import gzip
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -142,22 +151,53 @@ def en(jobb: str, hva: str, kilde: str | None) -> None:
 
 # ---------------------------------------------------------------- utfall
 
-def filer(rot: Path) -> tuple[list[str], list[str]]:
+# Jobbenes egne mapper i arkivet, for --med-arkiv.
+ARKIVMAPPER = {
+    "vilkar": ["vilkar", "vilkar-*"],
+    "havbruksfond": ["havbruksfondet", "regjeringen-pressemeldinger"],
+    "auksjon": ["auksjon"],
+    "luseinnkomst": ["lusetall-innkomst"],
+}
+
+
+def _i_karantene(sti: str) -> bool:
+    return any(d.startswith("karantene") for d in sti.split("/")[2:-1])
+
+
+def filer(rot: Path, for_: frozenset = frozenset()) -> tuple[list[str], list[str]]:
+    """(lagret i serien, logger). En kropp i karantene er ikke lagret i
+    serien; se `karantene_filer()`. `for_` er det som lå i kopien av
+    arkivet fra før (--med-arkiv), og det er ikke med."""
     alle = [p.relative_to(rot).as_posix() for p in rot.rglob("*") if p.is_file()]
+    alle = [a for a in alle if a not in for_]
     logger = sorted(p for p in alle if p.endswith(".logg.json"))
-    return sorted(set(alle) - set(logger)), logger
+    return sorted(set(alle) - set(logger) - {a for a in alle if _i_karantene(a)}), logger
 
 
-def kjor(jobb: str, hva: str, kilde: str | None = None) -> dict:
+def karantene_filer(rot: Path) -> list[str]:
+    """Kroppene i karantene (ikke postene ved siden av)."""
+    alle = [p.relative_to(rot).as_posix() for p in rot.rglob("*.gz") if p.is_file()]
+    return sorted(a for a in alle if _i_karantene(a))
+
+
+def kjor(jobb: str, hva: str, kilde: str | None = None, med_arkiv: bool = False) -> dict:
     with tempfile.TemporaryDirectory() as tmp:
         data = Path(tmp) / "data"
         data.mkdir()
+        for_: frozenset = frozenset()
+        if med_arkiv:
+            for mønster in ARKIVMAPPER.get(jobb, []):
+                for m in (DATAREPO / "arkiv").glob(mønster):
+                    shutil.copytree(m, data / "arkiv" / m.name)
+            for_ = frozenset(p.relative_to(data).as_posix() for p in data.rglob("*")
+                             if p.is_file())
         env = dict(os.environ, HAVBRUK_DATA_DIR=str(data),
                    BARENTSWATCH_CLIENT_ID="prove", BARENTSWATCH_CLIENT_SECRET="prove")
         r = subprocess.run([sys.executable, __file__, "--en", jobb, hva, kilde or ""],
                            env=env, capture_output=True, text=True, timeout=600)
-        lagret, logger = filer(data)
+        lagret, logger = filer(data, for_)
         ut = {"exit": r.returncode, "lagret": lagret, "logger": logger,
+              "karantene": karantene_filer(data),
               "stdout": r.stdout, "stderr": r.stderr}
         # Det loggen sa om kroppen, når jobben skrev en.
         ut["loggstatus"] = []
@@ -180,6 +220,7 @@ def linje(ut: dict) -> str:
             if "::error::" in l or "Error" in l or "feilet" in l][-1:]
     return (f"exit {ut['exit']}, lagret {len(lagret)}"
             + (f" ({', '.join(lagret[:3])}{' …' if len(lagret) > 3 else ''})" if lagret else "")
+            + f", karantene {len(ut['karantene'])}"
             + (f"; {feil[0].strip()[:150]}" if feil else ""))
 
 
@@ -221,15 +262,18 @@ def ais_manifest() -> None:
                                env=dict(os.environ, HAVBRUK_DATA_DIR=str(data)),
                                capture_output=True, timeout=60)
             lagret, _ = filer(data)
-            feil = (r.stderr.decode().strip().splitlines() or [""])[-1][:110]
+            kar = karantene_filer(data)
+            feil = next((l for l in reversed((r.stdout + r.stderr).decode().splitlines())
+                         if "::error::" in l or "Error" in l), "")[:110]
             innhold = ""
             if (data / "ais" / "status.json").exists():
                 innhold = (data / "ais" / "status.json").read_text().strip().replace("\n", " ")
             print(f"  ais-manifest {hva:<10} exit {r.returncode}, lagret {len(lagret)} "
-                  f"{lagret}  {feil}{'  status.json: ' + innhold[:80] if innhold else ''}")
+                  f"{lagret}, karantene {len(kar)}  {feil}"
+                  f"{'  status.json: ' + innhold[:80] if innhold else ''}")
 
 
-def main() -> None:
+def main(med_arkiv: bool = False) -> None:
     print("MALING-DRIFT kroppssjekk — fire kropper med status 200 mot hver jobb")
     print(f"datarepo: {DATAREPO}\n")
     print("Halve kropper (første halvdel av):")
@@ -241,6 +285,14 @@ def main() -> None:
         for hva in KROPPER:
             print(f"  {jobb:<13} {hva:<10} {linje(kjor(jobb, hva))}")
         print()
+
+    if med_arkiv:
+        print("Med en kopi av jobbens egne mapper i arkivet (--med-arkiv):")
+        for jobb in ARKIVMAPPER:
+            for hva in KROPPER:
+                print(f"  {jobb:<13} {hva:<10} "
+                      f"{linje(kjor(jobb, hva, med_arkiv=True))}")
+            print()
 
     sys.path.insert(0, str(ROT))
     os.chdir(ROT)
@@ -262,7 +314,8 @@ def main() -> None:
                         "feil": [(ut["stderr"].strip().splitlines() or [""])[-1][:120]]}
             raa = [f for f in ut["lagret"] if f.startswith("arkiv/")]
             print(f"  samle {navn:<20} {hva:<10} ok={svar['ok']!s:<5} rader={svar['rader']!s:<6} "
-                  f"rå arkivert={len(raa)}  {svar['feil'][0][:110]}"
+                  f"rå arkivert={len(raa)} karantene={len(ut['karantene'])}  "
+                  f"{svar['feil'][0][:110]}"
                   + (f"  advarsler={len(svar.get('advarsler') or [])}"
                      if svar.get("advarsler") else ""))
         print()
@@ -275,4 +328,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--en":
         en(sys.argv[2], sys.argv[3], sys.argv[4] or None)
     else:
-        main()
+        main(med_arkiv="--med-arkiv" in sys.argv)

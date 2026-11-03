@@ -1,0 +1,138 @@
+MALING-DRIFT kroppssjekk — fire kropper med status 200 mot hver jobb
+datarepo: /Users/nordboe/havbruk-radar-data/data
+
+Halve kropper (første halvdel av):
+  daglig        data/arkiv/akvakultur/2026-11-02.json.gz  6728805 B  sha256 cc5d8f1a0592b9ef72a0b2be8f7072a8e699a96215410c0a0c7d664392f3f66a
+  luseinnkomst  data/arkiv/lusetall-innkomst/2026-11-02.json.gz  831161 B  sha256 7bc84a1e676dbe5a57780353fbc0b8ac6a494dc14e255816b2371e6cf16237d1
+  auksjon       data/arkiv/auksjon/2026-10-29.bin.gz  21359 B  sha256 ec349d722235fb7400c3b3c652c413483f1d5b2bc78096d0e88f04ca67c6c9ed
+  havbruksfond  data/arkiv/havbruksfondet/2026-10-28.bin.gz  25545 B  sha256 40b98b7666e72d42ad3c11b7ac4005991f21df669b899db4f9b32ca8d9dabe96
+  vilkar        data/arkiv/vilkar-lovdata/2026-11-02.bin.gz  30872 B  sha256 4ef5a05f2e3e0266272663dd9b9ec12de8b3803e93d284fa6cb6b3f966564bcc
+
+  daglig        feilside   exit 1, lagret 0, karantene 0; ::error::Daglig arkiv: akvakultur feilet: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  daglig        tom_liste  exit 1, lagret 0, karantene 1; ::error::Daglig arkiv: akvakultur feilet: ValueError: Fikk bare 0 lokalitet(er) totalt. Registeret har 1782 (målt 19.09.2026). Enten peker base_url et
+  daglig        tom_kropp  exit 1, lagret 0, karantene 0; ::error::Daglig arkiv: akvakultur feilet: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  daglig        halv       exit 1, lagret 0, karantene 0; ::error::Daglig arkiv: akvakultur feilet: JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 3357766 (char 3357765)
+
+  luseinnkomst  feilside   exit 1, lagret 0, karantene 0; ::error::Lusefangst uke 41/2026 feilet: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  luseinnkomst  tom_liste  exit 1, lagret 0, karantene 5; ::error::Karantene (luseinnkomst): 2026-10-05: uke 41/2026: svaret har ingen lokaliteter. Kroppen (2 B, sha256 4f53cda18c2baa0c…) ligger i data/arkiv/
+  luseinnkomst  tom_kropp  exit 1, lagret 0, karantene 0; ::error::Lusefangst uke 41/2026 feilet: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  luseinnkomst  halv       exit 1, lagret 0, karantene 0; ::error::Lusefangst uke 41/2026 feilet: JSONDecodeError: Unterminated string starting at: line 1 column 414769 (char 414768)
+
+  auksjon       feilside   exit 1, lagret 1 (arkiv/auksjon/2026-11-02.bin.gz), karantene 0; ValueError: too many values to unpack (expected 2, got 7)
+  auksjon       tom_liste  exit 1, lagret 0, karantene 1; ValueError: not enough values to unpack (expected 2, got 1)
+  auksjon       tom_kropp  exit 1, lagret 0, karantene 1; ::error::Karantene (auksjon): 2026-11-02: tom kropp (0 B); ingen <html i kroppen. Kroppen (0 B, sha256 e3b0c44298fc1c14…) ligger i data/arkiv/auksjon/
+  auksjon       halv       exit 1, lagret 1 (arkiv/auksjon/2026-11-02.bin.gz), karantene 0; ValueError: too many values to unpack (expected 2, got 6)
+
+  havbruksfond  feilside   exit 1, lagret 0, karantene 1; ::error::Karantene (havbruksfond): 2026-11-02: synlig tekst nevner ikke «havbruksfond». Kroppen (146 B, sha256 e6f8701a282004b5…) ligger i data/arkiv/
+  havbruksfond  tom_liste  exit 1, lagret 0, karantene 1; ::error::Karantene (havbruksfond): 2026-11-02: synlig tekst nevner ikke «havbruksfond». Kroppen (2 B, sha256 4f53cda18c2baa0c…) ligger i data/arkiv/ha
+  havbruksfond  tom_kropp  exit 1, lagret 0, karantene 1; ::error::Karantene (havbruksfond): 2026-11-02: synlig tekst nevner ikke «havbruksfond». Kroppen (0 B, sha256 e3b0c44298fc1c14…) ligger i data/arkiv/ha
+  havbruksfond  halv       exit 0, lagret 1 (arkiv/havbruksfondet/2026-11-02.bin.gz), karantene 0
+
+  vilkar        feilside   exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: synlig tekst 62 tegn, under minstelengden 740. Kroppen (146 B, sha256 e6f8701a282004b5…) ligger i data/arkiv/
+  vilkar        tom_liste  exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: synlig tekst 2 tegn, under minstelengden 740. Kroppen (2 B, sha256 4f53cda18c2baa0c…) ligger i data/arkiv/vil
+  vilkar        tom_kropp  exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: tom kropp (0 B); synlig tekst 0 tegn, under minstelengden 740. Kroppen (0 B, sha256 e3b0c44298fc1c14…) ligger
+  vilkar        halv       exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: synlig tekst 677 tegn, under minstelengden 740. Kroppen (15436 B, sha256 21e083b86aa5975d…) ligger i data/ark
+
+Med en kopi av jobbens egne mapper i arkivet (--med-arkiv):
+  vilkar        feilside   exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: synlig tekst 62 tegn, under 50% av forrige versjon (3143 tegn); synlig tekst nevner ikke «opphavsrett». Kropp
+  vilkar        tom_liste  exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: synlig tekst 2 tegn, under 50% av forrige versjon (3143 tegn); synlig tekst nevner ikke «opphavsrett». Kroppe
+  vilkar        tom_kropp  exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: tom kropp (0 B); synlig tekst 0 tegn, under 50% av forrige versjon (3143 tegn); synlig tekst nevner ikke «opp
+  vilkar        halv       exit 1, lagret 0, karantene 5; ::error::Karantene (vilkar): 2026-11-02: synlig tekst 677 tegn, under 50% av forrige versjon (3143 tegn); synlig tekst nevner ikke «opphavsrett». Krop
+
+  havbruksfond  feilside   exit 1, lagret 0, karantene 1; ::error::Karantene (havbruksfond): 2026-11-02: synlig tekst nevner ikke «havbruksfond». Kroppen (146 B, sha256 e6f8701a282004b5…) ligger i data/arkiv/
+  havbruksfond  tom_liste  exit 1, lagret 0, karantene 1; ::error::Karantene (havbruksfond): 2026-11-02: synlig tekst nevner ikke «havbruksfond». Kroppen (2 B, sha256 4f53cda18c2baa0c…) ligger i data/arkiv/ha
+  havbruksfond  tom_kropp  exit 1, lagret 0, karantene 1; ::error::Karantene (havbruksfond): 2026-11-02: synlig tekst nevner ikke «havbruksfond». Kroppen (0 B, sha256 e3b0c44298fc1c14…) ligger i data/arkiv/ha
+  havbruksfond  halv       exit 0, lagret 1 (arkiv/havbruksfondet/2026-11-02.bin.gz), karantene 0
+
+  auksjon       feilside   exit 1, lagret 1 (arkiv/auksjon/2026-11-02.bin.gz), karantene 0; ValueError: too many values to unpack (expected 2, got 7)
+  auksjon       tom_liste  exit 1, lagret 0, karantene 1; ValueError: not enough values to unpack (expected 2, got 1)
+  auksjon       tom_kropp  exit 1, lagret 0, karantene 1; ::error::Karantene (auksjon): 2026-11-02: tom kropp (0 B); ingen <html i kroppen. Kroppen (0 B, sha256 e3b0c44298fc1c14…) ligger i data/arkiv/auksjon/
+  auksjon       halv       exit 1, lagret 1 (arkiv/auksjon/2026-11-02.bin.gz), karantene 0; ValueError: too many values to unpack (expected 2, got 6)
+
+  luseinnkomst  feilside   exit 1, lagret 0, karantene 0; ::error::Lusefangst uke 41/2026 feilet: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  luseinnkomst  tom_liste  exit 1, lagret 0, karantene 5; ::error::Karantene (luseinnkomst): 2026-10-05: uke 41/2026: svaret har ingen lokaliteter. Kroppen (2 B, sha256 4f53cda18c2baa0c…) ligger i data/arkiv/
+  luseinnkomst  tom_kropp  exit 1, lagret 0, karantene 0; ::error::Lusefangst uke 41/2026 feilet: JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  luseinnkomst  halv       exit 1, lagret 0, karantene 0; ::error::Lusefangst uke 41/2026 feilet: JSONDecodeError: Unterminated string starting at: line 1 column 414769 (char 414768)
+
+samle: 12 aktive kilder, run_all() per kilde (rå kropp arkiveres FØR parse, se core/runner.py)
+  halv for akvakultur: data/arkiv/akvakultur/2026-11-02.json.gz  6728805 B  sha256 cc5d8f1a0592b9ef72a0b2be8f7072a8e699a96215410c0a0c7d664392f3f66a
+  samle akvakultur           feilside   ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle akvakultur           tom_liste  ok=False rader=0      rå arkivert=0 karantene=0  ValueError: Fikk bare 0 lokalitet(er) totalt. Registeret har 1782 (målt 19.09.2026). Enten peker base_url et a
+  samle akvakultur           tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle akvakultur           halv       ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 3357766 (char 3
+
+  halv for biomasse: data/arkiv/biomasse/2026-07-31.txt.gz  662497 B  sha256 64d9b2bc6c4402a651a3b70d3935e1555db94dee2da4c971d307094151aca848
+  samle biomasse             feilside   ok=False rader=0      rå arkivert=1 karantene=0  sources.biomasse.Maanedmangler: Fila er tom, så 2026-07 kan ikke skrives.  advarsler=1
+  samle biomasse             tom_liste  ok=False rader=0      rå arkivert=1 karantene=0  sources.biomasse.Maanedmangler: Fila er tom, så 2026-07 kan ikke skrives.  advarsler=1
+  samle biomasse             tom_kropp  ok=False rader=0      rå arkivert=1 karantene=0  sources.biomasse.Maanedmangler: Fila er tom, så 2026-07 kan ikke skrives.  advarsler=1
+  samle biomasse             halv       ok=False rader=0      rå arkivert=1 karantene=0  sources.biomasse.Maanedmangler: 2026-07 ligger ikke i fila, som bærer 2017-10 til 2022-03. Etterslepsregningen  advarsler=1
+
+  halv for biomasselag: data/arkiv/biomasselag/2026-11-02.json.gz  174643 B  sha256 0de5f9c92e98e75036bc6d08715fccc79c04bbccf452c89247c9bfacbd9b266a
+  samle biomasselag          feilside   ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle biomasselag          tom_liste  ok=False rader=0      rå arkivert=0 karantene=0  AttributeError: 'list' object has no attribute 'get'
+  samle biomasselag          tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle biomasselag          halv       ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Unterminated string starting at: line 1 column 87039 (char 87038)
+
+  halv for eierskap: data/arkiv/eierskap/2026-11-02.json.gz  10033182 B  sha256 2d747db3613e53e2ed44e2f9f82b9002fcf9b3ae32e3a9091052e528a6779d13
+  samle eierskap             feilside   ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle eierskap             tom_liste  ok=False rader=0      rå arkivert=0 karantene=1  core.karantene.Mistenkt: eierskap: null tillatelser (0 fra /licenses, 0 enheter, 0 fjernet av personfilteret).
+  samle eierskap             tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle eierskap             halv       ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Unterminated string starting at: line 1 column 5006943 (char 5006942)
+
+  halv for ekspertgruppen: data/arkiv/ekspertgruppen/2025-12-31.bin.gz  9243113 B  sha256 6083b40bf9fa3fc0041c5d4515825d77d28be004fd40b8e128dfcbd0117db546
+  samle ekspertgruppen       feilside   ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle ekspertgruppen       tom_liste  ok=False rader=0      rå arkivert=0 karantene=0  TypeError: list indices must be integers or slices, not str
+  samle ekspertgruppen       tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle ekspertgruppen       halv       ok=False rader=0      rå arkivert=0 karantene=0  UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb5 in position 11: invalid start byte
+
+  halv for enhetsregisteret: data/arkiv/enhetsregisteret/2026-11-02.json.gz  3887018 B  sha256 e108a556c90daabb8173eb80d3e4bc616e990c360215cd8c1a5ef1c58c97e247
+  samle enhetsregisteret     feilside   ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle enhetsregisteret     tom_liste  ok=False rader=0      rå arkivert=0 karantene=0  AttributeError: 'list' object has no attribute 'get'
+  samle enhetsregisteret     tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle enhetsregisteret     halv       ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Unterminated string starting at: line 1 column 1936694 (char 1936693)
+
+  halv for lusetall: data/arkiv/lusetall/2026-10-05.json.gz  829363 B  sha256 35169a1ae83afbd0524e1d9fe91e4e5c16fcc62fcd75052b56f315245d666436
+  samle lusetall             feilside   ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle lusetall             tom_liste  ok=False rader=0      rå arkivert=0 karantene=0  AttributeError: 'list' object has no attribute 'get'
+  samle lusetall             tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle lusetall             halv       ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting ',' delimiter: line 1 column 413879 (char 413878)
+
+  halv for reguleringsomraader: data/arkiv/reguleringsomraader/2026-06-29.json.gz  729058 B  sha256 0401a180499de87aa31565dd150de86e09e229f8306aeb174f6fcabe6f12417a
+  samle reguleringsomraader  feilside   ok=False rader=0      rå arkivert=1 karantene=0  sources.reguleringsomraader.Formatfeil: geojson lot seg ikke tolke som JSON: Expecting value: line 1 column 1 
+  samle reguleringsomraader  tom_liste  ok=False rader=0      rå arkivert=1 karantene=0  AttributeError: 'list' object has no attribute 'get'
+  samle reguleringsomraader  tom_kropp  ok=False rader=0      rå arkivert=1 karantene=0  sources.reguleringsomraader.Formatfeil: geojson lot seg ikke tolke som JSON: Expecting value: line 1 column 1 
+  samle reguleringsomraader  halv       ok=False rader=0      rå arkivert=1 karantene=0  sources.reguleringsomraader.Formatfeil: geojson lot seg ikke tolke som JSON: Unterminated string starting at: 
+
+  halv for romming: data/arkiv/romming/2026-12-31.json.gz  406716 B  sha256 42e2edf55995024cbc50599899aad8cf0ce19e8f94c2ed9186f8291342974fde
+  samle romming              feilside   ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle romming              tom_liste  ok=False rader=0      rå arkivert=0 karantene=0  AttributeError: 'list' object has no attribute 'get'
+  samle romming              tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+  samle romming              halv       ok=False rader=0      rå arkivert=0 karantene=0  json.decoder.JSONDecodeError: Unterminated string starting at: line 1 column 202684 (char 202683)
+
+  halv for sjotemperatur: data/arkiv/sjotemperatur/2026-10-05.txt.gz  125908 B  sha256 8e3ed284fde0eff10305373e95228bbb60756e742e65649052f1dfd67df95d40
+  samle sjotemperatur        feilside   ok=False rader=0      rå arkivert=1 karantene=0  sources.sjotemperatur.Kolonnefeil: Eksporten mangler kolonnen(e) Uke, År, Lokalitetsnummer, Sjøtemperatur, Tro  advarsler=1
+  samle sjotemperatur        tom_liste  ok=False rader=0      rå arkivert=1 karantene=0  sources.sjotemperatur.Kolonnefeil: Eksporten mangler kolonnen(e) Uke, År, Lokalitetsnummer, Sjøtemperatur, Tro  advarsler=1
+  samle sjotemperatur        tom_kropp  ok=False rader=0      rå arkivert=1 karantene=0  sources.sjotemperatur.Kolonnefeil: Eksporten mangler kolonnen(e) Uke, År, Lokalitetsnummer, Sjøtemperatur, Tro  advarsler=1
+  samle sjotemperatur        halv       ok=True  rader=1355   rå arkivert=1 karantene=0  
+
+  halv for trafikklysvedtak: data/arkiv/trafikklysvedtak/2026-12-31.bin.gz  77143 B  sha256 08b6090d993b96444ba54043079382de2a25750f571b7b98414158bc7abc4cd8
+  samle trafikklysvedtak     feilside   ok=False rader=0      rå arkivert=1 karantene=0  sources.trafikklysvedtak.Forskriftsfeil: Fant ingen «Dato FOR-…» i kroppen. Uten den vet vi ikke hvilken forsk  advarsler=1
+  samle trafikklysvedtak     tom_liste  ok=False rader=0      rå arkivert=1 karantene=0  sources.trafikklysvedtak.Forskriftsfeil: Fant ingen «Dato FOR-…» i kroppen. Uten den vet vi ikke hvilken forsk  advarsler=1
+  samle trafikklysvedtak     tom_kropp  ok=False rader=0      rå arkivert=1 karantene=0  sources.trafikklysvedtak.Forskriftsfeil: Fant ingen «Dato FOR-…» i kroppen. Uten den vet vi ikke hvilken forsk  advarsler=1
+  samle trafikklysvedtak     halv       ok=True  rader=12     rå arkivert=1 karantene=0  
+
+  halv for unntaksvekst: data/arkiv/unntaksvekst/2026-11-02.json.gz  24060 B  sha256 b8c8492e30f25230e8e278f3e171baad2ef1639a2543a0213ee2a43e68fe9a1c
+  samle unntaksvekst         feilside   ok=False rader=0      rå arkivert=0 karantene=0  ValueError: unntaksvekst: fant 0 tabeller med kolonnene ('Søker', 'Lokalitet', 'Prod.område', 'Resultat', 'Sak
+  samle unntaksvekst         tom_liste  ok=False rader=0      rå arkivert=0 karantene=0  ValueError: unntaksvekst: fant 0 tabeller med kolonnene ('Søker', 'Lokalitet', 'Prod.område', 'Resultat', 'Sak
+  samle unntaksvekst         tom_kropp  ok=False rader=0      rå arkivert=0 karantene=0  ValueError: unntaksvekst: fant 0 tabeller med kolonnene ('Søker', 'Lokalitet', 'Prod.område', 'Resultat', 'Sak
+  samle unntaksvekst         halv       ok=False rader=0      rå arkivert=0 karantene=0  ValueError: unntaksvekst: fant 0 tabeller med kolonnene ('Søker', 'Lokalitet', 'Prod.område', 'Resultat', 'Sak
+
+  lytter bw   feilside   lagret 1 fil(er), 1 linjer, 1 uten MMSI i regnskapets lesing
+  lytter bw   tom_liste  lagret 1 fil(er), 1 linjer, 1 uten MMSI i regnskapets lesing
+  lytter bw   halv       lagret 1 fil(er), 1 linjer, 1 uten MMSI i regnskapets lesing
+
+  ais-manifest feilside   exit 1, lagret 0 [], karantene 1  ::error::AIS-manifest: utleveringen er ikke skrevet. Forrige status.json står, og manifestene leveres på nytt 
+  ais-manifest tom_liste  exit 1, lagret 0 [], karantene 1  ::error::AIS-manifest: utleveringen er ikke skrevet. Forrige status.json står, og manifestene leveres på nytt 
+  ais-manifest tom_kropp  exit 1, lagret 0 [], karantene 1  ::error::AIS-manifest: utleveringen er ikke skrevet. Forrige status.json står, og manifestene leveres på nytt 
+  ais-manifest halv       exit 1, lagret 0 [], karantene 1  ::error::AIS-manifest: utleveringen er ikke skrevet. Forrige status.json står, og manifestene leveres på nytt 
+  ais-manifest tomme_felt exit 1, lagret 0 [], karantene 1  ::error::AIS-manifest: utleveringen er ikke skrevet. Forrige status.json står, og manifestene leveres på nytt 

@@ -311,3 +311,84 @@ og 1 674 i november). Regelen i punkt 9 bygges, men grunnlaget er én
 kveld for de ukene den gjelder.
 *Feil hvis:* en uke i `lusetall-innkomst/` har en henting med færre
 lokaliteter enn hentingen før.
+
+## Etterskrift 03.11.2026: kroppssjekken etter rettingen
+
+Teksten over er ikke endret. Kroppssjekken er kjørt på nytt mot koden
+etter økt 3b, punkt 1–9, med de samme fire kroppene:
+`.venv/bin/python analyse/drift/kroppssjekk.py --med-arkiv`, utskriften i
+`analyse/drift/kroppssjekk.etter.txt` (kroppssjekk.txt er 02.11.2026 og
+står uendret). Skriptet skiller nå `lagret` (i serien) fra `karantene`
+(`data/arkiv/<mappe>/karantene*/`, core/karantene.py). Med `--med-arkiv`
+kjøres vilkar, havbruksfond, auksjon og luseinnkomst også med en kopi av
+jobbens egne mapper i arkivet, så reglene som sammenligner med forrige
+kropp, har en forrige kropp.
+
+### De fire kroppene, før og etter
+
+Hver celle er «02.11 → 03.11». Alle radene er MÅLBAR: konstruerte kropper
+gjennom jobbens egen kode, som i tabellen over.
+
+| Jobb | Merke | Feilside | Tom liste / tom kropp | Halv kropp |
+|---|---|---|---|---|
+| vilkar | MÅLBAR | 5 lagret, exit 0 → 5 i karantene, exit 1 | 5 lagret, exit 0 → 5 i karantene, exit 1 | 5 lagret, exit 0 → 5 i karantene, exit 1: 677 tegn, under minstelengden 740, og med arkivet under halvparten av forrige versjon |
+| havbruksfond (`--daglig`) | MÅLBAR | lagret, exit 0 → karantene, exit 1 | lagret, exit 0 → karantene, exit 1 | lagret, exit 0 → lagret, exit 0: den halve siden nevner fondet |
+| lytterne (bw, 5632) | MÅLBAR | lagret → lagret, urørt med vilje; tilsynet rødt når en bw-time har over 1 % linjer uten MMSI | som feilsiden | som feilsiden |
+| auksjon | MÅLBAR | lagret, exit 1 → lagret, exit 1: HTML, fanget av tolkingen | lagret, exit 1 / exit 0 → karantene, exit 1 | lagret, exit 1 → lagret, exit 1 |
+| ais-manifest | MÅLBAR | stoppet, exit 1 → karantene, exit 1 | stoppet → karantene, exit 1 | stoppet → karantene, exit 1; tomme felt: status overskrevet, exit 0 → karantene, forrige status står, exit 1 |
+| samle (sjøtemperatur) | MÅLBAR | ok med 0 rader → Kolonnefeil, kilden feiler | ok med 0 rader → Kolonnefeil, kilden feiler | 1 355 rader, 532 lokaliteter «borte» → 1 355 rader, snapshot merket ufullstendig, 0 «borte» |
+| samle (eierskap) | MÅLBAR | feiler → feiler | tom liste: ok med 0 rader → Mistenkt, 1 i karantene, kilden feiler | feiler → feiler |
+| daglig (eierskap) | MÅLBAR | akvakultur feiler, exit 1 → uendret | tom liste: eierskap lagret 57 B → 1 i karantene, exit 1 | feiler → feiler |
+| luseinnkomst | MÅLBAR | feiler, ingenting lagret → uendret | tom liste: feiler → 5 i karantene, exit 1; tom kropp: uendret | feiler, ingenting lagret → uendret |
+
+Det halve snapshotet er i tillegg kjørt gjennom `run.main()` selv,
+`analyse/drift/halvt_snapshot_etter.py` og `halvt_snapshot_etter.txt`
+(MÅLBAR, falsk transport, kopi av datamappa): uka med den halve kroppen
+skrives med `ufullstendig` «ja» og 0 «borte» (var 1 376 rader for 534
+lokaliteter i 0b). Uka etter, hel, gir 9 «ny» (var 1 378 rader for 532),
+og 305 endringer, 9 nye felt og 12 borte mot 2026-09-28 for lokalitetene
+den halve kroppen manglet — de samme den hele kroppen har mot den uka.
+
+### Arkivets egne kropper mot de nye reglene
+
+`analyse/drift/arkivet_mot_reglene.py`, utskriften i
+`analyse/drift/arkivet_mot_reglene.txt`. Hver regel med jobbens egen
+kode, mot hver kropp i arkivet den gjelder for, i `raw.orden()`; der
+regelen sammenligner med forrige kropp, er forrige den som ligger foran.
+sha256 er over (sti, sha256 av den utpakkede kroppen) for hver kropp,
+sortert som i utskriften.
+
+| Jobb | Merke | Kropper | I karantene | sha256 over grunnlaget |
+|---|---|---|---|---|
+| vilkar, `vilkar-*/` | MÅLT | 11 | 0 | `c7bef67bc357210da183568be2fc3c864cfcb25b26a577167711f968d92da748` |
+| havbruksfond, sidene i `havbruksfondet/` | MÅLT | 6 | 0 | `c711393391083cf280cd92fa964b16a4b0266be3ad14241c887aecb58b650083` |
+| auksjon, `auksjon/` | MÅLT | 94 | 0 | `7f8e7356ecec5372e1786dcd2d2b2993aed48ad4ec00f82990e9322e43026d68` |
+| luseinnkomst, `lusetall-innkomst/` | MÅLT | 13 | 0 | `1d5ad70236f45d1d9c12591fcf835a9d1c2f24415b39745487ee27cf12298974` |
+| eierskap, `eierskap/` | MÅLT | 24 | 0 | `22e62db6ddc89e1f2988ff35956d5cd3ca43926a28dc770c1f193a5e61d484b5` |
+| sjøtemperatur, `sjotemperatur/` | MÅLT | 771 | 0 | `f643c02d4fc755d8aa9cc7b4a09322e797b5c04d6cc13a885da7c39cab9dd84a` |
+| ais-manifest, `data/ais/status.json` i git | MÅLBAR | 3 | 0 | `35d89af4143a7f87a753b123d3261b777f321b81dd846dd3a285cf2e6559b934` |
+
+Statusene er MÅLBAR og ikke MÅLT: de ligger i git, ikke i arkivet.
+*Feil hvis:* en av kroppene i tabellen gir en grunn når regelen kjøres
+mot den, eller antallet kropper i en av mappene er et annet.
+
+### Det som ikke er rettet
+
+* **En HTML-kropp som er feil**, slipper gjennom auksjonens kroppssjekk
+  (feilsiden og den halve kroppen er lagret) og fanges som før av
+  tolkingen, rødt. Regelen er den F1.3 ba om: tom kropp og kropp uten
+  `<html`.
+* **Den halve havbruksfondsiden** nevner fondet og lagres. Ordet skiller
+  en feilside fra siden, ikke en halv side fra en hel.
+* **En kropp som ikke er JSON**, feiler inne i kildens `fetch()` (samle,
+  daglig, luseinnkomst) før noen har den, og går tapt som før. Det samme
+  gjelder en utlevering workflowen avviser før `ais_manifest.py`.
+* **ais-manifest.yml committer bare når skrivesteget lyktes.** En kropp
+  `ais_manifest.py` legger i karantene, blir derfor liggende på runneren
+  til Commit-steget kjører også når skriptet er rødt. Det er en
+  workflow-endring.
+* **Tilsynets MMSI-grense virker først når kystvakt/utlevering.py fra
+  03.11.2026 er installert** på kystvakt-1. Inntil den er byttet, er
+  tilsynet rødt med at tallene mangler.
+* **En uke med bare et ufullstendig snapshot har fortsatt `sist_ok`**,
+  så tirsdagens gjenkjøring prøver ikke på nytt.

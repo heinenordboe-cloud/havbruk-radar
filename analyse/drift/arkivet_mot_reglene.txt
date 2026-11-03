@@ -1,0 +1,10 @@
+De nye reglene mot hver kropp i arkivet de gjelder for (økt 3b punkt 10)
+arkiv: /Users/nordboe/havbruk-radar-data/data/arkiv
+
+  vilkar            11 kropper, 0 ville gått i karantene   sha256 c7bef67bc357210da183568be2fc3c864cfcb25b26a577167711f968d92da748
+  havbruksfond       6 kropper, 0 ville gått i karantene   sha256 c711393391083cf280cd92fa964b16a4b0266be3ad14241c887aecb58b650083
+  auksjon           94 kropper, 0 ville gått i karantene   sha256 7f8e7356ecec5372e1786dcd2d2b2993aed48ad4ec00f82990e9322e43026d68
+  luseinnkomst      13 kropper, 0 ville gått i karantene   sha256 1d5ad70236f45d1d9c12591fcf835a9d1c2f24415b39745487ee27cf12298974
+  eierskap          24 kropper, 0 ville gått i karantene   sha256 22e62db6ddc89e1f2988ff35956d5cd3ca43926a28dc770c1f193a5e61d484b5
+  sjotemperatur    771 kropper, 0 ville gått i karantene   sha256 f643c02d4fc755d8aa9cc7b4a09322e797b5c04d6cc13a885da7c39cab9dd84a
+  ais-manifest       3 kropper, 0 ville gått i karantene   sha256 35d89af4143a7f87a753b123d3261b777f321b81dd846dd3a285cf2e6559b934
