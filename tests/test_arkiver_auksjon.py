@@ -15,8 +15,8 @@ import pytest
 import arkiver_auksjon as ark
 from core import raw as raw_arkiv
 
-INDEKS_MED_BARN = (b'<a href="/akvakultur/auksjon-av-produksjonskapasitet/'
-                   b'auksjon-2022">2022</a>')
+INDEKS_MED_BARN = (b'<html><a href="/akvakultur/auksjon-av-produksjonskapasitet/'
+                   b'auksjon-2022">2022</a></html>')
 
 
 @pytest.fixture
@@ -134,3 +134,39 @@ def test_kode_som_ikke_kan_spores_henter_ingenting(tmp_path, monkeypatch, capsys
     assert "::error::Auksjonsarkiveringen startet ikke: arbeidstreet er ikke rent" \
         in capsys.readouterr().out
     assert not (tmp_path / "arkiv").exists()
+
+
+
+# ---- karantene (MALING-DRIFT F1.3) -------------------------------------
+#
+# Til 03.11.2026 ble kroppen arkivert før den ble lest, og en tom kropp ga
+# exit 0. Nå går tom kropp og kropp uten <html i karantene FØR arkivering.
+
+@pytest.mark.parametrize("kropp,grunn", [
+    (b"", ["tom kropp (0 B)", "ingen <html i kroppen"]),
+    (b"[]", ["ingen <html i kroppen"]),
+])
+def test_tom_kropp_og_kropp_uten_html_gaar_i_karantene(kjor, tmp_path, capsys,
+                                                       kropp, grunn):
+    kode, logg = kjor(lambda url: (kropp, ""), lambda url: Svar(""))
+
+    assert kode == 1
+    assert raw_arkiv.kropper(ark.KILDE) == [], "ingenting i serien"
+    [post] = [r for r in logg if r.get("status") == "karantene"]
+    assert post["grunn"] == grunn and post["url"] == ark.INDEKS
+    assert post["kode_commit"] == "0" * 40
+    assert (tmp_path / "arkiv" / ark.KILDE / "karantene"
+            / "2026-10-06.bin.gz").exists(), "men tatt vare på"
+    assert _advarsler(logg) == ["tom_indeks"], "ingen lenker lest av den"
+    assert "::error::Karantene (auksjon)" in capsys.readouterr().out
+
+
+def test_lenkene_leses_av_kroppen_som_ble_arkivert(kjor):
+    """Indeksen hentes én gang, ikke én gang til for lenkene."""
+    hentet = []
+
+    def hent(url):
+        hentet.append(url)
+        return INDEKS_MED_BARN, ""
+    kjor(hent, lambda url: Svar(""))
+    assert hentet.count(ark.INDEKS) == 1

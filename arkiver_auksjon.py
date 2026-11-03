@@ -92,6 +92,7 @@ import sys
 
 import httpx
 
+from core import karantene
 from core import kodeproveniens
 from core import raw as raw_arkiv
 from sources import _http
@@ -121,6 +122,15 @@ UA = "havbruk-radar/1.0 (kildearkivering; kontakt via repoet)"
 _BARN = re.compile(
     r'href="(/akvakultur/auksjon-av-produksjonskapasitet/[A-Za-z0-9_-]+)"')
 
+# FØR ARKIVERING, ikke etter (MALING-DRIFT F1.3, fra 03.11.2026). Til da
+# ble kroppen arkivert før den ble lest, og en tom kropp ga exit 0 med en
+# tom fil i arkivet. Nå går en tom kropp, og en kropp uten `<html`, i
+# karantene. Målt 03.11.2026: alle 94 kroppene i auksjon/ er HTML med
+# `<html` (analyse/drift/kjennetegn.txt). En kropp som er HTML, men feil,
+# slipper gjennom her; den fanges som før når den ikke lar seg tolke, og
+# kjøringen er rød.
+REGLER = (karantene.ikke_tom, karantene.html)
+
 
 def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
     """Kroppen og `published_at` lest av svaret. Tom streng = vet ikke.
@@ -139,21 +149,31 @@ def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
 
 
 def _arkiver(klient: httpx.Client, url: str, dato: str, torr: bool,
-             logg: list) -> None:
+             logg: list) -> bytes | None:
+    """Henter, vurderer og arkiverer én kropp. Returnerer kroppen, eller
+    None når den ikke kunne hentes eller gikk i karantene."""
     try:
         kropp, utgitt = _hent(klient, url)
     except Exception as e:
         print(f"  FEIL  {url}\n        {e}")
         logg.append({"url": url, "feil": str(e)})
-        return
+        return None
 
+    grunner = karantene.vurder(kropp, REGLER)
     if torr:
-        print(f"  ville arkivert  {len(kropp):>7} B  {url}")
-        logg.append({"url": url, "byte": len(kropp), "torrkjoring": True})
-        return
+        print(f"  {'ville satt i karantene' if grunner else 'ville arkivert'}  "
+              f"{len(kropp):>7} B  {url}" + (f"  ({'; '.join(grunner)})" if grunner else ""))
+        logg.append({"url": url, "byte": len(kropp), "torrkjoring": True,
+                     "grunn": grunner})
+        return None if grunner else kropp
 
     # Når VI hentet kroppen (CLAUDE.md 1b-7: OSS, ikke kilden).
     hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    if grunner:
+        logg.append(karantene.sett_inn(KILDE, dato, kropp, grunner, jobb="auksjon",
+                                       fetched_at=hentet, url=url,
+                                       published_at=utgitt))
+        return None
     h, ny = raw_arkiv.arkiver_ny(KILDE, dato, kropp)
     merke = "NY" if ny else "uendret"
     print(f"  {merke:<8} {len(kropp):>7} B  {h[:16]}…  {url}")
@@ -162,6 +182,7 @@ def _arkiver(klient: httpx.Client, url: str, dato: str, torr: bool,
               f"Last-Modified. Ikke satt til hentetidspunktet (1b-7).")
     logg.append({"url": url, "byte": len(kropp), "sha256": h, "ny": ny,
                  "published_at": utgitt, "fetched_at": hentet})
+    return kropp
 
 
 def _advar(logg: list, hva: str, tekst: str) -> None:
@@ -221,18 +242,18 @@ def main() -> int:
                           headers={"User-Agent": UA})
 
     print(f"\nIndeks:")
-    _arkiver(klient, INDEKS, dato, a.torrkjor, logg)
+    # Lenkene leses av DEN kroppen som ble vurdert og arkivert, ikke av en
+    # henting til. Til 03.11.2026 ble indeksen hentet to ganger, og den
+    # andre ble lest uten at noen hadde sett på den.
+    indeks = _arkiver(klient, INDEKS, dato, a.torrkjor, logg)
 
-    try:
-        indeks, _ = _hent(klient, INDEKS)
-        barn = sorted(set(_BARN.findall(indeks.decode("utf-8", "replace"))))
-    except Exception as e:
-        print(f"  Indeksen kunne ikke leses for barnelenker: {e}")
+    if indeks is None:
         barn = []
         _advar(logg, "tom_indeks",
-               f"indeksen kunne ikke leses for barnelenker ({e}). Ingen "
+               f"indeksen kunne ikke hentes, eller gikk i karantene. Ingen "
                f"auksjonsrunde er hentet fra {INDEKS}.")
     else:
+        barn = sorted(set(_BARN.findall(indeks.decode("utf-8", "replace"))))
         # Indeksen har listet seks runder siden 14.09.2026. Null barn er
         # ikke «ingen auksjoner» — det er en side som har endret form, og
         # da fanges ikke 2026-barnet heller.
@@ -269,6 +290,8 @@ def main() -> int:
 
     nye = sum(1 for r in logg if r.get("ny"))
     feil = sum(1 for r in logg if "feil" in r)
+    karantenert = sum(1 for r in logg if r.get("status") == karantene.STATUS
+                      or (r.get("torrkjoring") and r.get("grunn")))
     # Exit 0 når noe nytt kom inn, også om andre adresser feilet — én død
     # lenke skal ikke koste dagens funn. Men feilene skal sies.
     if feil and nye:
@@ -279,7 +302,7 @@ def main() -> int:
     adresser = sum(1 for r in logg if "url" in r)
     advarsler = sum(1 for r in logg if "advarsel" in r)
     print(f"\n{adresser} adresse(r), {nye} ny(e) kropp(er), {feil} feil, "
-          f"{advarsler} advarsel(er).")
+          f"{advarsler} advarsel(er), {karantenert} i karantene.")
 
     # Stempelet står på hver kropp som ble arkivert eller funnet igjen —
     # postene med sha256 — og ikke på feil- og advarselsposter.
@@ -295,8 +318,10 @@ def main() -> int:
             print(f"Logg: {sti}")
 
     # Feil skal være synlige i Actions, men skal IKKE stoppe de øvrige
-    # adressene — én død lenke er ikke en grunn til å miste resten.
-    return 1 if feil and nye == 0 else 0
+    # adressene — én død lenke er ikke en grunn til å miste resten. En
+    # kropp i karantene er rød uansett: den er tatt vare på, men noen må se
+    # på den.
+    return 1 if karantenert or (feil and nye == 0) else 0
 
 
 if __name__ == "__main__":
