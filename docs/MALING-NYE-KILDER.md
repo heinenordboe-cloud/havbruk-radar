@@ -348,3 +348,98 @@ overlappen.
 
 **Bygget:** `arkiver_luseinnkomst.py --v2`, daglig, uke N til N−4,
 `data/arkiv/lusetall-innkomst-v2/`.
+
+## Etterskrift 03.11.2026, kveld: Lovdata, søknadslaget og ILA/PD (økt 4b)
+
+Teksten over er ikke endret. Kallene ble gjort 21.48–22.10 UTC. Tre
+nye logger, samme form som de fire over:
+
+| logg | skript | punkt |
+|---|---|---|
+| `maling-lovdata/2026-11-03.l1.logg.json` | `analyse/lovdata/l1_hent.py` | 0 og 5 |
+| `maling-soknader/2026-11-03.s1.logg.json` | `analyse/soknader/s1_mal.py` | 1 |
+| `maling-ilapd/2026-11-03.i1.logg.json` | `analyse/ilapd/i1_mattilsynet.py` | 3 |
+
+Utskriftene står uendret i `analyse/soknader/s1_mal.txt` og
+`analyse/ilapd/i1_mattilsynet.txt`, og stille hopp i
+`analyse/drift/stille_hopp.txt` (MALING-DRIFT). Hashene er som over:
+sha256 over den utpakkede kroppen, de 16 første tegnene.
+
+### Punkt 0: arkiver_lovdata.py og robots.txt
+
+**F7.1 — Ingen workflow kjører arkiver_lovdata.py. MÅLBAR.** Skriptet
+sier selv «Kjøres for hånd, ikke av en workflow». `.github/jobber.yml`
+har ingen lovdata-sti, og `git log --all -S arkiver_lovdata` i
+datarepoet er tom. Det finnes altså ingen workflow å fjerne den fra, og
+ingen workflow-fil er skrevet for punktet. Arkivet står.
+*Feil hvis:* en workflow i datarepoet kaller `arkiver_lovdata.py`.
+
+**F7.2 — Alle kroppene hentet fra lovdata.no siden starten.** Fra
+arkivet og loggene; tre jobber har hentet derfra, ikke én:
+
+| hentet (UTC) | jobb | adresse | kropp | sha256 |
+|---|---|---|---|---|
+| 05.09 17.18 | `trafikklysvedtak` (backfill) | `LTI/forskrift/2017-12-20-2397` | `trafikklysvedtak/2018-12-31.bin.gz` | `9dd38abdaea60f9e` |
+| 05.09 17.18 | samme | `LTI/forskrift/2020-02-04-105` | `trafikklysvedtak/2020-12-31.bin.gz` | `0ac5a3286bdb1c89` |
+| 05.09 17.18 | samme | `LTI/forskrift/2022-06-07-972` | `trafikklysvedtak/2022-12-31.bin.gz` | `31f1b88e228b2e74` |
+| 05.09 17.18 | samme | `LTI/forskrift/2024-03-22-515` | `trafikklysvedtak/2024-12-31.bin.gz` | `5184ac61c32a30ae` |
+| 14.09 (commit `e3134c2`) | `trafikklysvedtak` | `LTI/forskrift/2026-08-20-1764` | `trafikklysvedtak/2026-12-31.bin.gz` | `08b6090d993b9644` |
+| 06.10 (loggen har ingen tid) | `arkiver_vilkar.py` | `info/brukeravtale` | `vilkar-lovdata/2026-10-06.bin.gz` | `33f46a49695d9cc7` |
+| 08.10 16.07, 09.10 06.57 | samme | samme | uendret | `33f46a49695d9cc7` |
+| 09.10 05.59 | `arkiver_lovdata.py` | `SF/forskrift/2017-01-16-61` | `lovdata-produksjonsomradeforskriften/2026-10-09.bin.gz` | `f44406e410705f3d` |
+| 09.10 05.59 | samme | `LTI/forskrift/2023-09-28-1520` | `lovdata-produksjonsomradeforskriften-endring-2023/2026-10-09.bin.gz` | `7a8d1ec516273008` |
+| 09.10 05.59 | samme | `SF/forskrift/2012-12-05-1140` | `lovdata-lakselusforskriften/2026-10-09.bin.gz` | `0ae73fa83534c0f4` |
+| 09.10 15.46 | samme, de tre over igjen | samme | uendret | som over |
+| 09.10 15.46 | samme | `NL/lov/2018-06-15-40` | `lovdata-andsverkloven/2026-10-09.bin.gz` | `b60131c4a8bbe6fe` |
+| 02.11 15.10 | `arkiver_vilkar.py` | `info/brukeravtale` | `vilkar-lovdata/2026-11-02.bin.gz` | `4ef5a05f2e3e0266` |
+| 03.11 09.06, 19.51, og én kjøring mellom dem uten logg | samme | samme | uendret | `4ef5a05f2e3e0266` |
+| 03.11 19.2x, 21.48 | målingene | `robots.txt`, `sok` | `maling-nye-kilder/2026-11-03.16.bin.gz`, `.17.bin.gz`, `maling-lovdata/2026-11-03.bin.gz` | `cbafdcc28cde8a5c` (robots.txt) |
+
+`arkiver_lovdata.py` har kjørt to ganger, begge 09.10.2026, og hentet sju
+kropper, fire av dem forskjellige. Snapshotet `trafikklysvedtak/
+2026-12-31.parquet` har `fetched_at` 15.09 21.03 og `raw_hash` lik
+kroppen fra 14.09; om 15.09 også var et kall mot lovdata.no, er
+UBELAGT. Skriptets docstring nevner to lesinger av
+produksjonsområdeforskriften 05.09 og 23.09 som ikke ble arkivert:
+UBELAGT. Kjøringen 03.11 uten logg er det stille hoppet i
+MALING-DRIFT.
+*Feil hvis:* en kropp under `lovdata-*/`, `vilkar-lovdata/` eller
+`trafikklysvedtak/` mangler i tabellen.
+
+**F7.3 — robots.txt sa `User-agent: *` / `Disallow: /` i hver kopi som
+finnes. MÅLT for kopiene, MÅLBAR for datoene mellom dem.** Wayback-CDX
+for `lovdata.no/robots.txt` fra 2025 (`maling-lovdata/2026-11-03.3.bin.gz`,
+`1d0f503e3527569f`) og én kopi av hver digest:
+
+| kopi | sha256 | `*` stengt |
+|---|---|---|
+| Wayback 13.04.2025 og 05.07.2025 (`.4.bin.gz`, samme bytes) | `18791cb36d43ba98` | ja |
+| Wayback 01.10.2025 (`.5.bin.gz`) | `7aa611491b1d5cc2` | ja |
+| Wayback 14.05.2026, digesten som går fra 13.11.2025 (`.bin.gz`) | `cbafdcc28cde8a5c` | ja |
+| vår henting 03.11.2026 19.2x og 21.48 (`maling-nye-kilder/.16.bin.gz`, `maling-lovdata/.bin.gz`) | `cbafdcc28cde8a5c` | ja |
+
+Den siste Wayback-kopien er 14.05.2026, og vår første er 03.11.2026.
+Alle hentedatoene i F7.2 ligger mellom de to, som er byte-like. Hva
+robots.txt sa på selve dagen, er ikke sett for noen av dem. Mellom
+versjonene skiller bare listen over navngitte roboter; `*` har
+`Disallow: /` i alle.
+*Feil hvis:* en av kroppene i tabellen mangler `Disallow: /` under
+`User-agent: *`.
+
+**F7.4 — lovdata.no hentes fortsatt automatisk av én jobb.
+MÅLBAR.** `arkiver_vilkar.py` har `lovdata.no/info/brukeravtale` i
+`SIDER` og kjøres av `vilkar.yml` den 2. hver måned, neste gang
+02.12.2026. `trafikklysvedtak` henter bare når `NYESTE_RUNDE` endres i
+koden (`gjelder_for`), og har ikke hentet siden 14.09 (`health.json`:
+«2026-12-31 ligger skrevet fra før»). Ingen av dem er endret.
+
+**F7.5 — Lovdatas egen brukeravtale tillater det robots.txt stenger.
+MÅLT.** `vilkar-lovdata/2026-11-02.bin.gz` (`4ef5a05f2e3e0266`; synlig
+tekst lik versjonen fra 06.10) gir et unntak under NLOD 2.0 for
+«Regelverk i Norsk Lovtidend», «Gjeldende formelle lover» og «Gjeldende
+sentrale forskrifter», «kun for enkeltlover og -forskrifter», og sier at
+massenedlasting ikke er tillatt og at større nedlastinger skal gå
+gjennom de åpne API-ene. Det `arkiver_lovdata.py` hentet, er fire
+enkeltdokumenter. Hvilket av de to dokumentene som gjelder for en
+robot, er ikke målbart her.
+*Feil hvis:* den synlige teksten i kroppen ikke nevner NLOD 2.0.
