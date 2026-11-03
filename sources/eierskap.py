@@ -86,6 +86,7 @@ import polars as pl
 from core.config import get
 from core import persondata
 from core.contract import Observation, Source
+from core.karantene import Mistenkt
 from sources import _http
 
 STANDARD_BASE = "https://api.fiskeridir.no/pub-aqua/api/v1"
@@ -535,6 +536,22 @@ class Eierskap(Source):
                 fjernet += 1
                 continue
             beholdt.append(l)
+
+        # NULL TILLATELSER er ikke et register uten oppdrettstillatelser,
+        # det er et svar som ikke er registeret (MALING-DRIFT F4.1, fra
+        # 03.11.2026). En tom liste fra begge endepunktene ga en kropp på
+        # 57 B som ble arkivert, og alene ville det daglige arkivet endt
+        # grønt. Kroppen følger med unntaket, FILTRERT som den ellers ville
+        # blitt arkivert, så kalleren kan legge den i karantene uten at
+        # en eneste adresse kommer med.
+        if not beholdt:
+            raise Mistenkt(
+                f"eierskap: null tillatelser ({len(lisenser)} fra /licenses, "
+                f"{len(enheter)} enheter, {fjernet} fjernet av personfilteret). "
+                f"Registeret hadde 2947 etter filteret 02.11.2026 (arkivkroppen "
+                f"eierskap/2026-11-02.json.gz); et tomt svar er ikke registeret.",
+                kropp={"tillatelser": beholdt, "enheter": slanke,
+                       "personer_fjernet": fjernet})
 
         advarsler: list[str] = []
         if not fjernet:

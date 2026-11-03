@@ -5256,3 +5256,29 @@ def test_merket_godtar_bare_kjente_verdier(tmp_path, monkeypatch):
     with pytest.raises(ValueError):
         snapshot.write(list(FalskKilde().parse(FalskKilde().fetch(""), "2026-10-05")),
                        "2026-10-05", ufullstendig="kanskje")
+
+
+
+class MistenktKilde(FalskKilde):
+    """Får et svar den ikke vil ha i serien, og sender kroppen med."""
+
+    name = "mistenkt"
+
+    def fetch(self, kjoredato):
+        from core.karantene import Mistenkt
+        raise Mistenkt("null tillatelser", kropp={"tillatelser": []})
+
+
+def test_mistenkt_fra_fetch_gaar_i_karantene_og_kilden_feiler(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
+    obs, [r] = runner.run_all([MistenktKilde()], "2026-11-02")
+    assert not r.ok and "null tillatelser" in r.error
+    assert raw_arkiv.kropper("mistenkt") == [], "ikke i serien"
+    assert (tmp_path / "mistenkt" / "karantene" / "2026-11-02.json.gz").exists()
+    assert "::error::Karantene (samle)" in capsys.readouterr().out
+
+
+def test_mistenkt_i_torrkjoring_skriver_ingenting(tmp_path, monkeypatch):
+    monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path)
+    _, [r] = runner.run_all([MistenktKilde()], "2026-11-02", arkiver=False)
+    assert not r.ok and not list(tmp_path.iterdir())

@@ -93,6 +93,7 @@ import json
 import sys
 from pathlib import Path
 
+from core import karantene
 from core import kodeproveniens
 from core import raw as raw_arkiv
 from core import registry
@@ -216,6 +217,19 @@ def main(argv=None) -> int:
             if kilde is None or not hasattr(kilde, "fetch"):
                 raise LookupError(f"fant ingen kilde som heter {navn!r}")
             post = arkiver(kilde, dato, a.torrkjor)
+        except karantene.Mistenkt as e:
+            # Kilden sendte kroppen med unntaket (f.eks. eierskap med null
+            # tillatelser). Den legges i karantene med merket, i mappa
+            # daglig.yml committer, og loggen sier hvorfor dagen er rød.
+            print(f"::error::Daglig arkiv: {navn}: {e.grunn}")
+            feil += 1
+            if e.kropp is not None and not a.torrkjor:
+                post = karantene.sett_inn(
+                    navn, dato, e.kropp, e.grunn, merke=raw_arkiv.DAGLIG,
+                    jobb="daglig", kjoring="daglig",
+                    source_version=getattr(kilde, "version", ""))
+                print(f"           logg {skriv_logg(navn, dato, dict(post, **proveniens)).name}")
+            continue
         except Exception as e:  # noqa: BLE001 — én kilde skal ikke koste de andre
             print(f"::error::Daglig arkiv: {navn} feilet: {type(e).__name__}: {e}")
             feil += 1

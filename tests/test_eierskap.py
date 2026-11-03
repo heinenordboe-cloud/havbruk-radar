@@ -13,6 +13,8 @@ som ikke finnes i den ekte responsen.
 import inspect
 import pytest
 
+from core.karantene import Mistenkt
+
 from core import persondata
 from sources import eierskap
 from sources.eierskap import Eierskap
@@ -188,9 +190,22 @@ def test_lag1_arkiverer_ikke_bostedsadresser(monkeypatch):
 
 def test_lag1_ellevesifret_stoppes(monkeypatch):
     _svar(monkeypatch, [ENHET_FNR], [_lisens("A-A-0004", "DDD", "12345678901")])
-    raa = Eierskap().fetch("2026-09-02")
-    assert raa["tillatelser"] == []
-    assert "12345678901" not in repr(raa)
+    # Den eneste tillatelsen er stoppet, så svaret har null og er mistenkt;
+    # kroppen som følger med unntaket, er filtrert som den ellers ville vært.
+    with pytest.raises(Mistenkt) as e:
+        Eierskap().fetch("2026-09-02")
+    assert e.value.kropp["tillatelser"] == []
+    assert "12345678901" not in repr(e.value.kropp)
+
+
+def test_null_tillatelser_er_mistenkt_med_kroppen(monkeypatch):
+    """MALING-DRIFT F4.1: `[]` fra begge endepunktene ble en kropp på 57 B
+    i arkivet, og det daglige arkivet ville alene endt grønt."""
+    _svar(monkeypatch, [ENHET_AS, ENHET_PERSON], [])
+    with pytest.raises(Mistenkt, match="null tillatelser") as e:
+        Eierskap().fetch("2026-09-02")
+    assert e.value.kropp["tillatelser"] == []
+    assert "Hjemmeveien" not in repr(e.value.kropp), "filtrert før karantene"
 
 
 def test_lag1_sier_fra_naar_filteret_ikke_fjernet_noe(monkeypatch):

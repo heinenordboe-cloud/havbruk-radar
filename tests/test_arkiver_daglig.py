@@ -301,3 +301,24 @@ def test_innsamling_og_daglig_samme_dato_fra_hver_sin_checkout(
     monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", daglig / "data" / "arkiv")
     assert {json.loads(gzip.open(p).read())["tillatelser"][0]
             for p in raw_arkiv.kropper("eierskap")} == {"ukentlig", "daglig"}
+
+
+
+# ---- karantene (MALING-DRIFT F4.1) -------------------------------------
+
+def test_mistenkt_kropp_gaar_i_karantene_med_merket_og_er_rod(arkiv, svar, capsys):
+    from core.karantene import Mistenkt
+    svar["eierskap"] = Mistenkt("eierskap: null tillatelser",
+                                kropp={"tillatelser": [], "enheter": []})
+
+    assert ark.main(["--dato", "2026-11-03"]) == 1
+    assert kropper(arkiv, "eierskap") == [], "ingenting i serien"
+    mappe = arkiv / "eierskap" / "karantene.daglig.d"
+    assert [p.name for p in sorted(mappe.glob("*.gz"))] == ["2026-11-03.daglig.json.gz"]
+    [logg] = logger(arkiv, "eierskap")
+    assert logg["status"] == "karantene" and logg["grunn"] == ["eierskap: null tillatelser"]
+    assert logg["kode_commit"] == "0" * 40
+    ut = capsys.readouterr().out
+    assert "::error::Daglig arkiv: eierskap: eierskap: null tillatelser" in ut
+    # De to andre kildene arkiveres som før.
+    assert kropper(arkiv, "akvakultur") == ["2026-11-03.daglig.json.gz"]

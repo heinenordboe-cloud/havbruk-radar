@@ -10,6 +10,7 @@ from datetime import date, datetime, timezone
 
 from core import health
 from core import domene as domene_modul
+from core import karantene
 from core import utvalg as utvalg_modul
 from core import raw as raw_arkiv
 from core.contract import Observation, Source
@@ -273,7 +274,17 @@ def run_all(
             # collect() kollapset fetch() og parse() til ett kall. Kjernen
             # åpner dem og arkiverer imellom — uten det er hver feil i
             # parse() permanent datatap.
-            rawdata = source.fetch(kjoredato)
+            try:
+                rawdata = source.fetch(kjoredato)
+            except karantene.Mistenkt as e:
+                # Kilden fikk et svar den ikke vil ha i serien, og sendte
+                # kroppen med unntaket. Uten dette ville den gått tapt:
+                # arkivet under skriver bare det fetch() RETURNERER.
+                # Karantene, ikke arkiv — se core/karantene.py.
+                if arkiver and e.kropp is not None:
+                    karantene.sett_inn(source.name, gjelder, e.kropp, e.grunn,
+                                       jobb="samle")
+                raise
             raw_hash = ""
             if arkiver:
                 raw_hash = raw_arkiv.arkiver(source.name, gjelder, rawdata)
