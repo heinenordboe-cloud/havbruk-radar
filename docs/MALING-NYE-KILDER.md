@@ -562,3 +562,75 @@ fersk klone (som jobben i Actions), 03.11.2026 22.11.40 UTC. Lagret
 1 i lag 0 og 1 i lag 2). Kroppen har 221 ulike søkernummer, alle ni
 siffer; geometri bare i lag 2, 5 og 6.
 *Feil hvis:* kroppen har et annet antall poster i lag 0 enn 295.
+
+### Punkt 3: ILA og PD, v1 mot v2 mot Mattilsynet
+
+**F9.1 — Nettstedet og snapshotene bruker v1. MÅLBAR, lest i koden.**
+`sources/lusetall.py` henter `v1/geodata/fishhealth/locality/{år}/{uke}`
+og skriver `hasIla` som `har_ila` og `hasPd` som `har_pd` (linje 93–94).
+Nettstedet viser feltene som hendelser med teksten «ILA-flagg satt i
+BarentsWatch» (`nettsted.py`, `MAALESERIE_HENDELSER` og kommentaren ved
+`("lusetall", "har_ila")`). v2-kroppene arkiveres av
+`arkiver_luseinnkomst.py --v2` og leses ikke av noe.
+
+**Reglene** står i toppen av `analyse/ilapd/i1_mattilsynet.py`, committet
+i `3db1bed` før skriptet ble kjørt (forfatterdato 22.02.56 UTC, første
+kall til Mattilsynet 22.03.01; committerdatoen er fra en omordning av
+de upushede commitene før push): uke 44/2026, de fem laveste
+lokalitetsnumrene i hver av de fire uenige gruppene, Mattilsynets
+`sykdomstilfeller/v1/rapporteringer` som fasit (et tilfelle er aktivt
+når mistanke eller diagnose er senest søndag, avslutningen tidligst
+mandag, og det ikke er ugyldiggjort), mistanke teller som aktivt, og
+STOPP hvis v1 er uenig med Mattilsynet i 5 eller flere av de 20.
+
+**F9.2 — Uke 44: v1 har 16 ILA og 46 PD, v2 har 14 og 29. MÅLT.** v1
+`maling-nye-kilder/2026-11-03.10.json.gz` (`ed20098a24ddc4a9`), v2
+`.11.json.gz` (`5a75f2819a61487d`), 1782 felles lokaliteter. Begge har
+ILA på 2 og PD på 11; bare v1 har ILA på 14 og PD på 35, bare v2 ILA på
+12 og PD på 18.
+*Feil hvis:* antallet lokaliteter med `hasIla` sann i v1-kroppen er et
+annet enn 16.
+
+**F9.3 — v1 er uenig med Mattilsynet i 20 av 20, v2 i 0. MÅLT.** Hvert
+svar fra Mattilsynet er arkivert i `maling-ilapd/` (fila og hashen står
+per lokalitet i `i1_mattilsynet.txt`). Datoene er Mattilsynets, lest i
+Europe/Oslo:
+
+| sykdom | bare i | lokalitet | Mattilsynet, uke 44 | tilfellet | fil |
+|---|---|---|---|---|---|
+| ILA | v1 | 10839 | ingen | diagnose 11.06.2024, avsluttet 28.03.2025 | `.3.json.gz` |
+| ILA | v1 | 11667 | ingen | diagnose 25.07.2024, avsluttet 07.02.2025 | `.8.json.gz` |
+| ILA | v1 | 11758 | ingen | diagnose 02.07.2024, avsluttet 06.12.2024 | `.10.json.gz` |
+| ILA | v1 | 12370 | ingen | diagnose 22.08.2024, avsluttet 21.08.2025 | `.12.json.gz` |
+| ILA | v1 | 12449 | ingen | mistanke 12.07.2024, avsluttet 14.12.2024 | `.16.json.gz` |
+| ILA | v2 | 11272 | påvist | diagnose 23.09.2026, åpent | `.4.json.gz` |
+| ILA | v2 | 12625 | mistanke | mistanke 09.07.2026, åpent | `.17.json.gz` |
+| ILA | v2 | 13581 | mistanke | mistanke 11.05.2026, åpent | `.18.json.gz` |
+| ILA | v2 | 13811 | mistanke | mistanke 31.08.2026, åpent | `.19.json.gz` |
+| ILA | v2 | 17077 | påvist | diagnose 19.06.2025, åpent | `.20.json.gz` |
+| PD | v1 | 10054 | ingen | diagnose 19.07.2024, avsluttet 18.07.2025 | `.json.gz` |
+| PD | v1 | 10298 | ingen | diagnose 20.11.2024, avsluttet 25.05.2025 | `.2.json.gz` |
+| PD | v1 | 11488 | ingen | diagnose 05.08.2024, avsluttet 12.10.2025 | `.5.json.gz` |
+| PD | v1 | 11492 | ingen | diagnose 13.12.2024, avsluttet 15.06.2025 | `.6.json.gz` |
+| PD | v1 | 11525 | ingen | diagnose 12.06.2024, avsluttet 05.08.2025 (et dobbelttilfelle ugyldiggjort 13.11.2025) | `.7.json.gz` |
+| PD | v2 | 11688 | påvist | diagnose 06.07.2026, åpent | `.9.json.gz` |
+| PD | v2 | 11810 | påvist | diagnose 18.09.2026, åpent | `.11.json.gz` |
+| PD | v2 | 12385 | mistanke | mistanke 26.02.2026, åpent | `.13.json.gz` |
+| PD | v2 | 12394 | påvist | diagnose 05.03.2026, åpent | `.14.json.gz` |
+| PD | v2 | 12435 | påvist | diagnose 21.10.2025, åpent | `.15.json.gz` |
+
+Hver av de ti lokalitetene bare v1 flagger, har et tilfelle Mattilsynet
+avsluttet mellom 06.12.2024 og 12.10.2025, og ingenting aktivt i uke 44.
+Hver av de ti bare v2 flagger, har et åpent tilfelle med mistanke eller
+diagnose fra 13.06.2025 eller senere. Teller bare «påvist», er v1 enig i
+4 av 20 og v2 i 16 (de fire med bare mistanke). Hvorfor v1 henger igjen,
+er ikke undersøkt.
+*Feil hvis:* svaret fra Mattilsynet for en av de ti «bare v1» har et
+tilfelle av sykdommen uten avslutningsdato før 26.10.2026, eller svaret
+for en av de ti «bare v2» ikke har et åpent tilfelle.
+
+**STOPP utløst.** v1 er uenig i 20 av 20, grensen var 5. Det nettstedet
+og snapshotene viser som ILA- og PD-flagg, er feil for disse
+lokalitetene, målt mot Mattilsynets egne tilfeller. Ingenting er rettet,
+og ingenting er tolket utover tabellen. Utvalget er bare uenige
+lokaliteter; hvor stor andel av alle flaggene som er feil, er ikke målt.

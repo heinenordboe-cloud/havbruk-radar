@@ -1,0 +1,58 @@
+v1 maling-nye-kilder/2026-11-03.10.json.gz sha256 ed20098a24ddc4a9fb4f8de4a9ab7f070ef6317ba47aae42c3ad010f4bdd191c
+v2 maling-nye-kilder/2026-11-03.11.json.gz sha256 5a75f2819a61487db25986ff6197fa96cf5ee6917022793637a1975d4b64bb86
+1782 felles lokaliteter
+
+ILA: v1 16, v2 14, begge 2, bare v1 14, bare v2 12
+PD: v1 46, v2 29, begge 11, bare v1 35, bare v2 18
+
+Utvalg: 20 (de 5 laveste lokalitetsnumrene i hver gruppe)
+
+sykdom gruppe   lokalitet  navn                       v1    v2    Mattilsynet  enig  fil (sha256)
+ILA    bare v1      10839  Store Kufjord              True  False ingen        v2    2026-11-03.3.json.gz (e102aba7f95f0bf5)
+                           df8772b9 mistanke 2024-05-31 diagnose 2024-06-11 avsluttet 2025-03-28
+ILA    bare v1      11667  Gardskråneset              True  False ingen        v2    2026-11-03.8.json.gz (dcfec3c777ad0d4d)
+                           459decf2 mistanke 2024-07-19 diagnose 2024-07-25 avsluttet 2025-02-07
+ILA    bare v1      11758  Sauøy                      True  False ingen        v2    2026-11-03.10.json.gz (123f4b8b46a66969)
+                           5110f587 mistanke 2024-06-20 diagnose 2024-07-02 avsluttet 2024-12-06
+ILA    bare v1      12370  Måøydraga                  True  False ingen        v2    2026-11-03.12.json.gz (223eba92d2da839e)
+                           23f203de mistanke 2024-08-09 diagnose 2024-08-22 avsluttet 2025-08-21
+ILA    bare v1      12449  Tennøya                    True  False ingen        v2    2026-11-03.16.json.gz (ced4ffaccaa79b98)
+                           04b27532 mistanke 2024-07-12 diagnose None avsluttet 2024-12-14
+ILA    bare v2      11272  Øksengård                  False True  påvist       v2    2026-11-03.4.json.gz (6b32cf09f32a560a)
+                           d5e06144 mistanke 2026-08-25 diagnose 2026-09-23 avsluttet None — AKTIV uke 44
+ILA    bare v2      12625  Bjørgan                    False True  mistanke     v2    2026-11-03.17.json.gz (b84c5555099fb0b0)
+                           b02e7aa0 mistanke 2026-07-09 diagnose None avsluttet None — AKTIV uke 44
+                           ac74aa03 mistanke 2025-11-24 diagnose 2025-12-10 avsluttet 2026-05-16
+ILA    bare v2      13581  Ramstadholmen              False True  mistanke     v2    2026-11-03.18.json.gz (33037e92998ffe16)
+                           4d06fa4e mistanke 2026-05-11 diagnose None avsluttet None — AKTIV uke 44
+ILA    bare v2      13811  Breivika                   False True  mistanke     v2    2026-11-03.19.json.gz (c907efe8515eaa0b)
+                           7d5a0b6d mistanke 2026-08-31 diagnose None avsluttet None — AKTIV uke 44
+ILA    bare v2      17077  Trettevik                  False True  påvist       v2    2026-11-03.20.json.gz (ed9af1817d2e419c)
+                           74d56b2a mistanke 2025-06-13 diagnose 2025-06-19 avsluttet None — AKTIV uke 44
+PD     bare v1      10054  Tobbeholmane               True  False ingen        v2    2026-11-03.json.gz (edc213c0b883dc11)
+                           ebb036f5 mistanke 2024-07-03 diagnose 2024-07-19 avsluttet 2025-07-18
+PD     bare v1      10298  Ålforo                     True  False ingen        v2    2026-11-03.2.json.gz (69d3a1f621a850c7)
+                           71329e28 mistanke 2024-11-11 diagnose 2024-11-20 avsluttet 2025-05-25
+PD     bare v1      11488  Brattavika                 True  False ingen        v2    2026-11-03.5.json.gz (ead7a4c2886e2ccc)
+                           7d4a12ef mistanke 2024-07-24 diagnose 2024-08-05 avsluttet 2025-10-12
+PD     bare v1      11492  Storevikholmen             True  False ingen        v2    2026-11-03.6.json.gz (9424a280522fe052)
+                           4b06158f mistanke 2024-12-02 diagnose 2024-12-13 avsluttet 2025-06-15
+PD     bare v1      11525  Stille S                   True  False ingen        v2    2026-11-03.7.json.gz (10aba0d06e6aa7e8)
+                           6a318d9f mistanke 2024-04-02 diagnose 2024-06-12 avsluttet 2025-08-05
+                           c845338d mistanke 2024-04-02 diagnose 2024-06-12 avsluttet None ugyldig 2025-11-13
+PD     bare v2      11688  Portevika                  False True  påvist       v2    2026-11-03.9.json.gz (ea366bc092985e5e)
+                           91fbc6f1 mistanke 2026-06-05 diagnose 2026-07-06 avsluttet None — AKTIV uke 44
+PD     bare v2      11810  Marøysundet II             False True  påvist       v2    2026-11-03.11.json.gz (8baf2aa4fc890d13)
+                           6acba655 mistanke 2026-09-18 diagnose 2026-09-18 avsluttet None — AKTIV uke 44
+PD     bare v2      12385  Lyngvær Ø II               False True  mistanke     v2    2026-11-03.13.json.gz (03d19723a62bea38)
+                           b191d19f mistanke 2026-02-26 diagnose None avsluttet None — AKTIV uke 44
+PD     bare v2      12394  Ørnøya                     False True  påvist       v2    2026-11-03.14.json.gz (d4bf11f567a5e377)
+                           d647b05d mistanke 2026-01-30 diagnose 2026-03-05 avsluttet None — AKTIV uke 44
+PD     bare v2      12435  Grøttingsøy                False True  påvist       v2    2026-11-03.15.json.gz (6197addba1f978bf)
+                           47ca80b5 mistanke 2025-09-15 diagnose 2025-10-21 avsluttet None — AKTIV uke 44
+
+Enig med Mattilsynet (mistanke teller): v1 0 av 20, v2 20 av 20
+Enig med Mattilsynet (bare påvist teller): v1 4 av 20, v2 16 av 20
+STOPP-regelen: v1 uenig i 20 av 20; grensen er 5. STOPP
+
+Logg: 2026-11-03.i1.logg.json
