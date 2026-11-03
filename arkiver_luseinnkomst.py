@@ -2,8 +2,9 @@
 
     python arkiver_luseinnkomst.py                 # hent, og skriv det som er nytt
     python arkiver_luseinnkomst.py --torrkjor      # si hva som ville skjedd
+    python arkiver_luseinnkomst.py --v2            # det samme fra v2-endepunktet
 
-Kjøres daglig av `luseinnkomst.yml` i datarepoet.
+Kjøres daglig av `luseinnkomst.yml` i datarepoet, én jobb per endepunkt.
 
 ## Hvorfor
 
@@ -49,6 +50,24 @@ skriptet skriver mappa, én kjøring om gangen (concurrency-gruppa i
 workflowen), og hver kjøring skriver høyst én kropp per uke. Skrivetiden
 selv står i loggene.
 
+## v2 ved siden av v1 (`--v2`, fra 03.11.2026)
+
+`GET /v1/…/locality/{year}/{week}` er merket utgått (MALING-LUSEINNKOMST
+F1.8). Etterfølgeren, `POST /v2/…/locality/{year}/{week}` med `{}` som
+filter, hentes for de samme ukene, i `data/arkiv/lusetall-innkomst-v2/`,
+med egen logg. Ingen tolkning og ingen overgang: målet er en overlapp som
+kan vise om serien fortsetter likt den dagen v1 slås av.
+
+MÅLT 03.11.2026 (docs/MALING-NYE-KILDER.md, f): samme lokaliteter og samme
+lusetall, men ILA og PD er uenige for 26–28 og 53–56 lokaliteter per uke.
+Det er grunnen til at overlappen trengs, og den skal ikke glattes over her.
+Tre kall mot uke 41 over ti minutter ga samme sha256, så sha256 av
+kroppen avgjør om den er ny, som for v1.
+
+Egen mappe og ikke et merke i v1-mappa: et merke må være bokstaver
+(`raw._NAVN`), og en karantene i en undermappe ville ligget utenfor det
+tilsynet leser (`*/karantene*/`).
+
 ## Kodeproveniens
 
 Som `arkiver_daglig.py`: `kodeproveniens.krev_sporbar()` før noe hentes,
@@ -78,10 +97,13 @@ UKER = range(0, 5)
 
 ENDEPUNKT = "/v1/geodata/fishhealth/locality/{year}/{week}"
 
+MAPPE_V2 = "lusetall-innkomst-v2"
+ENDEPUNKT_V2 = "POST /v2/geodata/fishhealth/locality/{year}/{week}"
 
-def siste_kropp(mandag: str) -> Path | None:
+
+def siste_kropp(mandag: str, mappe: str = MAPPE) -> Path | None:
     """Siste lagrede kropp for uka, etter løpenummer (se docstringen)."""
-    filer = [p for p in raw_arkiv.kropper(MAPPE)
+    filer = [p for p in raw_arkiv.kropper(mappe)
              if raw_arkiv.orden(p)[0] == mandag and not raw_arkiv.merke(p.name)]
     return filer[-1] if filer else None
 
@@ -158,8 +180,87 @@ def fang_uke(kilde, aar: int, uke: int, klient, torr: bool) -> dict:
     return post
 
 
-def skriv_logg(dato: str, logg: dict) -> Path:
-    mappe = raw_arkiv.ARKIV_DIR / MAPPE
+def hent_uke_v2(kilde, aar: int, uke: int, klient):
+    """Rå kropp for én uke fra v2. JSON når svaret er JSON; ellers bytene,
+    så en feilside med 200 kan legges i karantene i stedet for å tapes."""
+    url = f"{kilde._tilgang.base_url()}/v2/geodata/fishhealth/locality/{aar}/{uke}"
+    svar = kilde._tilgang.post(klient, url, hva=f"v2 uke {uke}/{aar}", json={})
+    try:
+        return svar.json()
+    except ValueError:
+        return svar.content
+
+
+def mistenkt_v2(rå, forrige: bytes | None, aar: int, uke: int) -> list[str]:
+    """Som `mistenkt()`, for v2-formen: svaret er en liste av lokaliteter.
+
+    Ikke JSON (en feilside med 200), ikke en liste, en tom liste, eller
+    færre lokaliteter enn forrige kropp for samme uke. Den siste regelen
+    hviler på samme måling som v1 (MALING-DRIFT 0d); 03.11.2026 hadde v1
+    og v2 like mange lokaliteter i hver av de seks ukene som ble hentet.
+    """
+    if isinstance(rå, (bytes, str)):
+        b = rå if isinstance(rå, bytes) else rå.encode("utf-8")
+        return [f"uke {uke}/{aar}: svaret er ikke JSON ({len(b)} B)"] + \
+            karantene.vurder(b, [karantene.ikke_tom])
+    if not isinstance(rå, list):
+        return [f"uke {uke}/{aar}: svaret er {type(rå).__name__}, ikke en liste"]
+    if not rå:
+        return [f"uke {uke}/{aar}: svaret har ingen lokaliteter"]
+    if forrige is not None:
+        n = len(json.loads(forrige))
+        if len(rå) < n:
+            return [f"uke {uke}/{aar}: {len(rå)} lokaliteter, færre enn "
+                    f"{n} i forrige kropp for uka"]
+    return []
+
+
+def fang_uke_v2(kilde, aar: int, uke: int, klient, torr: bool) -> dict:
+    mandag = _barentswatch.mandag(aar, uke)
+    hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    rå = hent_uke_v2(kilde, aar, uke, klient)
+
+    forrige = siste_kropp(mandag, MAPPE_V2)
+    lagret = None
+    if forrige is not None:
+        with gzip.open(forrige, "rb") as f:
+            lagret = f.read()
+    grunner = mistenkt_v2(rå, lagret, aar, uke)
+    if grunner:
+        if torr:
+            return {"aar": aar, "uke": uke, "observed_at": mandag,
+                    "status": "ville karantene", "grunn": grunner}
+        return dict(karantene.sett_inn(
+            MAPPE_V2, mandag, rå, grunner, jobb="luseinnkomst-v2",
+            fetched_at=hentet, published_at="",
+            sammenlignet_med=forrige.name if forrige else None),
+            aar=aar, uke=uke)
+
+    data, ext = raw_arkiv._serialiser(rå)
+    sha = hashlib.sha256(data).hexdigest()
+    sammenlignet = None
+    if lagret is not None:
+        sammenlignet = {"fil": forrige.name,
+                        "sha256": hashlib.sha256(lagret).hexdigest()}
+    ny = sammenlignet is None or sammenlignet["sha256"] != sha
+    rapportert = sum(1 for l in rå if (l.get("liceReport") or {}).get("hasReported"))
+    post = {
+        "aar": aar, "uke": uke, "observed_at": mandag,
+        "fetched_at": hentet, "published_at": "",
+        "sha256": sha, "byte": len(data),
+        "status": "ny" if ny else "uendret", "sammenlignet_med": sammenlignet,
+        "lokaliteter": len(rå), "rapportert": rapportert,
+    }
+    if ny and not torr:
+        sti = raw_arkiv._ledig_sti(MAPPE_V2, mandag, ext)
+        skrevet = raw_arkiv.arkiver(MAPPE_V2, mandag, rå)
+        assert skrevet == sha and sti.exists(), (sti, skrevet, sha)
+        post["fil"] = sti.name
+    return post
+
+
+def skriv_logg(dato: str, logg: dict, mappe_navn: str = MAPPE) -> Path:
+    mappe = raw_arkiv.ARKIV_DIR / mappe_navn
     mappe.mkdir(parents=True, exist_ok=True)
     sti, n = mappe / f"{dato}.fangst.logg.json", 2
     while sti.exists():
@@ -171,16 +272,21 @@ def skriv_logg(dato: str, logg: dict) -> Path:
 def main(argv=None, kilde=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--torrkjor", action="store_true")
+    p.add_argument("--v2", action="store_true",
+                   help="Hent fra v2-endepunktet (POST) til lusetall-innkomst-v2/.")
     p.add_argument("--dato", default="",
                    help="Kjøredatoen uke N regnes fra. Standard: i dag (UTC). "
                         "Slås opp her og sendes inn (CLAUDE.md 1b).")
     a = p.parse_args(argv)
     dato = a.dato or dt.datetime.now(dt.timezone.utc).date().isoformat()
     i_dag = dt.date.fromisoformat(dato)
-    print(f"Lusetall, innkomst {dato}" + ("  (TØRRKJØRING)" if a.torrkjor else ""))
+    mappe = MAPPE_V2 if a.v2 else MAPPE
+    fang = fang_uke_v2 if a.v2 else fang_uke
+    print(f"Lusetall, innkomst {dato}" + (" (v2)" if a.v2 else "")
+          + ("  (TØRRKJØRING)" if a.torrkjor else ""))
 
     logg: dict = {"kjoring": "fangst", "kilde": "lusetall", "dato": dato,
-                  "endepunkt": ENDEPUNKT, "uker": []}
+                  "endepunkt": ENDEPUNKT_V2 if a.v2 else ENDEPUNKT, "uker": []}
     if not a.torrkjor:
         try:
             sha, tilstand = kodeproveniens.krev_sporbar()
@@ -197,7 +303,7 @@ def main(argv=None, kilde=None) -> int:
         for k in UKER:
             aar, uke = _barentswatch.uke_med_etterslep(i_dag, k)
             try:
-                post = fang_uke(kilde, aar, uke, klient, a.torrkjor)
+                post = fang(kilde, aar, uke, klient, a.torrkjor)
             except Exception as e:  # noqa: BLE001 — én uke skal ikke koste de andre
                 print(f"::error::Lusefangst uke {uke}/{aar} feilet: "
                       f"{type(e).__name__}: {e}")
@@ -212,8 +318,10 @@ def main(argv=None, kilde=None) -> int:
                       f"{'; '.join(post['grunn'])}")
                 continue
             nye += post["status"] == "ny"
-            print(f"  N-{k} {uke:>2}/{aar}  {post['status']:<8} "
-                  f"{post['rapportert']:>4}/{post['aktive']:<4} {post['andel']:>7.1%}  "
+            andel = (f"{post['rapportert']:>4}/{post['aktive']:<4} {post['andel']:>7.1%}"
+                     if "aktive" in post else
+                     f"{post['rapportert']:>4}/{post['lokaliteter']:<4} rapportert")
+            print(f"  N-{k} {uke:>2}/{aar}  {post['status']:<8} {andel}  "
                   f"{post['sha256'][:16]}…  mot "
                   f"{(post['sammenlignet_med'] or {}).get('fil', 'ingenting')}")
             time.sleep(_barentswatch.PAUSE_S)
@@ -221,7 +329,7 @@ def main(argv=None, kilde=None) -> int:
         klient.close()
 
     if not a.torrkjor:
-        print(f"  logg        {skriv_logg(dato, logg).name}")
+        print(f"  logg        {skriv_logg(dato, logg, mappe).name}")
     print(f"\n{len(UKER)} uke(r), {nye} ny(e) kropp(er), {feil} feil, "
           f"{karantenert} i karantene.")
     return 1 if feil or karantenert else 0

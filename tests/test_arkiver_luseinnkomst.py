@@ -205,3 +205,110 @@ def test_torrkjoring_sier_fra_om_karantene(arkiv, capsys):
                     kilde=Falsk({(2026, 45): tom})) == 1
     assert "ville karantene" in capsys.readouterr().out
     assert not arkiv.exists() or not any(arkiv.iterdir())
+
+
+# ---------------------------------------------------------------- v2 (--v2)
+#
+# Den falske kilden svarer som POST /v2/…/locality/{year}/{week}: en liste.
+# `svar` kan gi en liste, bytes (en feilside med 200) eller et unntak.
+
+def v2svar(aar, uke, n=4):
+    return [{"locality": {"no": 100 + i, "name": f"L{i}", "isOnLand": False},
+             "liceReport": {"hasReported": i == 0}, "diseases": []} for i in range(n)]
+
+
+class FalskV2(Falsk):
+    def __init__(self, svar):
+        super().__init__(svar)
+        kilde = self
+
+        class Tilgang:
+            def base_url(self):
+                return "https://bw.test/bwapi"
+
+            def post(self, klient, url, hva=None, **kw):
+                assert kw == {"json": {}}, kw
+                aar, uke = (int(x) for x in url.rsplit("/", 2)[-2:])
+                kilde.kall.append((aar, uke))
+                verdi = kilde.svar.get((aar, uke))
+                verdi = v2svar(aar, uke) if verdi is None else verdi
+                if isinstance(verdi, Exception):
+                    raise verdi
+
+                class Svar:
+                    content = verdi if isinstance(verdi, bytes) else json.dumps(verdi).encode()
+
+                    def json(self):
+                        return json.loads(self.content)
+                return Svar()
+        self._tilgang = Tilgang()
+
+    def hent_uke(self, aar, uke, client=None):
+        raise AssertionError("--v2 skal ikke røre v1")
+
+
+@pytest.fixture
+def arkiv_v2(arkiv):
+    return arkiv.parent / ark.MAPPE_V2
+
+
+def test_v2_henter_de_samme_ukene_til_egen_mappe(arkiv, arkiv_v2):
+    kilde = FalskV2({})
+    assert ark.main(["--v2", "--dato", "2026-11-02"], kilde=kilde) == 0
+    assert kilde.kall == UKENE
+    assert kropper(arkiv_v2) == sorted(f"{m}.json.gz" for m in MANDAGENE)
+    assert not arkiv.exists() or kropper(arkiv) == []
+    [logg] = logger(arkiv_v2)
+    assert logg["endepunkt"] == ark.ENDEPUNKT_V2
+    assert [u["status"] for u in logg["uker"]] == ["ny"] * 5
+
+
+def test_v2_kroppen_er_svaret_serialisert_som_innsamlingen(arkiv_v2):
+    ark.main(["--v2", "--dato", "2026-11-02"], kilde=FalskV2({}))
+    b = gzip.decompress((arkiv_v2 / "2026-11-02.json.gz").read_bytes())
+    assert b == raw_arkiv._serialiser(v2svar(2026, 45))[0]
+
+
+def test_v2_uendret_uke_gir_bare_logg(arkiv_v2):
+    ark.main(["--v2", "--dato", "2026-11-02"], kilde=FalskV2({}))
+    ark.main(["--v2", "--dato", "2026-11-02"], kilde=FalskV2({}))
+    assert len(kropper(arkiv_v2)) == 5
+    andre = json.loads((arkiv_v2 / "2026-11-02.fangst.2.logg.json").read_text())
+    assert [u["status"] for u in andre["uker"]] == ["uendret"] * 5
+
+
+def test_v2_feilside_med_200_gaar_i_karantene_og_er_tatt_vare_paa(arkiv_v2):
+    side = b"<html><body>Service unavailable</body></html>"
+    assert ark.main(["--v2", "--dato", "2026-11-02"],
+                    kilde=FalskV2({(2026, 45): side})) == 1
+    assert "2026-11-02.json.gz" not in kropper(arkiv_v2)
+    [kropp] = (arkiv_v2 / "karantene").glob("*.gz")
+    assert gzip.decompress(kropp.read_bytes()) == side
+    post = json.loads(kropp.with_name(kropp.name + ".json").read_text())
+    assert post["status"] == "karantene" and "ikke JSON" in post["grunn"][0]
+    assert len(kropper(arkiv_v2)) == 4
+
+
+def test_v2_tom_liste_gaar_i_karantene(arkiv_v2):
+    assert ark.main(["--v2", "--dato", "2026-11-02"],
+                    kilde=FalskV2({(2026, 45): []})) == 1
+    [post] = [json.loads(p.read_text())
+              for p in (arkiv_v2 / "karantene").glob("*.gz.json")]
+    assert post["grunn"] == ["uke 45/2026: svaret har ingen lokaliteter"]
+    assert "2026-11-02.json.gz" not in kropper(arkiv_v2)
+
+
+def test_v2_faerre_lokaliteter_enn_forrige_gaar_i_karantene(arkiv_v2):
+    ark.main(["--v2", "--dato", "2026-11-02"], kilde=FalskV2({}))
+    assert ark.main(["--v2", "--dato", "2026-11-02"],
+                    kilde=FalskV2({(2026, 44): v2svar(2026, 44, n=3)})) == 1
+    assert len(kropper(arkiv_v2)) == 5
+    assert len(list((arkiv_v2 / "karantene").glob("*.gz"))) == 1
+
+
+def test_v2_en_uke_som_feiler_koster_ikke_de_andre(arkiv_v2):
+    assert ark.main(["--v2", "--dato", "2026-11-02"],
+                    kilde=FalskV2({(2026, 43): RuntimeError("nede")})) == 1
+    assert len(kropper(arkiv_v2)) == 4
+    statuser = [u["status"] for u in logger(arkiv_v2)[0]["uker"]]
+    assert statuser.count("feil") == 1

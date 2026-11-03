@@ -202,6 +202,26 @@ class Tilgang:
         client.headers["Authorization"] = f"Bearer {self.forny()}"
         return _http.get(client, url, hva=hva, **kwargs)
 
+    def post(self, client: httpx.Client, url: str, hva: str | None = None,
+             **kwargs) -> httpx.Response:
+        """Som `get()`, for v2-endepunktene som tar filteret i kroppen
+        (`POST /v2/geodata/fishhealth/locality/{year}/{week}`). Samme ene
+        re-autentisering på 401, samme retry for det transiente."""
+        hva = hva or f"POST {url}"
+        kw = _http._med_agent(kwargs)
+
+        def kall() -> httpx.Response:
+            return _http.utfor(lambda: client.post(url, **kw), hva)
+
+        try:
+            return kall()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 401:
+                raise
+        print(f"    [auth] {hva}: 401 — henter nytt token og prøver én gang til")
+        client.headers["Authorization"] = f"Bearer {self.forny()}"
+        return kall()
+
     def klient(self, accept: str = "application/json") -> httpx.Client:
         return httpx.Client(
             headers={"Authorization": f"Bearer {self.token()}",
