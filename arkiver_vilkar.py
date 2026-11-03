@@ -87,6 +87,19 @@ SIDER = {
     # unntaksvekst bygger på. Se sources/unntaksvekst.py, `attribusjon`.
     "mattilsynet": ("https://www.mattilsynet.no/om-mattilsynet/"
                     "vil-du-bruke-innhold-fra-mattilsynet"),
+    # Fra 03.11.2026 (docs/MALING-NYE-KILDER.md). NMDCs landingsside for
+    # regomr.geojson, som utgivelsesvakt.py arkiverer: CC BY 4.0 står her
+    # (LISENSKJEDE merknad D). DOI-en videresender hit.
+    "nmdc": ("https://metadata.nmdc.no/metadata-api/landingpage/"
+             "cf16c4a384162756a63ab26c9380e000"),
+    # Bransjemedia, kandidat c. Arkivert fordi de er grunnen til at RSS-
+    # fangsten IKKE bygges: Fiskeribladet og Intrafish krever avtale for
+    # «skraping, crawling, indeksering, tekst/datautvinning», og Kyst.no
+    # har bare abonnementsvilkår. iLaks har ingen vilkårsside å arkivere.
+    "fiskeribladet": "https://www.fiskeribladet.no/vilkar",
+    "intrafish": "https://www.intrafish.no/vilkar",
+    "kyst": ("https://www.oceanspacemedia.com/"
+             "oceanspace-media-generelle-abonnementsvilkar/1583266"),
 }
 
 LOGG_KILDE = "vilkar"
@@ -116,6 +129,15 @@ KJENNETEGN = {
     "brreg": "NLOD",
     "lovdata": "NLOD",
     "mattilsynet": "opphavsrett",
+    # Fra 03.11.2026, målt i den synlige teksten på sidene slik de ble
+    # hentet den dagen (docs/MALING-NYE-KILDER.md, c og e). NMDC: lisensen
+    # utgivelsesvakten hviler på. Fiskeribladet og Intrafish: ordet i
+    # forbudet som er grunnen til at RSS-fangsten ikke bygges. Kyst.no:
+    # utgiveren, fordi sida ikke sier noe om gjenbruk å kjenne den igjen på.
+    "nmdc": "CC BY 4.0",
+    "fiskeribladet": "datautvinning",
+    "intrafish": "datamining",
+    "kyst": "Oceanspace Media",
 }
 # Halvparten av den korteste synlige teksten i arkivet, vilkar-brreg med
 # 1 480 tegn (analyse/drift/kjennetegn.txt). Samme halvering som regelen

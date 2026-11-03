@@ -43,6 +43,11 @@ Sitatene under er fortsatt lest for hånd; kroppene er belegget.
 | `ekspertgruppen` | **UBELAGT** | ingen funnet — se merknad E | siteringsformen fra rapporten selv | **ukjent** | 14.09.2026 (søkt, ikke funnet) |
 | `unntaksvekst` | **belagt i lov 09.10.2026**: uten vern, åndsverkloven § 14 — se merknad K | [lovdata.no/lov/2018-06-15-40/§14](https://lovdata.no/lov/2018-06-15-40/§14), arkivert i `lovdata-andsverkloven/` | ingen krav i loven; som praksis Mattilsynets egen form, «(Kilde: Mattilsynet, nettadressa og datoen du gjenga teksten.)» | **ja** — ingen enerett å begrense den (lesning, merknad K) | 09.10.2026 |
 | Mattilsynets åpne API (ikke en kilde; hentet for analysen av unntaksvekst) | **NLOD 2.0** | spesifikasjonen selv, `info.license`, arkivert i `mattilsynet-openapi/` | standardformen i NLOD 2.0: «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Mattilsynet» | **ja** | 09.10.2026 |
+| `akvakultur-flater` (fangst, `arkiver_flater.py`; ikke en kilde) | NLOD | samme som `akvakultur`, arkivert i `vilkar-fiskeridir/`; laget sier selv «Fiskeridirektoratet / Akvakulturregister» | «Kilde: Fiskeridirektoratet» | **ja** | 03.11.2026 |
+| `lusetall-innkomst-v2` (fangst, `arkiver_luseinnkomst.py --v2`) | NLOD | samme som `lusetall`, arkivert i `vilkar-barentswatch/`; spesifikasjonen har ingen `info.license` | som `lusetall` | **ja, uttrykkelig** | 03.11.2026 |
+| `utgivelse-regomr` (vakt, `utgivelsesvakt.py`) | **CC BY 4.0** | NMDCs landingsside, arkivert i `vilkar-nmdc/` fra 03.11.2026 | som `reguleringsomraader`, merknad D | **ja** | 03.11.2026 |
+| bransjemedia: Fiskeribladet, Intrafish (ikke fanget) | **fangst krever avtale** | `/vilkar` på hvert nettsted, arkivert i `vilkar-fiskeribladet/` og `vilkar-intrafish/` | — | **nei** uten avtale: «skraping, crawling, indeksering, tekst/datautvinning» krever gyldig avtale | 03.11.2026 |
+| bransjemedia: Kyst.no, iLaks (ikke fanget) | **UBELAGT** | Kyst.no: bare Oceanspace Medias abonnementsvilkår, arkivert i `vilkar-kyst/`; iLaks: ingen vilkårsside funnet | — | **ukjent** | 03.11.2026 (søkt) |
 
 ---
 

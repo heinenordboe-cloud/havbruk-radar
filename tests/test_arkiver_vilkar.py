@@ -15,8 +15,10 @@ from core import raw as raw_arkiv
 from core.karantene import synlig_tekst
 
 # En vilkårsside slik reglene ser den: lang nok for en første versjon, og
-# med hver parts kjennetegn (NLOD, opphavsrett). Se ark.KJENNETEGN.
-TEKST = "Data er lisensiert under NLOD. Opphavsretten tilhører oss. " * 14
+# med hver parts kjennetegn (NLOD, opphavsrett, og fra 03.11.2026 CC BY 4.0,
+# datautvinning, datamining og Oceanspace Media). Se ark.KJENNETEGN.
+TEKST = ("Data er lisensiert under NLOD. Opphavsretten tilhører oss. " * 14
+         + "CC BY 4.0. Ingen datautvinning eller datamining. Oceanspace Media. ")
 SIDE = f"<html><script>x=1</script><p>{TEKST}</p></html>".encode()
 FEILSIDE = (b"<!DOCTYPE html><html><head><title>Feil</title></head><body>"
             b"<h1>Tjenesten er midlertidig utilgjengelig</h1></body></html>")
