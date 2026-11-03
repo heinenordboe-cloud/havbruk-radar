@@ -430,3 +430,10 @@ rettet» er rettet samme kveld:
 * **ais-manifest.yml committer også når skrivesteget er rødt**
   (datarepoet `90d8706`), så en utlevering i karantene blir ikke
   liggende igjen på runneren. Jobben ender fortsatt rød.
+
+**Etter kontrolløren** (én kjøring til, tre av tre trukne påstander
+stemte). Tabellen «Arkivets egne kropper mot de nye reglene» er målt mot
+arkivet slik det sto på datarepoets `81e9d84` (03.11.2026 02.39 UTC),
+før dagens fangster. `lusetall-innkomst/` har fått åtte kropper siden
+(`cb14088`, `9ac6ebc`), og hashen over grunnlaget treffer de 13 som lå
+der. «Feil hvis» gjelder arkivet på den commiten.
