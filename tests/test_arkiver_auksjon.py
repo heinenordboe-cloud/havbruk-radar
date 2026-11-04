@@ -115,6 +115,20 @@ def test_hver_arkivert_kropp_har_kodeproveniens_i_loggen(kjor):
     assert all("kode_commit" not in r for r in logg if "sha256" not in r)
 
 
+def test_andre_kjoring_samme_dag_faar_egen_logg(kjor, tmp_path):
+    # Til 04.11.2026 ble loggen hoppet over når dagens fantes, og sju
+    # kropper fra 29.09.2026 sto uten fetched_at og kode_commit.
+    _, forste = kjor(lambda url: (INDEKS_MED_BARN, ""), lambda url: Svar(""))
+    _, igjen = kjor(lambda url: (INDEKS_MED_BARN + b"<p>ny</p>", ""),
+                    lambda url: Svar(""))
+    assert igjen == forste, "den første står urørt"
+    andre = json.loads((tmp_path / "arkiv" / ark.KILDE
+                        / "2026-10-06.2.logg.json").read_text())
+    nye = [r for r in andre if r.get("ny")]
+    assert nye, "kroppen fra andre kjøring er logget"
+    assert all(r["kode_commit"] == "0" * 40 and r["fetched_at"] for r in nye)
+
+
 def test_kode_som_ikke_kan_spores_henter_ingenting(tmp_path, monkeypatch, capsys):
     """Samme sperre som run.py, spurt FØR noe hentes."""
     from core import kodeproveniens

@@ -311,11 +311,17 @@ def main() -> int:
             r.update(proveniens)
 
     if not a.torrkjor:
-        sti = raw_arkiv.ARKIV_DIR / KILDE / f"{dato}.logg.json"
-        sti.parent.mkdir(parents=True, exist_ok=True)
-        if not sti.exists():
-            sti.write_text(json.dumps(logg, indent=2, ensure_ascii=False))
-            print(f"Logg: {sti}")
+        mappe = raw_arkiv.ARKIV_DIR / KILDE
+        mappe.mkdir(parents=True, exist_ok=True)
+        # Løpenummer ved flere kjøringer samme dag, som `arkiver_vilkar.py`.
+        # Til 04.11.2026 ble loggen hoppet over når dagens fantes: 23
+        # grønne kjøringer uten logg, og sju kropper fra 29.09.2026 uten
+        # fetched_at og kode_commit (MALING-DRIFT H2.1).
+        sti, n = mappe / f"{dato}.logg.json", 2
+        while sti.exists():
+            sti, n = mappe / f"{dato}.{n}.logg.json", n + 1
+        sti.write_text(json.dumps(logg, indent=2, ensure_ascii=False))
+        print(f"Logg: {sti}")
 
     # Feil skal være synlige i Actions, men skal IKKE stoppe de øvrige
     # adressene — én død lenke er ikke en grunn til å miste resten. En
