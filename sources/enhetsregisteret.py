@@ -605,8 +605,10 @@ class Enhetsregisteret(Source):
         """Oppslagskroppen -> observasjoner under `OPPSLAG_KILDE`.
 
         En personform slipper ikke gjennom her heller, om den skulle stå
-        i en kropp: status `personform` gir ingen rad, og en form
-        `_er_person()` kjenner igjen gir ingen rad.
+        i en kropp: status `personform` gir ingen rad, og en formkode
+        `persondata.er_personform()` kjenner igjen gir ingen rad. Ikke
+        `_er_person()`: den spør også om sektoren, og den reduserte kroppen
+        har bare formkoden.
         """
         for e in sorted((kropp or {}).get("enheter") or [],
                         key=lambda e: str(e.get("organisasjonsnummer"))):
