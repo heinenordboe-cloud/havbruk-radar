@@ -96,7 +96,10 @@ def tjener():
 
 @pytest.fixture(scope="module")
 def side(tjener):
-    playwright = pytest.importorskip("playwright.sync_api")
+    playwright = pytest.importorskip(
+        "playwright.sync_api",
+        reason="playwright og chromium installeres for hånd (requirements-verktoy.md), "
+               "ikke fra requirements-dev.txt")
     with playwright.sync_playwright() as p:
         nettleser = p.chromium.launch()
         s = nettleser.new_page(viewport={"width": BREDDE, "height": 844})

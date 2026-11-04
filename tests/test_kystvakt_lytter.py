@@ -12,7 +12,10 @@ from pathlib import Path
 
 import pytest
 
-zstd = pytest.importorskip("compression.zstd")
+zstd = pytest.importorskip(
+    "compression.zstd",
+    reason="compression.zstd finnes først i Python 3.14. kystvakt-1 kjører 3.14, og "
+           "prøven kjøres der i jobben `kystvakt` i test.yml")
 
 LYTTER = Path(__file__).resolve().parent.parent / "kystvakt" / "lytter.py"
 LINJER = [

@@ -47,7 +47,8 @@ def test_kontrollor_bash_pakkes_inn_i_sandkasse():
         "hele kommandoen skal være ETT argument til bash i sandkassen"
 
 
-@pytest.mark.skipif(not shutil.which("sandbox-exec"), reason="bare macOS")
+@pytest.mark.skipif(not shutil.which("sandbox-exec"),
+                    reason="sandbox-exec finnes bare på macOS, der kontrolløren kjøres")
 def test_kontrollor_kan_ikke_skrive_men_kan_lese(tmp_path):
     """Kjernen sier nei, ikke et mønster i teksten: Python skriver heller
     ikke."""
@@ -66,7 +67,8 @@ def test_kontrollor_kan_ikke_skrive_men_kan_lese(tmp_path):
     assert not ut.exists()
 
 
-@pytest.mark.skipif(not shutil.which("sandbox-exec"), reason="bare macOS")
+@pytest.mark.skipif(not shutil.which("sandbox-exec"),
+                    reason="sandbox-exec finnes bare på macOS, der kontrolløren kjøres")
 def test_kontrollor_kan_ikke_lese_analyse_i_skallet():
     fil = next((ROT / "analyse").rglob("*.py"))
     svar = kontrollor.vurder({"tool_name": "Bash", "cwd": str(ROT),
