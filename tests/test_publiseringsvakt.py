@@ -2278,3 +2278,100 @@ def test_endelsen_paa_et_punktfilnavn():
     assert vakt._endelse("[Content_Types].xml") == ".xml"
     assert vakt._endelse("README") == ""
     assert vakt._endelse("mappe.v2/README") == ""
+
+
+# ---- kildene en side viser har sin attribusjon (rødt lag F11, F14) -------
+
+_VILKAAR = {
+    "lusetall": ("Data levert av BarentsWatch",
+                 "Opplysninger om lakselus, rensefisk og medikamentbruk er "
+                 "hentet fra Mattilsynet."),
+    "sjotemperatur": ("Data levert av BarentsWatch",),
+    "akvakultur": ("Kilde: Fiskeridirektoratet",),
+    "ekspertgruppen": None,
+}
+
+
+def _side_med(kropp: str, bunn: str = "", jsonld: dict | None = None) -> str:
+    import json as _json
+    hode = ("" if jsonld is None else
+            f'<script type="application/ld+json">{_json.dumps(jsonld)}</script>')
+    return (f"<html><head>{hode}</head><body>{kropp}"
+            f"<footer>{bunn}</footer></body></html>")
+
+
+def test_omraadesiden_med_lusetall_uten_barentswatch_er_et_funn():
+    """F11, feilen laget med vilje: «Uker over lusegrensa» merket som
+    lusetall, og bunnteksten har bare Fiskeridirektoratet."""
+    import publiseringsvakt as vakt
+    side = _side_med('<div data-kilde="lusetall">65 av 3 793 uker</div>',
+                     "Kilde: Fiskeridirektoratet")
+    funn = vakt.kilder_uten_attribusjon(side, "produksjonsomrade/4/index.html",
+                                        vilkaar=_VILKAAR)
+    assert {f.slag for f in funn} == {"kilde_uten_attribusjon"}
+    tekst = " ".join(f.utdrag for f in funn)
+    assert "Data levert av BarentsWatch" in tekst and "Mattilsynet" in tekst
+
+
+def test_begge_setningene_paa_siden_er_rent():
+    import publiseringsvakt as vakt
+    side = _side_med('<div data-kilde="lusetall">65</div>',
+                     "Data levert av BarentsWatch Opplysninger om lakselus, "
+                     "rensefisk og medikamentbruk er hentet fra Mattilsynet.")
+    assert vakt.kilder_uten_attribusjon(side, vilkaar=_VILKAAR) == []
+
+
+def test_herkomstlinja_alene_krever_utgiverens_felles_setning():
+    """«BarentsWatch · uke 33» sier ikke om det er lusetall eller
+    sjøtemperatur: da kreves det begge krever, og ikke mer."""
+    import publiseringsvakt as vakt
+    side = _side_med('<span class="herkomst">BarentsWatch · uke 33</span>')
+    funn = vakt.kilder_uten_attribusjon(side, vilkaar=_VILKAAR)
+    assert len(funn) == 1 and "Data levert av BarentsWatch" in funn[0].utdrag
+    ok = _side_med('<span class="herkomst">BarentsWatch · uke 33</span>',
+                   "Data levert av BarentsWatch")
+    assert vakt.kilder_uten_attribusjon(ok, vilkaar=_VILKAAR) == []
+
+
+def test_creditText_med_bare_foerste_setning_er_et_funn():
+    """F14: tvillingen hadde «Data levert av BarentsWatch» og ikke
+    dataeierlinja."""
+    import publiseringsvakt as vakt
+    bunn = ("Data levert av BarentsWatch Opplysninger om lakselus, rensefisk "
+            "og medikamentbruk er hentet fra Mattilsynet.")
+    jsonld = {"@type": "Dataset", "isBasedOn": [
+        {"@type": "Dataset", "name": "lusetall",
+         "creditText": "Data levert av BarentsWatch"}]}
+    side = _side_med('<div data-kilde="lusetall">1</div>', bunn, jsonld)
+    funn = vakt.kilder_uten_attribusjon(side, vilkaar=_VILKAAR)
+    assert [f.utdrag for f in funn] == [
+        "JSON-LD lusetall: creditText mangler «Opplysninger om lakselus, "
+        "rensefisk og medikamentbruk er hentet fra Mattilsynet.»"]
+
+
+def test_vist_kilde_som_mangler_i_isBasedOn_er_et_funn():
+    import publiseringsvakt as vakt
+    jsonld = {"@type": "Dataset", "isBasedOn": [
+        {"@type": "Dataset", "name": "akvakultur",
+         "creditText": "Kilde: Fiskeridirektoratet"}]}
+    side = _side_med('<td data-kilde="sjotemperatur">0,5</td>',
+                     "Kilde: Fiskeridirektoratet Data levert av BarentsWatch",
+                     jsonld)
+    funn = vakt.kilder_uten_attribusjon(side, vilkaar=_VILKAAR)
+    assert [f.utdrag for f in funn] == [
+        "data-kilde=sjotemperatur vises, men står ikke i JSON-LD isBasedOn"]
+
+
+def test_ubelagt_kilde_paa_en_side_er_et_funn():
+    import publiseringsvakt as vakt
+    side = _side_med('<p data-kilde="ekspertgruppen">moderat</p>')
+    funn = vakt.kilder_uten_attribusjon(side, vilkaar=_VILKAAR)
+    assert len(funn) == 1 and "ekspertgruppen" in funn[0].utdrag
+
+
+def test_kildeprøven_kjoerer_for_hver_html_side():
+    import publiseringsvakt as vakt
+    side = _side_med('<div data-kilde="lusetall">65</div>')
+    funn = vakt.tekstfunn("produksjonsomrade/4/index.html", ".html", side,
+                          set(), set())
+    assert any(f.slag == "kilde_uten_attribusjon" for f in funn)

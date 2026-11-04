@@ -607,19 +607,45 @@ def test_jsonld_toppnivaa_har_url_og_lisens_til_gjenbruk(monkeypatch):
 
 
 def test_jsonld_oppgir_lisensversjon_bare_der_den_er_belagt():
-    """Fiskeridirektoratets lisensside sier «NLOD» uten versjon. En lenke
-    til 2.0 for den kilden ville påstått en versjon ingen har gått god
-    for — se docs/LISENSKJEDE.md merknad A mot merknad B."""
+    """Fiskeridirektoratets lisensside lenker «lisensen som våre data er
+    underlagt» til NLOD 1.0 — MÅLT 04.11.2026 i
+    `vilkar-fiskeridir/2026-11-02.bin.gz` (rødt lag F3). Fram til da sto
+    eierskap med 2.0, en versjon Fiskeridirektoratet ikke har oppgitt.
+    Eierskapet har to lisensgivere, som i docs/LISENSKJEDE.md: 1.0 for
+    tillatelsene, 2.0 for Brønnøysunds organisasjonsformer."""
     d = _jsonld_av(_side())
     per_kilde = {k["name"]: k for k in d["isBasedOn"]}
-    assert per_kilde["akvakultur"]["license"] == nettsted.LISENSSIDE["akvakultur"]
-    assert "2.0" not in per_kilde["akvakultur"]["license"]
-    assert per_kilde["eierskap"]["license"] == "https://data.norge.no/nlod/no/2.0"
+    assert per_kilde["akvakultur"]["license"] == "https://data.norge.no/nlod/no/1.0"
+    assert per_kilde["eierskap"]["license"] == [
+        "https://data.norge.no/nlod/no/1.0", "https://data.norge.no/nlod/no/2.0"]
+    assert per_kilde["eierskap_historikk"]["license"] == \
+        per_kilde["eierskap"]["license"]
+    assert per_kilde["lusetall"]["license"] == nettsted.LISENSSIDE["lusetall"]
+
+
+def test_creditText_bærer_hele_attribusjonen():
+    """Rødt lag F14: bare første setning sto i tvillingen."""
+    d = _jsonld_av(_side())
+    per_kilde = {k["name"]: k for k in d["isBasedOn"]}
+    assert per_kilde["lusetall"]["creditText"] == (
+        "Data levert av BarentsWatch. Opplysninger om lakselus, rensefisk og "
+        "medikamentbruk er hentet fra Mattilsynet.")
+    assert "Brønnøysundregistrene" in per_kilde["eierskap"]["creditText"]
+    assert per_kilde["eierskap"]["creditText"].startswith(
+        "Kilde: Fiskeridirektoratet. ")
 
 
 def test_jsonld_har_en_kilde_per_kilde_siden_bruker():
-    d = _jsonld_av(_side())
-    assert [k["name"] for k in d["isBasedOn"]] == list(nettsted.SIDENS_KILDER)
+    """Kildene SIDEN viser (`lokalitetskilder`), ikke en fast liste: en
+    side med biomasselaget og lusegrensa har dem i `isBasedOn` (rødt lag
+    F13)."""
+    lok_side = _side()
+    d = _jsonld_av(lok_side)
+    navn = [k["name"] for k in d["isBasedOn"]]
+    assert navn[:len(nettsted.SIDENS_KILDER)] == list(nettsted.SIDENS_KILDER)
+    assert set(navn) - set(nettsted.SIDENS_KILDER) <= set(
+        nettsted.LOKALITET_KAN_VISE)
+    assert "biomasselag" in navn, "fiksturen viser «Fisk til stede»"
 
 
 # ---- merkekonvensjonen ------------------------------------------------
@@ -1209,7 +1235,10 @@ def test_jsonld_distribution_peker_paa_hele_serien():
     assert xlsx["encodingFormat"] == nettsted.XLSX_MIME
     assert zip_["encodingFormat"] == "application/zip"
     for d in (xlsx, zip_):
-        assert d["creditText"] == "Data levert av BarentsWatch"
+        # HELE attribusjonen, også dataeieren (rødt lag F14).
+        assert d["creditText"] == nettsted.kredittekst(
+            nettsted.kildevilkaar()["lusetall"])
+        assert "Mattilsynet" in d["creditText"]
         assert "764 uker" in d["description"]
 
 
@@ -1438,6 +1467,10 @@ def _po(**overstyr) -> str:
             {"aar": "2024", "type": "Nyhet", "dato": "2024-03-06",
              "url": "https://www.regjeringen.no/x/id3028522/", "tegn": []},
         ],
+        # Fiksturen viser kunngjøringene, slik siden gjør den dagen
+        # lisensen er belagt (`nettsted.KUNNGJORINGER_VISES`). At de IKKE
+        # vises i dag, prøves av `test_kunngjoringene_vises_ikke_*`.
+        "vis_kunngjoringer": True, "har_ikke_vist": False,
         # Departementets egen merknad om at området ble vurdert
         # særskilt. Ordrett, med dato og lenke — ingen tolkning.
         "saerskilt": [
@@ -2752,12 +2785,16 @@ def test_fraskrivelsen_utledes_av_kildenes_attribusjoner():
     assert nettsted.fraskrivelse(("akvakultur",)) == ["Fiskeridirektoratet"]
     assert nettsted.fraskrivelse(("lusetall",)) == ["BarentsWatch",
                                                     "Mattilsynet"]
-    # Trafikklysvedtaket siterer Lovdata, og PO-siden departementet.
-    assert nettsted.fraskrivelse(nettsted.PO_KILDER) == [
-        "Fiskeridirektoratet", "Lovdata"]
-    assert nettsted.fraskrivelse(
-        nettsted.PO_KILDER, i_tillegg=("regjeringen.no",)) == [
+    # Trafikklysvedtaket siterer Lovdata, og PO-siden departementet — når
+    # kunngjøringene vises. Fra 04.11.2026 viser områdesiden også
+    # innehaverne, lusetallene og lusegrensa (rødt lag F11).
+    po = ("akvakultur", "trafikklysvedtak")
+    assert nettsted.fraskrivelse(po) == ["Fiskeridirektoratet", "Lovdata"]
+    assert nettsted.fraskrivelse(po, i_tillegg=("regjeringen.no",)) == [
         "Fiskeridirektoratet", "Lovdata", "regjeringen.no"]
+    assert nettsted.fraskrivelse(nettsted.PO_KILDER) == [
+        "Fiskeridirektoratet", "Brønnøysundregistrene", "Lovdata",
+        "BarentsWatch", "Mattilsynet"]
     # Deduplisert: to kilder med samme setning gir ett navn.
     assert nettsted.fraskrivelse(("eierskap", "eierskap_historikk")) == [
         "Fiskeridirektoratet", "Brønnøysundregistrene"]
@@ -5402,7 +5439,9 @@ def test_hver_kilde_i_jsonld_har_beskrivelse_lisens_og_rad_paa_om():
     for kilde in sorted(alle):
         node = nettsted.kildenode(kilde, nettsted.kildevilkaar())
         assert len(node["description"]) >= 50, kilde
-        assert node["license"].startswith("https://"), kilde
+        lisenser = node["license"] if isinstance(node["license"], list) \
+            else [node["license"]]
+        assert lisenser and all(l.startswith("https://") for l in lisenser), kilde
         assert node["url"].endswith(f"/om/#kilde-{kilde}"), kilde
         assert kilde in nettsted.LISENSRAD, kilde
         assert node["creator"]["@type"] == "Organization", kilde
@@ -6411,5 +6450,63 @@ def test_siden_viser_alle_enhetene_og_sier_at_de_ikke_er_lagt_sammen():
                           kapasitet_tillatelser_i_alt=3).split())
     assert "2 500 000 stk." in html and "44,8 tonn" in html
     assert html.count('data-felt="kapasitet_tillatelser"') == 2
-    assert "summert innenfor hver enhet, ikke på tvers" in html
+    assert "Summert innenfor hver enhet, ikke på tvers." in html
     assert "uten oppgitt kapasitet" in html
+
+
+# ---- kunngjøringene vises ikke før lisensen er belagt (rødt lag F12) -----
+
+def test_kunngjoringene_vises_ikke_som_standard():
+    """regjeringen.no har ingen dokumentert lisens (docs/LISENSKJEDE.md,
+    04.11.2026). Kunngjøringene leses fortsatt, men visningen er stoppet."""
+    assert nettsted.KUNNGJORINGER_VISES is False
+
+
+_KUNNGJORT_2018 = {"7": {"farge": "rod", "sitat": "…ikke skal reduseres…",
+                         "dato": "2017-10-30"}}
+
+
+def test_celle_der_bare_kunngjoringen_sier_noe_er_ikke_vist_og_ikke_ikke_oppgitt(
+        monkeypatch):
+    """«Ikke oppgitt» ville sagt at ingen kilde nevner området, og
+    kunngjøringen gjør det. MÅLT 04.11.2026: 19 av 65 celler."""
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted.beslutning, "for_runde",
+                        lambda aar: _KUNNGJORT_2018 if aar == "2018" else {})
+    felles = SimpleNamespace(po_farger={}, runder=["2018-12-31"])
+    rad = nettsted._fargerad("7", "2018", felles)
+    assert rad["farge"] == nettsted.FARGE_IKKE_VIST == "ikke vist"
+    assert rad["farge_felt"] == nettsted.FARGE_IKKE_VIST_FELT
+    assert rad["lesemaate"] == "ikke_vist"
+    assert rad["sitat"] == "" and rad["sitat_url"] == ""
+    # En runde ingen nevner, er fortsatt «ikke oppgitt».
+    tom = nettsted._fargerad("99", "2018", felles)
+    assert tom["farge"] == nettsted.FARGE_MANGLER
+
+
+def test_kunngjoringenes_sitater_og_tegnforklaring_er_borte(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted.beslutning, "for_runde",
+                        lambda aar: _KUNNGJORT_2018 if aar == "2018" else {})
+    monkeypatch.setattr(nettsted.beslutning, "url", lambda aar: "https://x/")
+    felles = SimpleNamespace(po_farger={}, runder=["2018-12-31", "2024-12-31"])
+    assert nettsted._rundeopplysninger("2018")["tegn"] == []
+    assert nettsted._po_saerskilt("4", felles) == []
+    monkeypatch.setattr(nettsted, "KUNNGJORINGER_VISES", True)
+    assert nettsted._fargerad("7", "2018", felles)["lesemaate"] == "beslutning"
+
+
+def test_omraadesiden_uten_kunngjoringer_har_verken_sitat_eller_regjeringen():
+    html = _po(vis_kunngjoringer=False, har_ikke_vist=True,
+               rundeopplysninger=[], saerskilt=[],
+               runder=[{"aar": "2018", "farge": nettsted.FARGE_IKKE_VIST,
+                        "farge_felt": nettsted.FARGE_IKKE_VIST_FELT,
+                        "farge_klasse": "", "lesemaate": "ikke_vist",
+                        "lesemaate_tekst": nettsted.LESEMAATE["ikke_vist"],
+                        "sitat": "", "sitat_dato": "", "sitat_url": "",
+                        "ellers": [], "forskrift": {}}])
+    assert "regjeringen.no" not in html
+    assert "Hva fargen betød i hver runde" not in html
+    assert "i kunngjøringen</li>" not in html
+    assert nettsted.LESEMAATE["ikke_vist"] + "</li>" in html
+

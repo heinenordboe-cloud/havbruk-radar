@@ -170,6 +170,11 @@ LESEMAATE = {
     # har tom farge, så tilstanden er nøyaktig «ingen kilde sier», og
     # ingen av de 65 cellene i dag er i den.
     "ingen": "ikke oppgitt",
+    # BARE KUNNGJØRINGEN SIER NOE, og den vises ikke (rødt lag F12,
+    # 04.11.2026): lisensen for regjeringen.no er ikke avklart, se
+    # `nettsted.KUNNGJORINGER_VISES`. Ikke «ikke oppgitt» — det ville sagt
+    # at ingen kilde nevner området, og kunngjøringen gjør det.
+    "ikke_vist": "bare i kunngjøringen, som ikke vises",
 }
 
 JANEI = {"True": "ja", "False": "nei", "true": "ja", "false": "nei"}
@@ -401,7 +406,7 @@ KILDENAVN = {
     "eierskap_historikk": "Fiskeridirektoratet, eierskapshistorikk",
     "romming": "Fiskeridirektoratet, rømmingsmeldinger",
     "enhetsregisteret": "Brønnøysundregistrene, Enhetsregisteret",
-    "enhetsregisteret_oppslag": "Brønnøysundregistrene, Enhetsregisteret",
+    "enhetsregisteret_oppslag": "Brønnøysundregistrene, Enhetsregisteret, oppslag på nummer",
     "lusetall": "BarentsWatch, fiskehelse",
     "sjotemperatur": "BarentsWatch, sjøtemperatur",
     "trafikklysvedtak": "Lovdata, kapasitetsjusteringsforskriftene",

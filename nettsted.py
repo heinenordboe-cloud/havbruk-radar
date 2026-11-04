@@ -132,6 +132,32 @@ LUSEUKER = 52
 # Kildene en lokalitetsside bygger på. Rekkefølgen er lesningens.
 SIDENS_KILDER = ("akvakultur", "eierskap", "eierskap_historikk", "lusetall")
 
+# KILDENE EN LOKALITETSSIDE KAN VISE UTOVER `SIDENS_KILDER`. Hver av dem
+# står bare der siden faktisk viser dataene — se `lokalitetskilder()`.
+LOKALITET_KAN_VISE = ("biomasselag", "sjotemperatur", "enhetsregisteret",
+                      "enhetsregisteret_oppslag")
+
+
+def lokalitetskilder(lok: dict) -> tuple[str, ...]:
+    """Kildene DENNE lokalitetssiden viser, i fast rekkefølge.
+
+    Fram til 04.11.2026 fikk hver side `SIDENS_KILDER`, og JSON-LD-ens
+    `isBasedOn` manglet biomasselaget («Fisk til stede») og
+    sjøtemperaturkildens lusegrense, som begge står på siden (rødt lag
+    F13). Bunnteksten var dekket fordi setningene er de samme, men
+    tvillingen sa noe annet enn siden. Porten leser siden selv
+    (`publiseringsvakt.kilder_uten_attribusjon`) og sier fra når de spriker.
+    """
+    ekstra = []
+    if lok.get("biolag"):
+        ekstra.append("biomasselag")
+    if (lok.get("lusegraf") or {}).get("grense"):
+        ekstra.append("sjotemperatur")
+    brreg = {h.get("kilde") for h in lok.get("oppgitt_brreg") or ()}
+    ekstra += [k for k in ("enhetsregisteret", "enhetsregisteret_oppslag")
+               if k in brreg]
+    return SIDENS_KILDER + tuple(k for k in LOKALITET_KAN_VISE if k in ekstra)
+
 # SKILLETEGNET I EN UNDERTITTEL. Samme tegn som undertitlene på sidene
 # selv bruker — «Lokalitet 31397 · permanent klarering · i sjø» — så en
 # trefflinje ser ut som linja den fører til.
@@ -190,13 +216,30 @@ def kildevilkaar() -> dict[str, tuple[str, ...] | None]:
 
 
 # Lisens-URL per kilde, for JSON-LD. Bare der versjonen er BELAGT i
-# lisenskjeden. Fiskeridirektoratets side sier «NLOD» uten versjon, og en
-# URL til 2.0 ville påstått en versjon ingen har gått god for.
+# lisenskjeden.
+#
+# FISKERIDIREKTORATET ER NLOD 1.0, og det er målt (rødt lag F3,
+# 04.11.2026). Lisenssiden sier «Norsk lisens for offentlige data (NLOD)»
+# og lenker «lisensen som våre data er underlagt» til
+# data.norge.no/nlod/no/1.0: `data/arkiv/vilkar-fiskeridir/2026-11-02.bin.gz`,
+# sha256 021c8692…ffdb0a3. Fram til da sto eierskap med 2.0 her, som
+# påsto en versjon Fiskeridirektoratet ikke har oppgitt, og de andre
+# fire med lisenssiden, som unnlot den de har.
+#
+# EIERSKAPET HAR TO, som i docs/LISENSKJEDE.md: tillatelsene er
+# Fiskeridirektoratets (1.0), organisasjonsformene for historiske
+# mottakere er Brønnøysundregistrenes (2.0, merknad B).
+NLOD_1 = "https://data.norge.no/nlod/no/1.0"
+NLOD_2 = "https://data.norge.no/nlod/no/2.0"
 LISENS_URL = {
-    "eierskap": "https://data.norge.no/nlod/no/2.0",
-    "eierskap_historikk": "https://data.norge.no/nlod/no/2.0",
-    "enhetsregisteret": "https://data.norge.no/nlod/no/2.0",
-    "enhetsregisteret_oppslag": "https://data.norge.no/nlod/no/2.0",
+    "akvakultur": NLOD_1,
+    "biomasse": NLOD_1,
+    "biomasselag": NLOD_1,
+    "romming": NLOD_1,
+    "eierskap": [NLOD_1, NLOD_2],
+    "eierskap_historikk": [NLOD_1, NLOD_2],
+    "enhetsregisteret": NLOD_2,
+    "enhetsregisteret_oppslag": NLOD_2,
 }
 
 # LISENSSIDEN PER KILDE, når versjonen IKKE er belagt: hjemmelen fra
@@ -220,6 +263,15 @@ LISENSSIDE = {
 # kilde i datarepoet, og ingen tall står her, fordi de ville blitt
 # usanne neste uke.
 KILDEBESKRIVELSE = {
+    # MÅLT 04.11.2026 i data/raw/biomasse/2026-07-31.parquet og
+    # data/raw/enhetsregisteret_oppslag/2026-11-04.parquet.
+    "biomasse": "Fiskeridirektoratets biomassestatistikk per "
+                "produksjonsområde og måned: beholdning i antall og kilo, "
+                "utsett av smolt, uttak, dødfisk, rømming og fôrforbruk.",
+    "enhetsregisteret_oppslag": "Enhetsregisterets svar for "
+                                "organisasjonsnumre tillatelsesregisteret "
+                                "nevner: om enheten finnes eller er "
+                                "slettet, slettedato og organisasjonsform.",
     "akvakultur": "Fiskeridirektoratets akvakulturregister: per lokalitet "
                   "navn, kommune, posisjon, produksjonsområde, arter, "
                   "tillatt kapasitet og tilknyttede tillatelser.",
@@ -259,6 +311,23 @@ KILDEBESKRIVELSE = {
 GJENBRUK_STI = "/om/#gjenbruk"
 
 
+def kredittekst(setninger) -> str:
+    """HELE attribusjonen kilden krever, som én tekst for `creditText`.
+
+    Fram til 04.11.2026 sto bare FØRSTE setning her (rødt lag F14): 21
+    tvillinger krediterte BarentsWatch uten dataeieren Mattilsynet, og
+    Fiskeridirektoratet uten Brønnøysundregistrene. schema.org definerer
+    `creditText` som teksten som kan brukes til å kreditere, og en som
+    krediterer etter tvillingen, skal få hele kjeden.
+
+    Setningene står ordrett. Mangler en avsluttende punktum, settes det
+    inn ett mellom dem, og ikke noe annet.
+    """
+    deler = [str(s).strip() for s in (setninger or ()) if str(s).strip()]
+    return " ".join(d if d.endswith((".", "!", "?")) or i == len(deler) - 1
+                    else d + "." for i, d in enumerate(deler))
+
+
 def kildenode(kilde: str, vilkaar: dict) -> dict:
     """schema.org/Dataset for én kilde i `isBasedOn`.
 
@@ -289,7 +358,7 @@ def kildenode(kilde: str, vilkaar: dict) -> dict:
         "description": KILDEBESKRIVELSE[kilde],
         "url": f"{_basisurl()}/om/#kilde-{kilde}",
         "license": LISENS_URL.get(kilde) or LISENSSIDE[kilde],
-        "creditText": (vilkaar.get(kilde) or ("",))[0],
+        "creditText": kredittekst(vilkaar.get(kilde)),
         "creator": {"@type": "Organization", "name": skaper},
     }
     if kilde in UTGIVER:
@@ -403,6 +472,7 @@ UTGIVER = {
     "enhetsregisteret": "Brønnøysundregistrene",
     "enhetsregisteret_oppslag": "Brønnøysundregistrene",
     "biomasselag": "Fiskeridirektoratet",
+    "biomasse": "Fiskeridirektoratet",
     "unntaksvekst": "Mattilsynet",
 }
 
@@ -3328,6 +3398,27 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
 BELEGGSRANG = ("ordrett", "beslutning", "kapitteloverskrift",
                "kapittelhjemmel")
 
+# DEPARTEMENTETS KUNNGJØRINGER VISES IKKE, fra 04.11.2026 (rødt lag F12).
+#
+# Kunngjøringene på regjeringen.no har ingen dokumentert lisens. MÅLT
+# 04.11.2026: ingen av de ni arkiverte kroppene i
+# `data/arkiv/regjeringen-pressemeldinger/` oppgir et vilkår for teksten —
+# bunnteksten lenker bare til «Bruks- og opphavsrett for bilder og
+# videomateriale» — og regjeringen.no og Wayback var stengt for økta.
+# Etter docs/LISENSKJEDE.md er en udokumentert lisens UBELAGT, og en
+# UBELAGT kilde skal ikke bære en publisert visning. Det rammet sitatene,
+# «Hva fargen betød i hver runde», «Departementet vurderte området
+# særskilt» og fargen i de 19 av 65 rundecellene der bare kunngjøringen
+# oppgir den.
+#
+# Kunngjøringene leses og rangeres fortsatt (`beslutning.py`): det er
+# VISNINGEN som stoppes. En celle der bare kunngjøringen sier noe, står
+# som «ikke vist» og ikke som «ikke oppgitt», for det siste ville vært
+# usant. Settes til True den dagen lisensen er belagt i LISENSKJEDE.
+KUNNGJORINGER_VISES = False
+FARGE_IKKE_VIST = "ikke vist"
+FARGE_IKKE_VIST_FELT = "farge_ikke_vist"
+
 
 def _fargerad(po: str, aar: str, felles: Felles) -> dict:
     """Én celle: sterkeste belegg først, de andre ved siden av.
@@ -3349,9 +3440,10 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
             "kilde": forskrift_for_runde(aar).get("id", "forskriften"),
         })
 
-    # Departementets kunngjøring.
+    # Departementets kunngjøring — leses, men vises bare når lisensen er
+    # belagt. Se `KUNNGJORINGER_VISES`.
     b = beslutning.for_runde(aar).get(po)
-    if b:
+    if b and KUNNGJORINGER_VISES:
         kandidater.append({
             "lesemaate": "beslutning",
             "lesemaate_tekst": LESEMAATE["beslutning"],
@@ -3360,6 +3452,14 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
             "kilde": f"kunngjøringen {visningsord.dato(b['dato'])}",
         })
 
+    if not kandidater and b:
+        # BARE KUNNGJØRINGEN SIER NOE, og den vises ikke.
+        return {
+            "aar": aar, "farge": FARGE_IKKE_VIST,
+            "farge_felt": FARGE_IKKE_VIST_FELT, "farge_klasse": "",
+            "lesemaate": "ikke_vist", "lesemaate_tekst": LESEMAATE["ikke_vist"],
+            "sitat": "", "sitat_dato": "", "sitat_url": "", "ellers": [],
+        }
     if not kandidater:
         return {
             "aar": aar, "farge": FARGE_MANGLER,
@@ -3625,7 +3725,7 @@ def _rundeopplysninger(aar: str) -> dict:
     Tom for en runde som ikke er godkjent — da står bare forskriftens
     egen lenke, som før.
     """
-    if aar not in beslutning.GODKJENT:
+    if aar not in beslutning.GODKJENT or not KUNNGJORINGER_VISES:
         return {"dato": "", "type": "", "url": "", "tegn": []}
     dato = beslutning.KROPPER.get(aar, ("", ""))[0]
     return {
@@ -3650,6 +3750,8 @@ def _po_saerskilt(po: str, felles: Felles) -> list[dict]:
     veie, og en oppsummering ville vært nettopp det.
     """
     ut = []
+    if not KUNNGJORINGER_VISES:
+        return ut
     for dato in felles.runder:
         aar = dato[:4]
         d = beslutning.saerskilt_for_runde(aar).get(po)
@@ -3801,7 +3903,10 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
              felles.akva[l["loknr"]].get("breddegrad", ""),
              felles.akva[l["loknr"]].get("lengdegrad", ""))
             for l in lokaliteter]),
-        "runder": _po_fargerader(po, felles),
+        "runder": (runder := _po_fargerader(po, felles)),
+        # Tegnforklaringen viser bare grunnlagene sidene bruker.
+        "vis_kunngjoringer": KUNNGJORINGER_VISES,
+        "har_ikke_vist": any(r["lesemaate"] == "ikke_vist" for r in runder),
         # Beslutningsdato, dokumenttype og tegnforklaring PER RUNDE.
         # Står ved siden av rundene og ikke i dem: den gjelder alle
         # tretten områdene i runden, ikke dette ene.
@@ -5966,7 +6071,7 @@ def jsonld(lok: dict) -> str:
     spennet i lusetallserien for akkurat denne lokaliteten.
     """
     indeks = kildevilkaar()
-    kilder = [kildenode(k, indeks) for k in SIDENS_KILDER]
+    kilder = [kildenode(k, indeks) for k in lokalitetskilder(lok)]
 
     data = {
         "@context": "https://schema.org",
@@ -6022,7 +6127,7 @@ def jsonld(lok: dict) -> str:
             "description": f"{spenn} {beskrivelse}",
             "contentUrl": fil,
             "encodingFormat": format_,
-            "creditText": (indeks.get("lusetall") or ("",))[0],
+            "creditText": kredittekst(indeks.get("lusetall")),
         } for fil, format_, hva, beskrivelse in (
             (lok["xlsx_filnavn"], XLSX_MIME, "Excel",
              "Regneark med arket «Om dataene»."),
@@ -6359,13 +6464,14 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     # setningene på nytt til bunnteksten; kallet her er porten, og den
     # skal stå FØR malen kompileres slik at en UBELAGT kilde stopper
     # siden framfor å rendres og kastes etterpå.
-    attribusjon(SIDENS_KILDER, vilkaar)
+    kilder = lokalitetskilder(lok)
+    attribusjon(kilder, vilkaar)
     mal = mal or _miljo().get_template("lokalitet.html.j2")
 
     html = mal.render(
         lok=lok,
         **_grunnkontekst(
-            felles, rot, sti, kilder=SIDENS_KILDER,
+            felles, rot, sti, kilder=kilder,
             tittel=f"{lok['tittelnavn']}, lokalitet {lok['loknr']} — Kystloggen",
             beskrivelse=(
                 f"Registerdata, eierskap og ukentlige lusetall for "
@@ -8017,15 +8123,19 @@ side. Den erstattes ikke av en referanse til dette nettstedet.
 # datoen vilkåret ble lest. Attribusjonssetningene hentes fra kilden
 # selv — dette er bare det LISENSKJEDEN sier utover setningen.
 LISENSRAD = {
-    "akvakultur": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "biomasse": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "biomasselag": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "romming": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "eierskap": ("NLOD + NLOD 2.0", "fiskeridir.no + brreg.no",
-                 "25.08. / 14.09.2026"),
-    "eierskap_historikk": ("NLOD + NLOD 2.0", "fiskeridir.no + brreg.no",
-                           "25.08. / 14.09.2026"),
+    # NLOD 1.0 fra 04.11.2026: lisenssiden lenker dit (rødt lag F3,
+    # docs/LISENSKJEDE.md merknad A). Datoen er da versjonen ble lest.
+    "akvakultur": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "biomasse": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "biomasselag": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "romming": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "eierskap": ("NLOD 1.0 + NLOD 2.0", "fiskeridir.no + brreg.no",
+                 "04.11. / 14.09.2026"),
+    "eierskap_historikk": ("NLOD 1.0 + NLOD 2.0", "fiskeridir.no + brreg.no",
+                           "04.11. / 14.09.2026"),
     "enhetsregisteret": ("NLOD 2.0 (frie nivået)", "brreg.no", "14.09.2026"),
+    "enhetsregisteret_oppslag": ("NLOD 2.0 (frie nivået)", "brreg.no",
+                                 "14.09.2026"),
     "lusetall": ("NLOD", "barentswatch.no/artikler/api-vilkar", "12.09.2026"),
     "sjotemperatur": ("NLOD", "barentswatch.no/artikler/api-vilkar",
                       "12.09.2026"),
@@ -8101,7 +8211,13 @@ def bygg_om(felles: Felles) -> dict:
         "ubelagte": [{"navn": k["navn"],
                       "vist": visningsord.kilde(k["navn"]),
                       "url": KILDE_URL.get(k["navn"], "")}
-                     for k in kilder if k["ubelagt"]],
+                     for k in kilder if k["ubelagt"]] + (
+            # DEPARTEMENTETS KUNNGJØRINGER er ikke en kilde i `sources/`,
+            # men de er lest og sto på områdesidene til 04.11.2026 (rødt
+            # lag F12). Lisensen er ikke funnet, og /om/ sier det.
+            [] if KUNNGJORINGER_VISES else
+            [{"navn": "regjeringen", "url": "",
+              "vist": "departementets kunngjøringer på regjeringen.no"}]),
         "akva_dato": felles.akva_dato,
         "eierskap_dato": felles.eierskap_dato,
         "enhet_dato": felles.enhet_dato,
@@ -9478,7 +9594,8 @@ def _historietekst(runder: list[dict]) -> str:
     forskjellen på hva vi VET og hva som gjelder — og de to skal ikke
     slås sammen.
     """
-    med = [r["farge"] for r in runder if r["farge"] != FARGE_MANGLER]
+    med = [r["farge"] for r in runder
+           if r["farge"] not in (FARGE_MANGLER, FARGE_IKKE_VIST)]
     if not med:
         return "ikke oppgitt i noen runde"
     kjede = [med[0]] + [f for forrige, f in zip(med, med[1:]) if f != forrige]
@@ -10215,10 +10332,30 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
     return skriv_side(rot / "selskap" / orgnr / "index.html", html)
 
 
-# Kildene en produksjonsområdeside bygger på. `ekspertgruppen` står
+# Kildene en produksjonsområdeside KAN bygge på. `ekspertgruppen` står
 # IKKE her: kilden er UBELAGT, og en side som oppgav den i bunnteksten
 # ville påstått et vilkår ingen har gått god for.
-PO_KILDER = ("akvakultur", "trafikklysvedtak")
+#
+# Fram til 04.11.2026 sto bare akvakultur og trafikklysvedtak her, mens
+# sidene viste lusetall og lusegrense («Uker over lusegrensa»),
+# biomassestatistikken og innehaverne (rødt lag F11, F13). Bunnteksten
+# manglet derfor BarentsWatchs to setninger på alle 13, og /om/ sa «Vises
+# her: nei» om sjøtemperatur og biomasse. Hvilke av dem en side viser,
+# står i `po_kilder()`; denne er unionen, for `viste_kilder()`.
+PO_KILDER = ("akvakultur", "eierskap", "trafikklysvedtak", "lusetall",
+             "sjotemperatur", "biomasse")
+
+
+def po_kilder(po: dict) -> tuple[str, ...]:
+    """Kildene DENNE områdesiden viser, i `PO_KILDER`-rekkefølge."""
+    vist = {"akvakultur", "trafikklysvedtak"}
+    if any(l.get("selskap") for l in po.get("lokaliteter") or ()):
+        vist.add("eierskap")
+    if (po.get("marg") or {}).get("lus"):
+        vist |= {"lusetall", "sjotemperatur"}
+    if po.get("biomasse"):
+        vist.add("biomasse")
+    return tuple(k for k in PO_KILDER if k in vist)
 
 
 def jsonld_po(po: dict, vilkaar: dict) -> Markup:
@@ -10227,7 +10364,7 @@ def jsonld_po(po: dict, vilkaar: dict) -> Markup:
     `identifier` bærer PO-nummeret med `propertyID` som sier hvem som har
     fastsatt det.
     """
-    kilder = [kildenode(k, vilkaar) for k in PO_KILDER]
+    kilder = [kildenode(k, vilkaar) for k in po_kilder(po)]
     data = {
         "@context": "https://schema.org",
         "@type": "Dataset",
@@ -10264,12 +10401,14 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
         po=d,
         **_grunnkontekst(
             felles, rot, rot / "produksjonsomrade" / po / "index.html",
-            kilder=PO_KILDER,       # kaster på UBELAGT
+            kilder=po_kilder(d),    # kaster på UBELAGT
             # DEPARTEMENTETS EGNE ORD står på denne siden, med lenke til
-            # regjeringen.no. Ingen `Source.attribusjon` bærer det, og en
-            # fraskrivelse som utelot parten hvis ord er sitert, ville
-            # utelatt den ene som betyr mest her.
-            siterte_organ=("regjeringen.no",),
+            # regjeringen.no — når kunngjøringene vises. Ingen
+            # `Source.attribusjon` bærer det, og en fraskrivelse som utelot
+            # parten hvis ord er sitert, ville utelatt den ene som betyr
+            # mest her. Se `KUNNGJORINGER_VISES`.
+            siterte_organ=(("regjeringen.no",) if KUNNGJORINGER_VISES
+                           else ()),
             tittel=f"Produksjonsområde {d['nr']} {d['navn']} — Kystloggen",
             beskrivelse=(
                 f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "

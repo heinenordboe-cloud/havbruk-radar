@@ -500,7 +500,7 @@ class Funn:
                      # | uferdig | raatt_tidsstempel | reposti
                      # | uten_kontakt | nedtatt | immutable_uten_hash
                      # | innholdstype | jsonld | avsnitt | paastand
-                     # | sykdomsflagg
+                     # | sykdomsflagg | kilde_uten_attribusjon
     utdrag: str
     antall: int = 1
 
@@ -1368,6 +1368,133 @@ def kart_uten_attribusjon(tekst: str, fil: str = "") -> list[Funn]:
                  f"kart uten «{KARTNAVN}»", len(KARTMERKE.findall(tekst)))]
 
 
+# ------------------------------------------- kildene en side viser
+#
+# HVER KILDE SOM VISES PÅ EN SIDE, HAR SIN ATTRIBUSJON PÅ DEN SIDEN.
+#
+# Rødt lag 04.11.2026 (F11, F14): de 13 områdesidene viste «Uker over
+# lusegrensa», regnet av BarentsWatchs lusetall og lusegrense, uten «Data
+# levert av BarentsWatch» og uten Mattilsynet-linja. Bunnteksten ble bygget
+# av lista generatoren OPPGA (`PO_KILDER`), og lista var feil. En prøve som
+# leste den samme lista, ville sagt grønt.
+#
+# Prøven leser derfor SIDEN, ikke lista. To spor, og de er uavhengige av
+# hvordan bunnteksten ble til:
+#
+#   data-kilde="<kilde>"   et element som bærer kildens data: påstandene
+#                          på lokalitetssiden, blokkene på områdesiden.
+#                          Krever HVER setning i kildens Source.attribusjon.
+#   herkomstlinja          «BarentsWatch · uke 33»: utgiverens korte navn
+#                          (visningsord.KILDE_KORT). Krever setningene ALLE
+#                          kildene med det navnet krever — snittet, fordi
+#                          navnet ikke sier hvilken av dem.
+#
+# Og JSON-LD-tvillingen: hver `isBasedOn`-node har HELE attribusjonen i
+# `creditText` (F14 — bare første setning sto der), og hver kilde fra
+# første spor står i `isBasedOn`.
+#
+# Funnet kan IKKE kvitteres ut, av samme grunn som `kart_uten_attribusjon`:
+# en manglende attribusjon kan ikke være riktig.
+KILDEMERKE = re.compile(r'\bdata-kilde="([^"]+)"')
+HERKOMSTLINJE = re.compile(r'<span class="herkomst"[^>]*>(.*?)</span>', re.S)
+JSONLD_BLOKK = re.compile(
+    r'<script type="application/ld\+json">(.*?)</script>', re.S)
+# Våre egne påstander («første henting», «ingen endring sett»). Ikke en
+# kilde med et vilkår.
+EGNE_PAASTANDER = frozenset({"kystloggen"})
+
+
+_VILKAARSINDEKS: list = []
+
+
+def _vilkaarsindeks() -> dict[str, tuple[str, ...] | None]:
+    """{kildenavn: setningene kilden krever}, fra kildene selv.
+
+    Slått opp ÉN gang per prosess. Prøven går over hver av ~2 400 sider,
+    og `registry.discover()` per side gjorde vakten MÅLT 04.11.2026 ti
+    minutter lengre. Koden skifter ikke midt i en kjøring, så svaret gjør
+    det heller ikke — samme grunn som `_erklaeringene()` slås opp per kall
+    og ikke per side.
+    """
+    if not _VILKAARSINDEKS:
+        from core import registry
+        from core.contract import attribusjon_per_kilde
+        _VILKAARSINDEKS.append(attribusjon_per_kilde(registry.discover()))
+    return _VILKAARSINDEKS[0]
+
+
+def _synlig(tekst: str) -> str:
+    """Teksten et menneske ser, med mellomrom samlet."""
+    uten = re.sub(r"<(script|style)\b.*?</\1>", " ", tekst, flags=re.S | re.I)
+    return " ".join(html.unescape(TAGG.sub(" ", uten)).split())
+
+
+def kilder_uten_attribusjon(tekst: str, fil: str = "",
+                            vilkaar: dict | None = None) -> list[Funn]:
+    """Kilder siden VISER uten setningene kilden krever. Tom liste = rent."""
+    if "<body" not in tekst:
+        return []
+    vilkaar = _vilkaarsindeks() if vilkaar is None else vilkaar
+    kropp = tekst.split("<body", 1)[1]
+    synlig = _synlig(kropp)
+    funn: list[Funn] = []
+
+    krav: dict[str, set[str]] = {}
+    merket = set(KILDEMERKE.findall(kropp)) - EGNE_PAASTANDER
+    for kilde in sorted(merket):
+        setninger = vilkaar.get(kilde)
+        if setninger is None:
+            funn.append(Funn(fil, "kilde_uten_attribusjon",
+                             f"data-kilde={kilde}: ingen kilde med "
+                             f"dokumentert vilkår skriver under navnet"))
+            continue
+        for setning in setninger:
+            krav.setdefault(setning, set()).add(kilde)
+
+    per_kort: dict[str, set[str]] = {}
+    for kilde, kort in _kortnavn().items():
+        if kilde in vilkaar and vilkaar[kilde] is not None:
+            per_kort.setdefault(kort, set()).add(kilde)
+    for linje in HERKOMSTLINJE.findall(kropp):
+        vist = _synlig(linje)
+        for kort, kilder in per_kort.items():
+            if not vist.startswith(kort):
+                continue
+            felles = set.intersection(*(set(vilkaar[k]) for k in kilder))
+            for setning in felles:
+                krav.setdefault(setning, set()).add(f"«{kort}»")
+
+    for setning, hvem in sorted(krav.items()):
+        if " ".join(setning.split()) not in synlig:
+            funn.append(Funn(fil, "kilde_uten_attribusjon",
+                             f"{', '.join(sorted(hvem))} vises, men «{setning}» "
+                             f"står ikke på siden"))
+
+    for blokk in JSONLD_BLOKK.findall(tekst):
+        try:
+            data = json.loads(blokk)
+        except ValueError:
+            continue
+        noder = [n for n in (data.get("isBasedOn") or [])
+                 if isinstance(n, dict)] if isinstance(data, dict) else []
+        if not noder:
+            continue
+        navn = {str(n.get("name") or "") for n in noder}
+        for n in noder:
+            kreditt = " ".join(str(n.get("creditText") or "").split())
+            for setning in vilkaar.get(str(n.get("name") or "")) or ():
+                if " ".join(setning.split()) not in kreditt:
+                    funn.append(Funn(fil, "kilde_uten_attribusjon",
+                                     f"JSON-LD {n.get('name')}: creditText "
+                                     f"mangler «{setning}»"))
+        for kilde in sorted(merket - navn - {k for k in merket
+                                             if vilkaar.get(k) is None}):
+            funn.append(Funn(fil, "kilde_uten_attribusjon",
+                             f"data-kilde={kilde} vises, men står ikke i "
+                             f"JSON-LD isBasedOn"))
+    return funn
+
+
 # ------------------------------------------- rå tidsstempler
 #
 # KILDENS TIDSSTEMPEL ER IKKE EN DATO EN LESER SKAL SE.
@@ -2070,6 +2197,10 @@ def tekstfunn(rel: str, endelse: str, tekst: str, orgnr_ok: set[str],
     funn.extend(repostier(tekst, fil=rel))
     # KART UTEN KARTVERKETS NAVN. Et lisensvilkår, ikke hygiene.
     funn.extend(kart_uten_attribusjon(tekst, fil=rel))
+    # KILDER UTEN ATTRIBUSJON. Lisensvilkåret for alt annet enn kartet,
+    # lest av siden selv. Se `kilder_uten_attribusjon()`.
+    if endelse in (".html", ".htm"):
+        funn.extend(kilder_uten_attribusjon(tekst, fil=rel))
     # ILA OG PD, i markup og tekst. Se `sykdomsflagg()`.
     funn.extend(sykdomsflagg(tekst, fil=rel))
     # AVSNITT OVER TRE LINJER, og PÅSTANDER UTEN KILDE OG DATO. Se
