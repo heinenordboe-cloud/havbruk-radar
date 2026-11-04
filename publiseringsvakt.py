@@ -501,6 +501,7 @@ class Funn:
                      # | uten_kontakt | nedtatt | immutable_uten_hash
                      # | innholdstype | jsonld | avsnitt | paastand
                      # | sykdomsflagg | kilde_uten_attribusjon
+                     # | llms_mot_bygget | sitemap_mot_bygget
     utdrag: str
     antall: int = 1
 
@@ -3027,6 +3028,92 @@ def jsonldfunn(mappe: Path) -> list[Funn]:
     return funn
 
 
+# ------------------------------------------- llms.txt og sitemap.xml
+#
+# AGENTENES FORSIDE SKAL SI DET BYGGET ER (R3, 04.11.2026). llms.txt sa
+# «flat, upaginert liste» om en lokalitetsliste delt i 18 og «499
+# selskaper» om 478 selskapssider, og verken den eller sitemapen nevnte
+# /endringer/. Tallene ble regnet av en annen ting enn sidene. Prøvene
+# under teller SIDENE på disk og holder fila mot dem.
+LLMS_LOKALITETER = re.compile(r"(\d+)\s+lokaliteter,")
+LLMS_SELSKAPER = re.compile(r"og\s+(\d+)\s+(?:>\s*)?selskaper\.")
+LLMS_DELT = re.compile(r"alle (\d+)\s+lokalitetene.*?delt i\s+(\d+)\s+sider", re.S)
+LLMS_INNEHAVERE = re.compile(r"de (\d+) innehaverne.*?delt i\s+(\d+)\s+sider", re.S)
+
+
+def _sider_under(mappe: Path, sti: str) -> list[Path]:
+    """`<sti>/<nummer>/index.html` — én side per entitet."""
+    d = mappe / sti
+    return [p for p in d.glob("*/index.html")
+            if p.parent.name.isdigit()] if d.exists() else []
+
+
+def _indekssider(mappe: Path, sti: str) -> int:
+    """Indeksen og `/<sti>/side/<n>/`, slik `nettsted.indekssti` skriver dem."""
+    d = mappe / sti
+    if not (d / "index.html").exists():
+        return 0
+    return 1 + sum(1 for p in (d / "side").glob("*/index.html")
+                   if p.parent.name.isdigit())
+
+
+def llms_mot_bygget(mappe: Path) -> list[Funn]:
+    """Tallene i llms.txt mot sidene som er skrevet. Tom liste = enige."""
+    fil = mappe / "llms.txt"
+    if not fil.exists():
+        return []
+    tekst = fil.read_text(encoding="utf-8")
+    faktisk = {
+        "lokaliteter": len(_sider_under(mappe, "lokalitet")),
+        "selskaper": len(_sider_under(mappe, "selskap")),
+        "lokalitetsindeks": _indekssider(mappe, "lokalitet"),
+        "selskapsindeks": _indekssider(mappe, "selskap"),
+    }
+    oppgitt: dict[str, int | None] = {}
+    m = LLMS_LOKALITETER.search(tekst)
+    oppgitt["lokaliteter"] = int(m.group(1)) if m else None
+    m = LLMS_SELSKAPER.search(tekst)
+    oppgitt["selskaper"] = int(m.group(1)) if m else None
+    m = LLMS_DELT.search(tekst)
+    oppgitt["lokalitetsindeks"] = int(m.group(2)) if m else None
+    m = LLMS_INNEHAVERE.search(tekst)
+    oppgitt["selskapsindeks"] = int(m.group(2)) if m else None
+    funn = []
+    for hva, tall in oppgitt.items():
+        if tall is None:
+            funn.append(Funn("llms.txt", "llms_mot_bygget",
+                             f"{hva}: tallet står ikke i fila"))
+        elif tall != faktisk[hva]:
+            funn.append(Funn("llms.txt", "llms_mot_bygget",
+                             f"{hva}: fila sier {tall}, bygget har "
+                             f"{faktisk[hva]}"))
+    if "upaginert" in tekst:
+        funn.append(Funn("llms.txt", "llms_mot_bygget",
+                         "«upaginert» om en liste som er delt i sider"))
+    if (mappe / "endringer" / "index.html").exists() and \
+            "/endringer/" not in tekst:
+        funn.append(Funn("llms.txt", "llms_mot_bygget",
+                         "/endringer/ er bygget, men står ikke i fila"))
+    return funn
+
+
+def sitemap_mot_bygget(mappe: Path) -> list[Funn]:
+    """Hver HTML-side under /endringer/ står i sitemap.xml. Tom liste = ja."""
+    fil = mappe / "sitemap.xml"
+    endr = mappe / "endringer"
+    if not fil.exists() or not endr.exists():
+        return []
+    loc = set(re.findall(r"<loc>(?:https?://[^/<]+)?([^<]*)</loc>",
+                         fil.read_text(encoding="utf-8")))
+    mangler = sorted(
+        "/" + p.parent.relative_to(mappe).as_posix() + "/"
+        for p in endr.rglob("index.html")
+        if "/" + p.parent.relative_to(mappe).as_posix() + "/" not in loc)
+    return [Funn("sitemap.xml", "sitemap_mot_bygget",
+                 f"{len(mangler)} sider under /endringer/ står ikke i "
+                 f"sitemapen, f.eks. {mangler[:3]}", len(mangler))] if mangler else []
+
+
 def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
 
@@ -3038,7 +3125,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     funn: list[Funn] = (list(grunnlagsfunn()) + list(kodeproveniensfunn())
                         + list(filtallsfunn(mappe)) + nedtattfunn(mappe)
                         + immutablefunn(mappe) + innholdstypefunn(mappe)
-                        + jsonldfunn(mappe))
+                        + jsonldfunn(mappe) + llms_mot_bygget(mappe)
+                        + sitemap_mot_bygget(mappe))
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.

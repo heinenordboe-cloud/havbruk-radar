@@ -7745,7 +7745,37 @@ def _basisurl() -> str:
     return satt.strip().rstrip("/")
 
 
-def _urler(felles: Felles) -> list[str]:
+def selskapssider(felles: Felles) -> list[str]:
+    """Organisasjonsnumrene som får en `/selskap/<orgnr>/`-side, sortert.
+
+    ÉN liste for sitemapen, llms.txt og indeksdelingen. Fram til 04.11.2026
+    regnet llms.txt selskapene som «alle adresser minus de kjente», og
+    etter at indeksene ble delt i sider, kom de 21 indekssidene med i
+    tallet: «499 selskaper» mot 478 sider (R3, revisjonen av nettstedet).
+    """
+    return [o for o in sorted(felles.tillatelser_per_eier)
+            if not personeier(o, felles)]
+
+
+def _endringsurler(uker) -> list[str]:
+    """`/endringer/` og hver side `skriv_endringssider()` skriver for ukene:
+    ukesiden og én side per endringstype. Rekkefølgen er nyest først, som
+    indeksen.
+
+    Fram til 04.11.2026 sto ingen av dem i sitemapen eller i llms.txt
+    (R3: 0 av 2 301 adresser), og ukesidene er laget for å siteres.
+    """
+    if not uker:
+        return []
+    stier = [f"/{ENDRINGER_STI}/"]
+    for uke in uker:
+        stier.append(f"/{ENDRINGER_STI}/{uke['slug']}/")
+        stier += [f"/{ENDRINGER_STI}/{uke['slug']}/{k['id']}/"
+                  for k in ENDRINGSTYPER]
+    return stier
+
+
+def _urler(felles: Felles, uker=()) -> list[str]:
     """Hver publiserte side, som sti. Rekkefølgen er lesningens.
 
     Lusetall-CSV-ene står ikke her: en sitemap er sider, ikke
@@ -7753,22 +7783,21 @@ def _urler(felles: Felles) -> list[str]:
     """
     stier = ["/", "/om/", "/lokalitet/", "/produksjonsomrade/", "/selskap/"]
     # INDEKSENES ØVRIGE SIDER. Samme deling som `skriv_indekser()`.
-    selskaper = sum(1 for o in felles.tillatelser_per_eier
-                    if not personeier(o, felles))
-    for sti, n in (("lokalitet", len(felles.akva)), ("selskap", selskaper)):
+    selskaper = selskapssider(felles)
+    for sti, n in (("lokalitet", len(felles.akva)),
+                   ("selskap", len(selskaper))):
         stier += [indekssti(sti, k) for k in range(2, indekssider(n) + 1)]
     stier += [f"/lokalitet/{loknr}/" for loknr in
               sorted(felles.akva, key=lambda e: int(e) if e.isdigit() else 0)]
     stier += [f"/produksjonsomrade/{po}/" for po in
               sorted(felles.po_navn, key=lambda k: int(k) if k.isdigit() else 0)]
-    stier += [f"/selskap/{orgnr}/" for orgnr in
-              sorted(felles.tillatelser_per_eier)
-              if not personeier(orgnr, felles)]
+    stier += [f"/selskap/{orgnr}/" for orgnr in selskaper]
+    stier += _endringsurler(uker)
     return stier
 
 
-def skriv_sitemap(rot: Path, felles: Felles) -> Path:
-    """sitemap.xml over alle sidene."""
+def skriv_sitemap(rot: Path, felles: Felles, uker=()) -> Path:
+    """sitemap.xml over alle sidene, endringssidene med (se `_urler`)."""
     from xml.sax.saxutils import escape
 
     basis = _basisurl()
@@ -7782,7 +7811,7 @@ def skriv_sitemap(rot: Path, felles: Felles) -> Path:
             "nettstedets eget domene) eller satt til vertsnavnet denne "
             "kopien faktisk ligger på. -->")
     linjer.append(f'<urlset xmlns="{SITEMAP_NS}">')
-    for sti in _urler(felles):
+    for sti in _urler(felles, uker):
         linjer.append("  <url>")
         linjer.append(f"    <loc>{escape(basis + sti)}</loc>")
         linjer.append(f"    <lastmod>{dato}</lastmod>")
@@ -8045,21 +8074,36 @@ def skriv_404(rot: Path, felles: Felles) -> Path:
     return skriv_side(sti, html)
 
 
-def skriv_llms(rot: Path, felles: Felles) -> Path:
+def skriv_llms(rot: Path, felles: Felles, uker=()) -> Path:
     """llms.txt — hva dette er, og hvor de fullstendige listene er.
 
     Peker på INDEKSENE og /om/, ikke på 1782 enkeltsider. En modell som
     følger fila skal finne alt på tre hopp, og en fil med 1782 lenker
     ville vært den samme lista som sitemap.xml, bare dårligere.
+
+    TALLENE REGNES AV DET SAMME SOM SIDENE (R3, 04.11.2026): fila sa «499
+    selskaper» om 478 selskapssider og «flat, upaginert liste» om en
+    lokalitetsliste delt i 18. `publiseringsvakt.llms_mot_bygget()` holder
+    dem mot det som faktisk er skrevet.
     """
     om = bygg_om(felles)
     basis = _basisurl()
     u = (lambda sti: basis + sti) if basis else (lambda sti: sti)
+    selskaper = len(selskapssider(felles))
+    lokalitetssider = indekssider(len(felles.akva))
+    selskapsindekssider = indekssider(selskaper)
+    if uker:
+        endringer = (
+            f"\n- [Endringer uke for uke]({u(f'/{ENDRINGER_STI}/')}): "
+            f"{len(uker)} uker, nyest først. Hver uke har sin egen side,\n"
+            f"  som aldri endres etter at uka er publisert, og kan siteres.")
+    else:
+        endringer = ""
     tekst = f"""# Kystloggen
 
 > Offentlige registerdata om norsk akvakultur, hentet ukentlig og lagret
 > som daterte snapshots. {om['lokaliteter']} lokaliteter, 13
-> produksjonsområder og {len(_urler(felles)) - 5 - om['lokaliteter'] - 13}
+> produksjonsområder og {selskaper}
 > selskaper. Registrene viser nåtilstanden og skriver over; her står
 > tidsaksen — hva registeret sa forrige uke, og hva som har endret seg.
 
@@ -8080,13 +8124,13 @@ personvernhensyn, og de som forsvinner er små, personeide anlegg.
 
 ## Fullstendige lister
 
-- [Alle lokaliteter]({u('/lokalitet/')}): flat, upaginert liste over alle
-  {om['lokaliteter']} lokalitetene, med nummer, navn, kommune og
-  produksjonsområde.
+- [Alle lokaliteter]({u('/lokalitet/')}): alle {om['lokaliteter']}
+  lokalitetene, med nummer, navn, kommune og produksjonsområde, delt i
+  {lokalitetssider} sider ({u('/lokalitet/side/2/')} og videre).
 - [Alle produksjonsområder]({u('/produksjonsomrade/')}): de 13 områdene
   med nyeste trafikklysfarge.
-- [Alle innehavere]({u('/selskap/')}): innehaverne av minst én
-  akvakulturtillatelse.
+- [Alle innehavere]({u('/selskap/')}): de {selskaper} innehaverne av minst
+  én akvakulturtillatelse, delt i {selskapsindekssider} sider.{endringer}
 
 ## Om kilder, metode og sitering
 
@@ -10624,9 +10668,9 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_ikoner(rot),
                   lambda: skriv_bilder(rot),
                   lambda: skriv_skript(rot),
-                  lambda: skriv_sitemap(rot, felles),
+                  lambda: skriv_sitemap(rot, felles, uker),
                   lambda: skriv_robots(rot),
-                  lambda: skriv_llms(rot, felles),
+                  lambda: skriv_llms(rot, felles, uker),
                   lambda: skriv_vertsfiler(rot),
                   lambda: skriv_404(rot, felles)):
         try:

@@ -6510,3 +6510,88 @@ def test_omraadesiden_uten_kunngjoringer_har_verken_sitat_eller_regjeringen():
     assert "i kunngjøringen</li>" not in html
     assert nettsted.LESEMAATE["ikke_vist"] + "</li>" in html
 
+
+# ---- llms.txt og sitemap.xml sier det bygget er (R3, 04.11.2026) ----------
+
+def test_llms_teller_selskapene_som_faar_side_ikke_alle_adressene(
+        tmp_path, smaafelles, monkeypatch):
+    """«499 selskaper» om 478 sider: tallet var adresser minus de kjente,
+    og indekssidene kom med. Nå er det `selskapssider()`, som sitemapen
+    bruker."""
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
+    tekst = nettsted.skriv_llms(tmp_path, smaafelles).read_text("utf-8")
+    assert nettsted.selskapssider(smaafelles) == ["912345678"]
+    assert "og 1\n> selskaper." in tekst
+    assert "upaginert" not in tekst
+    assert "delt i 1 sider" in tekst
+
+
+def test_sitemap_har_endringssidene(tmp_path, smaafelles, monkeypatch):
+    """R3: 0 av 2 301 adresser var under /endringer/, og ukesidene er
+    laget for å siteres."""
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
+    uker = [{"slug": "2026-45"}, {"slug": "2026-44"}]
+    tekst = nettsted.skriv_sitemap(tmp_path, smaafelles, uker).read_text("utf-8")
+    assert "<loc>/endringer/</loc>" in tekst
+    assert "<loc>/endringer/2026-45/</loc>" in tekst
+    for k in nettsted.ENDRINGSTYPER:
+        assert f"<loc>/endringer/2026-44/{k['id']}/</loc>" in tekst
+    llms = nettsted.skriv_llms(tmp_path, smaafelles, uker).read_text("utf-8")
+    assert "](/endringer/)" in llms and "2 uker" in llms
+
+
+def _bygget(rot, lok=3, sel=2, lok_indeks=2, sel_indeks=1, endringer=()):
+    for i in range(lok):
+        (rot / "lokalitet" / str(10000 + i)).mkdir(parents=True)
+        (rot / "lokalitet" / str(10000 + i) / "index.html").write_text("x")
+    for i in range(sel):
+        (rot / "selskap" / str(912345670 + i)).mkdir(parents=True)
+        (rot / "selskap" / str(912345670 + i) / "index.html").write_text("x")
+    for sti, n in (("lokalitet", lok_indeks), ("selskap", sel_indeks)):
+        (rot / sti).mkdir(parents=True, exist_ok=True)
+        (rot / sti / "index.html").write_text("x")
+        for k in range(2, n + 1):
+            (rot / sti / "side" / str(k)).mkdir(parents=True)
+            (rot / sti / "side" / str(k) / "index.html").write_text("x")
+    for e in endringer:
+        (rot / "endringer" / e).mkdir(parents=True, exist_ok=True)
+        (rot / "endringer" / e / "index.html").write_text("x")
+
+
+def _llms(lok, sel, lok_sider, sel_sider, endringer=True):
+    return (f"> som daterte snapshots. {lok} lokaliteter, 13\n"
+            f"> produksjonsområder og {sel}\n> selskaper. Registrene …\n"
+            f"- [Alle lokaliteter](/lokalitet/): alle {lok}\n  lokalitetene, "
+            f"med nummer, delt i\n  {lok_sider} sider (/lokalitet/side/2/).\n"
+            f"- [Alle innehavere](/selskap/): de {sel} innehaverne av minst\n"
+            f"  én tillatelse, delt i {sel_sider} sider."
+            + ("\n- [Endringer uke for uke](/endringer/)" if endringer else ""))
+
+
+def test_porten_holder_llms_mot_sidene_paa_disk(tmp_path):
+    import publiseringsvakt as vakt
+    _bygget(tmp_path, endringer=("",))
+    (tmp_path / "llms.txt").write_text(_llms(3, 2, 2, 1))
+    assert vakt.llms_mot_bygget(tmp_path) == []
+    # Feilen R3 fant, laget med vilje: 499 mot 478, og «upaginert».
+    (tmp_path / "llms.txt").write_text(
+        _llms(3, 5, 2, 1, endringer=False) + " flat, upaginert liste")
+    funn = [f.utdrag for f in vakt.llms_mot_bygget(tmp_path)]
+    assert "selskaper: fila sier 5, bygget har 2" in funn
+    assert "«upaginert» om en liste som er delt i sider" in funn
+    assert "/endringer/ er bygget, men står ikke i fila" in funn
+
+
+def test_porten_krever_endringssidene_i_sitemapen(tmp_path):
+    import publiseringsvakt as vakt
+    _bygget(tmp_path, endringer=("", "2026-45", "2026-45/eierskap"))
+    (tmp_path / "sitemap.xml").write_text(
+        "<urlset><url><loc>https://kystloggen.no/endringer/</loc></url></urlset>")
+    [f] = vakt.sitemap_mot_bygget(tmp_path)
+    assert f.antall == 2 and "/endringer/2026-45/" in f.utdrag
+    (tmp_path / "sitemap.xml").write_text(
+        "<urlset>" + "".join(f"<url><loc>https://kystloggen.no{s}</loc></url>"
+                             for s in ("/endringer/", "/endringer/2026-45/",
+                                       "/endringer/2026-45/eierskap/"))
+        + "</urlset>")
+    assert vakt.sitemap_mot_bygget(tmp_path) == []
