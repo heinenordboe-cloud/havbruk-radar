@@ -237,9 +237,18 @@
       <dt>Kapasitet</dt>
       <dd><span data-felt="kapasitet">{{ lok.kapasitet or "—" }}</span>
         <span class="fakta-etikett">lokaliteten</span>
-        {%- if ps.mtb %} ·
-        <span{{ merke(ps.mtb.herkomst, ps.mtb.nivaa) }} data-felt="kapasitet_tillatelser">{{ ps.mtb.vist }}</span>
-        <span class="fakta-etikett">{{ antall(lok.kapasitet_tillatelser_antall, "tillatelse", "tillatelser") }}</span>
+        {#- TILLATELSENE, HVER ENHET FOR SEG. 585 tonn og 200 000 stykk
+            har ingen sum, og en tillatelse i en annen enhet enn
+            lokalitetens skal stå, ikke holdes utenfor (rødt lag F5). #}
+        {%- for d in ps.get("mtb_deler") or () %}{% if loop.first %} ·{% else %} +{% endif %}
+        <span{{ merke(d.herkomst, d.nivaa) }} data-felt="kapasitet_tillatelser">{{ d.vist }}</span>
+        <span class="fakta-etikett">{{ antall(d.antall, "tillatelse", "tillatelser") }}</span>
+        {%- endfor %}
+        {%- if (ps.get("mtb_deler") or ())|length > 1 %}
+        <span class="fakta-bi">summert innenfor hver enhet, ikke på tvers</span>
+        {%- endif %}
+        {%- if ps.get("mtb_uten") %}
+        <span class="fakta-bi"{{ merke(ps.mtb_uten.herkomst) }}><span data-felt="kapasitet_tillatelser_uten">{{ antall(ps.mtb_uten.verdi|int, "tillatelse", "tillatelser") }}</span> uten oppgitt kapasitet</span>
         {%- endif %}
         {%- if ps.midlertidig %} ·
         <span data-felt="kapasitet_midlertidig">{{ ps.midlertidig.vist }}</span>

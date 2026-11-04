@@ -314,6 +314,9 @@ def _side(_maaler=None, **overstyr) -> str:
         "kapasitet": "8 000 tonn", "kapasitet_midlertidig": "8 000 tonn",
         # Én tillatelse på 1 022 tonn, se `tillatelser` over.
         "kapasitet_tillatelser": "1 022 tonn", "kapasitet_tillatelser_antall": 1,
+        "kapasitet_tillatelser_deler": [
+            {"enhet": "TN", "vist": "1 022 tonn", "antall": 1}],
+        "kapasitet_tillatelser_uten": 0, "kapasitet_tillatelser_i_alt": 1,
         "samme_posisjon": [],
         "selskap": {"navn": "SALMAR OPPDRETT AS", "orgnr": "928957489",
                     "url": "/selskap/928957489/", "siden": "2022-12-30",
@@ -6318,3 +6321,44 @@ def test_kom_til_regner_ogsaa_tillatelser_selskapet_har_gitt_fra_seg():
     assert inn == [("N-T-0001", "2021-12-24"), ("T-G-0010", "2009-11-05")]
     assert sel["kom_til"] == 2 and sel["gikk_ut"] == 1
     assert sel["i_arkivet_siden"] == "2009-11-05"
+
+
+# ---- kapasiteten: hver enhet for seg, alle tillatelsene (rødt lag F5) ----
+
+def test_tillatelse_i_annen_enhet_holdes_ikke_utenfor():
+    """F5. /lokalitet/34777/ sa «2 500 000 stykk · 1 tillatelse» med to
+    koblede tillatelser; M-AE-0059 (44,8 tonn) sto utenfor uten at siden
+    sa det. Nå står hver enhet med sin sum og sitt antall."""
+    k = nettsted._tillatelsenes_kapasitet({
+        "M-AE-0045": {"kapasitet": "2500000", "kapasitet_enhet": "STK"},
+        "M-AE-0059": {"kapasitet": "44.8", "kapasitet_enhet": "TN"},
+        "M-AE-0099": {"kapasitet": "", "kapasitet_enhet": ""}}, "STK")
+    assert [(d["enhet"], d["antall"]) for d in k["kapasitet_tillatelser_deler"]] \
+        == [("STK", 1), ("TN", 1)], "lokalitetens enhet først, så resten"
+    assert k["kapasitet_tillatelser_uten"] == 1
+    assert k["kapasitet_tillatelser_i_alt"] == 3
+    assert k["kapasitet_tillatelser_antall"] == 1
+    # Summen er fortsatt per enhet, aldri på tvers.
+    assert k["kapasitet_tillatelser_deler"][1]["vist"] == \
+        nettsted.visningsord.maalt("44.8", "TN")
+
+
+def test_ingen_tillatelse_i_lokalitetens_enhet_er_ikke_ingen_tillatelser():
+    """Før 04.11.2026 ga en lokalitet i tonn med bare stykk-tillatelser
+    ingen linje i det hele tatt."""
+    k = nettsted._tillatelsenes_kapasitet(
+        {"M-TV-0014": {"kapasitet": "2000000", "kapasitet_enhet": "STK"}}, "TN")
+    assert k["kapasitet_tillatelser"] == ""
+    assert [d["enhet"] for d in k["kapasitet_tillatelser_deler"]] == ["STK"]
+
+
+def test_siden_viser_alle_enhetene_og_sier_at_de_ikke_er_lagt_sammen():
+    deler = [{"enhet": "STK", "vist": "2 500 000 stk.", "antall": 1},
+             {"enhet": "TN", "vist": "44,8 tonn", "antall": 1}]
+    html = " ".join(_side(kapasitet_tillatelser_deler=deler,
+                          kapasitet_tillatelser_uten=1,
+                          kapasitet_tillatelser_i_alt=3).split())
+    assert "2 500 000 stk." in html and "44,8 tonn" in html
+    assert html.count('data-felt="kapasitet_tillatelser"') == 2
+    assert "summert innenfor hver enhet, ikke på tvers" in html
+    assert "uten oppgitt kapasitet" in html

@@ -5058,6 +5058,18 @@ def lokalitetspaastander(lok: dict) -> dict:
                                  lok["kapasitet_tillatelser"],
                                  nivaa=REGNET if n > 1 else OPPGITT,
                                  felt="kapasitet"), ref)
+    # HVER ENHET FOR SEG, alle tillatelsene med (rødt lag F5). Én påstand
+    # per enhet: en sum av flere er vår regning, én tillatelse er kildens
+    # tall.
+    ut["mtb_deler"] = [
+        dict(vis(Paastand("kapasitet_tillatelser", "eierskap", eier, d["vist"],
+                          nivaa=REGNET if d["antall"] > 1 else OPPGITT,
+                          felt="kapasitet"), ref), antall=d["antall"])
+        for d in lok.get("kapasitet_tillatelser_deler") or ()]
+    if lok.get("kapasitet_tillatelser_uten"):
+        ut["mtb_uten"] = vis(Paastand(
+            "kapasitet_tillatelser_uten", "eierskap", eier,
+            str(lok["kapasitet_tillatelser_uten"]), felt="kapasitet"), ref)
     if lok.get("kapasitet_midlertidig") and \
             lok["kapasitet_midlertidig"] != lok.get("kapasitet"):
         ut["midlertidig"] = vis(Paastand(
@@ -5479,23 +5491,47 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
 
 
 def _tillatelsenes_kapasitet(mine_till: dict, enhet: str) -> dict:
-    """Summen av tillatelsenes kapasitet i `enhet`, og hvor mange som telte.
+    """Tillatelsenes kapasitet, summert PER ENHET — og alle tillatelsene.
 
-    Bare tillatelser i SAMME enhet som lokaliteten summeres: 585 tonn og
-    200 000 stykk har ingen sum. Ingen i samme enhet: tom streng, og
-    siden viser bare lokalitetens tall.
+    585 tonn og 200 000 stykk har ingen sum, så hver enhet summeres for
+    seg. Fram til 04.11.2026 ble bare lokalitetens egen enhet summert,
+    og en tillatelse i en annen enhet ble holdt utenfor uten at siden sa
+    det: «2 500 000 stykk · 1 tillatelse» på en lokalitet med to
+    tillatelser, der den andre er 44,8 tonn (rødt lag F5, 85 av 1 784
+    lokaliteter). Nå står hver enhet med sin sum og sitt antall, og en
+    tillatelse uten oppgitt kapasitet telles som det.
+
+    `kapasitet_tillatelser` og `_antall` er fortsatt lokalitetens egen
+    enhet: det er den som kan stå ved siden av lokalitetens kapasitet
+    («Hvorfor to kapasiteter?»). `_deler` er alle enhetene, lokalitetens
+    først.
     """
-    sum_, n = Decimal(0), 0
+    egen = (enhet or "").strip()
+    per_enhet: dict[str, list] = {}
+    uten = 0
     for d in mine_till.values():
-        if (d.get("kapasitet_enhet") or "").strip() != (enhet or "").strip():
-            continue
+        e = (d.get("kapasitet_enhet") or "").strip()
         try:
-            sum_ += Decimal(str(d.get("kapasitet") or "").strip())
+            verdi = Decimal(str(d.get("kapasitet") or "").strip())
         except InvalidOperation:
+            uten += 1
             continue
-        n += 1
-    return {"kapasitet_tillatelser": visningsord.maalt(str(sum_), enhet) if n else "",
-            "kapasitet_tillatelser_antall": n}
+        if not e:
+            uten += 1
+            continue
+        sum_n = per_enhet.setdefault(e, [Decimal(0), 0])
+        sum_n[0] += verdi
+        sum_n[1] += 1
+    rekke = sorted(per_enhet, key=lambda e: (e != egen, -per_enhet[e][1], e))
+    deler = [{"enhet": e, "vist": visningsord.maalt(str(per_enhet[e][0]), e),
+              "antall": per_enhet[e][1]} for e in rekke]
+    i_egen = per_enhet.get(egen)
+    return {"kapasitet_tillatelser":
+                visningsord.maalt(str(i_egen[0]), egen) if i_egen else "",
+            "kapasitet_tillatelser_antall": i_egen[1] if i_egen else 0,
+            "kapasitet_tillatelser_deler": deler,
+            "kapasitet_tillatelser_uten": uten,
+            "kapasitet_tillatelser_i_alt": len(mine_till)}
 
 
 _SAMME_POSISJON: dict[int, dict[tuple[str, str], list[str]]] = {}
