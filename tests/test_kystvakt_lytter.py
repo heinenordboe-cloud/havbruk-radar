@@ -14,8 +14,8 @@ import pytest
 
 zstd = pytest.importorskip(
     "compression.zstd",
-    reason="compression.zstd finnes først i Python 3.14. kystvakt-1 kjører 3.14, og "
-           "prøven kjøres der i jobben `kystvakt` i test.yml")
+    reason="compression.zstd finnes først i Python 3.14, som kystvakt-1 kjører; "
+           "test.yml kjører prøven på 3.14")
 
 LYTTER = Path(__file__).resolve().parent.parent / "kystvakt" / "lytter.py"
 LINJER = [
