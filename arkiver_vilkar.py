@@ -82,7 +82,12 @@ SIDER = {
     # videresender hit. Lisenssetningen står ordrett på denne siden.
     "brreg": ("https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/"
               "datasett-og-api/"),
-    "lovdata": "https://lovdata.no/info/brukeravtale",
+    # `lovdata` (https://lovdata.no/info/brukeravtale) til 04.11.2026.
+    # Lovdata-hentingene er stoppet: robots.txt stenger hele lovdata.no
+    # for `User-agent: *` (MALING-NYE-KILDER F10.3), og Heine bestemte
+    # 03.11 at ingenting hentes automatisk derfra. Kroppene i
+    # `vilkar-lovdata/` står; en ny versjon av brukeravtalen oppdages av
+    # den månedlige regelverkssjekken og legges inn for hånd (RUNBOOK).
     # Fra 09.10.2026: vilkåret `unntaksvekst` og analysesiden for
     # unntaksvekst bygger på. Se sources/unntaksvekst.py, `attribusjon`.
     "mattilsynet": ("https://www.mattilsynet.no/om-mattilsynet/"
@@ -127,7 +132,6 @@ KJENNETEGN = {
     "barentswatch": "NLOD",
     "fiskeridir": "NLOD",
     "brreg": "NLOD",
-    "lovdata": "NLOD",
     "mattilsynet": "opphavsrett",
     # Fra 03.11.2026, målt i den synlige teksten på sidene slik de ble
     # hentet den dagen (docs/MALING-NYE-KILDER.md, c og e). NMDC: lisensen

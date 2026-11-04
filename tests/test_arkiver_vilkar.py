@@ -74,15 +74,15 @@ def test_uten_last_modified_er_published_at_tom(arkiv, monkeypatch):
 
 def test_en_side_som_feiler_gir_rod_men_de_andre_arkiveres(arkiv, monkeypatch, capsys):
     def svar(url):
-        if "lovdata" in url:
+        if "brreg" in url:
             raise RuntimeError("403")
         return SIDE, ""
     _sider(monkeypatch, svar)
 
     assert ark.main(["--dato", "2026-10-06"]) == 1
-    assert "::error::Vilkårsarkivering: https://lovdata.no/info/brukeravtale" \
+    assert f"::error::Vilkårsarkivering: {ark.SIDER['brreg']}" \
            in capsys.readouterr().out
-    assert not (arkiv / "vilkar-lovdata").exists()
+    assert not (arkiv / "vilkar-brreg").exists()
     assert len(list((arkiv / "vilkar-barentswatch").glob("*.gz"))) == 1
 
 
@@ -153,10 +153,15 @@ def test_under_halvparten_av_forrige_versjon_gaar_i_karantene(arkiv, monkeypatch
     _sider(monkeypatch, lambda url: (halv, ""))
 
     assert ark.main(["--dato", "2026-11-02"]) == 1
-    [r] = [r for r in _logg(arkiv, "2026-11-02") if r["part"] == "lovdata"]
+    [r] = [r for r in _logg(arkiv, "2026-11-02") if r["part"] == "brreg"]
     assert r["grunn"] == [f"synlig tekst {len(synlig_tekst(halv))} tegn, under 50% "
                           f"av forrige versjon ({len(TEKST.strip())} tegn)"]
-    assert len(raw_arkiv.kropper("vilkar-lovdata")) == 1, "forrige står alene"
+    assert len(raw_arkiv.kropper("vilkar-brreg")) == 1, "forrige står alene"
+
+
+def test_ingen_side_hentes_fra_lovdata():
+    """Lovdata-hentingene er stoppet fra 04.11.2026."""
+    assert not any("lovdata" in url for url in ark.SIDER.values())
 
 
 def test_uten_kjennetegnet_gaar_kroppen_i_karantene(arkiv, monkeypatch):

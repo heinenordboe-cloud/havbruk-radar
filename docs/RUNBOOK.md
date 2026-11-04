@@ -1028,14 +1028,79 @@ python arkiver_vilkar.py                 # arkiver
 ```
 
 Kjører av seg selv den 2. i måneden (`vilkar.yml` i datarepoet). Henter
-vilkårssidene til BarentsWatch, Fiskeridirektoratet, Brreg og Lovdata og
-lagrer kroppen i `data/arkiv/vilkar-<part>/` når den er ny. Rød hvis én
+vilkårssidene til BarentsWatch, Fiskeridirektoratet, Brreg, Mattilsynet,
+NMDC og bransjemediene og lagrer kroppen i `data/arkiv/vilkar-<part>/` når den er ny. Rød hvis én
 side ikke kan hentes. Da har adressen trolig flyttet, slik Brregs gjorde
 før 06.10.2026: finn den nye på utgiverens egen side, ikke gjett, og
 rett `SIDER` i skriptet og lenka i `docs/LISENSKJEDE.md`.
 
 Endret `tekst_sha256` i loggfila betyr at teksten på sida er en annen.
 Les den, og oppdater LISENSKJEDE hvis vilkårene har endret seg.
+
+Lovdatas brukeravtale hentes ikke lenger (fra 04.11.2026). Den sjekkes i
+den månedlige regelverkssjekken under, og legges inn for hånd som
+forskriftene.
+
+## Lovdata: ingen automatiske hentinger (fra 04.11.2026)
+
+lovdata.no og api.lovdata.no stenger hele nettstedet for `User-agent: *`
+i robots.txt (MALING-NYE-KILDER F10.3), og Heine bestemte 03.11.2026 at
+ingenting hentes automatisk derfra. Det som hentet før, og hva det gjør nå:
+
+| hva | hentet | nå |
+|---|---|---|
+| `sources/trafikklysvedtak.py` (`run.py`, `samle.yml`) | ukentlig forsøk, men bare når nyeste runde manglet; siste henting 15.09.2026 | `hent_rapport()` kaster `LovdataStoppet`. Kilden står aktiv og hoppes over i steg 2b hver uke, så tilsynet ser `sist_hoppet_over` og venter ikke på den |
+| `arkiver_vilkar.py`, part `lovdata` (`vilkar.yml`) | månedlig, den 2.; siste kropp 02.11.2026 | tatt ut av `SIDER`; `vilkar-lovdata/` står |
+| `arkiver_lovdata.py` | for hånd, fire dokumenter; siste kjøring 09.10.2026 | henter ikke; arkiverer en fil lagret i nettleseren (under) |
+| `backfill.py --rapporter --kilde trafikklysvedtak` | for hånd | kaster `LovdataStoppet`; `--reparse` leser arkivet som før |
+
+Arkivet står urørt: `trafikklysvedtak/`, `lovdata-*/`, `vilkar-lovdata/`
+og `maling-lovdata/`.
+
+### Den månedlige regelverkssjekken
+
+Første virkedag i måneden, sammen med den månedlige sjekken lenger ned.
+Åpne i nettleseren, som en leser:
+
+- Lovtidend avdeling I for siste måned: er det en ny forskrift om
+  kapasitetsjustering (trafikklyset), eller en endring i
+  produksjonsområdeforskriften (FOR-2017-01-16-61) eller
+  lakselusforskriften (FOR-2012-12-05-1140)?
+- «Sist endret» i dokumenthodet på de to forskriftene og på åndsverkloven:
+  er nummeret et annet enn i siste logg i `data/arkiv/lovdata/`?
+- Lovdatas brukeravtale (`lovdata.no/info/brukeravtale`): er teksten om
+  NLOD og de åpne datasettene endret?
+
+Nei på alle tre: ingenting å gjøre. Ja: legg inn den nye utgaven for
+hånd, under.
+
+### En ny utgave av en forskrift, for hånd
+
+1. Åpne dokumentet på lovdata.no og lagre det som «Bare HTML» (ikke
+   «Fullstendig»: den skriver om lenkene). Noter klokkeslettet.
+2. Dokumentet må stå i `DOKUMENTER` i `arkiver_lovdata.py`. Er det nytt,
+   legg det til i en egen commit og push først — skriptet krever kode
+   på origin/main.
+3. Arkiver kroppen:
+
+   ```bash
+   python arkiver_lovdata.py --torrkjor --hentet 2026-12-01T09:15:00+01:00 \
+       --fil produksjonsomradeforskriften=~/Downloads/forskrift.html
+   python arkiver_lovdata.py --hentet 2026-12-01T09:15:00+01:00 \
+       --fil produksjonsomradeforskriften=~/Downloads/forskrift.html
+   ```
+
+   `--hentet` er når DU lagret fila, med sone. Det blir `fetched_at`, og
+   skriptet tar det aldri fra klokka. `published_at` står tom, og
+   Lovdatas egne felt («Sist endret», «Ikrafttredelse») står i loggen som
+   Lovdatas. Kroppen havner i `data/arkiv/lovdata-<dokument>/`, loggen i
+   `data/arkiv/lovdata/`, merket `hentet_for_hand`.
+4. Commit og push kroppen og loggen i datarepoet.
+
+En ny kapasitetsjusteringsforskrift (runde 2028) trenger i tillegg kode:
+et uttrekk i `FORSKRIFTER` i `sources/trafikklysvedtak.py`, og en vei for
+kilden til å lese den arkiverte kroppen i stedet for å hente. Den veien
+er ikke bygget. Kilden står på runde 2026 til den er det.
 
 ## Auksjonsarkivering — kjører av seg selv, men bare i sesongen
 
@@ -1269,6 +1334,8 @@ Alt i datarepoet:
   vokser uke for uke er et felt på vei til å dø.
 - Se på commit-loggen. Er det commits hver mandag?
 - `du -sh data/`. Under 200 MB? Ingen bekymring.
+- Regelverkssjekken for Lovdata, se «Lovdata: ingen automatiske
+  hentinger». Den er for hånd med vilje.
 
 ## Størrelse
 

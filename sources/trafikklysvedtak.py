@@ -1,6 +1,23 @@
 """Departementets FARGE per produksjonsområde per tildelingsrunde, lest av
 kapasitetsjusteringsforskriftene på lovdata.no.
 
+## Kilden henter ikke lenger (fra 04.11.2026)
+
+Lovdata-hentingene er stoppet etter Heines beslutning 03.11.2026:
+lovdata.no stenger hele nettstedet for `User-agent: *` i robots.txt
+(MALING-NYE-KILDER F10.3). `hent_rapport()` kaster `LovdataStoppet` i
+stedet for å gå ut, både for den ukentlige kjøringen og for
+`backfill.py --rapporter`. `--reparse` leser arkivet og virker som før.
+
+Kilden står likevel aktiv, og det er med vilje: `gjelder_for()` peker på
+runde 2026, som ligger skrevet, så steg 2b i `run.py` hopper over den hver
+uke og stempler `sist_hoppet_over`. Det er det tilsynet leser, og det
+venter derfor ikke på en kilde som ikke henter. Slått av i config.yml
+ville den stått i health.json uten å bli kvittert ut, og tilsynet fyrt
+hver uke (se `health._stemple_hopp`). En ny runde (2028) oppdages av den
+månedlige regelverkssjekken og legges inn for hånd; se RUNBOOK,
+«Lovdata: en ny utgave av en forskrift, for hånd».
+
 Verifisert mot fem nedlastede forskriftskropper — fire 05.09.2026 og
 2026-kroppen 15.09.2026 — se docs/KILDE-TRAFIKKLYSVEDTAK.md. Alt i denne
 docstringen er MÅLT på de arkiverte kroppene, ikke lest ut av en
@@ -298,7 +315,6 @@ import httpx
 
 from core.config import get
 from core.contract import Observation, Source
-from sources import _http
 
 
 # ------------------------------------------------------------- konstanter
@@ -337,6 +353,11 @@ class Forskriftsfeil(RuntimeError):
 
     Kroppen er arkivert, så det er en re-parse og ikke tapt historikk.
     """
+
+
+class LovdataStoppet(RuntimeError):
+    """Kilden skulle ha hentet fra lovdata.no. Det gjør den ikke fra
+    04.11.2026; se modulens docstring."""
 
 
 class Rundemangler(RuntimeError):
@@ -1266,24 +1287,10 @@ class Trafikklysvedtak(Source):
         `{}` er riktig og ikke et gjett — vi ber om hele forskriften og
         får hele forskriften.
         """
-        self.utvalg = {}
-
-        egen = client is None
-        c = client or httpx.Client(timeout=60.0, follow_redirects=True)
-        try:
-            svar = _http.get(c, url or utgivelse.url,
-                             hva=f"trafikklysvedtak {utgivelse.forskrift_id}")
-            rå = svar.content
-        finally:
-            if egen:
-                c.close()
-
-        # SETT, ikke append: `advarsler` er en liste på KLASSEN, som
-        # deles av alle instanser og aldri tømmes. Se Source.advarsler.
-        advarsler: list[str] = []
-        self.published_at = _utgitt(_tekst(rå), advarsler)
-        self.advarsler = advarsler
-        return rå
+        raise LovdataStoppet(
+            f"trafikklysvedtak skulle hentet {url or utgivelse.url} "
+            f"({utgivelse.forskrift_id}). Hentinger fra lovdata.no er stoppet "
+            f"fra 04.11.2026; en ny utgave legges inn for hånd (RUNBOOK).")
 
     def arkivdato(self, utgivelse: Forskrift) -> str:
         """Under hvilken dato en forskrifts kropp er arkivert.

@@ -1,9 +1,23 @@
 """Arkiverer forskriftstekster fra lovdata.no som kropper med hash.
 
-    python arkiver_lovdata.py                 # arkiver det som finnes nå
-    python arkiver_lovdata.py --torrkjor      # si hva som ville skjedd
+    python arkiver_lovdata.py --hentet 2026-11-04T09:15:00+01:00 \
+        --fil produksjonsomradeforskriften=~/Nedlastinger/sf-2017-01-16-61.html
+    python arkiver_lovdata.py --torrkjor --hentet … --fil …
 
 Kjøres for hånd, ikke av en workflow.
+
+## Skriptet henter ikke lenger (fra 04.11.2026)
+
+Lovdata-hentingene er stoppet etter Heines beslutning 03.11.2026:
+lovdata.no og api.lovdata.no stenger hele nettstedet for `User-agent: *`
+i robots.txt (MALING-NYE-KILDER F10.3). Skriptet arkiverer nå en kropp
+Heine har lagret i nettleseren, og ingenting annet. `--hentet` er når
+HAN hentet den — et tidspunkt om oss (1b-7), oppgitt av den som vet det,
+og aldri tidspunktet skriptet kjøres. Fremgangsmåten står i RUNBOOK,
+«Lovdata: en ny utgave av en forskrift, for hånd». Nye utgaver oppdages
+av den månedlige regelverkssjekken, ikke av kode.
+
+Uten `--fil` avslutter skriptet med feil og rører ingenting.
 
 ## Hvorfor
 
@@ -46,9 +60,9 @@ sammenlignes med sine egne tidligere versjoner. Samme form som
 `arkiver_vilkar.py`, og loggfila er sidevogna: `data/arkiv/lovdata/
 <dato>.logg.json`, én per kjøring.
 
-`published_at` leses fra `Last-Modified` der tjenesten sender den, og
-står ellers tom — aldri hentetidspunktet (CLAUDE.md 1b-7). Målt
-05.09.2026 (docs/KILDE-TRAFIKKLYSVEDTAK.md): lovdata.no sender ingen.
+`published_at` står tom — aldri hentetidspunktet (CLAUDE.md 1b-7). En
+lagret fil har ingen `Last-Modified`, og lovdata.no sendte heller ingen
+da skriptet hentet selv (målt 05.09.2026, docs/KILDE-TRAFIKKLYSVEDTAK.md).
 Dokumentets egne metadatafelt «Sist endret» og «Ikrafttredelse» LESES og
 står i loggen ved siden av, merket som det de er: Lovdatas påstand om
 dokumentet, ikke en utgivelsestid for kroppen.
@@ -67,12 +81,11 @@ import json
 import re
 import sys
 
-import httpx
+from pathlib import Path
 
 from core import kodeproveniens
 from core import raw as raw_arkiv
 from core.karantene import synlig_tekst
-from sources import _http
 
 DOKUMENTER = {
     "produksjonsomradeforskriften":
@@ -121,33 +134,42 @@ def metadata(kropp: bytes) -> dict[str, str]:
     return ut
 
 
-def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
-    r = _http.get(klient, url, hva=f"lovdataarkiv {url}")
-    return r.content, r.headers.get("Last-Modified", "")
-
-
-def arkiver(klient: httpx.Client, dokument: str, url: str, dato: str,
+def arkiver(dokument: str, fil: Path, dato: str, hentet: str,
             torr: bool) -> dict:
+    """Én kropp Heine har lagret for hånd, arkivert uendret."""
+    url = DOKUMENTER[dokument]
     try:
-        kropp, utgitt = _hent(klient, url)
-    except Exception as e:
-        print(f"::error::Lovdataarkivering: {url} kunne ikke hentes: {e}")
+        kropp = fil.read_bytes()
+    except OSError as e:
+        print(f"::error::Lovdataarkivering: {fil} kunne ikke leses: {e}")
         return {"dokument": dokument, "url": url, "feil": str(e)}
 
     tekst_sha = hashlib.sha256(synlig_tekst(kropp).encode("utf-8")).hexdigest()
     post = {"dokument": dokument, "url": url, "byte": len(kropp),
-            "tekst_sha256": tekst_sha, "published_at": utgitt,
-            "lovdata": metadata(kropp)}
+            "tekst_sha256": tekst_sha, "published_at": "",
+            "lovdata": metadata(kropp), "hentet_for_hand": True}
     if torr:
         print(f"  ville arkivert  {len(kropp):>7} B  {url}")
         return dict(post, torrkjoring=True)
 
-    # Når VI hentet kroppen (CLAUDE.md 1b-7: OSS, ikke kilden).
-    hentet = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     sha, ny = raw_arkiv.arkiver_ny(kilde(dokument), dato, kropp)
     print(f"  {'NY' if ny else 'uendret':<8} {len(kropp):>7} B  "
           f"{sha[:16]}…  {url}")
+    # Når HEINE hentet kroppen, oppgitt av ham (CLAUDE.md 1b-7: OSS).
     return dict(post, sha256=sha, ny=ny, fetched_at=hentet)
+
+
+def _filer(par: list[str]) -> dict[str, Path] | str:
+    """{dokument: sti} av `--fil NAVN=STI`, eller en feiltekst."""
+    ut = {}
+    for p in par:
+        navn, _, sti = p.partition("=")
+        if navn not in DOKUMENTER or not sti:
+            return (f"«{p}»: oppgi --fil NAVN=STI, der NAVN er ett av "
+                    f"{', '.join(DOKUMENTER)}. Et nytt dokument legges i "
+                    f"DOKUMENTER først, i en commit.")
+        ut[navn] = Path(sti).expanduser()
+    return ut
 
 
 def main(argv=None) -> int:
@@ -156,7 +178,30 @@ def main(argv=None) -> int:
     p.add_argument("--dato", default="",
                    help="observed_at for arkivfilene. Standard: i dag. "
                         "Sendes inn og leses ikke av noen underfunksjon (1b).")
+    p.add_argument("--fil", action="append", default=[], metavar="NAVN=STI",
+                   help="En kropp lagret for hånd fra lovdata.no.")
+    p.add_argument("--hentet", default="",
+                   help="Når kroppen ble lagret, ISO 8601 med sone. Påkrevd.")
     a = p.parse_args(argv)
+
+    if not a.fil:
+        print("::error::Automatiske hentinger fra lovdata.no er stoppet fra "
+              "04.11.2026. Lagre dokumentet i nettleseren og oppgi det med "
+              "--fil NAVN=STI og --hentet; se RUNBOOK.")
+        return 1
+    filer = _filer(a.fil)
+    if isinstance(filer, str):
+        print(f"::error::{filer}")
+        return 1
+    try:
+        hentet = dt.datetime.fromisoformat(a.hentet)
+    except ValueError:
+        hentet = None
+    if hentet is None or hentet.tzinfo is None:
+        print("::error::--hentet må være et ISO 8601-tidspunkt med sone, "
+              "for eksempel 2026-11-04T09:15:00+01:00.")
+        return 1
+    hentet_utc = hentet.astimezone(dt.timezone.utc).isoformat(timespec="seconds")
 
     dato = a.dato or dt.date.today().isoformat()
     print(f"Lovdataarkivering {dato}" + ("  (TØRRKJØRING)" if a.torrkjor else ""))
@@ -171,9 +216,8 @@ def main(argv=None) -> int:
         proveniens = {"kode_commit": sha, "kode_rent": tilstand}
         print(f"  kode        {sha[:12]}  rent, på origin/main")
 
-    with httpx.Client(timeout=60.0, follow_redirects=True) as klient:
-        logg = [arkiver(klient, dok, url, dato, a.torrkjor)
-                for dok, url in DOKUMENTER.items()]
+    logg = [arkiver(dok, sti, dato, hentet_utc, a.torrkjor)
+            for dok, sti in filer.items()]
 
     for r in logg:
         if "sha256" in r:

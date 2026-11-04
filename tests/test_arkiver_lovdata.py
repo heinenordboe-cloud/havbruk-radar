@@ -1,7 +1,8 @@
 """arkiver_lovdata.py: forskriftskroppen lagres uendret og én gang, med
 hash, og Lovdatas egne metadatafelt leses — aldri hentetidspunktet.
 
-Ingen nettverk: `_hent` byttes ut.
+Fra 04.11.2026 henter skriptet ikke selv: kroppen er en fil Heine har
+lagret i nettleseren, og `--hentet` er når han gjorde det.
 """
 
 import gzip
@@ -27,14 +28,36 @@ def arkiv(tmp_path, monkeypatch):
     return tmp_path / "arkiv"
 
 
-def _svar(monkeypatch, svar):
-    monkeypatch.setattr(ark, "_hent", lambda klient, url: svar(url))
+HENTET = "2026-10-09T09:15:00+02:00"
 
 
-def test_hvert_dokument_lagres_uendret_med_hash(arkiv, monkeypatch):
-    _svar(monkeypatch, lambda url: (HODE, ""))
+def _args(tmp_path, kropp=HODE, dokumenter=None, hentet=HENTET):
+    args = ["--dato", "2026-10-09", "--hentet", hentet]
+    for dok in dokumenter or ark.DOKUMENTER:
+        fil = tmp_path / f"{dok}.html"
+        fil.write_bytes(kropp)
+        args += ["--fil", f"{dok}={fil}"]
+    return args
 
-    assert ark.main(["--dato", "2026-10-09"]) == 0
+
+def test_uten_fil_henter_skriptet_ingenting_og_feiler(arkiv, capsys):
+    """Lovdata-hentingene er stoppet: ingen standardoppførsel som går ut."""
+    assert ark.main(["--dato", "2026-10-09"]) == 1
+    assert "stoppet fra 04.11.2026" in capsys.readouterr().out
+    assert not arkiv.exists()
+    assert not hasattr(ark, "httpx") and not hasattr(ark, "_http")
+
+
+def test_hentet_uten_sone_eller_ukjent_dokument_avvises(arkiv, tmp_path):
+    assert ark.main(_args(tmp_path, hentet="2026-10-09T09:15:00")) == 1
+    fil = tmp_path / "x.html"
+    fil.write_bytes(HODE)
+    assert ark.main(["--hentet", HENTET, "--fil", f"trafikklys={fil}"]) == 1
+    assert not arkiv.exists()
+
+
+def test_hvert_dokument_lagres_uendret_med_hash(arkiv, tmp_path):
+    assert ark.main(_args(tmp_path)) == 0
 
     for dok in ark.DOKUMENTER:
         [fil] = (arkiv / f"lovdata-{dok}").glob("*.gz")
@@ -43,6 +66,7 @@ def test_hvert_dokument_lagres_uendret_med_hash(arkiv, monkeypatch):
     logg = json.loads((arkiv / "lovdata" / "2026-10-09.logg.json").read_text())
     assert {r["dokument"] for r in logg} == set(ark.DOKUMENTER)
     assert all(r["sha256"] == hashlib.sha256(HODE).hexdigest() for r in logg)
+    assert all(r["hentet_for_hand"] for r in logg)
 
 
 def test_metadata_leses_av_dokumenthodet_ikke_av_innholdsfortegnelsen():
@@ -71,52 +95,45 @@ def test_et_felt_som_mangler_er_tomt_ikke_gjettet():
     assert ark.metadata(b"<p>Dato FOR-2023-09-28-1520</p>")["Sist endret"] == ""
 
 
-def test_published_at_er_tom_uten_last_modified(arkiv, monkeypatch):
+def test_published_at_er_tom_og_fetched_at_er_den_oppgitte(arkiv, tmp_path):
     """Aldri hentetidspunktet, og aldri dokumentets egne datoer
-    (CLAUDE.md 1b-7). De står i `lovdata`, merket som Lovdatas."""
-    _svar(monkeypatch, lambda url: (HODE, ""))
-    ark.main(["--dato", "2026-10-09"])
+    (CLAUDE.md 1b-7). De står i `lovdata`, merket som Lovdatas.
+    `fetched_at` er når Heine lagret fila, ikke når skriptet kjørte."""
+    ark.main(_args(tmp_path))
     logg = json.loads((arkiv / "lovdata" / "2026-10-09.logg.json").read_text())
     assert all(r["published_at"] == "" for r in logg)
     assert all(r["lovdata"]["Ikrafttredelse"] == "16.01.2017" for r in logg)
     for r in logg:
         assert r["kode_commit"] == "0" * 40      # conftest låser den
-        assert r["fetched_at"].endswith("+00:00")
+        assert r["fetched_at"] == "2026-10-09T07:15:00+00:00"
 
 
-def test_samme_kropp_to_ganger_skrives_en_gang_men_loggen_to(arkiv, monkeypatch):
-    _svar(monkeypatch, lambda url: (HODE, ""))
-    ark.main(["--dato", "2026-10-09"])
-    ark.main(["--dato", "2026-10-09"])
+def test_samme_kropp_to_ganger_skrives_en_gang_men_loggen_to(arkiv, tmp_path):
+    ark.main(_args(tmp_path))
+    ark.main(_args(tmp_path))
     for dok in ark.DOKUMENTER:
         assert len(list((arkiv / f"lovdata-{dok}").glob("*.gz"))) == 1
     assert (arkiv / "lovdata" / "2026-10-09.2.logg.json").exists(), \
         "en logg skrives aldri over"
 
 
-def test_kode_som_ikke_kan_spores_henter_ingenting(arkiv, monkeypatch, capsys):
+def test_kode_som_ikke_kan_spores_arkiverer_ingenting(arkiv, tmp_path, monkeypatch,
+                                                     capsys):
     from core import kodeproveniens
 
     def ikke(*a, **k):
         raise kodeproveniens.IkkeSporbar("HEAD finnes ikke på origin/main")
     monkeypatch.setattr(kodeproveniens, "krev_sporbar", ikke)
 
-    def hent(url):
-        raise AssertionError("skulle ikke hentet noe")
-    _svar(monkeypatch, hent)
-
-    assert ark.main(["--dato", "2026-10-09"]) == 1
+    assert ark.main(_args(tmp_path)) == 1
     assert "::error::Lovdataarkiveringen startet ikke" in capsys.readouterr().out
     assert not arkiv.exists()
 
 
-def test_et_dokument_som_feiler_gir_rod_men_de_andre_arkiveres(arkiv, monkeypatch):
-    def svar(url):
-        if "2012-12-05-1140" in url:
-            raise RuntimeError("503")
-        return HODE, ""
-    _svar(monkeypatch, svar)
+def test_en_fil_som_mangler_gir_rod_men_de_andre_arkiveres(arkiv, tmp_path):
+    args = _args(tmp_path, dokumenter=["produksjonsomradeforskriften"])
+    args += ["--fil", f"lakselusforskriften={tmp_path / 'finnes-ikke.html'}"]
 
-    assert ark.main(["--dato", "2026-10-09"]) == 1
+    assert ark.main(args) == 1
     assert not (arkiv / "lovdata-lakselusforskriften").exists()
     assert (arkiv / "lovdata-produksjonsomradeforskriften").exists()
