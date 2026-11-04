@@ -13,7 +13,7 @@ har sett svaret.
 
 Hver påstand får ett merke. Definisjonene står i
 `docs/PROVENIENS-2026-09-11.md` (linje 12–15) og øverst i
-`docs/MALING-FUNN-OKTOBER.md`:
+`docs/MALING-FUNN-OKTOBER.md` (i `havbruk-analyse` fra 04.11.2026):
 
 - **MÅLT**: holdt mot en arkivert kropp, med sha256 oppgitt.
 - **MÅLBAR**: lest i et snapshot, avledet, eller regnet ut av målte tall,
@@ -29,7 +29,7 @@ Hver påstand får ett merke. Definisjonene står i
   `data/arkiv/`, over fila for `.parquet`. Oppgi sti og hash, i
   påstanden eller i en tabell over kroppene.
 - **«Feil hvis:»** én linje om hva som ville gjort påstanden usann.
-  Se F1.1–F1.6 i `docs/MALING-FUNN-OKTOBER.md`.
+  Se F1.1–F1.6 i `docs/MALING-FUNN-OKTOBER.md` i `havbruk-analyse`.
 - **Skriptet** ligger i `analyse/<måling>/` og navngis i dokumentet.
   Tabellene i dokumentet er utskriften, uendret.
 
@@ -42,9 +42,16 @@ i `docs/beslutninger/2026-08-27-ekspertgruppen-som-kilde.md`
 fra. Går du videre forbi et hull, skriv hvorfor, slik «Hva som mangler,
 og hvorfor jeg ikke stoppet» i `docs/MALING-HAVBRUKSFOND.md` gjør.
 
+## Hvilket repo
+
+Navngir målingen selskaper eller orgnr i funn, skrives dokumentet i
+`havbruk-analyse` med samme sti (`docs/MALING-X.md`); skriptet står i
+`analyse/` her. `tests/test_offentlig.py` stopper det ellers (RUNBOOK,
+«Offentlig og privat»).
+
 ## Formatet
 
-Som `docs/MALING-FUNN-OKTOBER.md`: dato og datagrunnlag øverst, merkene
+Som `docs/MALING-FUNN-OKTOBER.md` i `havbruk-analyse`: dato og datagrunnlag øverst, merkene
 forklart, «De tre sterkeste funnene» med hvorfor de er sterkest og
 hvilke som er svakere, og deretter nummererte funn (F1.1, F1.2 …) med
 merke, kilde, kropper og «Feil hvis».

@@ -1454,3 +1454,44 @@ den ikke kan rekonstrueres i etterkant.
 Uansett: aldri nøkler eller tokens i koden. De hører hjemme i GitHub
 Secrets. `config.yml` skal bare inneholde ting du er komfortabel med at
 andre ser.
+
+### Kode og metode her, funn i `havbruk-analyse` (fra 04.11.2026)
+
+Kodrepoet er offentlig: kode og metode, ikke funn. Tre repo, og hvert
+har sitt:
+
+    havbruk-radar        offentlig   kode, metode, kildebeskrivelser,
+                                     anslag på kommune- og PO-nivå
+    havbruk-radar-data   privat      historikken: snapshots, arkiv, changelog
+    havbruk-analyse      privat      funn, analyser og anslag som navngir
+                                     selskaper eller orgnr
+
+**Et dokument som navngir selskaper eller orgnr i funn, analyser eller
+anslag, skrives i `havbruk-analyse`, med samme sti som det ville hatt
+her** (`docs/MALING-X.md`, `analyse/<emne>/…`). Skriptet som lager det,
+står her. Det samme navnet i en kildebeskrivelse (`docs/KILDE-*.md`) kan
+ligge åpent. `tests/test_offentlig.py` er porten: et 9-sifret orgnr (med
+riktig kontrollsiffer) eller et AS/ASA-navn i `docs/`, `analyse/` eller
+`predictions/` stopper den, utenom kildebeskrivelsene og enkeltunntakene
+med grunn som står i prøven.
+
+Flyttet 04.11.2026 (målt: 34 av 574 filer hadde et treff, tre var funn):
+`docs/MALING-FUNN-OKTOBER.md`, `docs/MALING-UKE-39.md` og
+`docs/MALING-PANTEKSPONERING.md`. De står i `havbruk-analyse` med commit
+og sha256 i `FLYTTET.tsv`; her står en kort fil som peker dit.
+Historikken her er ikke skrevet om: snapshotene peker på kode-commits.
+
+**Anslag fra økt 8.** Et anslag per lokalitet eller per selskap skrives i
+`havbruk-analyse/predictions/<dato>.yml`, i formatet
+`predictions/README.md` beskriver, og stemples før commit:
+
+```bash
+ots stamp predictions/<dato>.yml
+```
+
+Fila og `.ots` committes sammen i `havbruk-analyse`, med sha256 i
+commit-meldingen; en oppgradert kopi blir `<dato>.yml.komplett.ots` etter
+et døgn, og originalen endres ikke. Commit-tidspunktet i et privat repo
+er ikke et bevis for andre enn oss; stempelet er det. Bare anslag på
+kommune- og PO-nivå kan skrives i `predictions/` her, og stemples som før
+av `stempel.py`.
