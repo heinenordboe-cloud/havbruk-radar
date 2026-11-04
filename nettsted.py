@@ -162,6 +162,21 @@ SKILLE = " · "
 # bryter BRIEF.md, «Hva nettstedet viser».
 IKKE_PUBLISERT = frozenset({"unntaksvekst"})
 
+# FELT SOM ARKIVERES, MEN IKKE VISES. Samme politikk som `IKKE_PUBLISERT`,
+# for et (kilde, felt)-par der resten av kilden skal vises.
+#
+# `lusetall` `har_ila`/`har_pd` fra 04.11.2026: BarentsWatch v1 sluttet å
+# følge Mattilsynets sykdomstilfeller i desember 2024, og i uke 41/2026 var
+# 14 av 16 ILA-flagg og 35 av 46 PD-flagg på lokaliteter uten et aktivt
+# tilfelle (MALING-NYE-KILDER, etterskriften 04.11.2026). Heine bestemte
+# 03.11 at sykdom tas av alle offentlige flater, også bakover, til
+# Mattilsynet er bygget som egen kilde. Snapshotene og changeloggen står
+# urørt; det er LESINGEN som holder dem ute, så en annen avgjørelse
+# senere er en endring her og ikke i dataene. `publiseringsvakt.
+# sykdomsflagg()` feller porten om noe likevel slipper ut.
+IKKE_PUBLISERTE_FELT = frozenset({("lusetall", "har_ila"),
+                                  ("lusetall", "har_pd")})
+
 
 def kildevilkaar() -> dict[str, tuple[str, ...] | None]:
     """{kildenavn: setninger eller None} for alle kilder repoet har.
@@ -1028,10 +1043,14 @@ def _les_beveg() -> pl.DataFrame:
     """
     alle = changelog.merk_utvalgsutvidelse(changelog.les_alt())
     alle = changelog.merk_feltbevegelse(alle, kilder=ukentlige_kilder())
-    # IKKE_PUBLISERT holdes ute HER, ved den ene lesingen, så ingen
-    # visning — uke, feed, lokalitet, område, selskap — kan ta den med.
+    # IKKE_PUBLISERT og IKKE_PUBLISERTE_FELT holdes ute HER, ved den ene
+    # lesingen, så ingen visning — uke, feed, lokalitet, område, selskap —
+    # kan ta dem med.
+    skjult = pl.lit(False)
+    for kilde, felt in sorted(IKKE_PUBLISERTE_FELT):
+        skjult = skjult | ((pl.col("source") == kilde) & (pl.col("field") == felt))
     return uten_bokforing(diff.bevegelse(alle)).filter(
-        ~pl.col("source").is_in(sorted(IKKE_PUBLISERT)))
+        ~pl.col("source").is_in(sorted(IKKE_PUBLISERT)) & ~skjult)
 
 
 def les_felles() -> Felles:
@@ -2002,25 +2021,9 @@ ENDRINGSTYPE_REGLER = {
     # hører hjemme på områdesiden. Se avviket i oppdraget, punkt 1.
     ("biomasselag", "*"): "biomasse",
 
-    # SYKDOMSFLAGGENE. `har_ila` og `har_pd` er de to feltene i
-    # `lusetall` som ikke er målinger — se `MAALESERIE_HENDELSER`.
-    #
-    # ORDLYDEN ER NØYTRAL, OG DET ER MÅLT. BarentsWatchs OpenAPI-
-    # dokumentasjon (hentet 22.09.2026) sier om feltet bare: «Does the
-    # site have ISA disease this week». Den skiller ikke MISTANKE fra
-    # PÅVIST.
-    #
-    # At skillet FINNES hos kilden, er derimot dokumentert: `IlaPd`
-    # bærer `ruling` med verdiene «Mistanke or Påvist», og `IlaPdCase`
-    # har både `suspectedDate` og `confirmedDate` — og `disproved`.
-    # Den ene boolske verdien vi får per uke kan altså dekke begge, og
-    # hvilken av dem den dekker står ikke skrevet.
-    #
-    # Derfor sier siden «ILA-flagg satt i BarentsWatch» og ikke
-    # «ILA påvist». Ordet «påvist» brukes ikke før det er målt. Se
-    # docs/APNE-SPORSMAL.md.
-    ("lusetall", "har_ila"): "sykdom",
-    ("lusetall", "har_pd"): "sykdom",
+    # SYKDOMSFLAGGENE (`lusetall` `har_ila`/`har_pd`) hadde slaget
+    # «sykdom» til 04.11.2026. De vises ikke lenger — se
+    # `IKKE_PUBLISERTE_FELT` — og slaget er tatt ut med dem.
 
     # Resten av akvakultur: navn, kommune, arter, kapasitet, koordinater.
     ("akvakultur", "*"): "lokalitet",
@@ -2083,9 +2086,6 @@ ENDRINGSTYPER = (
      "hva": "navn, kommune, arter, kapasitet eller posisjon"},
     {"id": "biomasse", "navn": "Fisk til stede", "kort": "fisk til stede",
      "hva": "om det står fisk på lokaliteten"},
-    {"id": "sykdom", "navn": "Sykdom (ILA/PD)", "kort": "sykdomsflagg",
-     "hva": "ILA- eller PD-flagget satt eller fjernet i BarentsWatch",
-     "forbehold": "Kilden sier ikke om flagget betyr mistanke eller påvist."},
     # SELSKAPSDATA STÅR FOR SEG, og telles ikke i ukas overskriftstall.
     #
     # MÅLT uke 39: 402 av 440 telte endringer var dette ene slaget, og

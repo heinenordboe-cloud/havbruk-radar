@@ -3896,8 +3896,6 @@ def test_versjonsaarsaken_blir_staaende_naar_den_er_alene(monkeypatch):
 FORKLARINGENE = (
     "Datoen er som hovedregel når vi så endringen",
     "Måleseriene telles ikke som endringer.",
-    "ILA- og PD-flaggene er unntaket.",
-    "betyr at flagget står, ikke at sykdommen er påvist.",
     "Laget oppgir ingen mengde",
     "Summen er sha256 av svaret kilden sendte oss den dagen.",
     "er da tillatelsen ble gitt første gang",
@@ -3950,8 +3948,7 @@ def test_vesentlige_foerst_og_tekniske_samlet_med_antall():
         _post("har_samdrift", "vesentlig", "2026-10-05", fra="True", til="False"),
         _post("versjon_gyldig_fra", "teknisk", "2026-10-05"),
         _post("breddegrad", "teknisk", "2026-09-28", fra="66.0", til="66.0001"),
-        _post("har_ila", "vesentlig", "2019-11-18", kilde="lusetall",
-              fra="False", til="True"),
+        _post("kapasitet", "vesentlig", "2019-11-18", fra="3600", til="4680"),
     ]
     html = _side(observert=observert)
     flat = " ".join(html.split())
@@ -3959,16 +3956,15 @@ def test_vesentlige_foerst_og_tekniske_samlet_med_antall():
     a = html.index('class="tallboks tekniske-endringer"')
     hoved = html[html.index('class="tidsakse tidsakse--observert"'):a]
     tekn = html[a:html.index("</details>", a)]
-    assert "Samdrift" in hoved and "ILA" in hoved
+    assert "Samdrift" in hoved and "Kapasitet" in hoved
     assert "Versjon gyldig fra" not in hoved and "Breddegrad" not in hoved
     assert "2 tekniske endringer" in tekn
     assert "Versjon gyldig fra" in tekn and "Breddegrad" in tekn
     # Nyeste først blant de vesentlige.
-    assert hoved.index("Samdrift") < hoved.index("ILA")
+    assert hoved.index("Samdrift") < hoved.index("Kapasitet")
     # Forklaringene av flagg og tekniske står på metodesiden, med samme
     # terskel som regelen i `vesentlighet`.
     om = " ".join(_om().split())
-    assert "ILA- og PD-flaggene er unntaket." in om
     assert f"under {visningsord.tall(int(vesentlighet.KOORDINAT_TERSKEL_M))} meter" in om
 
 
@@ -4482,6 +4478,21 @@ def test_ikke_publisert_kilde_slipper_ikke_gjennom_doren(monkeypatch):
                   field="resultat", entity_id="2025/1|ANDAL|PO3")]
     ut = _gjennom_doren(monkeypatch, rader)
     assert ut["source"].to_list() == ["akvakultur"]
+
+
+def test_ila_og_pd_slipper_ikke_gjennom_doren_men_resten_av_lusetall_gjor(
+        monkeypatch):
+    """Fra 04.11.2026 vises ikke `har_ila`/`har_pd`, heller ikke bakover.
+    Paret stoppes og ikke kilden: et annet lusetallfelt kommer gjennom."""
+    lus = dict(_po_rad("10839", "False", "True"), source="lusetall",
+               entity_type="lokalitet", observed_at="2024-05-27",
+               forrige_observed_at="2024-05-20")
+    rader = [_po_rad("1", "ROD", "GUL"),
+             dict(lus, field="har_ila"), dict(lus, field="har_pd"),
+             dict(lus, field="har_rensefisk")]
+    ut = _gjennom_doren(monkeypatch, rader)
+    assert sorted(zip(ut["source"], ut["field"])) == [
+        ("akvakultur", "prodomraade_status"), ("lusetall", "har_rensefisk")]
 
 
 def test_ulik_overgang_i_samme_omrade_er_to_hendelser():

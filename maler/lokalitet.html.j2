@@ -455,7 +455,7 @@
       </p>
       {% if post.forste %}
       {#- HVER KILDE MED SIN DATO. At datoer lenger ned kan være eldre
-          (sykdomsflaggene er datert til uka de gjelder for) står på
+          (en kilde som daterer til uka den gjelder for) står på
           /om/#lesing, ikke på hver side. #}
       <div class="tidsakse-verdi">
         {%- for d in post.dekning %}{{ d.navn }} <time datetime="{{ d.fra }}">{{ d.fra|kortdato }}</time>
@@ -507,7 +507,7 @@
   {% endif %}
 
   {#- OM TALLENE. Forklaringene som er like på hver lokalitetsside — hva
-      datoen er, hva «teknisk» betyr, ILA og PD, biomasselaget,
+      datoen er, hva «teknisk» betyr, biomasselaget,
       tildelinger og journaldatoer — står én gang, på /om/#lesing
       (tekstreglene 20.10.2026: «Felles forbehold står ett sted»). Her står
       bare det som er DENNE sidens tall. Ankeret `#om-tallene` blir

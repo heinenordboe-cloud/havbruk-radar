@@ -444,6 +444,52 @@ def test_porten_feller_en_side_med_uferdigmarkor(tmp_path, snapshotmappe):
     assert vakt.ukvittert(funn) == funn
 
 
+# ---- ILA og PD: forbudt i utputtet fra 04.11.2026 -------------------------
+#
+# BarentsWatch v1 sluttet å følge Mattilsynet i desember 2024
+# (MALING-NYE-KILDER, etterskriften 04.11.2026). Prøvene går gjennom
+# `gransk()`, av samme grunn som `test_porten_feller_en_side_med_uferdigmarkor`.
+
+def test_porten_feller_en_side_med_ila(tmp_path, snapshotmappe):
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    (ut / "index.html").write_text(
+        "<!doctype html><title>x</title><p>27. mai 2024 ILA-flagg i "
+        'BarentsWatch <span data-felt="har_ila">satt</span></p>',
+        encoding="utf-8")
+
+    funn = [f for f in vakt.gransk(ut) if f.slag == "sykdomsflagg"]
+
+    assert len(funn) == 1 and funn[0].antall == 2
+    assert vakt.ukvittert(funn) == funn, "kan ikke kvitteres ut"
+
+
+def test_porten_feller_pd_i_et_regneark_i_en_pakke(tmp_path, snapshotmappe):
+    """Nedlastingene er like publisert som sidene."""
+    import io
+    import zipfile
+    ut = tmp_path / "ut"
+    ut.mkdir()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("endringer.csv", "type,antall\nSykdom (ILA/PD),0\n")
+    (ut / "uke.zip").write_bytes(buf.getvalue())
+
+    funn = [f for f in vakt.gransk(ut) if f.slag == "sykdomsflagg"]
+
+    assert [f.fil for f in funn] == ["uke.zip!/endringer.csv"]
+
+
+def test_stedsnavnet_ila_og_ord_som_inneholder_bokstavene_er_rene():
+    assert vakt.sykdomsflagg(
+        "<p>Ila i Trondheim, PDF-fila, Pankow, pila, Spdal</p>", "x.html") == []
+
+
+def test_sykdomsnavnene_fanges_i_alle_former():
+    funn = vakt.sykdomsflagg("Infeksiøs lakseanemi og PANKREASSYKDOM", "x.html")
+    assert funn and funn[0].antall == 2
+
+
 def test_en_ferdig_side_gir_ingen_uferdigfunn(tmp_path, snapshotmappe):
     ut = tmp_path / "ut"
     ut.mkdir()

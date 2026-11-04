@@ -500,6 +500,7 @@ class Funn:
                      # | uferdig | raatt_tidsstempel | reposti
                      # | uten_kontakt | nedtatt | immutable_uten_hash
                      # | innholdstype | jsonld | avsnitt | paastand
+                     # | sykdomsflagg
     utdrag: str
     antall: int = 1
 
@@ -1263,6 +1264,40 @@ def uferdig_tekst(tekst: str, fil: str = "") -> list[Funn]:
     return funn
 
 
+# --------------------------------------------- ILA og PD i utputtet
+#
+# ILA OG PD SKAL IKKE STÅ NOE STED PÅ NETTSTEDET, fra 04.11.2026.
+#
+# BarentsWatch v1 (`hasIla`/`hasPd`), som `lusetall` leser, sluttet å
+# følge Mattilsynets sykdomstilfeller i desember 2024: siste nye PD-flagg
+# kom uka 09.12.2024, og i uke 41/2026 var 14 av 16 ILA-flagg og 35 av 46
+# PD-flagg på lokaliteter uten et aktivt tilfelle hos Mattilsynet. Se
+# MALING-NYE-KILDER, etterskriften 04.11.2026. Heine bestemte 03.11 at
+# sykdom tas av alle offentlige flater til Mattilsynet er bygget som egen
+# kilde.
+#
+# Prøven er et FORBUD og ikke en hviteliste, i motsetning til
+# orgnummerprøven: det finnes ingen ILA- eller PD-opplysning som har
+# lov til å stå. Den leser hele fila, markup med, fordi `data-felt=
+# "har_ila"` er en påstand om at feltet finnes, like mye som teksten er.
+# Forkortelsene leses med store bokstaver og ordgrense (Ila er et
+# stedsnavn); sykdomsnavnene i alle former.
+#
+# Funnet kan IKKE kvitteres ut, av samme grunn som `uferdig_tekst`.
+SYKDOMSMONSTER = re.compile(
+    r"\bILA\b|\bPD\b|\bhar_ila\b|\bhar_pd\b|hasIla|hasPd"
+    r"|(?i:lakseanemi|pankreassykdom)")
+
+
+def sykdomsflagg(tekst: str, fil: str = "") -> list[Funn]:
+    """ILA og PD i utputtet. Tom liste = rent. Ett funn per fil, med
+    antallet og de ulike treffene."""
+    treff = SYKDOMSMONSTER.findall(tekst)
+    if not treff:
+        return []
+    return [Funn(fil, "sykdomsflagg", f"{sorted(set(treff))}", len(treff))]
+
+
 # ------------------------------------------- repo-stier i utputtet
 #
 # EN LESER KAN IKKE ÅPNE EN FIL I REPOET.
@@ -1635,9 +1670,9 @@ def _som_csv(rader: list[list[str]]) -> str:
 
 
 def _hygiene(tekst: str, fil: str) -> list[Funn]:
-    """De tre prøvene på synlig tekst. Felles for alle formater."""
+    """Prøvene på synlig tekst. Felles for alle formater."""
     return (uferdig_tekst(tekst, fil=fil) + raa_tidsstempler(tekst, fil=fil)
-            + repostier(tekst, fil=fil))
+            + repostier(tekst, fil=fil) + sykdomsflagg(tekst, fil=fil))
 
 
 def gransk_xlsx(data: bytes, fil: str, orgnr_ok: set[str],
@@ -1678,6 +1713,7 @@ def gransk_xlsx(data: bytes, fil: str, orgnr_ok: set[str],
         if not tekst:
             continue
         funn += uferdig_tekst(tekst, fil=rel)
+        funn += sykdomsflagg(tekst, fil=rel)
         funn += gransk_tekst(tekst, orgnr_ok, navn_ok, fil=rel,
                              tvetydige=tvetydige, kvittert=kvittert)
     return funn
@@ -2034,6 +2070,8 @@ def tekstfunn(rel: str, endelse: str, tekst: str, orgnr_ok: set[str],
     funn.extend(repostier(tekst, fil=rel))
     # KART UTEN KARTVERKETS NAVN. Et lisensvilkår, ikke hygiene.
     funn.extend(kart_uten_attribusjon(tekst, fil=rel))
+    # ILA OG PD, i markup og tekst. Se `sykdomsflagg()`.
+    funn.extend(sykdomsflagg(tekst, fil=rel))
     # AVSNITT OVER TRE LINJER, og PÅSTANDER UTEN KILDE OG DATO. Se
     # `sidefunn()` — tekstreglene fra 20.10.2026.
     if endelse in (".html", ".htm"):
