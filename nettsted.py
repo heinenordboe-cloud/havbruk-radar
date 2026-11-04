@@ -159,6 +159,12 @@ def lokalitetskilder(lok: dict) -> tuple[str, ...]:
                 ekstra.append(kilde)
     if lok.get("biolag"):
         ekstra.append("biomasselag")
+    # BEVISET LISTER SNAPSHOTENE SIDEN ER BYGGET AV (`bevis()`), med dato og
+    # sha256 — biomasselaget også på en side uten fiskedata, for siden er
+    # bygget av det. Da er siden også basert på det. Andre fulle bygg
+    # 04.11.2026: 710 sider der bare beviset viste kilden.
+    ekstra += [b.get("kilde") for b in lok.get("bevis") or ()
+               if b.get("kilde") in LOKALITET_KAN_VISE]
     if (lok.get("lusegraf") or {}).get("grense"):
         ekstra.append("sjotemperatur")
     brreg = {h.get("kilde") for h in lok.get("oppgitt_brreg") or ()}

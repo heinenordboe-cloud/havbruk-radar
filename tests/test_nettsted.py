@@ -6607,6 +6607,9 @@ def test_lokalitetskildene_leses_av_paastandene_ogsaa():
            "biolag": None, "lusegraf": None, "oppgitt_brreg": []}
     assert "biomasselag" in nettsted.lokalitetskilder(lok)
     assert nettsted.lokalitetskilder({"paastander": {}}) == nettsted.SIDENS_KILDER
+    # Og beviset: snapshotet står med sum i «Bevis» også uten fiskedata.
+    assert "biomasselag" in nettsted.lokalitetskilder(
+        {"bevis": [{"kilde": "akvakultur"}, {"kilde": "biomasselag"}]})
 
 
 # ---- forskriften som GA fargen, ikke nyeste forskrift (rødt lag F6) ------
