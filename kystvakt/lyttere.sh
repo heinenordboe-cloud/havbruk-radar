@@ -2,7 +2,7 @@
 # Installerer AIS-lytterne på kystvakt-1 slik de ble satt opp 28.10.2026.
 # Kjøres som root etter herding.sh, fra en mappe med filene i kystvakt/:
 #
-#   scp kystvakt/{lytter.py,regnskap.py,hulljeger.py,kopi.py,rydd.py,utlevering.py,utlevering.pub,boks-ssh-config,*.service,*.timer,lyttere.sh} vakt@kystvakt:/tmp/kv/
+#   scp kystvakt/{lytter.py,regnskap.py,hulljeger.py,kopi.py,rydd.py,gjenopprett.py,utlevering.py,utlevering.pub,boks-ssh-config,*.service,*.timer,lyttere.sh} vakt@kystvakt:/tmp/kv/
 #   ssh vakt@kystvakt 'cd /tmp/kv && sudo bash lyttere.sh'
 #
 # Kan kjøres flere ganger. Nøkkelfila til BarentsWatch lages IKKE her:
@@ -67,7 +67,7 @@ for f in lytter.py:/opt/kystvakt ais-bw.service:/etc/systemd/system ais-5632.ser
 done
 
 install -d -m 755 /opt/kystvakt
-install -m 644 lytter.py regnskap.py kopi.py rydd.py utlevering.py /opt/kystvakt/
+install -m 644 lytter.py regnskap.py kopi.py rydd.py gjenopprett.py utlevering.py /opt/kystvakt/
 [ -f hulljeger.py ] && install -m 644 hulljeger.py /opt/kystvakt/
 
 for f in *.service *.timer; do
@@ -77,6 +77,8 @@ done
 systemctl daemon-reload
 
 systemctl enable --now ais-klokke.timer ais-regnskap-bw.timer ais-regnskap-5632.timer ais-kopi.timer ais-rydd.timer
+# Månedlig gjenopprettingsprøve (fra 04.11.2026, gjenopprett.py).
+systemctl enable --now ais-gjenopprett.timer
 [ -f /etc/systemd/system/ais-hulljeger.timer ] && systemctl enable --now ais-hulljeger.timer
 systemctl enable ais-bw.service ais-5632.service
 if [ "$start_paa_nytt" = ja ]; then

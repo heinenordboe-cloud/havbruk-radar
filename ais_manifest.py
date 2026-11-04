@@ -32,6 +32,15 @@ kjøringen ender med exit 1. Manifestene leveres på nytt i 30 døgn
 (utlevering.py, MANIFEST_DOGN), så et døgn går ikke tapt av at én
 utlevering ble holdt tilbake.
 
+## Gjenopprettingsprøven (fra 04.11.2026)
+
+`gjenoppretting` er siste månedlige prøve fra kystvakt/gjenopprett.py:
+én fil hentet tilbake fra Storage Box, med sha256 regnet på kystvakt-1.
+Serveren holder den mot sitt eget manifest. Her holdes den i tillegg mot
+manifestet i datarepoet, det som er committet og stemplet, og svaret
+står i `mot_arkivet`: «lik», «ulik» eller «mangler». Det er det eneste
+feltet i status.json som ikke kommer fra serveren.
+
 Bare standardbiblioteket og stdlib-modulene i core/: workflowen
 installerer ingen pakker.
 """
@@ -51,6 +60,7 @@ DATO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 TIDSPUNKT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}Z$")
 LINJE = re.compile(r"[0-9a-f]{64}  [^/\s][^/]*")
+PYTHON = re.compile(r"^\d+\.\d+\.\d+")
 
 
 def _manifestfeil(kilde, dato, innhold) -> str | None:
@@ -144,6 +154,26 @@ def feil_i(data) -> list[str]:
             elif "per_time" in r and not _per_time(r["per_time"]):
                 ut.append(f"regnskap for {kilde!r} har per_time, men ikke som "
                           f"timer med meldinger og uten_mmsi: {r['per_time']!r}"[:300])
+    # `python` og `tjenester` fra 04.11.2026. Eldre utleveringer har dem
+    # ikke, og tilsynet sier fra om det selv; har de dem, må tilsynet
+    # kunne lese dem.
+    py = data.get("python")
+    if py is not None and not (isinstance(py, str) and PYTHON.match(py)):
+        ut.append(f"python er ikke en versjon: {py!r}"[:300])
+    tj = data.get("tjenester")
+    if tj is not None and not (isinstance(tj, dict) and tj and all(
+            isinstance(e, str) and isinstance(v, dict)
+            and isinstance(v.get("tilstand"), str) and isinstance(v.get("resultat"), str)
+            for e, v in tj.items())):
+        ut.append(f"tjenester er ikke enheter med tilstand og resultat: {tj!r}"[:300])
+    g = data.get("gjenoppretting")
+    if g is not None and not (
+            isinstance(g, dict) and isinstance(g.get("ok"), bool)
+            and isinstance(g.get("grunn"), str)
+            and isinstance(g.get("tidspunkt"), str) and TIDSPUNKT.match(g["tidspunkt"])
+            and all(isinstance(g.get(f, ""), str) for f in ("kilde", "dato", "fil",
+                                                            "sha256", "manifest"))):
+        ut.append(f"gjenoppretting har ikke ok, grunn og tidspunkt: {g!r}"[:300])
     manifester = data.get("manifester")
     if not isinstance(manifester, list):
         ut.append(f"manifester er ikke en liste: {type(manifester).__name__}")
@@ -156,6 +186,21 @@ def feil_i(data) -> list[str]:
             if feil:
                 ut.append(feil)
     return ut
+
+
+def mot_arkivet(g: dict) -> str:
+    """«lik» når filas sha256 fra boksen står i et manifest for døgnet i
+    datarepoet, «ulik» når fila står der med en annen sum, ellers
+    «mangler»."""
+    linjer = set()
+    mappe = MANIFEST_DIR / g["kilde"]
+    for m in sorted(mappe.glob(f"{g['dato']}.*SHA256SUMS")) if mappe.is_dir() else []:
+        linjer |= set(m.read_text().splitlines())
+    if f"{g['sha256']}  {g['fil']}" in linjer:
+        return "lik"
+    if any(linje.endswith(f"  {g['fil']}") for linje in linjer):
+        return "ulik"
+    return "mangler"
 
 
 def main() -> int:
@@ -176,6 +221,9 @@ def main() -> int:
     nye = [s for m in data["manifester"]
            if (s := skriv_manifest(m["kilde"], m["dato"], m["innhold"]))]
     status = {k: v for k, v in data.items() if k != "manifester"}
+    g = status.get("gjenoppretting")
+    if isinstance(g, dict) and all(g.get(f) for f in ("kilde", "dato", "fil", "sha256")):
+        status["gjenoppretting"] = {**g, "mot_arkivet": mot_arkivet(g)}
     STATUS.parent.mkdir(parents=True, exist_ok=True)
     STATUS.write_text(json.dumps(status, ensure_ascii=False, indent=1) + "\n")
     for s in nye:

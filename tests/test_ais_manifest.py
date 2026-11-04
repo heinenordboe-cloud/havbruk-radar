@@ -136,3 +136,60 @@ def test_per_time_fra_utleveringen_skrives_med_statusen(data, monkeypatch):
     assert ais_manifest.main() == 0
     skrevet = json.loads((data / "ais/status.json").read_text())
     assert skrevet["regnskap"]["bw"]["per_time"] == pt
+
+
+def test_python_og_tjenestene_skrives_med_statusen(data, monkeypatch):
+    tj = {"ais-bw.service": {"tilstand": "active", "resultat": "success"}}
+    inn(monkeypatch, json.dumps(utlevering(python="3.14.4", tjenester=tj)).encode())
+    assert ais_manifest.main() == 0
+    skrevet = json.loads((data / "ais/status.json").read_text())
+    assert skrevet["python"] == "3.14.4" and skrevet["tjenester"] == tj
+
+
+@pytest.mark.parametrize("felt", [
+    {"python": 3.14},
+    {"python": "tre"},
+    {"tjenester": []},
+    {"tjenester": {}},
+    {"tjenester": {"ais-bw.service": "active"}},
+    {"tjenester": {"ais-bw.service": {"tilstand": "active"}}},
+])
+def test_uleselige_tjenester_eller_python_holder_tilbake_utleveringen(data, monkeypatch, felt):
+    inn(monkeypatch, json.dumps(utlevering(**felt)).encode())
+    assert ais_manifest.main() == 1
+    assert not (data / "ais/status.json").exists()
+
+
+def _prove(**felt):
+    return {"tidspunkt": "2026-11-04T10:20:05Z", "kilde": "bw", "dato": "2026-10-29",
+            "fil": "2026-10-29T05Z.txt.zst", "sha256": S, "manifest": S, "bytes": 10,
+            "ok": True, "grunn": "lik manifestet", **felt}
+
+
+@pytest.mark.parametrize("manifest,svar", [
+    (f"{S}  2026-10-29T05Z.txt.zst\n", "lik"),
+    (f"{'c' * 64}  2026-10-29T05Z.txt.zst\n", "ulik"),
+    (f"{S}  2026-10-29T06Z.txt.zst\n", "mangler"),
+])
+def test_gjenopprettingen_holdes_mot_manifestet_i_datarepoet(data, monkeypatch, manifest, svar):
+    """Manifestet i utleveringen skrives først, og da er det DET som er i
+    arkivet: prøven holdes mot det GitHub har, ikke mot det serveren sier."""
+    m = {"kilde": "bw", "dato": "2026-10-29", "innhold": manifest}
+    inn(monkeypatch, json.dumps(utlevering([m], gjenoppretting=_prove())).encode())
+    assert ais_manifest.main() == 0
+    g = json.loads((data / "ais/status.json").read_text())["gjenoppretting"]
+    assert g["mot_arkivet"] == svar and g["ok"] is True
+
+
+def test_en_proeve_som_feilet_foer_hentingen_skrives_uten_mot_arkivet(data, monkeypatch):
+    g = {"tidspunkt": "2026-11-04T10:20:05Z", "ok": False,
+         "grunn": "ingen bekreftet datafil å hente i noen kvittering"}
+    inn(monkeypatch, json.dumps(utlevering(gjenoppretting=g)).encode())
+    assert ais_manifest.main() == 0
+    assert json.loads((data / "ais/status.json").read_text())["gjenoppretting"] == g
+
+
+@pytest.mark.parametrize("g", [{"ok": "ja"}, _prove(tidspunkt="i går"), _prove(sha256=1)])
+def test_en_uleselig_gjenoppretting_holder_tilbake_utleveringen(data, monkeypatch, g):
+    inn(monkeypatch, json.dumps(utlevering(gjenoppretting=g)).encode())
+    assert ais_manifest.main() == 1

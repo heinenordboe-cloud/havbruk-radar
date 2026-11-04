@@ -1,0 +1,21 @@
+# /etc/systemd/system/ais-gjenopprett.service: henter én tilfeldig AIS-fil
+# tilbake fra Storage Box og holder den mot manifestet. Se
+# kystvakt/gjenopprett.py. Skriver bare GJENOPPRETTING.json i kvitteringsmappa.
+[Unit]
+Description=AIS: månedlig gjenopprettingsprøve fra Storage Box
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ais
+Group=ais
+ExecStart=/usr/bin/python3 /opt/kystvakt/gjenopprett.py /srv/ais/kopi /srv/ais/bw /srv/ais/bw/etterhentet /srv/ais5632/raa
+TimeoutStartSec=1h
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/ais/kopi

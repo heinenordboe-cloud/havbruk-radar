@@ -1298,6 +1298,57 @@ Feiler noe, legges den gamle tilbake:
 ssh kystvakt 'sudo -n install -o root -g root -m 644 /opt/kystvakt/utlevering.py.<dato> /opt/kystvakt/utlevering.py'
 ```
 
+### Tjenestelista og gjenopprettingsprøven (04.11.2026)
+
+Fra 04.11.2026 leverer `utlevering.py` også `tjenester` (hver enhet
+lyttere.sh slår på, og tjenesten hver timer starter, med `ActiveState`
+og `Result`), `python` og `gjenoppretting`. Tilsynet er rødt når en
+enhet ikke er `active`, når et resultat ikke er `success`, når Python
+på serveren ikke er den samme som i kodrepoet, og når siste
+gjenopprettingsprøve feilet eller er eldre enn 35 døgn.
+
+Prøven er `gjenopprett.py`, startet av `ais-gjenopprett.timer` den 5.
+hver måned som `ais`: én tilfeldig fil som kopijobben har fått bekreftet,
+hentes tilbake fra boksen med rsync, og sha256 regnes på kystvakt-1 og
+holdes mot dagsmappens SHA256SUMS. `ais_manifest.py` holder den i
+tillegg mot manifestet i datarepoet (`mot_arkivet`). Resultatet ligger i
+`/srv/ais/kopi/GJENOPPRETTING.json`.
+
+Installert 04.11.2026 som utleveringen over, én fil om gangen, fra
+kodrepoet:
+
+```bash
+ssh kystvakt 'sudo -n cp -p /opt/kystvakt/utlevering.py /opt/kystvakt/utlevering.py.2026-11-04'
+for f in utlevering.py gjenopprett.py; do
+  ssh kystvakt "cat > /tmp/${f}.ny" < "kystvakt/${f}"
+  ssh kystvakt "sudo -n install -o root -g root -m 644 /tmp/${f}.ny /opt/kystvakt/${f} && rm /tmp/${f}.ny && sudo -n sha256sum /opt/kystvakt/${f}"
+done
+for f in ais-gjenopprett.service ais-gjenopprett.timer; do
+  ssh kystvakt "cat > /tmp/${f}.ny" < "kystvakt/${f}"
+  ssh kystvakt "sudo -n install -o root -g root -m 644 /tmp/${f}.ny /etc/systemd/system/${f} && rm /tmp/${f}.ny"
+done
+ssh kystvakt 'sudo -n systemctl daemon-reload && sudo -n systemctl enable --now ais-gjenopprett.timer && systemctl list-timers ais-gjenopprett.timer --no-pager'
+shasum -a 256 kystvakt/utlevering.py kystvakt/gjenopprett.py
+```
+
+Første prøve for hånd, så tilsynet har et resultat før den 5.:
+
+```bash
+ssh kystvakt 'sudo -n systemctl start ais-gjenopprett.service; systemctl show -p Result ais-gjenopprett.service; cat /srv/ais/kopi/GJENOPPRETTING.json'
+```
+
+Feilen med vilje: `--forvent` med en sum som ikke stemmer, og `--ut` til
+en fil utenfor kvitteringsmappa. Den skal ende med exit 1 og `"ok":
+false`, og månedens resultat står urørt:
+
+```bash
+ssh kystvakt 'sudo -n -u ais /usr/bin/python3 /opt/kystvakt/gjenopprett.py --forvent 0000000000000000000000000000000000000000000000000000000000000000 --ut /tmp/gjenopprett-med-vilje.json /srv/ais/kopi /srv/ais/bw /srv/ais/bw/etterhentet /srv/ais5632/raa; echo "exit=$?"; cat /tmp/gjenopprett-med-vilje.json'
+```
+
+Ved neste `sudo bash lyttere.sh` følger alt dette med: skriptet
+installerer `utlevering.py` og enhetene sammen, så lista over tjenester
+er alltid den skriptet nettopp slo på.
+
 ## Ved behov: en eldre utgivelse inn i serien
 
 ```bash

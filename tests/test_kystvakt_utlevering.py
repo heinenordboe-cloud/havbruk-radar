@@ -1,5 +1,6 @@
 """kystvakt/utlevering.py: status og lukkede manifester, ingenting annet."""
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,8 @@ S = "a" * 64
 
 def test_status_tomme_og_manglende_timer_og_lukkede_dogn(tmp_path, monkeypatch):
     monkeypatch.setattr(utlevering, "SRV", tmp_path)
+    monkeypatch.setattr(utlevering, "tjenester", lambda: {"x.timer": {"tilstand": "active",
+                                                                      "resultat": "success"}})
     naa = datetime(2026, 10, 30, 8, 30, tzinfo=timezone.utc)
     bw = tmp_path / "ais/bw"
     for dato in ("2026-10-29", "2026-10-30"):
@@ -51,4 +54,60 @@ def test_status_tomme_og_manglende_timer_og_lukkede_dogn(tmp_path, monkeypatch):
     assert [(m["kilde"], m["dato"]) for m in s["manifester"]] == [
         ("bw", "2026-10-29"), ("bw-etterhentet", "2026-10-14")]
     assert 0 <= s["disk"]["brukt_prosent"] <= 100
+    assert s["python"] == ".".join(map(str, sys.version_info[:3]))
+    assert s["tjenester"] == {"x.timer": {"tilstand": "active", "resultat": "success"}}
+    assert s["gjenoppretting"] is None, "ingen prøve kjørt ennå"
+    (tmp_path / "ais/kopi/GJENOPPRETTING.json").write_text('{"ok": true}')
+    assert utlevering.status(naa)["gjenoppretting"] == {"ok": True}
     json.dumps(s)
+
+
+LYTTERE = Path(__file__).resolve().parent.parent / "kystvakt" / "lyttere.sh"
+
+
+def test_tjenestene_er_de_lyttere_sh_slaar_paa():
+    """TJENESTER og `systemctl enable` i lyttere.sh er to lister over det
+    samme. Slår skriptet på en enhet lista ikke har, ser tilsynet den
+    aldri."""
+    slaatt_paa = set()
+    for linje in LYTTERE.read_text().splitlines():
+        linje = linje.split("#")[0]
+        if "systemctl enable" not in linje:
+            continue
+        ord_ = linje.split("systemctl enable", 1)[1].split()
+        slaatt_paa |= {o for o in ord_ if o.endswith((".service", ".timer"))}
+    assert slaatt_paa == set(utlevering.TJENESTER)
+
+
+def test_tjenester_leser_systemd_og_timerens_tjeneste(monkeypatch):
+    kall = []
+
+    def run(cmd, **kw):
+        kall.append(cmd)
+        blokker = []
+        for e in cmd[4:]:
+            tilstand = "active" if e in utlevering.TJENESTER else "inactive"
+            resultat = "exit-code" if e == "ais-rydd.service" else "success"
+            blokker.append(f"Id={e}\nActiveState={tilstand}\nResult={resultat}")
+        return subprocess.CompletedProcess(cmd, 0, "\n\n".join(blokker) + "\n", "")
+
+    monkeypatch.setattr(utlevering.subprocess, "run", run)
+    t = utlevering.tjenester()
+    assert kall[0][:4] == ["systemctl", "show", "-p", "Id,ActiveState,Result"]
+    assert set(t) == set(utlevering.TJENESTER) | {
+        "ais-klokke.service", "ais-regnskap-bw.service", "ais-regnskap-5632.service",
+        "ais-kopi.service", "ais-rydd.service", "ais-hulljeger.service",
+        "ais-gjenopprett.service"}
+    assert t["ais-bw.service"] == {"tilstand": "active", "resultat": "success"}
+    assert t["ais-rydd.service"] == {"tilstand": "inactive", "resultat": "exit-code"}
+
+
+def test_tjenester_uten_systemd_sier_ukjent_for_hver_enhet(monkeypatch):
+    def run(cmd, **kw):
+        raise FileNotFoundError("systemctl")
+
+    monkeypatch.setattr(utlevering.subprocess, "run", run)
+    t = utlevering.tjenester()
+    assert set(utlevering.TJENESTER) <= set(t)
+    assert {v["tilstand"] for v in t.values()} == {"ukjent"}
+    assert "FileNotFoundError" in t["ais-bw.service"]["resultat"]

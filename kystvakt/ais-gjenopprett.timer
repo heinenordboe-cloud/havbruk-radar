@@ -1,0 +1,12 @@
+[Unit]
+Description=AIS: gjenopprettingsprøve fra Storage Box hver måned
+
+[Timer]
+# Den 5. hver måned, etter nattens kopi (00:40) og hulljegeren (01:30,
+# høyst seks timer). Tilsynet er rødt når siste prøve er eldre enn 35
+# døgn: lengste måned og fire døgns slark.
+OnCalendar=*-*-05 10:20:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
