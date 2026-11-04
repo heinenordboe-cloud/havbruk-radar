@@ -68,7 +68,10 @@
      sidehodet, og grafen begynte etter en skjermhøyde. Her står fargen
      som gjelder nå, fargen i hver runde, og noten om hvor fargen er lest
      fra. Kildene, runde for runde, står i «Kildene for fargen» under. #}
-  <section class="fargen-naa" aria-labelledby="fargen-tittel" data-kilde="akvakultur">
+  {#- Uten data-kilde: akvakultur er alltid områdesidens kilde
+      (`po_kilder`), og herkomstlinja her navngir registeret, ikke
+      utgiverens kortnavn. Markørene står der kilden er betinget. #}
+  <section class="fargen-naa" aria-labelledby="fargen-tittel">
     <h2 class="etikett" id="fargen-tittel">
       Trafikklys {{ po.runder[0].aar }}–{{ po.runder[-1].aar }}
     </h2>
