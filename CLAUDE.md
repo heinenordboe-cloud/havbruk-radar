@@ -425,6 +425,25 @@ verifisert, er det som er kjørt.
 
 En økt som skriver eller endrer et MALING-dokument, kjører kontrolløren (`.claude/agents/kontrollor.md`) på det før push.
 
+**En jobb, tjeneste eller test er ikke ferdig før (1) den har kjørt i
+sitt ekte miljø, ikke bare lokalt, (2) den har frist i jobber.yml eller
+sjekk i Healthchecks, og (3) en feil laget med vilje har vist at
+varselet kommer. En alarm som går uten at noe er galt, er en feil og
+rettes samme uke.**
+
+Kontrollen sier hvilket av de tre som mangler, for hver workflow i
+datarepoet, hver tjeneste på kystvakt-1 og hver prøvesamling:
+
+    HAVBRUK_DATA_DIR=../havbruk-radar-data/data \
+        .venv/bin/python verktoy/ferdig.py
+
+Den kjøres med porten, og det som mangler for det økta har bygget eller
+endret, står i rapporten. Den stopper ingenting; det er rapporten som
+sier det. Krav 3 skrives ned i `feilprove` (datarepoets `jobber.yml`,
+og `verktoy/ferdig.yml` her): dato, hva som ble gjort, hvor varselet
+kom. En feil som bare ble OPPDAGET, lokalt eller i en prøve, er ikke et
+varsel som KOM.
+
 **Rapporten er maks 10 linjer**, i tre deler: hva endret seg, hva er
 verifisert (og hvordan), hva må Heine bestemme. Den slutter med hashene
 til commitene. Det som ikke passer, står i commit-meldingen.

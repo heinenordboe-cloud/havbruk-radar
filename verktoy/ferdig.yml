@@ -1,0 +1,61 @@
+# Krav 2 og 3 i CLAUDE.md §8 for det som ikke er en workflow i
+# datarepoet: tjenestene på kystvakt-1 og prøvesamlingene. Workflowene
+# har sine i datarepoets .github/jobber.yml (`stillhet` og `feilprove`).
+# verktoy/ferdig.py leser begge og sier hva som mangler.
+#
+#   miljo      (prøver) hvor de kjører når ingen ser på; null = bare lokalt
+#   frist      hva som fanger at den stopper: en sjekk i Healthchecks, eller
+#              tilsyn.py via en fil som har frist i jobber.yml. null = ingenting
+#   feilprove  «ÅÅÅÅ-MM-DD: hva som ble gjort; hvor varselet kom». null =
+#              ikke gjort, eller ikke skrevet ned. En feil som bare ble
+#              OPPDAGET (lokalt, i en prøve), er ikke et varsel som KOM.
+
+# Workflows med `stillhet: null` i jobber.yml som har en sjekk i
+# Healthchecks i stedet (RUNBOOK, «Tre sjekker fra 02.11.2026»).
+healthchecks:
+  samle.yml: Healthchecks «havbruk-radar innsamling 2» (cron 0 5 * * 1, 2 døgn)
+  tilsyn.yml: Healthchecks «havbruk-radar tilsyn» (1 døgn + 4 t)
+
+# kystvakt/utlevering.TJENESTER, i samme rekkefølge. Prøven i
+# tests/test_ferdig.py holder lista lik.
+tjenester:
+  ais-bw.service:
+    frist: Healthchecks «kystvakt-1 ais-bw» (1 t + 3 t); tilsyn.py tjenester()
+    feilprove: "2026-11-03: /fail mot ping-adressen til «kystvakt-1 ais-bw»; DOWN-e-post innen to minutter (RUNBOOK, «Slik prøves down»)"
+  ais-5632.service:
+    frist: &status tilsyn.py tjenester() via data/ais/status.json (ais-manifest.yml, 2 døgn)
+    feilprove: null
+  ais-klokke.timer:
+    frist: *status
+    feilprove: null
+  ais-regnskap-bw.timer:
+    frist: *status
+    feilprove: null
+  ais-regnskap-5632.timer:
+    frist: *status
+    feilprove: null
+  ais-kopi.timer:
+    frist: tilsyn.py ais() (kopi_sist_ok) og tjenester() via status.json (ais-manifest.yml, 2 døgn)
+    feilprove: null
+  ais-rydd.timer:
+    frist: *status
+    feilprove: null
+  ais-hulljeger.timer:
+    frist: *status
+    feilprove: null
+  ais-gjenopprett.timer:
+    frist: tilsyn.py gjenoppretting() (35 døgn) og tjenester() via status.json (ais-manifest.yml, 2 døgn)
+    feilprove: null
+
+prover:
+  Tester (kodrepoet):
+    miljo: GitHub Actions, test.yml i kodrepoet, hver push
+    frist: tilsyn.py tester(), hver dag
+    feilprove: null
+  Nettstedsprøvene (HAVBRUK_NETTSTED):
+    # 156 prøver i test_kart.py, test_nettsted.py og test_smalskjerm.py.
+    # Hoppes over i Actions og i porten. Mot portens bygg 04.11.2026: 3
+    # av 515 røde.
+    miljo: null
+    frist: null
+    feilprove: null
