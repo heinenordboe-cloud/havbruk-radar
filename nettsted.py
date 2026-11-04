@@ -871,6 +871,13 @@ def _overforinger() -> dict[str, dict[str, str]]:
             for eid, felt, verdi in ramme.select(
                     ["entity_id", "field", "value"]).iter_rows():
                 ut[str(eid)][str(felt)] = verdi
+    # DE VASKEDE NUMRENE UT, når overføringen står under riktig nummer.
+    # Snapshotene fra 02.09.2026 skrev «N-Ø-0006» som «N-_-0006» (rødt
+    # lag F1), og de står (regel 2). Sammenslåingen over ville ellers
+    # gitt hver av de 86 overføringene to ganger. Se
+    # `sources/eierskap.uten_vaskede_numre()`.
+    if kilde is not None and hasattr(kilde, "uten_vaskede_numre"):
+        return defaultdict(dict, kilde.uten_vaskede_numre(dict(ut)))
     return ut
 
 
@@ -9772,15 +9779,24 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             if d and (not post["siden"] or d < post["siden"]):
                 post["siden"] = d
 
-    # SIDEN NÅR: overføringene TIL dette selskapet, eldst først.
+    # SIDEN NÅR: overføringene TIL dette selskapet, eldst først, på HVER
+    # tillatelse — også dem selskapet har gitt fra seg siden.
+    #
+    # Fram til 04.11.2026 sto `for nr in tillatelser` her, altså bare
+    # tillatelsene selskapet eier NÅ. «Gikk ut» under er bygget av alle,
+    # og siden listet da tillatelser som «Gikk ut» uten at de noen gang
+    # var «Kom til». MÅLT (rødt lag F2): Lerøy Aurora AS stod med «2
+    # kommet til» og eldste overføring hit 24.12.2021; kroppene har 12
+    # overført hit, eldst T-G-0010 05.11.2009. 29 av 478 selskaper.
+    #
     # `journal_dato` er «senest da» og ikke «akkurat da» — forbeholdet
     # står på hver rad i dataene og i tabellens caption.
     overforinger = sorted(
         ({"dato": o.get("journal_dato", ""),
-          "tillatelse": o.get("tillatelse_nr", ""),
+          "tillatelse": o.get("tillatelse_nr", "") or nr,
           "rekkefolge": o.get("rekkefolge", "")}
-         for nr in tillatelser
-         for o in felles.overforinger_per_tillatelse.get(nr, ())
+         for nr, overf in felles.overforinger_per_tillatelse.items()
+         for o in overf
          if (o.get("mottaker_orgnr") or "").strip() == orgnr),
         key=lambda o: (o["dato"], o["tillatelse"]))
 

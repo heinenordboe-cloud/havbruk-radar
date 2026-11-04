@@ -83,7 +83,6 @@ import datetime as dt
 import gzip
 import hashlib
 import json
-import re
 import io
 import sys
 import time
@@ -191,19 +190,63 @@ EIERSKAP_BRREG = "eierskap-brreg"
 EIERSKAP_HISTORIKK = "eierskap_historikk"
 
 
-def _arkivnavn(tillatelsesnr: str) -> str:
-    """Tillatelsesnummer -> trygt filnavn.
+def _arkivnavn(kilde, nummer: str) -> str:
+    """Tillatelses- eller organisasjonsnummer -> trygt OG OMVENDBART filnavn.
 
-    Numrene er av formen «H-KM-0018» og inneholder ingenting som må
-    rømmes i dag. Vasken står likevel her: et nummer med en skråstrek
-    ville skrevet utenfor arkivmappa, og filnavnet er samtidig
-    fremdriftsloggen — den skal ikke kunne peke feil sted.
+    Filnavnet er fremdriftsloggen, og for overføringene er det i tillegg
+    det ENESTE som kobler kroppen til tillatelsen: kroppen bærer ikke
+    nummeret. Navnet skal derfor ikke kunne peke utenfor arkivmappa, og
+    det skal kunne leses tilbake. Fram til 04.11.2026 holdt det første
+    og ikke det andre — «N-Ø-0006» ble «N-_-0006», og det navnet ble
+    skrevet inn i historikken som nummeret (rødt lag F1). Kilden eier
+    kodingen; se `sources/eierskap.arkivnavn()`.
     """
-    return re.sub(r"[^A-Za-z0-9_.-]", "_", tillatelsesnr)
+    return kilde.arkivnavn(nummer)
 
 
-def _fra_arkivnavn(filnavn: str) -> str:
-    return filnavn.split(".")[0]
+def _fra_arkivnavn(kilde, filnavn: str) -> str | None:
+    """Filnavn -> nummer. None for et navn den gamle vasken skrev."""
+    return kilde.fra_arkivnavn(filnavn.split(".")[0])
+
+
+def _les_overforingsarkiv(kilde, mappe: Path) -> dict[str, tuple[dict, str]]:
+    """{tillatelsesnr: (kropp, sha256)} for hver kropp i arkivet.
+
+    `sha256` er av de UTPAKKEDE bytene, altså det `raw.hashene()` og
+    `raw_hash` ellers betyr: summen av kroppen slik den ligger lagret.
+    Den havner på hver rad som kom av kroppen.
+
+    ## De vaskede navnene
+
+    Filene den gamle vasken skrev (`N-_-0006.json.gz`) står — regel 2.
+    Nummeret kan ikke leses av dem, så de brukes bare når de er ERSTATTET:
+    en ny kropp for en tillatelse hvis nummer vasker til samme navn. Et
+    vasket navn uten tvilling, med overføringer i kroppen, stopper
+    kjøringen. Å skrive den under det vaskede navnet er feilen som rettes,
+    og å gjette tegnet er et gjett. En vasket kropp UTEN overføringer
+    bærer ingen rad og kan ikke skrive noe feil, så den hoppes over.
+    """
+    nye: dict[str, tuple[dict, str]] = {}
+    gamle: dict[str, dict] = {}
+    for sti in sorted(mappe.glob("*.json.gz")):
+        with gzip.open(sti, "rb") as f:
+            data = f.read()
+        nr = _fra_arkivnavn(kilde, sti.name)
+        if nr is None:
+            gamle[sti.name.split(".")[0]] = json.loads(data)
+        else:
+            nye[nr] = (json.loads(data), hashlib.sha256(data).hexdigest())
+    erstattet = {kilde.gammelt_arkivnavn(nr) for nr in nye}
+    uten_tvilling = sorted(stamme for stamme, kropp in gamle.items()
+                           if stamme not in erstattet
+                           and (kropp or {}).get("transfers"))
+    if uten_tvilling:
+        raise RuntimeError(
+            f"{len(uten_tvilling)} kropper med overføringer ligger bare under "
+            f"et vasket arkivnavn, f.eks. {uten_tvilling[:3]}. Nummeret kan "
+            f"ikke leses av navnet. Hent dem på nytt (--bare-vaskede) før "
+            f"snapshotene skrives.")
+    return nye
 
 
 def _finnes_allerede(kilde_navn: str, dato: str) -> bool:
@@ -844,7 +887,7 @@ def _brreg_typer(kilde, c, mangler: set[str], pause: float,
                                "ikke_funnet": 0, "fjernet": 0, "feil": 0}
 
     for i, orgnr in enumerate(sorted(mangler), 1):
-        sti = mappe / f"{_arkivnavn(orgnr)}.json.gz"
+        sti = mappe / f"{_arkivnavn(kilde, orgnr)}.json.gz"
         if sti.exists():
             with gzip.open(sti, "rb") as f:
                 d = json.loads(f.read())
@@ -1024,6 +1067,24 @@ def _backfill_overforinger(kilde, args) -> int:
     «titalls filer — ikke titusener». Her holder det å spørre om fila
     finnes.
 
+    ## `raw_hash` er PER RAD, og det er kroppens
+
+    Fram til 04.11.2026 skrev denne modusen `raw_hash=""`, i alle 42
+    snapshotene: ett snapshot er bygget av ~3000 kropper, og det finnes
+    ingen ÉN kropp å oppgi. Svaret var å oppgi ingen, og da kunne ingen
+    rad føres tilbake til svaret den kom av (rødt lag, stoppregel 4).
+    Nå bærer hver rad sha256 av kroppen for SIN tillatelse — den ene
+    kroppen den faktisk kom av. `nettsted._sjekksum()` og `bevis()`
+    oppgir da ingen samlet sum for snapshotet, og det er riktig: det har
+    ingen.
+
+    ## `--bare-vaskede`
+
+    Henter bare tillatelsene som ligger under et navn den gamle vasken
+    skrev, og som ennå ikke har en kropp under det nye. Det er hentingen
+    F1 krever, og ikke mer: en tillatelse som er kommet til siden
+    02.09.2026, hentes av en vanlig kjøring.
+
     ## Hvorfor snapshotene skrives per ÅR
 
     Samme mønster som de månedlige biomasse-snapshotene: en overføring
@@ -1045,10 +1106,18 @@ def _backfill_overforinger(kilde, args) -> int:
         typer = kilde.eiertyper(c)
         print(f"  {len(numre)} tillatelser, {len(typer)} selskaper i typekartet")
 
+        if getattr(args, "bare_vaskede", False):
+            vaskede = {p.name.split(".")[0] for p in ut_dir.glob("*_*.json.gz")}
+            numre = [nr for nr in numre
+                     if kilde.gammelt_arkivnavn(nr) in vaskede
+                     and kilde.gammelt_arkivnavn(nr) != _arkivnavn(kilde, nr)]
+            print(f"  --bare-vaskede: {len(numre)} tillatelser ligger under "
+                  f"et vasket navn ({len(vaskede)} filer)")
+
         hentet = hoppet = feilet = 0
         feil: list[str] = []
         for i, nr in enumerate(numre, 1):
-            sti = ut_dir / f"{_arkivnavn(nr)}.json.gz"
+            sti = ut_dir / f"{_arkivnavn(kilde, nr)}.json.gz"
             if sti.exists():
                 hoppet += 1
                 continue
@@ -1089,10 +1158,13 @@ def _backfill_overforinger(kilde, args) -> int:
         return 1
 
     # ---- les arkivet og skriv ett snapshot per år ----------------------
-    kropper: dict[str, dict] = {}
-    for sti in sorted(ut_dir.glob("*.json.gz")):
-        with gzip.open(sti, "rb") as f:
-            kropper[_fra_arkivnavn(sti.name)] = json.loads(f.read())
+    try:
+        arkivert = _les_overforingsarkiv(kilde, ut_dir)
+    except RuntimeError as e:
+        print(f"::error::{e}")
+        return 1
+    kropper: dict[str, dict] = {nr: k for nr, (k, _sha) in arkivert.items()}
+    summer: dict[str, str] = {nr: sha for nr, (_k, sha) in arkivert.items()}
     print(f"\nLeser {len(kropper)} arkiverte kropper.")
 
     # Mottakere pub-aqua ikke kjenner -> slå opp formen hos Brreg.
@@ -1130,12 +1202,15 @@ def _backfill_overforinger(kilde, args) -> int:
         if _finnes_allerede(EIERSKAP_HISTORIKK, dato) and not args.reparse:
             print(f"  {dato}: ligger skrevet fra før")
             continue
-        obs = list(runner.stempl(
-            kilde.parse_overforinger(kropper, typer, dato),
-            source_version=kilde.version, raw_hash="",
-            fetched_at=dt.datetime.now(dt.timezone.utc).isoformat(),
-            published_at="", utvalg=getattr(kilde, "utvalg", None),
-            kilde=kilde))
+        # ÉN STEMPLING PER KROPP, så hver rad bærer summen av kroppen den
+        # kom av. Samme `fetched_at` for alle: det er ÉN kjøring.
+        naa = dt.datetime.now(dt.timezone.utc).isoformat()
+        obs = [o for nr in sorted(kropper)
+               for o in runner.stempl(
+                   kilde.parse_overforinger({nr: kropper[nr]}, typer, dato),
+                   source_version=kilde.version, raw_hash=summer[nr],
+                   fetched_at=naa, published_at="",
+                   utvalg=getattr(kilde, "utvalg", None), kilde=kilde)]
         if not obs:
             tomme += 1
             print(f"  {dato}: ingen overføringer igjen etter filtrering")
@@ -1420,6 +1495,10 @@ def main() -> int:
                         "tillatelse, ett snapshot per år. Gjenopptakbar — "
                         "arkivfila er fremdriftsloggen. Bare for kilder "
                         "med overforinger().")
+    p.add_argument("--bare-vaskede", action="store_true",
+                   help="med --overforinger: hent bare tillatelsene som "
+                        "ligger under et navn den gamle vasken skrev "
+                        "(N-_-0006 for N-Ø-0006), se rødt lag F1.")
     p.add_argument("--reparse", action="store_true",
                    help="les de ARKIVERTE kroppene i stedet for å hente på "
                         "nytt, og skriv årene om igjen med gjeldende "

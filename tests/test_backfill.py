@@ -907,3 +907,126 @@ def test_reparse_uten_arkivert_kropp_feiler_uka(isolert, monkeypatch, capsys):
     assert _kjor(monkeypatch, kilde, "2026-01", "2026-01", ["--reparse"]) == 1
     assert "ingen arkivert kropp" in capsys.readouterr().out
     assert not (isolert / "raw/lusetall/2025-12-29.2.parquet").exists()
+
+
+# ------------------------------------- eierskapshistorikken (rødt lag F1)
+
+import gzip as _gzip
+import hashlib as _hashlib
+import json as _json
+
+from sources.eierskap import Eierskap
+
+
+def _transfers(*overf):
+    return {"ajourDate": "2026-11-04", "transfers": [
+        {"identityNr": o, "journalDate": d, "journalNr": j,
+         "officialName": "EKTE LAKS AS"} for o, d, j in overf]}
+
+
+class FalskEierskap(Eierskap):
+    """Svarer på /licenses, /entities og /transfers uten nett."""
+
+    def __init__(self, kropper, numre=None):
+        super().__init__()
+        self.enabled = True
+        self._kropper = kropper
+        self._numre = list(numre if numre is not None else sorted(kropper))
+        self.hentet = []
+
+    def tillatelsesnumre(self, c):
+        return list(self._numre)
+
+    def eiertyper(self, c):
+        return {"958023685": "AS", "929535081": "AS"}
+
+    def overforinger(self, nr, c):
+        self.hentet.append(nr)
+        return self._kropper[nr]
+
+
+def _legg_i_arkivet(tmp_path, stamme, kropp):
+    mappe = tmp_path / "arkiv" / backfill.EIERSKAP_ARKIV
+    mappe.mkdir(parents=True, exist_ok=True)
+    data = _json.dumps(kropp, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    with _gzip.open(mappe / f"{stamme}.json.gz", "wb") as f:
+        f.write(data)
+    return _hashlib.sha256(data).hexdigest()
+
+
+def _kjor_overforinger(monkeypatch, kilde, *ekstra):
+    monkeypatch.setattr(backfill.registry, "discover", lambda: [kilde])
+    monkeypatch.setattr("sys.argv", ["backfill.py", "--kilde", "eierskap",
+                                     "--overforinger", "--pause", "0", *ekstra])
+    return backfill.main()
+
+
+def _historikk(dato):
+    versjonene = snapshot.versjoner("eierskap_historikk", dato)
+    return versjonene[-1][1] if versjonene else None
+
+
+def test_tillatelse_med_oe_skrives_under_sitt_ekte_nummer(isolert, monkeypatch):
+    """F1. Den gamle vasken la N-Ø-0006 i arkivet som N-_-0006, og det
+    navnet ble skrevet inn i historikken som nummeret. Kroppen under det
+    gamle navnet står (regel 2); tillatelsen hentes på nytt under et navn
+    som kan leses tilbake."""
+    kropp = _transfers(("958023685", "2012-09-10", "2012000094"))
+    _legg_i_arkivet(isolert, "N-_-0006", kropp)
+    kilde = FalskEierskap({"N-Ø-0006": kropp})
+
+    assert _kjor_overforinger(monkeypatch, kilde) == 0
+
+    assert kilde.hentet == ["N-Ø-0006"]
+    mappe = isolert / "arkiv" / backfill.EIERSKAP_ARKIV
+    assert (mappe / "N-_-0006.json.gz").exists(), "det gamle står"
+    assert (mappe / "N-%C3%98-0006.json.gz").exists()
+    ramme = _historikk("2012-12-31")
+    felt = dict(zip(ramme["field"], ramme["value"]))
+    assert felt["tillatelse_nr"] == "N-Ø-0006"
+    assert set(ramme["entity_id"]) == {"N-Ø-0006|2012000094"}
+
+
+def test_hver_rad_baerer_summen_av_sin_egen_kropp(isolert, monkeypatch):
+    """Stoppregel 4: alle 42 snapshotene hadde tom raw_hash, fordi ett
+    snapshot er bygget av mange kropper. Nå bærer hver rad summen av den
+    ene kroppen den kom av — og summen er av bytene slik de ligger."""
+    a = _transfers(("958023685", "2012-09-10", "2012000094"))
+    b = _transfers(("929535081", "2012-03-01", "2012000010"))
+    sum_a = _legg_i_arkivet(isolert, "H-KM-0018", a)
+    kilde = FalskEierskap({"H-KM-0018": a, "N-Ø-0006": b})
+
+    assert _kjor_overforinger(monkeypatch, kilde) == 0
+
+    ramme = _historikk("2012-12-31")
+    per_till = {eid.split("|")[0]: h for eid, h
+                in zip(ramme["entity_id"], ramme["raw_hash"])}
+    sti = isolert / "arkiv" / backfill.EIERSKAP_ARKIV / "N-%C3%98-0006.json.gz"
+    with _gzip.open(sti, "rb") as f:
+        sum_b = _hashlib.sha256(f.read()).hexdigest()
+    assert per_till == {"H-KM-0018": sum_a, "N-Ø-0006": sum_b}
+    assert "" not in set(ramme["raw_hash"])
+
+
+def test_vasket_kropp_med_overforinger_uten_tvilling_stopper(isolert,
+                                                             monkeypatch,
+                                                             capsys):
+    """Nummeret kan ikke leses av N-_-0006. Å skrive raden under det er
+    feilen, og å gjette Ø er et gjett — så ingen snapshots."""
+    _legg_i_arkivet(isolert, "N-_-0006",
+                    _transfers(("958023685", "2012-09-10", "2012000094")))
+    kilde = FalskEierskap({}, numre=[])
+
+    assert _kjor_overforinger(monkeypatch, kilde) == 1
+    assert _historikk("2012-12-31") is None
+    assert "vasket arkivnavn" in capsys.readouterr().out
+
+
+def test_bare_vaskede_henter_ikke_nye_tillatelser(isolert, monkeypatch):
+    """--bare-vaskede er hentingen F1 krever, og ikke mer."""
+    kropp = _transfers(("958023685", "2012-09-10", "2012000094"))
+    _legg_i_arkivet(isolert, "N-_-0006", kropp)
+    kilde = FalskEierskap({"N-Ø-0006": kropp, "H-NY-0001": _transfers()})
+
+    assert _kjor_overforinger(monkeypatch, kilde, "--bare-vaskede") == 0
+    assert kilde.hentet == ["N-Ø-0006"]

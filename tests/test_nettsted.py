@@ -6250,3 +6250,71 @@ def test_kvalitetsrapporten_teller_hullene_a_til_g():
     assert k.hull["b_uenige_maaneder"] == 1 and k.hull["c_ulike"] == 1
     assert k.hull["g_delt_posisjon"] == 1 and k.hull["g_uten_tillatelser"] == 1
     assert k.tilstand[("fisk", "ukjent")] == 1
+
+
+# ---- eierskapshistorikken etter rødt lag 04.11.2026 (F1, F2) ----------
+
+def test_vasket_tillatelsesnummer_staar_ikke_to_ganger(tmp_path, monkeypatch):
+    """F1. Snapshotet fra 02.09.2026 skrev N-Ø-0006 som N-_-0006, og det
+    står (regel 2). Versjonen med riktig nummer kommer ved siden av, og
+    sammenslåingen skal gi overføringen ÉN gang, under det ekte nummeret."""
+    from core import snapshot as snap
+    from core.contract import Observation
+
+    monkeypatch.setattr(snap, "RAW_DIR", tmp_path / "raw")
+
+    def versjon(nr, hentet):
+        return [Observation(entity_id=f"{nr}|2012000094",
+                            entity_type="overforing",
+                            entity_name=f"{nr} 2012-09-10", field=felt,
+                            value=verdi, source="eierskap_historikk",
+                            observed_at="2012-12-31", fetched_at=hentet)
+                for felt, verdi in (("tillatelse_nr", nr),
+                                    ("mottaker_orgnr", "958023685"),
+                                    ("mottaker_type", "AS"),
+                                    ("journal_dato", "2012-09-10"),
+                                    ("journal_nr", "2012000094"))]
+
+    snap.write(versjon("N-_-0006", "2026-09-02T19:43:16+00:00"), "2012-12-31")
+    snap.write(versjon("N-Ø-0006", "2026-11-04T12:00:00+00:00"), "2012-12-31")
+
+    ovf = nettsted._overforinger()
+    assert sorted(ovf) == ["N-Ø-0006|2012000094"]
+    assert ovf["N-Ø-0006|2012000094"]["tillatelse_nr"] == "N-Ø-0006"
+
+
+def test_kom_til_regner_ogsaa_tillatelser_selskapet_har_gitt_fra_seg():
+    """F2. «Gikk ut» ble bygget av alle tillatelser og «Kom til» bare av
+    dem selskapet eier nå. Lerøy Aurora AS sto med «2 kommet til» og
+    eldste overføring hit 24.12.2021; kroppene har 12, eldst 05.11.2009.
+    En tillatelse som gikk ut, kom en gang til."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        tillatelser_per_eier={"912345678": ["N-T-0001"]},
+        eierskap={"N-T-0001": {"eier_navn": "TESTLAKS AS",
+                               "eier_orgnr": "912345678",
+                               "lokaliteter": "10001"}},
+        enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
+        akva_dato="2026-09-14", akva={"10001": {"navn": "TESTHOLMEN"}},
+        dekning_fra=[], registerendringer={}, former={},
+        overforinger_per_tillatelse={
+            "N-T-0001": [
+                {"tillatelse_nr": "N-T-0001", "journal_dato": "2021-12-24",
+                 "rekkefolge": "1", "mottaker_orgnr": "912345678",
+                 "mottaker_navn": "TESTLAKS AS"}],
+            "T-G-0010": [
+                {"tillatelse_nr": "T-G-0010", "journal_dato": "2009-11-05",
+                 "rekkefolge": "1", "mottaker_orgnr": "912345678",
+                 "mottaker_navn": "TESTLAKS AS"},
+                {"tillatelse_nr": "T-G-0010", "journal_dato": "2022-03-01",
+                 "rekkefolge": "2", "mottaker_orgnr": "987654321",
+                 "mottaker_navn": "ANDRE TESTVIK AS"}]})
+
+    sel = nettsted.bygg_selskap("912345678", felles)
+
+    inn = sorted((o["tillatelse"], o["dato"]) for o in sel["eierskapslinje"]
+                 if o["retning"] == "inn")
+    assert inn == [("N-T-0001", "2021-12-24"), ("T-G-0010", "2009-11-05")]
+    assert sel["kom_til"] == 2 and sel["gikk_ut"] == 1
+    assert sel["i_arkivet_siden"] == "2009-11-05"

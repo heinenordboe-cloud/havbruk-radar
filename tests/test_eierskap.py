@@ -697,3 +697,63 @@ def test_hooken_kan_bare_fjerne_aldri_legge_til():
     ut = Eierskap().fjern_egne_personer(ramme)
     assert ut.height <= ramme.height
     assert set(ut["entity_id"]) <= set(ramme["entity_id"])
+
+
+# ------------------------------------------- arkivnavnet (rødt lag F1)
+#
+# Kroppen fra /licenses/{nr}/transfers bærer ikke nummeret, så filnavnet
+# er det eneste som kobler den til tillatelsen. Fram til 04.11.2026 ble
+# «N-Ø-0006» til «N-_-0006», og det navnet ble lest tilbake som nummeret.
+
+@pytest.mark.parametrize("nr", ["N-Ø-0006", "H-ØN-0001", "Ø-H-0503",
+                                "M-Æ-0001", "M-Å-0001", "H-KM-0018",
+                                "N/../0001", "A.B-0001", "A_B-0001",
+                                "A%B-0001"])
+def test_arkivnavnet_gir_nummeret_tilbake(nr):
+    navn = eierskap.arkivnavn(nr)
+    assert eierskap.fra_arkivnavn(navn) == nr
+    assert navn.isascii()
+    assert not set(navn) & set("/._"), (
+        "ingen skråstrek (utenfor mappa), intet punktum (filendelsen "
+        "splittes på det) og ingen understrek (det gamle vaskemerket)")
+
+
+def test_ascii_numre_far_samme_navn_som_for():
+    """De 2850 filene som lå riktig, skal fortsatt ligge riktig."""
+    for nr in ("H-KM-0018", "AA-G-0301", "SF-SU-0004"):
+        assert eierskap.arkivnavn(nr) == eierskap.gammelt_arkivnavn(nr) == nr
+
+
+def test_et_vasket_navn_gir_ikke_et_nummer():
+    """«_» var Ø, Æ, Å eller et annet tegn. Et gjett er ikke et nummer."""
+    assert eierskap.gammelt_arkivnavn("N-Ø-0006") == "N-_-0006"
+    assert eierskap.fra_arkivnavn("N-_-0006") is None
+
+
+def _ovf_rad(nr, jnr, dato="2012-09-10", orgnr="958023685"):
+    return {"tillatelse_nr": nr, "journal_nr": jnr, "journal_dato": dato,
+            "mottaker_orgnr": orgnr}
+
+
+def test_vasket_rad_med_tvilling_tas_ut():
+    ovf = {"N-_-0006|2012000094": _ovf_rad("N-_-0006", "2012000094"),
+           "N-Ø-0006|2012000094": _ovf_rad("N-Ø-0006", "2012000094"),
+           "H-KM-0018|2010000001": _ovf_rad("H-KM-0018", "2010000001")}
+    ut = eierskap.uten_vaskede_numre(ovf)
+    assert sorted(ut) == ["H-KM-0018|2010000001", "N-Ø-0006|2012000094"]
+
+
+def test_vasket_rad_uten_tvilling_blir_staaende():
+    """Å fjerne den ville vært å la en overføring forsvinne stille.
+    Backfillen er det som skal sørge for at den har en tvilling."""
+    ovf = {"N-_-0006|2012000094": _ovf_rad("N-_-0006", "2012000094"),
+           "N-Ø-0006|2023000162": _ovf_rad("N-Ø-0006", "2023000162")}
+    assert sorted(eierskap.uten_vaskede_numre(ovf)) == sorted(ovf)
+
+
+def test_tvillingen_er_samme_journalforing_ikke_bare_samme_nummer():
+    """Samme journalnummer på en tillatelse som vasker til et ANNET navn
+    er ikke en tvilling."""
+    ovf = {"N-_-0006|2012000094": _ovf_rad("N-_-0006", "2012000094"),
+           "N-Ø-0007|2012000094": _ovf_rad("N-Ø-0007", "2012000094")}
+    assert "N-_-0006|2012000094" in eierskap.uten_vaskede_numre(ovf)

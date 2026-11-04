@@ -79,6 +79,7 @@ from __future__ import annotations
 
 import re
 from typing import Any, Iterable
+from urllib.parse import unquote
 
 import httpx
 import polars as pl
@@ -353,6 +354,84 @@ HISTORIKK_KILDE = "eierskap_historikk"
 PAUSE_S = 0.5
 
 
+# ---- arkivnavnet for én tillatelses overføringer ----------------------
+#
+# Kroppen fra `/licenses/{nr}/transfers` bærer IKKE tillatelsesnummeret.
+# Filnavnet i `data/arkiv/eierskap-overforinger/` er derfor det eneste som
+# kobler kroppen til tillatelsen, og da må veien fra nummer til navn være
+# OMVENDBAR.
+#
+# Fram til 04.11.2026 var den ikke det. Vasken `[^A-Za-z0-9_.-] -> _`
+# gjorde «N-Ø-0006» til «N-_-0006», og historikken ble skrevet under det
+# vaskede navnet, fordi navnet ble lest tilbake som nummeret. MÅLT
+# 04.11.2026 (rødt lag F1): 179 arkivfiler, 47 tillatelser med 86
+# overføringer, 250 rader borte fra 75 lokalitetssider. Vasken traff Æ
+# og Å på samme måte; bare Ø forekommer i numrene.
+#
+# Nå prosentkodes hver byte utenfor [A-Za-z0-9-] i UTF-8: «N-%C3%98-0006».
+# Navnet er ASCII, inneholder aldri «/», «.» eller «_», og
+# `fra_arkivnavn()` gir nummeret tilbake. Et nummer av bare ASCII får
+# samme navn som før, så de 2850 filene som lå riktig, ligger fortsatt
+# riktig.
+_ARKIVTRYGT = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                        "abcdefghijklmnopqrstuvwxyz0123456789-")
+
+
+def arkivnavn(nr: str) -> str:
+    """Tillatelsesnummer -> filnavnstamme. Omvendbar, se over."""
+    return "".join(
+        tegn if tegn in _ARKIVTRYGT
+        else "".join(f"%{b:02X}" for b in tegn.encode("utf-8"))
+        for tegn in nr)
+
+
+def gammelt_arkivnavn(nr: str) -> str:
+    """Navnet vasken FØR 04.11.2026 ga. Bare for å kjenne igjen filene den
+    skrev — de står (regel 2), og må kunne pares med sin tvilling."""
+    return re.sub(r"[^A-Za-z0-9_.-]", "_", nr)
+
+
+def fra_arkivnavn(stamme: str) -> str | None:
+    """Filnavnstamme -> tillatelsesnummer. None for et VASKET navn.
+
+    «_» forekommer aldri i et nytt navn og aldri i et tillatelsesnummer
+    (0 av 3511 i akvakulturkroppen 04.11.2026), så en stamme med «_» er
+    skrevet av den gamle vasken. Nummeret kan ikke leses av den: «_» var
+    Ø, Æ, Å eller et hvilket som helst annet tegn. Å gjette Ø ville vært
+    riktig 179 av 179 ganger og likevel et gjett.
+    """
+    if "_" in stamme:
+        return None
+    return unquote(stamme, errors="strict")
+
+
+def uten_vaskede_numre(overforinger: dict[str, dict]) -> dict[str, dict]:
+    """Overføringer skrevet under et vasket nummer, ut — når den SAMME
+    overføringen står under riktig nummer.
+
+    Historikken leses som alle versjoner slått sammen
+    (`nettsted._overforinger()`), og snapshotene fra 02.09.2026 står
+    (regel 2). Uten dette ville hver av de 86 overføringene stått to
+    ganger: «N-_-0006» fra 2026-09-02 og «N-Ø-0006» fra 04.11.2026 — og
+    «Gikk ut» på selskapssidene ville listet begge.
+
+    Tvillingen er (journalnummer, vasket nummer): samme journalføring på
+    en tillatelse hvis nummer vasker til det samme. En vasket rad UTEN
+    tvilling blir stående, og ser ut som det den er — det er
+    `backfill.py --overforinger` som skal sørge for at den ikke finnes,
+    og den nekter å skrive snapshots så lenge en kropp med overføringer
+    bare ligger under det gamle navnet.
+    """
+    riktige = {(str(o.get("journal_nr") or ""),
+                gammelt_arkivnavn(str(o.get("tillatelse_nr") or "")))
+               for o in overforinger.values()
+               if "_" not in str(o.get("tillatelse_nr") or "")}
+    return {eid: o for eid, o in overforinger.items()
+            if "_" not in str(o.get("tillatelse_nr") or "")
+            or (str(o.get("journal_nr") or ""),
+                str(o.get("tillatelse_nr") or "")) not in riktige}
+
+
 class Eierskap(Source):
     name = "eierskap"
 
@@ -610,6 +689,10 @@ class Eierskap(Source):
     # hvilken som helst kilde med `overforinger()` uten å importere
     # nettopp denne fila.
     er_organisasjonsnummer = staticmethod(er_organisasjonsnummer)
+    arkivnavn = staticmethod(arkivnavn)
+    fra_arkivnavn = staticmethod(fra_arkivnavn)
+    gammelt_arkivnavn = staticmethod(gammelt_arkivnavn)
+    uten_vaskede_numre = staticmethod(uten_vaskede_numre)
     PAUSE_S = PAUSE_S
     BRREG_PAUSE_S = BRREG_PAUSE_S
 
