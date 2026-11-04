@@ -30,17 +30,19 @@ Sitatene under er fortsatt lest for hånd; kroppene er belegget.
 
 | kilde | lisens | hjemmel | attribusjon, ordrett | kommersiell | lest |
 |---|---|---|---|---|---|
-| `akvakultur` | NLOD | [fiskeridir.no](https://www.fiskeridir.no/statistikk-tall-og-analyse/lisens-for-bruk-av-fiskeridirektoratets-data) | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
-| `biomasse` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
-| `biomasselag` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
-| `romming` | NLOD | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026 |
-| `eierskap` | NLOD (Fiskeridir.) + **NLOD 2.0** (Brreg) | [fiskeridir.no](https://www.fiskeridir.no/statistikk-tall-og-analyse/lisens-for-bruk-av-fiskeridirektoratets-data) + [brreg.no/…/datasett-og-api](https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/datasett-og-api/) | «Kilde: Fiskeridirektoratet» **+** «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 25.08. / 14.09.2026 |
+| `akvakultur` | **NLOD 1.0** — lisenssiden lenker dit, se merknad A | [fiskeridir.no](https://www.fiskeridir.no/statistikk-tall-og-analyse/lisens-for-bruk-av-fiskeridirektoratets-data) | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026, versjonen 04.11.2026 |
+| `biomasse` | **NLOD 1.0** | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026, versjonen 04.11.2026 |
+| `biomasselag` | **NLOD 1.0** | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026, versjonen 04.11.2026 |
+| `romming` | **NLOD 1.0** | samme | «Kilde: Fiskeridirektoratet» | **ja** | 25.08.2026, versjonen 04.11.2026 |
+| `eierskap` | **NLOD 1.0** (Fiskeridir.) + **NLOD 2.0** (Brreg) | [fiskeridir.no](https://www.fiskeridir.no/statistikk-tall-og-analyse/lisens-for-bruk-av-fiskeridirektoratets-data) + [brreg.no/…/datasett-og-api](https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/datasett-og-api/) | «Kilde: Fiskeridirektoratet» **+** «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 25.08. / 14.09.2026 |
+| `enhetsregisteret_oppslag` (oppslag på enkeltnummer, `backfill.py --oppslag`) | **NLOD 2.0**, som `enhetsregisteret` | samme | som `enhetsregisteret` | **ja** | 04.11.2026 |
 | `enhetsregisteret` | **NLOD 2.0** — gjelder det **frie** nivået, se merknad B | [brreg.no/…/datasett-og-api](https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/datasett-og-api/), lisenstekst [data.norge.no/nlod/no/2.0](https://data.norge.no/nlod/no/2.0) | «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene» | **ja** | 14.09.2026 |
 | `lusetall` | NLOD | [barentswatch.no/artikler/api-vilkar](https://www.barentswatch.no/artikler/api-vilkar) | «Data levert av BarentsWatch» **+** «Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra Mattilsynet.» | **ja, uttrykkelig** | 12.09.2026 |
 | `sjotemperatur` | NLOD | samme | «Data levert av BarentsWatch» | **ja, uttrykkelig** | 12.09.2026 |
 | `trafikklysvedtak` | NLOD 2.0, via unntaket i Lovdatas punkt 2.3 | [lovdata.no/info/brukeravtale](https://lovdata.no/info/brukeravtale) | «hvis du oppgir Lovdata som kilde og ellers følger vilkårene i NLOD 2.0» | **ja**, men se merknad C | 12.09.2026 |
 | `reguleringsomraader` | **CC BY 4.0** | [doi.org/10.21335/NMDC-1923112433](https://doi.org/10.21335/NMDC-1923112433) | navngivelse av opphavspersonene, se merknad D | **ja** | 14.09.2026 |
 | `ekspertgruppen` | **UBELAGT** | ingen funnet — se merknad E | siteringsformen fra rapporten selv | **ukjent** | 14.09.2026 (søkt, ikke funnet) |
+| departementets kunngjøringer på regjeringen.no (`beslutning.py`; ikke en kilde i `sources/`) | **UBELAGT** | ingen funnet — se merknad M | — | **ukjent** | 04.11.2026 (søkt i arkivet, ikke funnet) |
 | `unntaksvekst` | **belagt i lov 09.10.2026**: uten vern, åndsverkloven § 14 — se merknad K | [lovdata.no/lov/2018-06-15-40/§14](https://lovdata.no/lov/2018-06-15-40/§14), arkivert i `lovdata-andsverkloven/` | ingen krav i loven; som praksis Mattilsynets egen form, «(Kilde: Mattilsynet, nettadressa og datoen du gjenga teksten.)» | **ja** — ingen enerett å begrense den (lesning, merknad K) | 09.10.2026 |
 | Mattilsynets åpne API (ikke en kilde; hentet for analysen av unntaksvekst) | **NLOD 2.0** | spesifikasjonen selv, `info.license`, arkivert i `mattilsynet-openapi/` | standardformen i NLOD 2.0: «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Mattilsynet» | **ja** | 09.10.2026 |
 | `akvakultur-flater` (fangst, `arkiver_flater.py`; ikke en kilde) | NLOD | samme som `akvakultur`, arkivert i `vilkar-fiskeridir/`; laget sier selv «Fiskeridirektoratet / Akvakulturregister» | «Kilde: Fiskeridirektoratet» | **ja** | 03.11.2026 |
@@ -264,6 +266,18 @@ sammenstilling.
 
 Gjelder alle fem fiskeridirektoratkildene: `akvakultur`, `biomasse`,
 `biomasselag`, `romming` og `eierskap` (`pub-aqua`).
+
+**Versjonen er 1.0, og den er lest i kroppen** (04.11.2026, rødt lag F3).
+Lisenssiden sier «Norsk lisens for offentlige data (NLOD)» uten tall, men
+lenken «lisensen som våre data er underlagt» går til
+`https://data.norge.no/nlod/no/1.0`, og lenken ved «vilkårene som er
+utarbeidet av Difi» går til `https://data.norge.no/nlod/no` uten versjon.
+Kroppen er `data/arkiv/vilkar-fiskeridir/2026-11-02.bin.gz`, sha256
+`021c8692f14104b1986de78ad8f198948ab6ea52b699fec7034feb657ffdb0a3`.
+Fram til da oppga JSON-LD `eierskap` med 2.0, som er en versjon
+Fiskeridirektoratet ikke har oppgitt, og de fire andre med lisenssiden.
+Nå er `license` 1.0 for alle fem, og for `eierskap` og
+`eierskap_historikk` i tillegg Brregs 2.0 (`nettsted.LISENS_URL`).
 
 ## Merknad B — Brønnøysundregistrene, og HVILKET nivå lisensen gjelder
 
@@ -507,7 +521,9 @@ av dem er utført per 14.09.2026, og ingen av dem er utløst ennå.
 Rekkefølgen er den samme som alvorlighetsgraden:
 
 1. **`ekspertgruppen` er UBELAGT.** Avklar med HI/NINA før en visning
-   lener seg på rapportene. Eneste gjenstående hull i kjeden.
+   lener seg på rapportene.
+1b. **Departementets kunngjøringer er UBELAGT** (merknad M, 04.11.2026).
+   Visningen er stoppet til lisensen er belagt.
 2. ~~**De to BarentsWatch-setningene må stå synlig for sluttbruker**, og
    Brregs NLOD-setning må med der Enhetsregisteret vises.~~ **Gjort
    16.09.2026** for den publiserte siden: `nettsted.py` bygger
@@ -531,6 +547,36 @@ Lukket 14.09.2026: Brregs ordrette attribusjonssetning, som sto som
 ULEST fra 12.09. Se merknad B.
 
 ---
+
+## Merknad M — departementets kunngjøringer er UBELAGT
+
+Lest 04.11.2026 (økt 4d, rødt lag F12). Kunngjøringene av
+trafikklysrundene — pressemeldingene og nyhetene på regjeringen.no som
+`beslutning.py` leser fargen, tegnforklaringen og de særskilte
+vurderingene av — har ingen dokumentert lisens:
+
+- **De ni arkiverte kroppene** i `data/arkiv/regjeringen-pressemeldinger/`
+  (2017-10-30 til 2026-09-10) oppgir ikke noe vilkår for teksten.
+  Bunnteksten lenker til «Bruks- og opphavsrett for bilder og
+  videomateriale» (`/no/om-nettstedet/bruk-av-bilder-og-videomateriale/id2715005/`),
+  som etter navnet gjelder bilder og video, og til personvernerklæringen.
+  Ingen kropp nevner NLOD, Creative Commons eller gjenbruk av tekst.
+- **regjeringen.no og Wayback** svarte CONNECT 403 fra øktas nettverk, så
+  siden lenken peker til, er ikke lest.
+
+Etter regelen øverst er det UBELAGT, og en UBELAGT kilde skal ikke bære en
+publisert visning. Fra 04.11.2026 vises kunngjøringene derfor ikke
+(`nettsted.KUNNGJORINGER_VISES = False`): ingen sitater, ingen
+tegnforklaring fra dem, ingen «særskilt»-merknader, og de 19 av 65
+rundecellene der bare kunngjøringen oppgir fargen, står som «ikke vist».
+De leses og rangeres fortsatt, så visningen kommer tilbake med én linje
+den dagen lisensen er belagt.
+
+**Det som kan belegge den**, og som Heine må avgjøre: (1) vilkårssiden
+for tekst på regjeringen.no, lest og arkivert; eller (2) samme lesning av
+åndsverkloven § 14 som for `unntaksvekst` (merknad K) — kunngjøringene er
+uttalelser om offentlig myndighetsutøvelse, utgitt av departementet.
+Ingen av dem er gjort her.
 
 ## Merknad K — `unntaksvekst`: belagt i lov, åndsverkloven § 14
 

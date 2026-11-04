@@ -331,6 +331,20 @@ def _varsle_tomme_sok(treff: dict[str, int], tillat_tomt: set[str]) -> list[str]
     ]
 
 
+# OPPSLAGENE: orgnumre tillatelsesregisteret NEVNER, men som ikke står i
+# næringskodeutvalget. Egen serie, ikke `enhetsregisteret`, av samme grunn
+# som `eierskap_historikk` er egen: det er et annet spørsmål til registeret
+# («finnes dette nummeret, og er det slettet»), og blandet inn i det
+# ukentlige uttrekket ville 392 enheter sett ut som en utvalgsutvidelse.
+#
+# Finnes for én ting (rødt lag F4, 04.11.2026): lokalitetssidene skrev
+# «(i dag: Landøy Fiskeoppdrett AS)» om en enhet som er slettet
+# 18.05.2019. 28 av 29 slike nummer i utvalget var slettet. Navnet er
+# Fiskeridirektoratets; at enheten finnes i dag, kan bare Enhetsregisteret
+# si. Hentes av `backfill.py --kilde enhetsregisteret --oppslag`.
+OPPSLAG_KILDE = "enhetsregisteret_oppslag"
+
+
 class Enhetsregisteret(Source):
     name = "enhetsregisteret"
 
@@ -349,8 +363,10 @@ class Enhetsregisteret(Source):
 
     # Ukentlig registeruttrekk: snapshotet sier hva registeret sier NÅ,
     # og forrige uke er utdatert og ikke et annet tidsrom. Målt: 0 dagers
-    # avvik i alle 6 snapshots.
-    partisjonering = "henting"
+    # avvik i alle 6 snapshots. Oppslagene er det samme: hva registeret
+    # sier om nummeret den dagen vi spurte.
+    partisjonering = {"enhetsregisteret": "henting", OPPSLAG_KILDE: "henting"}
+    skriver_ogsaa = (OPPSLAG_KILDE,)
     enabled = True
 
     # Brregs eget ord for «da ble selskapet til». Se Source.startdatofelt:
@@ -542,3 +558,73 @@ class Enhetsregisteret(Source):
                     source=self.name,
                     observed_at=observed_at,
                 )
+
+    # ---- oppslag på ett nummer (rødt lag F4) --------------------------
+
+    # Sekunder mellom kall. Samme høflighet som eierskapets Brreg-oppslag.
+    OPPSLAG_PAUSE_S = 0.3
+
+    def oppslag(self, orgnr: str, c: httpx.Client) -> dict:
+        """Hva Enhetsregisteret sier om ETT nummer, REDUSERT før det
+        forlater funksjonen.
+
+        Bare fire felt overlever: nummeret, status, organisasjonsform og
+        slettedato. Ikke navnet — det står fra Fiskeridirektoratet, og et
+        navn fra Brreg ville vært en personopplysning for hver personform
+        — og ingen adresse, e-post eller telefon (se
+        `Eierskap.brreg_form`, som er målt på samme endepunkt 03.09.2026).
+
+            finnes        aktiv enhet                 -> status, form
+            slettet       200, SlettetEnhet           -> + slettedato
+            ikke_funnet   404                         -> bare status
+            fjernet       410 Gone                    -> bare status
+            personform    ENK, DA, ANS …              -> ARKIVERES IKKE
+
+        En personform returneres med status alene, og kalleren skal ikke
+        skrive den noe sted: «dette nummeret er et enkeltpersonforetak» er
+        en opplysning om et menneske (regel 3). Samme prøve som `fetch()`
+        og `parse()` bruker, `_er_person()`.
+        """
+        r = c.get(f"{BASE}/{orgnr}", headers={"Accept": "application/json"})
+        if r.status_code == 410:
+            return {"organisasjonsnummer": orgnr, "status": "fjernet"}
+        if r.status_code == 404:
+            return {"organisasjonsnummer": orgnr, "status": "ikke_funnet"}
+        r.raise_for_status()
+        d = r.json()
+        if _er_person(d):
+            return {"organisasjonsnummer": orgnr, "status": "personform"}
+        slettet = str(d.get("slettedato") or "").strip()
+        return {"organisasjonsnummer": orgnr,
+                "status": "slettet" if slettet else "finnes",
+                "organisasjonsform": str(_organisasjonsform(d) or ""),
+                "slettedato": slettet}
+
+    def parse_oppslag(self, kropp: dict,
+                      observed_at: str) -> Iterable[Observation]:
+        """Oppslagskroppen -> observasjoner under `OPPSLAG_KILDE`.
+
+        En personform slipper ikke gjennom her heller, om den skulle stå
+        i en kropp: status `personform` gir ingen rad, og en formkode
+        `persondata.er_personform()` kjenner igjen gir ingen rad. Ikke
+        `_er_person()`: den spør også om sektoren, og den reduserte kroppen
+        har bare formkoden.
+        """
+        for e in sorted((kropp or {}).get("enheter") or [],
+                        key=lambda e: str(e.get("organisasjonsnummer"))):
+            orgnr = str(e.get("organisasjonsnummer") or "").strip()
+            status = str(e.get("status") or "")
+            if not orgnr or status in ("", "personform"):
+                continue
+            if persondata.er_personform(e.get("organisasjonsform")):
+                continue
+            for felt in ("status", "organisasjonsform", "slettedato"):
+                verdi = str(e.get(felt) or "")
+                if not verdi:
+                    continue
+                yield Observation(entity_id=orgnr,
+                                  entity_type=self.entity_type,
+                                  entity_name="", field=felt, value=verdi,
+                                  source=OPPSLAG_KILDE,
+                                  observed_at=observed_at)
+

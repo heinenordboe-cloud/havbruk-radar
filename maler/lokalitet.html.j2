@@ -237,14 +237,25 @@
       <dt>Kapasitet</dt>
       <dd><span data-felt="kapasitet">{{ lok.kapasitet or "—" }}</span>
         <span class="fakta-etikett">lokaliteten</span>
-        {%- if ps.mtb %} ·
-        <span{{ merke(ps.mtb.herkomst, ps.mtb.nivaa) }} data-felt="kapasitet_tillatelser">{{ ps.mtb.vist }}</span>
-        <span class="fakta-etikett">{{ antall(lok.kapasitet_tillatelser_antall, "tillatelse", "tillatelser") }}</span>
+        {#- TILLATELSENE, HVER ENHET FOR SEG. 585 tonn og 200 000 stykk
+            har ingen sum, og en tillatelse i en annen enhet enn
+            lokalitetens skal stå, ikke holdes utenfor (rødt lag F5). #}
+        {%- for d in ps.get("mtb_deler") or () %}{% if loop.first %} ·{% else %} +{% endif %}
+        <span{{ merke(d.herkomst, d.nivaa) }} data-felt="kapasitet_tillatelser">{{ d.vist }}</span>
+        <span class="fakta-etikett">{{ antall(d.antall, "tillatelse", "tillatelser") }}</span>
+        {%- endfor %}
+        {%- if ps.get("mtb_uten") %}
+        <span class="fakta-bi"{{ merke(ps.mtb_uten.herkomst) }}><span data-felt="kapasitet_tillatelser_uten">{{ antall(ps.mtb_uten.verdi|int, "tillatelse", "tillatelser") }}</span> uten oppgitt kapasitet</span>
         {%- endif %}
         {%- if ps.midlertidig %} ·
         <span data-felt="kapasitet_midlertidig">{{ ps.midlertidig.vist }}</span>
         <span class="fakta-etikett">midlertidig</span>
         {%- endif %}</dd>
+        {#- EGEN LINJE, ikke i verdien: med flere enheter gikk cella over
+            avsnittsgrensa (`publiseringsvakt.AVSNITTSGRENSE`). #}
+        {%- if (ps.get("mtb_deler") or ())|length > 1 %}
+        <dd class="fakta-note">Summert innenfor hver enhet, ikke på tvers.</dd>
+        {%- endif %}
     </div>
   </dl>
   {{ herkomst(ps.sted.herkomst) }}
@@ -736,7 +747,9 @@
       {% if g.mangler %}
       <div><dt>Mangler hos kilden</dt><dd>{{ antall(g.mangler, "uke", "uker") }}</dd></div>
       {% endif %}
-      <div><dt>Tiltaksgrense</dt><dd>
+      {#- GRENSA ER SJØTEMPERATURKILDENS «Lusegrense uke», ikke lusetallets
+          (rødt lag F13). Merket så porten ser at kilden vises. #}
+      <div{% if g.grense %} data-kilde="sjotemperatur"{% endif %}><dt>Tiltaksgrense</dt><dd>
         {%- if g.grense %}{{ g.grense.verdier }}
         {%- if g.grense.uten %} <span class="fakta-etikett">{{ antall(g.grense.uten, "uke", "uker") }} uten</span>{% endif %}
         {%- else %}ikke oppgitt{% endif %}</dd></div>
@@ -1007,6 +1020,12 @@
       {{ lok.oppgitt[0].dato[:4] }}{% if lok.oppgitt[-1].dato[:4] != lok.oppgitt[0].dato[:4] %}–{{ lok.oppgitt[-1].dato[:4] }}{% endif %}</summary>
   <p class="tabelltittel" id="eierskap_historikk-overforinger-tittel">{{ antall(lok.oppgitt|length, "post", "poster") }},
       eldst først <span class="herkomst">{{ "eierskap"|kildekort }} · datoene er kildens</span></p>
+  {#- ENHETSREGISTERETS PÅSTANDER i tabellen («i dag», slettedatoene) har
+      sin egen herkomstlinje: tittelen over er Fiskeridirektoratets.
+      Egen <p> og ikke i tittelen, som da gikk over avsnittsgrensa. #}
+  {% for h in lok.oppgitt_brreg %}
+  <p class="tabellnote"><span class="herkomst">{{ h.kort }} · <time datetime="{{ h.gjelder }}">{{ h.vist }}</time> · {{ h.hva }}</span></p>
+  {% endfor %}
   <div class="tabellramme" role="region"
        aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
   <table id="eierskap_historikk-overforinger" aria-labelledby="eierskap_historikk-overforinger-tittel">
@@ -1031,7 +1050,7 @@
            søkeindeks er en maskinlesbar liste over hvert ord på
            nettstedet, og et navn som kan slås opp der er en oppføring i
            et register. Se `personformnavn()` og regel 3. #}
-        {%- if o.navn_er_i_dag %}
+        {%- if o.navn_er_i_dag or o.navn_ifolge %}
         {#- NUMMERET ER IDENTITETEN, navnet er registerets navn på det I
             DAG — se `_oppgitt_historikk()`. Cellen bærer derfor ikke
             merkingen selv: begge verdiene står i hver sin span, med hver
@@ -1048,7 +1067,11 @@
               som et avkortet navn. Det er ikke det: MÅLT 20.10.2026 sender
               kilden «HALIBUT AS» for 975359050, og Brønnøysund har samme
               navn (aksjeselskap, slettet 12.12.2013). #}
-          <span class="dempet">(i dag: <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>)</span>
+          {#- «I DAG» BARE NÅR ENHETSREGISTERET BEKREFTER at enheten finnes
+              (rødt lag F4). Ellers er navnet Fiskeridirektoratets, og
+              slettedatoen står når registeret oppgir en. #}
+          <span class="dempet">({% if o.navn_er_i_dag %}i dag{% else %}ifølge Fiskeridirektoratet{% endif %}: <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>
+          {%- if o.slettet %} · <span data-felt="slettedato"{{ merke(o.slettet) }}>slettet i Enhetsregisteret <time datetime="{{ o.slettet.dato }}">{{ o.slettet.dato|dato }}</time></span>{% endif %})</span>
         </td>
         {%- else %}
         <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"

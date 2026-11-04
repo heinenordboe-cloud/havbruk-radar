@@ -272,6 +272,7 @@ def _side(_maaler=None, **overstyr) -> str:
             "eier_orgnr": "928957489", "type": "KOMM-MATF",
             "kapasitet": "1022.0", "kapasitet_enhet": "TN",
             "tildelt_dato": "2004-09-29", "tildelt_navn": "SALMAR NORD AS",
+            "tildelt_orgnr": "928957489",
         }],
         # Standarden er ENIGE kilder: alle tillatelser akvakultur oppgir
         # er gjort rede for i eierskap. Testene under overstyrer.
@@ -314,6 +315,9 @@ def _side(_maaler=None, **overstyr) -> str:
         "kapasitet": "8 000 tonn", "kapasitet_midlertidig": "8 000 tonn",
         # Én tillatelse på 1 022 tonn, se `tillatelser` over.
         "kapasitet_tillatelser": "1 022 tonn", "kapasitet_tillatelser_antall": 1,
+        "kapasitet_tillatelser_deler": [
+            {"enhet": "TN", "vist": "1 022 tonn", "antall": 1}],
+        "kapasitet_tillatelser_uten": 0, "kapasitet_tillatelser_i_alt": 1,
         "samme_posisjon": [],
         "selskap": {"navn": "SALMAR OPPDRETT AS", "orgnr": "928957489",
                     "url": "/selskap/928957489/", "siden": "2022-12-30",
@@ -345,7 +349,9 @@ def _side(_maaler=None, **overstyr) -> str:
         _endringsrader(lok["endringer"]), lok["dekning_fra"], None))
     lok.setdefault("oppgitt", nettsted._oppgitt_historikk(
         {"forste_klarering": "2010-11-10T23:00:00Z"},
-        lok["tillatelser"], lok["overforinger"]))
+        lok["tillatelser"], lok["overforinger"],
+        enhetsstatus=lok.pop("_enhetsstatus", None)))
+    lok.setdefault("oppgitt_brreg", nettsted._oppgitt_brreg(lok["oppgitt"]))
     # GRAFEN REGNES AV `lus_serie`, ikke skrevet inn ved siden av. Et
     # `overstyr` som bytter serien skal bytte grafen med den — to
     # felter som beskriver samme uker og kan sies hver for seg, er
@@ -601,19 +607,45 @@ def test_jsonld_toppnivaa_har_url_og_lisens_til_gjenbruk(monkeypatch):
 
 
 def test_jsonld_oppgir_lisensversjon_bare_der_den_er_belagt():
-    """Fiskeridirektoratets lisensside sier «NLOD» uten versjon. En lenke
-    til 2.0 for den kilden ville påstått en versjon ingen har gått god
-    for — se docs/LISENSKJEDE.md merknad A mot merknad B."""
+    """Fiskeridirektoratets lisensside lenker «lisensen som våre data er
+    underlagt» til NLOD 1.0 — MÅLT 04.11.2026 i
+    `vilkar-fiskeridir/2026-11-02.bin.gz` (rødt lag F3). Fram til da sto
+    eierskap med 2.0, en versjon Fiskeridirektoratet ikke har oppgitt.
+    Eierskapet har to lisensgivere, som i docs/LISENSKJEDE.md: 1.0 for
+    tillatelsene, 2.0 for Brønnøysunds organisasjonsformer."""
     d = _jsonld_av(_side())
     per_kilde = {k["name"]: k for k in d["isBasedOn"]}
-    assert per_kilde["akvakultur"]["license"] == nettsted.LISENSSIDE["akvakultur"]
-    assert "2.0" not in per_kilde["akvakultur"]["license"]
-    assert per_kilde["eierskap"]["license"] == "https://data.norge.no/nlod/no/2.0"
+    assert per_kilde["akvakultur"]["license"] == "https://data.norge.no/nlod/no/1.0"
+    assert per_kilde["eierskap"]["license"] == [
+        "https://data.norge.no/nlod/no/1.0", "https://data.norge.no/nlod/no/2.0"]
+    assert per_kilde["eierskap_historikk"]["license"] == \
+        per_kilde["eierskap"]["license"]
+    assert per_kilde["lusetall"]["license"] == nettsted.LISENSSIDE["lusetall"]
+
+
+def test_creditText_bærer_hele_attribusjonen():
+    """Rødt lag F14: bare første setning sto i tvillingen."""
+    d = _jsonld_av(_side())
+    per_kilde = {k["name"]: k for k in d["isBasedOn"]}
+    assert per_kilde["lusetall"]["creditText"] == (
+        "Data levert av BarentsWatch. Opplysninger om lakselus, rensefisk og "
+        "medikamentbruk er hentet fra Mattilsynet.")
+    assert "Brønnøysundregistrene" in per_kilde["eierskap"]["creditText"]
+    assert per_kilde["eierskap"]["creditText"].startswith(
+        "Kilde: Fiskeridirektoratet. ")
 
 
 def test_jsonld_har_en_kilde_per_kilde_siden_bruker():
-    d = _jsonld_av(_side())
-    assert [k["name"] for k in d["isBasedOn"]] == list(nettsted.SIDENS_KILDER)
+    """Kildene SIDEN viser (`lokalitetskilder`), ikke en fast liste: en
+    side med biomasselaget og lusegrensa har dem i `isBasedOn` (rødt lag
+    F13)."""
+    lok_side = _side()
+    d = _jsonld_av(lok_side)
+    navn = [k["name"] for k in d["isBasedOn"]]
+    assert navn[:len(nettsted.SIDENS_KILDER)] == list(nettsted.SIDENS_KILDER)
+    assert set(navn) - set(nettsted.SIDENS_KILDER) <= set(
+        nettsted.LOKALITET_KAN_VISE)
+    assert "biomasselag" in navn, "fiksturen viser «Fisk til stede»"
 
 
 # ---- merkekonvensjonen ------------------------------------------------
@@ -1203,7 +1235,10 @@ def test_jsonld_distribution_peker_paa_hele_serien():
     assert xlsx["encodingFormat"] == nettsted.XLSX_MIME
     assert zip_["encodingFormat"] == "application/zip"
     for d in (xlsx, zip_):
-        assert d["creditText"] == "Data levert av BarentsWatch"
+        # HELE attribusjonen, også dataeieren (rødt lag F14).
+        assert d["creditText"] == nettsted.kredittekst(
+            nettsted.kildevilkaar()["lusetall"])
+        assert "Mattilsynet" in d["creditText"]
         assert "764 uker" in d["description"]
 
 
@@ -1432,6 +1467,10 @@ def _po(**overstyr) -> str:
             {"aar": "2024", "type": "Nyhet", "dato": "2024-03-06",
              "url": "https://www.regjeringen.no/x/id3028522/", "tegn": []},
         ],
+        # Fiksturen viser kunngjøringene, slik siden gjør den dagen
+        # lisensen er belagt (`nettsted.KUNNGJORINGER_VISES`). At de IKKE
+        # vises i dag, prøves av `test_kunngjoringene_vises_ikke_*`.
+        "vis_kunngjoringer": True, "har_ikke_vist": False,
         # Departementets egen merknad om at området ble vurdert
         # særskilt. Ordrett, med dato og lenke — ingen tolkning.
         "saerskilt": [
@@ -2746,12 +2785,16 @@ def test_fraskrivelsen_utledes_av_kildenes_attribusjoner():
     assert nettsted.fraskrivelse(("akvakultur",)) == ["Fiskeridirektoratet"]
     assert nettsted.fraskrivelse(("lusetall",)) == ["BarentsWatch",
                                                     "Mattilsynet"]
-    # Trafikklysvedtaket siterer Lovdata, og PO-siden departementet.
-    assert nettsted.fraskrivelse(nettsted.PO_KILDER) == [
-        "Fiskeridirektoratet", "Lovdata"]
-    assert nettsted.fraskrivelse(
-        nettsted.PO_KILDER, i_tillegg=("regjeringen.no",)) == [
+    # Trafikklysvedtaket siterer Lovdata, og PO-siden departementet — når
+    # kunngjøringene vises. Fra 04.11.2026 viser områdesiden også
+    # innehaverne, lusetallene og lusegrensa (rødt lag F11).
+    po = ("akvakultur", "trafikklysvedtak")
+    assert nettsted.fraskrivelse(po) == ["Fiskeridirektoratet", "Lovdata"]
+    assert nettsted.fraskrivelse(po, i_tillegg=("regjeringen.no",)) == [
         "Fiskeridirektoratet", "Lovdata", "regjeringen.no"]
+    assert nettsted.fraskrivelse(nettsted.PO_KILDER) == [
+        "Fiskeridirektoratet", "Brønnøysundregistrene", "Lovdata",
+        "BarentsWatch", "Mattilsynet"]
     # Deduplisert: to kilder med samme setning gir ett navn.
     assert nettsted.fraskrivelse(("eierskap", "eierskap_historikk")) == [
         "Fiskeridirektoratet", "Brønnøysundregistrene"]
@@ -3122,12 +3165,57 @@ def test_d_ingen_endringer_star_en_gang_med_en_dato():
     assert "Akvakulturregisteret 17.08.2026 · Tillatelsene 02.09.2026" in flat
 
 
+# Enhetsregisteret BEKREFTER at tildelt-nummeret i fiksturen finnes.
+_BEKREFTET = {"928957489": {"bekreftet": True, "kilde": "enhetsregisteret",
+                            "gjelder": "2026-09-14", "slettet": None}}
+
+
 def test_e_navnet_i_dag_staar_paa_samme_linje():
     """Hull e: «(i dag:  Halibut AS)» var et linjeskift i malen, ikke et
     avkortet navn. Kilden og Brønnøysund sier begge «HALIBUT AS»."""
-    html = _side()
+    html = _side(_enhetsstatus=_BEKREFTET)
     assert re.search(r"\(i dag: <span[^>]*>Salmar Nord AS</span>\)", html)
     assert not re.search(r"\(i dag:\s*\n", html)
+
+
+def test_i_dag_bare_naar_enhetsregisteret_bekrefter_at_enheten_finnes():
+    """Rødt lag F4. «(i dag: Landøy Fiskeoppdrett AS)» sto om en enhet
+    slettet 18.05.2019. Navnet er Fiskeridirektoratets; uten at
+    Enhetsregisteret bekrefter enheten, står det som deres."""
+    flat = " ".join(re.sub(r"<[^>]+>", " ", _side()).split())
+    assert "i dag:" not in flat
+    assert "ifølge Fiskeridirektoratet: Salmar Nord AS" in flat
+
+
+def test_slettet_i_enhetsregisteret_staar_med_dato_og_herkomst():
+    status = {"928957489": {"bekreftet": False,
+                            "kilde": "enhetsregisteret_oppslag",
+                            "gjelder": "2026-11-04",
+                            "slettet": {"dato": "2019-05-18",
+                                        "kilde": "enhetsregisteret_oppslag",
+                                        "gjelder": "2026-11-04"}}}
+    html = _side(_enhetsstatus=status)
+    flat = " ".join(re.sub(r"<[^>]+>", " ", html).split())
+    assert "i dag:" not in flat
+    assert re.search(r"ifølge Fiskeridirektoratet: Salmar Nord AS · slettet "
+                     r"i Enhetsregisteret \S", flat), flat
+    assert 'datetime="2019-05-18"' in html
+    assert 'data-kilde="enhetsregisteret_oppslag"' in html
+    # Porten krever at kilden og datoen står i en herkomstlinje.
+    assert re.search(r'class="herkomst">Brønnøysund · <time datetime='
+                     r'"2026-11-04">', html)
+
+
+def test_oppslaget_gir_aldri_i_dag():
+    """En enhet som fantes den dagen vi spurte, finnes ikke nødvendigvis
+    nå. Bare det ukentlige uttrekket kan bekrefte «i dag»."""
+    from core import snapshot as snap
+    status = nettsted._enhetsstatus("2026-11-02", {
+        "928957489": {"navn": "SALMAR ASA"},
+        "931967061": {"navn": "X", "slettedato": "2019-05-18"}})
+    assert status["928957489"]["bekreftet"] is True
+    assert status["931967061"]["bekreftet"] is False
+    assert status["931967061"]["slettet"]["dato"] == "2019-05-18"
 
 
 def test_f_siste_komplette_uke_er_en_etikett_og_ikke_en_forklaring():
@@ -3899,7 +3987,10 @@ FORKLARINGENE = (
     "Laget oppgir ingen mengde",
     "Summen er sha256 av svaret kilden sendte oss den dagen.",
     "er da tillatelsen ble gitt første gang",
-    "er dagens navn</strong> på organisasjonsnummeret",
+    # Endret 04.11.2026 (rødt lag F4): navnet er Fiskeridirektoratets, og
+    # «i dag» står bare når Enhetsregisteret bekrefter enheten.
+    "er Fiskeridirektoratets</strong>",
+    "«I dag» står bare når Enhetsregisteret bekrefter at enheten finnes.",
     "«Journalført senest denne datoen»</strong> er ikke det samme",
     "Navnet står i registerfeltene i registerets egen skrivemåte.",
     "Tomrom betyr ikke null.",
@@ -5348,7 +5439,9 @@ def test_hver_kilde_i_jsonld_har_beskrivelse_lisens_og_rad_paa_om():
     for kilde in sorted(alle):
         node = nettsted.kildenode(kilde, nettsted.kildevilkaar())
         assert len(node["description"]) >= 50, kilde
-        assert node["license"].startswith("https://"), kilde
+        lisenser = node["license"] if isinstance(node["license"], list) \
+            else [node["license"]]
+        assert lisenser and all(l.startswith("https://") for l in lisenser), kilde
         assert node["url"].endswith(f"/om/#kilde-{kilde}"), kilde
         assert kilde in nettsted.LISENSRAD, kilde
         assert node["creator"]["@type"] == "Organization", kilde
@@ -6250,3 +6343,307 @@ def test_kvalitetsrapporten_teller_hullene_a_til_g():
     assert k.hull["b_uenige_maaneder"] == 1 and k.hull["c_ulike"] == 1
     assert k.hull["g_delt_posisjon"] == 1 and k.hull["g_uten_tillatelser"] == 1
     assert k.tilstand[("fisk", "ukjent")] == 1
+
+
+# ---- eierskapshistorikken etter rødt lag 04.11.2026 (F1, F2) ----------
+
+def test_vasket_tillatelsesnummer_staar_ikke_to_ganger(tmp_path, monkeypatch):
+    """F1. Snapshotet fra 02.09.2026 skrev N-Ø-0006 som N-_-0006, og det
+    står (regel 2). Versjonen med riktig nummer kommer ved siden av, og
+    sammenslåingen skal gi overføringen ÉN gang, under det ekte nummeret."""
+    from core import snapshot as snap
+    from core.contract import Observation
+
+    monkeypatch.setattr(snap, "RAW_DIR", tmp_path / "raw")
+
+    def versjon(nr, hentet):
+        return [Observation(entity_id=f"{nr}|2012000094",
+                            entity_type="overforing",
+                            entity_name=f"{nr} 2012-09-10", field=felt,
+                            value=verdi, source="eierskap_historikk",
+                            observed_at="2012-12-31", fetched_at=hentet)
+                for felt, verdi in (("tillatelse_nr", nr),
+                                    ("mottaker_orgnr", "958023685"),
+                                    ("mottaker_type", "AS"),
+                                    ("journal_dato", "2012-09-10"),
+                                    ("journal_nr", "2012000094"))]
+
+    snap.write(versjon("N-_-0006", "2026-09-02T19:43:16+00:00"), "2012-12-31")
+    snap.write(versjon("N-Ø-0006", "2026-11-04T12:00:00+00:00"), "2012-12-31")
+
+    ovf = nettsted._overforinger()
+    assert sorted(ovf) == ["N-Ø-0006|2012000094"]
+    assert ovf["N-Ø-0006|2012000094"]["tillatelse_nr"] == "N-Ø-0006"
+
+
+def test_kom_til_regner_ogsaa_tillatelser_selskapet_har_gitt_fra_seg():
+    """F2. «Gikk ut» ble bygget av alle tillatelser og «Kom til» bare av
+    dem selskapet eier nå. Lerøy Aurora AS sto med «2 kommet til» og
+    eldste overføring hit 24.12.2021; kroppene har 12, eldst 05.11.2009.
+    En tillatelse som gikk ut, kom en gang til."""
+    from types import SimpleNamespace
+
+    felles = SimpleNamespace(
+        tillatelser_per_eier={"912345678": ["N-T-0001"]},
+        eierskap={"N-T-0001": {"eier_navn": "TESTLAKS AS",
+                               "eier_orgnr": "912345678",
+                               "lokaliteter": "10001"}},
+        enhet={}, enhet_dato="2026-09-14", eierskap_dato="2026-09-14",
+        akva_dato="2026-09-14", akva={"10001": {"navn": "TESTHOLMEN"}},
+        dekning_fra=[], registerendringer={}, former={},
+        overforinger_per_tillatelse={
+            "N-T-0001": [
+                {"tillatelse_nr": "N-T-0001", "journal_dato": "2021-12-24",
+                 "rekkefolge": "1", "mottaker_orgnr": "912345678",
+                 "mottaker_navn": "TESTLAKS AS"}],
+            "T-G-0010": [
+                {"tillatelse_nr": "T-G-0010", "journal_dato": "2009-11-05",
+                 "rekkefolge": "1", "mottaker_orgnr": "912345678",
+                 "mottaker_navn": "TESTLAKS AS"},
+                {"tillatelse_nr": "T-G-0010", "journal_dato": "2022-03-01",
+                 "rekkefolge": "2", "mottaker_orgnr": "987654321",
+                 "mottaker_navn": "ANDRE TESTVIK AS"}]})
+
+    sel = nettsted.bygg_selskap("912345678", felles)
+
+    inn = sorted((o["tillatelse"], o["dato"]) for o in sel["eierskapslinje"]
+                 if o["retning"] == "inn")
+    assert inn == [("N-T-0001", "2021-12-24"), ("T-G-0010", "2009-11-05")]
+    assert sel["kom_til"] == 2 and sel["gikk_ut"] == 1
+    assert sel["i_arkivet_siden"] == "2009-11-05"
+
+
+# ---- kapasiteten: hver enhet for seg, alle tillatelsene (rødt lag F5) ----
+
+def test_tillatelse_i_annen_enhet_holdes_ikke_utenfor():
+    """F5. /lokalitet/34777/ sa «2 500 000 stykk · 1 tillatelse» med to
+    koblede tillatelser; M-AE-0059 (44,8 tonn) sto utenfor uten at siden
+    sa det. Nå står hver enhet med sin sum og sitt antall."""
+    k = nettsted._tillatelsenes_kapasitet({
+        "M-AE-0045": {"kapasitet": "2500000", "kapasitet_enhet": "STK"},
+        "M-AE-0059": {"kapasitet": "44.8", "kapasitet_enhet": "TN"},
+        "M-AE-0099": {"kapasitet": "", "kapasitet_enhet": ""}}, "STK")
+    assert [(d["enhet"], d["antall"]) for d in k["kapasitet_tillatelser_deler"]] \
+        == [("STK", 1), ("TN", 1)], "lokalitetens enhet først, så resten"
+    assert k["kapasitet_tillatelser_uten"] == 1
+    assert k["kapasitet_tillatelser_i_alt"] == 3
+    assert k["kapasitet_tillatelser_antall"] == 1
+    # Summen er fortsatt per enhet, aldri på tvers.
+    assert k["kapasitet_tillatelser_deler"][1]["vist"] == \
+        nettsted.visningsord.maalt("44.8", "TN")
+
+
+def test_ingen_tillatelse_i_lokalitetens_enhet_er_ikke_ingen_tillatelser():
+    """Før 04.11.2026 ga en lokalitet i tonn med bare stykk-tillatelser
+    ingen linje i det hele tatt."""
+    k = nettsted._tillatelsenes_kapasitet(
+        {"M-TV-0014": {"kapasitet": "2000000", "kapasitet_enhet": "STK"}}, "TN")
+    assert k["kapasitet_tillatelser"] == ""
+    assert [d["enhet"] for d in k["kapasitet_tillatelser_deler"]] == ["STK"]
+
+
+def test_siden_viser_alle_enhetene_og_sier_at_de_ikke_er_lagt_sammen():
+    deler = [{"enhet": "STK", "vist": "2 500 000 stk.", "antall": 1},
+             {"enhet": "TN", "vist": "44,8 tonn", "antall": 1}]
+    html = " ".join(_side(kapasitet_tillatelser_deler=deler,
+                          kapasitet_tillatelser_uten=1,
+                          kapasitet_tillatelser_i_alt=3).split())
+    assert "2 500 000 stk." in html and "44,8 tonn" in html
+    assert html.count('data-felt="kapasitet_tillatelser"') == 2
+    assert "Summert innenfor hver enhet, ikke på tvers." in html
+    assert "uten oppgitt kapasitet" in html
+
+
+# ---- kunngjøringene vises ikke før lisensen er belagt (rødt lag F12) -----
+
+def test_kunngjoringene_vises_ikke_som_standard():
+    """regjeringen.no har ingen dokumentert lisens (docs/LISENSKJEDE.md,
+    04.11.2026). Kunngjøringene leses fortsatt, men visningen er stoppet."""
+    assert nettsted.KUNNGJORINGER_VISES is False
+
+
+_KUNNGJORT_2018 = {"7": {"farge": "rod", "sitat": "…ikke skal reduseres…",
+                         "dato": "2017-10-30"}}
+
+
+def test_celle_der_bare_kunngjoringen_sier_noe_er_ikke_vist_og_ikke_ikke_oppgitt(
+        monkeypatch):
+    """«Ikke oppgitt» ville sagt at ingen kilde nevner området, og
+    kunngjøringen gjør det. MÅLT 04.11.2026: 19 av 65 celler."""
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted.beslutning, "for_runde",
+                        lambda aar: _KUNNGJORT_2018 if aar == "2018" else {})
+    felles = SimpleNamespace(po_farger={}, runder=["2018-12-31"])
+    rad = nettsted._fargerad("7", "2018", felles)
+    assert rad["farge"] == nettsted.FARGE_IKKE_VIST == "ikke vist"
+    assert rad["farge_felt"] == nettsted.FARGE_IKKE_VIST_FELT
+    assert rad["lesemaate"] == "ikke_vist"
+    assert rad["sitat"] == "" and rad["sitat_url"] == ""
+    # En runde ingen nevner, er fortsatt «ikke oppgitt».
+    tom = nettsted._fargerad("99", "2018", felles)
+    assert tom["farge"] == nettsted.FARGE_MANGLER
+
+
+def test_kunngjoringenes_sitater_og_tegnforklaring_er_borte(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted.beslutning, "for_runde",
+                        lambda aar: _KUNNGJORT_2018 if aar == "2018" else {})
+    monkeypatch.setattr(nettsted.beslutning, "url", lambda aar: "https://x/")
+    felles = SimpleNamespace(po_farger={}, runder=["2018-12-31", "2024-12-31"])
+    assert nettsted._rundeopplysninger("2018")["tegn"] == []
+    assert nettsted._po_saerskilt("4", felles) == []
+    monkeypatch.setattr(nettsted, "KUNNGJORINGER_VISES", True)
+    assert nettsted._fargerad("7", "2018", felles)["lesemaate"] == "beslutning"
+
+
+def test_omraadesiden_uten_kunngjoringer_har_verken_sitat_eller_regjeringen():
+    html = _po(vis_kunngjoringer=False, har_ikke_vist=True,
+               rundeopplysninger=[], saerskilt=[],
+               runder=[{"aar": "2018", "farge": nettsted.FARGE_IKKE_VIST,
+                        "farge_felt": nettsted.FARGE_IKKE_VIST_FELT,
+                        "farge_klasse": "", "lesemaate": "ikke_vist",
+                        "lesemaate_tekst": nettsted.LESEMAATE["ikke_vist"],
+                        "sitat": "", "sitat_dato": "", "sitat_url": "",
+                        "ellers": [], "forskrift": {}}])
+    assert "regjeringen.no" not in html
+    assert "Hva fargen betød i hver runde" not in html
+    assert "i kunngjøringen</li>" not in html
+    assert nettsted.LESEMAATE["ikke_vist"] + "</li>" in html
+
+
+# ---- llms.txt og sitemap.xml sier det bygget er (R3, 04.11.2026) ----------
+
+def test_llms_teller_selskapene_som_faar_side_ikke_alle_adressene(
+        tmp_path, smaafelles, monkeypatch):
+    """«499 selskaper» om 478 sider: tallet var adresser minus de kjente,
+    og indekssidene kom med. Nå er det `selskapssider()`, som sitemapen
+    bruker."""
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
+    tekst = nettsted.skriv_llms(tmp_path, smaafelles).read_text("utf-8")
+    assert nettsted.selskapssider(smaafelles) == ["912345678"]
+    assert "og 1\n> selskaper." in tekst
+    assert "upaginert" not in tekst
+    assert "delt i 1 sider" in tekst
+
+
+def test_sitemap_har_endringssidene(tmp_path, smaafelles, monkeypatch):
+    """R3: 0 av 2 301 adresser var under /endringer/, og ukesidene er
+    laget for å siteres."""
+    monkeypatch.setenv("HAVBRUK_BASEURL", "")
+    uker = [{"slug": "2026-45"}, {"slug": "2026-44"}]
+    tekst = nettsted.skriv_sitemap(tmp_path, smaafelles, uker).read_text("utf-8")
+    assert "<loc>/endringer/</loc>" in tekst
+    assert "<loc>/endringer/2026-45/</loc>" in tekst
+    for k in nettsted.ENDRINGSTYPER:
+        assert f"<loc>/endringer/2026-44/{k['id']}/</loc>" in tekst
+    llms = nettsted.skriv_llms(tmp_path, smaafelles, uker).read_text("utf-8")
+    assert "](/endringer/)" in llms and "2 uker" in llms
+
+
+def _bygget(rot, lok=3, sel=2, lok_indeks=2, sel_indeks=1, endringer=()):
+    for i in range(lok):
+        (rot / "lokalitet" / str(10000 + i)).mkdir(parents=True)
+        (rot / "lokalitet" / str(10000 + i) / "index.html").write_text("x")
+    for i in range(sel):
+        (rot / "selskap" / str(912345670 + i)).mkdir(parents=True)
+        (rot / "selskap" / str(912345670 + i) / "index.html").write_text("x")
+    for sti, n in (("lokalitet", lok_indeks), ("selskap", sel_indeks)):
+        (rot / sti).mkdir(parents=True, exist_ok=True)
+        (rot / sti / "index.html").write_text("x")
+        for k in range(2, n + 1):
+            (rot / sti / "side" / str(k)).mkdir(parents=True)
+            (rot / sti / "side" / str(k) / "index.html").write_text("x")
+    for e in endringer:
+        (rot / "endringer" / e).mkdir(parents=True, exist_ok=True)
+        (rot / "endringer" / e / "index.html").write_text("x")
+
+
+def _llms(lok, sel, lok_sider, sel_sider, endringer=True):
+    return (f"> som daterte snapshots. {lok} lokaliteter, 13\n"
+            f"> produksjonsområder og {sel}\n> selskaper. Registrene …\n"
+            f"- [Alle lokaliteter](/lokalitet/): alle {lok}\n  lokalitetene, "
+            f"med nummer, delt i\n  {lok_sider} sider (/lokalitet/side/2/).\n"
+            f"- [Alle innehavere](/selskap/): de {sel} innehaverne av minst\n"
+            f"  én tillatelse, delt i {sel_sider} sider."
+            + ("\n- [Endringer uke for uke](/endringer/)" if endringer else ""))
+
+
+def test_porten_holder_llms_mot_sidene_paa_disk(tmp_path):
+    import publiseringsvakt as vakt
+    _bygget(tmp_path, endringer=("",))
+    (tmp_path / "llms.txt").write_text(_llms(3, 2, 2, 1))
+    assert vakt.llms_mot_bygget(tmp_path) == []
+    # Feilen R3 fant, laget med vilje: 499 mot 478, og «upaginert».
+    (tmp_path / "llms.txt").write_text(
+        _llms(3, 5, 2, 1, endringer=False) + " flat, upaginert liste")
+    funn = [f.utdrag for f in vakt.llms_mot_bygget(tmp_path)]
+    assert "selskaper: fila sier 5, bygget har 2" in funn
+    assert "«upaginert» om en liste som er delt i sider" in funn
+    assert "/endringer/ er bygget, men står ikke i fila" in funn
+
+
+def test_porten_krever_endringssidene_i_sitemapen(tmp_path):
+    import publiseringsvakt as vakt
+    _bygget(tmp_path, endringer=("", "2026-45", "2026-45/eierskap"))
+    (tmp_path / "sitemap.xml").write_text(
+        "<urlset><url><loc>https://kystloggen.no/endringer/</loc></url></urlset>")
+    [f] = vakt.sitemap_mot_bygget(tmp_path)
+    assert f.antall == 2 and "/endringer/2026-45/" in f.utdrag
+    (tmp_path / "sitemap.xml").write_text(
+        "<urlset>" + "".join(f"<url><loc>https://kystloggen.no{s}</loc></url>"
+                             for s in ("/endringer/", "/endringer/2026-45/",
+                                       "/endringer/2026-45/eierskap/"))
+        + "</urlset>")
+    assert vakt.sitemap_mot_bygget(tmp_path) == []
+
+
+def test_lokalitetskildene_leses_av_paastandene_ogsaa():
+    """Første bygg med kildeprøven i porten (04.11.2026): 710 sider viste
+    «Fisk til stede» (biomasselaget) uten stripa, og `isBasedOn` manglet
+    kilden. Påstandens egen herkomst er det som avgjør."""
+    lok = {"paastander": {"fisk": {"herkomst": {"kilde": "biomasselag"},
+                                   "nivaa": "oppgitt"},
+                          "mtb_deler": [{"herkomst": {"kilde": "eierskap"}}]},
+           "biolag": None, "lusegraf": None, "oppgitt_brreg": []}
+    assert "biomasselag" in nettsted.lokalitetskilder(lok)
+    assert nettsted.lokalitetskilder({"paastander": {}}) == nettsted.SIDENS_KILDER
+    # Og beviset: snapshotet står med sum i «Bevis» også uten fiskedata.
+    assert "biomasselag" in nettsted.lokalitetskilder(
+        {"bevis": [{"kilde": "akvakultur"}, {"kilde": "biomasselag"}]})
+
+
+# ---- forskriften som GA fargen, ikke nyeste forskrift (rødt lag F6) ------
+
+def test_forskriften_finnes_av_utgivelsesdatoen():
+    assert nettsted.forskrift_for_utgivelse(
+        "2022-06-07T12:00:00+00:00")["id"] == "FOR-2022-06-07-972"
+    assert nettsted.forskrift_for_utgivelse("2026-08-20")["id"] == \
+        "FOR-2026-08-20-1764"
+    assert nettsted.forskrift_for_utgivelse("1999-01-01") == {}
+    assert nettsted.forskrift_for_utgivelse("") == {}
+
+
+def test_cellen_lenker_til_forskriften_som_ga_fargen():
+    """F6: «Kildene for fargen» lenket FOR-2026-08-20-1764 for 2022-fargen
+    til PO 9, som den forskriften ikke nevner; den står i
+    FOR-2022-06-07-972 § 3. Snapshotversjonen som satte fargen, bærer
+    forskriftens dato."""
+    from types import SimpleNamespace
+    felles = SimpleNamespace(runder=["2022-12-31"], po_farger={"9": {"2022": {
+        "farge": "gronn", "farge__lesemaate": "kapittelhjemmel",
+        "farge__utgitt": "2022-06-07T12:00:00+00:00"}}})
+    rad = nettsted._po_fargerader("9", felles)[0]
+    assert rad["forskrift"]["id"] == "FOR-2022-06-07-972"
+    assert nettsted.forskrift_for_runde("2022")["id"] == "FOR-2026-08-20-1764", \
+        "nyeste forskrift som dekker runden er en annen"
+
+
+def test_ikke_vist_celle_lenker_ikke_til_en_forskrift(monkeypatch):
+    """En celle uten forskriftsfarge skal ikke oppgi en forskrift som kilde."""
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted.beslutning, "for_runde",
+                        lambda aar: {"7": {"farge": "rod", "sitat": "…",
+                                           "dato": "2017-10-30"}})
+    felles = SimpleNamespace(runder=["2018-12-31"], po_farger={})
+    rad = nettsted._po_fargerader("7", felles)[0]
+    assert rad["lesemaate"] == "ikke_vist" and rad["forskrift"] == {}

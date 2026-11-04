@@ -87,12 +87,15 @@ class Kvalitet:
         self.lokalitetssider += 1
         ps = lok.get("paastander") or {}
         for tema, p in ps.items():
-            if not p:
-                continue
-            self.tilstand[(tema, "vist")] += 1
-            if p.get("utgaatt"):
-                self.tilstand[(tema, "ukjent")] += 1
-            self.per_kilde[(p["herkomst"]["kilde"], p["nivaa"])] += 1
+            # ET TEMA KAN BÆRE FLERE PÅSTANDER: tillatelsenes kapasitet
+            # står med én per enhet (`mtb_deler`, rødt lag F5).
+            for q in (p if isinstance(p, list) else [p]):
+                if not q:
+                    continue
+                self.tilstand[(tema, "vist")] += 1
+                if q.get("utgaatt"):
+                    self.tilstand[(tema, "ukjent")] += 1
+                self.per_kilde[(q["herkomst"]["kilde"], q["nivaa"])] += 1
         fisk = ps.get("fisk")
         # a: en fiskepåstand «Ja» eldre enn grensa, og om den vises som ja.
         if fisk and fisk["verdi"] == "Ja" and fisk["utgaatt"]:

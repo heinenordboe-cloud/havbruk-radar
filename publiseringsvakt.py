@@ -500,7 +500,8 @@ class Funn:
                      # | uferdig | raatt_tidsstempel | reposti
                      # | uten_kontakt | nedtatt | immutable_uten_hash
                      # | innholdstype | jsonld | avsnitt | paastand
-                     # | sykdomsflagg
+                     # | sykdomsflagg | kilde_uten_attribusjon
+                     # | llms_mot_bygget | sitemap_mot_bygget
     utdrag: str
     antall: int = 1
 
@@ -1368,6 +1369,133 @@ def kart_uten_attribusjon(tekst: str, fil: str = "") -> list[Funn]:
                  f"kart uten «{KARTNAVN}»", len(KARTMERKE.findall(tekst)))]
 
 
+# ------------------------------------------- kildene en side viser
+#
+# HVER KILDE SOM VISES PÅ EN SIDE, HAR SIN ATTRIBUSJON PÅ DEN SIDEN.
+#
+# Rødt lag 04.11.2026 (F11, F14): de 13 områdesidene viste «Uker over
+# lusegrensa», regnet av BarentsWatchs lusetall og lusegrense, uten «Data
+# levert av BarentsWatch» og uten Mattilsynet-linja. Bunnteksten ble bygget
+# av lista generatoren OPPGA (`PO_KILDER`), og lista var feil. En prøve som
+# leste den samme lista, ville sagt grønt.
+#
+# Prøven leser derfor SIDEN, ikke lista. To spor, og de er uavhengige av
+# hvordan bunnteksten ble til:
+#
+#   data-kilde="<kilde>"   et element som bærer kildens data: påstandene
+#                          på lokalitetssiden, blokkene på områdesiden.
+#                          Krever HVER setning i kildens Source.attribusjon.
+#   herkomstlinja          «BarentsWatch · uke 33»: utgiverens korte navn
+#                          (visningsord.KILDE_KORT). Krever setningene ALLE
+#                          kildene med det navnet krever — snittet, fordi
+#                          navnet ikke sier hvilken av dem.
+#
+# Og JSON-LD-tvillingen: hver `isBasedOn`-node har HELE attribusjonen i
+# `creditText` (F14 — bare første setning sto der), og hver kilde fra
+# første spor står i `isBasedOn`.
+#
+# Funnet kan IKKE kvitteres ut, av samme grunn som `kart_uten_attribusjon`:
+# en manglende attribusjon kan ikke være riktig.
+KILDEMERKE = re.compile(r'\bdata-kilde="([^"]+)"')
+HERKOMSTLINJE = re.compile(r'<span class="herkomst"[^>]*>(.*?)</span>', re.S)
+JSONLD_BLOKK = re.compile(
+    r'<script type="application/ld\+json">(.*?)</script>', re.S)
+# Våre egne påstander («første henting», «ingen endring sett»). Ikke en
+# kilde med et vilkår.
+EGNE_PAASTANDER = frozenset({"kystloggen"})
+
+
+_VILKAARSINDEKS: list = []
+
+
+def _vilkaarsindeks() -> dict[str, tuple[str, ...] | None]:
+    """{kildenavn: setningene kilden krever}, fra kildene selv.
+
+    Slått opp ÉN gang per prosess. Prøven går over hver av ~2 400 sider,
+    og `registry.discover()` per side gjorde vakten MÅLT 04.11.2026 ti
+    minutter lengre. Koden skifter ikke midt i en kjøring, så svaret gjør
+    det heller ikke — samme grunn som `_erklaeringene()` slås opp per kall
+    og ikke per side.
+    """
+    if not _VILKAARSINDEKS:
+        from core import registry
+        from core.contract import attribusjon_per_kilde
+        _VILKAARSINDEKS.append(attribusjon_per_kilde(registry.discover()))
+    return _VILKAARSINDEKS[0]
+
+
+def _synlig(tekst: str) -> str:
+    """Teksten et menneske ser, med mellomrom samlet."""
+    uten = re.sub(r"<(script|style)\b.*?</\1>", " ", tekst, flags=re.S | re.I)
+    return " ".join(html.unescape(TAGG.sub(" ", uten)).split())
+
+
+def kilder_uten_attribusjon(tekst: str, fil: str = "",
+                            vilkaar: dict | None = None) -> list[Funn]:
+    """Kilder siden VISER uten setningene kilden krever. Tom liste = rent."""
+    if "<body" not in tekst:
+        return []
+    vilkaar = _vilkaarsindeks() if vilkaar is None else vilkaar
+    kropp = tekst.split("<body", 1)[1]
+    synlig = _synlig(kropp)
+    funn: list[Funn] = []
+
+    krav: dict[str, set[str]] = {}
+    merket = set(KILDEMERKE.findall(kropp)) - EGNE_PAASTANDER
+    for kilde in sorted(merket):
+        setninger = vilkaar.get(kilde)
+        if setninger is None:
+            funn.append(Funn(fil, "kilde_uten_attribusjon",
+                             f"data-kilde={kilde}: ingen kilde med "
+                             f"dokumentert vilkår skriver under navnet"))
+            continue
+        for setning in setninger:
+            krav.setdefault(setning, set()).add(kilde)
+
+    per_kort: dict[str, set[str]] = {}
+    for kilde, kort in _kortnavn().items():
+        if kilde in vilkaar and vilkaar[kilde] is not None:
+            per_kort.setdefault(kort, set()).add(kilde)
+    for linje in HERKOMSTLINJE.findall(kropp):
+        vist = _synlig(linje)
+        for kort, kilder in per_kort.items():
+            if not vist.startswith(kort):
+                continue
+            felles = set.intersection(*(set(vilkaar[k]) for k in kilder))
+            for setning in felles:
+                krav.setdefault(setning, set()).add(f"«{kort}»")
+
+    for setning, hvem in sorted(krav.items()):
+        if " ".join(setning.split()) not in synlig:
+            funn.append(Funn(fil, "kilde_uten_attribusjon",
+                             f"{', '.join(sorted(hvem))} vises, men «{setning}» "
+                             f"står ikke på siden"))
+
+    for blokk in JSONLD_BLOKK.findall(tekst):
+        try:
+            data = json.loads(blokk)
+        except ValueError:
+            continue
+        noder = [n for n in (data.get("isBasedOn") or [])
+                 if isinstance(n, dict)] if isinstance(data, dict) else []
+        if not noder:
+            continue
+        navn = {str(n.get("name") or "") for n in noder}
+        for n in noder:
+            kreditt = " ".join(str(n.get("creditText") or "").split())
+            for setning in vilkaar.get(str(n.get("name") or "")) or ():
+                if " ".join(setning.split()) not in kreditt:
+                    funn.append(Funn(fil, "kilde_uten_attribusjon",
+                                     f"JSON-LD {n.get('name')}: creditText "
+                                     f"mangler «{setning}»"))
+        for kilde in sorted(merket - navn - {k for k in merket
+                                             if vilkaar.get(k) is None}):
+            funn.append(Funn(fil, "kilde_uten_attribusjon",
+                             f"data-kilde={kilde} vises, men står ikke i "
+                             f"JSON-LD isBasedOn"))
+    return funn
+
+
 # ------------------------------------------- rå tidsstempler
 #
 # KILDENS TIDSSTEMPEL ER IKKE EN DATO EN LESER SKAL SE.
@@ -2070,6 +2198,10 @@ def tekstfunn(rel: str, endelse: str, tekst: str, orgnr_ok: set[str],
     funn.extend(repostier(tekst, fil=rel))
     # KART UTEN KARTVERKETS NAVN. Et lisensvilkår, ikke hygiene.
     funn.extend(kart_uten_attribusjon(tekst, fil=rel))
+    # KILDER UTEN ATTRIBUSJON. Lisensvilkåret for alt annet enn kartet,
+    # lest av siden selv. Se `kilder_uten_attribusjon()`.
+    if endelse in (".html", ".htm"):
+        funn.extend(kilder_uten_attribusjon(tekst, fil=rel))
     # ILA OG PD, i markup og tekst. Se `sykdomsflagg()`.
     funn.extend(sykdomsflagg(tekst, fil=rel))
     # AVSNITT OVER TRE LINJER, og PÅSTANDER UTEN KILDE OG DATO. Se
@@ -2896,6 +3028,92 @@ def jsonldfunn(mappe: Path) -> list[Funn]:
     return funn
 
 
+# ------------------------------------------- llms.txt og sitemap.xml
+#
+# AGENTENES FORSIDE SKAL SI DET BYGGET ER (R3, 04.11.2026). llms.txt sa
+# «flat, upaginert liste» om en lokalitetsliste delt i 18 og «499
+# selskaper» om 478 selskapssider, og verken den eller sitemapen nevnte
+# /endringer/. Tallene ble regnet av en annen ting enn sidene. Prøvene
+# under teller SIDENE på disk og holder fila mot dem.
+LLMS_LOKALITETER = re.compile(r"(\d+)\s+lokaliteter,")
+LLMS_SELSKAPER = re.compile(r"og\s+(\d+)\s+(?:>\s*)?selskaper\.")
+LLMS_DELT = re.compile(r"alle (\d+)\s+lokalitetene.*?delt i\s+(\d+)\s+sider", re.S)
+LLMS_INNEHAVERE = re.compile(r"de (\d+) innehaverne.*?delt i\s+(\d+)\s+sider", re.S)
+
+
+def _sider_under(mappe: Path, sti: str) -> list[Path]:
+    """`<sti>/<nummer>/index.html` — én side per entitet."""
+    d = mappe / sti
+    return [p for p in d.glob("*/index.html")
+            if p.parent.name.isdigit()] if d.exists() else []
+
+
+def _indekssider(mappe: Path, sti: str) -> int:
+    """Indeksen og `/<sti>/side/<n>/`, slik `nettsted.indekssti` skriver dem."""
+    d = mappe / sti
+    if not (d / "index.html").exists():
+        return 0
+    return 1 + sum(1 for p in (d / "side").glob("*/index.html")
+                   if p.parent.name.isdigit())
+
+
+def llms_mot_bygget(mappe: Path) -> list[Funn]:
+    """Tallene i llms.txt mot sidene som er skrevet. Tom liste = enige."""
+    fil = mappe / "llms.txt"
+    if not fil.exists():
+        return []
+    tekst = fil.read_text(encoding="utf-8")
+    faktisk = {
+        "lokaliteter": len(_sider_under(mappe, "lokalitet")),
+        "selskaper": len(_sider_under(mappe, "selskap")),
+        "lokalitetsindeks": _indekssider(mappe, "lokalitet"),
+        "selskapsindeks": _indekssider(mappe, "selskap"),
+    }
+    oppgitt: dict[str, int | None] = {}
+    m = LLMS_LOKALITETER.search(tekst)
+    oppgitt["lokaliteter"] = int(m.group(1)) if m else None
+    m = LLMS_SELSKAPER.search(tekst)
+    oppgitt["selskaper"] = int(m.group(1)) if m else None
+    m = LLMS_DELT.search(tekst)
+    oppgitt["lokalitetsindeks"] = int(m.group(2)) if m else None
+    m = LLMS_INNEHAVERE.search(tekst)
+    oppgitt["selskapsindeks"] = int(m.group(2)) if m else None
+    funn = []
+    for hva, tall in oppgitt.items():
+        if tall is None:
+            funn.append(Funn("llms.txt", "llms_mot_bygget",
+                             f"{hva}: tallet står ikke i fila"))
+        elif tall != faktisk[hva]:
+            funn.append(Funn("llms.txt", "llms_mot_bygget",
+                             f"{hva}: fila sier {tall}, bygget har "
+                             f"{faktisk[hva]}"))
+    if "upaginert" in tekst:
+        funn.append(Funn("llms.txt", "llms_mot_bygget",
+                         "«upaginert» om en liste som er delt i sider"))
+    if (mappe / "endringer" / "index.html").exists() and \
+            "/endringer/" not in tekst:
+        funn.append(Funn("llms.txt", "llms_mot_bygget",
+                         "/endringer/ er bygget, men står ikke i fila"))
+    return funn
+
+
+def sitemap_mot_bygget(mappe: Path) -> list[Funn]:
+    """Hver HTML-side under /endringer/ står i sitemap.xml. Tom liste = ja."""
+    fil = mappe / "sitemap.xml"
+    endr = mappe / "endringer"
+    if not fil.exists() or not endr.exists():
+        return []
+    loc = set(re.findall(r"<loc>(?:https?://[^/<]+)?([^<]*)</loc>",
+                         fil.read_text(encoding="utf-8")))
+    mangler = sorted(
+        "/" + p.parent.relative_to(mappe).as_posix() + "/"
+        for p in endr.rglob("index.html")
+        if "/" + p.parent.relative_to(mappe).as_posix() + "/" not in loc)
+    return [Funn("sitemap.xml", "sitemap_mot_bygget",
+                 f"{len(mangler)} sider under /endringer/ står ikke i "
+                 f"sitemapen, f.eks. {mangler[:3]}", len(mangler))] if mangler else []
+
+
 def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     """Alle filer under `mappe`, OG grunnlaget hvitelista bygges på.
 
@@ -2907,7 +3125,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     funn: list[Funn] = (list(grunnlagsfunn()) + list(kodeproveniensfunn())
                         + list(filtallsfunn(mappe)) + nedtattfunn(mappe)
                         + immutablefunn(mappe) + innholdstypefunn(mappe)
-                        + jsonldfunn(mappe))
+                        + jsonldfunn(mappe) + llms_mot_bygget(mappe)
+                        + sitemap_mot_bygget(mappe))
 
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.

@@ -61,6 +61,9 @@
   uke, og hva som har endret seg.</p>
 <p>Alt du ser her finnes fra før hos Fiskeridirektoratet, Brønnøysundregistrene,
   BarentsWatch og Lovdata.</p>
+{#- KARTVERKET MED fra 04.11.2026 (rødt lag F12, klasse 4): kystlinja i
+    kartene er deres, og setningen over nevnte dem ikke. #}
+<p>Kystlinja i kartene er Kartverkets.</p>
 <p>Tallene er gjengitt uendret. Sammenstillingen er vår, og ingen av etatene står bak den.</p>
 
 {# HVEM STÅR BAK, rett etter hva dette er. Briefens tabell: «hva og hvem
@@ -227,10 +230,13 @@
     oss.</p>
   <p>«Tildelt» er da tillatelsen ble gitt første gang — ikke nødvendigvis
     til den som eier den nå.</p>
-  <p><strong>Navnet ved «Tillatelse tildelt» er dagens navn</strong> på
-    organisasjonsnummeret.</p>
+  <p><strong>Navnet ved «Tillatelse tildelt» er Fiskeridirektoratets</strong>
+    navn på organisasjonsnummeret.</p>
   <p>Registeret oppgir nummeret og slår navnet opp når det svarer. Derfor
     står nummeret først.</p>
+  <p>«I dag» står bare når Enhetsregisteret bekrefter at enheten finnes.</p>
+  <p>Ellers står navnet «ifølge Fiskeridirektoratet».</p>
+  <p>Er enheten slettet, står datoen Enhetsregisteret oppgir.</p>
   <p><strong>«Journalført senest denne datoen»</strong> er ikke det samme
     som overdragelsesdato.</p>
   <p>Journaldatoen er da saken ble ført, og overdragelsen kan ha skjedd
@@ -285,6 +291,10 @@
 <p><strong>I forskriften:</strong> fargeordet står i bestemmelsen.</p>
 <p><strong>I kunngjøringen:</strong> fargen står i departementets kunngjøring av
   runden, ikke i forskriften.</p>
+{#- FRA 04.11.2026 (rødt lag F12): lisensen for regjeringen.no er ikke
+    avklart, og kunngjøringene vises ikke. Se `nettsted.KUNNGJORINGER_VISES`. #}
+<p><strong>Bare i kunngjøringen, som ikke vises:</strong> bare kunngjøringen oppgir fargen.</p>
+<p>Lisensen for regjeringen.no er ikke avklart. Kunngjøringene vises ikke før den er det.</p>
 {#- TO AVSNITT, SAMME ORD. Som ett er «Utledet» 120 tegn, og grensa er
     110 (`publiseringsvakt.AVSNITTSGRENSE`). #}
 <p><strong>Utledet:</strong> fargen står ikke skrevet. Vi leser den av kapittelet
@@ -341,10 +351,14 @@
 <p>En kilde vi ikke har funnet lisensvilkåret for, vises ikke her. Den
   kan brukes i analyse.</p>
   {% if om.ubelagte %}
-<p>I dag gjelder det
-  {% for u in om.ubelagte %}{% if not loop.first %}, {% endif %}
-  {%- if u.url %}<a href="{{ u.url }}">{{ u.vist }}</a>
-  {%- else %}{{ u.vist }}{% endif %}{% endfor %}.</p>
+<p>I dag gjelder det:</p>
+{#- ÉN PER LINJE, fra 04.11.2026: med to sto setningen over
+    avsnittsgrensa (`publiseringsvakt.AVSNITTSGRENSE`). #}
+<ul>
+  {% for u in om.ubelagte %}
+  <li>{% if u.url %}<a href="{{ u.url }}">{{ u.vist }}</a>{% else %}{{ u.vist }}{% endif %}</li>
+  {% endfor %}
+</ul>
 <p>Vilkåret er lett etter og ikke funnet.</p>
   {% endif %}
 

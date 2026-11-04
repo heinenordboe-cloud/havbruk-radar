@@ -132,6 +132,46 @@ LUSEUKER = 52
 # Kildene en lokalitetsside bygger på. Rekkefølgen er lesningens.
 SIDENS_KILDER = ("akvakultur", "eierskap", "eierskap_historikk", "lusetall")
 
+# KILDENE EN LOKALITETSSIDE KAN VISE UTOVER `SIDENS_KILDER`. Hver av dem
+# står bare der siden faktisk viser dataene — se `lokalitetskilder()`.
+LOKALITET_KAN_VISE = ("biomasselag", "sjotemperatur", "enhetsregisteret",
+                      "enhetsregisteret_oppslag")
+
+
+def lokalitetskilder(lok: dict) -> tuple[str, ...]:
+    """Kildene DENNE lokalitetssiden viser, i fast rekkefølge.
+
+    Fram til 04.11.2026 fikk hver side `SIDENS_KILDER`, og JSON-LD-ens
+    `isBasedOn` manglet biomasselaget («Fisk til stede») og
+    sjøtemperaturkildens lusegrense, som begge står på siden (rødt lag
+    F13). Bunnteksten var dekket fordi setningene er de samme, men
+    tvillingen sa noe annet enn siden. Porten leser siden selv
+    (`publiseringsvakt.kilder_uten_attribusjon`) og sier fra når de spriker.
+    """
+    ekstra = []
+    # PÅSTANDENE SIDEN VISER, med sin egen herkomst: «Fisk til stede» er
+    # biomasselagets også når stripa mangler. Første bygg med porten
+    # (04.11.2026) fant 710 sider der det var tilfellet.
+    for p in (lok.get("paastander") or {}).values():
+        for q in (p if isinstance(p, list) else [p]):
+            kilde = ((q or {}).get("herkomst") or {}).get("kilde")
+            if kilde in LOKALITET_KAN_VISE:
+                ekstra.append(kilde)
+    if lok.get("biolag"):
+        ekstra.append("biomasselag")
+    # BEVISET LISTER SNAPSHOTENE SIDEN ER BYGGET AV (`bevis()`), med dato og
+    # sha256 — biomasselaget også på en side uten fiskedata, for siden er
+    # bygget av det. Da er siden også basert på det. Andre fulle bygg
+    # 04.11.2026: 710 sider der bare beviset viste kilden.
+    ekstra += [b.get("kilde") for b in lok.get("bevis") or ()
+               if b.get("kilde") in LOKALITET_KAN_VISE]
+    if (lok.get("lusegraf") or {}).get("grense"):
+        ekstra.append("sjotemperatur")
+    brreg = {h.get("kilde") for h in lok.get("oppgitt_brreg") or ()}
+    ekstra += [k for k in ("enhetsregisteret", "enhetsregisteret_oppslag")
+               if k in brreg]
+    return SIDENS_KILDER + tuple(k for k in LOKALITET_KAN_VISE if k in ekstra)
+
 # SKILLETEGNET I EN UNDERTITTEL. Samme tegn som undertitlene på sidene
 # selv bruker — «Lokalitet 31397 · permanent klarering · i sjø» — så en
 # trefflinje ser ut som linja den fører til.
@@ -190,12 +230,30 @@ def kildevilkaar() -> dict[str, tuple[str, ...] | None]:
 
 
 # Lisens-URL per kilde, for JSON-LD. Bare der versjonen er BELAGT i
-# lisenskjeden. Fiskeridirektoratets side sier «NLOD» uten versjon, og en
-# URL til 2.0 ville påstått en versjon ingen har gått god for.
+# lisenskjeden.
+#
+# FISKERIDIREKTORATET ER NLOD 1.0, og det er målt (rødt lag F3,
+# 04.11.2026). Lisenssiden sier «Norsk lisens for offentlige data (NLOD)»
+# og lenker «lisensen som våre data er underlagt» til
+# data.norge.no/nlod/no/1.0: `data/arkiv/vilkar-fiskeridir/2026-11-02.bin.gz`,
+# sha256 021c8692…ffdb0a3. Fram til da sto eierskap med 2.0 her, som
+# påsto en versjon Fiskeridirektoratet ikke har oppgitt, og de andre
+# fire med lisenssiden, som unnlot den de har.
+#
+# EIERSKAPET HAR TO, som i docs/LISENSKJEDE.md: tillatelsene er
+# Fiskeridirektoratets (1.0), organisasjonsformene for historiske
+# mottakere er Brønnøysundregistrenes (2.0, merknad B).
+NLOD_1 = "https://data.norge.no/nlod/no/1.0"
+NLOD_2 = "https://data.norge.no/nlod/no/2.0"
 LISENS_URL = {
-    "eierskap": "https://data.norge.no/nlod/no/2.0",
-    "eierskap_historikk": "https://data.norge.no/nlod/no/2.0",
-    "enhetsregisteret": "https://data.norge.no/nlod/no/2.0",
+    "akvakultur": NLOD_1,
+    "biomasse": NLOD_1,
+    "biomasselag": NLOD_1,
+    "romming": NLOD_1,
+    "eierskap": [NLOD_1, NLOD_2],
+    "eierskap_historikk": [NLOD_1, NLOD_2],
+    "enhetsregisteret": NLOD_2,
+    "enhetsregisteret_oppslag": NLOD_2,
 }
 
 # LISENSSIDEN PER KILDE, når versjonen IKKE er belagt: hjemmelen fra
@@ -219,6 +277,15 @@ LISENSSIDE = {
 # kilde i datarepoet, og ingen tall står her, fordi de ville blitt
 # usanne neste uke.
 KILDEBESKRIVELSE = {
+    # MÅLT 04.11.2026 i data/raw/biomasse/2026-07-31.parquet og
+    # data/raw/enhetsregisteret_oppslag/2026-11-04.parquet.
+    "biomasse": "Fiskeridirektoratets biomassestatistikk per "
+                "produksjonsområde og måned: beholdning i antall og kilo, "
+                "utsett av smolt, uttak, dødfisk, rømming og fôrforbruk.",
+    "enhetsregisteret_oppslag": "Enhetsregisterets svar for "
+                                "organisasjonsnumre tillatelsesregisteret "
+                                "nevner: om enheten finnes eller er "
+                                "slettet, slettedato og organisasjonsform.",
     "akvakultur": "Fiskeridirektoratets akvakulturregister: per lokalitet "
                   "navn, kommune, posisjon, produksjonsområde, arter, "
                   "tillatt kapasitet og tilknyttede tillatelser.",
@@ -258,6 +325,23 @@ KILDEBESKRIVELSE = {
 GJENBRUK_STI = "/om/#gjenbruk"
 
 
+def kredittekst(setninger) -> str:
+    """HELE attribusjonen kilden krever, som én tekst for `creditText`.
+
+    Fram til 04.11.2026 sto bare FØRSTE setning her (rødt lag F14): 21
+    tvillinger krediterte BarentsWatch uten dataeieren Mattilsynet, og
+    Fiskeridirektoratet uten Brønnøysundregistrene. schema.org definerer
+    `creditText` som teksten som kan brukes til å kreditere, og en som
+    krediterer etter tvillingen, skal få hele kjeden.
+
+    Setningene står ordrett. Mangler en avsluttende punktum, settes det
+    inn ett mellom dem, og ikke noe annet.
+    """
+    deler = [str(s).strip() for s in (setninger or ()) if str(s).strip()]
+    return " ".join(d if d.endswith((".", "!", "?")) or i == len(deler) - 1
+                    else d + "." for i, d in enumerate(deler))
+
+
 def kildenode(kilde: str, vilkaar: dict) -> dict:
     """schema.org/Dataset for én kilde i `isBasedOn`.
 
@@ -288,7 +372,7 @@ def kildenode(kilde: str, vilkaar: dict) -> dict:
         "description": KILDEBESKRIVELSE[kilde],
         "url": f"{_basisurl()}/om/#kilde-{kilde}",
         "license": LISENS_URL.get(kilde) or LISENSSIDE[kilde],
-        "creditText": (vilkaar.get(kilde) or ("",))[0],
+        "creditText": kredittekst(vilkaar.get(kilde)),
         "creator": {"@type": "Organization", "name": skaper},
     }
     if kilde in UTGIVER:
@@ -389,6 +473,10 @@ def fraskrivelse(kilder, vilkaar=None, i_tillegg=()) -> list[str]:
     return ut
 
 
+# Serien `_enhetsstatus()` leser Enhetsregisterets oppslag fra (rødt lag
+# F4). Navnet eies av kilden, se sources/enhetsregisteret.OPPSLAG_KILDE.
+ENHETSOPPSLAG = "enhetsregisteret_oppslag"
+
 UTGIVER = {
     "akvakultur": "Fiskeridirektoratet",
     "eierskap": "Fiskeridirektoratet",
@@ -396,7 +484,9 @@ UTGIVER = {
     "lusetall": "BarentsWatch",
     "sjotemperatur": "BarentsWatch",
     "enhetsregisteret": "Brønnøysundregistrene",
+    "enhetsregisteret_oppslag": "Brønnøysundregistrene",
     "biomasselag": "Fiskeridirektoratet",
+    "biomasse": "Fiskeridirektoratet",
     "unntaksvekst": "Mattilsynet",
 }
 
@@ -871,6 +961,13 @@ def _overforinger() -> dict[str, dict[str, str]]:
             for eid, felt, verdi in ramme.select(
                     ["entity_id", "field", "value"]).iter_rows():
                 ut[str(eid)][str(felt)] = verdi
+    # DE VASKEDE NUMRENE UT, når overføringen står under riktig nummer.
+    # Snapshotene fra 02.09.2026 skrev «N-Ø-0006» som «N-_-0006» (rødt
+    # lag F1), og de står (regel 2). Sammenslåingen over ville ellers
+    # gitt hver av de 86 overføringene to ganger. Se
+    # `sources/eierskap.uten_vaskede_numre()`.
+    if kilde is not None and hasattr(kilde, "uten_vaskede_numre"):
+        return defaultdict(dict, kilde.uten_vaskede_numre(dict(ut)))
     return ut
 
 
@@ -959,6 +1056,8 @@ class Felles:
     # stempel. Likt for alle sidene, og summen av en parquet-fil er for dyr
     # til å regnes 1 781 ganger. Se `bevis()`.
     bevis: list[dict] = field(default_factory=list)
+    # {orgnr: hva Enhetsregisteret sier om nummeret} — se `_enhetsstatus()`.
+    enhetsstatus: dict[str, dict] = field(default_factory=dict)
 
 
 @lru_cache(maxsize=1)
@@ -1182,6 +1281,7 @@ def les_felles() -> Felles:
         biomasse_utgitt=bio_utgitt,
         sist_endret=sist_endret_av(beveg),
         former=publiseringsvakt.formkart(enhet, eierskap, alle_ovf),
+        enhetsstatus=_enhetsstatus(enhet_dato, enhet),
     )
 
 
@@ -1648,7 +1748,7 @@ ENDRINGER_VIA_TILLATELSE = frozenset({"eierskap"})
 #      notatet under.
 #
 # docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md
-ENDRINGER_UTELATT = frozenset({"eierskap_historikk"})
+ENDRINGER_UTELATT = frozenset({"eierskap_historikk", ENHETSOPPSLAG})
 
 
 def _endringer(loknr: str, tillatelser: list[str]
@@ -3269,9 +3369,18 @@ def _po_farger() -> dict[str, dict[str, dict[str, str]]]:
     ut: dict[str, dict[str, dict[str, str]]] = defaultdict(dict)
     for dato in snapshot.datoer("trafikklysvedtak"):
         for _versjon, ramme in snapshot.versjoner("trafikklysvedtak", dato):
+            # HVILKEN FORSKRIFT som sa det: versjonens `published_at` er
+            # forskriftens dato (backfill --rapporter leser kroppene i
+            # utgivelsesrekkefølge). Den siste versjonen som satte fargen,
+            # er den som står — og det er DEN siden skal lenke til, ikke
+            # nyeste forskrift som dekker runden (rødt lag F6).
+            utgitt = snapshot.published_at_i(ramme) or ""
             for eid, felt, verdi in ramme.select(
                     ["entity_id", "field", "value"]).iter_rows():
-                ut[str(eid)].setdefault(dato[:4], {})[str(felt)] = verdi
+                celle = ut[str(eid)].setdefault(dato[:4], {})
+                celle[str(felt)] = verdi
+                if str(felt) == "farge":
+                    celle["farge__utgitt"] = utgitt
     return {po: dict(runder) for po, runder in ut.items()}
 
 
@@ -3312,6 +3421,27 @@ def _fargerader(po: str, felles: Felles) -> list[dict]:
 BELEGGSRANG = ("ordrett", "beslutning", "kapitteloverskrift",
                "kapittelhjemmel")
 
+# DEPARTEMENTETS KUNNGJØRINGER VISES IKKE, fra 04.11.2026 (rødt lag F12).
+#
+# Kunngjøringene på regjeringen.no har ingen dokumentert lisens. MÅLT
+# 04.11.2026: ingen av de ni arkiverte kroppene i
+# `data/arkiv/regjeringen-pressemeldinger/` oppgir et vilkår for teksten —
+# bunnteksten lenker bare til «Bruks- og opphavsrett for bilder og
+# videomateriale» — og regjeringen.no og Wayback var stengt for økta.
+# Etter docs/LISENSKJEDE.md er en udokumentert lisens UBELAGT, og en
+# UBELAGT kilde skal ikke bære en publisert visning. Det rammet sitatene,
+# «Hva fargen betød i hver runde», «Departementet vurderte området
+# særskilt» og fargen i de 19 av 65 rundecellene der bare kunngjøringen
+# oppgir den.
+#
+# Kunngjøringene leses og rangeres fortsatt (`beslutning.py`): det er
+# VISNINGEN som stoppes. En celle der bare kunngjøringen sier noe, står
+# som «ikke vist» og ikke som «ikke oppgitt», for det siste ville vært
+# usant. Settes til True den dagen lisensen er belagt i LISENSKJEDE.
+KUNNGJORINGER_VISES = False
+FARGE_IKKE_VIST = "ikke vist"
+FARGE_IKKE_VIST_FELT = "farge_ikke_vist"
+
 
 def _fargerad(po: str, aar: str, felles: Felles) -> dict:
     """Én celle: sterkeste belegg først, de andre ved siden av.
@@ -3321,21 +3451,25 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
     """
     kandidater: list[dict] = []
 
-    # Forskriften.
+    # Forskriften — den som SA fargen, se `forskrift_for_utgivelse()`.
     d = (felles.po_farger.get(po) or {}).get(aar)
     if d and (d.get("farge") or "").strip():
         raa = d["farge"].strip()
         maate = (d.get("farge__lesemaate") or "").strip()
+        forskrift = (forskrift_for_utgivelse(d.get("farge__utgitt", ""))
+                     or forskrift_for_runde(aar))
         kandidater.append({
             "lesemaate": maate,
             "lesemaate_tekst": LESEMAATE.get(maate, maate or "ukjent"),
             "raa": raa, "sitat": "", "sitat_dato": "", "sitat_url": "",
-            "kilde": forskrift_for_runde(aar).get("id", "forskriften"),
+            "kilde": forskrift.get("id", "forskriften"),
+            "forskrift": forskrift,
         })
 
-    # Departementets kunngjøring.
+    # Departementets kunngjøring — leses, men vises bare når lisensen er
+    # belagt. Se `KUNNGJORINGER_VISES`.
     b = beslutning.for_runde(aar).get(po)
-    if b:
+    if b and KUNNGJORINGER_VISES:
         kandidater.append({
             "lesemaate": "beslutning",
             "lesemaate_tekst": LESEMAATE["beslutning"],
@@ -3344,12 +3478,22 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
             "kilde": f"kunngjøringen {visningsord.dato(b['dato'])}",
         })
 
+    if not kandidater and b:
+        # BARE KUNNGJØRINGEN SIER NOE, og den vises ikke.
+        return {
+            "aar": aar, "farge": FARGE_IKKE_VIST,
+            "farge_felt": FARGE_IKKE_VIST_FELT, "farge_klasse": "",
+            "lesemaate": "ikke_vist", "lesemaate_tekst": LESEMAATE["ikke_vist"],
+            "sitat": "", "sitat_dato": "", "sitat_url": "", "ellers": [],
+            "forskrift": {},
+        }
     if not kandidater:
         return {
             "aar": aar, "farge": FARGE_MANGLER,
             "farge_felt": FARGE_MANGLER_FELT, "farge_klasse": "",
             "lesemaate": "", "lesemaate_tekst": LESEMAATE["ingen"],
             "sitat": "", "sitat_dato": "", "sitat_url": "", "ellers": [],
+            "forskrift": {},
         }
 
     kandidater.sort(key=lambda k: BELEGGSRANG.index(k["lesemaate"])
@@ -3377,6 +3521,8 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
         "sitat_dato": sterkest["sitat_dato"],
         "sitat_url": sterkest["sitat_url"],
         "ellers": ellers,
+        # Forskriften cellen lenker til: den som ga fargen, eller ingen.
+        "forskrift": sterkest.get("forskrift") or {},
     }
 
 
@@ -3388,6 +3534,25 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
 # og den bærer tittel, FOR-nummer, runder og URL. En kopi hos
 # publiseringsleddet ville vært en andre liste som kan bli stående
 # gammel — formen F6 og F7 hadde.
+
+
+def forskrift_for_utgivelse(utgitt: str) -> dict:
+    """{tittel, id, url} for forskriften UTGITT `utgitt`, eller tom dict.
+
+    Datoen står i FOR-nummeret (FOR-2022-06-07-972), og snapshotversjonen
+    forskriften skrev, bærer den som `published_at`. Ingen gjetning: en
+    dato ingen forskrift i tabellen har, gir ingen lenke.
+    """
+    from sources.trafikklysvedtak import FORSKRIFTER
+
+    dag = (utgitt or "")[:10]
+    if len(dag) != 10:
+        return {}
+    for f in FORSKRIFTER:
+        if f.forskrift_id.startswith(f"FOR-{dag}-"):
+            return {"tittel": f.tittel, "id": f.forskrift_id,
+                    "url": f.url, "merknad": f.merknad}
+    return {}
 
 
 def forskrift_for_runde(aar: str) -> dict:
@@ -3593,10 +3758,13 @@ def _po_fargerader(po: str, felles: Felles) -> list[dict]:
     Utvider `_fargerader()` med forskriftsopplysningene, som leses av
     kilden — se `forskrift_for_runde()`.
     """
-    ut = []
-    for r in _fargerader(po, felles):
-        ut.append(dict(r, forskrift=forskrift_for_runde(r["aar"])))
-    return ut
+    # FORSKRIFTEN SOM GA FARGEN, per celle (rødt lag F6). Fram til
+    # 04.11.2026 fikk hver celle `forskrift_for_runde()` — NYESTE forskrift
+    # som dekker runden — og 2026-forskriften ble oppgitt som kilde for
+    # farger den ikke nevner. En celle uten forskriftsfarge («ikke vist»,
+    # «ikke oppgitt») får ingen lenke.
+    return [dict(r, forskrift=r.get("forskrift") or {})
+            for r in _fargerader(po, felles)]
 
 
 def _rundeopplysninger(aar: str) -> dict:
@@ -3609,7 +3777,7 @@ def _rundeopplysninger(aar: str) -> dict:
     Tom for en runde som ikke er godkjent — da står bare forskriftens
     egen lenke, som før.
     """
-    if aar not in beslutning.GODKJENT:
+    if aar not in beslutning.GODKJENT or not KUNNGJORINGER_VISES:
         return {"dato": "", "type": "", "url": "", "tegn": []}
     dato = beslutning.KROPPER.get(aar, ("", ""))[0]
     return {
@@ -3634,6 +3802,8 @@ def _po_saerskilt(po: str, felles: Felles) -> list[dict]:
     veie, og en oppsummering ville vært nettopp det.
     """
     ut = []
+    if not KUNNGJORINGER_VISES:
+        return ut
     for dato in felles.runder:
         aar = dato[:4]
         d = beslutning.saerskilt_for_runde(aar).get(po)
@@ -3785,7 +3955,10 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
              felles.akva[l["loknr"]].get("breddegrad", ""),
              felles.akva[l["loknr"]].get("lengdegrad", ""))
             for l in lokaliteter]),
-        "runder": _po_fargerader(po, felles),
+        "runder": (runder := _po_fargerader(po, felles)),
+        # Tegnforklaringen viser bare grunnlagene sidene bruker.
+        "vis_kunngjoringer": KUNNGJORINGER_VISES,
+        "har_ikke_vist": any(r["lesemaate"] == "ikke_vist" for r in runder),
         # Beslutningsdato, dokumenttype og tegnforklaring PER RUNDE.
         # Står ved siden av rundene og ikke i dem: den gjelder alle
         # tretten områdene i runden, ikke dette ene.
@@ -4549,9 +4722,67 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
     return poster
 
 
+def _enhetsstatus(enhet_dato: str | None = None,
+                  enhet: dict | None = None) -> dict[str, dict]:
+    """{orgnr: hva ENHETSREGISTERET sier om nummeret}. Tom: vet ikke.
+
+        bekreftet   True når nummeret står i det ukentlige uttrekket uten
+                    slettedato. Det er den ENESTE grunnen siden har til å
+                    skrive «i dag» om et navn (rødt lag F4).
+        slettet     {dato, kilde, gjelder} når registeret oppgir en
+                    slettedato — fra uttrekket eller fra oppslagene
+                    (`enhetsregisteret_oppslag`, se backfill.py --oppslag).
+
+    Oppslagene gir ALDRI «i dag». De er gjort én gang, og at en enhet
+    fantes den dagen vi spurte, er ikke at den finnes nå. En slettedato
+    står seg: en slettet enhet blir ikke uslettet, og nummeret gjenbrukes
+    ikke.
+    """
+    if enhet is None:
+        enhet_dato = snapshot.siste_dato("enhetsregisteret")
+        enhet = _siste("enhetsregisteret")[1] if enhet_dato else {}
+    ut: dict[str, dict] = {}
+    for orgnr, d in (enhet or {}).items():
+        slettet = (d.get("slettedato") or "").strip()
+        ut[str(orgnr)] = {
+            "bekreftet": not slettet,
+            "kilde": "enhetsregisteret", "gjelder": enhet_dato or "",
+            "slettet": ({"dato": slettet, "kilde": "enhetsregisteret",
+                         "gjelder": enhet_dato or ""} if slettet else None)}
+    oppslag_dato = snapshot.siste_dato(ENHETSOPPSLAG)
+    if oppslag_dato:
+        for orgnr, d in _siste(ENHETSOPPSLAG)[1].items():
+            if str(orgnr) in ut:
+                continue
+            slettet = (d.get("slettedato") or "").strip()
+            ut[str(orgnr)] = {
+                "bekreftet": False,
+                "kilde": ENHETSOPPSLAG, "gjelder": oppslag_dato,
+                "slettet": ({"dato": slettet, "kilde": ENHETSOPPSLAG,
+                             "gjelder": oppslag_dato} if slettet else None)}
+    return ut
+
+
+def _oppgitt_brreg(poster: list[dict]) -> list[dict]:
+    """Herkomstlinjene for Enhetsregisterets påstander i «Historikk
+    kildene selv fører»: én per (kilde, dato, hva), i fast rekkefølge."""
+    sett: dict[tuple[str, str, str], None] = {}
+    for p in poster:
+        if p.get("bekreftet_av"):
+            b = p["bekreftet_av"]
+            sett[(b["kilde"], b["gjelder"], "«i dag»")] = None
+        if p.get("slettet"):
+            b = p["slettet"]
+            sett[(b["kilde"], b["gjelder"], "slettedatoene")] = None
+    return [{"kilde": k, "kort": visningsord.kilde_kort(k), "gjelder": g,
+             "vist": visningsord.kortdato(g), "hva": hva}
+            for k, g, hva in sett]
+
+
 def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                        overforinger: list[dict],
-                       former: dict | None = None) -> list[dict]:
+                       former: dict | None = None,
+                       enhetsstatus: dict | None = None) -> list[dict]:
     """Historikken KILDEN selv fører, eldst først.
 
     Tre slag, og alle tre er datoer registeret oppgir som en dato for
@@ -4588,7 +4819,8 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             # tildelt» etter «Tillatelse tildelt» sa det samme to ganger.
             "hva": "lokaliteten",
             "navn": "", "navn_felt": "",
-            "orgnr": "", "navn_er_i_dag": False,
+            "orgnr": "", "navn_er_i_dag": False, "navn_ifolge": False,
+            "slettet": None, "bekreftet_av": None,
             "kilde": "akvakultur", "felt": "forste_klarering",
             "presisjon": "dato oppgitt av registeret",
         })
@@ -4610,6 +4842,18 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             # og navnet merkes «i dag» — i sin EGEN celleverdi, ikke
             # sammensatt med nummeret: porten slår celleverdien opp i
             # hvitelista, og en sammensatt streng står ikke der.
+            #
+            # «I DAG» BARE NÅR ENHETSREGISTERET BEKREFTER DET (rødt lag
+            # F4, 04.11.2026). Navnet er Fiskeridirektoratets, og for 28
+            # av 29 nummer utenfor uttrekket var enheten slettet:
+            # «(i dag: Landøy Fiskeoppdrett AS)» om en enhet slettet
+            # 18.05.2019. Uten bekreftelse står navnet «ifølge
+            # Fiskeridirektoratet», og en slettedato står når registeret
+            # oppgir en.
+            orgnr = (till.get("tildelt_orgnr") or "").strip()
+            status = (enhetsstatus or {}).get(orgnr) or {}
+            eget = (till.get("tildelt_felt")
+                    != publiseringsvakt.SKJULT_NAVN_FELT)
             poster.append({
                 "dato": till["tildelt_dato"],
                 "slag": "Tillatelse tildelt",
@@ -4617,9 +4861,13 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                 "navn": till["tildelt_navn"],
                 "navn_felt": till.get("tildelt_felt", "tildelt_navn"),
                 "orgnr": till.get("tildelt_orgnr", ""),
-                # Vår tekst er ikke «dagens navn» på noe nummer.
-                "navn_er_i_dag": (till.get("tildelt_felt")
-                                  != publiseringsvakt.SKJULT_NAVN_FELT),
+                # Vår tekst er ikke et navn på noe nummer.
+                "navn_er_i_dag": eget and bool(status.get("bekreftet")),
+                "navn_ifolge": eget and not status.get("bekreftet"),
+                "slettet": status.get("slettet") if eget else None,
+                "bekreftet_av": ({"kilde": status["kilde"],
+                                  "gjelder": status["gjelder"]}
+                                 if eget and status.get("bekreftet") else None),
                 "kilde": "eierskap", "felt": "tildelt_tid",
                 "presisjon": "dato oppgitt av registeret",
             })
@@ -4634,7 +4882,8 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                 "hva": o["tillatelse"],
                 "navn": navn,
                 "navn_felt": felt,
-                "orgnr": "", "navn_er_i_dag": False,
+                "orgnr": "", "navn_er_i_dag": False, "navn_ifolge": False,
+                "slettet": None, "bekreftet_av": None,
                 "kilde": "eierskap_historikk", "felt": "journal_dato",
                 "presisjon": "journalført senest denne datoen",
             })
@@ -5051,6 +5300,18 @@ def lokalitetspaastander(lok: dict) -> dict:
                                  lok["kapasitet_tillatelser"],
                                  nivaa=REGNET if n > 1 else OPPGITT,
                                  felt="kapasitet"), ref)
+    # HVER ENHET FOR SEG, alle tillatelsene med (rødt lag F5). Én påstand
+    # per enhet: en sum av flere er vår regning, én tillatelse er kildens
+    # tall.
+    ut["mtb_deler"] = [
+        dict(vis(Paastand("kapasitet_tillatelser", "eierskap", eier, d["vist"],
+                          nivaa=REGNET if d["antall"] > 1 else OPPGITT,
+                          felt="kapasitet"), ref), antall=d["antall"])
+        for d in lok.get("kapasitet_tillatelser_deler") or ()]
+    if lok.get("kapasitet_tillatelser_uten"):
+        ut["mtb_uten"] = vis(Paastand(
+            "kapasitet_tillatelser_uten", "eierskap", eier,
+            str(lok["kapasitet_tillatelser_uten"]), felt="kapasitet"), ref)
     if lok.get("kapasitet_midlertidig") and \
             lok["kapasitet_midlertidig"] != lok.get("kapasitet"):
         ut["midlertidig"] = vis(Paastand(
@@ -5234,8 +5495,9 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
             if loknr in [x.strip() for x in (d.get("lokaliteter") or "").split(";")]
         }
         ovf = list(_overforinger().values())
-        former = publiseringsvakt.formkart(
-            _siste("enhetsregisteret")[1], eierskap, ovf)
+        enhet_dato_, enhet_ = _siste("enhetsregisteret")
+        former = publiseringsvakt.formkart(enhet_, eierskap, ovf)
+        enhetsstatus = _enhetsstatus(enhet_dato_, enhet_)
         serie = _lusserie(loknr)
         endringer, maaleserie_rader, sist_endret = _endringer(
             loknr, sorted(mine_till))
@@ -5248,6 +5510,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         ovf = [o for nr in mine_till
                for o in felles.overforinger_per_tillatelse.get(nr, ())]
         former = felles.former
+        enhetsstatus = getattr(felles, "enhetsstatus", None) or {}
         serie = felles.lusserier.get(loknr, [])
         endringer, maaleserie_rader, sist_endret = _endringer_av_indeks(
             loknr, sorted(mine_till), felles)
@@ -5437,8 +5700,11 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
 
         # ---- de to historikkene ----
         "observert": _observert_historikk(endringer, dekning, felles),
-        "oppgitt": _oppgitt_historikk(a, tillatelsesrader, overforingsrader,
-                                      former),
+        "oppgitt": (oppgitt := _oppgitt_historikk(
+            a, tillatelsesrader, overforingsrader, former, enhetsstatus)),
+        # HERKOMSTEN FOR DET ENHETSREGISTERET SIER i tabellen: «i dag» og
+        # slettedatoene. Fiskeridirektoratet står allerede i tittelen.
+        "oppgitt_brreg": _oppgitt_brreg(oppgitt),
 
         # ---- fisk til stede ----
         "biolag": _biolagstripe(
@@ -5472,23 +5738,47 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
 
 
 def _tillatelsenes_kapasitet(mine_till: dict, enhet: str) -> dict:
-    """Summen av tillatelsenes kapasitet i `enhet`, og hvor mange som telte.
+    """Tillatelsenes kapasitet, summert PER ENHET — og alle tillatelsene.
 
-    Bare tillatelser i SAMME enhet som lokaliteten summeres: 585 tonn og
-    200 000 stykk har ingen sum. Ingen i samme enhet: tom streng, og
-    siden viser bare lokalitetens tall.
+    585 tonn og 200 000 stykk har ingen sum, så hver enhet summeres for
+    seg. Fram til 04.11.2026 ble bare lokalitetens egen enhet summert,
+    og en tillatelse i en annen enhet ble holdt utenfor uten at siden sa
+    det: «2 500 000 stykk · 1 tillatelse» på en lokalitet med to
+    tillatelser, der den andre er 44,8 tonn (rødt lag F5, 85 av 1 784
+    lokaliteter). Nå står hver enhet med sin sum og sitt antall, og en
+    tillatelse uten oppgitt kapasitet telles som det.
+
+    `kapasitet_tillatelser` og `_antall` er fortsatt lokalitetens egen
+    enhet: det er den som kan stå ved siden av lokalitetens kapasitet
+    («Hvorfor to kapasiteter?»). `_deler` er alle enhetene, lokalitetens
+    først.
     """
-    sum_, n = Decimal(0), 0
+    egen = (enhet or "").strip()
+    per_enhet: dict[str, list] = {}
+    uten = 0
     for d in mine_till.values():
-        if (d.get("kapasitet_enhet") or "").strip() != (enhet or "").strip():
-            continue
+        e = (d.get("kapasitet_enhet") or "").strip()
         try:
-            sum_ += Decimal(str(d.get("kapasitet") or "").strip())
+            verdi = Decimal(str(d.get("kapasitet") or "").strip())
         except InvalidOperation:
+            uten += 1
             continue
-        n += 1
-    return {"kapasitet_tillatelser": visningsord.maalt(str(sum_), enhet) if n else "",
-            "kapasitet_tillatelser_antall": n}
+        if not e:
+            uten += 1
+            continue
+        sum_n = per_enhet.setdefault(e, [Decimal(0), 0])
+        sum_n[0] += verdi
+        sum_n[1] += 1
+    rekke = sorted(per_enhet, key=lambda e: (e != egen, -per_enhet[e][1], e))
+    deler = [{"enhet": e, "vist": visningsord.maalt(str(per_enhet[e][0]), e),
+              "antall": per_enhet[e][1]} for e in rekke]
+    i_egen = per_enhet.get(egen)
+    return {"kapasitet_tillatelser":
+                visningsord.maalt(str(i_egen[0]), egen) if i_egen else "",
+            "kapasitet_tillatelser_antall": i_egen[1] if i_egen else 0,
+            "kapasitet_tillatelser_deler": deler,
+            "kapasitet_tillatelser_uten": uten,
+            "kapasitet_tillatelser_i_alt": len(mine_till)}
 
 
 _SAMME_POSISJON: dict[int, dict[tuple[str, str], list[str]]] = {}
@@ -5833,7 +6123,7 @@ def jsonld(lok: dict) -> str:
     spennet i lusetallserien for akkurat denne lokaliteten.
     """
     indeks = kildevilkaar()
-    kilder = [kildenode(k, indeks) for k in SIDENS_KILDER]
+    kilder = [kildenode(k, indeks) for k in lokalitetskilder(lok)]
 
     data = {
         "@context": "https://schema.org",
@@ -5889,7 +6179,7 @@ def jsonld(lok: dict) -> str:
             "description": f"{spenn} {beskrivelse}",
             "contentUrl": fil,
             "encodingFormat": format_,
-            "creditText": (indeks.get("lusetall") or ("",))[0],
+            "creditText": kredittekst(indeks.get("lusetall")),
         } for fil, format_, hva, beskrivelse in (
             (lok["xlsx_filnavn"], XLSX_MIME, "Excel",
              "Regneark med arket «Om dataene»."),
@@ -6226,13 +6516,14 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     # setningene på nytt til bunnteksten; kallet her er porten, og den
     # skal stå FØR malen kompileres slik at en UBELAGT kilde stopper
     # siden framfor å rendres og kastes etterpå.
-    attribusjon(SIDENS_KILDER, vilkaar)
+    kilder = lokalitetskilder(lok)
+    attribusjon(kilder, vilkaar)
     mal = mal or _miljo().get_template("lokalitet.html.j2")
 
     html = mal.render(
         lok=lok,
         **_grunnkontekst(
-            felles, rot, sti, kilder=SIDENS_KILDER,
+            felles, rot, sti, kilder=kilder,
             tittel=f"{lok['tittelnavn']}, lokalitet {lok['loknr']} — Kystloggen",
             beskrivelse=(
                 f"Registerdata, eierskap og ukentlige lusetall for "
@@ -7506,7 +7797,37 @@ def _basisurl() -> str:
     return satt.strip().rstrip("/")
 
 
-def _urler(felles: Felles) -> list[str]:
+def selskapssider(felles: Felles) -> list[str]:
+    """Organisasjonsnumrene som får en `/selskap/<orgnr>/`-side, sortert.
+
+    ÉN liste for sitemapen, llms.txt og indeksdelingen. Fram til 04.11.2026
+    regnet llms.txt selskapene som «alle adresser minus de kjente», og
+    etter at indeksene ble delt i sider, kom de 21 indekssidene med i
+    tallet: «499 selskaper» mot 478 sider (R3, revisjonen av nettstedet).
+    """
+    return [o for o in sorted(felles.tillatelser_per_eier)
+            if not personeier(o, felles)]
+
+
+def _endringsurler(uker) -> list[str]:
+    """`/endringer/` og hver side `skriv_endringssider()` skriver for ukene:
+    ukesiden og én side per endringstype. Rekkefølgen er nyest først, som
+    indeksen.
+
+    Fram til 04.11.2026 sto ingen av dem i sitemapen eller i llms.txt
+    (R3: 0 av 2 301 adresser), og ukesidene er laget for å siteres.
+    """
+    if not uker:
+        return []
+    stier = [f"/{ENDRINGER_STI}/"]
+    for uke in uker:
+        stier.append(f"/{ENDRINGER_STI}/{uke['slug']}/")
+        stier += [f"/{ENDRINGER_STI}/{uke['slug']}/{k['id']}/"
+                  for k in ENDRINGSTYPER]
+    return stier
+
+
+def _urler(felles: Felles, uker=()) -> list[str]:
     """Hver publiserte side, som sti. Rekkefølgen er lesningens.
 
     Lusetall-CSV-ene står ikke her: en sitemap er sider, ikke
@@ -7514,22 +7835,21 @@ def _urler(felles: Felles) -> list[str]:
     """
     stier = ["/", "/om/", "/lokalitet/", "/produksjonsomrade/", "/selskap/"]
     # INDEKSENES ØVRIGE SIDER. Samme deling som `skriv_indekser()`.
-    selskaper = sum(1 for o in felles.tillatelser_per_eier
-                    if not personeier(o, felles))
-    for sti, n in (("lokalitet", len(felles.akva)), ("selskap", selskaper)):
+    selskaper = selskapssider(felles)
+    for sti, n in (("lokalitet", len(felles.akva)),
+                   ("selskap", len(selskaper))):
         stier += [indekssti(sti, k) for k in range(2, indekssider(n) + 1)]
     stier += [f"/lokalitet/{loknr}/" for loknr in
               sorted(felles.akva, key=lambda e: int(e) if e.isdigit() else 0)]
     stier += [f"/produksjonsomrade/{po}/" for po in
               sorted(felles.po_navn, key=lambda k: int(k) if k.isdigit() else 0)]
-    stier += [f"/selskap/{orgnr}/" for orgnr in
-              sorted(felles.tillatelser_per_eier)
-              if not personeier(orgnr, felles)]
+    stier += [f"/selskap/{orgnr}/" for orgnr in selskaper]
+    stier += _endringsurler(uker)
     return stier
 
 
-def skriv_sitemap(rot: Path, felles: Felles) -> Path:
-    """sitemap.xml over alle sidene."""
+def skriv_sitemap(rot: Path, felles: Felles, uker=()) -> Path:
+    """sitemap.xml over alle sidene, endringssidene med (se `_urler`)."""
     from xml.sax.saxutils import escape
 
     basis = _basisurl()
@@ -7543,7 +7863,7 @@ def skriv_sitemap(rot: Path, felles: Felles) -> Path:
             "nettstedets eget domene) eller satt til vertsnavnet denne "
             "kopien faktisk ligger på. -->")
     linjer.append(f'<urlset xmlns="{SITEMAP_NS}">')
-    for sti in _urler(felles):
+    for sti in _urler(felles, uker):
         linjer.append("  <url>")
         linjer.append(f"    <loc>{escape(basis + sti)}</loc>")
         linjer.append(f"    <lastmod>{dato}</lastmod>")
@@ -7806,21 +8126,36 @@ def skriv_404(rot: Path, felles: Felles) -> Path:
     return skriv_side(sti, html)
 
 
-def skriv_llms(rot: Path, felles: Felles) -> Path:
+def skriv_llms(rot: Path, felles: Felles, uker=()) -> Path:
     """llms.txt — hva dette er, og hvor de fullstendige listene er.
 
     Peker på INDEKSENE og /om/, ikke på 1782 enkeltsider. En modell som
     følger fila skal finne alt på tre hopp, og en fil med 1782 lenker
     ville vært den samme lista som sitemap.xml, bare dårligere.
+
+    TALLENE REGNES AV DET SAMME SOM SIDENE (R3, 04.11.2026): fila sa «499
+    selskaper» om 478 selskapssider og «flat, upaginert liste» om en
+    lokalitetsliste delt i 18. `publiseringsvakt.llms_mot_bygget()` holder
+    dem mot det som faktisk er skrevet.
     """
     om = bygg_om(felles)
     basis = _basisurl()
     u = (lambda sti: basis + sti) if basis else (lambda sti: sti)
+    selskaper = len(selskapssider(felles))
+    lokalitetssider = indekssider(len(felles.akva))
+    selskapsindekssider = indekssider(selskaper)
+    if uker:
+        endringer = (
+            f"\n- [Endringer uke for uke]({u(f'/{ENDRINGER_STI}/')}): "
+            f"{len(uker)} uker, nyest først. Hver uke har sin egen side,\n"
+            f"  som aldri endres etter at uka er publisert, og kan siteres.")
+    else:
+        endringer = ""
     tekst = f"""# Kystloggen
 
 > Offentlige registerdata om norsk akvakultur, hentet ukentlig og lagret
 > som daterte snapshots. {om['lokaliteter']} lokaliteter, 13
-> produksjonsområder og {len(_urler(felles)) - 5 - om['lokaliteter'] - 13}
+> produksjonsområder og {selskaper}
 > selskaper. Registrene viser nåtilstanden og skriver over; her står
 > tidsaksen — hva registeret sa forrige uke, og hva som har endret seg.
 
@@ -7841,13 +8176,13 @@ personvernhensyn, og de som forsvinner er små, personeide anlegg.
 
 ## Fullstendige lister
 
-- [Alle lokaliteter]({u('/lokalitet/')}): flat, upaginert liste over alle
-  {om['lokaliteter']} lokalitetene, med nummer, navn, kommune og
-  produksjonsområde.
+- [Alle lokaliteter]({u('/lokalitet/')}): alle {om['lokaliteter']}
+  lokalitetene, med nummer, navn, kommune og produksjonsområde, delt i
+  {lokalitetssider} sider ({u('/lokalitet/side/2/')} og videre).
 - [Alle produksjonsområder]({u('/produksjonsomrade/')}): de 13 områdene
   med nyeste trafikklysfarge.
-- [Alle innehavere]({u('/selskap/')}): innehaverne av minst én
-  akvakulturtillatelse.
+- [Alle innehavere]({u('/selskap/')}): de {selskaper} innehaverne av minst
+  én akvakulturtillatelse, delt i {selskapsindekssider} sider.{endringer}
 
 ## Om kilder, metode og sitering
 
@@ -7884,15 +8219,19 @@ side. Den erstattes ikke av en referanse til dette nettstedet.
 # datoen vilkåret ble lest. Attribusjonssetningene hentes fra kilden
 # selv — dette er bare det LISENSKJEDEN sier utover setningen.
 LISENSRAD = {
-    "akvakultur": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "biomasse": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "biomasselag": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "romming": ("NLOD", "fiskeridir.no", "25.08.2026"),
-    "eierskap": ("NLOD + NLOD 2.0", "fiskeridir.no + brreg.no",
-                 "25.08. / 14.09.2026"),
-    "eierskap_historikk": ("NLOD + NLOD 2.0", "fiskeridir.no + brreg.no",
-                           "25.08. / 14.09.2026"),
+    # NLOD 1.0 fra 04.11.2026: lisenssiden lenker dit (rødt lag F3,
+    # docs/LISENSKJEDE.md merknad A). Datoen er da versjonen ble lest.
+    "akvakultur": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "biomasse": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "biomasselag": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "romming": ("NLOD 1.0", "fiskeridir.no", "04.11.2026"),
+    "eierskap": ("NLOD 1.0 + NLOD 2.0", "fiskeridir.no + brreg.no",
+                 "04.11. / 14.09.2026"),
+    "eierskap_historikk": ("NLOD 1.0 + NLOD 2.0", "fiskeridir.no + brreg.no",
+                           "04.11. / 14.09.2026"),
     "enhetsregisteret": ("NLOD 2.0 (frie nivået)", "brreg.no", "14.09.2026"),
+    "enhetsregisteret_oppslag": ("NLOD 2.0 (frie nivået)", "brreg.no",
+                                 "14.09.2026"),
     "lusetall": ("NLOD", "barentswatch.no/artikler/api-vilkar", "12.09.2026"),
     "sjotemperatur": ("NLOD", "barentswatch.no/artikler/api-vilkar",
                       "12.09.2026"),
@@ -7968,7 +8307,13 @@ def bygg_om(felles: Felles) -> dict:
         "ubelagte": [{"navn": k["navn"],
                       "vist": visningsord.kilde(k["navn"]),
                       "url": KILDE_URL.get(k["navn"], "")}
-                     for k in kilder if k["ubelagt"]],
+                     for k in kilder if k["ubelagt"]] + (
+            # DEPARTEMENTETS KUNNGJØRINGER er ikke en kilde i `sources/`,
+            # men de er lest og sto på områdesidene til 04.11.2026 (rødt
+            # lag F12). Lisensen er ikke funnet, og /om/ sier det.
+            [] if KUNNGJORINGER_VISES else
+            [{"navn": "regjeringen", "url": "",
+              "vist": "departementets kunngjøringer på regjeringen.no"}]),
         "akva_dato": felles.akva_dato,
         "eierskap_dato": felles.eierskap_dato,
         "enhet_dato": felles.enhet_dato,
@@ -9345,7 +9690,8 @@ def _historietekst(runder: list[dict]) -> str:
     forskjellen på hva vi VET og hva som gjelder — og de to skal ikke
     slås sammen.
     """
-    med = [r["farge"] for r in runder if r["farge"] != FARGE_MANGLER]
+    med = [r["farge"] for r in runder
+           if r["farge"] not in (FARGE_MANGLER, FARGE_IKKE_VIST)]
     if not med:
         return "ikke oppgitt i noen runde"
     kjede = [med[0]] + [f for forrige, f in zip(med, med[1:]) if f != forrige]
@@ -9772,15 +10118,24 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             if d and (not post["siden"] or d < post["siden"]):
                 post["siden"] = d
 
-    # SIDEN NÅR: overføringene TIL dette selskapet, eldst først.
+    # SIDEN NÅR: overføringene TIL dette selskapet, eldst først, på HVER
+    # tillatelse — også dem selskapet har gitt fra seg siden.
+    #
+    # Fram til 04.11.2026 sto `for nr in tillatelser` her, altså bare
+    # tillatelsene selskapet eier NÅ. «Gikk ut» under er bygget av alle,
+    # og siden listet da tillatelser som «Gikk ut» uten at de noen gang
+    # var «Kom til». MÅLT (rødt lag F2): Lerøy Aurora AS stod med «2
+    # kommet til» og eldste overføring hit 24.12.2021; kroppene har 12
+    # overført hit, eldst T-G-0010 05.11.2009. 29 av 478 selskaper.
+    #
     # `journal_dato` er «senest da» og ikke «akkurat da» — forbeholdet
     # står på hver rad i dataene og i tabellens caption.
     overforinger = sorted(
         ({"dato": o.get("journal_dato", ""),
-          "tillatelse": o.get("tillatelse_nr", ""),
+          "tillatelse": o.get("tillatelse_nr", "") or nr,
           "rekkefolge": o.get("rekkefolge", "")}
-         for nr in tillatelser
-         for o in felles.overforinger_per_tillatelse.get(nr, ())
+         for nr, overf in felles.overforinger_per_tillatelse.items()
+         for o in overf
          if (o.get("mottaker_orgnr") or "").strip() == orgnr),
         key=lambda o: (o["dato"], o["tillatelse"]))
 
@@ -10073,10 +10428,30 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
     return skriv_side(rot / "selskap" / orgnr / "index.html", html)
 
 
-# Kildene en produksjonsområdeside bygger på. `ekspertgruppen` står
+# Kildene en produksjonsområdeside KAN bygge på. `ekspertgruppen` står
 # IKKE her: kilden er UBELAGT, og en side som oppgav den i bunnteksten
 # ville påstått et vilkår ingen har gått god for.
-PO_KILDER = ("akvakultur", "trafikklysvedtak")
+#
+# Fram til 04.11.2026 sto bare akvakultur og trafikklysvedtak her, mens
+# sidene viste lusetall og lusegrense («Uker over lusegrensa»),
+# biomassestatistikken og innehaverne (rødt lag F11, F13). Bunnteksten
+# manglet derfor BarentsWatchs to setninger på alle 13, og /om/ sa «Vises
+# her: nei» om sjøtemperatur og biomasse. Hvilke av dem en side viser,
+# står i `po_kilder()`; denne er unionen, for `viste_kilder()`.
+PO_KILDER = ("akvakultur", "eierskap", "trafikklysvedtak", "lusetall",
+             "sjotemperatur", "biomasse")
+
+
+def po_kilder(po: dict) -> tuple[str, ...]:
+    """Kildene DENNE områdesiden viser, i `PO_KILDER`-rekkefølge."""
+    vist = {"akvakultur", "trafikklysvedtak"}
+    if any(l.get("selskap") for l in po.get("lokaliteter") or ()):
+        vist.add("eierskap")
+    if (po.get("marg") or {}).get("lus"):
+        vist |= {"lusetall", "sjotemperatur"}
+    if po.get("biomasse"):
+        vist.add("biomasse")
+    return tuple(k for k in PO_KILDER if k in vist)
 
 
 def jsonld_po(po: dict, vilkaar: dict) -> Markup:
@@ -10085,7 +10460,7 @@ def jsonld_po(po: dict, vilkaar: dict) -> Markup:
     `identifier` bærer PO-nummeret med `propertyID` som sier hvem som har
     fastsatt det.
     """
-    kilder = [kildenode(k, vilkaar) for k in PO_KILDER]
+    kilder = [kildenode(k, vilkaar) for k in po_kilder(po)]
     data = {
         "@context": "https://schema.org",
         "@type": "Dataset",
@@ -10122,12 +10497,14 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
         po=d,
         **_grunnkontekst(
             felles, rot, rot / "produksjonsomrade" / po / "index.html",
-            kilder=PO_KILDER,       # kaster på UBELAGT
+            kilder=po_kilder(d),    # kaster på UBELAGT
             # DEPARTEMENTETS EGNE ORD står på denne siden, med lenke til
-            # regjeringen.no. Ingen `Source.attribusjon` bærer det, og en
-            # fraskrivelse som utelot parten hvis ord er sitert, ville
-            # utelatt den ene som betyr mest her.
-            siterte_organ=("regjeringen.no",),
+            # regjeringen.no — når kunngjøringene vises. Ingen
+            # `Source.attribusjon` bærer det, og en fraskrivelse som utelot
+            # parten hvis ord er sitert, ville utelatt den ene som betyr
+            # mest her. Se `KUNNGJORINGER_VISES`.
+            siterte_organ=(("regjeringen.no",) if KUNNGJORINGER_VISES
+                           else ()),
             tittel=f"Produksjonsområde {d['nr']} {d['navn']} — Kystloggen",
             beskrivelse=(
                 f"Trafikklysfarge per runde for produksjonsområde {d['nr']} "
@@ -10343,9 +10720,9 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_ikoner(rot),
                   lambda: skriv_bilder(rot),
                   lambda: skriv_skript(rot),
-                  lambda: skriv_sitemap(rot, felles),
+                  lambda: skriv_sitemap(rot, felles, uker),
                   lambda: skriv_robots(rot),
-                  lambda: skriv_llms(rot, felles),
+                  lambda: skriv_llms(rot, felles, uker),
                   lambda: skriv_vertsfiler(rot),
                   lambda: skriv_404(rot, felles)):
         try:
