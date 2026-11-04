@@ -1015,7 +1015,8 @@
     <summary>{{ antall(lok.oppgitt|length, "post", "poster") }},
       {{ lok.oppgitt[0].dato[:4] }}{% if lok.oppgitt[-1].dato[:4] != lok.oppgitt[0].dato[:4] %}–{{ lok.oppgitt[-1].dato[:4] }}{% endif %}</summary>
   <p class="tabelltittel" id="eierskap_historikk-overforinger-tittel">{{ antall(lok.oppgitt|length, "post", "poster") }},
-      eldst først <span class="herkomst">{{ "eierskap"|kildekort }} · datoene er kildens</span></p>
+      eldst først <span class="herkomst">{{ "eierskap"|kildekort }} · datoene er kildens</span>
+      {%- for h in lok.oppgitt_brreg %} <span class="herkomst">{{ h.kort }} · <time datetime="{{ h.gjelder }}">{{ h.vist }}</time> · {{ h.hva }}</span>{% endfor %}</p>
   <div class="tabellramme" role="region"
        aria-labelledby="eierskap_historikk-overforinger-tittel" tabindex="0">
   <table id="eierskap_historikk-overforinger" aria-labelledby="eierskap_historikk-overforinger-tittel">
@@ -1040,7 +1041,7 @@
            søkeindeks er en maskinlesbar liste over hvert ord på
            nettstedet, og et navn som kan slås opp der er en oppføring i
            et register. Se `personformnavn()` og regel 3. #}
-        {%- if o.navn_er_i_dag %}
+        {%- if o.navn_er_i_dag or o.navn_ifolge %}
         {#- NUMMERET ER IDENTITETEN, navnet er registerets navn på det I
             DAG — se `_oppgitt_historikk()`. Cellen bærer derfor ikke
             merkingen selv: begge verdiene står i hver sin span, med hver
@@ -1057,7 +1058,11 @@
               som et avkortet navn. Det er ikke det: MÅLT 20.10.2026 sender
               kilden «HALIBUT AS» for 975359050, og Brønnøysund har samme
               navn (aksjeselskap, slettet 12.12.2013). #}
-          <span class="dempet">(i dag: <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>)</span>
+          {#- «I DAG» BARE NÅR ENHETSREGISTERET BEKREFTER at enheten finnes
+              (rødt lag F4). Ellers er navnet Fiskeridirektoratets, og
+              slettedatoen står når registeret oppgir en. #}
+          <span class="dempet">({% if o.navn_er_i_dag %}i dag{% else %}ifølge Fiskeridirektoratet{% endif %}: <span class="eier" data-felt="{{ o.navn_felt }}">{{ o.navn|selskapsnavn }}</span>
+          {%- if o.slettet %} · <span data-felt="slettedato"{{ merke(o.slettet) }}>slettet i Enhetsregisteret <time datetime="{{ o.slettet.dato }}">{{ o.slettet.dato|dato }}</time></span>{% endif %})</span>
         </td>
         {%- else %}
         <td{% if o.navn_felt != SKJULT_NAVN_FELT %} class="eier"{% endif %} data-felt="{{ o.navn_felt }}"

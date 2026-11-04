@@ -272,6 +272,7 @@ def _side(_maaler=None, **overstyr) -> str:
             "eier_orgnr": "928957489", "type": "KOMM-MATF",
             "kapasitet": "1022.0", "kapasitet_enhet": "TN",
             "tildelt_dato": "2004-09-29", "tildelt_navn": "SALMAR NORD AS",
+            "tildelt_orgnr": "928957489",
         }],
         # Standarden er ENIGE kilder: alle tillatelser akvakultur oppgir
         # er gjort rede for i eierskap. Testene under overstyrer.
@@ -348,7 +349,9 @@ def _side(_maaler=None, **overstyr) -> str:
         _endringsrader(lok["endringer"]), lok["dekning_fra"], None))
     lok.setdefault("oppgitt", nettsted._oppgitt_historikk(
         {"forste_klarering": "2010-11-10T23:00:00Z"},
-        lok["tillatelser"], lok["overforinger"]))
+        lok["tillatelser"], lok["overforinger"],
+        enhetsstatus=lok.pop("_enhetsstatus", None)))
+    lok.setdefault("oppgitt_brreg", nettsted._oppgitt_brreg(lok["oppgitt"]))
     # GRAFEN REGNES AV `lus_serie`, ikke skrevet inn ved siden av. Et
     # `overstyr` som bytter serien skal bytte grafen med den — to
     # felter som beskriver samme uker og kan sies hver for seg, er
@@ -3125,12 +3128,57 @@ def test_d_ingen_endringer_star_en_gang_med_en_dato():
     assert "Akvakulturregisteret 17.08.2026 · Tillatelsene 02.09.2026" in flat
 
 
+# Enhetsregisteret BEKREFTER at tildelt-nummeret i fiksturen finnes.
+_BEKREFTET = {"928957489": {"bekreftet": True, "kilde": "enhetsregisteret",
+                            "gjelder": "2026-09-14", "slettet": None}}
+
+
 def test_e_navnet_i_dag_staar_paa_samme_linje():
     """Hull e: «(i dag:  Halibut AS)» var et linjeskift i malen, ikke et
     avkortet navn. Kilden og Brønnøysund sier begge «HALIBUT AS»."""
-    html = _side()
+    html = _side(_enhetsstatus=_BEKREFTET)
     assert re.search(r"\(i dag: <span[^>]*>Salmar Nord AS</span>\)", html)
     assert not re.search(r"\(i dag:\s*\n", html)
+
+
+def test_i_dag_bare_naar_enhetsregisteret_bekrefter_at_enheten_finnes():
+    """Rødt lag F4. «(i dag: Landøy Fiskeoppdrett AS)» sto om en enhet
+    slettet 18.05.2019. Navnet er Fiskeridirektoratets; uten at
+    Enhetsregisteret bekrefter enheten, står det som deres."""
+    flat = " ".join(re.sub(r"<[^>]+>", " ", _side()).split())
+    assert "i dag:" not in flat
+    assert "ifølge Fiskeridirektoratet: Salmar Nord AS" in flat
+
+
+def test_slettet_i_enhetsregisteret_staar_med_dato_og_herkomst():
+    status = {"928957489": {"bekreftet": False,
+                            "kilde": "enhetsregisteret_oppslag",
+                            "gjelder": "2026-11-04",
+                            "slettet": {"dato": "2019-05-18",
+                                        "kilde": "enhetsregisteret_oppslag",
+                                        "gjelder": "2026-11-04"}}}
+    html = _side(_enhetsstatus=status)
+    flat = " ".join(re.sub(r"<[^>]+>", " ", html).split())
+    assert "i dag:" not in flat
+    assert re.search(r"ifølge Fiskeridirektoratet: Salmar Nord AS · slettet "
+                     r"i Enhetsregisteret \S", flat), flat
+    assert 'datetime="2019-05-18"' in html
+    assert 'data-kilde="enhetsregisteret_oppslag"' in html
+    # Porten krever at kilden og datoen står i en herkomstlinje.
+    assert re.search(r'class="herkomst">Brønnøysund · <time datetime='
+                     r'"2026-11-04">', html)
+
+
+def test_oppslaget_gir_aldri_i_dag():
+    """En enhet som fantes den dagen vi spurte, finnes ikke nødvendigvis
+    nå. Bare det ukentlige uttrekket kan bekrefte «i dag»."""
+    from core import snapshot as snap
+    status = nettsted._enhetsstatus("2026-11-02", {
+        "928957489": {"navn": "SALMAR ASA"},
+        "931967061": {"navn": "X", "slettedato": "2019-05-18"}})
+    assert status["928957489"]["bekreftet"] is True
+    assert status["931967061"]["bekreftet"] is False
+    assert status["931967061"]["slettet"]["dato"] == "2019-05-18"
 
 
 def test_f_siste_komplette_uke_er_en_etikett_og_ikke_en_forklaring():
@@ -3902,7 +3950,10 @@ FORKLARINGENE = (
     "Laget oppgir ingen mengde",
     "Summen er sha256 av svaret kilden sendte oss den dagen.",
     "er da tillatelsen ble gitt første gang",
-    "er dagens navn</strong> på organisasjonsnummeret",
+    # Endret 04.11.2026 (rødt lag F4): navnet er Fiskeridirektoratets, og
+    # «i dag» står bare når Enhetsregisteret bekrefter enheten.
+    "er Fiskeridirektoratets</strong>",
+    "«I dag» står bare når Enhetsregisteret bekrefter at enheten finnes.",
     "«Journalført senest denne datoen»</strong> er ikke det samme",
     "Navnet står i registerfeltene i registerets egen skrivemåte.",
     "Tomrom betyr ikke null.",

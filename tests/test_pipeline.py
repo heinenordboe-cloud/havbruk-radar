@@ -531,6 +531,9 @@ def test_partisjoneringen_er_den_malte():
         # Erklært 08.10.2026 før første snapshot, ikke målt: lista sier
         # hva som er søkt NÅ. Mål på nytt når kilden har snapshots.
         "unntaksvekst": "henting",
+        # Erklært 04.11.2026 før første snapshot (rødt lag F4): oppslaget
+        # sier hva Enhetsregisteret svarer den dagen vi spør.
+        "enhetsregisteret_oppslag": "henting",
     }
 
 

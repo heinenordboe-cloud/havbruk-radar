@@ -188,6 +188,9 @@ EIERSKAP_ARKIV = "eierskap-overforinger"
 # og er redusert til tre felter, se `Eierskap.brreg_form`.
 EIERSKAP_BRREG = "eierskap-brreg"
 EIERSKAP_HISTORIKK = "eierskap_historikk"
+# Enhetsregisterets svar på orgnumre tillatelsesregisteret nevner, se
+# `_backfill_oppslag`.
+ENHETSOPPSLAG = "enhetsregisteret_oppslag"
 
 
 def _arkivnavn(kilde, nummer: str) -> str:
@@ -1248,6 +1251,103 @@ def _backfill_overforinger(kilde, args) -> int:
     return 0
 
 
+def _backfill_oppslag(kilde, args) -> int:
+    """Enhetsregisterets svar for orgnumrene tillatelsesregisteret NEVNER.
+
+        python backfill.py --kilde enhetsregisteret --oppslag
+
+    Rødt lag F4 (04.11.2026): lokalitetssidene skrev «(i dag: X)» ved
+    «Tillatelse tildelt» om enheter som er slettet. Navnet er
+    Fiskeridirektoratets; om enheten finnes i dag, kan bare
+    Enhetsregisteret svare på, og 392 av 678 tildelt-nummer står ikke i
+    næringskodeutvalget vårt.
+
+    Grunnlaget er det nyeste `eierskap`-snapshotet (`tildelt_orgnr` og
+    `eier_orgnr`), minus det nyeste `enhetsregisteret`-uttrekket: de som
+    står der, har registeret allerede svart for. Begge datoene står i
+    kroppen, så et snapshot alene kan si hva det ble spurt om (regel 1b-3).
+
+    ÉN KROPP PER KJØRING, arkivert med `raw.arkiver_ny()`, og hver rad
+    bærer hashen. Personformene står ikke i kroppen, bare antallet — se
+    `Enhetsregisteret.oppslag()`.
+
+    Ingen changelog-rad. At vi spør om et nummer for første gang er ikke
+    en hendelse i registeret, og en «ny»-rad per nummer ville sagt det.
+    """
+    import httpx
+
+    datoer = {k: snapshot.siste_dato(k) for k in ("eierskap", "enhetsregisteret")}
+    if not all(datoer.values()):
+        print(f"::error::Mangler grunnlag: {datoer}")
+        return 1
+    eier = snapshot.versjoner("eierskap", datoer["eierskap"])[-1][1]
+    reg = snapshot.versjoner("enhetsregisteret", datoer["enhetsregisteret"])[-1][1]
+    nevnt = {str(v).strip() for f, v in eier.select(["field", "value"]).iter_rows()
+             if f in ("tildelt_orgnr", "eier_orgnr") and v}
+    i_utvalget = {str(e) for e in reg["entity_id"].to_list()}
+    numre = sorted(n for n in nevnt
+                   if len(n) == 9 and n.isdigit() and n not in i_utvalget)
+    print(f"{len(nevnt)} orgnumre nevnt i eierskap {datoer['eierskap']}, "
+          f"{len(numre)} utenfor enhetsregisteret {datoer['enhetsregisteret']}")
+
+    naa = dt.datetime.now(dt.timezone.utc)
+    kjoredato = naa.date().isoformat()
+    pause = (args.pause if args.pause is not None
+             else getattr(kilde, "OPPSLAG_PAUSE_S", 0.3))
+    svar: list[dict] = []
+    personform = 0
+    feil: list[str] = []
+    c = httpx.Client(timeout=60.0, follow_redirects=True)
+    try:
+        for i, nr in enumerate(numre, 1):
+            try:
+                d = kilde.oppslag(nr, c)
+            except Exception as e:
+                feil.append(f"{nr}: {type(e).__name__}: {e}")
+                continue
+            if d.get("status") == "personform":
+                personform += 1
+            else:
+                svar.append(d)
+            if i % 100 == 0:
+                print(f"  [{i}/{len(numre)}]")
+            time.sleep(pause)
+    finally:
+        c.close()
+
+    telling: dict[str, int] = {}
+    for d in svar:
+        telling[d["status"]] = telling.get(d["status"], 0) + 1
+    print(f"Svar: {telling}, personform {personform} (ikke skrevet), "
+          f"feil {len(feil)}")
+    if feil:
+        for f_ in feil[:10]:
+            print(f"  {f_}")
+        print("::error::Noen oppslag feilet. Ingenting skrives — et hull "
+              "ville sett ut som et nummer registeret ikke kjenner.")
+        return 1
+    if args.torrkjor:
+        print("TØRRKJØRING — ingenting skrevet.")
+        return 0
+
+    kropp = {"enheter": svar, "personform_utelatt": personform,
+             "grunnlag": {"eierskap": datoer["eierskap"],
+                          "enhetsregisteret": datoer["enhetsregisteret"]}}
+    raw_hash, ble = raw_arkiv.arkiver_ny(ENHETSOPPSLAG, kjoredato, kropp)
+    print(f"  arkivert under {kjoredato}" if ble else "  allerede arkivert",
+          f"sha256 {raw_hash[:16]}…")
+    obs = runner.stempl(kilde.parse_oppslag(kropp, kjoredato),
+                        source_version=kilde.version, raw_hash=raw_hash,
+                        fetched_at=naa.isoformat(), published_at="",
+                        kilde=kilde)
+    if not obs:
+        print("Ingen rader å skrive.")
+        return 0
+    filer = snapshot.write(obs, kjoredato)
+    print(f"  {len(obs)} observasjoner -> {filer[0].name} (ingen changelog)")
+    return 0
+
+
 def _backfill_rapporter(kilde, args) -> int:
     """Backfill for en kilde der HVER KROPP dekker flere perioder, og
     kroppene OVERLAPPER.
@@ -1495,6 +1595,11 @@ def main() -> int:
                         "tillatelse, ett snapshot per år. Gjenopptakbar — "
                         "arkivfila er fremdriftsloggen. Bare for kilder "
                         "med overforinger().")
+    p.add_argument("--oppslag", action="store_true",
+                   help="slå opp orgnumrene tillatelsesregisteret nevner, "
+                        "men som ikke står i næringskodeutvalget, hos "
+                        "Enhetsregisteret (rødt lag F4). Bare for kilder "
+                        "med oppslag().")
     p.add_argument("--bare-vaskede", action="store_true",
                    help="med --overforinger: hent bare tillatelsene som "
                         "ligger under et navn den gamle vasken skrev "
@@ -1528,6 +1633,13 @@ def main() -> int:
                   f"som får hendelser fra mange perioder i ETT svar.")
             return 1
         return _backfill_hendelser(kilde, args)
+
+    if args.oppslag:
+        if not hasattr(kilde, "oppslag"):
+            print(f"{args.kilde} har ingen oppslag(). Modusen gjelder "
+                  f"kilder som kan svare for ett nummer av gangen.")
+            return 1
+        return _backfill_oppslag(kilde, args)
 
     if args.overforinger:
         if not hasattr(kilde, "overforinger"):

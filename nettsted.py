@@ -196,6 +196,7 @@ LISENS_URL = {
     "eierskap": "https://data.norge.no/nlod/no/2.0",
     "eierskap_historikk": "https://data.norge.no/nlod/no/2.0",
     "enhetsregisteret": "https://data.norge.no/nlod/no/2.0",
+    "enhetsregisteret_oppslag": "https://data.norge.no/nlod/no/2.0",
 }
 
 # LISENSSIDEN PER KILDE, når versjonen IKKE er belagt: hjemmelen fra
@@ -389,6 +390,10 @@ def fraskrivelse(kilder, vilkaar=None, i_tillegg=()) -> list[str]:
     return ut
 
 
+# Serien `_enhetsstatus()` leser Enhetsregisterets oppslag fra (rødt lag
+# F4). Navnet eies av kilden, se sources/enhetsregisteret.OPPSLAG_KILDE.
+ENHETSOPPSLAG = "enhetsregisteret_oppslag"
+
 UTGIVER = {
     "akvakultur": "Fiskeridirektoratet",
     "eierskap": "Fiskeridirektoratet",
@@ -396,6 +401,7 @@ UTGIVER = {
     "lusetall": "BarentsWatch",
     "sjotemperatur": "BarentsWatch",
     "enhetsregisteret": "Brønnøysundregistrene",
+    "enhetsregisteret_oppslag": "Brønnøysundregistrene",
     "biomasselag": "Fiskeridirektoratet",
     "unntaksvekst": "Mattilsynet",
 }
@@ -966,6 +972,8 @@ class Felles:
     # stempel. Likt for alle sidene, og summen av en parquet-fil er for dyr
     # til å regnes 1 781 ganger. Se `bevis()`.
     bevis: list[dict] = field(default_factory=list)
+    # {orgnr: hva Enhetsregisteret sier om nummeret} — se `_enhetsstatus()`.
+    enhetsstatus: dict[str, dict] = field(default_factory=dict)
 
 
 @lru_cache(maxsize=1)
@@ -1189,6 +1197,7 @@ def les_felles() -> Felles:
         biomasse_utgitt=bio_utgitt,
         sist_endret=sist_endret_av(beveg),
         former=publiseringsvakt.formkart(enhet, eierskap, alle_ovf),
+        enhetsstatus=_enhetsstatus(enhet_dato, enhet),
     )
 
 
@@ -1655,7 +1664,7 @@ ENDRINGER_VIA_TILLATELSE = frozenset({"eierskap"})
 #      notatet under.
 #
 # docs/beslutninger/2026-09-18-changeloggens-persondata-ligger-stille.md
-ENDRINGER_UTELATT = frozenset({"eierskap_historikk"})
+ENDRINGER_UTELATT = frozenset({"eierskap_historikk", ENHETSOPPSLAG})
 
 
 def _endringer(loknr: str, tillatelser: list[str]
@@ -4556,9 +4565,67 @@ def _observert_historikk(endringer: list[dict], dekning_fra: list[dict],
     return poster
 
 
+def _enhetsstatus(enhet_dato: str | None = None,
+                  enhet: dict | None = None) -> dict[str, dict]:
+    """{orgnr: hva ENHETSREGISTERET sier om nummeret}. Tom: vet ikke.
+
+        bekreftet   True når nummeret står i det ukentlige uttrekket uten
+                    slettedato. Det er den ENESTE grunnen siden har til å
+                    skrive «i dag» om et navn (rødt lag F4).
+        slettet     {dato, kilde, gjelder} når registeret oppgir en
+                    slettedato — fra uttrekket eller fra oppslagene
+                    (`enhetsregisteret_oppslag`, se backfill.py --oppslag).
+
+    Oppslagene gir ALDRI «i dag». De er gjort én gang, og at en enhet
+    fantes den dagen vi spurte, er ikke at den finnes nå. En slettedato
+    står seg: en slettet enhet blir ikke uslettet, og nummeret gjenbrukes
+    ikke.
+    """
+    if enhet is None:
+        enhet_dato = snapshot.siste_dato("enhetsregisteret")
+        enhet = _siste("enhetsregisteret")[1] if enhet_dato else {}
+    ut: dict[str, dict] = {}
+    for orgnr, d in (enhet or {}).items():
+        slettet = (d.get("slettedato") or "").strip()
+        ut[str(orgnr)] = {
+            "bekreftet": not slettet,
+            "kilde": "enhetsregisteret", "gjelder": enhet_dato or "",
+            "slettet": ({"dato": slettet, "kilde": "enhetsregisteret",
+                         "gjelder": enhet_dato or ""} if slettet else None)}
+    oppslag_dato = snapshot.siste_dato(ENHETSOPPSLAG)
+    if oppslag_dato:
+        for orgnr, d in _siste(ENHETSOPPSLAG)[1].items():
+            if str(orgnr) in ut:
+                continue
+            slettet = (d.get("slettedato") or "").strip()
+            ut[str(orgnr)] = {
+                "bekreftet": False,
+                "kilde": ENHETSOPPSLAG, "gjelder": oppslag_dato,
+                "slettet": ({"dato": slettet, "kilde": ENHETSOPPSLAG,
+                             "gjelder": oppslag_dato} if slettet else None)}
+    return ut
+
+
+def _oppgitt_brreg(poster: list[dict]) -> list[dict]:
+    """Herkomstlinjene for Enhetsregisterets påstander i «Historikk
+    kildene selv fører»: én per (kilde, dato, hva), i fast rekkefølge."""
+    sett: dict[tuple[str, str, str], None] = {}
+    for p in poster:
+        if p.get("bekreftet_av"):
+            b = p["bekreftet_av"]
+            sett[(b["kilde"], b["gjelder"], "«i dag»")] = None
+        if p.get("slettet"):
+            b = p["slettet"]
+            sett[(b["kilde"], b["gjelder"], "slettedatoene")] = None
+    return [{"kilde": k, "kort": visningsord.kilde_kort(k), "gjelder": g,
+             "vist": visningsord.kortdato(g), "hva": hva}
+            for k, g, hva in sett]
+
+
 def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                        overforinger: list[dict],
-                       former: dict | None = None) -> list[dict]:
+                       former: dict | None = None,
+                       enhetsstatus: dict | None = None) -> list[dict]:
     """Historikken KILDEN selv fører, eldst først.
 
     Tre slag, og alle tre er datoer registeret oppgir som en dato for
@@ -4595,7 +4662,8 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             # tildelt» etter «Tillatelse tildelt» sa det samme to ganger.
             "hva": "lokaliteten",
             "navn": "", "navn_felt": "",
-            "orgnr": "", "navn_er_i_dag": False,
+            "orgnr": "", "navn_er_i_dag": False, "navn_ifolge": False,
+            "slettet": None, "bekreftet_av": None,
             "kilde": "akvakultur", "felt": "forste_klarering",
             "presisjon": "dato oppgitt av registeret",
         })
@@ -4617,6 +4685,18 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
             # og navnet merkes «i dag» — i sin EGEN celleverdi, ikke
             # sammensatt med nummeret: porten slår celleverdien opp i
             # hvitelista, og en sammensatt streng står ikke der.
+            #
+            # «I DAG» BARE NÅR ENHETSREGISTERET BEKREFTER DET (rødt lag
+            # F4, 04.11.2026). Navnet er Fiskeridirektoratets, og for 28
+            # av 29 nummer utenfor uttrekket var enheten slettet:
+            # «(i dag: Landøy Fiskeoppdrett AS)» om en enhet slettet
+            # 18.05.2019. Uten bekreftelse står navnet «ifølge
+            # Fiskeridirektoratet», og en slettedato står når registeret
+            # oppgir en.
+            orgnr = (till.get("tildelt_orgnr") or "").strip()
+            status = (enhetsstatus or {}).get(orgnr) or {}
+            eget = (till.get("tildelt_felt")
+                    != publiseringsvakt.SKJULT_NAVN_FELT)
             poster.append({
                 "dato": till["tildelt_dato"],
                 "slag": "Tillatelse tildelt",
@@ -4624,9 +4704,13 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                 "navn": till["tildelt_navn"],
                 "navn_felt": till.get("tildelt_felt", "tildelt_navn"),
                 "orgnr": till.get("tildelt_orgnr", ""),
-                # Vår tekst er ikke «dagens navn» på noe nummer.
-                "navn_er_i_dag": (till.get("tildelt_felt")
-                                  != publiseringsvakt.SKJULT_NAVN_FELT),
+                # Vår tekst er ikke et navn på noe nummer.
+                "navn_er_i_dag": eget and bool(status.get("bekreftet")),
+                "navn_ifolge": eget and not status.get("bekreftet"),
+                "slettet": status.get("slettet") if eget else None,
+                "bekreftet_av": ({"kilde": status["kilde"],
+                                  "gjelder": status["gjelder"]}
+                                 if eget and status.get("bekreftet") else None),
                 "kilde": "eierskap", "felt": "tildelt_tid",
                 "presisjon": "dato oppgitt av registeret",
             })
@@ -4641,7 +4725,8 @@ def _oppgitt_historikk(a: dict, tillatelser: list[dict],
                 "hva": o["tillatelse"],
                 "navn": navn,
                 "navn_felt": felt,
-                "orgnr": "", "navn_er_i_dag": False,
+                "orgnr": "", "navn_er_i_dag": False, "navn_ifolge": False,
+                "slettet": None, "bekreftet_av": None,
                 "kilde": "eierskap_historikk", "felt": "journal_dato",
                 "presisjon": "journalført senest denne datoen",
             })
@@ -5253,8 +5338,9 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
             if loknr in [x.strip() for x in (d.get("lokaliteter") or "").split(";")]
         }
         ovf = list(_overforinger().values())
-        former = publiseringsvakt.formkart(
-            _siste("enhetsregisteret")[1], eierskap, ovf)
+        enhet_dato_, enhet_ = _siste("enhetsregisteret")
+        former = publiseringsvakt.formkart(enhet_, eierskap, ovf)
+        enhetsstatus = _enhetsstatus(enhet_dato_, enhet_)
         serie = _lusserie(loknr)
         endringer, maaleserie_rader, sist_endret = _endringer(
             loknr, sorted(mine_till))
@@ -5267,6 +5353,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         ovf = [o for nr in mine_till
                for o in felles.overforinger_per_tillatelse.get(nr, ())]
         former = felles.former
+        enhetsstatus = getattr(felles, "enhetsstatus", None) or {}
         serie = felles.lusserier.get(loknr, [])
         endringer, maaleserie_rader, sist_endret = _endringer_av_indeks(
             loknr, sorted(mine_till), felles)
@@ -5456,8 +5543,11 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
 
         # ---- de to historikkene ----
         "observert": _observert_historikk(endringer, dekning, felles),
-        "oppgitt": _oppgitt_historikk(a, tillatelsesrader, overforingsrader,
-                                      former),
+        "oppgitt": (oppgitt := _oppgitt_historikk(
+            a, tillatelsesrader, overforingsrader, former, enhetsstatus)),
+        # HERKOMSTEN FOR DET ENHETSREGISTERET SIER i tabellen: «i dag» og
+        # slettedatoene. Fiskeridirektoratet står allerede i tittelen.
+        "oppgitt_brreg": _oppgitt_brreg(oppgitt),
 
         # ---- fisk til stede ----
         "biolag": _biolagstripe(
