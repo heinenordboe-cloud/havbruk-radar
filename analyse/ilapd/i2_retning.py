@@ -83,7 +83,7 @@ import polars as pl
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from core import raw  # noqa: E402
+from core import raw, snapshot  # noqa: E402
 from core.paths import ARKIV_DIR, RAW_DIR  # noqa: E402
 from sources import _http  # noqa: E402
 
@@ -115,7 +115,20 @@ def dag(instant):
 
 
 def hent_alle(dato: str) -> list[dict]:
-    """Alle sykdomstilfeller, side for side, hver side arkivert."""
+    """Alle sykdomstilfeller, side for side, hver side arkivert. Finnes
+    loggen for datoen, leses sidene fra arkivet i stedet for å hentes
+    på nytt: en ny kjøring skal måle de samme kroppene."""
+    ut = ARKIV_DIR / MAPPE / f"{dato}.i2.logg.json"
+    if ut.exists():
+        alle = []
+        for side in json.loads(ut.read_text(encoding="utf-8")):
+            data, sha = les(ARKIV_DIR / MAPPE / side["fil"])
+            assert sha == side["sha256"], side
+            print(f"side offset {side['hva'].split()[-1]}: {len(data)} tilfeller, "
+                  f"{side['fil']} ({sha[:16]}), lest fra arkivet")
+            alle.extend(data)
+        print()
+        return alle
     alle, logg, offset = [], [], 0
     with httpx.Client(timeout=120) as k:
         while True:
@@ -137,8 +150,6 @@ def hent_alle(dato: str) -> list[dict]:
             if len(side) < LIMIT:
                 break
             offset += LIMIT
-    ut = ARKIV_DIR / MAPPE / f"{dato}.i2.logg.json"
-    assert not ut.exists(), ut
     ut.write_text(json.dumps(logg, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Logg: {ut.name}\n")
     return alle
@@ -173,18 +184,27 @@ class Fasit:
         return self._aktiv(self.ugyldige[s], mandag)
 
 
+def lusesnapshots():
+    """(filnavn, sha256, ramme) for hver versjon av hver uke, eldst først,
+    gjennom `snapshot.versjoner()` — den ene døra (test_ingen_leser_
+    snapshots_utenom_les). Hashen er over fila på disk."""
+    for dato in snapshot.datoer("lusetall"):
+        for nr, ramme in snapshot.versjoner("lusetall", dato):
+            navn = f"{dato}.parquet" if nr == 1 else f"{dato}.{nr}.parquet"
+            sti = RAW_DIR / "lusetall" / navn
+            assert sti.exists(), sti
+            yield navn, hashlib.sha256(sti.read_bytes()).hexdigest(), ramme
+
+
 def lenke(t: dict) -> str:
     return f"{API}/{t['id']}"
 
 
 def del_b(f: Fasit) -> None:
-    filer = sorted((RAW_DIR / "lusetall").glob("*.parquet"))
-    siste = filer[-1]
-    mandag = dt.date.fromisoformat(siste.name[:10])
-    sha = hashlib.sha256(siste.read_bytes()).hexdigest()
-    d = pl.read_parquet(siste)
+    navn, sha, d = list(lusesnapshots())[-1]
+    mandag = dt.date.fromisoformat(navn[:10])
     alle = set(int(x) for x in d["entity_id"].unique())
-    print(f"=== 1b: siste snapshot {siste.name} (uke {mandag.isocalendar()[1]}), sha256 {sha}")
+    print(f"=== 1b: siste snapshot {navn} (uke {mandag.isocalendar()[1]}), sha256 {sha}")
     print(f"{len(alle)} lokaliteter i snapshotet\n")
     for s, (_, felt, _, _) in SYKDOM.items():
         v1 = set(int(x) for x in d.filter((pl.col("field") == felt)
@@ -264,6 +284,10 @@ def fangstlogg(mappe: str) -> dict[str, str]:
     ut = {}
     for logg in sorted((ARKIV_DIR / mappe).glob("*.logg.json")):
         d = json.loads(logg.read_text(encoding="utf-8"))
+        # `.maling.logg.json` er en liste av kall uten filnavn; bare
+        # fangstloggene sier hvilken fil en henting ble.
+        if isinstance(d, list):
+            continue
         for u in d.get("uker", []):
             fil = u.get("fil")
             if fil and u.get("status") == "ny":
@@ -331,9 +355,8 @@ def del_f(f: Fasit) -> None:
     print("fil                  sha256           ILA v1 MT bareV1 bareMT ugyl | "
           "PD v1 MT bareV1 bareMT ugyl | andel")
     uker = []
-    for fil in sorted((RAW_DIR / "lusetall").glob("*.parquet")):
-        mandag = dt.date.fromisoformat(fil.name[:10])
-        d = pl.read_parquet(fil, columns=["entity_id", "field", "value"])
+    for navn, sha, d in lusesnapshots():
+        mandag = dt.date.fromisoformat(navn[:10])
         alle = set(int(x) for x in d["entity_id"].unique())
         rad, uenige, union, dekket = [], 0, 0, True
         for s, (_, felt, _, _) in SYKDOM.items():
@@ -348,11 +371,10 @@ def del_f(f: Fasit) -> None:
             union += len(v1 | mt)
             rad.append(f"{len(v1):>3} {len(mt):>3} {len(bv):>6} {len(bm):>6} {len(bv & ug):>4}")
         andel = uenige / union if union else 0.0
-        sha = hashlib.sha256(fil.read_bytes()).hexdigest()[:16]
-        print(f"{fil.name:<20} {sha}  {rad[0]} | {rad[1]} | "
+        print(f"{navn:<20} {sha[:16]}  {rad[0]} | {rad[1]} | "
               f"{andel:.2f}{'' if dekket else ' (utenfor dekning)'}")
         if dekket:
-            uker.append((fil.name, andel))
+            uker.append((navn, andel))
     start = None
     for i, (navn, a) in enumerate(uker):
         if all(x > GRENSE for _, x in uker[i:]):
@@ -360,6 +382,24 @@ def del_f(f: Fasit) -> None:
             break
     print(f"\nFørste uke der andelen uenige er over {GRENSE:.0%} og forblir det: "
           f"{start or 'ikke funnet'} ({len(uker)} uker innenfor dekning)")
+
+
+def del_g() -> None:
+    """TILLEGG, skrevet ETTER at 1f-tabellen var sett: siste uke en
+    lokalitet fikk et v1-flagg den ikke hadde uka før. Uten regel og uten
+    terskel; det er en telling av snapshotene, ikke av Mattilsynet."""
+    print("\n=== 1f-tillegg: siste uke med et NYTT v1-flagg (lokalitet uten flagget uka før)")
+    forrige, siste = None, {}
+    for navn, _sha, d in lusesnapshots():
+        sett = {s: set(d.filter((pl.col("field") == felt) & (pl.col("value") == "True"))["entity_id"])
+                for s, (_, felt, _, _) in SYKDOM.items()}
+        if forrige:
+            for s in SYKDOM:
+                if sett[s] - forrige[s]:
+                    siste[s] = (navn, len(sett[s] - forrige[s]))
+        forrige = sett
+    for s, (navn, n) in siste.items():
+        print(f"{s}: {navn} ({n} ny)")
 
 
 def main() -> None:
@@ -376,6 +416,7 @@ def main() -> None:
     del_c(f)
     del_d()
     del_f(f)
+    del_g()
 
 
 if __name__ == "__main__":

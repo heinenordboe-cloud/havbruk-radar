@@ -690,3 +690,211 @@ dette: ukentlig henting av `publicData/list` i `utgivelsesvakt.py`, med
 ny kropp og issue når `sizeBytes` for `gjeldende-sentrale-forskrifter`
 endres. Ikke `lastModified`: alle seks pakkene har samme natt, så feltet
 kan være byggetiden og ikke endringen (én henting, ikke målt over tid).
+
+## Etterskrift 04.11.2026: ILA/PD, retningen, kontrollprøven og når v1 sluttet å følge Mattilsynet (økt 4c, punkt 1)
+
+Teksten over er ikke endret. STOPP-en i punkt 3 målte 20 uenige
+lokaliteter i uke 44. Her måles hele uka, en kontrollprøve av de enige,
+de andre feltene og hele historikken. Ingenting ble endret i kode eller
+data før tallene under var skrevet ut.
+
+Skriptene er `analyse/ilapd/i2_retning.py` (1b, 1c, 1d, 1f; reglene,
+frøet og definisjonen av «begynte å avvike» committet i `4f8ca7a` før
+første kjøring) og `analyse/ilapd/i3_flater.py` (1e). Utskriftene står
+uendret i `i2_retning.txt` og `i3_flater.txt` ved siden av. Første
+kjøring av i2 stoppet på et loggformat i 1d etter at 1b og 1c var
+skrevet ut; rettingen og et tillegg til 1f (merket i skriptet) står i
+samme commit som dette dokumentet.
+
+**Kroppene:**
+
+| kropp | sha256 | hva |
+|---|---|---|
+| `lusetall-innkomst-openapi/2026-11-02.json.gz` | `d3f328e89202cf6e` | BarentsWatchs OpenAPI-spesifikasjon |
+| `maling-ilapd/2026-11-04.json.gz` | `890117f9a349175a` | alle Mattilsynets sykdomstilfeller, 214, hentet 04.11.2026 01.51.23 UTC (`2026-11-04.i2.logg.json`) |
+| `raw/lusetall/2026-10-05.parquet` | `fe95040049636629` | v1, uke 41: siste uke nettstedet viser |
+| `maling-nye-kilder/2026-11-03.10.json.gz` | `ed20098a24ddc4a9` | v1, uke 44 |
+| `maling-nye-kilder/2026-11-03.11.json.gz` | `5a75f2819a61487d` | v2, uke 44 |
+
+### 1a. Hva feltene betyr, ordrett
+
+**F11.1 — v1 sier «this week», v2 sier det ikke. MÅLT** mot
+spesifikasjonen (`d3f328e89202cf6e`). v1-endepunktet svarer med
+`LocalityWeekData`, der hver lokalitet er en `LocalityDto`:
+
+    hasIla  "Does the site have ISA disease this week"
+    hasPd   "Does the site have PD disease this week"
+
+v2-endepunktet (`POST /v2/…/locality/{year}/{week}`) svarer med en liste
+av `LocalityWeekReportV2`, der sykdommen står i én liste:
+
+    diseases  "List of diseases the site has been infected by"
+              enum DiseaseName: … INFEKSIOES_LAKSEANEMI, … PANKREASSYKDOM, …
+
+Filteret i spørringen (`LocalityReportQueryV2.diseases`) sier «Include
+only sites with diseases this week», og `DiseaseFilter` har en `status`
+(`SUSPECTED`, `DIAGNOSED`, `DISPROVED`). Ingen av de to svarene skiller
+mistanke fra påvist. v2 kan bære 13 sykdommer, ikke to: uke 44 har tre
+lokaliteter med `FRANCISELLOSE`.
+*Feil hvis:* `LocalityDto.hasIla.description` i spesifikasjonen er en
+annen tekst enn den over.
+
+### 1b. Retningen, alle lokaliteter i uke 41
+
+**F11.2 — v1 tar feil begge veier, omtrent like mye. MÅLT** mot
+`fe95040049636629` og `890117f9a349175a`. Et tilfelle er aktivt når det
+ikke er ugyldiggjort, mistanke eller diagnose er senest søndag, og
+avslutningen tidligst mandag (regelen i i1, med ugyldiggjorte tatt ut).
+
+| uke 41 | v1 | Mattilsynet | begge | v1 har, Mattilsynet ikke | Mattilsynet har, v1 ikke |
+|---|---|---|---|---|---|
+| ILA | 16 | 15 | 2 | 14 | 13 |
+| PD | 46 | 36 (32 i snapshotet) | 11 | 35 | 21 |
+
+Tre av de 35 PD-flaggene uten aktivt tilfelle forklares av et
+ugyldiggjort tilfelle. Fire PD-lokaliteter hos Mattilsynet står ikke i
+v1-snapshotet (24456, 24696, 30437, 31959). For v1-kroppen i uke 44 er
+de to retningene 14 og 12 for ILA og 35 og 18 for PD.
+*Feil hvis:* snapshotet `fe95040049636629` har et annet antall
+lokaliteter med `har_ila` lik `True` enn 16.
+
+**Tre å åpne selv.** Mattilsynets API krever headeren `Client-Id`;
+uten den svarer det 400 (prøvd 04.11.2026 mot det første tilfellet under,
+utforskende og ikke arkivert). Kommandoen er derfor en `curl`, ikke en
+lenke:
+
+    # 10839 Store Kufjord, ILA-flagg i v1. Tilfellet: diagnose 11.06.2024, avsluttet 28.03.2025
+    curl -H 'Client-Id: havbruk-radar' https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/df8772b9-7f2e-481e-8969-264a677a43da
+    # 10054 Tobbeholmane, PD-flagg i v1. Tilfellet: diagnose 19.07.2024, avsluttet 18.07.2025
+    curl -H 'Client-Id: havbruk-radar' https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/ebb036f5-e670-4dd9-9993-13b8ed04bae0
+    # 11272 Øksengård, intet ILA-flagg i v1. Tilfellet: mistanke 25.08.2026, diagnose 23.09.2026, åpent
+    curl -H 'Client-Id: havbruk-radar' https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/d5e06144-746b-4ae1-a2d9-01abac60ce71
+
+Datoene er lest i Europe/Oslo. Seks lenker til (tre per retning, ILA og
+PD) står i `i2_retning.txt`.
+
+### 1c. Kontrollprøven: der v1 og v2 er enige
+
+**F11.3 — Enige lokaliteter stemmer med Mattilsynet i 20 av 20. MÅLT**
+mot `ed20098a24ddc4a9`, `5a75f2819a61487d` og `890117f9a349175a`. Av 1782
+felles lokaliteter i uke 44 er 1709 enige om begge sykdommene; 20 er
+trukket med `random.Random(20261104)`. Én har PD i begge og hos
+Mattilsynet (10232), 19 har ingenting noe sted. Hele populasjonen sier
+det samme: de 2 enige ILA-flaggene og de 10 enige PD-flaggene har alle
+et aktivt tilfelle, og ingen av de 1707 og 1699 enige uten flagg har ett.
+*Feil hvis:* en av de 1709 enige har et flagg uten aktivt tilfelle, eller
+et aktivt tilfelle uten flagg, i `890117f9a349175a`.
+
+### 1d. De andre feltene
+
+**F11.4 — Bare sykdomsflaggene skiller v1 fra v2. MÅLT** mot parene i
+`i2_retning.txt`: åtte v2-kropper i `lusetall-innkomst-v2/` for ukene
+41–45, hver mot v1-hentingen av samme uke nærmest i tid. I de tre parene
+hentet 12–13 sekunder fra hverandre (ukene 43, 44 og 45) er lusetall,
+rapportert, brakklagt, laksefisk, slaktemerd, landbasert og de tre
+behandlingene like for hver lokalitet. `hasIla` er ulik for 26–27 og
+`hasPd` for 53–56 i hvert av de åtte parene. Av de tre parene hentet
+6924–6925 sekunder fra hverandre har uke 43 5 ulike lusetall, uke 44 14
+ulike lusetall og 4 ulike mekaniske behandlinger, og uke 45 ingen: det
+er rapporter som kom inn mellom hentingene. I ukene 41 og 42 ligger
+nærmeste v1-henting 38 493 sekunder fra v2-hentingen, og alle felt
+utenom sykdom er like.
+
+    felt                     like  ulike   (sum over åtte par)
+    avgAdultFemaleLice      14227     19
+    hasReportedLice         14227     19
+    isFallow / hasSalmonoids / isSlaughterHoldingCage / isOnLand /
+    hasCleanerfishDeployed / hasSubstanceTreatments   14246      0
+    hasMechanicalRemoval    14242      4
+    hasIla                  14037    209
+    hasPd                   13810    436
+
+Temperatur kan ikke sammenlignes: `LocalityDto` i v1 har ikke feltet
+(`sjotemperatur` henter fra et annet endepunkt).
+*Feil hvis:* `avgAdultFemaleLice` i `lusetall-innkomst/2026-11-02.4.json.gz`
+er ulik `liceReport.adultFemaleLice.average` i
+`lusetall-innkomst-v2/2026-11-02.2.json.gz`, avrundet til to desimaler,
+for en felles lokalitet.
+
+### 1e. Hvor ILA og PD sto på nettstedet
+
+**F11.5 — 1150 lokalitetssider med tidslinjehendelser fra 2012, og
+kategorien på hver ukeside. MÅLBAR**, lest i et bygg av koden i `93a60de` mot
+datarepoet 04.11.2026 (`i3_flater.txt`; et bygg er ikke en arkivert
+kropp). Filer med treff:
+
+| flate | filer | hva |
+|---|---|---|
+| `lokalitet/*/index.html` | 1150 | tidslinja: «ILA-flagg i BarentsWatch», «satt»/«ikke satt», `data-felt="har_ila"` |
+| `pagefind/*.pf_fragment` | 1295 | søkeindeksen, av sidene over |
+| `endringer/*/` (11 uker, 2026-35 til 2026-45) | 144 html, 11 xlsx, 11 zip | kategorien «Sykdom (ILA/PD)», 0 hendelser i hver uke |
+| `om/index.html` | 1 | avsnittet «ILA og PD» |
+
+Feeds (`feed.xml`), JSON-filene og `llms.txt` hadde ingen treff.
+Hendelsene kom fra changeloggen gjennom `nettsted._les_beveg()`: 7083
+rader for 2080 lokaliteter, `observed_at` fra 2012-01-09 til
+2026-10-05. Alle går ut av framtidige bygg; lista er
+`analyse/ilapd/i3_hendelser.csv` (sha256 `6a12c442250df4e0`).
+*Feil hvis:* et bygg av koden i `93a60de` har en ukeside der kategorien
+«Sykdom (ILA/PD)» viser et annet tall enn 0.
+
+### 1f. Når v1 begynte å avvike
+
+**F11.6 — Fra uke 51/2024. MÅLT** mot hver av de 771 snapshotfilene i
+`raw/lusetall/` (sha256 per fil i `i2_retning.txt`) og
+`890117f9a349175a`. Regelen, skrevet før tallene: første uke der
+(bare v1 + bare Mattilsynet) / (v1 ∪ Mattilsynet) er over 20 % og forblir
+over 20 % i hver uke etter. Svaret er `2024-12-16` (uke 51/2024), av 158
+uker innenfor Mattilsynets dekning.
+
+Overgangen og ukene siden 17.08.2026, utskriften uendret:
+
+    fil                  sha256           ILA v1 MT bareV1 bareMT ugyl | PD v1 MT bareV1 bareMT ugyl | andel
+    2024-11-04.parquet   6932564986ae5c66   17  15      2      0    0 |  47  47      0      0    0 | 0.03
+    2024-11-11.parquet   3117b7ae8c439e60   17  15      2      0    0 |  48  48      0      0    0 | 0.03
+    2024-11-18.parquet   2b93cae35d076bd2   17  15      2      0    0 |  48  48      0      0    0 | 0.03
+    2024-11-25.parquet   cbacebeaed15bc21   17  15      2      0    0 |  46  44      2      0    0 | 0.06
+    2024-12-02.parquet   cae83a74e53a8fe4   17  15      2      0    0 |  46  46      0      0    0 | 0.03
+    2024-12-09.parquet   26c286b62be27787   17  14      3      0    0 |  47  48      0      1    0 | 0.06
+    2024-12-16.parquet   d5d42efe0c6eac6a   17   6     11      0    0 |  47  41      8      2    0 | 0.32
+    2024-12-23.parquet   6e42926119df44ad   17   6     11      0    0 |  47  41      8      2    0 | 0.32
+    2024-12-30.parquet   508b0f539eb50940   17   6     11      0    0 |  47  41      8      2    0 | 0.32
+    2025-01-06.parquet   8c690c4da4ea9b3b   17   5     12      0    0 |  47  42      9      4    1 | 0.37
+    2026-08-17.parquet   8be827d045f0cc74   16  11     15     10    0 |  46  34     34     22    3 | 0.86
+    2026-08-24.parquet   77ef8483b8f607e1   16  12     15     11    0 |  46  31     35     20    3 | 0.87
+    2026-08-31.parquet   6838dcf9aad97649   16  14     15     13    0 |  46  31     35     20    3 | 0.87
+    2026-09-07.parquet   fab2c25388fadfc7   16  15     14     13    0 |  46  31     35     20    3 | 0.86
+    2026-09-14.parquet   f3ff4b8927979e76   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+    2026-09-21.parquet   c1d98ebe866cbe1f   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+    2026-09-28.parquet   1f895c2472b32712   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+    2026-10-05.parquet   fe95040049636629   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+
+Fra august 2024 til 09.12.2024 var andelen 0,03–0,19, og PD hadde 0
+uenige i 8 av de 10 ukene fra 07.10 til 09.12.2024. Etter 09.12.2024 kom
+det ikke ett nytt v1-flagg (tillegget i 1f: siste nye ILA-flagg
+05.08.2024, siste nye PD-flagg 09.12.2024). Flaggene som sto, ble stående
+(ett ILA- og ett PD-flagg falt bort uka 09.03.2026) mens Mattilsynet
+avsluttet tilfellene, og nye tilfeller kom aldri inn.
+*Feil hvis:* et snapshot etter `2024-12-09.parquet` har `har_pd` lik
+`True` for en lokalitet som ikke hadde det uka før.
+
+**F11.7 — Før juli 2024 kan ikke målingen si noe. MÅLBAR.** Mattilsynets
+svar har 214 tilfeller, tidligste start ILA 26.09.2023 og PD 10.05.2023,
+og det tidligste `opprettet` er 26.11.2024 (69 av 214 opprettet i
+november 2024). Uker før dekningen er utelatt etter regelen, men et
+tilfelle som startet før 2023 og fortsatt var åpent, mangler i svaret.
+Uenigheten fra oktober 2023 til juli 2024 (0,95 → 0,20) er nesten bare
+«bare v1», med 0 «bare Mattilsynet», som er det mønsteret manglende eldre
+tilfeller ville gitt. Det er ikke vist at v1 var feil før desember 2024,
+og ikke at den var riktig.
+
+At Mattilsynets tilfeller ble opprettet i systemet fra 26.11.2024, og
+at v1 sluttet å få nye flagg 09.12.2024, er to datoer tre uker fra
+hverandre. At det ene forklarer det andre, er UBELAGT.
+
+### Hva som er gjort med svaret
+
+Heine bestemte 03.11 at ILA og PD tas av alle offentlige flater uansett
+hva målingen viste. Det er gjort i kodrepoets `2603af3` (punkt 2), og
+rettelsen står i datarepoets `data/rettelser/2026-11-04-ila-pd.json`
+(punkt 3). Snapshotene og changeloggen er urørt.

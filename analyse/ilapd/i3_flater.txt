@@ -1,0 +1,19 @@
+Bygg: bygg-for, 12771 filer lest
+
+flate                          filer   treff  former
+endringer .html                  144     712  {'ILA': 356, 'PD': 356}
+endringer .xlsx                   11      22  {'ILA': 11, 'PD': 11}
+endringer .zip                    11      44  {'ILA': 22, 'PD': 22}
+lokalitet .html                 1150   12323  {'har_pd': 6108, 'PD': 3448, 'har_ila': 1582, 'ILA': 1185}
+om .html                           1       4  {'ILA': 2, 'PD': 2}
+pagefind .pf_fragment           1295    5017  {'PD': 3640, 'ILA': 1377}
+
+Lokalitetsmapper med treff: 1150
+Ukesider (endringer/<uke>/...) med treff, per uke: {'2026-35': 15, '2026-36': 15, '2026-37': 15, '2026-38': 15, '2026-39': 15, '2026-40': 15, '2026-41': 15, '2026-42': 15, '2026-43': 15, '2026-44': 15, '2026-45': 15}
+
+Changelog gjennom nettsted._les_beveg(): 7083 rader for lusetall har_ila/har_pd, 2080 lokaliteter
+  har_ila: 2318 rader, observed_at 2012-01-09 – 2026-10-05
+  har_pd: 4765 rader, observed_at 2012-01-09 – 2026-10-05
+  per år (observed_at):
+   2012 548, 2013 523, 2014 504, 2015 612, 2016 579, 2017 712, 2018 711, 2019 536, 2020 618, 2021 534, 2022 407, 2023 315, 2024 230, 2025 128, 2026 126
+  lista: i3_hendelser.csv, sha256 6a12c442250df4e0d84b17bff3239a89c54123661a9f0b581cc3d071d5a892e1

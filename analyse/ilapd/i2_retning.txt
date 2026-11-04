@@ -1,0 +1,873 @@
+side offset 0: 214 tilfeller, 2026-11-04.json.gz (890117f9a349175a), lest fra arkivet
+
+Tilfeller i alt 214; gyldige ILA 52, PD 131; ugyldiggjorte ILA 2, PD 7
+
+=== 1b: siste snapshot 2026-10-05.parquet (uke 41), sha256 fe95040049636629bf4799633714efb06df7e5e496b4292f77b0ba2792c0edb6
+1779 lokaliteter i snapshotet
+
+ILA: v1 16, Mattilsynet aktive 15 (i snapshotet 15), begge 2
+  har v1, Mattilsynet ikke: 14 (av dem forklart av et ugyldiggjort tilfelle: 0)
+  Mattilsynet har, v1 ikke: 13
+  Mattilsynet-aktive utenfor snapshotet: []
+  bare v1: [10839, 11667, 11758, 12370, 12449, 14042, 19016, 20559, 26775, 32677, 33557, 33737, 35477, 36877]
+  bare Mattilsynet: [11272, 12625, 13581, 13811, 17077, 24695, 31357, 31557, 32397, 35377, 37057, 38857, 45198]
+    10839: siste tilfelle start 2024-05-31, avsluttet 2025-03-28, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/df8772b9-7f2e-481e-8969-264a677a43da
+    11667: siste tilfelle start 2024-07-19, avsluttet 2025-02-07, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/459decf2-e0eb-4b7e-862b-f30d291f4221
+    11758: siste tilfelle start 2024-06-20, avsluttet 2024-12-06, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/5110f587-46b6-4fe2-b5fe-4a14545d392b
+    11272: aktivt tilfelle start 2026-08-25, avsluttet None, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/d5e06144-746b-4ae1-a2d9-01abac60ce71
+    12625: aktivt tilfelle start 2026-07-09, avsluttet None, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/b02e7aa0-62cf-4c6b-bfac-fdaf55a8ccb1
+    13581: aktivt tilfelle start 2026-05-11, avsluttet None, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/4d06fa4e-09ad-414b-a6f3-55c097a5688d
+
+PD: v1 46, Mattilsynet aktive 36 (i snapshotet 32), begge 11
+  har v1, Mattilsynet ikke: 35 (av dem forklart av et ugyldiggjort tilfelle: 3)
+  Mattilsynet har, v1 ikke: 21
+  Mattilsynet-aktive utenfor snapshotet: [24456, 24696, 30437, 31959]
+  bare v1: [10054, 10298, 11488, 11492, 11525, 11605, 11783, 11800, 11807, 12035, 12192, 12357, 12380, 12844, 13036, 13562, 13568, 13643, 13867, 13874, 14081, 24975, 25055, 26235, 26595, 27095, 27215, 28976, 31677, 32197, 33597, 35497, 36297, 39577, 45129]
+  bare Mattilsynet: [10311, 11688, 11810, 12385, 12394, 12435, 12449, 13549, 13837, 14042, 19115, 20559, 20595, 26135, 31557, 33077, 33557, 35377, 39917, 45072, 45211]
+    10054: siste tilfelle start 2024-07-03, avsluttet 2025-07-18, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/ebb036f5-e670-4dd9-9993-13b8ed04bae0
+    10298: siste tilfelle start 2024-11-11, avsluttet 2025-05-25, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/71329e28-15bb-487b-afbe-19d828033f7a
+    11488: siste tilfelle start 2024-07-24, avsluttet 2025-10-12, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/7d4a12ef-23c1-49b0-baf5-de4748af0b7c
+    10311: aktivt tilfelle start 2025-07-04, avsluttet 2026-10-19, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/aeaaa3c6-73c8-48e2-a1fb-649ff0e24996
+    11688: aktivt tilfelle start 2026-06-05, avsluttet None, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/91fbc6f1-7931-41d7-8de5-9c2b908cdba4
+    11810: aktivt tilfelle start 2026-09-18, avsluttet None, https://akvakultur-offentlig-api.fisk.mattilsynet.io/api/sykdomstilfeller/v1/rapporteringer/6acba655-f1c2-4a32-8f21-3195fb8fefe1
+
+--- uke 44, v1-kroppen maling-nye-kilder/2026-11-03.10.json.gz (ed20098a24ddc4a9)
+ILA: v1 16, Mattilsynet 14, begge 2, har v1, Mattilsynet ikke 14, Mattilsynet har, v1 ikke 12, Mattilsynet utenfor v1 0
+PD: v1 46, Mattilsynet 33, begge 11, har v1, Mattilsynet ikke 35, Mattilsynet har, v1 ikke 18, Mattilsynet utenfor v1 4
+
+=== 1c: uke 44, v1 ed20098a24ddc4a9, v2 5a75f2819a61487d; 1782 felles, 1709 enige om begge sykdommene
+lokalitet  ILA v1/v2  ILA MT  PD v1/v2  PD MT  stemmer
+    10091  False      False   False     False  ja
+    10232  False      False   True      True   ja
+    10856  False      False   False     False  ja
+    12214  False      False   False     False  ja
+    12475  False      False   False     False  ja
+    13654  False      False   False     False  ja
+    15455  False      False   False     False  ja
+    15655  False      False   False     False  ja
+    16939  False      False   False     False  ja
+    25235  False      False   False     False  ja
+    29697  False      False   False     False  ja
+    32357  False      False   False     False  ja
+    34637  False      False   False     False  ja
+    34897  False      False   False     False  ja
+    36257  False      False   False     False  ja
+    36917  False      False   False     False  ja
+    37837  False      False   False     False  ja
+    40037  False      False   False     False  ja
+    45095  False      False   False     False  ja
+    45270  False      False   False     False  ja
+Utvalget: begge stemmer med Mattilsynet for 20 av 20
+Hele populasjonen, ILA: enige om flagg 2, av dem MT aktiv 2; enige om intet flagg 1707, av dem MT aktiv 0
+Hele populasjonen, PD: enige om flagg 10, av dem MT aktiv 10; enige om intet flagg 1699, av dem MT aktiv 0
+
+=== 1d: v1 mot v2 per felt, hver v2-kropp mot nærmeste v1-henting av samme uke
+uke 2026-10-05: v1 2026-10-05.2.json.gz (55d4169649b4c361) mot v2 2026-10-05.json.gz (8960a9389073c90a), 38493 s mellom, 1779 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 0, hasReportedLice 0, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 0, hasSubstanceTreatments 0, hasIla 27, hasPd 56
+uke 2026-10-12: v1 2026-10-12.2.json.gz (37a3059c92b47a6b) mot v2 2026-10-12.json.gz (e7ca8fbeeb83ef1e), 38493 s mellom, 1779 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 0, hasReportedLice 0, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 0, hasSubstanceTreatments 0, hasIla 26, hasPd 56
+uke 2026-10-19: v1 2026-10-19.4.json.gz (3396fa6b6117ea26) mot v2 2026-10-19.2.json.gz (e52394a12dc2cf9d), 12 s mellom, 1780 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 0, hasReportedLice 0, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 0, hasSubstanceTreatments 0, hasIla 26, hasPd 56
+uke 2026-10-19: v1 2026-10-19.4.json.gz (3396fa6b6117ea26) mot v2 2026-10-19.json.gz (55c817df5e3d9b54), 6924 s mellom, 1780 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 5, hasReportedLice 5, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 0, hasSubstanceTreatments 0, hasIla 26, hasPd 56
+uke 2026-10-26: v1 2026-10-26.5.json.gz (0dfcbbdd8195fc6f) mot v2 2026-10-26.2.json.gz (ecb42187c8f9a0a8), 13 s mellom, 1782 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 0, hasReportedLice 0, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 0, hasSubstanceTreatments 0, hasIla 26, hasPd 53
+uke 2026-10-26: v1 2026-10-26.5.json.gz (0dfcbbdd8195fc6f) mot v2 2026-10-26.json.gz (63b35f386cf94467), 6925 s mellom, 1782 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 14, hasReportedLice 14, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 4, hasSubstanceTreatments 0, hasIla 26, hasPd 53
+uke 2026-11-02: v1 2026-11-02.4.json.gz (03280988ce99a40a) mot v2 2026-11-02.2.json.gz (9afc48b19c2c3bdd), 12 s mellom, 1782 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 0, hasReportedLice 0, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 0, hasSubstanceTreatments 0, hasIla 26, hasPd 53
+uke 2026-11-02: v1 2026-11-02.4.json.gz (03280988ce99a40a) mot v2 2026-11-02.json.gz (ec820010753b9c0c), 6925 s mellom, 1782 felles (bare v1 0, bare v2 0)
+  ulike: avgAdultFemaleLice 0, hasReportedLice 0, isFallow 0, hasSalmonoids 0, isSlaughterHoldingCage 0, isOnLand 0, hasCleanerfishDeployed 0, hasMechanicalRemoval 0, hasSubstanceTreatments 0, hasIla 26, hasPd 53
+Totalt over parene (like / ulike):
+  avgAdultFemaleLice        14227     19
+  hasReportedLice           14227     19
+  isFallow                  14246      0
+  hasSalmonoids             14246      0
+  isSlaughterHoldingCage    14246      0
+  isOnLand                  14246      0
+  hasCleanerfishDeployed    14246      0
+  hasMechanicalRemoval      14242      4
+  hasSubstanceTreatments    14246      0
+  hasIla                    14037    209
+  hasPd                     13810    436
+
+=== 1f: hver snapshotfil i raw/lusetall mot Mattilsynets aktive tilfeller den uka
+Tidligste start hos Mattilsynet: ILA 2023-09-26, PD 2023-05-10
+fil                  sha256           ILA v1 MT bareV1 bareMT ugyl | PD v1 MT bareV1 bareMT ugyl | andel
+2012-01-02.parquet   ac2da8e913e540ec    5   0      5      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-01-09.parquet   60db18967d9fb7c4    5   0      5      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-01-16.parquet   dd8332445b90d5d4    5   0      5      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-01-23.parquet   3387da38b9e0ea81    5   0      5      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-01-30.parquet   2a686802c96d4777    5   0      5      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-02-06.parquet   907d8c84e1b521ee    5   0      5      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-02-13.parquet   3f1888c07326885b    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-02-20.parquet   eb3e8a72bbbaf1af    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-02-27.parquet   59621c13a466ae43    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-03-05.parquet   333d58c51cd87367    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-03-12.parquet   f70753e0c50c3b4e    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-03-19.parquet   a0645591b161acec    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-03-26.parquet   45fd007a35a92391    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-04-02.parquet   262d17cd04baf70c    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-04-09.parquet   83b6c5c972460b8c    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-04-16.parquet   04176de3fe9bd0fc    6   0      6      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-04-23.parquet   54451704d3187899    1   0      1      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-04-30.parquet   613cc87bd2aeafb8    1   0      1      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-05-07.parquet   b211831352dc1eec    1   0      1      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-05-14.parquet   01056c1a846d3826    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-05-21.parquet   36ae046551bb1049    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-05-28.parquet   913b0fe4522c6034    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-06-04.parquet   01e34f779296dd71    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-06-11.parquet   1d862afb154c9eb5    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-06-18.parquet   44f4d883f8055efa    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-06-25.parquet   64fb97d13b9f94ed    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-07-02.parquet   e485818b04c431ce    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-07-09.parquet   8a61e4ce51ddbcca    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-07-16.parquet   48ffcb366045b73a    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-07-23.parquet   1dd93305266fa88f    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-07-30.parquet   f7bb3c7fef3c7215    2   0      2      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-08-06.parquet   6e3d9a4b1a113b62    1   0      1      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-08-13.parquet   b396fbbeb7410ba9    1   0      1      0    0 |   0   0      0      0    0 | 1.00 (utenfor dekning)
+2012-08-20.parquet   d801b442c9874f14    1   0      1      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-08-27.parquet   93d6cd24c7449025    1   0      1      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-09-03.parquet   45c5a1a1ebdb51a9    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-09-10.parquet   08cab56fa30f9371    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-09-17.parquet   b7b631ab740b5def    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-09-24.parquet   2e73c48223ac9518    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-10-01.parquet   4daea5475b82f905    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-10-08.parquet   393e2d00c6aac4f5    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-10-15.parquet   ac31a66e0a5523c5    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-10-22.parquet   87769523c6ebdca6    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-10-29.parquet   104993daf2bfdf3d    0   0      0      0    0 |   1   0      1      0    0 | 1.00 (utenfor dekning)
+2012-11-05.parquet   9dc366acf9d1d413    0   0      0      0    0 |   2   0      2      0    0 | 1.00 (utenfor dekning)
+2012-11-12.parquet   408cf5c57a757bac    0   0      0      0    0 |   2   0      2      0    0 | 1.00 (utenfor dekning)
+2012-11-19.parquet   33696b675a9f7539    0   0      0      0    0 |   2   0      2      0    0 | 1.00 (utenfor dekning)
+2012-11-26.parquet   0798a4cff8a8278d    0   0      0      0    0 |   3   0      3      0    0 | 1.00 (utenfor dekning)
+2012-12-03.parquet   87802089eb3520f8    0   0      0      0    0 |   3   0      3      0    0 | 1.00 (utenfor dekning)
+2012-12-10.parquet   83a8adf9ba6ad899    0   0      0      0    0 |   3   0      3      0    0 | 1.00 (utenfor dekning)
+2012-12-17.parquet   8183c9346b37ed4e    0   0      0      0    0 |   3   0      3      0    0 | 1.00 (utenfor dekning)
+2012-12-24.parquet   3f27c6b32eeebdfd    0   0      0      0    0 |   3   0      3      0    0 | 1.00 (utenfor dekning)
+2012-12-31.parquet   cc13322d0f532ace    0   0      0      0    0 |   3   0      3      0    0 | 1.00 (utenfor dekning)
+2013-01-07.parquet   3124cf8b04545ebc    0   0      0      0    0 |   3   0      3      0    0 | 1.00 (utenfor dekning)
+2013-01-14.parquet   9ce2f5b17a320f40    0   0      0      0    0 |   4   0      4      0    0 | 1.00 (utenfor dekning)
+2013-01-21.parquet   09cf98d0c857a57b    0   0      0      0    0 |   6   0      6      0    0 | 1.00 (utenfor dekning)
+2013-01-28.parquet   bbce47abb5648b2c    0   0      0      0    0 |   7   0      7      0    0 | 1.00 (utenfor dekning)
+2013-02-04.parquet   596b7111ca860090    1   0      1      0    0 |   9   0      9      0    0 | 1.00 (utenfor dekning)
+2013-02-11.parquet   1faaed404bbf8e88    1   0      1      0    0 |  11   0     11      0    0 | 1.00 (utenfor dekning)
+2013-02-18.parquet   31eb6c5acbc3a0cf    1   0      1      0    0 |  11   0     11      0    0 | 1.00 (utenfor dekning)
+2013-02-25.parquet   6260c60756af3b7b    1   0      1      0    0 |  12   0     12      0    0 | 1.00 (utenfor dekning)
+2013-03-04.parquet   e0c5ccd3301439fa    1   0      1      0    0 |  15   0     15      0    0 | 1.00 (utenfor dekning)
+2013-03-11.parquet   bdc1058b3e583a3d    1   0      1      0    0 |  15   0     15      0    0 | 1.00 (utenfor dekning)
+2013-03-18.parquet   ce7bf73ecd40f1c3    1   0      1      0    0 |  16   0     16      0    0 | 1.00 (utenfor dekning)
+2013-03-25.parquet   c7ab4aa296b643f1    1   0      1      0    0 |  16   0     16      0    0 | 1.00 (utenfor dekning)
+2013-04-01.parquet   e66b5b0362efd714    1   0      1      0    0 |  16   0     16      0    0 | 1.00 (utenfor dekning)
+2013-04-08.parquet   af01c5575436f851    1   0      1      0    0 |  16   0     16      0    0 | 1.00 (utenfor dekning)
+2013-04-15.parquet   bbe463aab94f4abb    1   0      1      0    0 |  16   0     16      0    0 | 1.00 (utenfor dekning)
+2013-04-22.parquet   8bdc95c3bd412b16    2   0      2      0    0 |  16   0     16      0    0 | 1.00 (utenfor dekning)
+2013-04-29.parquet   5e72f9d842a20d78    2   0      2      0    0 |  17   0     17      0    0 | 1.00 (utenfor dekning)
+2013-05-06.parquet   48d891bbbe3aae6f    2   0      2      0    0 |  20   0     20      0    0 | 1.00 (utenfor dekning)
+2013-05-13.parquet   ce32d51d473e4eb7    2   0      2      0    0 |  23   0     23      0    0 | 1.00 (utenfor dekning)
+2013-05-20.parquet   dcfa0b038b25d2bc    2   0      2      0    0 |  23   0     23      0    0 | 1.00 (utenfor dekning)
+2013-05-27.parquet   d405d8566cba580a    4   0      4      0    0 |  23   0     23      0    0 | 1.00 (utenfor dekning)
+2013-06-03.parquet   f55b65a4cd4ba70b    4   0      4      0    0 |  25   0     25      0    0 | 1.00 (utenfor dekning)
+2013-06-10.parquet   298c03babb5b7a7b    4   0      4      0    0 |  26   0     26      0    0 | 1.00 (utenfor dekning)
+2013-06-17.parquet   dc1a791fcf64f531    4   0      4      0    0 |  31   0     31      0    0 | 1.00 (utenfor dekning)
+2013-06-24.parquet   4fbc621d00b0eb69    6   0      6      0    0 |  36   0     36      0    0 | 1.00 (utenfor dekning)
+2013-07-01.parquet   65c7fb1336eb8e8a    6   0      6      0    0 |  44   0     44      0    0 | 1.00 (utenfor dekning)
+2013-07-08.parquet   174d241d13daee98    6   0      6      0    0 |  49   0     49      0    0 | 1.00 (utenfor dekning)
+2013-07-15.parquet   7299f5751a8423a2    6   0      6      0    0 |  53   0     53      0    0 | 1.00 (utenfor dekning)
+2013-07-22.parquet   84195b62d6c4b6f5    6   0      6      0    0 |  55   0     55      0    0 | 1.00 (utenfor dekning)
+2013-07-29.parquet   5fb9ff4b81490ef6    7   0      7      0    0 |  56   0     56      0    0 | 1.00 (utenfor dekning)
+2013-08-05.parquet   6f0e40cf9d319ff9    7   0      7      0    0 |  59   0     59      0    0 | 1.00 (utenfor dekning)
+2013-08-12.parquet   8bb0ded0c3fa90ec    7   0      7      0    0 |  59   0     59      0    0 | 1.00 (utenfor dekning)
+2013-08-19.parquet   4d9794396956c5bb    7   0      7      0    0 |  60   0     60      0    0 | 1.00 (utenfor dekning)
+2013-08-26.parquet   8b5808179ba4d654    7   0      7      0    0 |  61   0     61      0    0 | 1.00 (utenfor dekning)
+2013-09-02.parquet   03b4f6d8d7229021    7   0      7      0    0 |  61   0     61      0    0 | 1.00 (utenfor dekning)
+2013-09-09.parquet   d63ce9313fa541e0    7   0      7      0    0 |  62   0     62      0    0 | 1.00 (utenfor dekning)
+2013-09-16.parquet   34e348708d0c4c31    6   0      6      0    0 |  64   0     64      0    0 | 1.00 (utenfor dekning)
+2013-09-23.parquet   d4213ab431dcd4b8    6   0      6      0    0 |  68   0     68      0    0 | 1.00 (utenfor dekning)
+2013-09-30.parquet   33b2d9ed4e7e4891    6   0      6      0    0 |  67   0     67      0    0 | 1.00 (utenfor dekning)
+2013-10-07.parquet   7853064e9f58407f    6   0      6      0    0 |  68   0     68      0    0 | 1.00 (utenfor dekning)
+2013-10-14.parquet   2d4108e8fd597fca    6   0      6      0    0 |  75   0     75      0    0 | 1.00 (utenfor dekning)
+2013-10-21.parquet   5e97384087585399    6   0      6      0    0 |  78   0     78      0    0 | 1.00 (utenfor dekning)
+2013-10-28.parquet   22f65dd316ab487f    8   0      8      0    0 |  82   0     82      0    0 | 1.00 (utenfor dekning)
+2013-11-04.parquet   6931b223a0a89378    8   0      8      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2013-11-11.parquet   cf8d4769c8bd4d1c    8   0      8      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2013-11-18.parquet   d6e0c5d19dcd7733    9   0      9      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2013-11-25.parquet   e31e497194e0940c    9   0      9      0    0 |  86   0     86      0    0 | 1.00 (utenfor dekning)
+2013-12-02.parquet   1f2ff0c4814ed846    9   0      9      0    0 |  88   0     88      0    0 | 1.00 (utenfor dekning)
+2013-12-09.parquet   e885226b9b9e4584    9   0      9      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2013-12-16.parquet   e2f9d51e84387e59    9   0      9      0    0 |  87   0     87      0    0 | 1.00 (utenfor dekning)
+2013-12-23.parquet   7619978a81ab4154    8   0      8      0    0 |  87   0     87      0    0 | 1.00 (utenfor dekning)
+2013-12-30.parquet   5849de9fd771ee9e    8   0      8      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2014-01-06.parquet   51111acc30a29ebd    8   0      8      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2014-01-13.parquet   5756aa93a2e679b6    8   0      8      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2014-01-20.parquet   2c7c2723da312b87    8   0      8      0    0 |  95   0     95      0    0 | 1.00 (utenfor dekning)
+2014-01-27.parquet   3c7f39b4f8e41f00    8   0      8      0    0 |  97   0     97      0    0 | 1.00 (utenfor dekning)
+2014-02-03.parquet   7c017a8133c10994    9   0      9      0    0 | 101   0    101      0    0 | 1.00 (utenfor dekning)
+2014-02-10.parquet   0b9f151f14200581    9   0      9      0    0 | 104   0    104      0    0 | 1.00 (utenfor dekning)
+2014-02-17.parquet   0c2386a224d10378    9   0      9      0    0 | 104   0    104      0    0 | 1.00 (utenfor dekning)
+2014-02-24.parquet   879d5ac4adc7aff1   10   0     10      0    0 | 106   0    106      0    0 | 1.00 (utenfor dekning)
+2014-03-03.parquet   2d3c55566326f778   11   0     11      0    0 | 108   0    108      0    0 | 1.00 (utenfor dekning)
+2014-03-10.parquet   730cff94b985fdd6   11   0     11      0    0 | 109   0    109      0    0 | 1.00 (utenfor dekning)
+2014-03-17.parquet   a793e8e270629f5a   11   0     11      0    0 | 107   0    107      0    0 | 1.00 (utenfor dekning)
+2014-03-24.parquet   f0654f4b995a1abd   11   0     11      0    0 | 110   0    110      0    0 | 1.00 (utenfor dekning)
+2014-03-31.parquet   80b24d68df8618a0   11   0     11      0    0 | 110   0    110      0    0 | 1.00 (utenfor dekning)
+2014-04-07.parquet   2b10b27132e17440   11   0     11      0    0 | 110   0    110      0    0 | 1.00 (utenfor dekning)
+2014-04-14.parquet   881ea599167642d8   11   0     11      0    0 | 108   0    108      0    0 | 1.00 (utenfor dekning)
+2014-04-21.parquet   ff281c79fbd506a3   11   0     11      0    0 | 107   0    107      0    0 | 1.00 (utenfor dekning)
+2014-04-28.parquet   f32d8d158e9e7af8   11   0     11      0    0 | 107   0    107      0    0 | 1.00 (utenfor dekning)
+2014-05-05.parquet   1f46c6bb88a8099c   12   0     12      0    0 | 107   0    107      0    0 | 1.00 (utenfor dekning)
+2014-05-12.parquet   2f3ce3920dece3ff   12   0     12      0    0 | 109   0    109      0    0 | 1.00 (utenfor dekning)
+2014-05-19.parquet   50c7544fe8045b14   12   0     12      0    0 | 111   0    111      0    0 | 1.00 (utenfor dekning)
+2014-05-26.parquet   363d79a98f26080b   12   0     12      0    0 | 110   0    110      0    0 | 1.00 (utenfor dekning)
+2014-06-02.parquet   3fadcbb35252fb5d   10   0     10      0    0 | 115   0    115      0    0 | 1.00 (utenfor dekning)
+2014-06-09.parquet   70cc08acb3014672    8   0      8      0    0 | 124   0    124      0    0 | 1.00 (utenfor dekning)
+2014-06-16.parquet   7a8dc037fc4231f0    8   0      8      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2014-06-23.parquet   af873b8cf13179a3    7   0      7      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2014-06-30.parquet   f0137f746b76141e    8   0      8      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2014-07-07.parquet   14bf4687413b251e    8   0      8      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2014-07-14.parquet   d949da11d40310eb    8   0      8      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2014-07-21.parquet   1bd33b6798573f0f    8   0      8      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2014-07-28.parquet   ebdfe702d2d618b3    8   0      8      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2014-08-04.parquet   85190928f0788d73    8   0      8      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2014-08-11.parquet   72e7a9bb40145874    8   0      8      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2014-08-18.parquet   85228f798765753f    8   0      8      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2014-08-25.parquet   020218ba2b42da71    8   0      8      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2014-09-01.parquet   ab7264fabe6468f0    8   0      8      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2014-09-08.parquet   8729069f2d3d2e5b    8   0      8      0    0 | 134   0    134      0    0 | 1.00 (utenfor dekning)
+2014-09-15.parquet   3fc9a26d0bed032c    8   0      8      0    0 | 134   0    134      0    0 | 1.00 (utenfor dekning)
+2014-09-22.parquet   8bf1bc3036da0a72    8   0      8      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2014-09-29.parquet   ce4de3f4199eab1d    9   0      9      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2014-10-06.parquet   1de8c56167c168f4    9   0      9      0    0 | 134   0    134      0    0 | 1.00 (utenfor dekning)
+2014-10-13.parquet   9901ff00328c9cdb    9   0      9      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2014-10-20.parquet   67c6fef7f880f122    9   0      9      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2014-10-27.parquet   b58300ca03982ede    9   0      9      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2014-11-03.parquet   686577253d7605a3    6   0      6      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2014-11-10.parquet   84e0192ab0cb85fd    6   0      6      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2014-11-17.parquet   d37c5d055efd0010    6   0      6      0    0 | 138   0    138      0    0 | 1.00 (utenfor dekning)
+2014-11-24.parquet   36c4de318d616ba2    7   0      7      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2014-12-01.parquet   bb7ceb3dd9e8b682    7   0      7      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2014-12-08.parquet   7d2bf4b0d61bd024    8   0      8      0    0 | 142   0    142      0    0 | 1.00 (utenfor dekning)
+2014-12-15.parquet   ebb24974e0b6efcd    9   0      9      0    0 | 142   0    142      0    0 | 1.00 (utenfor dekning)
+2014-12-22.parquet   58c7a4f469ac042c    9   0      9      0    0 | 143   0    143      0    0 | 1.00 (utenfor dekning)
+2014-12-29.parquet   1083062a792da53c    9   0      9      0    0 | 143   0    143      0    0 | 1.00 (utenfor dekning)
+2015-01-05.parquet   42c768194b964191    9   0      9      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2015-01-12.parquet   8a0cc37fdaaf27d8    9   0      9      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2015-01-19.parquet   ea2d9edf6ab8da30    9   0      9      0    0 | 146   0    146      0    0 | 1.00 (utenfor dekning)
+2015-01-26.parquet   0601dd9f7a0352eb    8   0      8      0    0 | 149   0    149      0    0 | 1.00 (utenfor dekning)
+2015-02-02.parquet   f3150e6ee67845f3    8   0      8      0    0 | 150   0    150      0    0 | 1.00 (utenfor dekning)
+2015-02-09.parquet   a6d524d04595cd05    8   0      8      0    0 | 153   0    153      0    0 | 1.00 (utenfor dekning)
+2015-02-16.parquet   3aaf71939e3670e0    9   0      9      0    0 | 156   0    156      0    0 | 1.00 (utenfor dekning)
+2015-02-23.parquet   e6196bdecc21edad    9   0      9      0    0 | 159   0    159      0    0 | 1.00 (utenfor dekning)
+2015-03-02.parquet   3edac9a9b94e4924    9   0      9      0    0 | 161   0    161      0    0 | 1.00 (utenfor dekning)
+2015-03-09.parquet   427383caf70e9604    9   0      9      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2015-03-16.parquet   5b829bf83bc7bb8e    9   0      9      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2015-03-23.parquet   2c4ebd747c047ce3    9   0      9      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2015-03-30.parquet   6fd4aa10ed56eca9    9   0      9      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2015-04-06.parquet   1114e7bae7b5a4b2   10   0     10      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2015-04-13.parquet   000ed06b8a095946   10   0     10      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2015-04-20.parquet   808301046703b6fd   11   0     11      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2015-04-27.parquet   b261148f16498364   11   0     11      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2015-05-04.parquet   c92d6be19c2c7e14   14   0     14      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2015-05-11.parquet   ee0183b89810258f   14   0     14      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2015-05-18.parquet   665bcb5e405e53cb   15   0     15      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2015-05-25.parquet   784d346df28d3eb4   15   0     15      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2015-06-01.parquet   934ab1f0b61dff25   15   0     15      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2015-06-08.parquet   42cea34785c45a7f   16   0     16      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2015-06-15.parquet   1f0b11d1b233809e   17   0     17      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2015-06-22.parquet   397b5c6627335278   17   0     17      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2015-06-29.parquet   27e504b2d5a873c0   17   0     17      0    0 | 145   0    145      0    0 | 1.00 (utenfor dekning)
+2015-07-06.parquet   51fbf63fdf610651   17   0     17      0    0 | 143   0    143      0    0 | 1.00 (utenfor dekning)
+2015-07-13.parquet   8ee1f5477ff0679c   16   0     16      0    0 | 162   0    162      0    0 | 1.00 (utenfor dekning)
+2015-07-20.parquet   5dff2b270c5edcdb   16   0     16      0    0 | 170   0    170      0    0 | 1.00 (utenfor dekning)
+2015-07-27.parquet   de8cab26bc54e8e2   16   0     16      0    0 | 177   0    177      0    0 | 1.00 (utenfor dekning)
+2015-08-03.parquet   e579e7669312aae5   16   0     16      0    0 | 168   0    168      0    0 | 1.00 (utenfor dekning)
+2015-08-10.parquet   227cc222087e04de   16   0     16      0    0 | 155   0    155      0    0 | 1.00 (utenfor dekning)
+2015-08-17.parquet   9318493f1e54bf36   16   0     16      0    0 | 157   0    157      0    0 | 1.00 (utenfor dekning)
+2015-08-24.parquet   63e6e64727d517af   18   0     18      0    0 | 160   0    160      0    0 | 1.00 (utenfor dekning)
+2015-08-31.parquet   83c5dd8172f2f076   16   0     16      0    0 | 162   0    162      0    0 | 1.00 (utenfor dekning)
+2015-09-07.parquet   77318b961b1bf2f5   17   0     17      0    0 | 161   0    161      0    0 | 1.00 (utenfor dekning)
+2015-09-14.parquet   40ead88d720d0aab   17   0     17      0    0 | 154   0    154      0    0 | 1.00 (utenfor dekning)
+2015-09-21.parquet   11e9cc1b40223149   18   0     18      0    0 | 138   0    138      0    0 | 1.00 (utenfor dekning)
+2015-09-28.parquet   4dc567a839702f54   18   0     18      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2015-10-05.parquet   7a94201e1bbcb0ea   18   0     18      0    0 | 142   0    142      0    0 | 1.00 (utenfor dekning)
+2015-10-12.parquet   2c4d84b97638653e   18   0     18      0    0 | 143   0    143      0    0 | 1.00 (utenfor dekning)
+2015-10-19.parquet   5a29171326fc71f1   18   0     18      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2015-10-26.parquet   976f4302e24fb0ee   18   0     18      0    0 | 147   0    147      0    0 | 1.00 (utenfor dekning)
+2015-11-02.parquet   3937888744c8cabd   18   0     18      0    0 | 150   0    150      0    0 | 1.00 (utenfor dekning)
+2015-11-09.parquet   d13ea2eb1b5e30a3   18   0     18      0    0 | 151   0    151      0    0 | 1.00 (utenfor dekning)
+2015-11-16.parquet   01e61dcf20269012   18   0     18      0    0 | 153   0    153      0    0 | 1.00 (utenfor dekning)
+2015-11-23.parquet   49b37968c2d2d8c1   18   0     18      0    0 | 148   0    148      0    0 | 1.00 (utenfor dekning)
+2015-11-30.parquet   299745aa0055a4a7   18   0     18      0    0 | 145   0    145      0    0 | 1.00 (utenfor dekning)
+2015-12-07.parquet   68c6110ab9891358   18   0     18      0    0 | 145   0    145      0    0 | 1.00 (utenfor dekning)
+2015-12-14.parquet   2b25ce6ef8c5a127   18   0     18      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2015-12-21.parquet   df2d5f1b4cea9e7e   18   0     18      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2015-12-28.parquet   74c1e55cc0aaed54   18   0     18      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2016-01-04.parquet   02f8dd55800171fd   18   0     18      0    0 | 146   0    146      0    0 | 1.00 (utenfor dekning)
+2016-01-11.parquet   df726f72ebd083bd    9   0      9      0    0 | 148   0    148      0    0 | 1.00 (utenfor dekning)
+2016-01-18.parquet   d7e210e0c38bdab5   10   0     10      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2016-01-25.parquet   91384c71ccaf4ecc    9   0      9      0    0 | 148   0    148      0    0 | 1.00 (utenfor dekning)
+2016-02-01.parquet   64c5ce41853f45ff   10   0     10      0    0 | 150   0    150      0    0 | 1.00 (utenfor dekning)
+2016-02-08.parquet   51694ae0341ebc2f   10   0     10      0    0 | 145   0    145      0    0 | 1.00 (utenfor dekning)
+2016-02-15.parquet   8f7e8fae648c638c   11   0     11      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2016-02-22.parquet   28b316c7dedf77fb   11   0     11      0    0 | 145   0    145      0    0 | 1.00 (utenfor dekning)
+2016-02-29.parquet   0e7a069d16587473   11   0     11      0    0 | 147   0    147      0    0 | 1.00 (utenfor dekning)
+2016-03-07.parquet   c1207b341e424677   11   0     11      0    0 | 149   0    149      0    0 | 1.00 (utenfor dekning)
+2016-03-14.parquet   31cc04e3af061127   11   0     11      0    0 | 147   0    147      0    0 | 1.00 (utenfor dekning)
+2016-03-21.parquet   9f5655d3d6c11b99   11   0     11      0    0 | 148   0    148      0    0 | 1.00 (utenfor dekning)
+2016-03-28.parquet   760e3caf86993b44   10   0     10      0    0 | 145   0    145      0    0 | 1.00 (utenfor dekning)
+2016-04-04.parquet   72ecef5a3eeb8339    8   0      8      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2016-04-11.parquet   30e6589396228cde    7   0      7      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-04-18.parquet   6aa4f079ff21130f    7   0      7      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-04-25.parquet   afc9e0ceb9872c31    9   0      9      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2016-05-02.parquet   82dda8cdf53bfc44   10   0     10      0    0 | 138   0    138      0    0 | 1.00 (utenfor dekning)
+2016-05-09.parquet   fa426a21a7dba5ac   10   0     10      0    0 | 138   0    138      0    0 | 1.00 (utenfor dekning)
+2016-05-16.parquet   26bb9c0bfbd590a5   10   0     10      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-05-23.parquet   b93b7cd13bb1173b   10   0     10      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2016-05-30.parquet   ee10957ead29dfdb   10   0     10      0    0 | 143   0    143      0    0 | 1.00 (utenfor dekning)
+2016-06-06.parquet   881815707de87ef2   10   0     10      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2016-06-13.parquet   39f0d7c6dbcf04de    9   0      9      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2016-06-20.parquet   1adc7410b6bd5e7b   10   0     10      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2016-06-27.parquet   53c193841609abfd   11   0     11      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2016-07-04.parquet   7ae2370da0614463   11   0     11      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2016-07-11.parquet   48f04c6f8c83049b   13   0     13      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2016-07-18.parquet   588b7acff565c74b   13   0     13      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-07-25.parquet   95bd3a0e7ad7bf77   15   0     15      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-08-01.parquet   7c8b819fa78490a3   15   0     15      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2016-08-08.parquet   d3e397f9469dae34   15   0     15      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-08-15.parquet   6986304d7ea5935d   14   0     14      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2016-08-22.parquet   2748e2c9178ddfe0   14   0     14      0    0 | 134   0    134      0    0 | 1.00 (utenfor dekning)
+2016-08-29.parquet   1ff5ce6bc0b30a12   13   0     13      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2016-09-05.parquet   c1fefef100b2fdd1   13   0     13      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2016-09-12.parquet   6b142946c0f3ea06   11   0     11      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2016-09-19.parquet   38a4f6dd944a0139   11   0     11      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2016-09-26.parquet   1e9d8b7701da3ee7   11   0     11      0    0 | 134   0    134      0    0 | 1.00 (utenfor dekning)
+2016-10-03.parquet   9f02cedf2aff66af   11   0     11      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2016-10-10.parquet   7b5f486fe8dd9f4d    8   0      8      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-10-17.parquet   15987d80cd16eeec    8   0      8      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-10-24.parquet   d6bb11e14808cdba    9   0      9      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-10-31.parquet   cf623caf79594481    9   0      9      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2016-11-07.parquet   290ee14ad6178718    9   0      9      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2016-11-14.parquet   d5dbf3afa65f7446    9   0      9      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2016-11-21.parquet   465ad66a8459dfd4    9   0      9      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2016-11-28.parquet   94c25c46256205ba    9   0      9      0    0 | 140   0    140      0    0 | 1.00 (utenfor dekning)
+2016-12-05.parquet   9a1c523c4083e12f    9   0      9      0    0 | 140   0    140      0    0 | 1.00 (utenfor dekning)
+2016-12-12.parquet   e36b9c5f446a3f2e    9   0      9      0    0 | 140   0    140      0    0 | 1.00 (utenfor dekning)
+2016-12-19.parquet   2041d96eaa427a9f    9   0      9      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2016-12-26.parquet   26b34a34017fe313   10   0     10      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2017-01-02.parquet   9d239735b2b411a9   10   0     10      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2017-01-09.parquet   1a6447d6d9628470    6   0      6      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2017-01-16.parquet   a3ec5c9e596c2421    6   0      6      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2017-01-23.parquet   3987ef6a2c1a6b99    7   0      7      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2017-01-30.parquet   5b9bd5a9c67c585b    6   0      6      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2017-02-06.parquet   78ad35280bb962ca    6   0      6      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2017-02-13.parquet   9d6b100d0b18bd5d    6   0      6      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2017-02-20.parquet   2f46973bcc7bbf46    6   0      6      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2017-02-27.parquet   235c94bf0266a406    6   0      6      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2017-03-06.parquet   a620155187eb3116    7   0      7      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2017-03-13.parquet   11c72c07c143bbac    7   0      7      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2017-03-20.parquet   39ae7b3836cc34ba    7   0      7      0    0 | 119   0    119      0    0 | 1.00 (utenfor dekning)
+2017-03-27.parquet   634a2a351f5b9c13    7   0      7      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2017-04-03.parquet   8344ac4b7e9f6653    7   0      7      0    0 | 125   0    125      0    0 | 1.00 (utenfor dekning)
+2017-04-10.parquet   1d4050726d0557e2    7   0      7      0    0 | 125   0    125      0    0 | 1.00 (utenfor dekning)
+2017-04-17.parquet   17486adac86c7c7b    7   0      7      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2017-04-24.parquet   6267e806699de056    7   0      7      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2017-05-01.parquet   841d5a50696cbfee    7   0      7      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2017-05-08.parquet   7783d5442d1748c1    7   0      7      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2017-05-15.parquet   b6f1e8121cc513d6    9   0      9      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2017-05-22.parquet   f4ea8b7dc37c50d2    8   0      8      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2017-05-29.parquet   f0fcde6c5e75f4f7    8   0      8      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2017-06-05.parquet   8d29726956a2156a    8   0      8      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2017-06-12.parquet   5e3f9f90bb2e4559    9   0      9      0    0 | 140   0    140      0    0 | 1.00 (utenfor dekning)
+2017-06-19.parquet   31aa2fc6d6f1d2de    9   0      9      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2017-06-26.parquet   f9efe6c969c72c2d    9   0      9      0    0 | 149   0    149      0    0 | 1.00 (utenfor dekning)
+2017-07-03.parquet   87808585249bde7c    9   0      9      0    0 | 150   0    150      0    0 | 1.00 (utenfor dekning)
+2017-07-10.parquet   a2c653dfd6b2d1ec   10   0     10      0    0 | 155   0    155      0    0 | 1.00 (utenfor dekning)
+2017-07-17.parquet   af7737de1417862e   10   0     10      0    0 | 148   0    148      0    0 | 1.00 (utenfor dekning)
+2017-07-24.parquet   03f532eac97f593f   10   0     10      0    0 | 155   0    155      0    0 | 1.00 (utenfor dekning)
+2017-07-31.parquet   8d2904ffb4ebea81   10   0     10      0    0 | 155   0    155      0    0 | 1.00 (utenfor dekning)
+2017-08-07.parquet   11327dd736f7b88b   10   0     10      0    0 | 156   0    156      0    0 | 1.00 (utenfor dekning)
+2017-08-14.parquet   c33ea4bc6acc6509   11   0     11      0    0 | 155   0    155      0    0 | 1.00 (utenfor dekning)
+2017-08-21.parquet   347a7e6620947bad   11   0     11      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2017-08-28.parquet   fd4267beba2d4db8   11   0     11      0    0 | 157   0    157      0    0 | 1.00 (utenfor dekning)
+2017-09-04.parquet   b1338b7470527d7a    8   0      8      0    0 | 149   0    149      0    0 | 1.00 (utenfor dekning)
+2017-09-11.parquet   92e030449f7d6761    7   0      7      0    0 | 146   0    146      0    0 | 1.00 (utenfor dekning)
+2017-09-18.parquet   3074b43067ca3380    7   0      7      0    0 | 146   0    146      0    0 | 1.00 (utenfor dekning)
+2017-09-25.parquet   d40f2d77844f7edb    7   0      7      0    0 | 147   0    147      0    0 | 1.00 (utenfor dekning)
+2017-10-02.parquet   a4e75f48ea3d4412    7   0      7      0    0 | 154   0    154      0    0 | 1.00 (utenfor dekning)
+2017-10-09.parquet   c2084583345a2e19    7   0      7      0    0 | 154   0    154      0    0 | 1.00 (utenfor dekning)
+2017-10-16.parquet   cd08e1203fd03044    7   0      7      0    0 | 157   0    157      0    0 | 1.00 (utenfor dekning)
+2017-10-23.parquet   354df52394c8df12    7   0      7      0    0 | 156   0    156      0    0 | 1.00 (utenfor dekning)
+2017-10-30.parquet   2e4aa3773c6eff7f    6   0      6      0    0 | 167   0    167      0    0 | 1.00 (utenfor dekning)
+2017-11-06.parquet   9391dea66999aed9    6   0      6      0    0 | 168   0    168      0    0 | 1.00 (utenfor dekning)
+2017-11-13.parquet   cac5d2e6e60bb2fa    7   0      7      0    0 | 171   0    171      0    0 | 1.00 (utenfor dekning)
+2017-11-20.parquet   43ef667ca0fff30c    8   0      8      0    0 | 169   0    169      0    0 | 1.00 (utenfor dekning)
+2017-11-27.parquet   401cb63d392106be   10   0     10      0    0 | 168   0    168      0    0 | 1.00 (utenfor dekning)
+2017-12-04.parquet   51cbf3e5848eab3a   11   0     11      0    0 | 167   0    167      0    0 | 1.00 (utenfor dekning)
+2017-12-11.parquet   9f64d05c431a5dff    9   0      9      0    0 | 164   0    164      0    0 | 1.00 (utenfor dekning)
+2017-12-18.parquet   a9dcb2d2b398b7b6    8   0      8      0    0 | 165   0    165      0    0 | 1.00 (utenfor dekning)
+2017-12-25.parquet   593474069ea59849    9   0      9      0    0 | 160   0    160      0    0 | 1.00 (utenfor dekning)
+2018-01-01.parquet   7b5307895344daaa    9   0      9      0    0 | 162   0    162      0    0 | 1.00 (utenfor dekning)
+2018-01-08.parquet   b6afe1b2a3386480    9   0      9      0    0 | 163   0    163      0    0 | 1.00 (utenfor dekning)
+2018-01-15.parquet   9b9c6023a9561de4    8   0      8      0    0 | 163   0    163      0    0 | 1.00 (utenfor dekning)
+2018-01-22.parquet   3fc4d11fdf323b1a    9   0      9      0    0 | 161   0    161      0    0 | 1.00 (utenfor dekning)
+2018-01-29.parquet   4a5fa09e2ebde1c1    4   0      4      0    0 | 165   0    165      0    0 | 1.00 (utenfor dekning)
+2018-02-05.parquet   8b392e9e8c811656    2   0      2      0    0 | 169   0    169      0    0 | 1.00 (utenfor dekning)
+2018-02-12.parquet   3993a4772f64428d    2   0      2      0    0 | 167   0    167      0    0 | 1.00 (utenfor dekning)
+2018-02-19.parquet   79bdc6b136eb5798    2   0      2      0    0 | 164   0    164      0    0 | 1.00 (utenfor dekning)
+2018-02-26.parquet   5168ec96e645948d    1   0      1      0    0 | 158   0    158      0    0 | 1.00 (utenfor dekning)
+2018-03-05.parquet   af2dfdd033b03731    1   0      1      0    0 | 153   0    153      0    0 | 1.00 (utenfor dekning)
+2018-03-12.parquet   2069d32c2724a93d    1   0      1      0    0 | 153   0    153      0    0 | 1.00 (utenfor dekning)
+2018-03-19.parquet   9cdf9ba4490823df    1   0      1      0    0 | 153   0    153      0    0 | 1.00 (utenfor dekning)
+2018-03-26.parquet   7f7cfd2fb2a4e212    1   0      1      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2018-04-02.parquet   f51d2e68f13333d7    1   0      1      0    0 | 151   0    151      0    0 | 1.00 (utenfor dekning)
+2018-04-09.parquet   d04462b0f7176316    1   0      1      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2018-04-16.parquet   f12d928316aee0bf    1   0      1      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2018-04-23.parquet   8fe22128dbda6c65    1   0      1      0    0 | 151   0    151      0    0 | 1.00 (utenfor dekning)
+2018-04-30.parquet   1b6baa710a0670d9    1   0      1      0    0 | 154   0    154      0    0 | 1.00 (utenfor dekning)
+2018-05-07.parquet   8ce7e44f66b99523    2   0      2      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2018-05-14.parquet   2bf11efb725ea119    2   0      2      0    0 | 147   0    147      0    0 | 1.00 (utenfor dekning)
+2018-05-21.parquet   f3579d0ad38f0db8    2   0      2      0    0 | 140   0    140      0    0 | 1.00 (utenfor dekning)
+2018-05-28.parquet   93ed724f28dcb329    2   0      2      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2018-06-04.parquet   d456731247bd8045    3   0      3      0    0 | 145   0    145      0    0 | 1.00 (utenfor dekning)
+2018-06-11.parquet   56337a47ad671d53    4   0      4      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2018-06-18.parquet   212f8f2a7ea6af1d    4   0      4      0    0 | 147   0    147      0    0 | 1.00 (utenfor dekning)
+2018-06-25.parquet   151f46a43ca428a9    7   0      7      0    0 | 149   0    149      0    0 | 1.00 (utenfor dekning)
+2018-07-02.parquet   6426954e33b2775f    6   0      6      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2018-07-09.parquet   df30de1cad90bd1e    6   0      6      0    0 | 146   0    146      0    0 | 1.00 (utenfor dekning)
+2018-07-16.parquet   d2414bc9f1f2df04    6   0      6      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2018-07-23.parquet   79b3352960c98251    6   0      6      0    0 | 144   0    144      0    0 | 1.00 (utenfor dekning)
+2018-07-30.parquet   701c3cdf8e3e9e48    5   0      5      0    0 | 143   0    143      0    0 | 1.00 (utenfor dekning)
+2018-08-06.parquet   a6f7e8ced7b604a1    6   0      6      0    0 | 142   0    142      0    0 | 1.00 (utenfor dekning)
+2018-08-13.parquet   9f05dfb03742cbf6    6   0      6      0    0 | 142   0    142      0    0 | 1.00 (utenfor dekning)
+2018-08-20.parquet   9be7beab4b47d4e7    6   0      6      0    0 | 143   0    143      0    0 | 1.00 (utenfor dekning)
+2018-08-27.parquet   0ad182e7c7916421    6   0      6      0    0 | 134   0    134      0    0 | 1.00 (utenfor dekning)
+2018-09-03.parquet   2dab535ca182db62    6   0      6      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2018-09-10.parquet   c7e0d7ab92253c7f    6   0      6      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2018-09-17.parquet   228f453c801c80ad    5   0      5      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2018-09-24.parquet   44cb3cce9b0c73c6    6   0      6      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2018-10-01.parquet   d506a21f5a6cde65    4   0      4      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2018-10-08.parquet   6fec8dcadaac2c38    4   0      4      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2018-10-15.parquet   cef8afb467ad2823    4   0      4      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2018-10-22.parquet   a5eef3e647c605dd    6   0      6      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2018-10-29.parquet   36ed7e43c51562bc    6   0      6      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2018-11-05.parquet   54efff821f24d3fb    6   0      6      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2018-11-12.parquet   76ed9a51c16fea94    6   0      6      0    0 | 134   0    134      0    0 | 1.00 (utenfor dekning)
+2018-11-19.parquet   4a6d9a132f3609a1    5   0      5      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2018-11-26.parquet   61165fcad2279699    5   0      5      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2018-12-03.parquet   9e8a6c9009b45733    5   0      5      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2018-12-10.parquet   0e195977a78165d5    6   0      6      0    0 | 122   0    122      0    0 | 1.00 (utenfor dekning)
+2018-12-17.parquet   1c21a02906f07804    7   0      7      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2018-12-24.parquet   c3896fd0c2039e3f    7   0      7      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2018-12-31.parquet   eddb3046997f205b    7   0      7      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2019-01-07.parquet   ee408616c77fed5d    7   0      7      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2019-01-14.parquet   9f1438cc23810948    5   0      5      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2019-01-21.parquet   54cf45518faa4e6b    5   0      5      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2019-01-28.parquet   67cf7aa23c70e747    5   0      5      0    0 | 138   0    138      0    0 | 1.00 (utenfor dekning)
+2019-02-04.parquet   0e9e412911fa0026    5   0      5      0    0 | 141   0    141      0    0 | 1.00 (utenfor dekning)
+2019-02-11.parquet   ec565eb2c1139b9c    5   0      5      0    0 | 142   0    142      0    0 | 1.00 (utenfor dekning)
+2019-02-18.parquet   beafa4dda3f6132b    5   0      5      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2019-02-25.parquet   5319daf59594d662    5   0      5      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2019-03-04.parquet   ad3d3d9b68afb94d    5   0      5      0    0 | 138   0    138      0    0 | 1.00 (utenfor dekning)
+2019-03-11.parquet   2070ff8b5d1aeb19    5   0      5      0    0 | 140   0    140      0    0 | 1.00 (utenfor dekning)
+2019-03-18.parquet   24e388dae55e2594    5   0      5      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2019-03-25.parquet   894d1b4a0e71b054    5   0      5      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2019-04-01.parquet   19ff82e2238fd576    5   0      5      0    0 | 136   0    136      0    0 | 1.00 (utenfor dekning)
+2019-04-08.parquet   12f3e7f3c4a23ccd    5   0      5      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2019-04-15.parquet   5d80afaab3fdcdcd    6   0      6      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2019-04-22.parquet   2aa1ef87dba81e55    6   0      6      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2019-04-29.parquet   ec7bc19a3515a695    5   0      5      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2019-05-06.parquet   2b4732f5f9a0d26a    3   0      3      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2019-05-13.parquet   00e2ee2f2dbe671a    3   0      3      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2019-05-20.parquet   9cd5aa422f331da9    3   0      3      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2019-05-27.parquet   64bdfaf57d7b9330    3   0      3      0    0 | 124   0    124      0    0 | 1.00 (utenfor dekning)
+2019-06-03.parquet   3096eedcc71b507d    3   0      3      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2019-06-10.parquet   a34fdf8c66bbf482    4   0      4      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2019-06-17.parquet   1e3236e8c0a64ec2    5   0      5      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2019-06-24.parquet   083322e312f8cd55    5   0      5      0    0 | 139   0    139      0    0 | 1.00 (utenfor dekning)
+2019-07-01.parquet   546ff6b75eed408b    6   0      6      0    0 | 137   0    137      0    0 | 1.00 (utenfor dekning)
+2019-07-08.parquet   a41f6eb7ef59987d    6   0      6      0    0 | 121   0    121      0    0 | 1.00 (utenfor dekning)
+2019-07-15.parquet   9356ebc7b8946308    4   0      4      0    0 | 115   0    115      0    0 | 1.00 (utenfor dekning)
+2019-07-22.parquet   ed6e8dc4b448eebc    4   0      4      0    0 | 117   0    117      0    0 | 1.00 (utenfor dekning)
+2019-07-29.parquet   04ead99e6d60b97b    4   0      4      0    0 | 118   0    118      0    0 | 1.00 (utenfor dekning)
+2019-08-05.parquet   cd517a67852c02c3    3   0      3      0    0 | 118   0    118      0    0 | 1.00 (utenfor dekning)
+2019-08-12.parquet   d73e03258e6e4d00    3   0      3      0    0 | 121   0    121      0    0 | 1.00 (utenfor dekning)
+2019-08-19.parquet   e22e346d157574e8    2   0      2      0    0 | 116   0    116      0    0 | 1.00 (utenfor dekning)
+2019-08-26.parquet   7cb7bb447440dc0c    2   0      2      0    0 | 118   0    118      0    0 | 1.00 (utenfor dekning)
+2019-09-02.parquet   38331adcd43c05d4    2   0      2      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2019-09-09.parquet   e7a7b4ebb4a3dc9c    2   0      2      0    0 | 118   0    118      0    0 | 1.00 (utenfor dekning)
+2019-09-16.parquet   fcdff2ea339c9dc2    2   0      2      0    0 | 111   0    111      0    0 | 1.00 (utenfor dekning)
+2019-09-23.parquet   2ba473a108e56c46    2   0      2      0    0 | 113   0    113      0    0 | 1.00 (utenfor dekning)
+2019-09-30.parquet   358af5b1844fb193    3   0      3      0    0 | 118   0    118      0    0 | 1.00 (utenfor dekning)
+2019-10-07.parquet   07badbba11876c65    3   0      3      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2019-10-14.parquet   f4e808e2201c418c    1   0      1      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2019-10-21.parquet   403f36720da79eaa    1   0      1      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2019-10-28.parquet   874e84e47ca9586e    1   0      1      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2019-11-04.parquet   6ababd1295e9ec6d    2   0      2      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2019-11-11.parquet   235a59250d2a4e82    3   0      3      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2019-11-18.parquet   f4d8d645b76f023f    4   0      4      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2019-11-25.parquet   355bcd262d1ff2f8    4   0      4      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2019-12-02.parquet   fc6f898ee18da79a    5   0      5      0    0 | 131   0    131      0    0 | 1.00 (utenfor dekning)
+2019-12-09.parquet   da1cad66b0480ba3    5   0      5      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2019-12-16.parquet   9acd1ba84ae6e903    6   0      6      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2019-12-23.parquet   d90de08550f0ccd3    6   0      6      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2019-12-30.parquet   964466b4f724dba2    6   0      6      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2020-01-06.parquet   b5ec58da8336e51f    6   0      6      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2020-01-13.parquet   5829b31a56d96a58    8   0      8      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2020-01-20.parquet   376a8d5e855f0079    8   0      8      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2020-01-27.parquet   a660e83107698d18    9   0      9      0    0 | 109   0    109      0    0 | 1.00 (utenfor dekning)
+2020-02-03.parquet   dda0312f07b1b79f    9   0      9      0    0 | 108   0    108      0    0 | 1.00 (utenfor dekning)
+2020-02-10.parquet   ba8fb185d1ce12d6    8   0      8      0    0 | 110   0    110      0    0 | 1.00 (utenfor dekning)
+2020-02-17.parquet   8dcc58cdf98ba863    8   0      8      0    0 | 116   0    116      0    0 | 1.00 (utenfor dekning)
+2020-02-24.parquet   be903e42bf50448e    8   0      8      0    0 | 118   0    118      0    0 | 1.00 (utenfor dekning)
+2020-03-02.parquet   e53ed190150d1080    8   0      8      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2020-03-09.parquet   7084c7f9b3d6d246    7   0      7      0    0 | 119   0    119      0    0 | 1.00 (utenfor dekning)
+2020-03-16.parquet   716fa2c366ac2a57    8   0      8      0    0 | 122   0    122      0    0 | 1.00 (utenfor dekning)
+2020-03-23.parquet   f60a004c4d997eb4   11   0     11      0    0 | 122   0    122      0    0 | 1.00 (utenfor dekning)
+2020-03-30.parquet   d17abdffaf131029    9   0      9      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2020-04-06.parquet   7474519ca97e7375    8   0      8      0    0 | 116   0    116      0    0 | 1.00 (utenfor dekning)
+2020-04-13.parquet   c7fcb0dbb122dbd9    5   0      5      0    0 | 114   0    114      0    0 | 1.00 (utenfor dekning)
+2020-04-20.parquet   a26bb49c9ea229d5    4   0      4      0    0 | 115   0    115      0    0 | 1.00 (utenfor dekning)
+2020-04-27.parquet   fa4c746372788175    5   0      5      0    0 | 114   0    114      0    0 | 1.00 (utenfor dekning)
+2020-05-04.parquet   0e5a8ee4d0841c39    5   0      5      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2020-05-11.parquet   d639e7477c3dfe77    6   0      6      0    0 | 122   0    122      0    0 | 1.00 (utenfor dekning)
+2020-05-18.parquet   0b4a4a5f0e453082    4   0      4      0    0 | 121   0    121      0    0 | 1.00 (utenfor dekning)
+2020-05-25.parquet   c8b77239e9c82e47    3   0      3      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2020-06-01.parquet   ae6ca01fd3c4ce59    4   0      4      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2020-06-08.parquet   e68fde30ba1631b2    4   0      4      0    0 | 121   0    121      0    0 | 1.00 (utenfor dekning)
+2020-06-15.parquet   b60983d784ef99e3    4   0      4      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2020-06-22.parquet   44a6664edcd5fc73    4   0      4      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2020-06-29.parquet   4409fde549b04b6c    5   0      5      0    0 | 132   0    132      0    0 | 1.00 (utenfor dekning)
+2020-07-06.parquet   034593a0306d8cb0    6   0      6      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2020-07-13.parquet   872a07553157c6e2    7   0      7      0    0 | 138   0    138      0    0 | 1.00 (utenfor dekning)
+2020-07-20.parquet   d1bdd7c71220d1d2    7   0      7      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2020-07-27.parquet   70a6a586184f380e    8   0      8      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2020-08-03.parquet   af504d22a9fd6dac    8   0      8      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2020-08-10.parquet   cf90c4d7b6875ee4    8   0      8      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2020-08-17.parquet   20d5d7d979fea90d    8   0      8      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2020-08-24.parquet   bcf53d9fefccb4c4   10   0     10      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2020-08-31.parquet   e213478935798480   10   0     10      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2020-09-07.parquet   a18a404507783908    9   0      9      0    0 | 124   0    124      0    0 | 1.00 (utenfor dekning)
+2020-09-14.parquet   b715bda860f98552    9   0      9      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2020-09-21.parquet   754b82d4188724fa    9   0      9      0    0 | 126   0    126      0    0 | 1.00 (utenfor dekning)
+2020-09-28.parquet   213cc6b5922ea32e    8   0      8      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2020-10-05.parquet   bac3980ed221f1a1    8   0      8      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2020-10-12.parquet   4f02d2f1ea591f3d    9   0      9      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2020-10-19.parquet   43799116db7d02cb   11   0     11      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2020-10-26.parquet   f6c3692062fb5b11   11   0     11      0    0 | 135   0    135      0    0 | 1.00 (utenfor dekning)
+2020-11-02.parquet   62b3bd97516c15b9   16   0     16      0    0 | 149   0    149      0    0 | 1.00 (utenfor dekning)
+2020-11-09.parquet   34e68234b4f8490b   17   0     17      0    0 | 151   0    151      0    0 | 1.00 (utenfor dekning)
+2020-11-16.parquet   70f470a1bb65ceee   17   0     17      0    0 | 152   0    152      0    0 | 1.00 (utenfor dekning)
+2020-11-23.parquet   10bd43cec0d95da7   17   0     17      0    0 | 154   0    154      0    0 | 1.00 (utenfor dekning)
+2020-11-30.parquet   aad356269956b247   17   0     17      0    0 | 148   0    148      0    0 | 1.00 (utenfor dekning)
+2020-12-07.parquet   3bb9cc08db4cfcb9   17   0     17      0    0 | 151   0    151      0    0 | 1.00 (utenfor dekning)
+2020-12-14.parquet   6e67c843d13cac91   16   0     16      0    0 | 151   0    151      0    0 | 1.00 (utenfor dekning)
+2020-12-21.parquet   c3bb72e3e4726139   16   0     16      0    0 | 150   0    150      0    0 | 1.00 (utenfor dekning)
+2020-12-28.parquet   7f8efa14b38285f0   16   0     16      0    0 | 150   0    150      0    0 | 1.00 (utenfor dekning)
+2021-01-04.parquet   e1e7efaf94a2ef9f   16   0     16      0    0 | 133   0    133      0    0 | 1.00 (utenfor dekning)
+2021-01-11.parquet   065c2090bf5bec81   17   0     17      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2021-01-18.parquet   de749413f64b7fb7   17   0     17      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2021-01-25.parquet   45e4732900c79925   14   0     14      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2021-02-01.parquet   d98b72f9d6b1d4e1   14   0     14      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2021-02-08.parquet   89290eb29fc8c704   14   0     14      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2021-02-15.parquet   1eb7e024ec461bc6   15   0     15      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2021-02-22.parquet   6c25c3fc295c8943   15   0     15      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2021-03-01.parquet   e334dfcc039d4249   15   0     15      0    0 | 128   0    128      0    0 | 1.00 (utenfor dekning)
+2021-03-08.parquet   b02946348d82b9c2   14   0     14      0    0 | 129   0    129      0    0 | 1.00 (utenfor dekning)
+2021-03-15.parquet   2443d32cca0ec847   14   0     14      0    0 | 130   0    130      0    0 | 1.00 (utenfor dekning)
+2021-03-22.parquet   d97aaa9ce1877b4b   15   0     15      0    0 | 127   0    127      0    0 | 1.00 (utenfor dekning)
+2021-03-29.parquet   04374a65e62785db   15   0     15      0    0 | 124   0    124      0    0 | 1.00 (utenfor dekning)
+2021-04-05.parquet   a3506497238872b1   16   0     16      0    0 | 124   0    124      0    0 | 1.00 (utenfor dekning)
+2021-04-12.parquet   ef5491494085579a   18   0     18      0    0 | 125   0    125      0    0 | 1.00 (utenfor dekning)
+2021-04-19.parquet   440bd90ecc80d6de   17   0     17      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2021-04-26.parquet   916ff1d7e2cab0ec   17   0     17      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2021-05-03.parquet   fb8e7f5ac95cae7c   17   0     17      0    0 | 122   0    122      0    0 | 1.00 (utenfor dekning)
+2021-05-10.parquet   7f8c28782e38430c   15   0     15      0    0 | 123   0    123      0    0 | 1.00 (utenfor dekning)
+2021-05-17.parquet   5dc72eb322f27b5a   17   0     17      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2021-05-24.parquet   4284fa5d06f1f4bc   18   0     18      0    0 | 119   0    119      0    0 | 1.00 (utenfor dekning)
+2021-05-31.parquet   dbdcbeba7af6230d   19   0     19      0    0 | 120   0    120      0    0 | 1.00 (utenfor dekning)
+2021-06-07.parquet   7f116e4f204f964b   21   0     21      0    0 | 116   0    116      0    0 | 1.00 (utenfor dekning)
+2021-06-14.parquet   b160a486819f0a44   22   0     22      0    0 | 112   0    112      0    0 | 1.00 (utenfor dekning)
+2021-06-21.parquet   11901fa07c9f2a03   22   0     22      0    0 | 113   0    113      0    0 | 1.00 (utenfor dekning)
+2021-06-28.parquet   9aa26a9cf2a5f389   23   0     23      0    0 | 114   0    114      0    0 | 1.00 (utenfor dekning)
+2021-07-05.parquet   8698d5766ffe950a   20   0     20      0    0 | 110   0    110      0    0 | 1.00 (utenfor dekning)
+2021-07-12.parquet   eb15b3f47b4ca705   21   0     21      0    0 | 109   0    109      0    0 | 1.00 (utenfor dekning)
+2021-07-19.parquet   9ba4f84ca21b1fef   21   0     21      0    0 | 106   0    106      0    0 | 1.00 (utenfor dekning)
+2021-07-26.parquet   c6ec42ba4024a12b   21   0     21      0    0 | 100   0    100      0    0 | 1.00 (utenfor dekning)
+2021-08-02.parquet   1ba941ca2f5cbd3e   21   0     21      0    0 |  95   0     95      0    0 | 1.00 (utenfor dekning)
+2021-08-09.parquet   7b71843dab17c696   21   0     21      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2021-08-16.parquet   c48e05850cc72b81   19   0     19      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2021-08-23.parquet   7cae7a1079df996a   19   0     19      0    0 |  98   0     98      0    0 | 1.00 (utenfor dekning)
+2021-08-30.parquet   196f5c640d82cb94   19   0     19      0    0 |  97   0     97      0    0 | 1.00 (utenfor dekning)
+2021-09-06.parquet   3c61689286481be0   19   0     19      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2021-09-13.parquet   5aa753d934f8d679   19   0     19      0    0 |  97   0     97      0    0 | 1.00 (utenfor dekning)
+2021-09-20.parquet   c0a88a1c9dc5689e   20   0     20      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2021-09-27.parquet   87aeee4c79341485   21   0     21      0    0 |  98   0     98      0    0 | 1.00 (utenfor dekning)
+2021-10-04.parquet   22c40fdee7604372   21   0     21      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2021-10-11.parquet   0339a867e3770377   21   0     21      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2021-10-18.parquet   e4765a3bc4cf409f   21   0     21      0    0 |  95   0     95      0    0 | 1.00 (utenfor dekning)
+2021-10-25.parquet   34f8e67eb0de46ba   22   0     22      0    0 |  93   0     93      0    0 | 1.00 (utenfor dekning)
+2021-11-01.parquet   688b5fffcccb1af3   22   0     22      0    0 |  94   0     94      0    0 | 1.00 (utenfor dekning)
+2021-11-08.parquet   99f1257111993702   19   0     19      0    0 |  94   0     94      0    0 | 1.00 (utenfor dekning)
+2021-11-15.parquet   cdf1ec880f7acd73   17   0     17      0    0 |  92   0     92      0    0 | 1.00 (utenfor dekning)
+2021-11-22.parquet   5056367ec9c8600a   19   0     19      0    0 |  91   0     91      0    0 | 1.00 (utenfor dekning)
+2021-11-29.parquet   99b75155ee6f5eec   19   0     19      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2021-12-06.parquet   77b29e9b61d6012d   20   0     20      0    0 |  97   0     97      0    0 | 1.00 (utenfor dekning)
+2021-12-13.parquet   668b779b337ec2af   20   0     20      0    0 |  92   0     92      0    0 | 1.00 (utenfor dekning)
+2021-12-20.parquet   000b67d793f0fd10   21   0     21      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2021-12-27.parquet   6096809e1d39725c   21   0     21      0    0 |  91   0     91      0    0 | 1.00 (utenfor dekning)
+2022-01-03.parquet   7a47689e630ad276   20   0     20      0    0 |  88   0     88      0    0 | 1.00 (utenfor dekning)
+2022-01-10.parquet   45c0d4ef7f9bd159   20   0     20      0    0 |  82   0     82      0    0 | 1.00 (utenfor dekning)
+2022-01-17.parquet   bd89b7c3f22fe1ff   20   0     20      0    0 |  89   0     89      0    0 | 1.00 (utenfor dekning)
+2022-01-24.parquet   76b7d880bfe26be5   18   0     18      0    0 |  87   0     87      0    0 | 1.00 (utenfor dekning)
+2022-01-31.parquet   0b718be5a0f617a7   18   0     18      0    0 |  88   0     88      0    0 | 1.00 (utenfor dekning)
+2022-02-07.parquet   09268f2a06b1e47e   18   0     18      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-02-14.parquet   c342acf1824a915e   18   0     18      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-02-21.parquet   76af66a91d60df9b   18   0     18      0    0 |  89   0     89      0    0 | 1.00 (utenfor dekning)
+2022-02-28.parquet   42c72feb6745a2dc   19   0     19      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-03-07.parquet   43f936e97c07f45b   18   0     18      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-03-14.parquet   aac4c32912f81fcf   18   0     18      0    0 |  91   0     91      0    0 | 1.00 (utenfor dekning)
+2022-03-21.parquet   58921ba6ae4adb7b   18   0     18      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-03-28.parquet   eeb5a03f37728c99   16   0     16      0    0 |  87   0     87      0    0 | 1.00 (utenfor dekning)
+2022-04-04.parquet   47e2075ef3f2fbdd   16   0     16      0    0 |  86   0     86      0    0 | 1.00 (utenfor dekning)
+2022-04-11.parquet   e365e78f70041a30   16   0     16      0    0 |  88   0     88      0    0 | 1.00 (utenfor dekning)
+2022-04-18.parquet   34dd8ffd2549b0cb   16   0     16      0    0 |  89   0     89      0    0 | 1.00 (utenfor dekning)
+2022-04-25.parquet   8483d231623aebb2   16   0     16      0    0 |  89   0     89      0    0 | 1.00 (utenfor dekning)
+2022-05-02.parquet   3e309d0af4316a3f   14   0     14      0    0 |  91   0     91      0    0 | 1.00 (utenfor dekning)
+2022-05-09.parquet   617d527eca98b8f0   14   0     14      0    0 |  95   0     95      0    0 | 1.00 (utenfor dekning)
+2022-05-16.parquet   b88d2d2032c911c7   14   0     14      0    0 |  95   0     95      0    0 | 1.00 (utenfor dekning)
+2022-05-23.parquet   4763724bd70bfbb8   12   0     12      0    0 |  95   0     95      0    0 | 1.00 (utenfor dekning)
+2022-05-30.parquet   029cebeb03d85691   13   0     13      0    0 |  98   0     98      0    0 | 1.00 (utenfor dekning)
+2022-06-06.parquet   37dcfc8f7b0fc549   13   0     13      0    0 |  98   0     98      0    0 | 1.00 (utenfor dekning)
+2022-06-13.parquet   6c09470c5bf12a26   13   0     13      0    0 |  94   0     94      0    0 | 1.00 (utenfor dekning)
+2022-06-20.parquet   c447bb443527de0f   13   0     13      0    0 |  93   0     93      0    0 | 1.00 (utenfor dekning)
+2022-06-27.parquet   ab084c1a7696dbf9   14   0     14      0    0 |  93   0     93      0    0 | 1.00 (utenfor dekning)
+2022-07-04.parquet   8aaf2ec8079fa295   12   0     12      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-07-11.parquet   4dd5eb84f1a9e69c   10   0     10      0    0 |  88   0     88      0    0 | 1.00 (utenfor dekning)
+2022-07-18.parquet   a5b87b9a1c3530ca   10   0     10      0    0 |  86   0     86      0    0 | 1.00 (utenfor dekning)
+2022-07-25.parquet   8e8b71797fb003c0   11   0     11      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2022-08-01.parquet   3f7050245fea4522   11   0     11      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2022-08-08.parquet   2487d78984aa70e8   11   0     11      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2022-08-15.parquet   cc77774e95624871   11   0     11      0    0 |  81   0     81      0    0 | 1.00 (utenfor dekning)
+2022-08-22.parquet   0ac53f26a010e12f   10   0     10      0    0 |  82   0     82      0    0 | 1.00 (utenfor dekning)
+2022-08-29.parquet   f20bf97a75924b42   10   0     10      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2022-09-05.parquet   00d89a9af5a9ae9b   10   0     10      0    0 |  83   0     83      0    0 | 1.00 (utenfor dekning)
+2022-09-12.parquet   afe40711961ddd5f   10   0     10      0    0 |  88   0     88      0    0 | 1.00 (utenfor dekning)
+2022-09-19.parquet   590f90ef4c97b18e   10   0     10      0    0 |  85   0     85      0    0 | 1.00 (utenfor dekning)
+2022-09-26.parquet   155daa995a798e28   11   0     11      0    0 |  89   0     89      0    0 | 1.00 (utenfor dekning)
+2022-10-03.parquet   7b4568603d14333c   11   0     11      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-10-10.parquet   00147d7ad5e91427   11   0     11      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-10-17.parquet   cc39b6b1f5796889   12   0     12      0    0 |  91   0     91      0    0 | 1.00 (utenfor dekning)
+2022-10-24.parquet   7c8c9286a70d3365   11   0     11      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-10-31.parquet   d3f235a2dc84af54   11   0     11      0    0 |  88   0     88      0    0 | 1.00 (utenfor dekning)
+2022-11-07.parquet   f1042484e049a9b4   11   0     11      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-11-14.parquet   b399d4830c70cf6b   13   0     13      0    0 |  90   0     90      0    0 | 1.00 (utenfor dekning)
+2022-11-21.parquet   a8e1f857e36d6863   13   0     13      0    0 |  91   0     91      0    0 | 1.00 (utenfor dekning)
+2022-11-28.parquet   0960b7acd070c493   14   0     14      0    0 |  91   0     91      0    0 | 1.00 (utenfor dekning)
+2022-12-05.parquet   6ad45a102694bd77   14   0     14      0    0 |  96   0     96      0    0 | 1.00 (utenfor dekning)
+2022-12-12.parquet   763b7363727f01b4   14   0     14      0    0 |  77   0     77      0    0 | 1.00 (utenfor dekning)
+2022-12-19.parquet   8aeddbb03738a25f   14   0     14      0    0 |  78   0     78      0    0 | 1.00 (utenfor dekning)
+2022-12-26.parquet   f40b58a1b71c1bb7   14   0     14      0    0 |  79   0     79      0    0 | 1.00 (utenfor dekning)
+2023-01-02.parquet   77bf7e27beee604e   14   0     14      0    0 |  81   0     81      0    0 | 1.00 (utenfor dekning)
+2023-01-09.parquet   80d806a0a9329af6   15   0     15      0    0 |  80   0     80      0    0 | 1.00 (utenfor dekning)
+2023-01-16.parquet   3720c66f670478c2   15   0     15      0    0 |  81   0     81      0    0 | 1.00 (utenfor dekning)
+2023-01-23.parquet   fc5fc8d758a295ed   17   0     17      0    0 |  82   0     82      0    0 | 1.00 (utenfor dekning)
+2023-01-30.parquet   650df2ebc82e7858   17   0     17      0    0 |  87   0     87      0    0 | 1.00 (utenfor dekning)
+2023-02-06.parquet   1b6364bb044359ea   16   0     16      0    0 |  86   0     86      0    0 | 1.00 (utenfor dekning)
+2023-02-13.parquet   0841eb7ee8a65d9e   15   0     15      0    0 |  86   0     86      0    0 | 1.00 (utenfor dekning)
+2023-02-20.parquet   3035e65422879448   15   0     15      0    0 |  87   0     87      0    0 | 1.00 (utenfor dekning)
+2023-02-27.parquet   a3458c3dab0fe7e9   15   0     15      0    0 |  85   0     85      0    0 | 1.00 (utenfor dekning)
+2023-03-06.parquet   cfafa0bbb2c080e6   15   0     15      0    0 |  85   0     85      0    0 | 1.00 (utenfor dekning)
+2023-03-13.parquet   06e2a7dd0bc08234   16   0     16      0    0 |  86   0     86      0    0 | 1.00 (utenfor dekning)
+2023-03-20.parquet   08853820e4361c85   16   0     16      0    0 |  82   0     82      0    0 | 1.00 (utenfor dekning)
+2023-03-27.parquet   798ae4a525937eea   16   0     16      0    0 |  82   0     82      0    0 | 1.00 (utenfor dekning)
+2023-04-03.parquet   359b6aedb1d3f416   17   0     17      0    0 |  79   0     79      0    0 | 1.00 (utenfor dekning)
+2023-04-10.parquet   73297b7cfce014a9   15   0     15      0    0 |  78   0     78      0    0 | 1.00 (utenfor dekning)
+2023-04-17.parquet   f38d622c09ea2484   14   0     14      0    0 |  79   0     79      0    0 | 1.00 (utenfor dekning)
+2023-04-24.parquet   0e414e5320757ea9   13   0     13      0    0 |  77   0     77      0    0 | 1.00 (utenfor dekning)
+2023-05-01.parquet   8e7ef191ad643a02   13   0     13      0    0 |  74   0     74      0    0 | 1.00 (utenfor dekning)
+2023-05-08.parquet   f7654038ffc564fd   12   0     12      0    0 |  74   1     73      0    0 | 0.99 (utenfor dekning)
+2023-05-15.parquet   a723c69d580cea30   12   0     12      0    0 |  73   1     72      0    0 | 0.99 (utenfor dekning)
+2023-05-22.parquet   abe27a9524399eb5   13   0     13      0    0 |  74   1     73      0    0 | 0.99 (utenfor dekning)
+2023-05-29.parquet   84966b1e311bdef1   14   0     14      0    0 |  67   1     66      0    0 | 0.99 (utenfor dekning)
+2023-06-05.parquet   af3a27411562a849   16   0     16      0    0 |  65   1     64      0    0 | 0.99 (utenfor dekning)
+2023-06-12.parquet   323f50e3ae216402   17   0     17      0    0 |  67   1     66      0    0 | 0.99 (utenfor dekning)
+2023-06-19.parquet   6362dd2cc93e32b5   16   0     16      0    0 |  65   1     64      0    0 | 0.99 (utenfor dekning)
+2023-06-26.parquet   4c9df17ce405b1cb   17   0     17      0    0 |  63   1     62      0    0 | 0.99 (utenfor dekning)
+2023-07-03.parquet   990fc933e979c20e   19   0     19      0    0 |  64   1     63      0    0 | 0.99 (utenfor dekning)
+2023-07-10.parquet   73c3fa74c9ef2564   19   0     19      0    0 |  66   1     65      0    0 | 0.99 (utenfor dekning)
+2023-07-17.parquet   e034a91b50ae2fbd   19   0     19      0    0 |  66   1     65      0    0 | 0.99 (utenfor dekning)
+2023-07-24.parquet   8cd1ac4d8cc5dddd   20   0     20      0    0 |  64   1     63      0    0 | 0.99 (utenfor dekning)
+2023-07-31.parquet   53cd155f57822cc8   20   0     20      0    0 |  61   1     60      0    0 | 0.99 (utenfor dekning)
+2023-08-07.parquet   e02a11c0a12d538e   20   0     20      0    0 |  60   1     59      0    0 | 0.99 (utenfor dekning)
+2023-08-14.parquet   cf07134fddc317b4   20   0     20      0    0 |  59   1     58      0    0 | 0.99 (utenfor dekning)
+2023-08-21.parquet   270d3c5364d66ffe   17   0     17      0    0 |  60   1     59      0    0 | 0.99 (utenfor dekning)
+2023-08-28.parquet   e2e7f3c5f4242589   17   0     17      0    0 |  60   1     59      0    0 | 0.99 (utenfor dekning)
+2023-09-04.parquet   95ae78704ccd044f   16   0     16      0    0 |  59   1     58      0    0 | 0.99 (utenfor dekning)
+2023-09-11.parquet   f9c81b65e0c48d9a   17   0     17      0    0 |  59   1     58      0    0 | 0.99 (utenfor dekning)
+2023-09-18.parquet   a9adc6bf57eb8017   16   0     16      0    0 |  61   3     58      0    0 | 0.96 (utenfor dekning)
+2023-09-25.parquet   1efa5db8013c9a53   17   1     16      0    0 |  60   3     57      0    0 | 0.95 (utenfor dekning)
+2023-10-02.parquet   66453991fa7d0ee6   17   1     16      0    0 |  60   3     57      0    0 | 0.95
+2023-10-09.parquet   5e5d5acfc86d5a12   16   1     15      0    0 |  60   3     57      0    0 | 0.95
+2023-10-16.parquet   cb7a9bfc3d5bc035   16   1     15      0    0 |  60   3     57      0    0 | 0.95
+2023-10-23.parquet   a86430dae294fc63   14   1     13      0    0 |  60   3     57      0    0 | 0.95
+2023-10-30.parquet   89faafbb17c26e56   14   1     13      0    0 |  60   3     57      0    0 | 0.95
+2023-11-06.parquet   06fbe666b844d23a   14   1     13      0    0 |  60   3     57      0    0 | 0.95
+2023-11-13.parquet   3c97dfe094d6881c   14   1     13      0    0 |  60   5     55      0    0 | 0.92
+2023-11-20.parquet   82eaf2d4bf73a5c1   13   1     12      0    0 |  60   5     55      0    0 | 0.92
+2023-11-27.parquet   b6416376400bf913   13   1     12      0    0 |  61   6     55      0    0 | 0.91
+2023-12-04.parquet   24c26c63da0bfa81   12   1     11      0    0 |  60   7     53      0    0 | 0.89
+2023-12-11.parquet   eab5f1a287902a1d   12   1     11      0    0 |  58   7     51      0    0 | 0.89
+2023-12-18.parquet   3bb71bbfa2b92f3a   12   1     11      0    0 |  55   7     48      0    0 | 0.88
+2023-12-25.parquet   c3f9d20540b4205c   11   1     10      0    0 |  55   7     48      0    0 | 0.88
+2024-01-01.parquet   f55a2f1b0762f3fc    9   1      8      0    0 |  55   7     48      0    0 | 0.88
+2024-01-08.parquet   546ad89879c53e29    9   1      8      0    0 |  53   7     46      0    0 | 0.87
+2024-01-15.parquet   1a7becf7aac22e0a    9   1      8      0    0 |  50   7     43      0    0 | 0.86
+2024-01-22.parquet   6dc3eab786ba509d   10   2      8      0    0 |  49   7     42      0    0 | 0.85
+2024-01-29.parquet   3de89a63abd9f509   10   2      8      0    0 |  48   7     41      0    0 | 0.84
+2024-02-05.parquet   e13ea2cca693c1d8   10   2      8      0    0 |  48   8     40      0    0 | 0.83
+2024-02-12.parquet   b7c2e611b32e6173   10   2      8      0    0 |  49   9     40      0    0 | 0.81
+2024-02-19.parquet   6dc5ab1ee6cea96b   11   4      7      0    0 |  46  10     36      0    0 | 0.75
+2024-02-26.parquet   3a194f99afcbb44b   10   4      6      0    0 |  46  11     35      0    0 | 0.73
+2024-03-04.parquet   e25b4915cbb27ce2   10   4      6      0    0 |  44  11     33      0    0 | 0.72
+2024-03-11.parquet   80466b0cd124a633    9   4      5      0    0 |  43  11     32      0    0 | 0.71
+2024-03-18.parquet   80736ae40b7ee137    9   4      5      0    0 |  41  11     30      0    0 | 0.70
+2024-03-25.parquet   eb4791f775281683    9   4      5      0    0 |  41  11     30      0    0 | 0.70
+2024-04-01.parquet   25f4ea837094219d    9   4      5      0    0 |  43  14     29      0    0 | 0.65
+2024-04-08.parquet   53c44492f9db66d3    9   4      5      0    0 |  42  14     28      0    0 | 0.65
+2024-04-15.parquet   11d933fc9de1ed5c    9   4      5      0    0 |  43  15     28      0    0 | 0.63
+2024-04-22.parquet   01bbe90dd55e787e   10   4      6      0    0 |  41  16     25      0    0 | 0.61
+2024-04-29.parquet   86b5612b46ae0f13   12   6      6      0    0 |  41  17     24      0    0 | 0.57
+2024-05-06.parquet   c145694359c34bdb   12   6      6      0    0 |  40  18     22      0    0 | 0.54
+2024-05-13.parquet   5f9bf2cd6a1a0afb   13   6      7      0    0 |  42  21     21      0    0 | 0.51
+2024-05-20.parquet   4fd55085d9a1b935   14   7      7      0    0 |  41  22     19      0    0 | 0.47
+2024-05-27.parquet   41f6ff6043733480   19   9     10      0    0 |  41  23     18      0    0 | 0.47
+2024-06-03.parquet   8c61dd983625e699   18   9      9      0    0 |  40  23     17      0    0 | 0.45
+2024-06-10.parquet   42b22d2d0889852a   16  10      6      0    0 |  43  26     17      0    0 | 0.39
+2024-06-17.parquet   621ee20cfa3ab8d5   17  11      6      0    0 |  41  27     14      0    0 | 0.34
+2024-06-24.parquet   6b5b8efcc8ced2b7   18  12      6      0    0 |  41  27     14      0    0 | 0.34
+2024-07-01.parquet   211750dfd1b5d956   18  12      6      0    0 |  38  27     11      0    0 | 0.30
+2024-07-08.parquet   b7232367d37c33cb   19  13      6      0    0 |  38  27     11      0    0 | 0.30
+2024-07-15.parquet   6a683a7b88ee825a   20  13      7      0    0 |  37  27     10      0    0 | 0.30
+2024-07-22.parquet   3275bc07f0d991d8   21  14      7      0    0 |  33  29      4      0    0 | 0.20
+2024-07-29.parquet   d1894b04e95cc7db   21  14      7      0    0 |  36  32      4      0    0 | 0.19
+2024-08-05.parquet   73a839479945969e   23  16      7      0    0 |  37  33      4      0    0 | 0.18
+2024-08-12.parquet   67c6b6e68b530fde   23  16      7      0    0 |  37  33      4      0    0 | 0.18
+2024-08-19.parquet   8d45bfc9250cec94   23  15      8      0    0 |  36  33      3      0    0 | 0.19
+2024-08-26.parquet   7a77ec30ef620623   23  15      8      0    0 |  39  37      2      0    0 | 0.16
+2024-09-02.parquet   6e3fa043e62e97c1   23  15      8      0    0 |  41  39      2      0    0 | 0.16
+2024-09-09.parquet   64ab14715cab3a34   23  15      8      0    0 |  44  42      2      0    0 | 0.15
+2024-09-16.parquet   c7d6648171392a89   23  15      8      0    0 |  44  42      2      0    0 | 0.15
+2024-09-23.parquet   ae45d0b70c5ed9ed   23  15      8      0    0 |  43  42      1      0    0 | 0.14
+2024-09-30.parquet   a9ac96de05893254   22  15      7      0    0 |  45  44      1      0    0 | 0.12
+2024-10-07.parquet   ac20c3829c71d0fb   22  15      7      0    0 |  44  44      0      0    0 | 0.11
+2024-10-14.parquet   1d58a05322376269   21  15      6      0    0 |  45  45      0      0    0 | 0.09
+2024-10-21.parquet   64f144361877991e   21  15      6      0    0 |  45  45      0      0    0 | 0.09
+2024-10-28.parquet   7ac7ee25b981fa7b   21  15      6      0    0 |  47  47      0      0    0 | 0.09
+2024-11-04.parquet   6932564986ae5c66   17  15      2      0    0 |  47  47      0      0    0 | 0.03
+2024-11-11.parquet   3117b7ae8c439e60   17  15      2      0    0 |  48  48      0      0    0 | 0.03
+2024-11-18.parquet   2b93cae35d076bd2   17  15      2      0    0 |  48  48      0      0    0 | 0.03
+2024-11-25.parquet   cbacebeaed15bc21   17  15      2      0    0 |  46  44      2      0    0 | 0.06
+2024-12-02.parquet   cae83a74e53a8fe4   17  15      2      0    0 |  46  46      0      0    0 | 0.03
+2024-12-09.parquet   26c286b62be27787   17  14      3      0    0 |  47  48      0      1    0 | 0.06
+2024-12-16.parquet   d5d42efe0c6eac6a   17   6     11      0    0 |  47  41      8      2    0 | 0.32
+2024-12-23.parquet   6e42926119df44ad   17   6     11      0    0 |  47  41      8      2    0 | 0.32
+2024-12-30.parquet   508b0f539eb50940   17   6     11      0    0 |  47  41      8      2    0 | 0.32
+2025-01-06.parquet   8c690c4da4ea9b3b   17   5     12      0    0 |  47  42      9      4    1 | 0.37
+2025-01-13.parquet   cbe7cf1207842223   17   5     12      0    0 |  47  40     11      4    1 | 0.40
+2025-01-20.parquet   cf07a1afc153d5f1   17   5     12      0    0 |  47  40     12      5    1 | 0.42
+2025-01-27.parquet   91ff89fef34642c6   17   5     12      0    0 |  47  39     13      5    1 | 0.43
+2025-02-03.parquet   4064dfcf1371acf5   17   5     12      0    0 |  47  40     13      6    1 | 0.44
+2025-02-10.parquet   46367728cd88ce75   17   4     13      0    0 |  47  41     14      8    1 | 0.49
+2025-02-17.parquet   ac6949a19396b5c6   17   4     13      0    0 |  47  41     14      8    1 | 0.49
+2025-02-24.parquet   49e1bf3cedd64e2d   17   6     13      2    0 |  47  40     16      9    1 | 0.53
+2025-03-03.parquet   7c639eff2c9b733e   17   6     13      2    0 |  47  46     16     15    1 | 0.57
+2025-03-10.parquet   89862de1c7cde5e1   17   6     13      2    0 |  47  44     18     15    1 | 0.59
+2025-03-17.parquet   b9a6af97a244e49a   17   6     13      2    0 |  47  44     18     15    1 | 0.59
+2025-03-24.parquet   d72d0dc78a1c0650   17   6     13      2    0 |  47  45     18     16    1 | 0.60
+2025-03-31.parquet   89dedefe563c95d8   17   5     14      2    0 |  47  45     19     17    1 | 0.63
+2025-04-07.parquet   0c911ad36ecd0187   17   5     14      2    0 |  47  45     19     17    1 | 0.63
+2025-04-14.parquet   67cfd616e2a98ec5   17   5     14      2    0 |  47  46     19     18    1 | 0.63
+2025-04-21.parquet   797071dfc315f8fe   17   5     14      2    0 |  47  47     19     19    1 | 0.64
+2025-04-28.parquet   7e0258ee81a08ff3   17   6     14      3    0 |  47  49     19     21    1 | 0.65
+2025-05-05.parquet   4fe3333551bb5329   17   8     14      5    0 |  47  50     21     24    1 | 0.69
+2025-05-12.parquet   cbfa5f7cbf5134e3   17   9     14      6    0 |  47  49     22     24    1 | 0.70
+2025-05-19.parquet   de31c81b7739019f   17  11     14      8    0 |  47  50     22     25    1 | 0.71
+2025-05-26.parquet   42e9305546223a52   17  13     14     10    0 |  47  52     23     28    1 | 0.74
+2025-06-02.parquet   cb979cecc73c6300   17  14     14     11    0 |  47  52     25     30    1 | 0.76
+2025-06-09.parquet   fa61ddfe3f2973fc   17  15     14     12    0 |  47  51     27     31    1 | 0.79
+2025-06-16.parquet   4c07ad88d6a60f7a   17  15     14     12    0 |  47  49     29     31    1 | 0.80
+2025-06-23.parquet   60a53db7a418ebf9   17  15     14     12    0 |  47  49     29     31    1 | 0.80
+2025-06-30.parquet   4ad8e17b42201094   17  16     14     13    0 |  47  49     30     32    1 | 0.82
+2025-07-07.parquet   62e423f474affc60   17  16     14     13    0 |  47  50     30     33    1 | 0.82
+2025-07-14.parquet   c51393d16a96d5c6   17  16     14     13    0 |  47  50     31     34    1 | 0.83
+2025-07-21.parquet   5b9d807766848dcf   17  16     14     13    0 |  47  49     32     34    1 | 0.84
+2025-07-28.parquet   2e8a615776404285   17  16     14     13    0 |  47  49     32     34    1 | 0.84
+2025-08-04.parquet   7ac581da9051fc9e   17  18     14     15    0 |  47  48     33     34    1 | 0.85
+2025-08-11.parquet   a2a727f6a6f7968f   17  18     14     15    0 |  47  43     36     32    2 | 0.87
+2025-08-18.parquet   2f767650415ed0ec   17  18     14     15    0 |  47  43     36     32    2 | 0.87
+2025-08-25.parquet   a3dbe9aafff7231c   17  15     16     14    0 |  47  43     36     32    2 | 0.89
+2025-09-01.parquet   082b386f1394018a   17  13     16     12    0 |  47  41     38     32    2 | 0.91
+2025-09-08.parquet   7d3c584f19493cf4   17  13     16     12    0 |  47  40     40     33    2 | 0.93
+2025-09-15.parquet   6f54e7b0a941c475   17  15     16     14    0 |  47  41     40     34    2 | 0.93
+2025-09-22.parquet   ff9940b8ddfe2578   17  15     16     14    0 |  47  39     40     32    2 | 0.93
+2025-09-29.parquet   f3c459c87bbbaa66   17  15     16     14    0 |  47  37     41     31    2 | 0.94
+2025-10-06.parquet   7c0009c51e1ff75e   17  16     16     15    0 |  47  37     41     31    2 | 0.94
+2025-10-13.parquet   ade7c5d1cdf22593   17  16     16     15    0 |  47  36     42     31    2 | 0.95
+2025-10-20.parquet   64adb9a1a0142681   17  15     16     14    0 |  47  36     42     31    2 | 0.94
+2025-10-27.parquet   649f339d2d98f48f   17  12     16     11    0 |  47  36     41     30    2 | 0.93
+2025-11-03.parquet   43cead176db6e986   17  12     16     11    0 |  47  36     41     30    2 | 0.93
+2025-11-10.parquet   710a50b658d936ad   17  12     16     11    0 |  47  37     41     31    2 | 0.93
+2025-11-17.parquet   ef9e9a4c3b9f5af7   17  12     16     11    0 |  47  37     41     31    2 | 0.93
+2025-11-24.parquet   7e97834bff177985   17  12     16     11    0 |  47  36     41     30    2 | 0.93
+2025-12-01.parquet   4deaef635c584241   17  12     16     11    0 |  47  36     41     30    2 | 0.93
+2025-12-08.parquet   64fde0d000aab487   17  12     16     11    0 |  47  33     41     27    3 | 0.93
+2025-12-15.parquet   cc168271d9d87cff   17  13     16     12    0 |  47  34     40     27    3 | 0.92
+2025-12-22.parquet   8712d3441f68bb9d   17  13     16     12    0 |  47  32     40     25    3 | 0.92
+2025-12-29.parquet   fff4d58c76a55694   17  13     16     12    0 |  47  32     40     25    3 | 0.92
+2026-01-05.parquet   1ad3ab1094e109ab   17  13     16     12    0 |  47  32     40     25    3 | 0.92
+2026-01-12.parquet   f6857e118ff31329   17  12     16     11    0 |  47  36     40     29    3 | 0.92
+2026-01-19.parquet   27e4a36beb244bed   17  12     16     11    0 |  47  37     40     30    3 | 0.92
+2026-01-26.parquet   5047a3b74ce80b34   17  12     16     11    0 |  47  40     39     32    3 | 0.92
+2026-02-02.parquet   904de95f3009be8e   17  11     16     10    0 |  47  43     36     32    3 | 0.89
+2026-02-09.parquet   2accd664d766b605   17  11     16     10    0 |  47  43     37     33    3 | 0.90
+2026-02-16.parquet   d6733bb7033a8dc2   17  12     16     11    0 |  47  44     37     34    3 | 0.90
+2026-02-23.parquet   b72593a52dd9e992   17  12     16     11    0 |  47  45     37     35    3 | 0.90
+2026-03-02.parquet   dbab82c6da87f91e   17  12     16     11    0 |  47  45     37     35    3 | 0.90
+2026-03-09.parquet   72a042313570b138   16  12     15     11    0 |  46  45     37     36    3 | 0.91
+2026-03-16.parquet   a098a0ad4237c8c8   16  13     15     12    0 |  46  45     37     36    3 | 0.91
+2026-03-23.parquet   700cf588549a4b15   16  13     15     12    0 |  46  44     37     35    3 | 0.91
+2026-03-30.parquet   e0533a2e7c721a0a   16  11     16     11    0 |  46  44     37     35    3 | 0.92
+2026-04-06.parquet   62780465ade3a671   16  11     16     11    0 |  46  40     38     32    3 | 0.92
+2026-04-13.parquet   355d2653f8900579   16  11     16     11    0 |  46  39     37     30    3 | 0.91
+2026-04-20.parquet   461d437e1492d3dc   16  11     16     11    0 |  46  39     37     30    3 | 0.91
+2026-04-27.parquet   fedef11fa2a4b0ec   16  11     16     11    0 |  46  38     37     29    3 | 0.91
+2026-05-04.parquet   13e2d67b7a1d86dd   16   9     16      9    0 |  46  37     37     28    3 | 0.91
+2026-05-11.parquet   0d38ea6c2586e32b   16  11     16     11    0 |  46  39     35     28    3 | 0.89
+2026-05-18.parquet   ce7a0b7223c53223   16  10     16     10    0 |  46  38     35     27    3 | 0.89
+2026-05-25.parquet   ae4113ba3ee16996   16  10     15      9    0 |  46  38     35     27    3 | 0.88
+2026-06-01.parquet   3f9c3e6207a64736   16   9     15      8    0 |  46  39     35     28    3 | 0.88
+2026-06-08.parquet   a485b077306b2ef8   16   9     15      8    0 |  46  39     35     28    3 | 0.88
+2026-06-15.parquet   255ab733b8f5cc5a   16   9     15      8    0 |  46  38     35     27    3 | 0.88
+2026-06-22.parquet   8f87d2ffd5a80380   16   9     15      8    0 |  46  38     35     27    3 | 0.88
+2026-06-29.parquet   b42887e93ab5210c   16   9     15      8    0 |  46  39     35     28    3 | 0.88
+2026-07-06.parquet   f29333ac6bc0d876   16  10     15      9    0 |  46  39     34     27    3 | 0.87
+2026-07-13.parquet   243b967af5eec6d0   16   9     15      8    0 |  46  39     34     27    3 | 0.87
+2026-07-20.parquet   a392b2ba6ef37a6b   16   9     15      8    0 |  46  38     34     26    3 | 0.86
+2026-07-27.parquet   38ecbb308607caac   16  10     15      9    0 |  46  37     34     25    3 | 0.86
+2026-08-03.parquet   d4b3ec8482ae172b   16  10     15      9    0 |  46  36     34     24    3 | 0.86
+2026-08-10.parquet   2b54cfd826bd4541   16  11     15     10    0 |  46  35     34     23    3 | 0.86
+2026-08-17.parquet   8be827d045f0cc74   16  11     15     10    0 |  46  34     34     22    3 | 0.86
+2026-08-24.parquet   77ef8483b8f607e1   16  12     15     11    0 |  46  31     35     20    3 | 0.87
+2026-08-31.parquet   6838dcf9aad97649   16  14     15     13    0 |  46  31     35     20    3 | 0.87
+2026-09-07.parquet   fab2c25388fadfc7   16  15     14     13    0 |  46  31     35     20    3 | 0.86
+2026-09-14.parquet   f3ff4b8927979e76   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+2026-09-21.parquet   c1d98ebe866cbe1f   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+2026-09-28.parquet   1f895c2472b32712   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+2026-10-05.parquet   fe95040049636629   16  15     14     13    0 |  46  32     35     21    3 | 0.86
+
+Første uke der andelen uenige er over 20% og forblir det: 2024-12-16.parquet (158 uker innenfor dekning)
+
+=== 1f-tillegg: siste uke med et NYTT v1-flagg (lokalitet uten flagget uka før)
+ILA: 2024-08-05.parquet (2 ny)
+PD: 2024-12-09.parquet (1 ny)
