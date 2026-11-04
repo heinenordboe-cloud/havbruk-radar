@@ -6595,3 +6595,52 @@ def test_porten_krever_endringssidene_i_sitemapen(tmp_path):
                                        "/endringer/2026-45/eierskap/"))
         + "</urlset>")
     assert vakt.sitemap_mot_bygget(tmp_path) == []
+
+
+def test_lokalitetskildene_leses_av_paastandene_ogsaa():
+    """Første bygg med kildeprøven i porten (04.11.2026): 710 sider viste
+    «Fisk til stede» (biomasselaget) uten stripa, og `isBasedOn` manglet
+    kilden. Påstandens egen herkomst er det som avgjør."""
+    lok = {"paastander": {"fisk": {"herkomst": {"kilde": "biomasselag"},
+                                   "nivaa": "oppgitt"},
+                          "mtb_deler": [{"herkomst": {"kilde": "eierskap"}}]},
+           "biolag": None, "lusegraf": None, "oppgitt_brreg": []}
+    assert "biomasselag" in nettsted.lokalitetskilder(lok)
+    assert nettsted.lokalitetskilder({"paastander": {}}) == nettsted.SIDENS_KILDER
+
+
+# ---- forskriften som GA fargen, ikke nyeste forskrift (rødt lag F6) ------
+
+def test_forskriften_finnes_av_utgivelsesdatoen():
+    assert nettsted.forskrift_for_utgivelse(
+        "2022-06-07T12:00:00+00:00")["id"] == "FOR-2022-06-07-972"
+    assert nettsted.forskrift_for_utgivelse("2026-08-20")["id"] == \
+        "FOR-2026-08-20-1764"
+    assert nettsted.forskrift_for_utgivelse("1999-01-01") == {}
+    assert nettsted.forskrift_for_utgivelse("") == {}
+
+
+def test_cellen_lenker_til_forskriften_som_ga_fargen():
+    """F6: «Kildene for fargen» lenket FOR-2026-08-20-1764 for 2022-fargen
+    til PO 9, som den forskriften ikke nevner; den står i
+    FOR-2022-06-07-972 § 3. Snapshotversjonen som satte fargen, bærer
+    forskriftens dato."""
+    from types import SimpleNamespace
+    felles = SimpleNamespace(runder=["2022-12-31"], po_farger={"9": {"2022": {
+        "farge": "gronn", "farge__lesemaate": "kapittelhjemmel",
+        "farge__utgitt": "2022-06-07T12:00:00+00:00"}}})
+    rad = nettsted._po_fargerader("9", felles)[0]
+    assert rad["forskrift"]["id"] == "FOR-2022-06-07-972"
+    assert nettsted.forskrift_for_runde("2022")["id"] == "FOR-2026-08-20-1764", \
+        "nyeste forskrift som dekker runden er en annen"
+
+
+def test_ikke_vist_celle_lenker_ikke_til_en_forskrift(monkeypatch):
+    """En celle uten forskriftsfarge skal ikke oppgi en forskrift som kilde."""
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted.beslutning, "for_runde",
+                        lambda aar: {"7": {"farge": "rod", "sitat": "…",
+                                           "dato": "2017-10-30"}})
+    felles = SimpleNamespace(runder=["2018-12-31"], po_farger={})
+    rad = nettsted._po_fargerader("7", felles)[0]
+    assert rad["lesemaate"] == "ikke_vist" and rad["forskrift"] == {}

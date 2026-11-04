@@ -149,6 +149,14 @@ def lokalitetskilder(lok: dict) -> tuple[str, ...]:
     (`publiseringsvakt.kilder_uten_attribusjon`) og sier fra når de spriker.
     """
     ekstra = []
+    # PÅSTANDENE SIDEN VISER, med sin egen herkomst: «Fisk til stede» er
+    # biomasselagets også når stripa mangler. Første bygg med porten
+    # (04.11.2026) fant 710 sider der det var tilfellet.
+    for p in (lok.get("paastander") or {}).values():
+        for q in (p if isinstance(p, list) else [p]):
+            kilde = ((q or {}).get("herkomst") or {}).get("kilde")
+            if kilde in LOKALITET_KAN_VISE:
+                ekstra.append(kilde)
     if lok.get("biolag"):
         ekstra.append("biomasselag")
     if (lok.get("lusegraf") or {}).get("grense"):
@@ -3355,9 +3363,18 @@ def _po_farger() -> dict[str, dict[str, dict[str, str]]]:
     ut: dict[str, dict[str, dict[str, str]]] = defaultdict(dict)
     for dato in snapshot.datoer("trafikklysvedtak"):
         for _versjon, ramme in snapshot.versjoner("trafikklysvedtak", dato):
+            # HVILKEN FORSKRIFT som sa det: versjonens `published_at` er
+            # forskriftens dato (backfill --rapporter leser kroppene i
+            # utgivelsesrekkefølge). Den siste versjonen som satte fargen,
+            # er den som står — og det er DEN siden skal lenke til, ikke
+            # nyeste forskrift som dekker runden (rødt lag F6).
+            utgitt = snapshot.published_at_i(ramme) or ""
             for eid, felt, verdi in ramme.select(
                     ["entity_id", "field", "value"]).iter_rows():
-                ut[str(eid)].setdefault(dato[:4], {})[str(felt)] = verdi
+                celle = ut[str(eid)].setdefault(dato[:4], {})
+                celle[str(felt)] = verdi
+                if str(felt) == "farge":
+                    celle["farge__utgitt"] = utgitt
     return {po: dict(runder) for po, runder in ut.items()}
 
 
@@ -3428,16 +3445,19 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
     """
     kandidater: list[dict] = []
 
-    # Forskriften.
+    # Forskriften — den som SA fargen, se `forskrift_for_utgivelse()`.
     d = (felles.po_farger.get(po) or {}).get(aar)
     if d and (d.get("farge") or "").strip():
         raa = d["farge"].strip()
         maate = (d.get("farge__lesemaate") or "").strip()
+        forskrift = (forskrift_for_utgivelse(d.get("farge__utgitt", ""))
+                     or forskrift_for_runde(aar))
         kandidater.append({
             "lesemaate": maate,
             "lesemaate_tekst": LESEMAATE.get(maate, maate or "ukjent"),
             "raa": raa, "sitat": "", "sitat_dato": "", "sitat_url": "",
-            "kilde": forskrift_for_runde(aar).get("id", "forskriften"),
+            "kilde": forskrift.get("id", "forskriften"),
+            "forskrift": forskrift,
         })
 
     # Departementets kunngjøring — leses, men vises bare når lisensen er
@@ -3459,6 +3479,7 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
             "farge_felt": FARGE_IKKE_VIST_FELT, "farge_klasse": "",
             "lesemaate": "ikke_vist", "lesemaate_tekst": LESEMAATE["ikke_vist"],
             "sitat": "", "sitat_dato": "", "sitat_url": "", "ellers": [],
+            "forskrift": {},
         }
     if not kandidater:
         return {
@@ -3466,6 +3487,7 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
             "farge_felt": FARGE_MANGLER_FELT, "farge_klasse": "",
             "lesemaate": "", "lesemaate_tekst": LESEMAATE["ingen"],
             "sitat": "", "sitat_dato": "", "sitat_url": "", "ellers": [],
+            "forskrift": {},
         }
 
     kandidater.sort(key=lambda k: BELEGGSRANG.index(k["lesemaate"])
@@ -3493,6 +3515,8 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
         "sitat_dato": sterkest["sitat_dato"],
         "sitat_url": sterkest["sitat_url"],
         "ellers": ellers,
+        # Forskriften cellen lenker til: den som ga fargen, eller ingen.
+        "forskrift": sterkest.get("forskrift") or {},
     }
 
 
@@ -3504,6 +3528,25 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
 # og den bærer tittel, FOR-nummer, runder og URL. En kopi hos
 # publiseringsleddet ville vært en andre liste som kan bli stående
 # gammel — formen F6 og F7 hadde.
+
+
+def forskrift_for_utgivelse(utgitt: str) -> dict:
+    """{tittel, id, url} for forskriften UTGITT `utgitt`, eller tom dict.
+
+    Datoen står i FOR-nummeret (FOR-2022-06-07-972), og snapshotversjonen
+    forskriften skrev, bærer den som `published_at`. Ingen gjetning: en
+    dato ingen forskrift i tabellen har, gir ingen lenke.
+    """
+    from sources.trafikklysvedtak import FORSKRIFTER
+
+    dag = (utgitt or "")[:10]
+    if len(dag) != 10:
+        return {}
+    for f in FORSKRIFTER:
+        if f.forskrift_id.startswith(f"FOR-{dag}-"):
+            return {"tittel": f.tittel, "id": f.forskrift_id,
+                    "url": f.url, "merknad": f.merknad}
+    return {}
 
 
 def forskrift_for_runde(aar: str) -> dict:
@@ -3709,10 +3752,13 @@ def _po_fargerader(po: str, felles: Felles) -> list[dict]:
     Utvider `_fargerader()` med forskriftsopplysningene, som leses av
     kilden — se `forskrift_for_runde()`.
     """
-    ut = []
-    for r in _fargerader(po, felles):
-        ut.append(dict(r, forskrift=forskrift_for_runde(r["aar"])))
-    return ut
+    # FORSKRIFTEN SOM GA FARGEN, per celle (rødt lag F6). Fram til
+    # 04.11.2026 fikk hver celle `forskrift_for_runde()` — NYESTE forskrift
+    # som dekker runden — og 2026-forskriften ble oppgitt som kilde for
+    # farger den ikke nevner. En celle uten forskriftsfarge («ikke vist»,
+    # «ikke oppgitt») får ingen lenke.
+    return [dict(r, forskrift=r.get("forskrift") or {})
+            for r in _fargerader(po, felles)]
 
 
 def _rundeopplysninger(aar: str) -> dict:
