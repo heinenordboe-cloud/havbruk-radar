@@ -3027,9 +3027,9 @@ def test_gammelt_arkiv_med_enk_reparses_uten_enk():
 
 
 def test_fetch_arkiverer_ikke_personformer(monkeypatch, capsys):
-    """Rå-arkivet lagrer hele API-svaret, inkludert gateadressen som
-    FELTER holder utenfor snapshotet. Filtrerer vi først i parse(), ligger
-    hjemmeadressen til hvert ENK i arkivet uansett."""
+    """FELTER gjelder bare snapshotet, ikke rå-arkivet. Filtrerer vi først
+    i parse(), ligger hvert ENK i arkivet uansett. Kontaktfeltene til
+    enhetene som er igjen, testes i tests/test_kontaktfelt.py."""
     from sources import _http
     from sources import enhetsregisteret as er
     from sources.enhetsregisteret import Enhetsregisteret
@@ -3042,6 +3042,11 @@ def test_fetch_arkiverer_ikke_personformer(monkeypatch, capsys):
     }.get(nokkel, standard))
 
     class FalsktSvar:
+        # Kilden hasher de mottatte bytene (mottatt_sha256).
+        @property
+        def content(self):
+            return json.dumps(self.json()).encode()
+
         def json(self):
             return {
                 "_embedded": {"enheter": [
@@ -3091,6 +3096,11 @@ def test_side_med_bare_personformer_stopper_ikke_pagineringen(monkeypatch):
     ]
 
     class FalsktSvar:
+        # Kilden hasher de mottatte bytene (mottatt_sha256).
+        @property
+        def content(self):
+            return json.dumps(self.json()).encode()
+
         def __init__(self, payload):
             self._payload = payload
 
@@ -3128,6 +3138,11 @@ def test_tomt_sok_varsler_ikke_naar_treffene_var_personformer(monkeypatch):
     }.get(nokkel, standard))
 
     class FalsktSvar:
+        # Kilden hasher de mottatte bytene (mottatt_sha256).
+        @property
+        def content(self):
+            return json.dumps(self.json()).encode()
+
         def json(self):
             return {"_embedded": {"enheter": [_enhet("111111111", "ENK")]},
                     "page": {"totalPages": 1}}
@@ -3216,6 +3231,11 @@ def test_samme_enk_fra_to_naeringskoder_telles_en_gang(monkeypatch, capsys):
     }.get(nokkel, standard))
 
     class FalsktSvar:
+        # Kilden hasher de mottatte bytene (mottatt_sha256).
+        @property
+        def content(self):
+            return json.dumps(self.json()).encode()
+
         def json(self):
             return {"_embedded": {"enheter": [_enhet("111111111", "ENK"),
                                               _enhet("222222222", "AS")]},

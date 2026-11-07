@@ -17,9 +17,19 @@ Tre ting holdes bevisst utenfor:
 - **Roller** (styre, daglig leder, innehaver). Eget endepunkt, ikke rørt.
   Navn og fødselsdato på privatpersoner gjør repoet til et personregister
   med behandlingsansvar etter GDPR.
-- **Gateadresse** (`forretningsadresse.adresse`). Postnummer og poststed
-  gir geografien uten å bygge et boligregister.
-- **Telefon og målform.** Kontaktdata uten tolkningsverdi over tid.
+- **Adresselinjene** (`forretningsadresse.adresse`, `postadresse.adresse`).
+  Postnummer og poststed gir geografien uten å bygge et boligregister.
+- **Telefon, mobil, e-post, hjemmeside og målform.** Kontaktdata uten
+  tolkningsverdi over tid.
+
+Fra 09.11.2026 gjelder det RÅ-ARKIVET også, ikke bare snapshotet.
+`fetch()` tar kontaktfeltene ut av hver enhet før kroppen returneres for
+arkivering (`persondata.uten_kontaktfelt()`), og arkivskriveren nekter en
+kropp som har dem (`persondata.nekt_kontaktfelt()`). Hver side bærer
+`mottatt_sha256`, hashen av bytene Brreg faktisk sendte, så det kan
+bevises hva vi mottok uten at det ligger her. Arkivfilene fra før
+09.11.2026 har feltene; de er append-only og står (regel 2), og ingen kode
+leser dem.
 
 ## Om personlige foretak
 
@@ -37,9 +47,9 @@ lå i utvalget 14.09.2026.
 
 Derfor filtreres personene bort TO steder, med hver sin grunn:
 
-- I `fetch()`, før noe arkiveres. Rå-arkivet lagrer hele API-svaret, og
-  der lå gateadressen til alle 34 — feltvalget i `FELTER` gjelder bare
-  snapshotet, ikke arkivet. Data som aldri hentes inn kan ikke lekke.
+- I `fetch()`, før noe arkiveres. Feltvalget i `FELTER` gjelder bare
+  snapshotet, ikke arkivet: fram til 22.08.2026 lå gateadressen til alle
+  34 i rå-arkivet. Data som aldri hentes inn kan ikke lekke.
 - I `parse()`, fordi arkivfilene fra før 22.08.2026 (ENK) og før
   16.09.2026 (DA/ANS/PRE) fortsatt inneholder dem. En re-parse av et
   gammelt arkiv skal ikke føre dem inn igjen.
@@ -395,9 +405,11 @@ class Enhetsregisteret(Source):
 
         Enheter med en organisasjonsform som ER en fysisk person tas ut
         av `_embedded.enheter` her, før sida legges i lista som senere
-        arkiveres. Konvolutten røres ikke: `page.totalPages` og hvilket
-        søk sida kom fra står igjen uendret, så arkivet kan fortsatt
-        avsløre en avkortet paginering ved re-parse.
+        arkiveres, og kontaktfeltene tas ut av enhetene som er igjen.
+        Konvolutten røres ikke: `page.totalPages` og hvilket søk sida kom
+        fra står igjen uendret, så arkivet kan fortsatt avsløre en
+        avkortet paginering ved re-parse. Kroppen er altså ikke det Brreg
+        sendte; `mottatt_sha256` på hver side er hashen av det.
 
         `kjoredato` brukes ikke: registeret har ingen etterslep. Argumentet
         står fordi kontrakten krever at en kilde FÅR tiden inn i stedet
@@ -423,6 +435,11 @@ class Enhetsregisteret(Source):
         sider: list[dict] = []
         treff_per_kode: dict[str, int] = {}
         filtrert_per_form: dict[str, set[str]] = {}
+        # Antall verdier fjernet per kontaktfelt. Treff, ikke orgnumre: et
+        # selskap som står under to næringskoder, har to kopier i kroppen,
+        # og begge er vasket. Tallet sier hva som ble tatt ut av DENNE
+        # kroppen.
+        kontakt_fjernet: dict[str, int] = {}
 
         with httpx.Client(timeout=30, headers={"Accept": "application/json"}) as client:
             for kode in koder:
@@ -435,6 +452,15 @@ class Enhetsregisteret(Source):
                         "page": side,
                     }, hva=f"naeringskode {kode} side {side}")
                     payload = response.json()
+
+                    # Hva vi MOTTOK, før noe er fjernet. Kroppen som
+                    # arkiveres er redigert (personformene og
+                    # kontaktfeltene er ute, se under), så den kan ikke
+                    # selv bevise hva Brreg sendte. Hashen av de mottatte
+                    # bytene kan: en som henter samme side samme dag, kan
+                    # sammenligne. Bytene, ikke en re-serialisering av
+                    # `payload` — da ville hashen vært vår, ikke svarets.
+                    mottatt_sha256 = hashlib.sha256(response.content).hexdigest()
 
                     batch = payload.get("_embedded", {}).get("enheter", [])
 
@@ -453,20 +479,34 @@ class Enhetsregisteret(Source):
                     total_sider = payload.get("page", {}).get("totalPages", 1)
 
                     # Personformene ut av konvolutten før den arkiveres.
-                    # Rå-arkivet lagrer hele svaret, inkludert
-                    # gateadressen som FELTER holder utenfor snapshotet —
-                    # filtrerer vi først i parse(), ligger hjemmeadressen
-                    # til hvert ENK i arkivet uansett.
+                    # Filtrerer vi først i parse(), ligger hver person i
+                    # arkivet uansett — parse() ser bare snapshotet.
+                    #
+                    # Så kontaktfeltene ut av enhetene som er igjen:
+                    # adresselinjene, telefon, mobil, e-post og hjemmeside
+                    # (regel 3, lista står i core/persondata.py). FELTER
+                    # leser ingen av dem, så parse() gir de samme
+                    # observasjonene av kroppen før og etter. Fram til
+                    # 09.11.2026 ble de arkivert; de filene står.
                     if isinstance(payload.get("_embedded"), dict):
                         beholdt, fjernet = _uten_personer(batch)
-                        payload["_embedded"]["enheter"] = beholdt
+                        rene = []
+                        for enhet in beholdt:
+                            ren, borte = persondata.uten_kontaktfelt(enhet)
+                            rene.append(ren)
+                            for felt in borte:
+                                kontakt_fjernet[felt] = kontakt_fjernet.get(felt, 0) + 1
+                        payload["_embedded"]["enheter"] = rene
                         for form, orgnr in fjernet.items():
                             filtrert_per_form.setdefault(form, set()).update(orgnr)
 
-                    # Hele svaret arkiveres, sammen med hvilket søk det kom fra.
+                    # Svaret arkiveres REDIGERT, sammen med hvilket søk det
+                    # kom fra og hashen av det uredigerte. Konvolutten
+                    # (`page`, `_links`) er urørt.
                     sider.append({
                         "naeringskode": kode,
                         "side": side,
+                        "mottatt_sha256": mottatt_sha256,
                         "svar": payload,
                     })
 
@@ -514,9 +554,20 @@ class Enhetsregisteret(Source):
         # som sa «her sto en fysisk person» ville vært nøyaktig den
         # opplysningen filteret finnes for å unngå. Aggregatet bærer alt
         # vakten trenger og ingenting mer.
+        #
+        # `kontaktfelt_fjernet` av samme grunn som `antall_filtrert`: uten
+        # den kan ingen som leser kroppen skille «Brreg sluttet å sende
+        # telefon» fra «vi tok den ut». Også bare antall.
+        #
+        # En LISTE av par, ikke en dict med feltnavnet som nøkkel. Vakten i
+        # arkivskriveren leter etter NØKLENE `telefon`, `mobil` …, og en
+        # `{"telefon": 455}` ville stoppet kroppen på sin egen kvittering.
         sider.append({"meta": {
             "antall_filtrert": len(unike),
             "filtrert_per_form": per_form,
+            "kontaktfelt_fjernet": [
+                {"felt": felt, "antall": n}
+                for felt, n in sorted(kontakt_fjernet.items())],
         }})
 
         # Sett, ikke append — se Source.advarsler.

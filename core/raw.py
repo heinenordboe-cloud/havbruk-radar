@@ -34,6 +34,7 @@ import json
 import re
 from typing import Any
 
+from core import persondata
 from core.paths import ARKIV_DIR
 
 
@@ -83,7 +84,12 @@ def _ledig_sti(kilde: str, observed_at: str, ext: str, merke: str = ""):
 def arkiver(kilde: str, observed_at: str, raw: Any, merke: str = "") -> str:
     """Skriver råsvaret gzippet. Returnerer sha256 av innholdet.
 
-    `merke` er tomt for innsamlingen og `DAGLIG` for det daglige arkivet."""
+    `merke` er tomt for innsamlingen og `DAGLIG` for det daglige arkivet.
+
+    Nekter en kropp med kontaktfelt (regel 3, se
+    `persondata.nekt_kontaktfelt()`). Før noe er skrevet: en halvskrevet
+    fil i et append-only arkiv kan ikke tas tilbake."""
+    persondata.nekt_kontaktfelt(kilde, raw)
     data, ext = _serialiser(raw)
     sti = _ledig_sti(kilde, observed_at, ext, merke)
 
@@ -161,6 +167,9 @@ def arkiver_ny(kilde: str, observed_at: str, raw: Any) -> tuple[str, bool]:
     snapshot som peker på en arkivfil skrevet av en TIDLIGERE kjøring er
     en sann påstand om hvor det kom fra.
     """
+    # Før hash-oppslaget: en kropp med kontaktfelt skal stoppe også når en
+    # identisk kopi tilfeldigvis ligger der fra før.
+    persondata.nekt_kontaktfelt(kilde, raw)
     data, _ = _serialiser(raw)
     sha = hashlib.sha256(data).hexdigest()
     if sha in hashene(kilde):
