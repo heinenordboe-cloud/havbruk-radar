@@ -150,9 +150,12 @@ treffer 1278 av 1807 entiteter, hvorav 1196 er AS.
 
 **To lag, med hver sin grunn:**
 
-1. **I `fetch()`, før noe arkiveres.** Rå-arkivet lagrer hele API-svaret,
-   og der lå gateadressen til hvert eneste ENK. Feltvalget gjelder bare
-   snapshotet, ikke arkivet. Data som aldri hentes inn kan ikke lekke.
+1. **I `fetch()`, før noe arkiveres.** Feltvalget gjelder bare
+   snapshotet, ikke arkivet, og fram til 22.08.2026 lå gateadressen til
+   hvert eneste ENK i rå-arkivet. Data som aldri hentes inn kan ikke
+   lekke. Fra 09.11.2026 tas også kontaktfeltene (adresselinjer, telefon,
+   mobil, e-post, hjemmeside) ut av hver enhet før arkivering, og
+   arkivskriveren nekter en kropp som har dem.
 2. **I `parse()`**, fordi arkivfiler fra før 22.08.2026 (ENK) og før
    16.09.2026 (DA, ANS, PRE) fortsatt inneholder dem. En re-parse av et
    gammelt arkiv skal ikke føre dem inn igjen.

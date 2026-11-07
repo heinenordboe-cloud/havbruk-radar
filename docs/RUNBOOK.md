@@ -896,6 +896,17 @@ Er råsvaret omtrent like stort begge uker, men snapshotet skrumpet, er
 det VÅR parse som er ødelagt — feltnavn eller struktur er endret. Er
 råsvaret selv blitt mindre, har registeret faktisk krympet.
 
+For `enhetsregisteret` er kroppen i arkivet ikke hele svaret. Personformene
+og kontaktfeltene (adresselinjer, telefon, mobil, e-post, hjemmeside) er
+tatt ut i `fetch()` før arkivering — regel 3 — og hver side bærer
+`mottatt_sha256` av det Brreg faktisk sendte. Sammenlign derfor ANTALL
+enheter, ikke byte: kroppen fra 09.11.2026 er mindre enn den fra 02.11 uten
+at registeret har krympet, fordi den er den første uten kontaktfeltene.
+Antallet som ble tatt ut, står i `meta` sist i kroppen:
+
+    zcat data/arkiv/enhetsregisteret/2026-12-14.json.gz | python3 -c \
+      'import json,sys; d=json.load(sys.stdin); print(len({e["organisasjonsnummer"] for p in d if "svar" in p for e in p["svar"]["_embedded"]["enheter"]}), d[-1]["meta"])'
+
 **Når kvittering er riktig:** bare i det andre tilfellet — nivået er
 reelt og skal bli den nye normalen. Da:
 
