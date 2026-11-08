@@ -20,7 +20,8 @@ Målt 08.11.2026 i datarepoets workflows:
     stempel.yml:stempel        opentimestamps-client==0.7.2   stempel.py
 
 tilsyn.yml installerer PyYAML, men henter ikke kodrepoet. Alle andre jobber
-som henter det, installerer requirements.txt. Står datarepoet ved siden av
+som henter det, installerer requirements.txt. kystvakt-1 kjører
+kystvakt/*.py med /usr/bin/python3 og ingen pakker; den har sin egen prøve. Står datarepoet ved siden av
 kodrepoet, sjekker `test_tabellen_er_workflowene` at dette fortsatt er
 sant; i kodrepoets Actions finnes det ikke, og den prøven hoppes over.
 
@@ -83,7 +84,7 @@ class Sperre:
             if importlib.machinery.PathFinder.find_spec(navn, steder) is not None:
                 return None
         raise ModuleNotFoundError(
-            f"No module named {navn!r} (ikke installert i jobben)", name=navn)
+            f"No module named {navn!r} (ikke installert der skriptet kjøres)", name=navn)
 
 sys.path[:0] = [rot]
 sys.path += site.getsitepackages()
@@ -92,9 +93,9 @@ importlib.import_module(modul)
 '''
 
 
-def importer(modul: str, tillatt=()) -> subprocess.CompletedProcess:
+def importer(modul: str, tillatt=(), rot: Path = ROT) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-I", "-S", "-c", SPERRE, str(ROT), modul, *tillatt],
+        [sys.executable, "-I", "-S", "-c", SPERRE, str(rot), modul, *tillatt],
         capture_output=True, text=True, timeout=120)
 
 
@@ -112,6 +113,21 @@ def test_inngangsskriptet_importeres_med_jobbens_pakker(jobb, skript, pakker):
         f"{jobb} kjører {skript}.py med "
         f"{', '.join(pakker) or 'bare standardbiblioteket'}, og importen "
         f"feiler der:\n{r.stderr}")
+
+
+# kystvakt-1 kjører kystvakt/*.py fra /opt/kystvakt med /usr/bin/python3
+# (3.14.4) og ingen pakker, og bare kystvakt-filene ligger der. Til fase 3
+# av 3.14-overgangen holdt kodrepoets test.yml dette med en egen jobb der
+# bare pytest var installert.
+@pytest.mark.skipif(sys.version_info < (3, 14),
+                    reason="kystvakt-1 kjører 3.14; compression.zstd finnes først der")
+def test_kystvakt_skriptene_importeres_med_standardbiblioteket():
+    feil = {}
+    for p in sorted((ROT / "kystvakt").glob("*.py")):
+        r = importer(p.stem, rot=ROT / "kystvakt")
+        if r.returncode:
+            feil[p.name] = r.stderr.strip().splitlines()[-1]
+    assert not feil, feil
 
 
 def test_sperren_stopper_det_jobben_ikke_har():
