@@ -3439,6 +3439,22 @@ BELEGGSRANG = ("ordrett", "beslutning", "kapitteloverskrift",
 # som «ikke vist» og ikke som «ikke oppgitt», for det siste ville vært
 # usant. Settes til True den dagen lisensen er belagt i LISENSKJEDE.
 KUNNGJORINGER_VISES = False
+
+# RUNDENE DER FARGEN HENTES FRA FORSKRIFTEN ALENE, fra 08.11.2026 (økt 4e
+# punkt 7). For 2026 er grunnlaget FOR-2026-08-20-1764 i arkivet
+# (`trafikklysvedtak/2026-12-31.bin.gz`): et vedtak av offentlig
+# myndighet, uten vern etter åndsverkloven § 14, og arkivert under
+# Lovdatas punkt 2.3 (LISENSKJEDE, mappetabellen). Kunngjøringen skal
+# ikke bære en eneste celle, et sitat eller en tegnforklaring for disse
+# rundene — heller ikke den dagen `KUNNGJORINGER_VISES` blir True. Der
+# forskriften ikke nevner et område, står cellen som «ikke vist», som før.
+KUNNGJORING_ALDRI = frozenset({"2026"})
+
+
+def _kunngjoring_vises(aar: str) -> bool:
+    return KUNNGJORINGER_VISES and aar not in KUNNGJORING_ALDRI
+
+
 FARGE_IKKE_VIST = "ikke vist"
 FARGE_IKKE_VIST_FELT = "farge_ikke_vist"
 
@@ -3469,7 +3485,7 @@ def _fargerad(po: str, aar: str, felles: Felles) -> dict:
     # Departementets kunngjøring — leses, men vises bare når lisensen er
     # belagt. Se `KUNNGJORINGER_VISES`.
     b = beslutning.for_runde(aar).get(po)
-    if b and KUNNGJORINGER_VISES:
+    if b and _kunngjoring_vises(aar):
         kandidater.append({
             "lesemaate": "beslutning",
             "lesemaate_tekst": LESEMAATE["beslutning"],
@@ -3777,7 +3793,7 @@ def _rundeopplysninger(aar: str) -> dict:
     Tom for en runde som ikke er godkjent — da står bare forskriftens
     egen lenke, som før.
     """
-    if aar not in beslutning.GODKJENT or not KUNNGJORINGER_VISES:
+    if aar not in beslutning.GODKJENT or not _kunngjoring_vises(aar):
         return {"dato": "", "type": "", "url": "", "tegn": []}
     dato = beslutning.KROPPER.get(aar, ("", ""))[0]
     return {
@@ -3806,6 +3822,8 @@ def _po_saerskilt(po: str, felles: Felles) -> list[dict]:
         return ut
     for dato in felles.runder:
         aar = dato[:4]
+        if not _kunngjoring_vises(aar):
+            continue
         d = beslutning.saerskilt_for_runde(aar).get(po)
         if d:
             ut.append({"aar": aar, "sitat": d["sitat"], "dato": d["dato"],

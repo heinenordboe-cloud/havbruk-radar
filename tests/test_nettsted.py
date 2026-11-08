@@ -6647,3 +6647,112 @@ def test_ikke_vist_celle_lenker_ikke_til_en_forskrift(monkeypatch):
     felles = SimpleNamespace(runder=["2018-12-31"], po_farger={})
     rad = nettsted._po_fargerader("7", felles)[0]
     assert rad["lesemaate"] == "ikke_vist" and rad["forskrift"] == {}
+
+
+# ---- 2026: fargen fra forskriften, aldri fra kunngjøringen (økt 4e, 7) ----
+#
+# FOR-2026-08-20-1764 er et vedtak (åndsverkloven § 14) og ligger i
+# arkivet. Kunngjøringen har ingen dokumentert lisens (LISENSKJEDE,
+# merknad M). For 2026 skal den ikke bære noe, heller ikke den dagen
+# `KUNNGJORINGER_VISES` blir True.
+
+_KUNNGJORT_2026 = {"4": {"farge": "rod", "sitat": "…kunngjøringens ord…",
+                         "dato": "2026-06-19"},
+                   "9": {"farge": "gul", "sitat": "…kunngjøringens ord…",
+                         "dato": "2026-06-19"}}
+_FORSKRIFT_2026 = {"4": {"2026": {"farge": "gul", "farge__lesemaate": "ordrett",
+                                  "farge__utgitt": "2026-08-20T12:00:00+00:00"}}}
+
+
+def test_2026_hentes_fra_forskriften_selv_om_kunngjoringene_vises(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted, "KUNNGJORINGER_VISES", True)
+    monkeypatch.setattr(nettsted.beslutning, "for_runde",
+                        lambda aar: _KUNNGJORT_2026 if aar == "2026" else {})
+    felles = SimpleNamespace(po_farger=_FORSKRIFT_2026, runder=["2026-12-31"])
+    rad = nettsted._fargerad("4", "2026", felles)
+    assert rad["lesemaate"] == "ordrett"
+    assert rad["sitat"] == "" and rad["sitat_url"] == ""
+    assert all(e.get("lesemaate") != "beslutning" for e in rad["ellers"]), \
+        "kunngjøringen står ikke engang som «ellers»"
+    # Der forskriften ikke nevner området, bærer kunngjøringen det heller ikke.
+    assert nettsted._fargerad("9", "2026", felles)["farge"] == nettsted.FARGE_IKKE_VIST
+
+
+def test_2026_har_verken_tegnforklaring_eller_saerskilt_fra_kunngjoringen(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setattr(nettsted, "KUNNGJORINGER_VISES", True)
+    monkeypatch.setattr(nettsted.beslutning, "saerskilt_for_runde",
+                        lambda aar: {"4": {"sitat": "…", "dato": "2026-06-19"}})
+    monkeypatch.setattr(nettsted.beslutning, "url", lambda aar: "https://x/")
+    assert nettsted._rundeopplysninger("2026")["tegn"] == []
+    felles = SimpleNamespace(po_farger={}, runder=["2026-12-31"])
+    assert nettsted._po_saerskilt("4", felles) == []
+
+
+def test_bare_2026_er_sperret_for_kunngjoringen():
+    assert nettsted.KUNNGJORING_ALDRI == frozenset({"2026"})
+
+
+_DATAREPO = Path(__file__).resolve().parent.parent.parent / "havbruk-radar-data" / "data"
+
+
+def _kunngjoringstekstene(monkeypatch) -> list[str]:
+    """Hver tekst `beslutning.py` kan hente ut av kunngjøringene, lest av
+    kroppene i datarepoet ved siden av (conftest peker DATA_DIR på en tom
+    mappe). Normalisert til enkle mellomrom."""
+    import beslutning
+
+    def tom_buffer():
+        for f in vars(beslutning).values():
+            if hasattr(f, "cache_clear"):
+                f.cache_clear()
+    monkeypatch.setattr(beslutning, "ARKIV", _DATAREPO / "arkiv" / "regjeringen-pressemeldinger")
+    tom_buffer()
+    ut = set()
+    try:
+        for r in beslutning.KROPPER:
+            ut |= {d["sitat"] for d in beslutning.hent(r).values()}
+            ut |= {d["sitat"] for d in beslutning.saerskilt(r).values()}
+            for t in beslutning.tegnforklaring(r):
+                ut |= {t.get("sitat", ""), t.get("avvik_sitat", "")}
+    finally:
+        tom_buffer()
+    return sorted({" ".join(s.split()) for s in ut if len(s.strip()) >= 40})
+
+
+@pytest.mark.skipif(
+    not NETTSTED or not (_DATAREPO / "arkiv" / "regjeringen-pressemeldinger").is_dir(),
+    reason="trenger et bygget nettsted (HAVBRUK_NETTSTED) og datarepoet ved "
+           "siden av, for kunngjøringenes kropper")
+def test_ingen_kunngjoringstekst_staar_i_det_publiserte(monkeypatch):
+    from core.karantene import synlig_tekst
+    tekster = _kunngjoringstekstene(monkeypatch)
+    # MÅLT 08.11.2026: 17 tekster på minst 40 tegn fra de ni kroppene.
+    assert len(tekster) >= 17, f"bare {len(tekster)} tekster: uttrekket virker ikke"
+    funn = []
+    for fil in sorted(Path(NETTSTED).rglob("*")):
+        if fil.suffix not in (".html", ".xml", ".json", ".csv", ".txt"):
+            continue
+        raa = fil.read_bytes()
+        innhold = " ".join((synlig_tekst(raa) if fil.suffix == ".html"
+                            else raa.decode("utf-8", "replace")).split())
+        funn += [(fil.relative_to(NETTSTED), s[:60]) for s in tekster if s in innhold]
+    assert not funn, funn[:10]
+
+
+@pytest.mark.skipif(not NETTSTED, reason="HAVBRUK_NETTSTED peker ikke på et bygget "
+                    "nettsted — bygg med `python nettsted.py --alle --ut <mappe>` først")
+def test_2026_cellene_i_bygget_har_forskriften_som_grunnlag():
+    """Oversikten over områdene: hver 2026-celle med en farge sier «i
+    forskriften», og ingen sier «i kunngjøringen»."""
+    from core.karantene import synlig_tekst
+    t = synlig_tekst((Path(NETTSTED) / "produksjonsomrade" / "index.html").read_bytes())
+    celler = re.findall(r"\b2026 (grønn|gul|rød|ikke vist|ikke oppgitt) "
+                        r"(i forskriften|i kunngjøringen|bare i kunngjøringen, som ikke vises"
+                        r"|utledet|ikke oppgitt)", t)
+    assert len(celler) == 13, celler
+    for farge, grunnlag in celler:
+        if farge in ("grønn", "gul", "rød"):
+            assert grunnlag == "i forskriften", (farge, grunnlag)
+        assert grunnlag != "i kunngjøringen"
