@@ -795,3 +795,9 @@ F2.3, som står urettet over. «p99 2,8 s for land» er p99 for alle
 strømmer samlet; terra alene gir 2,7 s. Og «38 av dem fra terra» blir
 39 hvis «msgtime etter mottakstid» leses som forsinkelse under 0. Det
 siste er kontrollørens tolkning og er ikke etterprøvd her.
+
+Etterskrift 08.11.2026: lytteren mot 5632 er slått av
+(`systemctl disable --now ais-5632.service`) og tatt ut av tilsynet,
+fordi kilden i 15 minutter tok imot og lukket alle 60 tilkoblinger uten
+en byte, samtidig fra kystvakt-1 og Mac-en, og lytteren ikke hadde lagret
+en linje siden 28.10; rålaget på serveren står.
