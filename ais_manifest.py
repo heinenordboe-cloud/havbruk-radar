@@ -42,7 +42,9 @@ står i `mot_arkivet`: «lik», «ulik» eller «mangler». Det er det eneste
 feltet i status.json som ikke kommer fra serveren.
 
 Bare standardbiblioteket og stdlib-modulene i core/: workflowen
-installerer ingen pakker.
+installerer ingen pakker. 07.11.2026 dro core/karantene.py inn polars, og
+jobben var rød i to døgn før noen så det; `tests/test_inngangsskript.py`
+importerer skriptet slik jobben gjør.
 """
 import datetime as dt
 import json

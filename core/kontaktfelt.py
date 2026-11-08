@@ -20,7 +20,8 @@ ENHETER som er personer, og leser snapshotrammer. Denne spør hvilke
 NØKLER i en JSON-kropp som peker på et menneske eller en kontaktkanal,
 og trenger ikke annet enn standardbiblioteket. Arkivtrakta skal kunne
 importeres der ingen pakker er installert, og derfor importerer denne
-modulen bare standardbiblioteket.
+modulen bare standardbiblioteket. `tests/test_inngangsskript.py` holder
+det.
 """
 
 # Lista er Brregs egne feltnavn, målt på et arkivert svar 07.11.2026 (alle
