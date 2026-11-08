@@ -211,6 +211,8 @@ Tre krav følger, og de er billige hvis de stilles før kilden bygges:
    revisjonskilde er det forskjellen på å ha revisjonshistorikken og å
    ikke ha den: hos Fiskeridirektoratet forsvinner forrige versjon den
    20. hver måned, og finnes den ikke i `data/arkiv/`, finnes den ikke.
+   Unntaket er felt regel 3 forbyr: de fjernes før arkivering, og
+   `mottatt_sha256` av bytene kilden sendte er beviset for hva vi mottok.
 3. **Ikke la en revidert verdi overskrive den gamle.** Regel 2 er
    allerede absolutt, men her er den ikke en formalitet om
    repostørrelse — den er det eneste som bevarer at kilden har ombestemt
