@@ -21,7 +21,7 @@ import json
 
 import pytest
 
-from core import karantene, persondata
+from core import karantene, kontaktfelt
 from core import raw as raw_arkiv
 
 
@@ -149,7 +149,7 @@ def test_fetch_tar_kontaktfeltene_ut_og_beholder_geografien(falsk_brreg):
 
     for verdi in KONTAKTVERDIER:
         assert verdi not in tekst, verdi
-    assert persondata.kontaktfelt_i(sider) == {}
+    assert kontaktfelt.kontaktfelt_i(sider) == {}
 
     enhet = sider[0]["svar"]["_embedded"]["enheter"][0]
     assert enhet["forretningsadresse"] == {
@@ -195,7 +195,7 @@ def test_fetch_teller_kontaktfeltene_i_meta(falsk_brreg):
         "epostadresse": 2, "forretningsadresse.adresse": 2, "hjemmeside": 2,
         "mobil": 2, "postadresse.adresse": 2, "telefon": 1}
     # Og kvitteringen stopper ikke kroppen i vakten.
-    persondata.nekt_kontaktfelt("enhetsregisteret", sider)
+    kontaktfelt.nekt_kontaktfelt("enhetsregisteret", sider)
 
 
 def test_fetch_arkiveres_gjennom_vakten(falsk_brreg, tmp_path, monkeypatch):
@@ -245,8 +245,8 @@ def test_parse_gir_samme_observasjoner_foer_og_etter(falsk_brreg):
 
 
 @pytest.mark.parametrize("sti", sorted(
-    list(persondata.KONTAKTFELT)
-    + [f"{o}.{persondata.ADRESSELINJE}" for o in persondata.ADRESSEOBJEKTER]))
+    list(kontaktfelt.KONTAKTFELT)
+    + [f"{o}.{kontaktfelt.ADRESSELINJE}" for o in kontaktfelt.ADRESSEOBJEKTER]))
 def test_arkiver_nekter_hvert_kontaktfelt(sti, tmp_path, monkeypatch):
     """Ett felt alene er nok. Kroppen ligger der kilden legger den, inne i
     en side, så vakten må lete i hele kroppen."""
@@ -298,7 +298,7 @@ def test_vakten_slipper_ren_kropp_og_tomme_felt(tmp_path, monkeypatch):
     """Et felt som står uten verdi bærer ingen opplysning, og en kropp som
     ikke er strukturert (PDF, HTML) prøves ikke."""
     monkeypatch.setattr(raw_arkiv, "ARKIV_DIR", tmp_path / "arkiv")
-    ren, _ = persondata.uten_kontaktfelt(_enhet())
+    ren, _ = kontaktfelt.uten_kontaktfelt(_enhet())
     tomme = {"telefon": None, "mobil": "", "forretningsadresse": {"adresse": []}}
 
     raw_arkiv.arkiver("enhetsregisteret", "2026-11-09", [_side(ren), tomme])
@@ -308,10 +308,10 @@ def test_vakten_slipper_ren_kropp_og_tomme_felt(tmp_path, monkeypatch):
 
 def test_uten_kontaktfelt_roerer_ikke_originalen():
     original = _enhet()
-    ren, fjernet = persondata.uten_kontaktfelt(original)
+    ren, fjernet = kontaktfelt.uten_kontaktfelt(original)
 
     assert original == _enhet()
     assert sorted(fjernet) == ["epostadresse", "forretningsadresse.adresse",
                                "hjemmeside", "mobil", "postadresse.adresse",
                                "telefon"]
-    assert persondata.kontaktfelt_i(ren) == {}
+    assert kontaktfelt.kontaktfelt_i(ren) == {}

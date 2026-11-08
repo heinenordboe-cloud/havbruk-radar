@@ -24,8 +24,8 @@ Tre ting holdes bevisst utenfor:
 
 Fra 09.11.2026 gjelder det RÅ-ARKIVET også, ikke bare snapshotet.
 `fetch()` tar kontaktfeltene ut av hver enhet før kroppen returneres for
-arkivering (`persondata.uten_kontaktfelt()`), og arkivskriveren nekter en
-kropp som har dem (`persondata.nekt_kontaktfelt()`). Hver side bærer
+arkivering (`kontaktfelt.uten_kontaktfelt()`), og arkivskriveren nekter en
+kropp som har dem (`kontaktfelt.nekt_kontaktfelt()`). Hver side bærer
 `mottatt_sha256`, hashen av bytene Brreg faktisk sendte, så det kan
 bevises hva vi mottok uten at det ligger her. Arkivfilene fra før
 09.11.2026 har feltene; de er append-only og står (regel 2), og ingen kode
@@ -78,7 +78,7 @@ from typing import Any, Callable, Iterable
 
 import httpx
 
-from core import persondata
+from core import kontaktfelt, persondata
 from core.config import get
 from core.contract import Observation, Source
 from sources import _http
@@ -484,7 +484,7 @@ class Enhetsregisteret(Source):
                     #
                     # Så kontaktfeltene ut av enhetene som er igjen:
                     # adresselinjene, telefon, mobil, e-post og hjemmeside
-                    # (regel 3, lista står i core/persondata.py). FELTER
+                    # (regel 3, lista står i core/kontaktfelt.py). FELTER
                     # leser ingen av dem, så parse() gir de samme
                     # observasjonene av kroppen før og etter. Fram til
                     # 09.11.2026 ble de arkivert; de filene står.
@@ -492,7 +492,7 @@ class Enhetsregisteret(Source):
                         beholdt, fjernet = _uten_personer(batch)
                         rene = []
                         for enhet in beholdt:
-                            ren, borte = persondata.uten_kontaktfelt(enhet)
+                            ren, borte = kontaktfelt.uten_kontaktfelt(enhet)
                             rene.append(ren)
                             for felt in borte:
                                 kontakt_fjernet[felt] = kontakt_fjernet.get(felt, 0) + 1

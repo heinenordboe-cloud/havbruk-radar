@@ -34,7 +34,7 @@ import json
 import re
 from typing import Any
 
-from core import persondata
+from core import kontaktfelt
 from core.paths import ARKIV_DIR
 
 
@@ -87,9 +87,9 @@ def arkiver(kilde: str, observed_at: str, raw: Any, merke: str = "") -> str:
     `merke` er tomt for innsamlingen og `DAGLIG` for det daglige arkivet.
 
     Nekter en kropp med kontaktfelt (regel 3, se
-    `persondata.nekt_kontaktfelt()`). Før noe er skrevet: en halvskrevet
+    `kontaktfelt.nekt_kontaktfelt()`). Før noe er skrevet: en halvskrevet
     fil i et append-only arkiv kan ikke tas tilbake."""
-    persondata.nekt_kontaktfelt(kilde, raw)
+    kontaktfelt.nekt_kontaktfelt(kilde, raw)
     data, ext = _serialiser(raw)
     sti = _ledig_sti(kilde, observed_at, ext, merke)
 
@@ -169,7 +169,7 @@ def arkiver_ny(kilde: str, observed_at: str, raw: Any) -> tuple[str, bool]:
     """
     # Før hash-oppslaget: en kropp med kontaktfelt skal stoppe også når en
     # identisk kopi tilfeldigvis ligger der fra før.
-    persondata.nekt_kontaktfelt(kilde, raw)
+    kontaktfelt.nekt_kontaktfelt(kilde, raw)
     data, _ = _serialiser(raw)
     sha = hashlib.sha256(data).hexdigest()
     if sha in hashene(kilde):

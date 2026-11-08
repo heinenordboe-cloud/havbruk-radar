@@ -78,7 +78,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-from core import persondata
+from core import kontaktfelt
 from core import raw as raw_arkiv
 
 Regel = Callable[[bytes], "str | None"]
@@ -196,7 +196,7 @@ def sett_inn(arkivmappe: str, observed_at: str, raw: Any,
     Nekter en kropp med kontaktfelt, som `raw.arkiver()` gjør: karantenen
     ligger i samme datarepo og skrives like append-only (regel 3).
     """
-    persondata.nekt_kontaktfelt(arkivmappe, raw)
+    kontaktfelt.nekt_kontaktfelt(arkivmappe, raw)
     data, ext = raw_arkiv._serialiser(raw)
     grunner = [grunn] if isinstance(grunn, str) else list(grunn)
     sha = hashlib.sha256(data).hexdigest()
