@@ -407,7 +407,7 @@ ingen hadde lest Brregs egen lisensside; det er nå gjort.
 ### Lisensen, ordrett fra Brregs egen side
 
 Fra `brreg.no/bruk-av-data-fra-bronnoysundregistrene/apne-data/`, lest
-14.09.2026. **Den adressen gir 404 fra 06.10.2026** (MÅLT). Setningen står
+14.09.2026. **Den adressen gir 404 fra 06.10.2026** (lest 06.10.2026; svaret er ikke arkivert, så det kan ikke etterprøves — kontrolløren 08.11.2026). Setningen står
 ordrett på `brreg.no/bruke-data-fra-bronnoysundregistrene/datasett-og-api/`,
 som Brregs gamle `/produkter-og-tjenester/apne-data/` videresender til, og
 er arkivert derfra:
