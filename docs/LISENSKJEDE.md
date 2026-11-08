@@ -597,42 +597,97 @@ eller NINA om hvilken lisens ekspertgrupperapportene utgis under. Det
 er ikke mer kode; det er en e-post. Samme form som det åpne spørsmålet
 om `(null)`-kategorien i `docs/KILDE-BIOMASSE.md` punkt 11.
 
-## Merknad F — BarentsWatch, de fire pliktene ved siden av attribusjonen
+## Merknad F — BarentsWatch: hva vilkårene krever, og hva Heine må gjøre
 
-Vilkårene på `www.barentswatch.no/artikler/api-vilkar` er sist oppdatert
-02.11.2023 og lest 12.09.2026. Data fra BarentsWatch-API-ene er under
-NLOD med mindre API-dokumentasjonen sier noe annet, og **kommersiell
-bruk er uttrykkelig tillatt**.
+Lest på nytt 08.11.2026 i kroppen `vilkar-barentswatch/2026-11-08.bin.gz`
+(sha256 `732454d98fe17a505543f8ee20c3d31907d521f5e75fdc0a16123d5af2d0564b`;
+synlig tekst lik versjonen fra 02.11.2026). Sidas egen dato: «Sist
+oppdatert: 02. november 2023». Sitatene under er ordrett fra kroppen.
 
-Attribusjonen skal være synlig for **sluttbruker**, ikke bare i et repo.
-Begge setningene, ordrett:
+### Krever kommersiell bruk egen registrering eller avtale? Nei.
 
-> «Data levert av BarentsWatch»
+Kommersiell bruk er tillatt på samme vilkår som annen bruk:
 
-> «Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra
-> Mattilsynet.»
+> «Du har lov til å bruke data hentet via BarentsWatch i kommersiell
+> sammenheng, så lenge du følger alle retningslinjene»
 
-Den andre er dataeierattribusjonen og gjelder lusetallene. Den er ikke
-valgfri fordi vi henter fra BarentsWatch og ikke fra Mattilsynet — det
-er nettopp da den trengs.
+Registreringen gjelder ALLE brukere, ikke bare kommersielle, og den er
+allerede gjort — klientene for lusetall, sjøtemperatur og AIS finnes:
 
-Fire plikter til, som ikke er attribusjon og derfor lett faller ut:
+> «API er åpent og gratis, med det kreves at du selv gjør registrering (
+> https://www.barentswatch.no/om/apnedata/ ) slik at vi kan holde deg
+> oppdatert om utvikling og endringer.»
 
-1. **Kommersielle brukere bes registrere API-klienten** med formål,
-   firma og kontaktperson.
-2. **BarentsWatch skal kontaktes før høytrafikkbruk.** Ellers kan de
-   fakturere serverkostnader. Dagens kadens er én ukentlig kjøring, og
-   backfillen er unnagjort — men en ny backfill over 762 uker er
-   nettopp det denne plikten handler om.
-3. **«BarentsWatch» kan ikke inngå i tjenestenavnet.**
-4. **Datainnholdet skal ikke endres.** Vårt arkivlag oppfyller dette av
-   seg selv: rå-kroppen lagres uendret og hashet før noe parses. Det
-   som avledes (`kildeledd`) er merket som avledet og er ikke en
-   gjengivelse av kildens data.
+For profesjonell bruk er det en ANBEFALING, ikke et vilkår:
 
-Punkt 1 og 2 er de eneste stedene i hele lisenskjeden der et vilkår
-krever en HANDLING fra oss og ikke bare en setning i en visning. Ingen
-av dem er utført per 14.09.2026, og ingen av dem er utløst ennå.
+> «Vi ber deg om å fylle ut feltet "Formål (valgfritt)".»
+
+> «Dersom du vil bruke API profesjonelt, og spesielt om du bruker
+> dedikert mail for API anbefaler vi at du oppgir: E-post som ikke er
+> knyttet til en person (f.eks post@... eller fiskehelse.avd@ )
+> Kontaktperson med telefonnummer og epost Virksomhet som ønsker
+> tilgangen Formål (Applikasjon eller planlagt bruk)»
+
+**Rettelse.** Fram til 08.11.2026 sto det her at «kommersielle brukere bes
+registrere API-klienten med formål, firma og kontaktperson». Det er ikke
+vilkårets ord: siden skiller på PROFESJONELL bruk, ikke kommersiell, og
+den ANBEFALER opplysningene. R4 regnet det som en uoppfylt plikt; etter
+ordlyden er det en anbefaling som ikke er fulgt.
+
+### De andre pliktene, ordrett
+
+1. **Høy trafikk koster, og skal varsles:**
+
+   > «Dersom du tar i bruk data fra BarentsWatch på høytrafikk nettsider
+   > (eller på andre måter overbelaster våre servere), må du betale
+   > håndteringskostnader til serverdrift eller lignende. Ta kontakt dersom
+   > du planlegger å bruke datagrunnlaget vårt på sider som har svært stor
+   > trafikk.»
+
+   Nettstedet henter ingenting fra BarentsWatch ved visning; trafikken
+   til kystloggen.no når ikke deres servere. Det som kan falle inn under
+   «på andre måter», er AIS-strømmen, som har stått oppe døgnet rundt
+   fra 28.10.2026 (`ais-bw`). Om én vedvarende tilkobling er
+   «overbelastning», sier vilkåret ikke: det kan bare BarentsWatch svare
+   på.
+2. **Navnet:** «Du kan med andre ord ikke bruke BarentsWatch som en del
+   av navnet på tjenesten.» Oppfylt: tjenesten heter Kystloggen.
+3. **Innholdet:** «Du kan ikke endre på innholdet i data som leveres.»
+   Rå-kroppen lagres uendret og hashet før noe parses; det som avledes
+   (`kildeledd`), er merket som avledet.
+4. **Attribusjonen** skal være synlig for brukeren: «Data levert av
+   BarentsWatch», og for lusetallene dataeierens setning, «Opplysninger
+   om lakselus, rensefisk og medikamentbruk er hentet fra Mattilsynet».
+   Oppfylt på nettstedet fra 16.09.2026 (bunnteksten og CSV-hodet). For
+   AIS er dataeieren Kystverket: «Ekstern bruk av Kystverkets AIS-data må
+   krediteres Kystverket.» (`vilkar-kystverket/2026-11-08.bin.gz`). AIS
+   vises ikke på nettstedet i dag.
+
+### Hva Heine må gjøre
+
+Ingenting av dette er gjort av en økt; det krever innlogging på
+BarentsWatch «Min side», og det er Heines konto. Om feltene allerede er
+fylt ut, er ikke lest (EKSTERN).
+
+1. **For hver API-klient** (lusetall/sjøtemperatur, og AIS): fyll ut
+   «Formål», for eksempel «Kystloggen (kystloggen.no): ukentlig
+   innsamling av lusetall og sjøtemperatur, og AIS-strøm, til et
+   nettsted og datatjenester som kan bli kommersielle».
+2. **Bytt e-posten på klientene** til en som ikke er knyttet til en
+   person (`kontakt@kystloggen.no`), og oppgi kontaktperson med telefon
+   og e-post, og virksomhet. Virksomheten er i dag Heine personlig; når
+   selskapet finnes (R4 mangel 3), byttes den, og klientene bør da stå
+   på selskapet (R4 mangel 6).
+3. **Send én e-post til BarentsWatch om AIS-strømmen** (kontaktskjemaet
+   på barentswatch.no): at klienten holder én tilkobling åpen døgnet
+   rundt mot `live.ais.barentswatch.no`, hva den brukes til, og spør om
+   det er innenfor vanlig bruk. Vilkåret ber om kontakt før svært stor
+   trafikk, og bare de kan si om dette er det. Svaret arkiveres som
+   belegg.
+
+Ingen av de tre er et vilkår for kommersiell bruk etter ordlyden; punkt
+1 og 2 er det vilkåret anbefaler for profesjonell bruk, og punkt 3 er den
+eneste plikten som kan være utløst.
 
 ---
 
@@ -661,7 +716,10 @@ Rekkefølgen er den samme som alvorlighetsgraden:
    lusetallkildens setninger: den inneholder ingen data fra
    Fiskeridirektoratet eller Brreg, og et hode som sa noe annet ville
    vært en påstand om at de har levert noe her.
-3. **Registrering hos BarentsWatch** hvis bruken blir kommersiell.
+3. **BarentsWatch:** kommersiell bruk krever ingen egen registrering eller
+   avtale (merknad F, lest på nytt 08.11.2026). Det vilkåret anbefaler for
+   profesjonell bruk, og spørsmålet om AIS-strømmen, står der som tre
+   punkter Heine gjør.
 
 Lukket 14.09.2026: Brregs ordrette attribusjonssetning, som sto som
 ULEST fra 12.09. Se merknad B.
