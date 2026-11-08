@@ -16,9 +16,11 @@ from core.karantene import synlig_tekst
 
 # En vilkårsside slik reglene ser den: lang nok for en første versjon, og
 # med hver parts kjennetegn (NLOD, opphavsrett, og fra 03.11.2026 CC BY 4.0,
-# datautvinning, datamining og Oceanspace Media). Se ark.KJENNETEGN.
+# datautvinning, datamining og Oceanspace Media; fra 08.11.2026 NVAs
+# copyright-act). Se ark.KJENNETEGN.
 TEKST = ("Data er lisensiert under NLOD. Opphavsretten tilhører oss. " * 14
-         + "CC BY 4.0. Ingen datautvinning eller datamining. Oceanspace Media. ")
+         + "CC BY 4.0. Ingen datautvinning eller datamining. Oceanspace Media. "
+         + "copyright-act. ")
 SIDE = f"<html><script>x=1</script><p>{TEKST}</p></html>".encode()
 FEILSIDE = (b"<!DOCTYPE html><html><head><title>Feil</title></head><body>"
             b"<h1>Tjenesten er midlertidig utilgjengelig</h1></body></html>")
@@ -207,3 +209,32 @@ def test_andre_kjoring_samme_dag_faar_egen_logg(arkiv, monkeypatch):
     andre = json.loads((arkiv / "vilkar" / "2026-11-03.2.logg.json").read_text())
     assert all(r["ny"] and r["kode_commit"] == "0" * 40 for r in andre)
     assert all(r["ny"] for r in _logg(arkiv, "2026-11-03")), "den første står urørt"
+
+
+def test_nva_faar_json_og_de_andre_faar_ingen_ekstra_hoder(monkeypatch):
+    """Uten Accept svarer NVA 303 til landingssiden (målt 08.11.2026)."""
+    sendt = {}
+
+    class Svar:
+        content, headers = SIDE, {}
+
+    def get(klient, url, hva=None, **kw):
+        sendt[url] = kw.get("headers")
+        return Svar()
+    monkeypatch.setattr(ark._http, "get", get)
+    for url in ark.SIDER.values():
+        ark._hent(None, url)
+    for part, url in ark.SIDER.items():
+        venter = {"Accept": "application/json"} if part.startswith("nva-") else {}
+        assert sendt[url] == venter, part
+
+
+def test_wayback_kropp_tar_utgivelsen_fra_den_bevarte_headeren(monkeypatch):
+    """Waybacks egne tidspunkter er ARKIVETS (CLAUDE.md 1b-7 punkt 2)."""
+    class Svar:
+        content = SIDE
+        headers = {"Last-Modified": "Sun, 19 Jul 2026 18:59:43 GMT",
+                   "X-Archive-Orig-Last-Modified": "Fri, 27 Feb 2026 08:00:00 GMT"}
+    monkeypatch.setattr(ark._http, "get", lambda *a, **k: Svar())
+    assert ark._hent(None, ark.SIDER["regjeringen"])[1] == "Fri, 27 Feb 2026 08:00:00 GMT"
+    assert ark._hent(None, ark.SIDER["brreg"])[1] == "Sun, 19 Jul 2026 18:59:43 GMT"

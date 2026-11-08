@@ -105,7 +105,38 @@ SIDER = {
     "intrafish": "https://www.intrafish.no/vilkar",
     "kyst": ("https://www.oceanspacemedia.com/"
              "oceanspace-media-generelle-abonnementsvilkar/1583266"),
+    # Fra 08.11.2026 (økt 4e, R4 punkt 1): vilkårene for arkivmappene som
+    # sto uten rad i LISENSKJEDE.md (mappetabellen der).
+    #
+    # Kystverket: AIS-dataene BarentsWatch videreformidler (`ais-bw*`), og
+    # siden `ais-5632` ble vurdert mot. Adressen er den
+    # `/navigasjonstjenester/ais/tilgang-pa-ais-data/` videresender til.
+    "kystverket": ("https://www.kystverket.no/sjotransport-og-havn/ais/"
+                   "tilgang-pa-ais-data/"),
+    # regjeringen.no svarer 403 for oss (også på robots.txt). Siden
+    # bunnteksten lenker til, er hentet fra Wayback, som pressemeldingene
+    # i `regjeringen-pressemeldinger/`. Den gjelder BILDER OG VIDEO; at det
+    # ikke finnes en side for tekst, er nettopp det kroppen belegger.
+    "regjeringen": ("https://web.archive.org/web/20260719185943id_/"
+                    "https://www.regjeringen.no/no/om-nettstedet/"
+                    "bruk-av-bilder-og-videomateriale/id2715005/"),
+    # NVA (Nasjonalt vitenarkiv) er der ekspertgruppens og styringsgruppens
+    # rapporter ligger (KILDE-EKSPERTGRUPPEN.md, KARTLEGGING-STYRINGSGRUPPEN.md).
+    # Utgiverens egen metadatapost per rapport, med `license` per fil. Se
+    # `HODER`: uten Accept svarer API-et 303 til landingssiden.
+    "nva-ekspertgruppen-2023": ("https://api.nva.unit.no/publication/"
+                                "01994cb82ce4-31ac5354-b12a-42ed-820d-53c7742dbf55"),
+    "nva-ekspertgruppen-2024": ("https://api.nva.unit.no/publication/"
+                                "01994cb7facb-da5afa0e-2dc3-4765-a015-38945ec9331c"),
+    "nva-ekspertgruppen-2025": ("https://api.nva.unit.no/publication/"
+                                "019aba84ab68-b20c77b4-309f-44d5-93b6-f2d1f9a2d4c2"),
+    "nva-styringsgruppen-2025": ("https://api.nva.unit.no/publication/"
+                                 "019aba7bca57-4c5e6ab3-6e6e-4452-b168-0791a751b0a1"),
 }
+
+# Ekstra hoder per part. NVA-API-et gir JSON bare når det blir bedt om det.
+HODER = {part: {"Accept": "application/json"}
+         for part in SIDER if part.startswith("nva-")}
 
 LOGG_KILDE = "vilkar"
 
@@ -142,6 +173,16 @@ KJENNETEGN = {
     "fiskeribladet": "datautvinning",
     "intrafish": "datamining",
     "kyst": "Oceanspace Media",
+    # Fra 08.11.2026, målt i kroppene hentet den dagen. Kystverket: lisensen.
+    # regjeringen.no: sidas tittel. NVA: lisensverdien selv, «Generelle
+    # bruksvilkår». Skifter en rapport lisens, skal det SES før kroppen blir
+    # forrige versjon — det er en endring i vilkåret, ikke i markupen.
+    "kystverket": "NLOD",
+    "regjeringen": "opphavsrett",
+    "nva-ekspertgruppen-2023": "copyright-act",
+    "nva-ekspertgruppen-2024": "copyright-act",
+    "nva-ekspertgruppen-2025": "copyright-act",
+    "nva-styringsgruppen-2025": "copyright-act",
 }
 # Halvparten av den korteste synlige teksten i arkivet, vilkar-brreg med
 # 1 480 tegn (analyse/drift/kjennetegn.txt). Samme halvering som regelen
@@ -171,7 +212,13 @@ def regler(part: str) -> list:
 
 
 def _hent(klient: httpx.Client, url: str) -> tuple[bytes, str]:
-    r = _http.get(klient, url, hva=f"vilkårsarkiv {url}")
+    hoder = next((HODER[p] for p, u in SIDER.items() if u == url and p in HODER), {})
+    r = _http.get(klient, url, hva=f"vilkårsarkiv {url}", headers=hoder)
+    # En Wayback-kropp: utgiverens Last-Modified er bevart som
+    # X-Archive-Orig-Last-Modified. Waybacks egne tidspunkter er ARKIVETS,
+    # ikke utgiverens (CLAUDE.md 1b-7 punkt 2).
+    if "web.archive.org/" in url:
+        return r.content, r.headers.get("X-Archive-Orig-Last-Modified", "")
     return r.content, r.headers.get("Last-Modified", "")
 
 
