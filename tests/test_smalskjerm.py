@@ -184,12 +184,15 @@ def test_uke_35_sier_hva_trinnet_i_artsbegrensningene_var():
         return " ".join(_html.unescape(re.sub(r"<[^>]+>", " ",
                                               f.read_text(encoding="utf-8"))).split())
     t = tekst("2026-35")
-    assert ("hadde Fiskeridirektoratet endret artsbegrensningene for "
-            "118 lokaliteter: 76 mistet alle, og 42 fikk sine første.") in t
+    # To avsnitt og «Hentet <dato>:» fra 9834a57 (21.10.2026): korte
+    # avsnitt, og «øyeblikksbilde» bare i siteringsformatet. Tallene er de
+    # samme.
+    assert ("Fiskeridirektoratet hadde endret artsbegrensningene for "
+            "118 lokaliteter. 76 mistet alle, og 42 fikk sine første.") in t
     assert "endret artsbegrensningene for" not in tekst("2026-38")
     # RETT UNDER OVERSKRIFTEN, ikke i den lukkede delen med de tekniske.
     rå = Path(ROT, "endringer", "2026-35", "index.html").read_text(encoding="utf-8")
-    assert re.search(r'</h1>\s*<p class="uke-ingress">\s*I øyeblikksbildet', rå)
+    assert re.search(r'</h1>\s*<p class="uke-ingress">\s*Hentet <time datetime="2026-08-24">', rå)
     detaljer = rå.split('<details class="tallboks tekniske-endringer">', 1)[1]
     assert "endret artsbegrensningene" not in detaljer.split("</details>", 1)[0]
 

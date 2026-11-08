@@ -267,19 +267,28 @@ def test_kartet_er_aldri_eneste_vei_til_opplysningen():
     assert not mangler, f"kartprikker uten rad i tabellen: {mangler[:5]}"
 
 
+# Gradtallene i bildeteksten, merket som feltet de er. Fram til 92145fa
+# (20.10.2026) sto «posisjon fra Akvakulturregisteret» etter dem, og den
+# prøven under lette etter de ordene; nå sier herkomstlinja det.
+KOORDINAT_I_BILDETEKST = re.compile(
+    r'<figcaption[^>]*>(?:(?!</figcaption>).)*?'
+    r'<span class="tall-mono" data-felt="koordinat">'
+    r'\d+°\d+,\d+′ [NS], \d+°\d+,\d+′ [ØV]</span>', re.S)
+
+
 @bygget
 def test_posisjonen_star_ogsaa_som_tall():
     """Kartet viser HVOR; bildeteksten sier det samme i grader.
 
     Prøven leser sidene som HAR et kart, og krever at den samme sida
-    oppgir koordinatene som tekst. Merkelappen er ordene «posisjon
-    fra» i bildeteksten, som står rett etter gradtallene.
+    oppgir koordinatene som tekst i bildeteksten, ikke bare i SVG-ens
+    `<desc>`.
     """
     uten = []
     for sti in sorted(pathlib.Path(NETTSTED, "lokalitet")
                       .glob("*/index.html"))[:400]:
         html = sti.read_text(encoding="utf-8")
-        if "data-kart" in html and "posisjon fra" not in html:
+        if "data-kart" in html and not KOORDINAT_I_BILDETEKST.search(html):
             uten.append(sti.parent.name)
     assert not uten, f"kart uten koordinater i tekst: {uten[:5]}"
 
