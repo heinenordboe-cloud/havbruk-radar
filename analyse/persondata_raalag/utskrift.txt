@@ -1,0 +1,73 @@
+A  Brreg-kropper: enheter med personform og med kontaktfelt
+   mappe                        kropper m/personform m/kontakt enh. personform enh. kontakt
+   enhetsregisteret                  19           13        19              98          820
+   enhetsregisteret_oppslag           1            0         0               0            0
+   eierskap-brreg                   111            0         0               0            0
+
+B  JSON-kropper: navn med tomt identityNr
+   eierskap-overforinger           17 kropper     18 rader    12 ulike navn
+
+C  eierskap: typeValue over alle kropper (rader)
+   LimitedLiabilityCompany                    14081   ulike med personform: 0
+   OrganizationalSection                        240   ulike med personform: 0
+   Foundation                                   111   ulike med personform: 0
+   PublicLimitedCompany                          60   ulike med personform: 0
+   Municipality                                  30   ulike med personform: 0
+   Association                                   30   ulike med personform: 0
+   CoopCompany                                   30   ulike med personform: 0
+   JointLiabilityCompany                          9   ulike med personform: 3
+   UnlimitedLiabilityCompany                      6   ulike med personform: 2
+   JointlyOwnedShippingCompany                    3   ulike med personform: 1
+
+D  akvakultur-soknader: søkere med navn og uten orgnr: 0 ulike
+
+E  personlige e-postadresser (ulike), per mappe
+   enhetsregisteret                          327
+   maling-lovdata                              1
+   regjeringen-pressemeldinger                 6
+   reguleringsomraader                         3
+   vilkar-fiskeribladet                        2
+   vilkar-intrafish                            2
+   vilkar-kyst                                 1
+   vilkar-kystverket                           1
+   vilkar-nmdc                                 1
+
+Kropper med funn i A og B (sti, sha256 over utpakket kropp):
+   A enhetsregisteret           enhetsregisteret/2026-08-17.2.json.gz 8f990aa14e7e20c6fdefb46917d92d3703402d291a849faa8b0a576de9633e50
+   A enhetsregisteret           enhetsregisteret/2026-08-17.3.json.gz 8f990aa14e7e20c6fdefb46917d92d3703402d291a849faa8b0a576de9633e50
+   A enhetsregisteret           enhetsregisteret/2026-08-17.4.json.gz 8f990aa14e7e20c6fdefb46917d92d3703402d291a849faa8b0a576de9633e50
+   A enhetsregisteret           enhetsregisteret/2026-08-17.5.json.gz 8f990aa14e7e20c6fdefb46917d92d3703402d291a849faa8b0a576de9633e50
+   A enhetsregisteret           enhetsregisteret/2026-08-17.json.gz 8f990aa14e7e20c6fdefb46917d92d3703402d291a849faa8b0a576de9633e50
+   A enhetsregisteret           enhetsregisteret/2026-08-24.2.json.gz 542d919920afd35a47db0ebeac427144ed86f3273252dd72469ef6caba32c93f
+   A enhetsregisteret           enhetsregisteret/2026-08-24.3.json.gz 542d919920afd35a47db0ebeac427144ed86f3273252dd72469ef6caba32c93f
+   A enhetsregisteret           enhetsregisteret/2026-08-24.4.json.gz 542d919920afd35a47db0ebeac427144ed86f3273252dd72469ef6caba32c93f
+   A enhetsregisteret           enhetsregisteret/2026-08-24.json.gz 88c0dd231d3b7df81ebbd0bc2f462fc559da390f7972119e24e31a1cac47e2c8
+   A enhetsregisteret           enhetsregisteret/2026-08-31.json.gz d7f7e92024ae70889bb947deaa3f152ab0632f16bf3ccad3be610485f9caa78a
+   A enhetsregisteret           enhetsregisteret/2026-09-07.json.gz a469fb3b7a8f69608cdc28e419d543617346d40e07b44c559ea91243c8393785
+   A enhetsregisteret           enhetsregisteret/2026-09-14.json.gz 6cb8b2a0afd30dde26fb1618785d3d918165b15a6ca57ba6ad539d00971873dc
+   A enhetsregisteret           enhetsregisteret/2026-09-21.json.gz 3971492ea8505be0c5f3f29c880e304b165349143d019fc2d106e01ed7894377
+   B eierskap-overforinger      eierskap-overforinger/%C3%98-HD-0502.json.gz ebb0c56e99fdcd9a8dab7c8bc7b5790f87984e1776315623ec11d28733a0da23
+   B eierskap-overforinger      eierskap-overforinger/AA-G-0301.json.gz 22a0dde33a85eda6bcaac7a23e0a103830299b2c697838bb76bf236a39b7cc44
+   B eierskap-overforinger      eierskap-overforinger/AA-L-0317.json.gz d893c4f6ffa33d78811709b5c65ca6eafe5930aba5dda89e82d912418a1241c8
+   B eierskap-overforinger      eierskap-overforinger/N-HS-0003.json.gz 561dd29289ad204bd02b97b4d27fa17a86accb4a8e3877ee8386372893a302ad
+   B eierskap-overforinger      eierskap-overforinger/NT-FS-0314.json.gz a9efdc6361c50cf74c6d118090090166655a340c286d690a162b53924184cb0b
+   B eierskap-overforinger      eierskap-overforinger/NT-FS-0316.json.gz a9efdc6361c50cf74c6d118090090166655a340c286d690a162b53924184cb0b
+   B eierskap-overforinger      eierskap-overforinger/NT-N-0302.json.gz a7c5b2f235e7326da82ea38d097f59b52a067efedf1569adb3610f7208e15bc9
+   B eierskap-overforinger      eierskap-overforinger/NT-N-0315.json.gz a7c5b2f235e7326da82ea38d097f59b52a067efedf1569adb3610f7208e15bc9
+   B eierskap-overforinger      eierskap-overforinger/OP-NA-0502.json.gz 9dba43f2907432d3c489cb2741989040e75eb2eac2497f6b31d7a6dfa489fcc2
+   B eierskap-overforinger      eierskap-overforinger/OP-NA-0505.json.gz f99e2289dc29e531ec5a51dc1ec3f79e0851baf816a2a82919102e37bf01ec69
+   B eierskap-overforinger      eierskap-overforinger/OP-SL-0506.json.gz 6ce9114e518b97e29f3fb294205b80b0ce1623c9fd6ce1aba14f28feb15035d3
+   B eierskap-overforinger      eierskap-overforinger/R-BR-0001.json.gz a4375632800ed7aa7da37821a8792c5a202020ea86111b8561d274a353676852
+   B eierskap-overforinger      eierskap-overforinger/SF-SD-0005.json.gz d2a25f5320c23f6cd88545c6c7bb4605c9eec6ec1659b8f828167335a61b1eb3
+   B eierskap-overforinger      eierskap-overforinger/ST-AA-0326.json.gz 3bfc3d9bf40db6db1e80f205cc89747b39a88d3477a756d92c6cbf1beb81474a
+   B eierskap-overforinger      eierskap-overforinger/VA-F-0002.json.gz e2ffb5cdddeea9ffbbbfc39ed2be5550e62aa0718ae7ec16e646976cc65ad3b1
+   B eierskap-overforinger      eierskap-overforinger/VA-S-0303.json.gz 882f8dcdfffaa47c670774f2dfcde96be3aaf785c8b3b855ff59344489dbae53
+   B eierskap-overforinger      eierskap-overforinger/_-HD-0502.json.gz a3d0a93ff99b7da8ae34a6d8ae5a88a112b7a77d96ccf2ae6546ee3ec8c1164d
+
+PUBLISERT? 6526 filer i bygget bygg0
+   A kontaktfelt                        1221 identifikatorer      0 funnet i bygget
+   A navn med personform                  98 identifikatorer      0 funnet i bygget
+   A orgnr med personform                 98 identifikatorer      0 funnet i bygget
+   B navn uten identitetsnummer           12 identifikatorer      0 funnet i bygget
+   C eier med personform                  12 identifikatorer      0 funnet i bygget
+   E personlig e-postadresse             343 identifikatorer      0 funnet i bygget
