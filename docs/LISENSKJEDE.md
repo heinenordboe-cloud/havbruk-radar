@@ -26,6 +26,39 @@ Sitatene under er fortsatt lest for hånd; kroppene er belegget.
 
 ---
 
+## Produktene
+
+**Et produkt er salgbart bare når ingen av kildene det bruker er
+UBELAGT.** Statusen per kilde er radens i mappetabellen under; der en
+mappe er delt, står delen produktet bruker. `tests/test_lisensdekning.py`
+feiler når en kilde her mangler rad, og når «salgbart» ikke er det
+statusene gir.
+
+| produkt | kilder og status | salgbart |
+|---|---|---|
+| Ukentlig hendelsesvarsel | `akvakultur` belagt · `biomasse` belagt · `biomasselag` belagt · `romming` belagt · `eierskap` belagt · `eierskap_historikk` belagt · `enhetsregisteret` belagt · `lusetall` belagt · `sjotemperatur` belagt · `trafikklysvedtak` belagt | **ja** |
+| Kommuneanalyse: havbruksfondet | `havbruksfondet:utbetalinger` belagt · `havbruksfondet:instrukser` UBELAGT · `havbruksfondet:pressemeldinger` UBELAGT · `akvakultur` belagt · `biomasse` belagt | **nei** — UBELAGT: `havbruksfondet:instrukser`, `havbruksfondet:pressemeldinger` |
+| Dokumentert registeruttrekk | `akvakultur` belagt · `eierskap` belagt · `eierskap_historikk` belagt · `eierskap-overforinger` belagt · `enhetsregisteret` belagt · `enhetsregisteret_oppslag` belagt · `biomasse` belagt · `lusetall` belagt | **ja** |
+| Analyse på oppdrag | `akvakultur` belagt · `biomasse` belagt · `lusetall` belagt · `eierskap` belagt · `enhetsregisteret` belagt · `trafikklysvedtak` belagt · `reguleringsomraader` belagt · `unntaksvekst` belagt i lov · `mattilsynet-lakselus` belagt · `ekspertgruppen` UBELAGT · `styringsgruppen` UBELAGT · `regjeringen-horing` UBELAGT · `stortingsmeldinger` UBELAGT | **nei** — UBELAGT: `ekspertgruppen`, `styringsgruppen`, `regjeringen-horing`, `stortingsmeldinger` |
+
+*Ingen av de fire produktene finnes ennå* (R4 del 2.3). Kildelistene er
+ANTATT, lest 08.11.2026: hendelsesvarselet er kildene ukesendringene på
+nettstedet bygger på i dag (`nettsted.ukentlige_kilder()`, uten
+`unntaksvekst`, som ikke publiseres); kommuneanalysen er det
+`docs/MALING-HAVBRUKSFOND.md` leser — utbetalingene, instruksen som gir
+fordelingen, og pressemeldingene som daterer dem; analysen på oppdrag er
+det et oppdrag typisk ville trengt utover registrene.
+
+«Salgbart» gjelder lisensen. To ting står utenfor den kolonnen:
+**BarentsWatch** (`lusetall`, `sjotemperatur`) ber profesjonelle brukere
+oppgi virksomhet og formål, merknad F; og **registeruttrekket** bærer
+personopplysninger i rålaget (`eierskap-overforinger`,
+`enhetsregisteret` fra før 09.11.2026), se
+`docs/BEHANDLINGSGRUNNLAG-UTKAST.md`. Et uttrekk går gjennom lesedøra,
+ikke rett fra arkivet.
+
+---
+
 ## Tabellen
 
 | kilde | lisens | hjemmel | attribusjon, ordrett | kommersiell | lest |
