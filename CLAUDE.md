@@ -420,6 +420,14 @@ commit holder det å kjøre testene som berører det som ble endret.
     .venv/bin/python -m pytest tests/ -q
     HAVBRUK_DATA_DIR=../havbruk-radar-data/data \
         .venv/bin/python nettsted.py --alle --ut <scratch>
+    HAVBRUK_NETTSTED=<scratch> .venv/bin/python -m pytest tests/ -q
+
+Den tredje linja er nettstedsprøvene: prøvene som trenger et bygget
+nettsted, hoppes over uten `HAVBRUK_NETTSTED` og kjøres derfor ingen
+andre steder — ikke i Actions, ikke i den første linja. De kjøres mot
+PORTENS bygg, det fra linja over, ikke mot et eldre. I økt 3d viste det
+seg at to av dem hadde vært utdaterte i tre uker uten at noen så det.
+Porten er grønn når alle tre er det.
 
 Målt 08.10.2026: pytest 15 s, bygging med vakt 3 min 31 s — under
 fire minutter til sammen. Regel 6 gjelder fortsatt: det som er
