@@ -132,6 +132,12 @@ SIDER = {
                                 "019aba84ab68-b20c77b4-309f-44d5-93b6-f2d1f9a2d4c2"),
     "nva-styringsgruppen-2025": ("https://api.nva.unit.no/publication/"
                                  "019aba7bca57-4c5e6ab3-6e6e-4452-b168-0791a751b0a1"),
+    # Lisenstekstene selv (R4 punkt 1: «arkivere NLOD- og CC BY-teksten»).
+    # Brreg og Mattilsynet oppgir ingen egen attribusjonsform, og formen
+    # LISENSKJEDE siterer for dem står i NLOD punkt 5, ikke på deres sider.
+    # Fiskeridirektoratet lenker til 1.0, Brreg og Mattilsynet til 2.0.
+    "nlod-1.0": "https://data.norge.no/nlod/no/1.0",
+    "nlod-2.0": "https://data.norge.no/nlod/no/2.0",
 }
 
 # Ekstra hoder per part. NVA-API-et gir JSON bare når det blir bedt om det.
@@ -183,6 +189,9 @@ KJENNETEGN = {
     "nva-ekspertgruppen-2024": "copyright-act",
     "nva-ekspertgruppen-2025": "copyright-act",
     "nva-styringsgruppen-2025": "copyright-act",
+    # Ordet hver bestemmelse i lisensen er skrevet rundt (målt 08.11.2026).
+    "nlod-1.0": "lisensgiver",
+    "nlod-2.0": "lisensgiver",
 }
 # Halvparten av den korteste synlige teksten i arkivet, vilkar-brreg med
 # 1 480 tegn (analyse/drift/kjennetegn.txt). Samme halvering som regelen

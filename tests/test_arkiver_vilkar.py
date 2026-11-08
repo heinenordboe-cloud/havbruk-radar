@@ -20,7 +20,7 @@ from core.karantene import synlig_tekst
 # copyright-act). Se ark.KJENNETEGN.
 TEKST = ("Data er lisensiert under NLOD. Opphavsretten tilhører oss. " * 14
          + "CC BY 4.0. Ingen datautvinning eller datamining. Oceanspace Media. "
-         + "copyright-act. ")
+         + "copyright-act. Lisensgiver. ")
 SIDE = f"<html><script>x=1</script><p>{TEKST}</p></html>".encode()
 FEILSIDE = (b"<!DOCTYPE html><html><head><title>Feil</title></head><body>"
             b"<h1>Tjenesten er midlertidig utilgjengelig</h1></body></html>")
