@@ -48,7 +48,16 @@ def test_status_per_kilde_er_radens(p):
 
 
 @pytest.mark.parametrize("p", PRODUKTER, ids=lambda p: p["produkt"])
-def test_salgbart_bare_uten_ubelagte_kilder(p):
+def test_hver_kilde_har_bruk(p):
+    """Bruk-kolonnen nevner de samme kildene i samme rekkefølge, og hver
+    med en av de to brukene."""
+    assert [n for n, _ in p["bruk"]] == [n for n, _ in p["kilder"]]
+    for navn, bruk in p["bruk"]:
+        assert bruk in L.BRUK, f"{navn}: «{bruk}» er ikke en av {L.BRUK}"
+
+
+@pytest.mark.parametrize("p", PRODUKTER, ids=lambda p: p["produkt"])
+def test_salgbart_bare_uten_ubelagte_kilder_som_gjengis(p):
     ok, hindre = L.salgbart(p, RADER)
     if ok:
         assert p["status"] == "**ja**"
@@ -56,6 +65,41 @@ def test_salgbart_bare_uten_ubelagte_kilder(p):
         assert p["status"].startswith("**nei**")
         for n in hindre:
             assert f"`{n}`" in p["status"], f"{n} hindrer salg, men er ikke nevnt"
+
+
+def _kommuneanalysen(tekst: str) -> dict:
+    [p] = [p for p in L.produkter(tekst)
+           if p["produkt"] == "Kommuneanalyse: havbruksfondet"]
+    return p
+
+
+def test_kommuneanalysen_er_salgbar_fordi_instruksen_ikke_gjengis():
+    """Prøven over må kunne feile: settes instruksen til «gjengis», er den
+    UBELAGTE kilden en som bærer visningen, og produktet stopper."""
+    p = _kommuneanalysen(TEKST)
+    assert L.salgbart(p, RADER) == (True, [])
+    gjengitt = TEKST.replace(
+        "`havbruksfondet:instrukser` fakta og metode, med lenke",
+        "`havbruksfondet:instrukser` gjengis", 1)
+    assert gjengitt != TEKST
+    assert L.salgbart(_kommuneanalysen(gjengitt), RADER) == (
+        False, ["havbruksfondet:instrukser"])
+
+
+def test_kilde_uten_bruk_regnes_som_gjengitt():
+    """«Vet ikke» åpner ikke for salg: uten bruk-kolonne stopper de to
+    UBELAGTE kildene igjen."""
+    p = dict(_kommuneanalysen(TEKST), bruk=[])
+    assert L.salgbart(p, RADER) == (
+        False, ["havbruksfondet:instrukser", "havbruksfondet:pressemeldinger"])
+
+
+def test_nektet_stopper_uansett_bruk():
+    assert L.hindrer("NEKTET", L.FAKTA)
+    assert L.hindrer("MANGLER RAD", L.FAKTA)
+    assert L.hindrer("UBELAGT", L.GJENGIS)
+    assert not L.hindrer("UBELAGT", L.FAKTA)
+    assert not L.hindrer("belagt", L.GJENGIS)
 
 
 def test_en_kilde_uten_rad_feller_produktet():

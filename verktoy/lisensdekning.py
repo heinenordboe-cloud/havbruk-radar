@@ -8,7 +8,8 @@ Leser to tabeller i `docs/LISENSKJEDE.md`:
   MAPPETABELLEN   én rad per mappe i `data/arkiv/` og per kildenavn i
                   `sources/`, med vilkåret ordrett, datoen det ble lest,
                   den arkiverte vilkårssiden og en status.
-  PRODUKTTABELLEN hvilke rader hvert produkt hviler på.
+  PRODUKTTABELLEN hvilke rader hvert produkt hviler på, og hvordan det
+                  bruker hver av dem (`BRUK`).
 
 og sier hva som mangler. Skriver ingenting.
 
@@ -51,6 +52,15 @@ PRODUKTTABELL = "## Produktene"
 # selges. `NEKTET`: vilkåret forbyr bruken.
 STATUSER = ("belagt", "belagt i lov", "UBELAGT", "NEKTET", "egen", "ikke innhold")
 BAERER = ("belagt", "belagt i lov", "egen")
+
+# HVORDAN ET PRODUKT BRUKER EN KILDE. `gjengis`: kildens tall, tabeller
+# eller tekst står i produktet. `fakta og metode, med lenke`: en
+# opplysning fra kilden (en dato, en fordelingsregel) står med egne ord
+# og lenke, og ingen tekst fra kilden står i produktet. UBELAGT stopper
+# bare den første (Heine, økt 9, 09.11.2026). NEKTET stopper begge.
+GJENGIS = "gjengis"
+FAKTA = "fakta og metode, med lenke"
+BRUK = (GJENGIS, FAKTA)
 
 _DATO = re.compile(r"\b\d\d\.\d\d\.\d{4}\b")
 _SITAT = re.compile(r"«([^»]+)»")
@@ -147,13 +157,16 @@ def sitater_i_kroppen(r: dict[str, str], data: Path) -> list[str]:
 # --------------------------------------------------------------- produkter
 
 def produkter(tekst: str) -> list[dict]:
-    """Produkttabellen: {produkt, kilder: [(navn, status skrevet)], status}."""
+    """Produkttabellen: {produkt, kilder: [(navn, status skrevet)],
+    bruk: [(navn, bruk skrevet)], status}."""
     ut = []
     for r in _tabell(tekst, PRODUKTTABELL):
         kilder = re.findall(r"`([^`]+)`\s*([A-Za-zÆØÅæøå ]+?)(?=\s*(?:·|$))",
                             r.get("kilder og status", ""))
+        bruk = re.findall(r"`([^`]+)`\s*([^`·]+?)(?=\s*(?:·|$))",
+                          r.get("bruk", ""))
         ut.append({"produkt": r.get("produkt", ""), "kilder": kilder,
-                   "status": r.get("salgbart", "")})
+                   "bruk": bruk, "status": r.get("salgbart", "")})
     return ut
 
 
@@ -168,9 +181,25 @@ def status(navn: str, rader: list[dict[str, str]]) -> str:
     return st[0]
 
 
+def hindrer(status_: str, bruk: str) -> bool:
+    """Stopper en kilde med denne statusen og bruken salg?
+
+    En UBELAGT kilde stopper bare når produktet gjengir den. En kilde
+    uten oppgitt bruk regnes som gjengitt: «vet ikke» skal ikke åpne
+    for salg. Alt annet som ikke bærer (NEKTET, «ikke innhold», en
+    manglende rad) stopper uansett bruk.
+    """
+    if status_ in BAERER:
+        return False
+    return not (status_ == "UBELAGT" and bruk == FAKTA)
+
+
 def salgbart(p: dict, rader: list[dict[str, str]]) -> tuple[bool, list[str]]:
-    """Salgbart bare når ingen av kildene er UBELAGT (eller verre)."""
-    hindre = [n for n, _ in p["kilder"] if status(n, rader) not in BAERER]
+    """Salgbart bare når ingen av kildene produktet GJENGIR er UBELAGT,
+    og ingen kilde er verre enn det."""
+    bruk = dict(p.get("bruk") or ())
+    hindre = [n for n, _ in p["kilder"]
+              if hindrer(status(n, rader), bruk.get(n, GJENGIS))]
     return not hindre, hindre
 
 

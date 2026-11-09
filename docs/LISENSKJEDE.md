@@ -7,7 +7,9 @@ Regelen som fila håndhever: **udokumentert lisens er UBELAGT, ikke
 antatt greit.** Se `docs/beslutninger/2026-09-12-lisenskjeden.md`.
 UBELAGT betyr at vilkåret er lett etter og ikke funnet — ikke at det er
 fritt. En UBELAGT kilde kan brukes i analyse og dokumentasjon, men skal
-ikke bære en publisert visning uten at noen har spurt utgiveren.
+ikke bære en publisert visning uten at noen har spurt utgiveren. Den
+bærer ikke visningen når den bare brukes som fakta og metode, med lenke
+(bruk-kolonnen i produkttabellen).
 
 Datokolonnen er ikke pynt. Et vilkår er en tredjeparts påstand som kan
 endres uten at noe i dataene beveger seg, og en lisens lest for et år
@@ -28,26 +30,46 @@ Sitatene under er fortsatt lest for hånd; kroppene er belegget.
 
 ## Produktene
 
-**Et produkt er salgbart bare når ingen av kildene det bruker er
+**Et produkt er salgbart bare når ingen av kildene det GJENGIR er
 UBELAGT.** Statusen per kilde er radens i mappetabellen under; der en
-mappe er delt, står delen produktet bruker. `tests/test_lisensdekning.py`
-feiler når en kilde her mangler rad, og når «salgbart» ikke er det
-statusene gir.
+mappe er delt, står delen produktet bruker. Bruk-kolonnen sier hvordan
+produktet bruker hver kilde, i samme rekkefølge:
 
-| produkt | kilder og status | salgbart |
-|---|---|---|
-| Ukentlig hendelsesvarsel | `akvakultur` belagt · `biomasse` belagt · `biomasselag` belagt · `romming` belagt · `eierskap` belagt · `eierskap_historikk` belagt · `enhetsregisteret` belagt · `lusetall` belagt · `sjotemperatur` belagt · `trafikklysvedtak` belagt | **ja** |
-| Kommuneanalyse: havbruksfondet | `havbruksfondet:utbetalinger` belagt · `havbruksfondet:instrukser` UBELAGT · `havbruksfondet:pressemeldinger` UBELAGT · `akvakultur` belagt · `biomasse` belagt | **nei** — UBELAGT: `havbruksfondet:instrukser`, `havbruksfondet:pressemeldinger` |
-| Dokumentert registeruttrekk | `akvakultur` belagt · `eierskap` belagt · `eierskap_historikk` belagt · `eierskap-overforinger` belagt · `enhetsregisteret` belagt · `enhetsregisteret_oppslag` belagt · `biomasse` belagt · `lusetall` belagt | **ja** |
-| Analyse på oppdrag | `akvakultur` belagt · `biomasse` belagt · `lusetall` belagt · `eierskap` belagt · `enhetsregisteret` belagt · `trafikklysvedtak` belagt · `reguleringsomraader` belagt · `unntaksvekst` belagt i lov · `mattilsynet-lakselus` belagt · `ekspertgruppen` UBELAGT · `styringsgruppen` UBELAGT · `regjeringen-horing` UBELAGT · `stortingsmeldinger` UBELAGT | **nei** — UBELAGT: `ekspertgruppen`, `styringsgruppen`, `regjeringen-horing`, `stortingsmeldinger` |
+- **gjengis**: produktet viser kildens tall, tabeller eller tekst.
+- **fakta og metode, med lenke**: produktet bruker en opplysning fra
+  kilden, som en dato eller en fordelingsregel, med egne ord og med
+  lenke til kilden. Ingen tekst fra den står i produktet. For
+  kommunesidene holder `tests/test_havbruksfond.py` det: ingen seks ord
+  på rad fra instruksene eller pressemeldingene.
 
-*Ingen av de fire produktene finnes ennå* (R4 del 2.3). Kildelistene er
-ANTATT, lest 08.11.2026: hendelsesvarselet er kildene ukesendringene på
-nettstedet bygger på i dag (`nettsted.ukentlige_kilder()`, uten
-`unntaksvekst`, som ikke publiseres); kommuneanalysen er det
-`docs/MALING-HAVBRUKSFOND.md` leser — utbetalingene, instruksen som gir
-fordelingen, og pressemeldingene som daterer dem; analysen på oppdrag er
-det et oppdrag typisk ville trengt utover registrene.
+UBELAGT stopper bare kilder som gjengis (Heines regel, økt 9,
+09.11.2026). NEKTET stopper uansett bruk. `tests/test_lisensdekning.py`
+feiler når en kilde her mangler rad eller bruk, og når «salgbart» ikke
+er det statusene og bruken gir.
+
+| produkt | kilder og status | bruk | salgbart |
+|---|---|---|---|
+| Ukentlig hendelsesvarsel | `akvakultur` belagt · `biomasse` belagt · `biomasselag` belagt · `romming` belagt · `eierskap` belagt · `eierskap_historikk` belagt · `enhetsregisteret` belagt · `lusetall` belagt · `sjotemperatur` belagt · `trafikklysvedtak` belagt | `akvakultur` gjengis · `biomasse` gjengis · `biomasselag` gjengis · `romming` gjengis · `eierskap` gjengis · `eierskap_historikk` gjengis · `enhetsregisteret` gjengis · `lusetall` gjengis · `sjotemperatur` gjengis · `trafikklysvedtak` gjengis | **ja** |
+| Kommuneanalyse: havbruksfondet | `havbruksfondet:utbetalinger` belagt · `havbruksfondet:instrukser` UBELAGT · `havbruksfondet:pressemeldinger` UBELAGT · `akvakultur` belagt · `eierskap` belagt | `havbruksfondet:utbetalinger` gjengis · `havbruksfondet:instrukser` fakta og metode, med lenke · `havbruksfondet:pressemeldinger` fakta og metode, med lenke · `akvakultur` gjengis · `eierskap` gjengis | **ja** |
+| Dokumentert registeruttrekk | `akvakultur` belagt · `eierskap` belagt · `eierskap_historikk` belagt · `eierskap-overforinger` belagt · `enhetsregisteret` belagt · `enhetsregisteret_oppslag` belagt · `biomasse` belagt · `lusetall` belagt | `akvakultur` gjengis · `eierskap` gjengis · `eierskap_historikk` gjengis · `eierskap-overforinger` gjengis · `enhetsregisteret` gjengis · `enhetsregisteret_oppslag` gjengis · `biomasse` gjengis · `lusetall` gjengis | **ja** |
+| Analyse på oppdrag | `akvakultur` belagt · `biomasse` belagt · `lusetall` belagt · `eierskap` belagt · `enhetsregisteret` belagt · `trafikklysvedtak` belagt · `reguleringsomraader` belagt · `unntaksvekst` belagt i lov · `mattilsynet-lakselus` belagt · `ekspertgruppen` UBELAGT · `styringsgruppen` UBELAGT · `regjeringen-horing` UBELAGT · `stortingsmeldinger` UBELAGT | `akvakultur` gjengis · `biomasse` gjengis · `lusetall` gjengis · `eierskap` gjengis · `enhetsregisteret` gjengis · `trafikklysvedtak` gjengis · `reguleringsomraader` gjengis · `unntaksvekst` gjengis · `mattilsynet-lakselus` gjengis · `ekspertgruppen` gjengis · `styringsgruppen` gjengis · `regjeringen-horing` gjengis · `stortingsmeldinger` gjengis | **nei** — UBELAGT og gjengis: `ekspertgruppen`, `styringsgruppen`, `regjeringen-horing`, `stortingsmeldinger` |
+
+*Tre av de fire produktene finnes ikke ennå* (R4 del 2.3). Kildelistene
+for dem er ANTATT, lest 08.11.2026: hendelsesvarselet er kildene
+ukesendringene på nettstedet bygger på i dag
+(`nettsted.ukentlige_kilder()`, uten `unntaksvekst`, som ikke
+publiseres); analysen på oppdrag er det et oppdrag typisk ville trengt
+utover registrene, og der er hver kilde satt til «gjengis» fordi ingen
+har målt annet.
+
+**Kommuneanalysen** har sin første del fra 09.11.2026: kommunesidene
+(`/kommune/`, `havbruksfond.py`). Kildelisten er det koden leser:
+regnearket for 2025 (andelene og delingen av lokaliteter over en
+kommunegrense), akvakultursnapshotene, og eierskapskroppen for
+tillatelsenes arter. `biomasse` sto her til 08.11.2026, men ingenting i
+analysen leser den. Instruksen gir måledatoen og fordelingsnøkkelen, og
+pressemeldingene gir datoene fordelingen kom tidligere år. Begge brukes
+med egne ord og lenke.
 
 «Salgbart» gjelder lisensen. To ting står utenfor den kolonnen:
 **BarentsWatch** (`lusetall`, `sjotemperatur`) ber profesjonelle brukere
