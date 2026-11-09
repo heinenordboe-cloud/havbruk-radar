@@ -192,3 +192,63 @@ def test_ingen_kronebelop_paa_kommunesidene():
     for fil in sorted((NETTSTED / "kommune").rglob("index.html")):
         tekst = synlig_tekst(fil.read_bytes())
         assert not re.search(r"\bkr\b|\bkroner\b|\bmill(?:\.|ioner)\b", tekst), fil
+
+
+# --------------------------------- ingen tekst fra instruksen (0c)
+#
+# Instruksene og pressemeldingene brukes som fakta og metode, med lenke,
+# og det er det som gjør kommuneanalysen salgbar (docs/LISENSKJEDE.md,
+# bruk-kolonnen). Prøvene under holder sidene til det, og den første
+# viser at de kan feile.
+
+MALENE = ("kommune.html.j2", "kommuner.html.j2", "kommune-bevis.html.j2")
+
+
+@pytest.fixture
+def kildeskiver(datarepo):
+    return h.kildeskiver()
+
+
+@trenger_data
+def test_gjengitt_finner_en_setning_fra_instruksen(datarepo, kildeskiver):
+    """Uten denne kunne prøvene under vært grønne fordi de ikke ser noe."""
+    instruks = h.kroppstekst(h.INSTRUKS["kropp"])
+    setning = next(s for s in instruks.split(". ") if len(h.ordene(s)) >= 10)
+    side = f"<p>Kommunen og fondet. {setning}.</p>"
+    funn = h.gjengitt(side, kildeskiver)
+    assert funn and {rel for rel, _ in funn} >= {h.INSTRUKS["kropp"]}
+    # Artslista alene er et faktum, ikke en formulering.
+    assert h.gjengitt("laks, ørret og regnbueørret i sjø", kildeskiver) == []
+
+
+@trenger_data
+def test_alle_kroppene_har_tekst(kildeskiver):
+    """En kropp uten lesbar tekst ville gjort prøven blind for den."""
+    for rel, s in kildeskiver.items():
+        assert len(s) > 200, rel
+
+
+@trenger_data
+def test_malene_gjengir_ingen_tekst(kildeskiver):
+    """Prosaen står i malene. Uten Jinja og tagger skal den ikke ha seks
+    ord på rad fra noen av kroppene."""
+    import re
+    maler = Path(nettsted.MALER)
+    for navn in MALENE:
+        t = (maler / navn).read_text("utf-8")
+        t = re.sub(r"\{#.*?#\}|\{%.*?%\}|\{\{.*?\}\}|<[^>]+>", " ", t, flags=re.S)
+        assert h.gjengitt(t, kildeskiver) == [], navn
+
+
+@trenger_bygg
+@trenger_data
+def test_kommunesidene_gjengir_ingen_tekst(kildeskiver):
+    """Hver side under /kommune/ i portens bygg, synlig tekst."""
+    from core.karantene import synlig_tekst
+    funn = []
+    sider = sorted((NETTSTED / "kommune").rglob("index.html"))
+    assert len(sider) == 144
+    for fil in sider:
+        funn += [(fil.relative_to(NETTSTED).as_posix(), rel, s) for rel, s in
+                 h.gjengitt(synlig_tekst(fil.read_bytes()), kildeskiver)]
+    assert not funn, funn[:10]

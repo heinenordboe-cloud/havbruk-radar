@@ -325,6 +325,64 @@ def nokkel(dato: str, lisens=None, deling=None) -> Nokkel:
     return Nokkel(dato, kropp, plasser, ute, n1, lok)
 
 
+# -------------------------------------------------- ingen gjengivelse
+#
+# INSTRUKSENE OG PRESSEMELDINGENE BRUKES SOM FAKTA OG METODE, MED LENKE.
+# De er UBELAGT i lisenskjeden, og UBELAGT stopper bare en kilde som
+# gjengis (docs/LISENSKJEDE.md, bruk-kolonnen). Det er en påstand om
+# sidene, og den holdes her: ingen side har et løp på `SKIVE` ord eller
+# mer som også står i en av kroppene.
+#
+# SEKS ORD, MÅLT 09.11.2026. Artslista «laks, ørret og regnbueørret i» er
+# fem ord og står i instruksen; den er et faktum, ikke en formulering, og
+# sidene trenger den. Første utkast av metodeteksten hadde sju ord på rad
+# fra instruksen, og grensa fanget det.
+SKIVE = 6
+IKKE_GJENGITT = (
+    "havbruksfondet/2026-10-12.12.bin.gz",          # instruksen 27.09.2024
+    "havbruksfondet/2026-10-12.13.bin.gz",          # instruksen 30.11.2022
+    "havbruksfondet/2026-10-12.14.bin.gz",          # supplerende 2023
+    "regjeringen-pressemeldinger/2024-06-06.bin.gz",  # fastpris 2024
+    "regjeringen-pressemeldinger/2024-06-25.bin.gz",  # auksjon 2024
+    "regjeringen-pressemeldinger/2025-11-10.bin.gz",  # fordelingen 2025
+)
+_ORD = re.compile(r"\w+")
+
+
+def ordene(tekst: str) -> list[str]:
+    return _ORD.findall(tekst.lower())
+
+
+def skiver(tekst: str, n: int = SKIVE) -> set[tuple[str, ...]]:
+    o = ordene(tekst)
+    return {tuple(o[i:i + n]) for i in range(len(o) - n + 1)}
+
+
+def kroppstekst(rel: str) -> str:
+    """Den lesbare teksten i en arkivert kropp: PDF-teksten, eller den
+    synlige teksten i en HTML-side."""
+    _, data = _arkivkropp(rel)
+    if data[:5] == b"%PDF-":
+        import io
+        import pypdf
+        return " ".join(s.extract_text() or "" for s in pypdf.PdfReader(io.BytesIO(data)).pages)
+    from core.karantene import synlig_tekst
+    return synlig_tekst(data)
+
+
+def kildeskiver() -> dict[str, set[tuple[str, ...]]]:
+    return {rel: skiver(kroppstekst(rel)) for rel in IKKE_GJENGITT}
+
+
+def gjengitt(tekst: str, kilder: dict[str, set[tuple[str, ...]]]
+             ) -> list[tuple[str, str]]:
+    """(kropp, ordene) for hvert løp på `SKIVE` ord i `tekst` som også står
+    i en av kroppene. Tom liste: ingenting er gjengitt."""
+    mine = skiver(tekst)
+    return sorted({(rel, " ".join(s)) for rel, ks in kilder.items()
+                   for s in mine & ks})
+
+
 def _like(a: Nokkel, b: Nokkel) -> bool:
     def form(n):
         return {k: sorted((p.nr, p.mtb, p.del_) for p in ps)
