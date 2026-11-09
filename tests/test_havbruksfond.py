@@ -296,3 +296,17 @@ def test_nettstedets_tabell_bestaar_porten(datarepo, fordeling):
     tekst = h.tabelltekst(fordeling, h.tabellhode(fordeling, nettsted=True))
     assert v.tekstfunn("kommune/andeler-2026.csv", ".csv", tekst, set(), set()) == []
     assert "Kilde: Fiskeridirektoratet" in tekst
+
+
+def test_jsonld_paa_kommunesidene_bestaar_porten(tmp_path):
+    """Hvert Dataset i `isBasedOn`, også regnearket som ikke er en kilde i
+    `sources/`, har det Search Console krever. Første fulle bygg stoppet
+    på 144 sider fordi regnearknoden manglet `description`."""
+    import publiseringsvakt as v
+    d = {"maaledato": "2026-09-01", "forrige": 2025,
+         "fiskeridir": "https://www.fiskeridir.no/akvakultur/havbruksfondet"}
+    jsonld = nettsted._jsonld_kommune("Frøya, Trøndelag: havbruksfondet 2026",
+                                      "x" * 60, "/kommune/5014/",
+                                      nettsted.kildevilkaar(), d)
+    (tmp_path / "index.html").write_text(f"<html><body>{jsonld}</body></html>")
+    assert v.jsonldfunn(tmp_path) == []

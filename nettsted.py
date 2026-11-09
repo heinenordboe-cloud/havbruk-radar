@@ -9156,6 +9156,11 @@ def _jsonld_kommune(tittel: str, beskrivelse: str, sti: str,
         "isBasedOn": [kildenode(k, vilkaar) for k in KOMMUNE_KILDER] + [{
             "@type": "Dataset",
             "name": f"Utbetalinger fra Havbruksfondet {d['forrige']}",
+            "description": (
+                f"Fiskeridirektoratets beregning av utbetalingene fra "
+                f"Havbruksfondet i {d['forrige']}: lokalitetene med klarert "
+                f"MTB per 01.09.{d['forrige']}, og andelen per kommune og "
+                f"fylkeskommune."),
             "url": d["fiskeridir"], "license": NLOD_1,
             "creditText": "Kilde: Fiskeridirektoratet",
             "creator": {"@type": "Organization", "name": "Fiskeridirektoratet"}}],
