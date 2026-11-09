@@ -700,9 +700,17 @@ def test_et_kommunenavn_gir_lokalitetene_i_kommunen_forst(side, tjener):
 
     Vektingen av tittel og kommune er det som avgjør: uten den vant
     sider som bare NEVNER Bremanger i en tabellrad.
+
+    KOMMUNESIDEN FØRST, fra 09.11.2026 (økt 9). Siden handler om
+    kommunen, og den er inngangen kommunen manglet (R3). Finnes den i
+    bygget, står den øverst; de fem neste er lokaliteter i kommunen.
     """
     treff = _sok(side, tjener, "Bremanger")
     assert treff, "ingen treff på Bremanger"
+    if (Path(ROT) / "kommune" / "4648" / "index.html").exists():
+        assert treff[0]["url"] == "/kommune/4648/", treff[0]["url"]
+        assert treff[0]["meta"]["sidetype"] == "Kommune"
+        treff = treff[1:]
     forste = treff[0]
     assert forste["meta"]["sidetype"] == "Lokalitet", forste["url"]
     assert "BREMANGER" in forste["meta"]["undertittel"].upper()
