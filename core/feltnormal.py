@@ -313,6 +313,40 @@ def bygg(historikk: list[tuple[str, pl.DataFrame]],
     return ut
 
 
+def konstante(historikk: list[tuple[str, pl.DataFrame]]) -> dict[str, str | None]:
+    """{felt: verdien} for felter som har hatt ÉN verdi i hvert snapshot
+    fra det første feltet fantes i. None for felter som har hatt flere.
+
+    Spørsmålet innholdsvakten stiller før den melder et nullstrekk. Fra
+    09.11.2026 (#17): `akvakultur.versjon_status` var «APPROVED» og
+    `enhetsregisteret.kapital_valuta` «NOK» i hver rad i hvert snapshot
+    fra 17.08.2026, og vakten meldte dem tomme 13 kjøringer på rad.
+    `minoritet` 0 betyr at feltet ikke skiller rader, og for
+    `har_rensefisk` var det et dødsfall — men bare fordi feltet HADDE
+    skilt rader før. Et felt som aldri har gjort det, har ikke sluttet.
+
+    To verdier over tid er også «flere»: et felt som skiftet fra én
+    verdi til en annen mellom to datoer, har sagt noe.
+
+    Én dato er én observasjon, som i `bygg()`: det siste innslaget for
+    datoen gjelder.
+    """
+    per_dato: dict[str, pl.DataFrame] = {}
+    for dato, ramme in historikk:
+        per_dato[dato] = ramme          # siste vinner: høyest løpenummer
+
+    ut: dict[str, str | None] = {}
+    for dato in sorted(per_dato):
+        for felter in mål_ramme(per_dato[dato]).values():
+            for felt, tall in felter.items():
+                verdi = tall["toppverdi"] if tall["minoritet"] == 0 else None
+                if felt not in ut:
+                    ut[felt] = verdi
+                elif ut[felt] != verdi:
+                    ut[felt] = None
+    return ut
+
+
 def _dato_og_versjon(stem: str) -> tuple[str, int]:
     """'2026-08-25.2' -> ('2026-08-25', 2). Uten løpenummer: versjon 1.
 

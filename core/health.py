@@ -77,6 +77,7 @@ from typing import TYPE_CHECKING
 
 from core import config
 from core import feltnormal
+from core import snapshot
 from core.paths import HEALTH_PATH  # noqa: F401
 
 if TYPE_CHECKING:                       # pragma: no cover
@@ -262,7 +263,7 @@ def _gulv_margin(kilde: str) -> float | None:
 
 def _vurder_innhold(
     kilde: str, innhold_naa: dict[str, dict], gammel: dict, normal: dict,
-    observed_at: str = "",
+    observed_at: str = "", historikk=None,
 ) -> tuple[dict, list[str]]:
     """Returnerer (nye nullstrekk, varsler). Ser INNHOLD, ikke levering.
 
@@ -314,10 +315,36 @@ def _vurder_innhold(
     fortsatt én innsamling, og feltet har ikke vært tomt to ganger. Uten
     det ville en kilde som kjøres om igjen nådd grensa på en brøkdel av
     tida, og «13» betydd noe forskjellig for hver kilde.
+
+    ÉN VERDI FRA FØRSTE SNAPSHOT, fra 09.11.2026 (#17). Når strekket når
+    grensa, spørres historikken før varselet går: har feltet hatt én og
+    samme verdi i hvert snapshot fra det første, har det aldri skilt rader
+    og har ikke sluttet å si noe. Da varsler det bare når verdien endres
+    — hele kolonnen til en annen verdi, eller noen rader. Et felt som har
+    hatt flere verdier og blir konstant, varsler som før. Se
+    `feltnormal.konstante()`.
+
+    Hullet, sagt rett ut: et felt som er dødt fra sin første kjøring,
+    kan ikke skilles fra et som er konstant av natur, og varsler ikke.
+
+    `historikk` er en funksjon som gir (dato, ramme) for kilden, eldst
+    først; bare datoer FØR `observed_at` brukes. Den kalles bare når et
+    varsel avhenger av svaret, så en kilde med 761 uker leses ikke hver
+    kjøring. None = ingen historikk, og regelen er den gamle.
     """
     strekk = dict(gammel.get("innhold_nullstrekk") or {})
     if not innhold_naa:
         return strekk, []            # kilden er nede: volumvaktens bord
+
+    konstant: dict[str, str | None] | None = None
+
+    def fast_verdi(felt: str) -> str | None:
+        nonlocal konstant
+        if konstant is None:
+            tidligere = [(d, r) for d, r in (historikk() if historikk else [])
+                         if not observed_at or d < observed_at]
+            konstant = feltnormal.konstante(tidligere)
+        return konstant.get(felt)
 
     # Har vi allerede talt denne datoen? Da er dette en rekjøring, og
     # strekket står stille — men prøvene under kjøres likevel, så en
@@ -428,11 +455,21 @@ def _vurder_innhold(
                 f"{kilde}.{felt} (innhold {minoritet} under gulvet "
                 f"{gulv} — laveste på {n.get('uker', '?')} uker; "
                 f"{tall['rader']} rader leveres fortsatt)")
-        elif strekk[felt] >= grense:
-            varsler.append(
-                f"{kilde}.{felt} (tomt {strekk[felt]} kjøringer på rad, "
-                f"grense {grense}; {tall['rader']} rader leveres fortsatt, "
-                f"alle «{tall['toppverdi']}»)")
+        elif strekk[felt] >= grense or (minoritet > 0 and forrige_strekk >= grense):
+            fast = fast_verdi(felt)
+            if fast is None:
+                if minoritet == 0:
+                    varsler.append(
+                        f"{kilde}.{felt} (tomt {strekk[felt]} kjøringer på rad, "
+                        f"grense {grense}; {tall['rader']} rader leveres fortsatt, "
+                        f"alle «{tall['toppverdi']}»)")
+            elif minoritet > 0 or str(tall["toppverdi"]) != fast:
+                naa = (f"{minoritet} av {tall['rader']} rader er noe annet"
+                       if minoritet > 0 else
+                       f"alle {tall['rader']} rader er «{tall['toppverdi']}»")
+                varsler.append(
+                    f"{kilde}.{felt} («{fast}» i hvert snapshot fra det "
+                    f"første; nå er {naa} — verdien har endret seg)")
 
     return strekk, varsler
 
@@ -850,7 +887,8 @@ def oppdater(
             # er nei. Se _vurder_innhold.
             innhold_naa = innhold_per_kilde.get(r.source, {})
             nullstrekk, innhold_varsler = _vurder_innhold(
-                r.source, innhold_naa, gammel, normal, observed_at)
+                r.source, innhold_naa, gammel, normal, observed_at,
+                lambda k=r.source: snapshot.les_mellom(k, "0000-00-00", observed_at))
             # Bare strekket lagres, ikke selve målingene. Målt: `innhold_sist`
             # for alle 72 felter ville tatt health.json fra 5,4 til 19,9 kB —
             # nesten firedoblet en fil som skrives om hver uke, med tall som

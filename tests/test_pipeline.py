@@ -4338,6 +4338,120 @@ def test_strekket_telles_i_datoer_ikke_kjoringer(tmp_path, monkeypatch):
     assert tilstand["falsk"]["innhold_nullstrekk"]["flagg"] == 7
 
 
+# ------------------------- én verdi fra første snapshot (#17, 09.11.2026)
+#
+# akvakultur.versjon_status og enhetsregisteret.kapital_valuta varslet
+# «tomt 13 kjøringer på rad» med alle rader levert: «APPROVED» og «NOK»
+# i hvert snapshot fra 17.08.2026. Et felt som aldri har hatt mer enn én
+# verdi, har ikke sluttet å si noe. Det varsler når verdien endres.
+
+DATAREPO = Path(__file__).resolve().parent.parent.parent / "havbruk-radar-data" / "data"
+
+
+def _historikk(tmp_path, monkeypatch, uker):
+    """Skriver ett snapshot per (dato, verdier) for kilden «falsk»."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
+    for dato, verdier in uker:
+        snapshot.write(_obs_felt(dato, "status", verdier), dato)
+
+
+_STATUSNORMAL = {"falsk": {"status": {"gulv": None, "laveste_sett": 0, "median": 0,
+                                      "uker": 8, "normalt_nullstrekk": 0,
+                                      "dodt_naa": 8, "type": "kategorisk"}}}
+
+
+def test_konstante_finner_felt_med_en_verdi_fra_forste_snapshot():
+    historikk = [("2026-08-17", _ramme("2026-08-17", "a", ["X"] * 5)
+                  .vstack(_ramme("2026-08-17", "b", ["X"] * 5))
+                  .vstack(_ramme("2026-08-17", "c", ["X"] * 4 + ["Y"]))),
+                 ("2026-08-24", _ramme("2026-08-24", "a", ["X"] * 6)
+                  .vstack(_ramme("2026-08-24", "b", ["Y"] * 6))
+                  .vstack(_ramme("2026-08-24", "c", ["X"] * 6))
+                  .vstack(_ramme("2026-08-24", "d", ["Z"] * 6)))]
+    k = feltnormal.konstante(historikk)
+    # a: én verdi hele veien. b: skiftet helt. c: hadde to verdier.
+    # d: kom til senere, én verdi fra sitt første snapshot.
+    assert k == {"a": "X", "b": None, "c": None, "d": "Z"}
+
+
+def test_en_verdi_fra_forste_snapshot_varsler_ikke_paa_strekket(tmp_path, monkeypatch):
+    _historikk(tmp_path, monkeypatch,
+               [(f"2026-08-{d:02d}", ["APPROVED"] * 20) for d in (3, 10, 17, 24, 31)])
+    _vakt(tmp_path, monkeypatch, _STATUSNORMAL,
+          {"falsk": {"innhold_nullstrekk": {"status": 12}}})
+    naa = _ramme("2026-09-07", "status", ["APPROVED"] * 20)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-09-07", naa)
+    assert tilsyn == []
+    # Strekket telles som før; det er varselet som ikke går.
+    assert tilstand["falsk"]["innhold_nullstrekk"]["status"] == 13
+
+
+def test_en_verdi_fra_forste_snapshot_varsler_naar_hele_kolonnen_skifter(tmp_path, monkeypatch):
+    _historikk(tmp_path, monkeypatch,
+               [(f"2026-08-{d:02d}", ["APPROVED"] * 20) for d in (3, 10, 17, 24, 31)])
+    _vakt(tmp_path, monkeypatch, _STATUSNORMAL,
+          {"falsk": {"innhold_nullstrekk": {"status": 12}}})
+    naa = _ramme("2026-09-07", "status", ["GODKJENT"] * 20)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-09-07", naa)
+    assert len(tilsyn) == 1 and "verdien har endret seg" in tilsyn[0], tilsyn
+    assert "«APPROVED»" in tilsyn[0] and "«GODKJENT»" in tilsyn[0]
+
+
+def test_en_verdi_fra_forste_snapshot_varsler_naar_noen_rader_skifter(tmp_path, monkeypatch):
+    _historikk(tmp_path, monkeypatch,
+               [(f"2026-08-{d:02d}", ["APPROVED"] * 20) for d in (3, 10, 17, 24, 31)])
+    _vakt(tmp_path, monkeypatch, _STATUSNORMAL,
+          {"falsk": {"innhold_nullstrekk": {"status": 13}}})
+    naa = _ramme("2026-09-07", "status", ["APPROVED"] * 18 + ["PENDING"] * 2)
+    tilstand, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-09-07", naa)
+    assert len(tilsyn) == 1 and "2 av 20 rader" in tilsyn[0], tilsyn
+    assert tilstand["falsk"]["innhold_nullstrekk"] == {}
+
+
+def test_felt_med_flere_verdier_som_blir_konstant_varsler_som_for(tmp_path, monkeypatch):
+    """Den andre siden: har_rensefisk-formen. Feltet sa noe, og sluttet."""
+    _historikk(tmp_path, monkeypatch,
+               [("2026-08-03", ["True"] * 5 + ["False"] * 15)]
+               + [(f"2026-08-{d:02d}", ["False"] * 20) for d in (10, 17, 24, 31)])
+    _vakt(tmp_path, monkeypatch, _STATUSNORMAL,
+          {"falsk": {"innhold_nullstrekk": {"status": 12}}})
+    naa = _ramme("2026-09-07", "status", ["False"] * 20)
+    _, tilsyn = health.oppdater(
+        [runner.Result("falsk", True, naa.height)], "2026-09-07", naa)
+    assert len(tilsyn) == 1 and "tomt 13 kjøringer på rad" in tilsyn[0], tilsyn
+
+
+@pytest.mark.skipif(not (DATAREPO / "raw" / "akvakultur" / "2026-11-09.parquet").exists(),
+                    reason="datarepoet ligger ikke ved siden av")
+def test_versjon_status_og_kapital_valuta_varsler_ikke(tmp_path, monkeypatch):
+    """Mot datarepoet, slik innsamlingen 09.11.2026 så det: normalen fra
+    12.10, strekket 12 fra forrige kjøring, og snapshotet fra 09.11 som
+    dagens levering. Uten rettingen varslet begge (issue #17)."""
+    monkeypatch.setattr(snapshot, "RAW_DIR", DATAREPO / "raw")
+    monkeypatch.setattr(health, "HEALTH_PATH", tmp_path / "health.json")
+    normal = json.loads((DATAREPO / "feltnormal" / "2026-10-12.json").read_text())
+    felt = {"akvakultur": "versjon_status", "enhetsregisteret": "kapital_valuta"}
+    for kilde, f in felt.items():
+        naa = snapshot.gjeldende(kilde, "2026-11-09")
+        innhold = feltnormal.mål_ramme(naa)[kilde]
+        assert innhold[f]["minoritet"] == 0
+        gammel = {"innhold_nullstrekk": {f: 12}, "innhold_normal": "2026-10-12"}
+        historikk = lambda k=kilde: snapshot.les_mellom(k, "0000-00-00", "2026-11-09")
+        strekk, varsler = health._vurder_innhold(
+            kilde, {f: innhold[f]}, gammel, {**normal, "fil": "2026-10-12"},
+            "2026-11-09", historikk)
+        assert strekk[f] == 13
+        assert varsler == [], varsler
+        # Og uten historikken er det den gamle regelen, som varslet.
+        _, gamle = health._vurder_innhold(
+            kilde, {f: innhold[f]}, gammel, {**normal, "fil": "2026-10-12"},
+            "2026-11-09")
+        assert len(gamle) == 1 and "tomt 13 kjøringer" in gamle[0]
+
+
 def test_godta_felt_kvitterer_ogsaa_innholdsalarmen(tmp_path, monkeypatch):
     """«Feltet er borte» og «feltet er tomt» er samme sak fra to sider.
     En kvittering som bare tok den ene ville latt jobben stå rød på den
