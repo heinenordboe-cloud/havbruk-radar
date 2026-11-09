@@ -6408,7 +6408,12 @@ UTEN_KORT = frozenset({"endringer-uker", "akvakultur-alle",
                        # som i krysstabellen. Som kort var hovedtabellen
                        # 29 681 px høy på 390 (MÅLT 09.10.2026), og hodet
                        # har to rader, som `_kolonnenavn()` ikke leser.
-                       "unntak-lokaliteter", "unntak-perioder"})
+                       "unntak-lokaliteter", "unntak-perioder",
+                       # KOMMUNENE OG FONDET. 143 kommuner som kort var
+                       # 32 442 px høyt på 390 (MÅLT 09.11.2026). Andelene
+                       # leses ned kolonnen, som en indeks. Lokalitetslista
+                       # på kommunesiden er samme slags liste.
+                       "kommuner-andel", "lok-liste", "flytt-liste"})
 
 _TABELL = re.compile(r"(<table\b[^>]*>)(.*?)(</table>)", re.S)
 _TABELL_ID = re.compile(r'\bid="([^"]+)"')
@@ -7845,7 +7850,7 @@ def _endringsurler(uker) -> list[str]:
     return stier
 
 
-def _urler(felles: Felles, uker=()) -> list[str]:
+def _urler(felles: Felles, uker=(), kommuner=()) -> list[str]:
     """Hver publiserte side, som sti. Rekkefølgen er lesningens.
 
     Lusetall-CSV-ene står ikke her: en sitemap er sider, ikke
@@ -7863,10 +7868,13 @@ def _urler(felles: Felles, uker=()) -> list[str]:
               sorted(felles.po_navn, key=lambda k: int(k) if k.isdigit() else 0)]
     stier += [f"/selskap/{orgnr}/" for orgnr in selskaper]
     stier += _endringsurler(uker)
+    if kommuner:
+        stier += [f"/{KOMMUNE_STI}/"] + [f"/{KOMMUNE_STI}/{nr}/"
+                                         for nr in sorted(kommuner, key=int)]
     return stier
 
 
-def skriv_sitemap(rot: Path, felles: Felles, uker=()) -> Path:
+def skriv_sitemap(rot: Path, felles: Felles, uker=(), kommuner=()) -> Path:
     """sitemap.xml over alle sidene, endringssidene med (se `_urler`)."""
     from xml.sax.saxutils import escape
 
@@ -7881,7 +7889,7 @@ def skriv_sitemap(rot: Path, felles: Felles, uker=()) -> Path:
             "nettstedets eget domene) eller satt til vertsnavnet denne "
             "kopien faktisk ligger på. -->")
     linjer.append(f'<urlset xmlns="{SITEMAP_NS}">')
-    for sti in _urler(felles, uker):
+    for sti in _urler(felles, uker, kommuner):
         linjer.append("  <url>")
         linjer.append(f"    <loc>{escape(basis + sti)}</loc>")
         linjer.append(f"    <lastmod>{dato}</lastmod>")
@@ -8144,7 +8152,7 @@ def skriv_404(rot: Path, felles: Felles) -> Path:
     return skriv_side(sti, html)
 
 
-def skriv_llms(rot: Path, felles: Felles, uker=()) -> Path:
+def skriv_llms(rot: Path, felles: Felles, uker=(), kommuner=()) -> Path:
     """llms.txt — hva dette er, og hvor de fullstendige listene er.
 
     Peker på INDEKSENE og /om/, ikke på 1782 enkeltsider. En modell som
@@ -8169,6 +8177,11 @@ def skriv_llms(rot: Path, felles: Felles, uker=()) -> Path:
             f"  som aldri endres etter at uka er publisert, og kan siteres.")
     else:
         endringer = ""
+    if kommuner:
+        endringer += (
+            f"\n- [Kommunene og havbruksfondet]({u(f'/{KOMMUNE_STI}/')}): "
+            f"{len(kommuner)} kommuner med andelen\n"
+            f"  av klarert lokalitets-MTB som Havbruksfondet fordeles etter.")
     tekst = f"""# Kystloggen
 
 > Offentlige registerdata om norsk akvakultur, hentet ukentlig og lagret
@@ -8914,6 +8927,265 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
     (mappe / ds.xlsx_navn).write_bytes(nedlasting.xlsx_bytes(ds))
     (mappe / ds.zip_navn).write_bytes(nedlasting.zip_bytes(ds))
     return [skriv_side(sti, html), mappe / ds.xlsx_navn, mappe / ds.zip_navn]
+
+
+# ------------------------------------------------- kommunene og fondet
+#
+# /kommune/ og /kommune/<nr>/: én side per kommune med klarert
+# lokalitets-MTB i fordelingsnøkkelen for Havbruksfondet, og en oversikt.
+# Tallene er `havbruksfond.fordeling()`, som er holdt mot det forseglede
+# anslaget kommune for kommune (tests/test_havbruksfond.py).
+#
+# HVA SIDENE IKKE HAR. Ingen kronebeløp: fordelingen 2026 er ikke
+# publisert, og et beløp før den kommer, er et anslag (BRIEF: «ingen
+# anslag»). Ingen selskapsnavn: kommunen er området, og lokalitetene står
+# med navn og nummer, som på områdesidene. Ingen tekst fra instruksen
+# eller pressemeldingene: de brukes som fakta og metode, med lenke
+# (docs/LISENSKJEDE.md, bruk-kolonnen).
+
+KOMMUNE_STI = "kommune"
+# Akvakultur er tallene, eierskap er artene på tillatelsene (ledd 2).
+# Regnearket for 2025 er Fiskeridirektoratets og står under samme
+# attribusjon, men er ikke en kilde i `sources/`: det har herkomstlinje,
+# men ingen `data-kilde`.
+KOMMUNE_KILDER = ("akvakultur", "eierskap")
+
+GRUNN = {
+    "ny": "ny lokalitet",
+    "annen_kommune_2025": "talt i en annen kommune i 2025",
+    "ikke_paa_lista_2025": "ikke med 01.09.2025",
+    "ute_av_registeret": "ikke lenger i registeret",
+    "ledd2": "ingen tillatelse for laksefisk",
+    "ledd1": "faller utenfor nøkkelen",
+    "annen_kommune": "registrert i en annen kommune nå",
+    "endret": "endret MTB",
+}
+
+
+def _pp(x: float, desimaler: int = 3) -> str:
+    """Prosentpoeng med fortegn: «+0,079», «−0,150». Null har ikke fortegn."""
+    if round(x * 100, desimaler) == 0:
+        return f"{0:.{desimaler}f}".replace(".", ",")
+    return (f"{x * 100:+.{desimaler}f}".replace(".", ",")
+            .replace("-", "−"))
+
+
+def _andel_vist(x: float) -> str:
+    return visningsord.prosent(x * 100, 4)
+
+
+def _tonn(x: float) -> str:
+    return f"{visningsord.tall(round(x))} t"
+
+
+def _kommunenavn_kort(navn: str, fylke: str) -> str:
+    """«HERØY I NORDLAND», «NORDLAND» -> «Herøy». Fylket står ved siden av."""
+    return visningsord.kommunenavn(navn, fylke).split(", ")[0]
+
+
+def _fordeling_status() -> dict:
+    """Er fordelingen for året publisert, og når leste vi siden sist?
+
+    `lest` er datoen i nyeste logg fra `arkiver_havbruksfond.py` der
+    siden faktisk ble hentet (en sha256 på sidens post). Et forsøk som
+    feilet er ikke en lesing (CLAUDE.md 1b-2).
+    """
+    import havbruksfond as h
+    try:
+        h.regneark(h.AAR)
+        publisert = True
+    except FileNotFoundError:
+        publisert = False
+    lest = ""
+    mappe = DATA_DIR / "arkiv" / "havbruksfondet"
+    for logg in sorted(mappe.glob("*.logg.json")) if mappe.exists() else []:
+        try:
+            poster = json.loads(logg.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        if any(p.get("hva") == "side" and p.get("sha256") for p in poster):
+            lest = max(lest, logg.name[:10])
+    return {"publisert": publisert, "lest": lest}
+
+
+def _bevis_for(kropper) -> list[dict]:
+    """Beviset for kroppene nøkkelen er regnet av: dato, hentet, sha256
+    og stempel, prøvd mot FILA som i `bevis()`."""
+    import stempel
+    indeks = _stempelindeks()
+    navn = {"akvakultur": "Akvakulturregisteret",
+            "eierskap": "Tillatelsene og artene",
+            "havbruksfondet": "Fiskeridirektoratets beregning for 2025"}
+    ut = []
+    for k in kropper:
+        mappe = k.navn.split("/")[0]
+        rel = k.fil.relative_to(DATA_DIR).as_posix()
+        manifest, status = (indeks.get((stempel._sha(k.fil),
+                                        f"havbruk-radar-data/data/{rel}"),
+                                       ("", "")) if k.fil.exists() else ("", ""))
+        ut.append({"kilde": mappe, "navn": navn.get(mappe, mappe),
+                   "kort": "Fiskeridir.", "dato": k.dato,
+                   "hentet": visningsord.oslodato(k.hentet)[:10] if k.hentet else "",
+                   "sha256": k.sha256, "sha256_vist": _hash_vist(k.sha256),
+                   "stempel": status, "manifest": manifest})
+    return ut
+
+
+def bygg_kommuner(felles: Felles) -> dict | None:
+    """Alt /kommune/ og /kommune/<nr>/ viser, eller None uten grunnlag.
+
+    Grunnlaget er akvakultursnapshotene 31.08 og 07.09.2026, eierskaps-
+    kroppen 02.09.2026 og regnearket for 2025. Mangler ett av dem, er
+    svaret None og byggerapporten sier 0 kommunesider. Er de to
+    snapshotene uenige, KASTER `havbruksfond.fordeling()`.
+    """
+    import havbruksfond as h
+    import paastand
+    try:
+        f = h.fordeling()
+    except FileNotFoundError:
+        return None
+    a = f["for"]
+    hentet = {k.dato: visningsord.oslodato(k.hentet)[:10]
+              for k in f["kropper"][:2]}
+
+    def lok(nr: str, navn: str) -> dict:
+        return {"nr": nr, "navn": visningsord.tittelform(navn) or nr,
+                "url": f"/lokalitet/{nr}/" if nr in felles.akva else ""}
+
+    rangert = sorted(f["kommuner"].values(), key=lambda k: (-k["mtb"], k["nr"]))
+    navn = {k["nr"]: _kommunenavn_kort(k["navn"], k["fylke"]) for k in rangert}
+    fylke = {k["nr"]: visningsord.tittelform(k["fylke"]) for k in rangert}
+
+    kommuner = {}
+    for rang, k in enumerate(rangert, 1):
+        nr = k["nr"]
+        lokaliteter = [{
+            **lok(p.nr, p.navn),
+            "mtb": _tonn(p.mtb), "her": _tonn(p.tonn),
+            "del": (visningsord.prosent(p.del_ * 100, 2) if p.del_ < 1 else ""),
+            "delt_med": [{"nr": d, "navn": navn.get(d, d)} for d in p.delt_med],
+        } for p in k["lokaliteter"]]
+        flytt = [{
+            **lok(x["nr"], x["navn"]),
+            "t2025": _tonn(x["t2025"]) if x["t2025"] else VERDI_MANGLER,
+            "t2026": _tonn(x["t2026"]) if x["t2026"] else VERDI_MANGLER,
+            "endring": (f"+{_tonn(x['endring'])}" if x["endring"] > 0
+                        else "−" + _tonn(-x["endring"])),
+            "grunn": GRUNN[x["grunn"]],
+            "dato": visningsord.oslodato(x["dato"])[:10] if x["dato"] else "",
+        } for x in k["flytt"]]
+        ute = [{**lok(nr_, a.lok[nr_].get("navn", "")),
+                "mtb": _tonn(h.mtb(a.lok[nr_]))} for nr_ in k["ute"]]
+        kommuner[nr] = {
+            "nr": nr, "navn": navn[nr], "fylke": fylke[nr],
+            "fylkesnr": k["fylkesnr"], "rang": rang, "antall": len(rangert),
+            "raa_navn": k["navn"],
+            "andel": _andel_vist(k["andel"]),
+            "andel_2025": _andel_vist(k["andel_2025"]),
+            "endring": _pp(k["endring"]),
+            "retning": ("opp" if k["endring"] > 0 else
+                        "ned" if k["endring"] < 0 else "lik"),
+            "fra_egne": _pp(k["fra_egne"]), "fra_landet": _pp(k["fra_landet"]),
+            "mtb": _tonn(k["mtb"]), "mtb_2025": _tonn(k["mtb_2025"]),
+            "lokaliteter": lokaliteter, "flytt": flytt, "ute": ute,
+            "delt": any(l["del"] for l in lokaliteter),
+            "paastand": paastand.herkomst(paastand.Paastand(
+                tema="andel", kilde="akvakultur", gjelder=h.FOR,
+                verdi=f"{k['andel']:.10f}", nivaa=paastand.REGNET,
+                felt="andel")),
+        }
+
+    fylker = [{"nr": x["nr"], "navn": visningsord.tittelform(x["navn"]),
+               "mtb": _tonn(x["mtb"]), "andel": _andel_vist(x["andel"])}
+              for x in sorted(f["fylker"].values(), key=lambda x: -x["mtb"])]
+    ute = [{**lok(nr, r.get("navn", "")), "mtb": _tonn(h.mtb(r)),
+            "kommune": navn.get(r.get("kommunenummer", ""),
+                                visningsord.tittelform(r.get("kommune", "")))}
+           for nr, r in sorted(f["ute"].items(), key=lambda x: int(x[0]))]
+    akva = f["kropper"][0]
+    return {
+        "aar": h.AAR, "forrige": h.FORRIGE_AAR,
+        "maaledato": h.MAALEDATO, "for": h.FOR, "etter": h.ETTER,
+        "hentet": hentet,
+        "antall": len(rangert), "fylker_antall": len(fylker),
+        "lokaliteter_antall": len({p.nr for ps in a.plasser.values()
+                                   for p in ps}),
+        "total": _tonn(f["total"]), "total_2025": _tonn(f["total_2025"]),
+        "rader": [kommuner[k["nr"]] for k in rangert],
+        "kommuner": kommuner, "fylker": fylker, "ute": ute,
+        "status": _fordeling_status(),
+        "instruks": h.INSTRUKS, "fiskeridir": h.FISKERIDIR_SIDE,
+        "fordelt": {"aar": h.FORRIGE_AAR, **h.FORDELT[h.FORRIGE_AAR]},
+        "bevis": _bevis_for(f["kropper"]),
+        "sjekksum": akva.sha256,
+    }
+
+
+def _jsonld_kommune(tittel: str, beskrivelse: str, sti: str,
+                    vilkaar: dict, d: dict) -> Markup:
+    """schema.org/Dataset for en kommuneside eller oversikten."""
+    data = {
+        "@context": "https://schema.org", "@type": "Dataset",
+        "name": tittel, "description": beskrivelse, "inLanguage": "nb",
+        "temporalCoverage": d["maaledato"],
+        "isBasedOn": [kildenode(k, vilkaar) for k in KOMMUNE_KILDER] + [{
+            "@type": "Dataset",
+            "name": f"Utbetalinger fra Havbruksfondet {d['forrige']}",
+            "url": d["fiskeridir"], "license": NLOD_1,
+            "creditText": "Kilde: Fiskeridirektoratet",
+            "creator": {"@type": "Organization", "name": "Fiskeridirektoratet"}}],
+        "creator": kystloggen(),
+    }
+    return _script_trygg(med_url_og_lisens(data, sti))
+
+
+def skriv_kommuner(rot: Path, felles: Felles) -> list[str]:
+    """/kommune/ og én side per kommune. Kommunenumrene som fikk side,
+    eller tom liste uten grunnlag."""
+    d = bygg_kommuner(felles)
+    if d is None:
+        return []
+    miljo = _miljo()
+    proveniens_tekst = proveniens(
+        d["for"], d["hentet"].get(d["for"], ""),
+        f"Registeret er også lest {visningsord.kortdato(d['etter'])}.")
+    mappe = rot / KOMMUNE_STI
+
+    beskrivelse = (f"Hver kommunes andel av klarert lokalitets-MTB "
+                   f"{visningsord.kortdato(d['maaledato'])}, nøkkelen "
+                   f"Havbruksfondet fordeles etter, mot {d['forrige']}.")
+    sti = mappe / "index.html"
+    html = miljo.get_template("kommuner.html.j2").render(
+        d=d, **_grunnkontekst(
+            felles, rot, sti, kilder=KOMMUNE_KILDER,
+            tittel="Kommunene og havbruksfondet — Kystloggen",
+            beskrivelse=beskrivelse,
+            jsonld=_jsonld_kommune("Kommunene og havbruksfondet", beskrivelse,
+                                   f"/{KOMMUNE_STI}/", felles.vilkaar, d),
+            proveniens_tekst=proveniens_tekst, sidetype="Liste",
+            undertittel=f"{d['antall']} kommuner{SKILLE}{d['total']}",
+            soketekst="havbruksfondet kommune kommuner fordelingsnøkkel"))
+    skriv_side(sti, html)
+
+    mal = miljo.get_template("kommune.html.j2")
+    for nr, k in d["kommuner"].items():
+        sti = mappe / nr / "index.html"
+        tittel = f"{k['navn']}, {k['fylke']}: havbruksfondet {d['aar']}"
+        beskrivelse = (f"{k['navn']} kommune har {k['andel']} av klarert "
+                       f"lokalitets-MTB i nøkkelen for Havbruksfondet "
+                       f"{visningsord.kortdato(d['maaledato'])}, mot "
+                       f"{k['andel_2025']} i {d['forrige']}.")
+        html = mal.render(d=d, k=k, **_grunnkontekst(
+            felles, rot, sti, kilder=KOMMUNE_KILDER,
+            tittel=f"{tittel} — Kystloggen", beskrivelse=beskrivelse,
+            jsonld=_jsonld_kommune(tittel, beskrivelse,
+                                   f"/{KOMMUNE_STI}/{nr}/", felles.vilkaar, d),
+            proveniens_tekst=proveniens_tekst, sidetype="Kommune",
+            undertittel=f"Kommune {nr}{SKILLE}{k['fylke']}{SKILLE}{k['andel']}",
+            soketekst=f"{k['navn']} {k['raa_navn']} kommune havbruksfondet"))
+        skriv_side(sti, html)
+    return list(d["kommuner"])
 
 
 
@@ -10571,6 +10843,8 @@ class Byggelogg:
     # Analysesidene som ble skrevet. 0 er et svar og står i rapporten;
     # /analyse/unntaksvekst/ bygges ikke lenger (10.10.2026).
     analyser: int = 0
+    # /kommune/<nr>/, og 0 når grunnlaget for nøkkelen mangler.
+    kommunesider: int = 0
     sok: dict = None
     # Kvalitetsrapporten for bygget, slik `skriv_kvalitet()` skrev den.
     kvalitet: dict = None
@@ -10704,6 +10978,19 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     # docs/ANALYSE-UNNTAKSVEKST.md blir liggende; kallet er tatt ut, og
     # `test_analysesiden_bygges_ikke` holder det slik.
 
+    # KOMMUNENE OG HAVBRUKSFONDET. Kommunenumrene går videre til
+    # sitemapen og llms.txt, så de tre sier det samme. Et sprik mellom de
+    # to snapshotene rundt måledatoen (`Grunnlagssprik`) feller fasen og
+    # bygget, og ingen kommuneside skrives.
+    t0 = time.perf_counter()
+    kommuner: list[str] = []
+    try:
+        kommuner = skriv_kommuner(rot, felles)
+        logg.kommunesider = len(kommuner)
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("kommuner", f"{type(feil).__name__}: {feil}"))
+    tider["kommuner"] = time.perf_counter() - t0
+
     # ENDRINGSSIDENE OG FEEDENE bygges av de SAMME ukene. Ett kall til
     # `les_endringsuker()`, og begge leser resultatet: to veier til det
     # samme regnskapet er formen F6 og F7 hadde, og for en feed er
@@ -10738,9 +11025,9 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_ikoner(rot),
                   lambda: skriv_bilder(rot),
                   lambda: skriv_skript(rot),
-                  lambda: skriv_sitemap(rot, felles, uker),
+                  lambda: skriv_sitemap(rot, felles, uker, kommuner),
                   lambda: skriv_robots(rot),
-                  lambda: skriv_llms(rot, felles, uker),
+                  lambda: skriv_llms(rot, felles, uker, kommuner),
                   lambda: skriv_vertsfiler(rot),
                   lambda: skriv_404(rot, felles)):
         try:
@@ -10863,6 +11150,7 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
           f"endringssider ({logg.endringsuker} uker) skrevet til {rot}")
     print(f"  {logg.feeder} Atom-feeder")
     print(f"  {logg.analyser} analyseside(r)")
+    print(f"  {logg.kommunesider} kommuneside(r) og oversikten /{KOMMUNE_STI}/")
     # SØKEINDEKSEN RAPPORTERES ALLTID, også når den ikke ble bygget: et
     # søk som stille slutter å virke er formen på feilene i CLAUDE.md 1b.
     print(f"  søkeindeks    {'bygget' if logg.sok['bygget'] else 'IKKE BYGGET'}"

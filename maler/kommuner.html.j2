@@ -1,0 +1,177 @@
+{# Oversikten over kommunene og Havbruksfondet. Se `nettsted.bygg_kommuner()`.
+
+   SVARET FØRST: andelen per kommune, størst først. Metoden, de som er
+   holdt utenfor og beviset står bak et klikk under tabellen.
+
+   INGEN TEKST FRA INSTRUKSEN ELLER PRESSEMELDINGENE. De brukes som fakta
+   og metode, med egne ord og lenke (docs/LISENSKJEDE.md, bruk-kolonnen),
+   og en prøve holder det slik. Ingen kronebeløp før Fiskeridirektoratet
+   har publisert årets fordeling. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div data-pagefind-body class="ark sidehode">
+<nav class="sti" aria-label="Du er her">
+  <ol>
+    <li><a href="/">Forside</a></li>
+    <li aria-current="page">Kommuner</li>
+  </ol>
+</nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<div class="ark">
+<h1>Kommunene og havbruksfondet</h1>
+<p class="lok-undertittel">Andel av klarert lokalitets-MTB
+  <time datetime="{{ d.maaledato }}">{{ d.maaledato|kortdato }}</time></p>
+
+<dl class="nokkeltall" data-kilde="akvakultur" data-gjelder="{{ d.for }}" data-nivaa="regnet">
+  <div>
+    <dd>{{ tall(d.antall) }}</dd>
+    <dt>kommuner</dt>
+  </div>
+  <div>
+    <dd>{{ tall(d.fylker_antall) }}</dd>
+    <dt>fylker</dt>
+  </div>
+  <div>
+    <dd>{{ tall(d.lokaliteter_antall) }}</dd>
+    <dt>lokaliteter</dt>
+  </div>
+  <div>
+    <dd class="nokkeltall-liten" data-felt="mtb">{{ d.total }}</dd>
+    <dt>klarert lokalitets-MTB</dt>
+  </div>
+</dl>
+<p class="sidehode-note">Laks, ørret og regnbueørret i sjø
+  <span class="herkomst">Fiskeridir. · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time>
+  og <time datetime="{{ d.etter }}">{{ d.etter|kortdato }}</time> · regnet</span></p>
+
+<p class="historikk-forklaring">Havbruksfondet fordeles etter denne nøkkelen.
+  <a href="{{ d.instruks.url }}">Regelen</a> er fastsatt av departementet
+  <time datetime="{{ d.instruks.dato }}">{{ d.instruks.dato|kortdato }}</time>.</p>
+<p class="historikk-forklaring">
+  {%- if d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
+  {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå. Ingen beløp står her.{% endif %}</p>
+<p class="historikk-forklaring">{% if d.status.lest %}<a href="{{ d.fiskeridir }}">Fiskeridirektoratets side</a> sist lest
+  <time datetime="{{ d.status.lest }}">{{ d.status.lest|kortdato }}</time>.{% endif %}
+  <a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den
+  <time datetime="{{ d.fordelt.dato }}">{{ d.fordelt.dato|kortdato }}</time>.</p>
+
+<p class="tabelltittel" id="kommuner-andel-tittel">{{ d.antall }} kommuner, størst andel først.
+  Endringen er i prosentpoeng fra {{ d.forrige }}.</p>
+<div class="tabellramme" role="region" aria-labelledby="kommuner-andel-tittel" tabindex="0">
+<table id="kommuner-andel" aria-labelledby="kommuner-andel-tittel">
+  <thead>
+    <tr>
+      <th scope="col" class="tall">Nr.</th>
+      <th scope="col">Kommune</th>
+      <th scope="col">Fylke</th>
+      <th scope="col" class="tall">MTB</th>
+      <th scope="col" class="tall">Andel {{ d.aar }}</th>
+      <th scope="col" class="tall">Andel {{ d.forrige }}</th>
+      <th scope="col" class="tall">Endring</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for k in d.rader %}
+    <tr>
+      <td class="tall" data-felt="rang">{{ k.rang }}</td>
+      <th scope="row"><a href="/kommune/{{ k.nr }}/">{{ k.navn }}</a></th>
+      <td data-felt="fylke">{{ k.fylke }}</td>
+      <td class="tall" data-felt="mtb">{{ k.mtb }}</td>
+      <td class="tall" data-felt="andel">{{ k.andel }}</td>
+      <td class="tall" data-felt="andel_2025">{{ k.andel_2025 }}</td>
+      <td class="tall" data-felt="endring">{{ k.endring }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="historikk-forklaring"><span class="herkomst">Andel {{ d.forrige }}: Fiskeridir. ·
+  <time datetime="{{ d.forrige }}-09-01">{{ (d.forrige ~ "-09-01")|kortdato }}</time> · beregningen for {{ d.forrige }}</span></p>
+
+<p class="tabelltittel" id="fylker-andel-tittel">{{ d.fylker_antall }} fylkeskommuner, etter samme nøkkel.</p>
+<div class="tabellramme" role="region" aria-labelledby="fylker-andel-tittel" tabindex="0">
+<table id="fylker-andel" aria-labelledby="fylker-andel-tittel">
+  <thead>
+    <tr>
+      <th scope="col">Fylke</th>
+      <th scope="col" class="tall">MTB</th>
+      <th scope="col" class="tall">Andel {{ d.aar }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in d.fylker %}
+    <tr>
+      <th scope="row">{{ f.navn }}</th>
+      <td class="tall" data-felt="mtb">{{ f.mtb }}</td>
+      <td class="tall" data-felt="andel">{{ f.andel }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{# METODEN, bak et klikk. Hvert punkt er ett avsnitt under 110 tegn. #}
+<details class="forklaring" id="metode">
+  <summary>Slik er andelen regnet</summary>
+  <ul>
+    <li>Med: lokaliteter for laks, ørret og regnbueørret i sjø, med kapasitet i tonn.</li>
+    <li>Vekten er den høyeste av klarert og midlertidig klarert kapasitet.</li>
+    <li>Registeret er lest <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time> og
+      <time datetime="{{ d.etter }}">{{ d.etter|kortdato }}</time>. Begge gir samme nøkkel.</li>
+    <li>Andelen er kommunens MTB delt på summen for alle kommuner.</li>
+    <li>Andelen {{ d.forrige }} er Fiskeridirektoratets egen, fra beregningen for {{ d.forrige }}.</li>
+    <li id="maalbar"><strong>Målbar:</strong> en lokalitet over en kommunegrense er delt som
+      Fiskeridirektoratet delte den i {{ d.forrige }}.</li>
+    <li>Delingen er ikke målt i år. En grense eller en lokalitet kan ha flyttet seg siden.</li>
+    <li>Fiskeridirektoratet regner selv. Tallene deres kan avvike fra disse.</li>
+  </ul>
+  {% if d.ute %}
+  <p class="tabelltittel" id="kommuner-ute-tittel">Holdt utenfor: {{ antall(d.ute|length, "lokalitet", "lokaliteter") }}
+    uten tillatelse for laks, ørret eller regnbueørret.</p>
+  <div class="tabellramme" role="region" aria-labelledby="kommuner-ute-tittel" tabindex="0">
+  <table id="kommuner-ute" aria-labelledby="kommuner-ute-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Nr.</th>
+        <th scope="col">Lokalitet</th>
+        <th scope="col">Kommune</th>
+        <th scope="col" class="tall">Kapasitet</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in d.ute %}
+      <tr>
+        <td data-felt="lokalitetsnummer">{{ l.nr }}</td>
+        <th scope="row">{% if l.url %}<a href="{{ l.url }}">{{ l.navn }}</a>{% else %}{{ l.navn }}{% endif %}</th>
+        <td data-felt="kommune">{{ l.kommune }}</td>
+        <td class="tall" data-felt="mtb">{{ l.mtb }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p><span class="herkomst">Fiskeridir. · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time></span></p>
+  {% endif %}
+</details>
+
+{% include "kommune-bevis.html.j2" %}
+
+<section class="seksjon" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    <p class="siterbar" id="siterbar">Kystloggen ({{ d.aar }}).
+      <i>Kommunene og havbruksfondet {{ d.aar }}.</i>
+      Akvakulturregisteret {{ d.for|kortdato }}, sjekksum {{ d.sjekksum[:8] }}…{{ d.sjekksum[-4:] }}.
+      {{ kanonisk }}</p>
+  </div>
+</section>
+</div>
+{% endblock %}

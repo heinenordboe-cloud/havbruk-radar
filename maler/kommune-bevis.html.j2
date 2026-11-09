@@ -1,0 +1,26 @@
+{# BEVISET FOR NØKKELEN, likt på oversikten og hver kommuneside: de to
+   lesingene av registeret rundt måledatoen, artene på tillatelsene og
+   Fiskeridirektoratets beregning for året før. Per fil: dato, hentet,
+   sha256 av innholdet og om FILA står i et stemplet manifest. Samme form
+   som lokalitetssidens bevis — se `nettsted._bevis_for()`. #}
+{% from "paastand.html.j2" import merke %}
+<details class="tallboks bevis" id="bevis">
+  <summary>Bevis</summary>
+  <dl class="bevisliste">
+    {% for b in d.bevis %}
+    <div{% if b.kilde in ("akvakultur", "eierskap") %}{{ merke({"kilde": b.kilde, "gjelder": b.dato}) }}{% endif %}>
+      <dt>{{ b.navn }} <span class="herkomst">{{ b.kort }}</span></dt>
+      <dd><time datetime="{{ b.dato }}">{{ b.dato|kortdato }}</time>
+        {%- if b.hentet %} · hentet <time datetime="{{ b.hentet }}">{{ b.hentet|kortdato }}</time>{% endif %}</dd>
+      {% if b.sha256 %}
+      <dd class="tall-mono" data-felt="raw_hash">sha256 {{ b.sha256_vist }}</dd>
+      {% endif %}
+      <dd>{% if b.stempel == "komplett" %}stemplet med OpenTimestamps
+        <time datetime="{{ b.manifest }}">{{ b.manifest|kortdato }}</time>
+        {%- elif b.stempel == "venter" %}stempelet venter på en Bitcoin-blokk
+        {%- else %}ikke stemplet{% endif %}</dd>
+    </div>
+    {% endfor %}
+  </dl>
+  <p><a href="/om/#lesing-bevis">Slik etterprøver du en sum</a></p>
+</details>

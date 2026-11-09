@@ -941,7 +941,7 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # er en fase ingen ser vokse.
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
-                          "selskaper", "forside", "indekser",
+                          "selskaper", "forside", "indekser", "kommuner",
                           "endringssider", "feeder", "maskinfiler",
                           "kvalitet", "sokeindeks"}
     for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html",

@@ -1,0 +1,183 @@
+{# Én kommune og Havbruksfondet. Se `nettsted.bygg_kommuner()`.
+
+   SVARET FØRST: andelen av nøkkelen og endringen fra året før. Deretter
+   lokalitetene som flyttet den, så alle lokalitetene som teller. Metoden
+   står én gang, på oversikten (/kommune/#metode), og lenkes herfra.
+
+   ANDELEN ER EN PÅSTAND (paastand.py): kilde akvakultur, gjelder
+   31.08.2026, nivå `regnet`. Den har sin herkomstlinje rett under.
+   Tallene fra Fiskeridirektoratets beregning for året før har sin egen
+   linje, men ingen `data-kilde`: regnearket er ikke en kilde i
+   `sources/`.
+
+   Ingen kronebeløp, ingen selskapsnavn, ingen tekst fra instruksen. #}
+{% extends "base.html.j2" %}
+{% from "paastand.html.j2" import merke %}
+
+{% block toppinnhold %}
+<div data-pagefind-body class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Forside</a></li>
+      <li><a href="/kommune/">Kommuner</a></li>
+      <li aria-current="page">{{ k.navn }}</li>
+    </ol>
+  </nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<div class="ark">
+<h1>{{ k.navn }}</h1>
+<p class="lok-undertittel">Kommune {{ k.nr }} · {{ k.fylke }}</p>
+
+<dl class="nokkeltall"{{ merke(k.paastand, "regnet") }}>
+  <div>
+    <dd data-felt="andel">{{ k.andel }}</dd>
+    <dt>av nøkkelen <time datetime="{{ d.maaledato }}">{{ d.maaledato|kortdato }}</time></dt>
+  </div>
+  <div>
+    <dd class="nokkeltall-liten" data-felt="mtb">{{ k.mtb }}</dd>
+    <dt>klarert lokalitets-MTB, {{ antall(k.lokaliteter|length, "lokalitet", "lokaliteter") }}</dt>
+  </div>
+  <div>
+    <dd class="nokkeltall-liten" data-felt="endring">{{ k.endring }}</dd>
+    <dt>prosentpoeng fra {{ d.forrige }} ({{ k.andel_2025 }})</dt>
+  </div>
+  <div>
+    <dd class="nokkeltall-liten">{{ k.rang }} av {{ k.antall }}</dd>
+    <dt>kommuner, etter andel</dt>
+  </div>
+</dl>
+<p class="sidehode-note">Laks, ørret og regnbueørret i sjø
+  <span class="herkomst">{{ k.paastand.kort }} · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time>
+  og <time datetime="{{ d.etter }}">{{ d.etter|kortdato }}</time> · regnet</span></p>
+<p class="historikk-forklaring">Havbruksfondet fordeles etter denne nøkkelen.
+  <a href="/kommune/#metode">Slik er den regnet</a> ·
+  <a href="{{ d.instruks.url }}">regelen</a></p>
+<p class="historikk-forklaring">
+  {%- if d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
+  {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå. Ingen beløp står her.{% endif %}</p>
+
+<ul class="handlinger" aria-label="Siter og se alle">
+  <li><a class="handling" href="#siter">Siter</a></li>
+  <li><a class="handling" href="/kommune/">Alle kommuner</a></li>
+</ul>
+</div>
+
+{# ---------------------------------------------------------------- 1
+   HVA SOM FLYTTET ANDELEN. Lokalitetene der MTB i kommunen er en annen
+   nå enn i Fiskeridirektoratets liste per 01.09. året før, med grunnen
+   lest av registeret. Endringen deles i to ledd som summerer seg: det
+   som skjedde her, og at summen for hele landet flyttet seg. #}
+<section class="ark seksjon" id="flytt" aria-labelledby="flytt-tittel">
+  <h2 id="flytt-tittel">Hva som flyttet andelen siden {{ d.forrige }}</h2>
+  <dl class="fakta">
+    <div>
+      <dt>Lokalitetene her</dt>
+      <dd>{{ k.fra_egne }} prosentpoeng ({{ k.mtb_2025 }} til {{ k.mtb }})</dd>
+    </div>
+    <div>
+      <dt>Resten av landet</dt>
+      <dd>{{ k.fra_landet }} prosentpoeng ({{ d.total_2025 }} til {{ d.total }} i alt)</dd>
+    </div>
+  </dl>
+  {% if k.flytt %}
+  <p class="tabelltittel" id="flytt-liste-tittel">{{ antall(k.flytt|length, "lokalitet", "lokaliteter") }}
+    med en annen MTB her nå, størst endring først.</p>
+  <div class="tabellramme" role="region" aria-labelledby="flytt-liste-tittel" tabindex="0">
+  <table id="flytt-liste" aria-labelledby="flytt-liste-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Nr.</th>
+        <th scope="col">Lokalitet</th>
+        <th scope="col" class="tall">{{ d.forrige }}</th>
+        <th scope="col" class="tall">{{ d.aar }}</th>
+        <th scope="col" class="tall">Endring</th>
+        <th scope="col">Hvorfor</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for x in k.flytt %}
+      <tr>
+        <td data-felt="lokalitetsnummer">{{ x.nr }}</td>
+        <th scope="row">{% if x.url %}<a href="{{ x.url }}">{{ x.navn }}</a>{% else %}{{ x.navn }}{% endif %}</th>
+        <td class="tall" data-felt="mtb_2025">{{ x.t2025 }}</td>
+        <td class="tall" data-felt="mtb_2026">{{ x.t2026 }}</td>
+        <td class="tall" data-felt="mtb_endring">{{ x.endring }}</td>
+        <td data-felt="grunn">{{ x.grunn }}{% if x.dato %}, klarert <time datetime="{{ x.dato }}">{{ x.dato|kortdato }}</time>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="historikk-forklaring">Ingen lokalitet her har endret MTB. Hele endringen kommer fra resten av landet.</p>
+  {% endif %}
+  <p class="historikk-forklaring"><span class="herkomst">Fiskeridir. ·
+    <time datetime="{{ d.forrige }}-09-01">{{ (d.forrige ~ "-09-01")|kortdato }}</time> og
+    <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time></span></p>
+</section>
+
+{# ---------------------------------------------------------------- 2
+   LOKALITETENE SOM TELLER, størst først. En delt lokalitet teller med
+   sin del, merket målbar (/kommune/#maalbar). #}
+<section class="ark seksjon" id="lokaliteter" aria-labelledby="lok-tittel">
+  <h2 id="lok-tittel">Lokalitetene i nøkkelen</h2>
+  <p class="tabelltittel" id="lok-liste-tittel">{{ antall(k.lokaliteter|length, "lokalitet", "lokaliteter") }},
+    {{ k.mtb }} i alt.</p>
+  <div class="tabellramme" role="region" aria-labelledby="lok-liste-tittel" tabindex="0">
+  <table id="lok-liste" aria-labelledby="lok-liste-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Nr.</th>
+        <th scope="col">Lokalitet</th>
+        <th scope="col" class="tall">MTB</th>
+        {% if k.delt %}<th scope="col">Del her</th>{% endif %}
+        <th scope="col" class="tall">Teller her</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in k.lokaliteter %}
+      <tr>
+        <td data-felt="lokalitetsnummer">{{ l.nr }}</td>
+        <th scope="row">{% if l.url %}<a href="{{ l.url }}">{{ l.navn }}</a>{% else %}{{ l.navn }}{% endif %}</th>
+        <td class="tall" data-felt="mtb">{{ l.mtb }}</td>
+        {% if k.delt %}<td data-felt="delingsandel">{% if l.del %}{{ l.del }}, delt med
+          {% for m in l.delt_med %}<a href="/kommune/{{ m.nr }}/">{{ m.navn }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+          · <a href="/kommune/#maalbar">målbar</a>{% endif %}</td>{% endif %}
+        <td class="tall" data-felt="mtb_i_kommunen">{{ l.her }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="historikk-forklaring"><span class="herkomst">Fiskeridir. ·
+    <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time></span></p>
+  {% if k.ute %}
+  <p class="historikk-forklaring">Holdt utenfor, uten tillatelse for laks, ørret eller regnbueørret:</p>
+  <ul class="historikk-forklaring">
+    {% for l in k.ute %}<li>{% if l.url %}<a href="{{ l.url }}">{{ l.navn }}</a>{% else %}{{ l.navn }}{% endif %} ({{ l.nr }}), {{ l.mtb }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+<div class="ark">
+{% include "kommune-bevis.html.j2" %}
+</div>
+
+<section class="ark seksjon" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    <p class="siterbar" id="siterbar">Kystloggen ({{ d.aar }}).
+      <i>{{ k.navn }} ({{ k.nr }}) og havbruksfondet {{ d.aar }}.</i>
+      Akvakulturregisteret {{ d.for|kortdato }}, sjekksum {{ d.sjekksum[:8] }}…{{ d.sjekksum[-4:] }}.
+      {{ kanonisk }}</p>
+  </div>
+</section>
+{% endblock %}
