@@ -325,6 +325,40 @@ def nokkel(dato: str, lisens=None, deling=None) -> Nokkel:
     return Nokkel(dato, kropp, plasser, ute, n1, lok)
 
 
+# ------------------------------------------------ skåringen, når lest
+#
+# `skaar_havbruksfond.py` skriver `data/havbruksfond/skaring-<år>.json`.
+# Den vises først når Heine har lest den: `lest-<år>.json` i samme mappe,
+#
+#     {"dato": "2026-11-20", "lest_av": "Heine Nordboe",
+#      "skaring": "skaring-2026.json", "sha256": "<summen av den fila>"}
+#
+# KVITTERINGEN GJELDER ÉN FIL, ikke året. Summen kontrolleres mot fila;
+# skrives skåringen på nytt med et annet innhold, er den ikke lest, og
+# den vises ikke. Samme form som `publiseringsvakt.kvitteringer()`.
+
+
+def skaringsmappe() -> Path:
+    return paths.DATA_DIR / "havbruksfond"
+
+
+def lest_skaring(aar: int = AAR) -> dict | None:
+    """Skåringen for `aar` med kvitteringen, eller None når den ikke er
+    skrevet, ikke kvittert, eller kvittert for en annen fil."""
+    mappe = skaringsmappe()
+    kv = mappe / f"lest-{aar}.json"
+    if not kv.exists():
+        return None
+    k = json.loads(kv.read_text(encoding="utf-8"))
+    fil = mappe / str(k.get("skaring", ""))
+    if not k.get("skaring") or fil.parent != mappe or not fil.exists():
+        return None
+    data = fil.read_bytes()
+    if hashlib.sha256(data).hexdigest() != k.get("sha256"):
+        return None
+    return {**json.loads(data), "lest": k}
+
+
 # -------------------------------------------------- ingen gjengivelse
 #
 # INSTRUKSENE OG PRESSEMELDINGENE BRUKES SOM FAKTA OG METODE, MED LENKE.

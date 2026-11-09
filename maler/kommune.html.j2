@@ -59,6 +59,11 @@
   {%- if d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
   {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå. Ingen beløp står her.{% endif %}</p>
 
+{% if d.skaring and k.nr in d.skaring.per_kommune %}{% set s = d.skaring.per_kommune[k.nr] %}
+<p class="historikk-forklaring">Fiskeridirektoratets fordeling {{ d.skaring.aar }}: {{ s.fasit }},
+  {{ s.avvik }} prosentpoeng fra andelen her.</p>
+{% endif %}
+
 <ul class="handlinger" aria-label="Siter og se alle">
   <li><a class="handling" href="#siter">Siter</a></li>
   <li><a class="handling" href="/kommune/">Alle kommuner</a></li>

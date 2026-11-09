@@ -9119,6 +9119,28 @@ def bygg_kommuner(felles: Felles) -> dict | None:
         "fordelt": {"aar": h.FORRIGE_AAR, **h.FORDELT[h.FORRIGE_AAR]},
         "bevis": _bevis_for(f["kropper"]),
         "sjekksum": akva.sha256,
+        "skaring": _skaring_vist(h.lest_skaring(h.AAR), navn),
+    }
+
+
+def _skaring_vist(s: dict | None, navn: dict[str, str]) -> dict | None:
+    """Skåringen slik sidene viser den, bare når Heine har kvittert for
+    fila (`havbruksfond.lest_skaring()`). None ellers, og da står ingenting
+    om den på sidene."""
+    if not s:
+        return None
+    st = s.get("storste_feil") or {}
+    return {
+        "aar": s["aar"], "innenfor": s["innenfor"], "skaaret": s["skaaret"],
+        "fylker_innenfor": s["fylker_innenfor"], "fylker_antall": s["fylker_antall"],
+        "storst_nr": st.get("nr", ""),
+        "storst_navn": navn.get(st.get("nr", ""), visningsord.tittelform(st.get("navn", ""))),
+        "storst_pp": _pp((st.get("avvik_pp") or 0) / 100, 4),
+        "lest": s["lest"]["dato"],
+        "per_kommune": {r["nr"]: {"fasit": _andel_vist(r["fasit_andel"]),
+                                  "avvik": _pp((r["avvik_pp"] or 0) / 100, 4),
+                                  "innenfor": r["innenfor"]}
+                        for r in s["kommuner"] if r["avvik_pp"] is not None},
     }
 
 
