@@ -9120,6 +9120,8 @@ def bygg_kommuner(felles: Felles) -> dict | None:
         "bevis": _bevis_for(f["kropper"]),
         "sjekksum": akva.sha256,
         "skaring": _skaring_vist(h.lest_skaring(h.AAR), navn),
+        "csv": f"andeler-{h.AAR}.csv",
+        "csv_tekst": h.tabelltekst(f, h.tabellhode(f, nettsted=True)),
     }
 
 
@@ -9189,6 +9191,9 @@ def skriv_kommuner(rot: Path, felles: Felles) -> list[str]:
             undertittel=f"{d['antall']} kommuner{SKILLE}{d['total']}",
             soketekst="havbruksfondet kommune kommuner fordelingsnøkkel"))
     skriv_side(sti, html)
+    # ANDELSTABELLEN som nedlasting, samme tekst som datarepoets
+    # `andeler-<år>.csv` uten linjene om repoet. Se `havbruksfond.tabellhode()`.
+    (mappe / d["csv"]).write_text(d["csv_tekst"], encoding="utf-8")
 
     mal = miljo.get_template("kommune.html.j2")
     for nr, k in d["kommuner"].items():

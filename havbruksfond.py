@@ -53,10 +53,13 @@ Fiskeridirektoratets tall når de er arkivert.
 """
 from __future__ import annotations
 
+import csv
 import gzip
 import hashlib
+import io
 import json
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -397,7 +400,6 @@ def kroppstekst(rel: str) -> str:
     synlige teksten i en HTML-side."""
     _, data = _arkivkropp(rel)
     if data[:5] == b"%PDF-":
-        import io
         import pypdf
         return " ".join(s.extract_text() or "" for s in pypdf.PdfReader(io.BytesIO(data)).pages)
     from core.karantene import synlig_tekst
@@ -486,10 +488,20 @@ def fordeling() -> dict:
     fylker: dict[str, dict] = {}
     for k in kommuner.values():
         f = fylker.setdefault(k["fylkesnr"], {"nr": k["fylkesnr"],
-                                              "navn": k["fylke"], "mtb": 0.0})
+                                              "navn": k["fylke"], "mtb": 0.0,
+                                              "mtb_2025": 0.0, "lokaliteter": 0,
+                                              "delt": False})
         f["mtb"] += k["mtb"]
-    for f in fylker.values():
+        f["mtb_2025"] += k["mtb_2025"]
+    for nr, f in fylker.items():
         f["andel"] = f["mtb"] / total
+        f["andel_2025"] = f["mtb_2025"] / total25
+        f["endring"] = f["andel"] - f["andel_2025"]
+        f["lokaliteter"] = len({p.nr for k in kommuner.values()
+                                if k["fylkesnr"] == nr for p in k["lokaliteter"]})
+        f["delt"] = any(p.del_ < 1 and any(d[:2] != nr for d in p.delt_med)
+                        for k in kommuner.values() if k["fylkesnr"] == nr
+                        for p in k["lokaliteter"])
 
     return {"aar": AAR, "maaledato": MAALEDATO, "for": a, "etter": b,
             "total": total, "total_2025": total25,
@@ -575,3 +587,162 @@ def segl(sti: Path = ANSLAG) -> dict:
     naa = hashlib.sha256(sti.read_bytes()).hexdigest()
     return {"fil": sti.relative_to(ROT).as_posix(), "sha256": naa,
             "stemplet": stemplet, "uendret": naa == stemplet}
+
+
+# ------------------------------------------------------ andelstabellen
+#
+# ANDELSTABELLEN er fila andre skript leser, først prisberegningen i økt
+# 13: `data/havbruksfond/andeler-2026.csv` i datarepoet, skrevet av
+#
+#     python havbruksfond.py tabell
+#
+# og lest av `les_andelstabell()`. Én rad per kommune og per
+# fylkeskommune, skilt av `niva`. Andelen er en brøk med ti desimaler
+# (summen er 1 per nivå), ikke prosent; prosentpoengene i `endring_pp`
+# er prosent. Hodet (`#`-linjene) sier hva tallene er regnet av, med
+# sha256, og hvilken kode som skrev dem.
+#
+# Fila skrives én gang. Gir en ny kjøring de samme radene, skrives
+# ingenting; gir den andre rader, skrives `andeler-2026.2.csv`.
+
+# `omraade` og ikke `navn`: porten leser en kolonne som heter `navn` som
+# et selskapsnavn (`publiseringsvakt.NAVNEFELT`), og et kommunenavn er
+# ikke et selskap.
+TABELLKOLONNER = ("niva", "nr", "omraade", "fylkesnr", "fylke", "mtb_tonn",
+                  "andel", "andel_2025", "endring_pp", "lokaliteter", "delt")
+NIVAA = ("kommune", "fylkeskommune")
+
+
+def tabellrader(f: dict) -> list[dict[str, str]]:
+    """Kommunene størst først, så fylkeskommunene størst først."""
+    def rad(niva, nr, navn, fylkesnr, fylke, x, lokaliteter, delt):
+        return {"niva": niva, "nr": nr, "omraade": navn, "fylkesnr": fylkesnr,
+                "fylke": fylke, "mtb_tonn": f"{x['mtb']:.3f}",
+                "andel": f"{x['andel']:.10f}",
+                "andel_2025": f"{x['andel_2025']:.10f}",
+                "endring_pp": f"{(x['andel'] - x['andel_2025']) * 100:.6f}",
+                "lokaliteter": str(lokaliteter), "delt": "ja" if delt else ""}
+    rader = [rad("kommune", k["nr"], k["navn"], k["fylkesnr"], k["fylke"], k,
+                 len(k["lokaliteter"]), any(p.del_ < 1 for p in k["lokaliteter"]))
+             for k in sorted(f["kommuner"].values(), key=lambda k: (-k["mtb"], k["nr"]))]
+    rader += [rad("fylkeskommune", x["nr"], x["navn"], x["nr"], x["navn"], x,
+                  x["lokaliteter"], x["delt"])
+              for x in sorted(f["fylker"].values(), key=lambda x: (-x["mtb"], x["nr"]))]
+    return rader
+
+
+def tabellhode(f: dict, kode: str = "", skrevet: str = "",
+               nettsted: bool = False) -> list[str]:
+    """`#`-linjene: hva tallene er, og hva de er regnet av. Nettstedets
+    kopi har ikke linjene om repoet (stier og kode)."""
+    linjer = [
+        f"Havbruksfondet {AAR}: andelen av klarert lokalitets-MTB per "
+        f"{MAALEDATO} kl. 12.00, per kommune og fylkeskommune.",
+        "Kilde: Fiskeridirektoratet (Akvakulturregisteret og beregningen "
+        f"for {FORRIGE_AAR}). Sammenstillingen er Kystloggens.",
+        "andel: brøk, summen er 1 per niva. endring_pp: prosentpoeng fra "
+        f"{FORRIGE_AAR}.",
+        f"andel_{FORRIGE_AAR}: Fiskeridirektoratets egen nøkkel per "
+        f"01.09.{FORRIGE_AAR}.",
+        "delt=ja: minst én lokalitet er delt med Fiskeridirektoratets "
+        f"andel fra {FORRIGE_AAR} (MÅLBAR, ikke målt i år).",
+        f"Ingen kronebeløp: fordelingen {AAR} er ikke en del av tabellen.",
+    ]
+    for k in f["kropper"]:
+        linjer.append(f"grunnlag: {k.navn} sha256 {k.sha256}")
+    if nettsted:
+        return linjer
+    s = segl()
+    linjer.append(f"lik anslaget {s['fil']} (sha256 {s['sha256']}) "
+                  f"på fire desimaler: se tests/test_havbruksfond.py")
+    if kode:
+        linjer.append(f"skrevet av havbruksfond.py tabell, kode {kode}"
+                      + (f", {skrevet}" if skrevet else ""))
+    return linjer
+
+
+def tabelltekst(f: dict, hode: list[str]) -> str:
+    ut = io.StringIO()
+    for linje in hode:
+        ut.write(f"# {linje}\n")
+    w = csv.DictWriter(ut, fieldnames=TABELLKOLONNER, lineterminator="\n")
+    w.writeheader()
+    w.writerows(tabellrader(f))
+    return ut.getvalue()
+
+
+def _rader_i(tekst: str) -> str:
+    return "".join(l for l in tekst.splitlines(keepends=True) if not l.startswith("#"))
+
+
+def tabellsti(mappe: Path | None = None) -> list[Path]:
+    """Andelstabellene som finnes, eldst skrevet først."""
+    mappe = mappe or skaringsmappe()
+    ut, n = [], 1
+    while (mappe / (f"andeler-{AAR}.csv" if n == 1 else f"andeler-{AAR}.{n}.csv")).exists():
+        ut.append(mappe / (f"andeler-{AAR}.csv" if n == 1 else f"andeler-{AAR}.{n}.csv"))
+        n += 1
+    return ut
+
+
+def skriv_andelstabell(mappe: Path | None = None) -> Path | None:
+    """Skriver tabellen i datarepoet. None når de samme radene står der."""
+    import datetime as dt
+    from core import kodeproveniens
+    mappe = mappe or skaringsmappe()
+    f = fordeling()
+    kode = kodeproveniens.commit()
+    if kode and kodeproveniens.rent() != kodeproveniens.RENT:
+        kode += " (urent arbeidstre)"
+    skrevet = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+    tekst = tabelltekst(f, tabellhode(f, kode, skrevet))
+    finnes = tabellsti(mappe)
+    if finnes and _rader_i(finnes[-1].read_text(encoding="utf-8")) == _rader_i(tekst):
+        return None
+    mappe.mkdir(parents=True, exist_ok=True)
+    n = len(finnes) + 1
+    sti = mappe / (f"andeler-{AAR}.csv" if n == 1 else f"andeler-{AAR}.{n}.csv")
+    sti.write_text(tekst, encoding="utf-8")
+    return sti
+
+
+class Tabellfeil(ValueError):
+    """Andelstabellen har ikke formen `les_andelstabell()` lover."""
+
+
+def les_andelstabell(sti: Path | None = None) -> dict[str, dict[str, dict]]:
+    """{"kommune": {nr: rad}, "fylkeskommune": {nr: rad}}, med tallene som
+    tall. Nyeste fil når `sti` ikke er gitt.
+
+    KASTER `Tabellfeil` når kolonnene ikke er `TABELLKOLONNER`, når et nivå
+    er ukjent, eller når andelene ikke summerer seg til 1 per nivå. En
+    prisberegning skal stoppe på en ødelagt tabell, ikke regne på den.
+    """
+    if sti is None:
+        filer = tabellsti()
+        if not filer:
+            raise FileNotFoundError(f"ingen andelstabell for {AAR} i {skaringsmappe()}")
+        sti = filer[-1]
+    leser = csv.DictReader(io.StringIO(_rader_i(sti.read_text(encoding="utf-8"))))
+    if tuple(leser.fieldnames or ()) != TABELLKOLONNER:
+        raise Tabellfeil(f"{sti.name}: kolonnene er {leser.fieldnames}")
+    ut: dict[str, dict[str, dict]] = {n: {} for n in NIVAA}
+    for r in leser:
+        if r["niva"] not in ut:
+            raise Tabellfeil(f"{sti.name}: ukjent niva {r['niva']!r}")
+        ut[r["niva"]][r["nr"]] = {
+            **r, "mtb_tonn": float(r["mtb_tonn"]), "andel": float(r["andel"]),
+            "andel_2025": float(r["andel_2025"]),
+            "endring_pp": float(r["endring_pp"]),
+            "lokaliteter": int(r["lokaliteter"]), "delt": r["delt"] == "ja"}
+    for niva, rader in ut.items():
+        if not rader or abs(sum(r["andel"] for r in rader.values()) - 1) > 1e-6:
+            raise Tabellfeil(f"{sti.name}: andelene for {niva} summerer ikke til 1")
+    return ut
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] != ["tabell"]:
+        sys.exit("bruk: python havbruksfond.py tabell")
+    sti = skriv_andelstabell()
+    print(sti or f"Uendret: {tabellsti()[-1]} har de samme radene.")

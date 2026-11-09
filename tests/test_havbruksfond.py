@@ -252,3 +252,47 @@ def test_kommunesidene_gjengir_ingen_tekst(kildeskiver):
         funn += [(fil.relative_to(NETTSTED).as_posix(), rel, s) for rel, s in
                  h.gjengitt(synlig_tekst(fil.read_bytes()), kildeskiver)]
     assert not funn, funn[:10]
+
+
+# ---------------------------------------- andelstabellen (punkt 3)
+
+
+@trenger_data
+def test_andelstabellen_skrives_en_gang_og_leses_tilbake(datarepo, tmp_path, fordeling):
+    """Prisberegningen i økt 13 leser `les_andelstabell()`. Tallene skal
+    være fordelingens, og en ny kjøring med de samme radene skriver ikke."""
+    sti = h.skriv_andelstabell(tmp_path)
+    assert sti.name == f"andeler-{h.AAR}.csv"
+    assert h.skriv_andelstabell(tmp_path) is None
+    t = h.les_andelstabell(sti)
+    assert len(t["kommune"]) == 143 and len(t["fylkeskommune"]) == 8
+    for nr, k in fordeling["kommuner"].items():
+        assert t["kommune"][nr]["andel"] == pytest.approx(k["andel"], abs=1e-10)
+        assert t["kommune"][nr]["andel_2025"] == pytest.approx(k["andel_2025"], abs=1e-10)
+    assert t["kommune"]["1866"]["delt"] and not t["kommune"]["5014"]["delt"]
+    hode = [l for l in sti.read_text("utf-8").splitlines() if l.startswith("#")]
+    assert any("sha256 ae33535555c1" in l for l in hode)
+    assert any(h.segl()["sha256"] in l for l in hode)
+
+
+@trenger_data
+def test_en_odelagt_andelstabell_stopper_leseren(datarepo, tmp_path, fordeling):
+    sti = tmp_path / "andeler.csv"
+    tekst = h.tabelltekst(fordeling, [])
+    sti.write_text(tekst.replace("kommune,5014,", "kommune,5014,", 1)
+                   .replace("0.0458363829", "0.0558363829"))
+    with pytest.raises(h.Tabellfeil, match="summerer"):
+        h.les_andelstabell(sti)
+    sti.write_text(tekst.replace("omraade", "navn", 1))
+    with pytest.raises(h.Tabellfeil, match="kolonnene"):
+        h.les_andelstabell(sti)
+
+
+@trenger_data
+def test_nettstedets_tabell_bestaar_porten(datarepo, fordeling):
+    """Kopien på /kommune/ har ingen stier til repoet og ingen kolonne
+    porten leser som et selskapsnavn."""
+    import publiseringsvakt as v
+    tekst = h.tabelltekst(fordeling, h.tabellhode(fordeling, nettsted=True))
+    assert v.tekstfunn("kommune/andeler-2026.csv", ".csv", tekst, set(), set()) == []
+    assert "Kilde: Fiskeridirektoratet" in tekst
