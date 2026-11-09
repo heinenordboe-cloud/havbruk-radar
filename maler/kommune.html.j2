@@ -1,6 +1,7 @@
 {# Én kommune og Havbruksfondet. Se `nettsted.bygg_kommuner()`.
 
-   SVARET FØRST: andelen av nøkkelen og endringen fra året før. Deretter
+   SVARET FØRST: andelen av nøkkelen og endringen fra nøkkelen 01.09.
+   året før. Deretter
    lokalitetene som flyttet den, så alle lokalitetene som teller. Metoden
    står én gang, på oversikten (/kommune/#metode), og lenkes herfra.
 
@@ -42,7 +43,7 @@
   </div>
   <div>
     <dd class="nokkeltall-liten" data-felt="endring">{{ k.endring }}</dd>
-    <dt>prosentpoeng fra {{ d.forrige }} ({{ k.andel_2025 }})</dt>
+    <dt>prosentpoeng fra nøkkelen <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time> ({{ k.andel_2025 }})</dt>
   </div>
   <div>
     <dd class="nokkeltall-liten">{{ k.rang }} av {{ k.antall }}</dd>
@@ -79,7 +80,7 @@
    PÅ SMAL SKJERM står ikke fra- og til-tallene (`bred-skjerm`), så
    endringen og grunnen får plass uten at tabellen ruller. Se stil.css. #}
 <section class="ark seksjon" id="flytt" aria-labelledby="flytt-tittel">
-  <h2 id="flytt-tittel">Hva som flyttet andelen siden {{ d.forrige }}</h2>
+  <h2 id="flytt-tittel">Hva som flyttet andelen siden <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time></h2>
   <dl class="fakta">
     <div>
       <dt>Lokalitetene her</dt>
@@ -123,7 +124,7 @@
   <p class="historikk-forklaring">Ingen lokalitet her har endret MTB. Hele endringen kommer fra resten av landet.</p>
   {% endif %}
   <p class="historikk-forklaring"><span class="herkomst">Fiskeridir. ·
-    <time datetime="{{ d.forrige }}-09-01">{{ (d.forrige ~ "-09-01")|kortdato }}</time> og
+    <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time> og
     <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time></span></p>
 </section>
 

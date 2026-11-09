@@ -241,6 +241,28 @@ def test_tall_og_enhet_holder_sammen_paa_kommunesidene():
 
 
 @trenger_bygg
+def test_aaret_foer_heter_noekkelen_med_dato():
+    """«prosentpoeng fra 2025» kan leses som fjorårets utbetaling (Heine,
+    09.11.2026). Tallet er Fiskeridirektoratets nøkkel per 01.09.2025, og
+    sidene sier det med datoen."""
+    import visningsord
+    from core.karantene import synlig_tekst
+    aar, dato = h.FORRIGE_AAR, visningsord.kortdato(h.FORRIGE_MAALING[:10])
+    aarstall = re.compile(rf"(?:prosentpoeng fra|andelen siden|Andel(?:en)?) {aar}\b")
+    funn = []
+    for fil in sorted((NETTSTED / "kommune").rglob("index.html")):
+        tekst = " ".join(synlig_tekst(fil.read_bytes()).split())
+        funn += [(fil.parent.name, m.group()) for m in aarstall.finditer(tekst)]
+        if fil.parent.name == "kommune":
+            assert f"Nøkkel {dato}" in tekst
+            assert f"prosentpoeng fra nøkkelen {dato}" in tekst
+        else:
+            assert f"prosentpoeng fra nøkkelen {dato}" in tekst, fil
+            assert f"Hva som flyttet andelen siden {dato}" in tekst, fil
+    assert not funn, funn[:5]
+
+
+@trenger_bygg
 def test_ingen_kronebelop_paa_kommunesidene():
     """Fordelingen 2026 er ikke publisert. Et beløp ville vært et anslag."""
     import re

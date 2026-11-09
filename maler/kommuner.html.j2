@@ -75,7 +75,7 @@
 {% endif %}
 
 <p class="tabelltittel" id="kommuner-andel-tittel">{{ d.antall }} kommuner, størst andel først.
-  Endringen er i prosentpoeng fra {{ d.forrige }}.</p>
+  Endringen er i prosentpoeng fra nøkkelen <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time>.</p>
 <div class="tabellramme" role="region" aria-labelledby="kommuner-andel-tittel" tabindex="0">
 <table id="kommuner-andel" aria-labelledby="kommuner-andel-tittel">
   <thead>
@@ -85,7 +85,7 @@
       <th scope="col">Fylke</th>
       <th scope="col" class="tall">MTB</th>
       <th scope="col" class="tall">Andel {{ d.aar }}</th>
-      <th scope="col" class="tall">Andel {{ d.forrige }}</th>
+      <th scope="col" class="tall">Nøkkel {{ d.forrige_dato|kortdato }}</th>
       <th scope="col" class="tall">Endring</th>
     </tr>
   </thead>
@@ -106,8 +106,8 @@
 </div>
 <p class="historikk-forklaring"><a href="{{ d.csv }}" download>Last ned tabellen (CSV)</a>,
   med fylkeskommunene og andelene med ti desimaler.</p>
-<p class="historikk-forklaring"><span class="herkomst">Andel {{ d.forrige }}: Fiskeridir. ·
-  <time datetime="{{ d.forrige }}-09-01">{{ (d.forrige ~ "-09-01")|kortdato }}</time> · beregningen for {{ d.forrige }}</span></p>
+<p class="historikk-forklaring"><span class="herkomst">Nøkkel <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time>:
+  Fiskeridir. · beregningen for {{ d.forrige }}</span></p>
 
 <p class="tabelltittel" id="fylker-andel-tittel">{{ d.fylker_antall }} fylkeskommuner, etter samme nøkkel.</p>
 <div class="tabellramme" role="region" aria-labelledby="fylker-andel-tittel" tabindex="0">
@@ -140,7 +140,8 @@
     <li>Registeret er lest <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time> og
       <time datetime="{{ d.etter }}">{{ d.etter|kortdato }}</time>. Begge gir samme nøkkel.</li>
     <li>Andelen er kommunens MTB delt på summen for alle kommuner.</li>
-    <li>Andelen {{ d.forrige }} er Fiskeridirektoratets egen, fra beregningen for {{ d.forrige }}.</li>
+    <li>Nøkkelen <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time> er Fiskeridirektoratets egen,
+      fra beregningen for {{ d.forrige }}.</li>
     <li id="maalbar"><strong>Målbar:</strong> en lokalitet over en kommunegrense er delt som
       Fiskeridirektoratet delte den i {{ d.forrige }}.</li>
     <li>Delingen er ikke målt i år. En grense eller en lokalitet kan ha flyttet seg siden.</li>

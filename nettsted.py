@@ -9109,6 +9109,9 @@ def bygg_kommuner(felles: Felles) -> dict | None:
     akva = f["kropper"][0]
     return {
         "aar": h.AAR, "forrige": h.FORRIGE_AAR,
+        # NØKKELEN ÅRET FØR heter etter datoen, ikke året: «fra 2025»
+        # leses som fjorårets utbetaling (Heine, 09.11.2026).
+        "forrige_dato": h.FORRIGE_MAALING[:10],
         "maaledato": h.MAALEDATO, "for": h.FOR, "etter": h.ETTER,
         "hentet": hentet,
         "antall": len(rangert), "fylker_antall": len(fylker),
@@ -9186,7 +9189,8 @@ def skriv_kommuner(rot: Path, felles: Felles) -> list[str]:
 
     beskrivelse = (f"Hver kommunes andel av klarert lokalitets-MTB "
                    f"{visningsord.kortdato(d['maaledato'])}, nøkkelen "
-                   f"Havbruksfondet fordeles etter, mot {d['forrige']}.")
+                   f"Havbruksfondet fordeles etter, mot nøkkelen "
+                   f"{visningsord.kortdato(d['forrige_dato'])}.")
     sti = mappe / "index.html"
     html = miljo.get_template("kommuner.html.j2").render(
         d=d, **_grunnkontekst(
@@ -9210,7 +9214,8 @@ def skriv_kommuner(rot: Path, felles: Felles) -> list[str]:
         beskrivelse = (f"{k['navn']} kommune har {k['andel']} av klarert "
                        f"lokalitets-MTB i nøkkelen for Havbruksfondet "
                        f"{visningsord.kortdato(d['maaledato'])}, mot "
-                       f"{k['andel_2025']} i {d['forrige']}.")
+                       f"{k['andel_2025']} i nøkkelen "
+                       f"{visningsord.kortdato(d['forrige_dato'])}.")
         html = mal.render(d=d, k=k, **_grunnkontekst(
             felles, rot, sti, kilder=KOMMUNE_KILDER,
             tittel=f"{tittel} — Kystloggen", beskrivelse=beskrivelse,
