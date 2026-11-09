@@ -63,6 +63,10 @@ SIDER = (
     "/endringer/2026-39/",
     "/om/",
     "/sok/",
+    # Kommunene og fondet, fra 09.11.2026: oversikten og Haram, som har
+    # både lokaliteter som flyttet andelen og en delt lokalitet.
+    "/kommune/",
+    "/kommune/1580/",
 )
 
 ROT = os.environ.get("HAVBRUK_NETTSTED", "")
@@ -810,6 +814,56 @@ def test_ingen_celle_er_kuttet_paa_390(side, tjener, sti):
       return ut.slice(0, 5);
     }""")
     assert not kuttet, f"{sti}: celler utenfor egen kant: {kuttet}"
+
+
+def _flyttsider() -> list[str]:
+    mappe = Path(ROT or "/finnes-ikke", "kommune")
+    return sorted(p.parent.name for p in mappe.glob("*/index.html")
+                  if 'id="flytt-liste"' in p.read_text("utf-8"))
+
+
+def test_grunnen_synes_uten_rulling_paa_390(side, tjener):
+    """«Hva som flyttet andelen» på HVER kommuneside som har tabellen:
+    den er ikke bredere enn ramma, og hver grunn står innenfor kanten.
+
+    Sett av Heine 09.11.2026 på Haram og Skjervøy: «Hvorfor» var kuttet.
+    MÅLT samme dag mot bygget av 3a23286: ramma rullet på alle 38, og på
+    37 sto grunnen utenfor kanten. Fra- og til-kolonnene skjules under
+    40rem (stil.css), og endringen og grunnen står."""
+    sider = _flyttsider()
+    if not sider:
+        pytest.skip("bygget har ingen kommunesider med flytt-tabell")
+    kuttet = []
+    for nr in sider:
+        side.goto(f"{tjener}/kommune/{nr}/", wait_until="load")
+        m = side.evaluate("""() => {
+          const t = document.getElementById("flytt-liste");
+          const ramme = t.closest(".tabellramme");
+          const r = ramme.getBoundingClientRect();
+          const g = [...t.querySelectorAll('td[data-felt="grunn"]')]
+            .map(c => c.getBoundingClientRect());
+          return {innhold: ramme.scrollWidth, ramme: ramme.clientWidth,
+                  utenfor: g.filter(b => b.width === 0 || b.right > r.right + 1).length};
+        }""")
+        if m["innhold"] > m["ramme"] + 1 or m["utenfor"]:
+            kuttet.append((nr, m))
+    assert not kuttet, f"{len(kuttet)} av {len(sider)}: {kuttet[:5]}"
+
+
+def test_fra_og_til_staar_paa_bred_skjerm(side, tjener):
+    """Skjulingen gjelder bare smal skjerm."""
+    sider = _flyttsider()
+    if not sider:
+        pytest.skip("bygget har ingen kommunesider med flytt-tabell")
+    side.set_viewport_size({"width": 1440, "height": 900})
+    try:
+        side.goto(f"{tjener}/kommune/{sider[0]}/", wait_until="load")
+        bredder = side.evaluate("""() => [...document.querySelectorAll(
+          '#flytt-liste td:is([data-felt="mtb_2025"], [data-felt="mtb_2026"])')]
+          .map(c => c.getBoundingClientRect().width)""")
+    finally:
+        side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert bredder and min(bredder) > 0, bredder
 
 
 # ---- ukesidenes hentetidspunkt -----------------------------------------

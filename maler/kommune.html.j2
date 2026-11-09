@@ -74,7 +74,10 @@
    HVA SOM FLYTTET ANDELEN. Lokalitetene der MTB i kommunen er en annen
    nå enn i Fiskeridirektoratets liste per 01.09. året før, med grunnen
    lest av registeret. Endringen deles i to ledd som summerer seg: det
-   som skjedde her, og at summen for hele landet flyttet seg. #}
+   som skjedde her, og at summen for hele landet flyttet seg.
+
+   PÅ SMAL SKJERM står ikke fra- og til-tallene (`bred-skjerm`), så
+   endringen og grunnen får plass uten at tabellen ruller. Se stil.css. #}
 <section class="ark seksjon" id="flytt" aria-labelledby="flytt-tittel">
   <h2 id="flytt-tittel">Hva som flyttet andelen siden {{ d.forrige }}</h2>
   <dl class="fakta">
@@ -96,8 +99,8 @@
       <tr>
         <th scope="col">Nr.</th>
         <th scope="col">Lokalitet</th>
-        <th scope="col" class="tall">{{ d.forrige }}</th>
-        <th scope="col" class="tall">{{ d.aar }}</th>
+        <th scope="col" class="tall bred-skjerm">{{ d.forrige }}</th>
+        <th scope="col" class="tall bred-skjerm">{{ d.aar }}</th>
         <th scope="col" class="tall">Endring</th>
         <th scope="col">Hvorfor</th>
       </tr>
@@ -107,8 +110,8 @@
       <tr>
         <td data-felt="lokalitetsnummer">{{ x.nr }}</td>
         <th scope="row">{% if x.url %}<a href="{{ x.url }}">{{ x.navn }}</a>{% else %}{{ x.navn }}{% endif %}</th>
-        <td class="tall" data-felt="mtb_2025">{{ x.t2025 }}</td>
-        <td class="tall" data-felt="mtb_2026">{{ x.t2026 }}</td>
+        <td class="tall bred-skjerm" data-felt="mtb_2025">{{ x.t2025 }}</td>
+        <td class="tall bred-skjerm" data-felt="mtb_2026">{{ x.t2026 }}</td>
         <td class="tall" data-felt="mtb_endring">{{ x.endring }}</td>
         <td data-felt="grunn">{{ x.grunn }}{% if x.dato %}, klarert <time datetime="{{ x.dato }}">{{ x.dato|kortdato }}</time>{% endif %}</td>
       </tr>

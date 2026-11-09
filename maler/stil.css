@@ -1695,6 +1695,14 @@ td[data-felt="registerdata_mangler"] {
   #unntak-lokaliteter td, #unntak-perioder td { white-space: nowrap; }
 }
 
+/* HVA SOM FLYTTET ANDELEN, på kommunesiden. Grunnen er det leseren kom
+   for, og den skal synes uten å rulle. Under 40rem står bare endringen;
+   fra- og til-tallene står på bred skjerm. MÅLT 09.11.2026 på 390: 408 px
+   tabell i en 390 px ramme på Haram, og «Hvorfor» utenfor kanten. */
+@media (max-width: 39.99rem) {
+  #flytt-liste .bred-skjerm { display: none; }
+}
+
 /* ---------------------------------------------------------------- *
  * 8. NOTER, UTVIDBARE DELER, SITERING OG NEDLASTING
  * ---------------------------------------------------------------- */
