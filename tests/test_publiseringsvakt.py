@@ -156,6 +156,37 @@ def test_desimaltall_er_ikke_et_orgnummer(lister):
                                  orgnr, navn) == [], desimal
 
 
+def test_ni_siffer_inntil_en_bokstav_er_ikke_et_orgnummer(lister):
+    """#18, 09.11.2026: bygg.yml stoppet på `pagefind/pagefind-entry.json`,
+    «ukjent_orgnr — …5786». Fila har ingen data fra oss, bare Pagefinds
+    indekshash, `nb_` og ti heksadesimale tegn. Er ni av dem sifre på rad
+    og det tiende en bokstav, var det ni siffer mellom en bokstav og
+    understrek eller anførselstegn — omtrent 1 % av byggene.
+
+    Et ord er ikke et tall. Tallet skal ikke stå inntil en bokstav eller
+    et siffer på noen av sidene."""
+    orgnr, navn = lister
+    entry = ('{"version":"1.4.0","languages":{"nb":{"hash":"nb_a123455786",'
+             '"wasm":"nb","page_count":2596}}}')
+    assert vakt.gransk_tekst(entry, orgnr, navn,
+                             fil="pagefind/pagefind-entry.json") == []
+    for ord_ in ("nb_a123455786", "nb_123455786b", "x100000000",
+                 "100000000æ", "Ø100000000"):
+        assert vakt.NI_SIFFER.findall(ord_) == [], ord_
+
+
+def test_ni_siffer_med_mellomrom_eller_tegnsetting_rundt_treffer(lister):
+    """Den andre siden av prøven over: bokstavregelen skal ikke ta med seg
+    orgnumre som står slik de faktisk skrives."""
+    orgnr, navn = lister
+    for tekst in ("100000000", " 100000000 ", "(100000000)", "«100000000»",
+                  '"100000000"', "<td>100000000</td>", "orgnr:100000000;",
+                  "/selskap/100000000/", "nb_100000000_", "100000000-"):
+        assert vakt.NI_SIFFER.findall(tekst) == ["100000000"], tekst
+    funn = vakt.gransk_tekst(_side("<td>nr. 100000000 (AS)</td>"), orgnr, navn)
+    assert [f.slag for f in funn] == ["ukjent_orgnr"]
+
+
 def test_orgnummer_som_desimaltall_er_et_kjent_hull(lister):
     """Prisen for testen over, skrevet ned framfor oppdaget senere.
 

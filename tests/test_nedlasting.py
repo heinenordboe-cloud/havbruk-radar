@@ -202,7 +202,11 @@ def test_metadata_er_csvw():
 def test_den_viste_summen_er_summen_i_grupper_og_aldri_ni_siffer():
     """MÅLT 07.10.2026: 11,7 % av tilfeldige sha256-summer har en rekke
     på ni siffer som porten leser som et organisasjonsnummer. Gruppert i
-    åtte kan den ikke ha det, og summen er den samme."""
+    åtte kan den ikke ha det, og summen er den samme.
+
+    Fra 09.11.2026 (#18) leser porten ikke ni siffer inntil en bokstav,
+    og en rå sum feller den ikke lenger. Kontrollen under viser derfor at
+    søket i løkka KAN treffe i dette formatet: en gruppe på ni siffer."""
     def variant(i):
         return _ds(rader=[dict(_ds().rader[0], navn=f"variant {i}")])
 
@@ -211,11 +215,9 @@ def test_den_viste_summen_er_summen_i_grupper_og_aldri_ni_siffer():
         vist = nedlasting.sjekksum_vist(ds)
         assert vist.replace(" ", "") == nedlasting.sjekksum(ds)
         assert not vakt.NI_SIFFER.search(vist)
-    # Og at prøven over faktisk ville truffet noe uten grupperingen:
-    treff = sum(bool(vakt.NI_SIFFER.search(
-        nedlasting.sjekksum(variant(i))))
-        for i in range(300))
-    assert treff > 0
+    # Og at prøven over faktisk ville truffet en gruppe på ni siffer:
+    grupper = nedlasting.sjekksum_vist(variant(0)).split(" ")
+    assert vakt.NI_SIFFER.search(" ".join(grupper[:3] + ["123456789"] + grupper[4:]))
 
 
 def test_samme_data_gir_samme_bytes():

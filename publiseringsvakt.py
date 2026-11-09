@@ -156,7 +156,13 @@ from core.paths import KVITTERING_DIR, RAW_DIR              # noqa: E402
 # — «912345678.0» ut av en pandas-runde — blir ikke sett. Det er en
 # formateringsfeil ingen generator her gjør i dag, og prisen for at
 # vakten kan stå på. Se `test_orgnummer_som_desimaltall_er_et_kjent_hull`.
-NI_SIFFER = re.compile(r"(?<![\d.,])\d{9}(?![\d.,])")
+#
+# OG INGEN BOKSTAV, fra 09.11.2026 (#18). bygg.yml stoppet på
+# `pagefind/pagefind-entry.json`, der Pagefinds indekshash er `nb_` og ti
+# heksadesimale tegn: ni sifre og en bokstav tok ett bygg av hundre.
+# Et tall inni et ord er ikke et tall. `[^\W_]` er bokstav eller siffer;
+# understrek, mellomrom og annen tegnsetting rundt treffer som før.
+NI_SIFFER = re.compile(r"(?<![^\W_]|[.,])\d{9}(?![^\W_]|[.,])")
 
 # Filtypene som faktisk går ut. En `.parquet` ved siden av sida er like
 # publisert som HTML-en, og en `.csv` er verre: den er laget for å lastes
@@ -1615,8 +1621,8 @@ def gransk_csv(tekst: str, orgnr_ok: set[str], navn_ok: set[str],
     # ORGNUMRENE LESES PER CELLE, ikke av råteksten, og det er en MÅLT
     # retting fra 16.09.2026.
     #
-    # `NI_SIFFER` krever at tallet ikke har siffer, punktum eller komma
-    # på noen av sidene. Regelen ble satt for HTML, der «96697320.109» er
+    # `NI_SIFFER` krever at tallet ikke har bokstav, siffer, punktum eller
+    # komma på noen av sidene. Regelen ble satt for HTML, der «96697320.109» er
     # biomasse i kilo og ikke et orgnummer. I en CSV er kommaet
     # DELIMITEREN: `999888777,Kari` gir et komma rett etter tallet, og
     # prøven fant ingenting. Et orgnummer i en CSV-kolonne var altså

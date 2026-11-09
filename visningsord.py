@@ -37,7 +37,8 @@ skriver `oversikt.html` av de samme snapshotene: to steder som staver
    kjenner normalverdien til.
 
 3. **ORGANISASJONSNUMMER GRUPPERES ALDRI.** Publiseringsvaktens
-   `NI_SIFFER` er `(?<![\\d.,])\\d{9}(?![\\d.,])` — ni siffer på rad.
+   `NI_SIFFER` er `(?<![^\\W_]|[.,])\\d{9}(?![^\\W_]|[.,])` — ni siffer
+   på rad, uten bokstav, siffer, punktum eller komma inntil.
    «928 957 489» er ikke ni siffer på rad, og en vakt som ikke kan
    tokenisere tallet kan ikke spørre om det er gjort rede for. Derfor er
    `MENGDEFELT` en OPT-IN-liste: et felt grupperes bare hvis det står

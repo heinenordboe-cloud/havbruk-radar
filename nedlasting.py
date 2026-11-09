@@ -168,6 +168,12 @@ def sjekksum_vist(ds: Datasett) -> str:
     vakten blind for et nummer som står inntil bokstaver; den andre kan
     ikke etterprøves. En gruppe på åtte kan ikke inneholde ni siffer, og
     `sha256sum` sin utskrift sammenlignes like godt gruppe for gruppe.
+
+    Fra 09.11.2026 (#18) leser `NI_SIFFER` ikke ni siffer inntil en
+    bokstav, så en rå sum fra sha256 feller ikke porten lenger. Den
+    første veien over er altså tatt, for Pagefinds indekshash, og hullet
+    den beskriver er tatt med. Grupperingen står: den er lesbar, og den
+    holder om regelen strammes inn igjen.
     """
     hel = sjekksum(ds)
     return " ".join(hel[i:i + 8] for i in range(0, len(hel), 8))
