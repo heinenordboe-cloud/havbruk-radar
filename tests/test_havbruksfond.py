@@ -11,7 +11,9 @@ pekes snapshot-døra og arkivet på datarepoet for prøven. Uten datarepoet
 (Actions) hoppes de over.
 """
 import gzip
+import html
 import io
+import re
 from pathlib import Path
 
 import pytest
@@ -159,6 +161,50 @@ def test_prosentpoeng_har_fortegn_og_null_har_ikke():
     assert nettsted._pp(1e-9) == "0,000"
 
 
+# ---------------------------------- tall og enhet på samme linje
+#
+# «7 800» og «t» sto på hver sin linje i en smal celle på 390 (Heine,
+# 09.11.2026). Mellomrommet foran enheten skal være hardt i hver celle
+# og hvert nøkkeltall, som tusenskillet allerede er.
+
+_CELLE = re.compile(r"<(td|th|dd)\b[^>]*>(.*?)</\1>", re.S)
+_BRUTT = re.compile(r"\d[ \t\r\n]+(?:t|tonn|prosentpoeng)\b|\d[ \t\r\n]+%")
+
+
+def _brutte_enheter(side: str) -> list[str]:
+    """Celler (td, th, dd) der et tall og enheten kan brytes fra hverandre."""
+    ut = []
+    for _, innhold in _CELLE.findall(side):
+        tekst = html.unescape(re.sub(r"<[^>]+>", "", innhold))
+        ut += [m.group() for m in _BRUTT.finditer(tekst)]
+    return ut
+
+
+def test_brutt_enhet_fanges():
+    """Uten denne kunne prøvene under vært grønne fordi de ikke ser noe."""
+    assert _brutte_enheter("<td>7 800 t</td><dd>+0,079\n  prosentpoeng</dd>"
+                           "<td>1,2 %</td>") == ["0 t", "9\n  prosentpoeng", "2 %"]
+    assert _brutte_enheter("<td>7&nbsp;800&nbsp;t</td><dd>+0,079&nbsp;prosentpoeng"
+                           " (7\u00a0800\u00a0t til 9\u00a0000\u00a0t)</dd>") == []
+    # Et ord som begynner på t er ikke enheten.
+    assert _brutte_enheter("<dd>01.09.2025 til 31.08.2026</dd>") == []
+
+
+def test_tonn_har_hardt_mellomrom():
+    assert nettsted._tonn(7800) == "7\u00a0800\u00a0t"
+    assert nettsted._tonn(212.4) == "212\u00a0t"
+
+
+def test_malene_skriver_ingen_enhet_med_vanlig_mellomrom():
+    """Et tall eller en verdi fra Python, så et vanlig mellomrom og
+    enheten, i malkilden."""
+    maler = Path(nettsted.MALER)
+    for navn in MALENE:
+        t = re.sub(r"\{#.*?#\}", " ", (maler / navn).read_text("utf-8"), flags=re.S)
+        funn = re.findall(r"(?:\}\}|\d)[ \t\r\n]+(?:t|tonn|prosentpoeng)\b", t)
+        assert not funn, (navn, funn)
+
+
 def test_uten_grunnlag_ingen_kommunesider(tmp_path):
     """Mangler snapshotene, skrives ingen side — og bygget feiler ikke."""
     from types import SimpleNamespace
@@ -182,6 +228,16 @@ def test_hver_kommune_har_side_og_staar_i_sitemapen():
     assert "/kommune/</loc>" in sitemap
     assert all(f"/kommune/{nr}/</loc>" in sitemap for nr in sider)
     assert "143 kommuner" in (NETTSTED / "llms.txt").read_text("utf-8")
+
+
+@trenger_bygg
+def test_tall_og_enhet_holder_sammen_paa_kommunesidene():
+    """Hver celle og hvert nøkkeltall på /kommune/ og de 143 sidene."""
+    funn = {}
+    for fil in sorted((NETTSTED / "kommune").rglob("index.html")):
+        if brutt := _brutte_enheter(fil.read_text("utf-8")):
+            funn[fil.relative_to(NETTSTED).as_posix()] = brutt[:3]
+    assert not funn, list(funn.items())[:5]
 
 
 @trenger_bygg

@@ -8975,7 +8975,10 @@ def _andel_vist(x: float) -> str:
 
 
 def _tonn(x: float) -> str:
-    return f"{visningsord.tall(round(x))} t"
+    """«7 800 t» med HARDT mellomrom foran enheten, som tusenskillet.
+    Med et vanlig sto «7 800» og «t» på hver sin linje i en smal celle
+    på 390 (sett av Heine 09.11.2026)."""
+    return f"{visningsord.tall(round(x))}\u00a0t"
 
 
 def _kommunenavn_kort(navn: str, fylke: str) -> str:
