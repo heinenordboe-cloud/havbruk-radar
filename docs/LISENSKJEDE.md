@@ -131,7 +131,7 @@ produkt som bruker mappa, arver den svakeste delen det faktisk bruker.
 | `eierskap-overforinger` | Fiskeridirektoratet | `vilkar-fiskeridir/2026-11-08.bin.gz` + `vilkar-nlod-1.0/2026-11-08.bin.gz` | «All bruk av data fra Fiskeridirektoratet er underlagt Norsk lisens for offentlige data (NLOD).» | «Data som er lisensiert under NLOD kan fritt viderebrukes på vilkårene som er utarbeidet av Difi»; NLOD 1.0: «deriblant å distribuere, overføre, spre, vise, fremføre, selge, låne ut og leie ut» | «Kilde: Fiskeridirektoratet»; «Kildehenvisningen skal ikke gi inntrykk av at Fiskeridirektoratet godkjenner eller anbefaler det som presenteres eller den som presenterer.» | 08.11.2026 | belagt |
 | `eierskap-brreg` | Brreg | `vilkar-brreg/2026-11-02.bin.gz` + `vilkar-nlod-2.0/2026-11-08.bin.gz` | «Datasettene følger Norsk lisens for åpne data (NLOD)» | NLOD 2.0: «deriblant å distribuere, overføre, spre, vise, fremføre, selge, låne ut og leie ut» | siden oppgir ingen; NLOD 2.0 punkt 5 (merknad B): «Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av» Brønnøysundregistrene | 08.11.2026 | belagt |
 | `havbruksfondet:utbetalinger` | Fiskeridirektoratet (regnearkene) | `vilkar-fiskeridir/2026-11-08.bin.gz` + `vilkar-nlod-1.0/2026-11-08.bin.gz` | «All bruk av data fra Fiskeridirektoratet er underlagt Norsk lisens for offentlige data (NLOD).» | «Data som er lisensiert under NLOD kan fritt viderebrukes på vilkårene som er utarbeidet av Difi»; NLOD 1.0: «deriblant å distribuere, overføre, spre, vise, fremføre, selge, låne ut og leie ut» | «Kilde: Fiskeridirektoratet»; «Kildehenvisningen skal ikke gi inntrykk av at Fiskeridirektoratet godkjenner eller anbefaler det som presenteres eller den som presenterer.» | 08.11.2026 | belagt |
-| `havbruksfondet:instrukser` | Nærings- og fiskeridepartementet, lagt ut av Fiskeridirektoratet | uklart om «data fra Fiskeridirektoratet» dekker departementets instruks; at § 14 dekker den, er en lesning ingen har gjort | — | — | — | 08.11.2026 | **UBELAGT** |
+| `havbruksfondet:instrukser` | Nærings- og fiskeridepartementet, lagt ut av Fiskeridirektoratet | uklart om «data fra Fiskeridirektoratet» dekker departementets instruks; § 14 (`lovdata-andsverkloven/2026-10-09.bin.gz`) dekker den etter vår lesning 09.11.2026, merknad N, men det er ikke avgjort | — | — | — | 09.11.2026 | **UBELAGT** |
 | `havbruksfondet:pressemeldinger` | regjeringen.no via Wayback | `vilkar-regjeringen/2026-11-08.bin.gz` gjelder bare «Bilder og videomateriale på regjeringen.no»; ingen side for tekst. regjeringen.no svarer 403, siden er lest via Wayback | — | — | — | 08.11.2026 | **UBELAGT** |
 | `ntb-pressemeldinger` | NFD via NTB (`arkiver_havbruksfond.py`; ingen kropp ennå) | pressemeldingene er departementets; som `regjeringen-pressemeldinger` | — | — | — | 08.11.2026 | **UBELAGT** |
 | `lusetall-innkomst` | BarentsWatch, dataeier Mattilsynet | `vilkar-barentswatch/2026-11-08.bin.gz` | «Du har lov til å bruke data hentet via BarentsWatch i kommersiell sammenheng, så lenge du følger alle retningslinjene» | «Du har lov til å videredistribuere innholdet dersom du krediterer oss og dataeier»; «Du kan ikke endre på innholdet i data som leveres.» | «Data levert av BarentsWatch»; «Opplysninger om lakselus, rensefisk og medikamentbruk er hentet fra Mattilsynet» | 08.11.2026 | belagt |
@@ -842,3 +842,71 @@ første har ingen forrige å sammenligne med), og kilden står i
 lisenstabellen på /om/ med hjemmelen «åndsverkloven § 14». Skulle
 grunnlaget falle, settes `attribusjon` tilbake til `None`; da bygges
 ikke analysesiden, og byggingen feiler til den er tatt ut.
+
+## Merknad N — `havbruksfondet:instrukser`: § 14 lest, ikke avgjort
+
+Lest 09.11.2026 (økt 9). Spørsmålet var om Nærings- og
+fiskeridepartementets instruks til Fiskeridirektoratet av 27.09.2024 er
+et vedtak av offentlig myndighet etter åndsverkloven § 14, slik
+`unntaksvekst` ble belagt i lov 09.10.2026 (merknad K).
+
+**Svaret er ja, og det er VÅR LESNING, ikke advokatens.** Ingen domstol,
+myndighet eller advokat har sagt det om denne instruksen (CLAUDE.md
+regel 4). Raden står derfor fortsatt som UBELAGT. Å sette den til
+`belagt i lov` er Heines avgjørelse, som for `unntaksvekst`.
+
+### Lovteksten, ordrett fra arkivet
+
+Samme kropp som merknad K: `lovdata-andsverkloven/2026-10-09.bin.gz`,
+sha256 `b60131c4a8bbe6fe3f4d22a39ea386aea97738ef52b0be8bb14add8885237521`
+(synlig tekst `49ba24de8dc65ce57df0298acd6b88f67379d76a400ec49d87b528d00cb9e1fe`).
+§ 14 første ledd:
+
+> Lover, forskrifter, rettsavgjørelser og andre vedtak av offentlig
+> myndighet er uten vern etter denne loven. Det samme gjelder forslag,
+> utredninger, uttalelser og lignende som gjelder offentlig
+> myndighetsutøvelse, og er avgitt av offentlig myndighet, offentlig
+> oppnevnt råd eller utvalg, eller utgitt av det offentlige.
+
+Andre ledd står ordrett i merknad K. Begge sitatene er holdt mot den
+synlige teksten i kroppen 09.11.2026.
+
+### Det kroppen viser
+
+Instruksen ligger i `havbruksfondet/2026-10-12.12.bin.gz`, sha256
+`a47f03cf9327614f68c618e84c9399e92bc932725f366f38c25a9de69606b925`
+(Wayback-avtrykk 03.11.2024). Lest av PDF-teksten:
+
+- Avsender er departementets havbruksavdeling, mottaker er
+  Fiskeridirektoratet. Brevet er datert 27. september 2024, med
+  referanse 15/4740-42.
+- Tittelen er «Endring av instruks for utbetalinger gjennom
+  Havbruksfondet». Brevet sier selv at det erstatter instruksen av
+  30. november 2022.
+- Innholdet er regler Fiskeridirektoratet skal følge: delingen mellom
+  kommuner og fylkeskommuner, fordelingsnøkkelen og måledatoen.
+- Det har ingen vedlegg, og ingen tekst er hentet fra andre.
+
+### Lesningen
+
+1. **Første punktum.** Departementet er offentlig myndighet. Instruksen
+   er bindende for direktoratet og avgjør hvordan offentlige midler
+   fordeles mellom kommunene. Vår lesning er at den er et av de «andre
+   vedtak av offentlig myndighet». Vi leser ikke ordet «vedtak» i § 14
+   som bundet til forvaltningslovens definisjon. Forarbeidene er ikke
+   arkivert og ikke lest.
+2. **Andre punktum, hvis ordet leses snevert.** Instruksen gjelder
+   offentlig myndighetsutøvelse, nemlig utbetalinger etter en fastsatt
+   nøkkel. Den er avgitt av offentlig myndighet. Da dekkes den av
+   «uttalelser og lignende» i andre punktum.
+3. **Andre ledd treffer ikke.** Brevet gjengir ikke et verk skapt
+   utenfor departementet, og det er verken lyrikk, musikk eller kunst.
+
+### Det lesningen ikke avgjør
+
+- **Statusen.** Den avgjør Heine. Produktet trenger den ikke: fra
+  09.11.2026 brukes instruksen som fakta og metode, med lenke, og ikke
+  gjengitt. Se bruk-kolonnen i produkttabellen.
+- **Pressemeldingene.** Samme andre punktum kan lese
+  `havbruksfondet:pressemeldinger` som «uttalelser … avgitt av offentlig
+  myndighet», slik merknad M peker på. Den lesningen er ikke gjort her.
