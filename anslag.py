@@ -276,14 +276,24 @@ def _tall(x):
     return int(x)
 
 
-def _merknad(type_: str, rad: dict) -> str:
-    mangler = [navn for navn, k in (("anslaget", "m"), ("referanse a", "a"),
-                                     ("referanse b", "b")) if rad[k] is None]
-    if not mangler:
+def _merknad(type_: str, rad: dict, T: dt.date) -> str:
+    """Hvorfor en rad ikke kan skåres, med uka det gjelder. Tom når alt
+    finnes. For K6 er det R6s nevnerkrav: y finnes bare for en PO-uke med
+    minst 5 lokaliteter med lusetall og lusegrense."""
+    if rad["m"] is not None and rad["a"] is not None and rad["b"] is not None:
         return ""
-    grunn = (" (færre enn 5 lokaliteter med lusetall og lusegrense i uka, "
-             "eller ingen sesongverdi)") if type_ == "K6" else ""
-    return f"skåres ikke: {', '.join(mangler)} mangler{grunn}"
+    if type_ != "K6":
+        return "skåres ikke: anslaget eller en referanse mangler"
+    for_faa = "færre enn 5 lokaliteter med lusetall og lusegrense i uke"
+    deler = []
+    if rad["a"] is None:
+        deler.append(f"referanse a mangler ({for_faa} {isouke(T - dt.timedelta(weeks=INFO_UKER))})")
+    if rad["b"] is None:
+        deler.append(f"referanse b mangler ({for_faa} {isouke(T - dt.timedelta(weeks=48))})")
+    if rad["m"] is None:
+        deler.append("anslaget mangler (" + ("det bygger på referanse a" if rad["a"] is None
+                                             else "ingen sesongverdi for PO-en") + ")")
+    return "skåres ikke: " + "; ".join(deler)
 
 
 # ---------------------------------------------------------------- fila
@@ -299,11 +309,14 @@ def ukefil(T: dt.date, res: dict, *, akv_dato: str, kode: str, data: str,
             "referanse_a": f"siste verdi: antall i uke {u(T - dt.timedelta(weeks=7))} … {u(K)}",
             "referanse_b": (f"samme periode i fjor: antall i uke "
                             f"{u(T - dt.timedelta(weeks=52))} … {u(T - dt.timedelta(weeks=49))}"),
+            "lokaliteter": (f"aktive lokaliteter (brakklagt False) i PO-en i uke {u(K)}, "
+                            f"de anslaget summerer hasarden over"),
         },
         "K6": {
             "anslag": f"snitt voksne hunnlus i PO-en i uke {u(T + dt.timedelta(weeks=4))}",
             "referanse_a": f"siste verdi: snitt i uke {u(K)}",
             "referanse_b": f"samme uke i fjor: snitt i uke {u(T - dt.timedelta(weeks=48))}",
+            "lokaliteter": f"lokaliteter med lusetall og lusegrense i PO-en i uke {u(K)}",
         },
     }
     typer = {}
@@ -327,7 +340,7 @@ def ukefil(T: dt.date, res: dict, *, akv_dato: str, kode: str, data: str,
                  "kilde": meta["kilde"], "felt": meta["felt"],
                  "anslag": _tall(rad["m"]), "referanse_a": _tall(rad["a"]),
                  "referanse_b": _tall(rad["b"]), "lokaliteter": rad["lokaliteter"]}
-            if merknad := _merknad(type_, rad):
+            if merknad := _merknad(type_, rad, T):
                 p["merknad"] = merknad
             prediksjoner.append(p)
     innhold = {

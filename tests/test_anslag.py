@@ -197,6 +197,18 @@ def test_regn_ut_med_r6s_funksjoner_paa_et_kjent_panel():
     assert res["K6"].get("1", {}).get("m") is None
 
 
+def test_merknaden_sier_hvilken_uke_som_mangler():
+    m = anslag._merknad("K6", {"m": None, "a": None, "b": 0.1, "lokaliteter": 4}, T)
+    assert m == ("skåres ikke: referanse a mangler (færre enn 5 lokaliteter med lusetall "
+                 "og lusegrense i uke 2026-W42); anslaget mangler (det bygger på referanse a)")
+    m = anslag._merknad("K6", {"m": 0.1, "a": 0.1, "b": None, "lokaliteter": 5}, T)
+    assert m == ("skåres ikke: referanse b mangler (færre enn 5 lokaliteter med lusetall "
+                 "og lusegrense i uke 2025-W50)")
+    m = anslag._merknad("K6", {"m": None, "a": 0.1, "b": 0.1, "lokaliteter": 9}, T)
+    assert m == "skåres ikke: anslaget mangler (ingen sesongverdi for PO-en)"
+    assert anslag._merknad("K2", {"m": 0.0, "a": 0, "b": 0, "lokaliteter": 0}, T) == ""
+
+
 # ------------------------------------------------------------ lesingen
 
 def test_lesingen_stopper_ved_uke_T_minus_4(isolert):
@@ -226,6 +238,7 @@ def test_ukefila_skrives_forsegles_og_fores(isolert, capsys):
     assert innhold["typer"]["K6"]["klasse"] == "PRØVETYPE"
     assert innhold["typer"]["K2"]["aapningsdato"] == "2026-12-28"
     assert innhold["typer"]["K6"]["aapningsdato"] == "2027-01-04"
+    assert innhold["typer"]["K2"]["lokaliteter"].startswith("aktive lokaliteter")
     rader = innhold["prediksjoner"]
     assert len(rader) == 26 and len({r["id"] for r in rader}) == 26
     assert {r["klasse"] for r in rader if r["type"] == "K6"} == {"PRØVETYPE"}
