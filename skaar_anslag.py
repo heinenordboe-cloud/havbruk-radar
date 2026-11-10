@@ -313,7 +313,7 @@ def treffliste(f: dict) -> str:
                       "åpen" if any(r["status"] == "åpen" for r in rr) else "skåres ikke")
             rader.append([uke, rr[0]["forseglet"], rr[0]["aapningsdato"], status,
                           snitt("feil_modell"), snitt("feil_a"), snitt("feil_b")])
-        L += _tabell(["uke", "forseglet (UTC)", "åpningsdato", "rader", "MAE modell",
+        L += _tabell(["uke", "forseglet (UTC)", "åpningsdato", "status", "MAE modell",
                       "MAE a", "MAE b"], rader) + [""]
     if f["ikke_tellende"]:
         L += ["## Ukefiler som ikke teller", ""]
