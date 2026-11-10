@@ -1,0 +1,321 @@
+# MASKINANSLAG FOR UKE 2026-W46. K6 ER EN PRØVETYPE.
+#
+# Forseglet: 2026-46.yml.ots stempler sha256 av denne fila. Fila
+# røres aldri etter stempelet, og utfallet skrives aldri her. Det står
+# i fasiten.json, og den løpende trefflista i treffliste.md.
+#
+# Registrert i FORHANDSREGISTRERING.md før første anslag. Laget av
+# anslag.py med R6s modell uendret. Bare PO-nivå.
+#
+# Feltene følger MAL.yaml der de passer: id, type, entitet, kilde,
+# felt, vindu, grunnlag og feil_hvis. konfidens og utfall er ikke med.
+# Et punktanslag har ingen sannsynlighet å kalibrere, og utfallet kan
+# ikke skrives i en fil som er stemplet.
+
+uke: 2026-W46
+utstedt: '2026-11-09'
+informasjon_til: '2026-10-12'
+po_kobling: akvakultur 2026-11-09
+kode: d8ee87e70b67d017e12266e66cfd2443fc817a4d
+data: 8a50e4c34ac4c3421d397517b1629a667d8490b0
+inndata_sha256: 692dc24188201ad634b2ef71a04d5f8f77772447d821e5bb7de7f70ca724dfea
+modell: analyse/anslag/anslag_backtest.py sha256 0b8f7eec13499506604fb628a3a0850d07deed6283ea2d17f99eb633e221d2d7
+typer:
+  K2:
+    klasse: hovedtype
+    anslag: antall brakklegginger i PO-en i uke 2026-W46 … 2026-W49
+    referanse_a: 'siste verdi: antall i uke 2026-W39 … 2026-W42'
+    referanse_b: 'samme periode i fjor: antall i uke 2025-W46 … 2025-W49'
+    lokaliteter: aktive lokaliteter (brakklagt False) i PO-en i uke 2026-W42, de
+      anslaget summerer hasarden over
+    vindu:
+      fra: '2026-11-09'
+      til: '2026-12-06'
+    aapningsdato: '2026-12-28'
+    grunnlag: Hasarden for brakklegging fire til sju uker fram stiger med hvor lenge
+      lokaliteten har vært aktiv, fra 1,4 % etter 1–26 uker til 30 % etter 79–91
+      uker (trening 2017–2022). Anslaget er summen av hasarden over lokalitetene
+      som var aktive i uke T−4. Ingen av de naive referansene vet hvor langt i produksjonsløpet
+      lokalitetene er.
+    feil_hvis: MAE for modellen over de forseglede ukene er ikke lavere enn MAE
+      for siste verdi og for samme periode i fjor.
+  K6:
+    klasse: PRØVETYPE
+    anslag: snitt voksne hunnlus i PO-en i uke 2026-W50
+    referanse_a: 'siste verdi: snitt i uke 2026-W42'
+    referanse_b: 'samme uke i fjor: snitt i uke 2025-W50'
+    lokaliteter: lokaliteter med lusetall og lusegrense i PO-en i uke 2026-W42
+    vindu:
+      fra: '2026-12-07'
+      til: '2026-12-13'
+    aapningsdato: '2027-01-04'
+    grunnlag: Lusenivået i et produksjonsområde følger årstiden. Anslaget er snittet
+      i uke T−4 pluss den vanlige endringen fra den ISO-uka til måluka i 2017–2022,
+      for samme PO.
+    feil_hvis: MAE for modellen over de forseglede ukene er ikke lavere enn MAE
+      for siste verdi og for samme uke i fjor.
+prediksjoner:
+- id: 2026-46-K2-PO1
+  type: K2
+  klasse: hovedtype
+  entitet: PO1
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 0.2585
+  referanse_a: 0
+  referanse_b: 1
+  lokaliteter: 4
+- id: 2026-46-K2-PO2
+  type: K2
+  klasse: hovedtype
+  entitet: PO2
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 1.6281
+  referanse_a: 1
+  referanse_b: 4
+  lokaliteter: 31
+- id: 2026-46-K2-PO3
+  type: K2
+  klasse: hovedtype
+  entitet: PO3
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 4.0829
+  referanse_a: 9
+  referanse_b: 1
+  lokaliteter: 78
+- id: 2026-46-K2-PO4
+  type: K2
+  klasse: hovedtype
+  entitet: PO4
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 3.548
+  referanse_a: 8
+  referanse_b: 8
+  lokaliteter: 77
+- id: 2026-46-K2-PO5
+  type: K2
+  klasse: hovedtype
+  entitet: PO5
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 1.2973
+  referanse_a: 2
+  referanse_b: 1
+  lokaliteter: 25
+- id: 2026-46-K2-PO6
+  type: K2
+  klasse: hovedtype
+  entitet: PO6
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 4.0292
+  referanse_a: 6
+  referanse_b: 2
+  lokaliteter: 74
+- id: 2026-46-K2-PO7
+  type: K2
+  klasse: hovedtype
+  entitet: PO7
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 1.0645
+  referanse_a: 2
+  referanse_b: 4
+  lokaliteter: 42
+- id: 2026-46-K2-PO8
+  type: K2
+  klasse: hovedtype
+  entitet: PO8
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 2.007
+  referanse_a: 4
+  referanse_b: 6
+  lokaliteter: 52
+- id: 2026-46-K2-PO9
+  type: K2
+  klasse: hovedtype
+  entitet: PO9
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 3.223
+  referanse_a: 5
+  referanse_b: 2
+  lokaliteter: 61
+- id: 2026-46-K2-PO10
+  type: K2
+  klasse: hovedtype
+  entitet: PO10
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 2.2217
+  referanse_a: 0
+  referanse_b: 2
+  lokaliteter: 45
+- id: 2026-46-K2-PO11
+  type: K2
+  klasse: hovedtype
+  entitet: PO11
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 2.7267
+  referanse_a: 1
+  referanse_b: 7
+  lokaliteter: 35
+- id: 2026-46-K2-PO12
+  type: K2
+  klasse: hovedtype
+  entitet: PO12
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 2.8707
+  referanse_a: 3
+  referanse_b: 1
+  lokaliteter: 39
+- id: 2026-46-K2-PO13
+  type: K2
+  klasse: hovedtype
+  entitet: PO13
+  kilde: lusetall
+  felt: brakklagt
+  anslag: 0.4447
+  referanse_a: 0
+  referanse_b: 0
+  lokaliteter: 5
+- id: 2026-46-K6-PO1
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO1
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: null
+  referanse_a: null
+  referanse_b: 0.0788
+  lokaliteter: 4
+  merknad: 'skåres ikke: referanse a mangler (færre enn 5 lokaliteter med lusetall
+    og lusegrense i uke 2026-W42); anslaget mangler (det bygger på referanse a)'
+- id: 2026-46-K6-PO2
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO2
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.2556
+  referanse_a: 0.2185
+  referanse_b: 0.2135
+  lokaliteter: 31
+- id: 2026-46-K6-PO3
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO3
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.3565
+  referanse_a: 0.3267
+  referanse_b: 0.2118
+  lokaliteter: 78
+- id: 2026-46-K6-PO4
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO4
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.2189
+  referanse_a: 0.2098
+  referanse_b: 0.4003
+  lokaliteter: 77
+- id: 2026-46-K6-PO5
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO5
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.142
+  referanse_a: 0.1923
+  referanse_b: 0.1195
+  lokaliteter: 25
+- id: 2026-46-K6-PO6
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO6
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.1572
+  referanse_a: 0.2
+  referanse_b: 0.2056
+  lokaliteter: 74
+- id: 2026-46-K6-PO7
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO7
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.0957
+  referanse_a: 0.146
+  referanse_b: 0.1869
+  lokaliteter: 42
+- id: 2026-46-K6-PO8
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO8
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.1453
+  referanse_a: 0.1935
+  referanse_b: 0.1408
+  lokaliteter: 50
+- id: 2026-46-K6-PO9
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO9
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.1777
+  referanse_a: 0.2055
+  referanse_b: 0.1374
+  lokaliteter: 60
+- id: 2026-46-K6-PO10
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO10
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.0605
+  referanse_a: 0.1007
+  referanse_b: 0.1766
+  lokaliteter: 45
+- id: 2026-46-K6-PO11
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO11
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.1726
+  referanse_a: 0.1785
+  referanse_b: 0.1244
+  lokaliteter: 35
+- id: 2026-46-K6-PO12
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO12
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.0852
+  referanse_a: 0.0909
+  referanse_b: 0.1064
+  lokaliteter: 36
+- id: 2026-46-K6-PO13
+  type: K6
+  klasse: PRØVETYPE
+  entitet: PO13
+  kilde: lusetall
+  felt: voksne_hunnlus
+  anslag: 0.0301
+  referanse_a: 0.0185
+  referanse_b: null
+  lokaliteter: 5
+  merknad: 'skåres ikke: referanse b mangler (færre enn 5 lokaliteter med lusetall
+    og lusegrense i uke 2025-W50)'
