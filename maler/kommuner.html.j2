@@ -63,15 +63,18 @@
   <time datetime="{{ d.fordelt.dato }}">{{ d.fordelt.dato|kortdato }}</time>.</p>
 {% include "kommune-segl.html.j2" %}
 
-{# SLIK SJEKKER DU OSS, i tre linjer: summen av fila, summen i stempelet,
-   og blokka stempelet peker på. Samme kjede som fasiten bruker
+{# SLIK SJEKKER DU OSS, i tre linjer, uten terminal først. MÅLT 10.11.2026
+   med Playwright: opentimestamps.org verifiserer begge filene med sin .ots
+   («Bitcoin block 971138 attests existence as of 2026-10-12» og «… 975211
+   … 2026-11-09»), også pakke 1s .ots fra 04d91dd, som da ikke var
+   oppgradert. Terminalen er samme kjede som fasiten
    (`fasit_havbruksfond.bitcoin()`) og RUNBOOK, «Tidsstempler». #}
 <section class="seksjon" id="sjekk" aria-labelledby="sjekk-tittel">
   <h2 id="sjekk-tittel">Slik sjekker du oss</h2>
   <ol class="historikk-forklaring">
-    <li>Last ned anslaget og .ots-fila fra lenkene over. Klienten er <code>ots</code> fra OpenTimestamps.</li>
-    <li><code>shasum -a 256</code> på anslaget gir summen <code>ots info</code> viser øverst for .ots-fila.</li>
-    <li><code>ots verify</code> viser Bitcoin-blokka. Uten egen node: <code>ots --no-bitcoin verify</code> og en blokkutforsker.</li>
+    <li>Last ned anslaget og .ots-fila (lenkene over).</li>
+    <li>Slipp begge på <a href="https://opentimestamps.org/">opentimestamps.org</a>. Den viser datoen fila ble forseglet, bekreftet i Bitcoin.</li>
+    <li>I terminalen: <code>ots verify</code>, eller <code>ots --no-bitcoin verify</code> med en blokkutforsker.</li>
   </ol>
 </section>
 

@@ -1,7 +1,8 @@
-{# DE FORSEGLEDE ANSLAGENE, likt på oversikten og hver kommuneside: pakke 1
-   og pakke 2 med datoen de ble forseglet, og lenke til fila og .ots-fila i
-   kodrepoet, ved commiten der de kom inn. Se `nettsted._forseglingene()`.
-   Linja holder seg under 110 tegn (AVSNITTSGRENSE). #}
+{# DE FORSEGLEDE ANSLAGENE, likt på oversikten og hver kommuneside: datoen
+   hvert ble forseglet, og lenke til fila og .ots-fila i kodrepoet, ved
+   commiten der de kom inn. Se `nettsted._forseglingene()`. «Pakke 1» og
+   «pakke 2» står ikke: det er interne ord (Heine, økt L). Linja holder seg
+   under 110 tegn (AVSNITTSGRENSE). #}
 <p class="historikk-forklaring" id="segl">Anslagene ble forseglet før fordelingen:
-  {% for s in d.forseglinger %}{{ s.pakke }} <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
+  {% for s in d.forseglinger %}<time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
   (<a href="{{ s.fil }}">fil</a>, <a href="{{ s.ots }}">.ots</a>){% if not loop.last %} og {% endif %}{% endfor %}.</p>

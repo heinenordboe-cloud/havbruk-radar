@@ -436,8 +436,9 @@ def _avsnitt(side: str) -> str:
 
 @trenger_bygg
 def test_forseglingen_staar_paa_oversikten_og_hver_kommuneside():
-    """Én linje med pakke 1 og pakke 2, datoen og lenke til fila og .ots
-    ved commiten der de kom inn i kodrepoet."""
+    """Én linje med datoen hvert anslag ble forseglet og lenke til fila og
+    .ots ved commiten der de kom inn i kodrepoet. Uten «pakke 1» og
+    «pakke 2»: det er interne ord (Heine, økt L)."""
     import nettsted as n
     lenker = [f"{n.REPO}/blob/66016dd3e636a03ab4f13563c110125e1cfcc27d/"
               "predictions/havbruksfond-2026.md",
@@ -456,32 +457,84 @@ def test_forseglingen_staar_paa_oversikten_og_hver_kommuneside():
         assert all(f'href="{l}"' in segl.group(1) for l in lenker), fil
         tekst = _avsnitt(segl.group(0))
         assert len(tekst) <= 110 and tekst == (
-            "Anslagene ble forseglet før fordelingen: pakke 1 12.10.2026 "
-            "(fil, .ots) og pakke 2 09.11.2026 (fil, .ots)."), tekst
+            "Anslagene ble forseglet før fordelingen: 12.10.2026 (fil, .ots) "
+            "og 09.11.2026 (fil, .ots)."), tekst
+
+
+@trenger_bygg
+def test_ingen_pakke_paa_kommunesidene():
+    """«Pakke 1» og «pakke 2» er interne ord og står ingen steder i den
+    synlige teksten under /kommune/ (Heine, økt L)."""
+    funn = []
+    for fil in sorted((NETTSTED / "kommune").rglob("index.html")):
+        funn += [(fil.parent.name, m) for m in
+                 re.findall(r"(?i)\bpakke\s*\d", _avsnitt(fil.read_text("utf-8")))]
+    assert not funn, funn[:5]
 
 
 @trenger_bygg
 def test_slik_sjekker_du_oss_i_tre_linjer():
+    """Uten terminal først: opentimestamps.org verifiserte begge filene med
+    sin .ots 10.11.2026 (prøvd med Playwright). Terminalen sist."""
     side = (NETTSTED / "kommune" / "index.html").read_text("utf-8")
     seksjon = re.search(r'<section[^>]*id="sjekk".*?</section>', side, re.S).group(0)
-    assert "Slik sjekker du oss" in seksjon
-    assert len(re.findall(r"<li>", seksjon)) == 3
-    assert "ots --no-bitcoin verify" in seksjon and "shasum -a 256" in seksjon
+    linjer = [_avsnitt(li) for li in re.findall(r"<li>.*?</li>", seksjon, re.S)]
+    assert linjer == [
+        "Last ned anslaget og .ots-fila (lenkene over).",
+        "Slipp begge på opentimestamps.org. Den viser datoen fila ble forseglet, "
+        "bekreftet i Bitcoin.",
+        "I terminalen: ots verify, eller ots --no-bitcoin verify med en blokkutforsker."]
+    assert 'href="https://opentimestamps.org/"' in seksjon
+    assert all(len(l) <= 110 for l in linjer)
 
 
 @trenger_bygg
-def test_tromso_sier_hva_pakke2_forventer_og_ingen_andre():
-    """Tromsø-siden viser pakke 1s andel og et fall fra nøkkelen
-    01.09.2025. Pakke 2 forventer Havbruksstasjonen med, og siden sier
-    det, med tallene fra begge pakkene og lenke til pakke 2."""
+def test_tromso_viser_de_to_lokalitetene_med_kilde_og_ingen_andre():
+    """Målte fakta, ingen forventning: holdt utenfor (eierskapet 02.09),
+    med hos Fiskeridirektoratet (listene 01.09.2024 og 01.09.2025), og
+    andelen med dem (regnet), med lenke til den forseglede fila under
+    andelen. Bare Tromsø har lokaliteter som dette."""
     side = (NETTSTED / "kommune" / "5501" / "index.html").read_text("utf-8")
-    tekst = _avsnitt(side)
-    assert ("Pakke 2 forventer Havbruksstasjonens to lokaliteter (10768, 15236) med: "
-            "1,5475 %, mot 1,5056 % i pakke 1.") in tekst.replace(" ", " ")
-    assert "predictions/havbruksfond-2026-pakke2.md" in side
+    blokk = re.search(r'<dl class="fakta fakta--tett" id="holdt-ute">.*?</dl>', side, re.S)
+    assert blokk, "Tromsø mangler linja om de to lokalitetene"
+    dt = _avsnitt(re.search(r"<dt>.*?</dt>", blokk.group(0), re.S).group(0))
+    dd = [_avsnitt(x).replace(chr(0xA0), " ")
+          for x in re.findall(r"<dd>.*?</dd>", blokk.group(0), re.S)]
+    assert dt == "Indre Kårvik I og Skulgambukt (Havbruksstasjonen i Tromsø)"
+    assert dd == [
+        "er holdt utenfor fordi de ikke har tillatelse for laksefisk. Fiskeridir. · 02.09.2026",
+        "Fiskeridirektoratet tok dem med i 2024 og 2025. "
+        "Fiskeridir. · 01.09.2024 og 01.09.2025",
+        "Med dem blir andelen 1,5475 %. Fiskeridir. · 31.08.2026 · regnet"]
+    assert all(len(x) <= 110 for x in dd)
+    andel = re.search(r'<a href="([^"]+)">1,5475', blokk.group(0))
+    assert andel and andel.group(1).endswith("/predictions/havbruksfond-2026-pakke2.md")
     andre = [f.parent.name for f in (NETTSTED / "kommune").glob("*/index.html")
-             if f.parent.name != "5501" and "Havbruksstasjonen" in f.read_text("utf-8")]
+             if f.parent.name != "5501" and 'id="holdt-ute"' in f.read_text("utf-8")]
     assert andre == []
+
+
+@trenger_data
+def test_hver_del_av_tromso_linja_er_maalt(datarepo, fordeling):
+    """Hver påstand i Tromsø-linja holdt mot kroppen den kommer fra: de to
+    lokalitetene står på Fiskeridirektoratets lister 01.09.2024 og
+    01.09.2025 med 650 og 975 t, ingen av tillatelsene deres har
+    laksefisk i eierskapet 02.09.2026, innehaveren er ett aksjeselskap,
+    og andelen med dem er den som ble forseglet 09.11.2026."""
+    lister = {aar: {r["nr"]: r["kap"] for r in h.lokalitetsark(h.regneark(aar)[0])}
+              for aar in (2024, 2025)}
+    for liste in lister.values():
+        assert (liste.get("10768"), liste.get("15236")) == (650.0, 975.0)
+    lisens, _ = h.lakselisenser()
+    assert lisens["10768"] is False and lisens["15236"] is False
+    m = nettsted._med_hos_fiskeridir(
+        fordeling, lambda nr, navn: {"nr": nr, "navn": navn, "url": ""},
+        nettsted._forseglingene())
+    assert list(m) == ["5501"]
+    t = m["5501"]
+    assert [l["nr"] for l in t["lokaliteter"]] == ["10768", "15236"]
+    assert t["innehaver"] == "Havbruksstasjonen i Tromsø"
+    assert t["andel"] == "1,5475 %" and t["url"].endswith("havbruksfond-2026-pakke2.md")
 
 
 @trenger_bygg

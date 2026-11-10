@@ -58,13 +58,25 @@
   <span class="herkomst">{{ k.paastand.kort }} · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time>
   og <time datetime="{{ d.etter }}">{{ d.etter|kortdato }}</time> · regnet</span></p>
 
-{# PAKKE 2 FORVENTER EN ANNEN ANDEL her: lokaliteter pakke 1 og andelen
-   over holder ute, men som Fiskeridirektoratet har tatt med før. Bare
-   Tromsø (Havbruksstasjonen, P2-3). Se `nettsted._pakke2_merknad()`. #}
-{% if k.pakke2 %}
-<p class="historikk-forklaring"><a href="{{ k.pakke2.url }}">Pakke 2</a> forventer Havbruksstasjonens to lokaliteter
-  ({% for l in k.pakke2.lokaliteter %}{% if l.url %}<a href="{{ l.url }}">{{ l.nr }}</a>{% else %}{{ l.nr }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %})
-  med: {{ k.pakke2.andel }}, mot {{ k.pakke2.andel_p1 }} i pakke 1.</p>
+{# HOLDT UTE HER, MED HOS FISKERIDIREKTORATET: lokaliteter filteret holder
+   ute, men som sto på Fiskeridirektoratets liste i 2024 og 2025. Bare
+   Tromsø (Havbruksstasjonen). Målte fakta med kilde, ingen forventning
+   (Heine, økt L); se `nettsted._med_hos_fiskeridir()`. Lokalitetene står
+   som etikett og de tre påstandene under, hver med sin kilde: samlet er
+   den første setningen 119 tegn, over AVSNITTSGRENSE. #}
+{% if k.med_hos_fdir %}{% set m = k.med_hos_fdir %}
+<dl class="fakta fakta--tett" id="holdt-ute">
+  <div class="fakta-hel">
+    <dt>{% for l in m.lokaliteter %}{% if l.url %}<a href="{{ l.url }}">{{ l.navn }}</a>{% else %}{{ l.navn }}{% endif %}{% if loop.revindex == 2 %} og {% elif not loop.last %}, {% endif %}{% endfor %}
+      {%- if m.innehaver %} ({{ m.innehaver }}){% endif %}</dt>
+    <dd>er holdt utenfor fordi de ikke har tillatelse for laksefisk.
+      <span class="herkomst">Fiskeridir. · <time datetime="{{ m.eierskap }}">{{ m.eierskap|kortdato }}</time></span></dd>
+    <dd>Fiskeridirektoratet tok dem med i {{ m.aar|join(" og ") }}.
+      <span class="herkomst">Fiskeridir. · {% for x in m.lister %}<time datetime="{{ x }}">{{ x|kortdato }}</time>{% if not loop.last %} og {% endif %}{% endfor %}</span></dd>
+    <dd>Med dem blir andelen {% if m.url %}<a href="{{ m.url }}">{{ m.andel }}</a>{% else %}{{ m.andel }}{% endif %}.
+      <span class="herkomst">Fiskeridir. · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time> · regnet</span></dd>
+  </div>
+</dl>
 {% endif %}
 
 {# FISKERIDIREKTORATETS FORDELING, ved siden av andelen over. Bare med en

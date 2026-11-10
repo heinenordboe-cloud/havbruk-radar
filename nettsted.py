@@ -8939,9 +8939,11 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
 # HVA SIDENE IKKE HAR. Ingen kronebeløp før fasiten er kvittert, og da
 # bare Fiskeridirektoratets (`_fasit_vist()`): et beløp før fordelingen
 # kommer, er et anslag (BRIEF: «ingen anslag»). Anslagene står bare som
-# lenker til de forseglede filene, og for Tromsø som det pakke 2 forventer
-# (`_pakke2_merknad()`), fordi Heine ba om begge (økt L). Ingen
-# selskapsnavn: kommunen er området, og lokalitetene står med navn og
+# lenker til de forseglede filene, uten «pakke 1» og «pakke 2», som er
+# interne ord. Tromsø får målte fakta om de to lokalitetene filteret
+# holder ute, med kilde (`_med_hos_fiskeridir()`), ikke en forventning
+# (Heine, økt L). Ingen selskapsnavn, utenom innehaveren i den linja:
+# kommunen er området, og lokalitetene står med navn og
 # nummer, som på områdesidene. Ingen tekst fra instruksen eller
 # pressemeldingene: de brukes som fakta og metode, med lenke
 # (docs/LISENSKJEDE.md, bruk-kolonnen).
@@ -9071,7 +9073,7 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
     navn = {k["nr"]: _kommunenavn_kort(k["navn"], k["fylke"]) for k in rangert}
     fylke = {k["nr"]: visningsord.tittelform(k["fylke"]) for k in rangert}
     forseglinger = _forseglingene()
-    pakke2 = _pakke2_merknad(lok, forseglinger)
+    med_hos_fdir = _med_hos_fiskeridir(f, lok, forseglinger)
 
     kommuner = {}
     for rang, k in enumerate(rangert, 1):
@@ -9106,7 +9108,7 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
             "mtb": _tonn(k["mtb"]), "mtb_2025": _tonn(k["mtb_2025"]),
             "lokaliteter": lokaliteter, "flytt": flytt, "ute": ute,
             "delt": any(l["del"] for l in lokaliteter),
-            "pakke2": pakke2.get(nr),
+            "med_hos_fdir": med_hos_fdir.get(nr),
             "paastand": paastand.herkomst(paastand.Paastand(
                 tema="andel", kilde="akvakultur", gjelder=h.FOR,
                 verdi=f"{k['andel']:.10f}", nivaa=paastand.REGNET,
@@ -9170,27 +9172,74 @@ def _forseglingene() -> list[dict]:
     return ut
 
 
-def _pakke2_merknad(lok, forseglinger: list[dict]) -> dict[str, dict]:
-    """Kommunene der pakke 2 forventer en annen andel enn den siden viser.
+def _innehaver(nr: set[str]) -> str:
+    """Innehaveren av tillatelsene på lokalitetene i `nr`, slik linja på
+    kommunesiden skriver den, lest av eierskapskroppen.
 
-    HAVBRUKSSTASJONEN (P2-3). Pakke 1 og sidene holder de to lokalitetene
-    ute (ledd 2: ingen laksetillatelse i eierskapskroppen). Pakke 2
-    forventer dem med, fordi Fiskeridirektoratet tok dem med i 2024 og
-    2025. Uten en linje om det viser Tromsø-siden et fall fra nøkkelen
-    01.09.2025 som vi selv har forseglet at vi ikke tror på (Heine, økt
-    L). Tallene er pakke 2s og pakke 1s tabeller, ordrett.
+    Tom streng uten ÉN innehaver, eller når den ikke er et aksjeselskap:
+    et enkeltpersonforetak er en person (CLAUDE.md regel 3). Selskapsformen
+    står ikke i linja; den navngir stasjonen (Heine, økt L), og «I» i et
+    navn er preposisjonen.
     """
     import havbruksfond as h
-    p2, a2 = h.pakke2(), h.anslaget()
-    per: dict[str, list[dict]] = {}
-    for x in p2["lokaliteter"]:
-        if x["paastand"] == "P2-3":
-            per.setdefault(x["kommuner"][0], []).append(lok(x["nr"], x["navn"]))
+    _, data = h._arkivkropp(f"eierskap/{h.EIERSKAP}.json.gz")
+    kropp = json.loads(data)
+    eiere = {(t.get("legalEntityName") or "", t.get("legalEntityNrId") or "")
+             for t in kropp["tillatelser"]
+             if any(c.get("active") and c.get("siteNr") in nr
+                    for c in t.get("connections", []))}
+    if len(eiere) != 1:
+        return ""
+    navn, id_ = eiere.pop()
+    form = next((e.get("typeValue") for e in kropp.get("enheter", []) if e.get("id") == id_), "")
+    if form != "LimitedLiabilityCompany":
+        return ""
+    vist = visningsord.selskapsnavn(re.sub(r"\s+AS$", "", navn))
+    return re.sub(r"(?<=\s)I(?=\s)", "i", vist)
+
+
+# ÅRENE FISKERIDIREKTORATETS LOKALITETSLISTER LESES FOR. En lokalitet
+# filteret holder ute, men som sto på listen begge årene, får en linje på
+# kommunesiden.
+LISTEAAR = (2024, 2025)
+
+
+def _med_hos_fiskeridir(f: dict, lok, forseglinger: list[dict]) -> dict[str, dict]:
+    """Lokaliteter filteret holder ute, men som Fiskeridirektoratet tok med
+    hvert år i `LISTEAAR`, og andelen kommunen får med dem.
+
+    MÅLTE FAKTA, INGEN FORVENTNING (Heine, økt L). Hver del er lest:
+    at de er holdt utenfor fordi ingen tillatelse har laksefisk, er ledd 2
+    mot eierskapskroppen 02.09.2026; at Fiskeridirektoratet tok dem med,
+    er lokalitetslistene i regnearkene for 2024 og 2025; andelen er
+    snapshotet 31.08.2026 med dem lagt til, i kommunen og i summen.
+    Bare Tromsø har slike: Havbruksstasjonen, 10768 og 15236. Lenken
+    under andelen går til det forseglede anslaget med samme tall; er
+    tallet et annet, står ingen lenke.
+    """
+    import havbruksfond as h
+    a = f["for"]
+    lister = [{r["nr"] for r in h.lokalitetsark(h.regneark(aar)[0])} for aar in LISTEAAR]
+    med = sorted((nr for nr in a.ute if all(nr in l for l in lister)), key=int)
+    if not med:
+        return {}
+    total = f["total"] + sum(h.mtb(a.lok[nr]) for nr in med)
+    forseglet = h.pakke2()["kommuner"]
     url = next(s["fil"] for s in forseglinger if s["pakke"] == "pakke 2")
-    return {nr: {"lokaliteter": ls, "url": url,
-                 "andel": _andel_vist(p2["kommuner"][nr]["andel"]),
-                 "andel_p1": _andel_vist(a2["kommuner"][nr])}
-            for nr, ls in per.items()}
+    ut: dict[str, dict] = {}
+    for komnr in sorted({a.lok[nr].get("kommunenummer", "") for nr in med}):
+        her = [nr for nr in med if a.lok[nr].get("kommunenummer") == komnr]
+        if komnr not in f["kommuner"]:
+            continue
+        andel = (f["kommuner"][komnr]["mtb"] + sum(h.mtb(a.lok[nr]) for nr in her)) / total
+        lik = (komnr in forseglet
+               and round(andel * 100, 4) == round(forseglet[komnr]["andel"] * 100, 4))
+        ut[komnr] = {"lokaliteter": [lok(nr, a.lok[nr].get("navn", "")) for nr in her],
+                     "innehaver": _innehaver(set(her)), "andel": _andel_vist(andel),
+                     "url": url if lik else "", "aar": list(LISTEAAR),
+                     "lister": [f"{aar}-09-01" for aar in LISTEAAR],
+                     "eierskap": h.EIERSKAP}
+    return ut
 
 
 def _skaring_vist(s: dict | None, navn: dict[str, str]) -> dict | None:
