@@ -6,7 +6,8 @@
    INGEN TEKST FRA INSTRUKSEN ELLER PRESSEMELDINGENE. De brukes som fakta
    og metode, med egne ord og lenke (docs/LISENSKJEDE.md, bruk-kolonnen),
    og en prøve holder det slik. Ingen kronebeløp før Fiskeridirektoratet
-   har publisert årets fordeling. #}
+   har publisert årets fordeling og fasiten er kvittert; da står summene
+   deres, med kilde og dato. #}
 {% extends "base.html.j2" %}
 
 {% block toppinnhold %}
@@ -22,6 +23,7 @@
 
 {% block innhold %}
 <div class="ark">
+{% if d.torrkjoring %}<p class="historikk-forklaring"><strong>{{ d.torrkjoring }}</strong></p>{% endif %}
 <h1>Kommunene og havbruksfondet</h1>
 <p class="lok-undertittel">Andel av klarert lokalitets-MTB
   <time datetime="{{ d.maaledato }}">{{ d.maaledato|kortdato }}</time></p>
@@ -52,12 +54,35 @@
   <a href="{{ d.instruks.url }}">Regelen</a> er fastsatt av departementet
   <time datetime="{{ d.instruks.dato }}">{{ d.instruks.dato|kortdato }}</time>.</p>
 <p class="historikk-forklaring">
-  {%- if d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
+  {%- if d.fasit %}Fiskeridirektoratet har publisert fordelingen for {{ d.fasit.aar }}.
+  {%- elif d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
   {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå. Ingen beløp står her.{% endif %}</p>
 <p class="historikk-forklaring">{% if d.status.lest %}<a href="{{ d.fiskeridir }}">Fiskeridirektoratets side</a> sist lest
   <time datetime="{{ d.status.lest }}">{{ d.status.lest|kortdato }}</time>.{% endif %}
   <a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den
   <time datetime="{{ d.fordelt.dato }}">{{ d.fordelt.dato|kortdato }}</time>.</p>
+
+{# FISKERIDIREKTORATETS FORDELING, bare med en kvittert fasit. Beløpet
+   per kommune står på kommunesiden. Se `nettsted._fasit_vist()`. #}
+{% if d.fasit %}
+<section class="seksjon" id="fordelingen" aria-labelledby="fordelingen-tittel">
+  <h2 id="fordelingen-tittel">Fiskeridirektoratets fordeling {{ d.fasit.aar }}</h2>
+  <dl class="fakta">
+    <div>
+      <dt>Kommunene</dt>
+      <dd data-felt="fasit_sum">{{ d.fasit.sum_kommuner }}</dd>
+    </div>
+    <div>
+      <dt>Fylkeskommunene</dt>
+      <dd data-felt="fasit_sum">{{ d.fasit.sum_fylker }}</dd>
+    </div>
+  </dl>
+  <p class="historikk-forklaring">Beløpet per kommune står på kommunesiden.
+    <span class="herkomst">Fiskeridir. ·
+    {% if d.fasit.kilde.url %}<a href="{{ d.fasit.kilde.url }}">{{ d.fasit.kilde.navn }}</a>{% else %}{{ d.fasit.kilde.navn }}{% endif %}
+    · hentet <time datetime="{{ d.fasit.kilde.hentet }}">{{ d.fasit.kilde.hentet|kortdato }}</time></span></p>
+</section>
+{% endif %}
 
 {# SKÅRINGEN, bare når Heine har kvittert for fila. Se
    `havbruksfond.lest_skaring()`. #}

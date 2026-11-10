@@ -1183,6 +1183,51 @@ står. Er den derimot uventet, har noen endret parseren uten å si fra.
 lenger finnes i publiseringen. Det har ikke skjedd, og skulle det skje,
 er det verdt å undersøke før noe annet.
 
+## Havbruksfondet: fasitdagen
+
+`havbruksfond.yml` i datarepoet arkiverer Fiskeridirektoratets side,
+hvert vedlegg den lenker, og pressemeldingene om fondet, tre ganger i
+døgnet (06:41, 14:41 og 20:41 UTC) ut desember. Når fordelingen for 2026
+er arkivert, er dette hele fasiten:
+
+```bash
+cd ~/havbruk-radar-data && git pull
+cd ~/havbruk-radar && .venv/bin/python fasit_havbruksfond.py
+```
+
+Kommandoen prøver de to forseglingene (sha256, .ots-summen, fila i hver
+commit, stempelet mot Bitcoin-blokkene), leser tabellen fra arkivkroppen
+og viser stien og sha256, avgjør pakke 1 og pakke 2, deler avvikene i
+tre grupper og skriver utfallet i `data/havbruksfond/fasit-2026.md` og
+`.json`. Les `.md`-fila. Kvitter deretter, og push datarepoet:
+
+```bash
+.venv/bin/python fasit_havbruksfond.py --kvitter
+cd ~/havbruk-radar-data && git add data/havbruksfond && git commit -m "Havbruksfondet 2026: fasiten" && git push
+```
+
+Kvitteringen (`lest-fasit-2026.json`) gjelder den ene fila, med summen
+av den. Neste bygg viser Fiskeridirektoratets beløp på kommunesidene,
+med kilde og datoen vi hentet tabellen. Skrives fasiten på nytt med et
+annet innhold (`fasit-2026.2.json`), vises ingenting før den nye er
+kvittert.
+
+| exit | betyr |
+|---|---|
+| 0 | fasiten er skrevet, eller fordelingen er ikke arkivert ennå |
+| 2 | et segl holder ikke. Ingenting er skrevet; se meldingen |
+| 3 | noe er kommet som ikke kan leses: et nytt vedlegg uten den kjente tittelen, eller en tabell i ny form. Les kroppen for hånd |
+
+`ots verify` trenger en Bitcoin-node. Uten en står svaret i fila, og
+blokkene og merklerøttene fra `ots --no-bitcoin verify` er holdt mot
+blockstream.info og mempool.space (se «Tidsstempler» under).
+
+Tørrkjøringen mot 2025-kroppene skriver aldri i datarepoet:
+
+```bash
+.venv/bin/python fasit_havbruksfond.py --torrkjor 2025 --ut ~/kystloggen-utkast/L/torrkjoring --sider
+```
+
 ## Daglig: arkivet og tidsstemplene
 
 ### Daglig arkiv

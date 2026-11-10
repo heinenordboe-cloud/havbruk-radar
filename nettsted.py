@@ -9034,13 +9034,19 @@ def _bevis_for(kropper) -> list[dict]:
     return ut
 
 
-def bygg_kommuner(felles: Felles) -> dict | None:
+def bygg_kommuner(felles: Felles, fasit: dict | None = None,
+                  torrkjoring: str = "") -> dict | None:
     """Alt /kommune/ og /kommune/<nr>/ viser, eller None uten grunnlag.
 
     Grunnlaget er akvakultursnapshotene 31.08 og 07.09.2026, eierskaps-
     kroppen 02.09.2026 og regnearket for 2025. Mangler ett av dem, er
     svaret None og byggerapporten sier 0 kommunesider. Er de to
     snapshotene uenige, KASTER `havbruksfond.fordeling()`.
+
+    `fasit` er Fiskeridirektoratets fordeling fra `fasit_havbruksfond.py`.
+    Uten den leses den kvitterte (`havbruksfond.lest_fasit()`); finnes
+    ingen, står ingen beløp. Tørrkjøringen sender sin inn, med
+    `torrkjoring` som merket på hver side.
     """
     import havbruksfond as h
     import paastand
@@ -9048,6 +9054,8 @@ def bygg_kommuner(felles: Felles) -> dict | None:
         f = h.fordeling()
     except FileNotFoundError:
         return None
+    if fasit is None:
+        fasit = h.lest_fasit(h.AAR)
     a = f["for"]
     hentet = {k.dato: visningsord.oslodato(k.hentet)[:10]
               for k in f["kropper"][:2]}
@@ -9126,6 +9134,8 @@ def bygg_kommuner(felles: Felles) -> dict | None:
         "bevis": _bevis_for(f["kropper"]),
         "sjekksum": akva.sha256,
         "skaring": _skaring_vist(h.lest_skaring(h.AAR), navn),
+        "fasit": _fasit_vist(fasit, {nr: k["andel"] for nr, k in f["kommuner"].items()}),
+        "torrkjoring": torrkjoring,
         "csv": f"andeler-{h.AAR}.csv",
         "csv_tekst": h.tabelltekst(f, h.tabellhode(f, nettsted=True)),
     }
@@ -9152,6 +9162,36 @@ def _skaring_vist(s: dict | None, navn: dict[str, str]) -> dict | None:
     }
 
 
+def _kroner(x: float) -> str:
+    """«12 345 678 kr», med hardt mellomrom foran enheten som `_tonn()`."""
+    return f"{visningsord.tall(round(x))} kr"
+
+
+def _fasit_vist(f: dict | None, andel: dict[str, float]) -> dict | None:
+    """Fiskeridirektoratets fordeling slik sidene viser den: beløpet og
+    andelen per kommune ved siden av registerets andel, med kilde og
+    dato. Datoen er da vi hentet tabellen: regnearkene på fiskeridir.no
+    har ingen `Last-Modified` (målt i loggene), og en utgivelsesdato vi
+    ikke har lest, skrives ikke (CLAUDE.md 1b-7). None uten fasit."""
+    if not f:
+        return None
+    tb = f["tabell"]
+    sider = f["sider"]
+    return {
+        "aar": f["aar"],
+        "kilde": {"navn": "regnearket" if tb["form"] == "regneark" else "pressemeldingen",
+                  "url": tb.get("url") or "",
+                  "hentet": (visningsord.oslodato(tb["hentet"])[:10] if tb.get("hentet")
+                             else tb.get("arkivdato", "")),
+                  "sha256_vist": _hash_vist(tb["sha256"])},
+        "sum_kommuner": _kroner(sum(x["belop"] for x in sider["kommuner"].values())),
+        "sum_fylker": _kroner(sum(x["belop"] for x in sider["fylker"].values())),
+        "per_kommune": {nr: {"belop": _kroner(x["belop"]), "andel": _andel_vist(x["andel"]),
+                             "avvik": (_pp(x["andel"] - andel[nr], 4) if nr in andel else "")}
+                        for nr, x in sider["kommuner"].items()},
+    }
+
+
 def _jsonld_kommune(tittel: str, beskrivelse: str, sti: str,
                     vilkaar: dict, d: dict) -> Markup:
     """schema.org/Dataset for en kommuneside eller oversikten."""
@@ -9175,10 +9215,12 @@ def _jsonld_kommune(tittel: str, beskrivelse: str, sti: str,
     return _script_trygg(med_url_og_lisens(data, sti))
 
 
-def skriv_kommuner(rot: Path, felles: Felles) -> list[str]:
+def skriv_kommuner(rot: Path, felles: Felles, fasit: dict | None = None,
+                   torrkjoring: str = "") -> list[str]:
     """/kommune/ og én side per kommune. Kommunenumrene som fikk side,
-    eller tom liste uten grunnlag."""
-    d = bygg_kommuner(felles)
+    eller tom liste uten grunnlag. `fasit` og `torrkjoring`: se
+    `bygg_kommuner()`."""
+    d = bygg_kommuner(felles, fasit, torrkjoring)
     if d is None:
         return []
     miljo = _miljo()

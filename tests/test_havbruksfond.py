@@ -262,14 +262,25 @@ def test_aaret_foer_heter_noekkelen_med_dato():
     assert not funn, funn[:5]
 
 
+# Feltene der Fiskeridirektoratets fordeling står når fasiten er kvittert
+# (`nettsted._fasit_vist()`). Et beløp utenfor dem er vårt, og det er et
+# anslag.
+FASITFELT = re.compile(r'<(dd|td)\b[^>]*\bdata-felt="fasit_[a-z_]+"[^>]*>.*?</\1>', re.S)
+KRONER = re.compile(r"\bkr\b|\bkroner\b|\bmill(?:\.|ioner)\b")
+
+
+def kroner_utenom_fasiten(side: str) -> list[str]:
+    from core.karantene import synlig_tekst
+    return KRONER.findall(synlig_tekst(FASITFELT.sub("", side).encode()))
+
+
 @trenger_bygg
 def test_ingen_kronebelop_paa_kommunesidene():
-    """Fordelingen 2026 er ikke publisert. Et beløp ville vært et anslag."""
-    import re
-    from core.karantene import synlig_tekst
+    """Før fasiten er kvittert, står ingen beløp. Etter står bare
+    Fiskeridirektoratets, i feltene for det. Ellers ville et beløp vært
+    et anslag."""
     for fil in sorted((NETTSTED / "kommune").rglob("index.html")):
-        tekst = synlig_tekst(fil.read_bytes())
-        assert not re.search(r"\bkr\b|\bkroner\b|\bmill(?:\.|ioner)\b", tekst), fil
+        assert not kroner_utenom_fasiten(fil.read_text("utf-8")), fil
 
 
 # --------------------------------- ingen tekst fra instruksen (0c)

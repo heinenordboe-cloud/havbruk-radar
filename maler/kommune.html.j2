@@ -11,7 +11,10 @@
    linje, men ingen `data-kilde`: regnearket er ikke en kilde i
    `sources/`.
 
-   Ingen kronebeløp, ingen selskapsnavn, ingen tekst fra instruksen. #}
+   ETT KRONEBELØP, og bare Fiskeridirektoratets: fordelingen for året,
+   når fasiten er kvittert (`havbruksfond.lest_fasit()`), ved siden av
+   andelen registeret gir. Ellers ingen. Ingen selskapsnavn, ingen tekst
+   fra instruksen. #}
 {% extends "base.html.j2" %}
 {% from "paastand.html.j2" import merke %}
 
@@ -29,6 +32,7 @@
 
 {% block innhold %}
 <div class="ark">
+{% if d.torrkjoring %}<p class="historikk-forklaring"><strong>{{ d.torrkjoring }}</strong></p>{% endif %}
 <h1>{{ k.navn }}</h1>
 <p class="lok-undertittel">Kommune {{ k.nr }} · {{ k.fylke }}</p>
 
@@ -53,11 +57,30 @@
 <p class="sidehode-note">Laks, ørret og regnbueørret i sjø
   <span class="herkomst">{{ k.paastand.kort }} · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time>
   og <time datetime="{{ d.etter }}">{{ d.etter|kortdato }}</time> · regnet</span></p>
+
+{# FISKERIDIREKTORATETS FORDELING, ved siden av andelen over. Bare med en
+   kvittert fasit; se `nettsted._fasit_vist()`. #}
+{% if d.fasit and k.nr in d.fasit.per_kommune %}{% set fk = d.fasit.per_kommune[k.nr] %}
+<dl class="fakta" id="fordelingen">
+  <div>
+    <dt>Fiskeridirektoratets fordeling {{ d.fasit.aar }}</dt>
+    <dd data-felt="fasit_belop">{{ fk.belop }}</dd>
+  </div>
+  <div>
+    <dt>Andel hos Fiskeridirektoratet</dt>
+    <dd data-felt="fasit_andel">{{ fk.andel }}{% if fk.avvik %} ({{ fk.avvik }}&nbsp;prosentpoeng fra andelen over){% endif %}</dd>
+  </div>
+</dl>
+<p class="historikk-forklaring"><span class="herkomst">Fiskeridir. ·
+  {% if d.fasit.kilde.url %}<a href="{{ d.fasit.kilde.url }}">{{ d.fasit.kilde.navn }}</a>{% else %}{{ d.fasit.kilde.navn }}{% endif %}
+  · hentet <time datetime="{{ d.fasit.kilde.hentet }}">{{ d.fasit.kilde.hentet|kortdato }}</time></span></p>
+{% endif %}
 <p class="historikk-forklaring">Havbruksfondet fordeles etter denne nøkkelen.
   <a href="/kommune/#metode">Slik er den regnet</a> ·
   <a href="{{ d.instruks.url }}">regelen</a></p>
 <p class="historikk-forklaring">
-  {%- if d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
+  {%- if d.fasit %}Fiskeridirektoratet har publisert fordelingen for {{ d.fasit.aar }}.
+  {%- elif d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
   {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå. Ingen beløp står her.{% endif %}</p>
 
 {% if d.skaring and k.nr in d.skaring.per_kommune %}{% set s = d.skaring.per_kommune[k.nr] %}

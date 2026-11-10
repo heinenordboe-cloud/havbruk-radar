@@ -106,6 +106,27 @@ FORDELT = {
 }
 
 ANSLAG = ROT / "predictions" / "havbruksfond-2026.md"
+ANSLAG2 = ROT / "predictions" / "havbruksfond-2026-pakke2.md"
+
+# DE TO FORSEGLINGENE, slik de ble gjort. Summen er fila som ble
+# stemplet, og hver commit er et sted fila kan hentes ut av git og
+# summeres på nytt (`fasit_havbruksfond.forseglinger()`). Pakke 2 ble
+# skrevet og stemplet i det private havbruk-analyse og gjort offentlig
+# her i e1efe15. Forseglingstidspunktet er stempelet, ikke den commiten.
+FORSEGLINGER = (
+    {"pakke": "pakke 1", "fil": "predictions/havbruksfond-2026.md",
+     "sha256": "de9ba03432837c0cfc2fd0b2b145bfdad2e7ebcf47dea4a6addb626e38387002",
+     "forseglet": "2026-10-12",
+     "commits": (("havbruk-radar", "66016dd3e636a03ab4f13563c110125e1cfcc27d", "fil"),
+                 ("havbruk-radar", "04d91ddc890279935d00639179d4192fc97890fd", "ots"))},
+    {"pakke": "pakke 2", "fil": "predictions/havbruksfond-2026-pakke2.md",
+     "sha256": "ccb451bdde451430d48c7a3f62ec037d98a0c91b2ae4b631cd2165bbc69701a0",
+     "forseglet": "2026-11-09",
+     "commits": (("havbruk-analyse", "3ba12f8d5e6139ff10b03a2adbdd9adc1693fc49", "fil"),
+                 ("havbruk-analyse", "4d3ac79ec477c20e6b71ce947252303aa8f4524a", "ots"),
+                 ("havbruk-radar", "e1efe15f0b8bd6874411120fdd571f2b8c2807f4", "fil"),
+                 ("havbruk-radar", "e1efe15f0b8bd6874411120fdd571f2b8c2807f4", "ots"))},
+)
 
 
 class Grunnlagssprik(ValueError):
@@ -345,21 +366,44 @@ def skaringsmappe() -> Path:
     return paths.DATA_DIR / "havbruksfond"
 
 
-def lest_skaring(aar: int = AAR) -> dict | None:
-    """Skåringen for `aar` med kvitteringen, eller None når den ikke er
-    skrevet, ikke kvittert, eller kvittert for en annen fil."""
+def _kvittert(kvittering: str, nokkel: str) -> dict | None:
+    """Fila kvitteringen peker på, med kvitteringen under `lest`. None når
+    kvitteringen mangler, peker ut av mappa, eller summen ikke er fila sin."""
     mappe = skaringsmappe()
-    kv = mappe / f"lest-{aar}.json"
+    kv = mappe / kvittering
     if not kv.exists():
         return None
     k = json.loads(kv.read_text(encoding="utf-8"))
-    fil = mappe / str(k.get("skaring", ""))
-    if not k.get("skaring") or fil.parent != mappe or not fil.exists():
+    fil = mappe / str(k.get(nokkel, ""))
+    if not k.get(nokkel) or fil.parent != mappe or not fil.exists():
         return None
     data = fil.read_bytes()
     if hashlib.sha256(data).hexdigest() != k.get("sha256"):
         return None
     return {**json.loads(data), "lest": k}
+
+
+def lest_skaring(aar: int = AAR) -> dict | None:
+    """Skåringen for `aar` med kvitteringen, eller None når den ikke er
+    skrevet, ikke kvittert, eller kvittert for en annen fil."""
+    return _kvittert(f"lest-{aar}.json", "skaring")
+
+
+# FASITEN (`fasit_havbruksfond.py`) har sin egen kvittering,
+# `lest-fasit-<år>.json`, med samme form og samme regel:
+#
+#     {"dato": "2026-11-20", "lest_av": "Heine Nordboe",
+#      "fasit": "fasit-2026.json", "sha256": "<summen av den fila>"}
+#
+# Den er det eneste som setter Fiskeridirektoratets beløp på
+# kommunesidene. En egen fil, så en kvittering for skåringen fra økt 9
+# verken skrives over eller leses som en kvittering for fasiten.
+
+
+def lest_fasit(aar: int = AAR) -> dict | None:
+    """Fasiten for `aar` med kvitteringen, eller None når den ikke er
+    skrevet, ikke kvittert, eller kvittert for en annen fil."""
+    return _kvittert(f"lest-fasit-{aar}.json", "fasit")
 
 
 # -------------------------------------------------- ingen gjengivelse
@@ -572,21 +616,88 @@ def anslaget(sti: Path = ANSLAG) -> dict[str, dict[str, float]]:
     return ut
 
 
+def _tall(celle: str) -> float:
+    """«72 548.2» -> 72548.2. Tusenskillet i tabellene er et mellomrom."""
+    return float(re.sub(r"[\s ]", "", celle))
+
+
+def pakke2(sti: Path = ANSLAG2) -> dict:
+    """Pakke 2 slik den ble forseglet: de ni påstandene og tabellene.
+
+        {"paastander": [{id, entitet, feil_hvis, konfidens, ...}],
+         "fylker":      {nr: {navn, mtb, andel}},
+         "kommuner":    {nr: {navn, gruppe, mtb, andel}},
+         "lokaliteter": [{paastand, nr, navn, kommuner, mtb, forventet,
+                          deling: {komnr: brøk}}],
+         "grupper":     {"U": [komnr], "E": [...], "G": [...]}}
+
+    Andelen er en brøk (0.045817), MTB er tonn. KASTER `ValueError` når
+    fila ikke har det den ble forseglet med (9 påstander, 8 fylker, 143
+    kommuner i tre grupper): da leses ikke anslaget, og ingenting skal
+    avgjøres mot det.
+    """
+    import yaml
+    tekst = sti.read_text(encoding="utf-8")
+    blokk = re.search(r"```yaml\n(.*?)```", tekst, re.S)
+    ut: dict = {"paastander": yaml.safe_load(blokk.group(1))["prediksjoner"] if blokk else [],
+                "fylker": {}, "kommuner": {}, "lokaliteter": [], "grupper": {}}
+    del_ = None
+    for linje in tekst.splitlines():
+        if linje.startswith("## "):
+            del_ = next((v for p, v in (("## Fylkeskommunene", "fylker"),
+                                        ("## Kommunene", "kommuner"),
+                                        ("## Lokalitetene", "lokaliteter"))
+                         if linje.startswith(p)), None)
+            continue
+        if m := re.match(r"Gruppe ([UEG]): (.*)\.$", linje):
+            ut["grupper"][m.group(1)] = [x.strip() for x in m.group(2).split(",")]
+            continue
+        if not linje.startswith("|"):
+            continue
+        c = [x.strip() for x in linje.strip().strip("|").split("|")]
+        if del_ == "fylker" and len(c) == 4 and c[0].isdigit():
+            ut["fylker"][c[0]] = {"navn": c[1], "mtb": _tall(c[2]),
+                                  "andel": float(c[3].rstrip("%")) / 100}
+        elif del_ == "kommuner" and len(c) == 5 and c[0].isdigit():
+            ut["kommuner"][c[0]] = {"navn": c[1], "gruppe": c[2], "mtb": _tall(c[3]),
+                                    "andel": float(c[4].rstrip("%")) / 100}
+        elif del_ == "lokaliteter" and len(c) == 6 and c[0].startswith("P2-"):
+            ut["lokaliteter"].append({
+                "paastand": c[0], "nr": c[1], "navn": c[2],
+                "kommuner": [k.strip() for k in c[3].split("/")],
+                "mtb": _tall(c[4]), "forventet": c[5],
+                "deling": ({k: float(v) for k, v in re.findall(r"(\d{4}) ([\d.]+)", c[5])}
+                           if c[5].startswith("delt:") else {})})
+    grupper = {g: len(v) for g, v in ut["grupper"].items()}
+    if (len(ut["paastander"]) != 9 or len(ut["fylker"]) != 8 or len(ut["kommuner"]) != 143
+            or grupper != {"U": 89, "E": 26, "G": 28}
+            or {k["gruppe"] for k in ut["kommuner"].values()} != {"U", "E", "G"}):
+        raise ValueError(f"{sti.name} har ikke formen den ble forseglet med: "
+                         f"{len(ut['paastander'])} påstander, {len(ut['fylker'])} fylker, "
+                         f"{len(ut['kommuner'])} kommuner, grupper {grupper}")
+    return ut
+
+
 def segl(sti: Path = ANSLAG) -> dict:
     """Er anslaget det som ble forseglet? Summen i .ots-fila mot fila.
 
     OpenTimestamps-fila begynner med et fast hode, versjonen, operasjonen
     (0x08 = sha256) og summen av fila som ble stemplet.
     """
-    hode = b"\x00OpenTimestamps\x00\x00Proof\x00\xbf\x89\xe2\xe8\x84\xe8\x92\x94"
-    ots = Path(str(sti) + ".ots").read_bytes()
-    if not ots.startswith(hode) or ots[len(hode) + 1] != 0x08:
-        raise ValueError(f"{sti.name}.ots er ikke en sha256-stemplet OTS-fil")
-    i = len(hode) + 2
-    stemplet = ots[i:i + 32].hex()
+    stemplet = ots_sum(Path(str(sti) + ".ots").read_bytes(), f"{sti.name}.ots")
     naa = hashlib.sha256(sti.read_bytes()).hexdigest()
     return {"fil": sti.relative_to(ROT).as_posix(), "sha256": naa,
             "stemplet": stemplet, "uendret": naa == stemplet}
+
+
+def ots_sum(ots: bytes, navn: str = "OTS-fila") -> str:
+    """Summen en OTS-fil er stemplet for: det faste hodet, versjonen,
+    operasjonen (0x08 = sha256) og de 32 bytene etter."""
+    hode = b"\x00OpenTimestamps\x00\x00Proof\x00\xbf\x89\xe2\xe8\x84\xe8\x92\x94"
+    if not ots.startswith(hode) or ots[len(hode) + 1] != 0x08:
+        raise ValueError(f"{navn} er ikke en sha256-stemplet OTS-fil")
+    i = len(hode) + 2
+    return ots[i:i + 32].hex()
 
 
 # ------------------------------------------------------ andelstabellen
