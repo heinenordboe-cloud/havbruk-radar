@@ -336,6 +336,19 @@ def regneark(aar: int) -> Tabell:
     t = Tabell("regneark", kropp, loggpost(kropp.sha256), kommuner, fylker,
                nyklarert_kolonne=_hode(ark["Utbetalingsoversikt"], ("KOMNR",),
                                        ("ANDEL NYKLARERT",)) is not None)
+    # LEDD 1 LESES ORDRETT: kolonnen heter ANDEL NYKLARERT. Står beløpet i
+    # en kolonne med et annet navn, ser ikke leddet det; fila skal likevel
+    # si det (økt L punkt 5, «en ukjent utbetalingskolonne»).
+    i, _ = _hode(ark["Utbetalingsoversikt"], ("KOMNR",), ("TOTALT",))
+    kjente = {"KOMNR", "KOMMUNE", "ANDEL NYKLARERT", "ORDINÆR UTBETALING", "TOTALT", ""}
+    if ukjente := [c.strip() for c in ark["Utbetalingsoversikt"][i]
+                   if c.strip().upper() not in kjente]:
+        t.merknader.append(f"ukjente kolonner i «Utbetalingsoversikt»: {ukjente}")
+    if _hode(ark["Utbetalingsoversikt"], ("KOMNR",), ("ORDINÆR UTBETALING",)):
+        if ulik := [nr for nr, k in kommuner.items()
+                    if abs(k["totalt"] - k["ordinar"] - k["nyklarert"]) >= 1]:
+            t.merknader.append(f"TOTALT er ikke ORDINÆR UTBETALING + ANDEL NYKLARERT for "
+                               f"{len(ulik)} kommuner")
     try:
         t.kommune_mtb = kommune_mtb(ark)
     except (KeyError, ValueError) as e:
@@ -406,8 +419,11 @@ def pressemelding(aar: int, navn: dict[str, str], fylkesnavn: dict[str, str]) ->
         for n, b in _PAR.findall(fyl_t):
             t.fylker[fnr.get(n.strip(), f"?{n.strip()}")] = {
                 "navn": n.strip(), "belop": float(b.replace(" ", ""))}
-        if ukjente := [k for k in t.kommuner if k.startswith("?")]:
-            t.merknader.append(f"navn uten treff i pakke 2: {ukjente}")
+        # ET NAVN UTEN TREFF er ikke en ny kommune. Leses det slik, slår
+        # ledd 2 til på en skrivemåte (økt L punkt 5).
+        if ukjente := [t.kommuner[k]["navn"] for k in t.kommuner if k.startswith("?")] + [
+                t.fylker[k]["navn"] for k in t.fylker if k.startswith("?")]:
+            raise Uleselig(f"{kropp.navn}: navn uten treff i pakke 2: {ukjente}")
         sum_ = sum(k["totalt"] for k in t.kommuner.values()) + sum(
             f["belop"] for f in t.fylker.values())
         if abs(sum_ - totalt) > len(t.kommuner) + len(t.fylker):
@@ -436,12 +452,33 @@ def nye_vedlegg(aar: int, kjente: set[str]) -> list[dict]:
     return ut
 
 
+def kan_leses(t: Tabell, p2: dict) -> Tabell:
+    """`t`, eller `Uleselig` når tabellen ikke ligner en fordeling.
+
+    ULIKT KOMMUNESETT ER ET UTFALL, ULESELIG ER IKKE. Ledd 2 i pakke 1
+    skal slå til når Fiskeridirektoratet har andre kommuner enn vi, ikke
+    når vi har lest feil kolonne eller ingen rader. Grensa er at de fleste
+    numrene skal være pakke 2s: målt 10.11.2026 lot en overskrift med
+    «K1103» i stedet for «1103» null kommuner gå videre som en bom.
+    """
+    k = sum(1 for nr in t.kommuner if nr in p2["kommuner"])
+    f = sum(1 for nr in t.fylker if nr in p2["fylker"])
+    if k < len(p2["kommuner"]) // 2 or f < len(p2["fylker"]) // 2:
+        raise Uleselig(f"{t.kropp.navn}: {len(t.kommuner)} kommuner ({k} i pakke 2) og "
+                       f"{len(t.fylker)} fylkeskommuner ({f} i pakke 2) er lest; det er "
+                       f"ikke en fordeling vi kjenner")
+    if (sum(x["totalt"] for x in t.kommuner.values()) <= 0
+            or sum(x["belop"] for x in t.fylker.values()) <= 0):
+        raise Uleselig(f"{t.kropp.navn}: beløpene summerer ikke til noe over 0")
+    return t
+
+
 def les_tabellen(aar: int, p2: dict) -> tuple[Tabell | None, Tabell | None, list[str]]:
     """(regnearket, pressemeldingen, det som ikke kunne leses)."""
     uleselig = []
     ark = pm = None
     try:
-        ark = regneark(aar)
+        ark = kan_leses(regneark(aar), p2)
     except FileNotFoundError:
         if aar == h.AAR:
             for v in nye_vedlegg(aar, set()):
@@ -450,8 +487,8 @@ def les_tabellen(aar: int, p2: dict) -> tuple[Tabell | None, Tabell | None, list
     except Uleselig as e:
         uleselig.append(f"regnearket: {e}")
     try:
-        pm = pressemelding(aar, {k: v["navn"] for k, v in p2["kommuner"].items()},
-                           {k: v["navn"] for k, v in p2["fylker"].items()})
+        pm = kan_leses(pressemelding(aar, {k: v["navn"] for k, v in p2["kommuner"].items()},
+                                     {k: v["navn"] for k, v in p2["fylker"].items()}), p2)
     except FileNotFoundError:
         pass
     except Uleselig as e:
@@ -1121,6 +1158,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.torrkjor:
         print(TORRKJORING.format(aar=aar))
     print(f"Tabellen: {tb['form']} {tb['sti']}\n  sha256 {tb['sha256']}")
+    for m in tb["merknader"]:
+        print(f"  merknad: {m}")
     for x in f["forseglinger"]:
         blokker = [b["hoyde"] for b in (x.get("bitcoin") or {}).get("blokker", []) if b["lik_hos"]]
         print(f"Segl {x['pakke']}: sha256 {x['sha256'][:16]}… lik, .ots lik, "
