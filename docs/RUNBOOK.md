@@ -1228,6 +1228,49 @@ Tørrkjøringen mot 2025-kroppene skriver aldri i datarepoet:
 .venv/bin/python fasit_havbruksfond.py --torrkjor 2025 --ut ~/kystloggen-utkast/L/torrkjoring --sider
 ```
 
+## Ukentlig: maskinanslagene (fra økt 8)
+
+Hver uke forsegles ett anslag per produksjonsområde for K2
+(brakklegginger de neste fire ukene, hovedtype) og K6 (voksne hunnlus om
+fire uker, PRØVETYPE). Hva som er registrert, og hvorfor bare de to,
+står i `predictions/maskin/FORHANDSREGISTRERING.md`. Modellen er R6s
+skript, uendret: `analyse/anslag/anslag_backtest.py`.
+
+Etter mandagens innsamling, fra et rent kodrepo som er pushet:
+
+```bash
+cd ~/havbruk-radar && git pull && git -C ../havbruk-radar-data pull
+.venv/bin/python anslag.py --forsegl
+.venv/bin/python skaar_anslag.py --oppgrader
+```
+
+`anslag.py` skriver `predictions/maskin/<år>-<uke>.yml`, stempler den med
+`ots stamp` og fører tidspunktet i `forseglinger.tsv`. Commit hele
+`predictions/maskin/`, med sha256 for ukefila i meldingen.
+`skaar_anslag.py` skriver `fasiten.json` og `treffliste.md`, og
+oppgraderer ventende stempler til `.komplett.ots` (kopi; originalen
+endres ikke). Begge filene er en ren funksjon av ukefilene og
+snapshotene, så en kjøring uten noe nytt endrer dem ikke.
+
+| exit fra `anslag.py` | betyr |
+|---|---|
+| 0 | ukefila er skrevet og stemplet, eller den fantes og er stemplet nå eller før |
+| 1 | `ots stamp` feilet. Ukefila står uten `.ots`; kjør igjen før søndag |
+| 2 | nekter: uka er ikke denne uka, fristen søndag er ute, uke T−4 mangler i lusetall eller sjøtemperatur, koden er ikke ren og pushet, eller summen i en `.ots` er ikke fila |
+
+En ukefil lages aldri på nytt. Mangler den stempel, stemples den. En uke
+som ikke er stemplet før søndag 24:00 UTC, er tapt og står i
+`fasiten.json` under `ikke_tellende`.
+
+`tests/test_anslag.py` holder hver linje i `forseglinger.tsv` mot fila og
+`.ots`-fila: en stemplet ukefil som er endret, gjør prøvene røde.
+`skaar_anslag.py --prov-backtest` regner R6s tall for K2 og K6 på nytt
+med modulen og sier om de fortsatt stemmer.
+
+Den ukentlige jobben er `anslag.yml` i datarepoet, når den er lagt inn.
+Den kjører de samme to kommandoene etter innsamlingen og committer til
+kodrepoets `predictions/maskin/`.
+
 ## Daglig: arkivet og tidsstemplene
 
 ### Daglig arkiv

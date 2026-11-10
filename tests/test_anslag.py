@@ -112,15 +112,30 @@ def test_forhandsregistreringen_er_den_som_ble_stemplet():
     assert _forseglet(paths.ROT / "predictions" / "maskin" / "FORHANDSREGISTRERING.md")
 
 
-def test_ukefilene_i_repoet_er_forseglet_og_fort():
-    """En forseglet ukefil røres aldri. Endres den, stemmer ikke summen."""
+def test_forseglede_ukefiler_er_uendret():
+    """En stemplet ukefil røres aldri. Hver linje i forseglinger.tsv skal
+    fortsatt stemme: fila har summen som ble ført, `.ots` er stemplet for
+    den summen, og `.ots`-fila er den samme. En ukefil UTEN `.ots` er lov:
+    stempelet kan ha feilet i jobben, og neste kjøring samme uke stempler
+    den. Den teller ikke før det, og skaar_anslag.py fører den under
+    ikke_tellende."""
     maskin = paths.ROT / "predictions" / "maskin"
     tsv = maskin / "forseglinger.tsv"
-    ført = tsv.read_text(encoding="utf-8") if tsv.exists() else ""
+    linjer = tsv.read_text(encoding="utf-8").splitlines()[1:] if tsv.exists() else []
+    fort = set()
+    for linje in linjer:
+        uke, fil, sha, stemplet, ots_sha = linje.split("\t")
+        sti = maskin / fil
+        assert anslag.isouke(anslag.uke_fra_filnavn(fil)) == uke, linje
+        assert anslag.sha256(sti) == sha, f"{fil} er endret etter at den ble stemplet"
+        ots = Path(f"{sti}.ots")
+        assert havbruksfond.ots_sum(ots.read_bytes()) == sha, f"{ots.name} gjelder ikke fila"
+        assert anslag.sha256(ots) == ots_sha, f"{ots.name} er byttet ut"
+        fort.add(fil)
     for sti in sorted(maskin.glob("*.yml")):
         assert anslag.uke_fra_filnavn(sti.name), f"{sti.name} er ikke en ukefil"
-        assert _forseglet(sti), f"{sti.name}: summen i .ots er ikke fila"
-        assert f"\t{sti.name}\t{anslag.sha256(sti)}\t" in ført
+        if Path(f"{sti}.ots").exists():
+            assert sti.name in fort, f"{sti.name} er stemplet, men ikke ført i forseglinger.tsv"
 
 
 def test_maskinfilene_er_utenfor_de_manuelle_prediksjonene():
