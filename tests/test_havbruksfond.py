@@ -290,7 +290,8 @@ def test_ingen_kronebelop_paa_kommunesidene():
 # bruk-kolonnen). Prøvene under holder sidene til det, og den første
 # viser at de kan feile.
 
-MALENE = ("kommune.html.j2", "kommuner.html.j2", "kommune-bevis.html.j2")
+MALENE = ("kommune.html.j2", "kommuner.html.j2", "kommune-bevis.html.j2",
+          "kommune-segl.html.j2")
 
 
 @pytest.fixture
@@ -382,9 +383,114 @@ def test_nettstedets_tabell_bestaar_porten(datarepo, fordeling):
     """Kopien på /kommune/ har ingen stier til repoet og ingen kolonne
     porten leser som et selskapsnavn."""
     import publiseringsvakt as v
-    tekst = h.tabelltekst(fordeling, h.tabellhode(fordeling, nettsted=True))
+    tekst = h.tabelltekst(fordeling, h.tabellhode(fordeling, nettsted=True), nettsted=True)
     assert v.tekstfunn("kommune/andeler-2026.csv", ".csv", tekst, set(), set()) == []
     assert "Kilde: Fiskeridirektoratet" in tekst
+
+
+def _fasit_for_tabellen(fordeling) -> dict:
+    """Det fasitceller() leser av en fasit: beløp, andel og MTB for én
+    kommune og ett fylke, og summen av tabellen."""
+    return {"tabell": {"sha256": "ab" * 32},
+            "sider": {"kommuner": {"5501": {"belop": 18931168.0, "andel": 0.016784}},
+                      "fylker": {"55": {"belop": 42800605.0, "andel": 0.151783}}},
+            "avvik": {"kommuner": [{"nr": "5501", "fasit_mtb": 58564.0}]}}
+
+
+@trenger_data
+def test_nettstedets_tabell_har_tomme_fasitkolonner(datarepo, fordeling):
+    """Før fasiten er kvittert: kolonnene finnes og er tomme i hver rad.
+    Med den: fylt for kommunen og fylket den har. Datarepoets fil får dem
+    ikke, for `les_andelstabell()` krever nøyaktig TABELLKOLONNER."""
+    import csv as csv_
+    def rader(tekst):
+        return list(csv_.DictReader(io.StringIO(h._rader_i(tekst))))
+    tom = rader(h.tabelltekst(fordeling, [], nettsted=True))
+    assert tuple(tom[0]) == h.TABELLKOLONNER + h.FASITKOLONNER and len(tom) == 151
+    assert all(r[k] == "" for r in tom for k in h.FASITKOLONNER)
+    fylt = {(r["niva"], r["nr"]): r for r in rader(
+        h.tabelltekst(fordeling, [], fasit=_fasit_for_tabellen(fordeling), nettsted=True))}
+    t = fylt[("kommune", "5501")]
+    assert (t["fasit_belop_kr"], t["fasit_andel"], t["fasit_mtb_tonn"]) == (
+        "18931168.00", "0.0167840000", "58564.000")
+    # Seks desimaler, som endring_pp.
+    assert float(t["fasit_avvik_pp"]) == pytest.approx((0.016784 - float(t["andel"])) * 100,
+                                                       abs=1e-6)
+    assert t["fasit_kilde_sha256"] == "ab" * 32
+    assert fylt[("fylkeskommune", "55")]["fasit_belop_kr"] == "42800605.00"
+    assert fylt[("fylkeskommune", "55")]["fasit_mtb_tonn"] == ""
+    assert fylt[("kommune", "5014")]["fasit_belop_kr"] == ""
+    assert tuple(rader(h.tabelltekst(fordeling, []))[0]) == h.TABELLKOLONNER
+
+
+# ------------------------------------ forseglingen på sidene (økt L)
+
+
+def _avsnitt(side: str) -> str:
+    """Teksten slik avsnittsvakten leser den (`publiseringsvakt.
+    avsnittsfunn`): taggene borte, tekstnodene rett etter hverandre.
+    `synlig_tekst()` setter mellomrom rundt hvert element («( fil , .ots )»)
+    og ville målt en annen linje enn den leseren ser."""
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", "", side)).split())
+
+
+@trenger_bygg
+def test_forseglingen_staar_paa_oversikten_og_hver_kommuneside():
+    """Én linje med pakke 1 og pakke 2, datoen og lenke til fila og .ots
+    ved commiten der de kom inn i kodrepoet."""
+    import nettsted as n
+    lenker = [f"{n.REPO}/blob/66016dd3e636a03ab4f13563c110125e1cfcc27d/"
+              "predictions/havbruksfond-2026.md",
+              f"{n.REPO}/blob/04d91ddc890279935d00639179d4192fc97890fd/"
+              "predictions/havbruksfond-2026.md.ots",
+              f"{n.REPO}/blob/e1efe15f0b8bd6874411120fdd571f2b8c2807f4/"
+              "predictions/havbruksfond-2026-pakke2.md",
+              f"{n.REPO}/blob/e1efe15f0b8bd6874411120fdd571f2b8c2807f4/"
+              "predictions/havbruksfond-2026-pakke2.md.ots"]
+    sider = sorted((NETTSTED / "kommune").rglob("index.html"))
+    assert len(sider) == 144
+    for fil in sider:
+        side = fil.read_text("utf-8")
+        segl = re.search(r'<p class="historikk-forklaring" id="segl">(.*?)</p>', side, re.S)
+        assert segl, fil
+        assert all(f'href="{l}"' in segl.group(1) for l in lenker), fil
+        tekst = _avsnitt(segl.group(0))
+        assert len(tekst) <= 110 and tekst == (
+            "Anslagene ble forseglet før fordelingen: pakke 1 12.10.2026 "
+            "(fil, .ots) og pakke 2 09.11.2026 (fil, .ots)."), tekst
+
+
+@trenger_bygg
+def test_slik_sjekker_du_oss_i_tre_linjer():
+    side = (NETTSTED / "kommune" / "index.html").read_text("utf-8")
+    seksjon = re.search(r'<section[^>]*id="sjekk".*?</section>', side, re.S).group(0)
+    assert "Slik sjekker du oss" in seksjon
+    assert len(re.findall(r"<li>", seksjon)) == 3
+    assert "ots --no-bitcoin verify" in seksjon and "shasum -a 256" in seksjon
+
+
+@trenger_bygg
+def test_tromso_sier_hva_pakke2_forventer_og_ingen_andre():
+    """Tromsø-siden viser pakke 1s andel og et fall fra nøkkelen
+    01.09.2025. Pakke 2 forventer Havbruksstasjonen med, og siden sier
+    det, med tallene fra begge pakkene og lenke til pakke 2."""
+    side = (NETTSTED / "kommune" / "5501" / "index.html").read_text("utf-8")
+    tekst = _avsnitt(side)
+    assert ("Pakke 2 forventer Havbruksstasjonens to lokaliteter (10768, 15236) med: "
+            "1,5475 %, mot 1,5056 % i pakke 1.") in tekst.replace(" ", " ")
+    assert "predictions/havbruksfond-2026-pakke2.md" in side
+    andre = [f.parent.name for f in (NETTSTED / "kommune").glob("*/index.html")
+             if f.parent.name != "5501" and "Havbruksstasjonen" in f.read_text("utf-8")]
+    assert andre == []
+
+
+@trenger_bygg
+def test_nettstedets_csv_har_tomme_fasitkolonner():
+    import csv as csv_
+    tekst = (NETTSTED / "kommune" / "andeler-2026.csv").read_text("utf-8")
+    rader = list(csv_.DictReader(io.StringIO(h._rader_i(tekst))))
+    assert len(rader) == 151 and tuple(rader[0])[-len(h.FASITKOLONNER):] == h.FASITKOLONNER
+    assert all(r[k] == "" for r in rader for k in h.FASITKOLONNER)
 
 
 def test_jsonld_paa_kommunesidene_bestaar_porten(tmp_path):

@@ -61,6 +61,19 @@
   <time datetime="{{ d.status.lest }}">{{ d.status.lest|kortdato }}</time>.{% endif %}
   <a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den
   <time datetime="{{ d.fordelt.dato }}">{{ d.fordelt.dato|kortdato }}</time>.</p>
+{% include "kommune-segl.html.j2" %}
+
+{# SLIK SJEKKER DU OSS, i tre linjer: summen av fila, summen i stempelet,
+   og blokka stempelet peker på. Samme kjede som fasiten bruker
+   (`fasit_havbruksfond.bitcoin()`) og RUNBOOK, «Tidsstempler». #}
+<section class="seksjon" id="sjekk" aria-labelledby="sjekk-tittel">
+  <h2 id="sjekk-tittel">Slik sjekker du oss</h2>
+  <ol class="historikk-forklaring">
+    <li>Last ned anslaget og .ots-fila fra lenkene over. Klienten er <code>ots</code> fra OpenTimestamps.</li>
+    <li><code>shasum -a 256</code> på anslaget gir summen <code>ots info</code> viser øverst for .ots-fila.</li>
+    <li><code>ots verify</code> viser Bitcoin-blokka. Uten egen node: <code>ots --no-bitcoin verify</code> og en blokkutforsker.</li>
+  </ol>
+</section>
 
 {# FISKERIDIREKTORATETS FORDELING, bare med en kvittert fasit. Beløpet
    per kommune står på kommunesiden. Se `nettsted._fasit_vist()`. #}
@@ -131,6 +144,9 @@
 </div>
 <p class="historikk-forklaring"><a href="{{ d.csv }}" download>Last ned tabellen (CSV)</a>,
   med fylkeskommunene og andelene med ti desimaler.</p>
+<p class="historikk-forklaring">
+  {%- if d.fasit %}Fiskeridirektoratets fordeling står i egne kolonner i tabellen.
+  {%- else %}Kolonnene for Fiskeridirektoratets fordeling står tomme til den kommer.{% endif %}</p>
 <p class="historikk-forklaring"><span class="herkomst">Nøkkel <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time>:
   Fiskeridir. · beregningen for {{ d.forrige }}</span></p>
 

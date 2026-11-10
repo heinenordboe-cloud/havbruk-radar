@@ -722,6 +722,11 @@ def ots_sum(ots: bytes, navn: str = "OTS-fila") -> str:
 TABELLKOLONNER = ("niva", "nr", "omraade", "fylkesnr", "fylke", "mtb_tonn",
                   "andel", "andel_2025", "endring_pp", "lokaliteter", "delt")
 NIVAA = ("kommune", "fylkeskommune")
+# FASITKOLONNENE, bare i nettstedets kopi (/kommune/andeler-2026.csv), med
+# samme innhold som R7s ut/kommuner.csv har tomme: beløpet, andelen, MTB
+# og avviket, og summen av tabellen de er lest av.
+FASITKOLONNER = ("fasit_belop_kr", "fasit_andel", "fasit_avvik_pp", "fasit_mtb_tonn",
+                 "fasit_kilde_sha256")
 
 
 def tabellrader(f: dict) -> list[dict[str, str]]:
@@ -757,7 +762,10 @@ def tabellhode(f: dict, kode: str = "", skrevet: str = "",
         f"01.09.{FORRIGE_AAR}.",
         "delt=ja: minst én lokalitet er delt med Fiskeridirektoratets "
         f"andel fra {FORRIGE_AAR} (MÅLBAR, ikke målt i år).",
-        f"Ingen kronebeløp: fordelingen {AAR} er ikke en del av tabellen.",
+        (f"fasit_*: Fiskeridirektoratets fordeling {AAR}. Tomme til den er "
+         "publisert og fasiten er lest; fasit_avvik_pp er fra andel."
+         if nettsted else
+         f"Ingen kronebeløp: fordelingen {AAR} er ikke en del av tabellen."),
     ]
     for k in f["kropper"]:
         linjer.append(f"grunnlag: {k.navn} sha256 {k.sha256}")
@@ -772,13 +780,36 @@ def tabellhode(f: dict, kode: str = "", skrevet: str = "",
     return linjer
 
 
-def tabelltekst(f: dict, hode: list[str]) -> str:
+def fasitceller(rad: dict[str, str], fasit: dict | None) -> dict[str, str]:
+    """`FASITKOLONNER` for én rad: tomme uten fasit, ellers
+    Fiskeridirektoratets beløp, andel og MTB, og summen av tabellen de er
+    lest av (`fasit_havbruksfond.py`)."""
+    tom = dict.fromkeys(FASITKOLONNER, "")
+    if not fasit:
+        return tom
+    x = fasit["sider"]["kommuner" if rad["niva"] == "kommune" else "fylker"].get(rad["nr"])
+    if not x:
+        return tom
+    mtb = next((k.get("fasit_mtb") for k in fasit["avvik"]["kommuner"]
+                if k["nr"] == rad["nr"]), None) if rad["niva"] == "kommune" else None
+    return {"fasit_belop_kr": f"{x['belop']:.2f}", "fasit_andel": f"{x['andel']:.10f}",
+            "fasit_avvik_pp": f"{(x['andel'] - float(rad['andel'])) * 100:.6f}",
+            "fasit_mtb_tonn": "" if mtb is None else f"{mtb:.3f}",
+            "fasit_kilde_sha256": fasit["tabell"]["sha256"]}
+
+
+def tabelltekst(f: dict, hode: list[str], fasit: dict | None = None,
+                nettsted: bool = False) -> str:
+    """Tabellen som tekst. Nettstedets kopi har `FASITKOLONNER` i tillegg,
+    tomme til fasiten er kvittert; datarepoets fil har dem ikke, fordi
+    `les_andelstabell()` krever nøyaktig `TABELLKOLONNER`."""
     ut = io.StringIO()
     for linje in hode:
         ut.write(f"# {linje}\n")
-    w = csv.DictWriter(ut, fieldnames=TABELLKOLONNER, lineterminator="\n")
+    kolonner = TABELLKOLONNER + (FASITKOLONNER if nettsted else ())
+    w = csv.DictWriter(ut, fieldnames=kolonner, lineterminator="\n")
     w.writeheader()
-    w.writerows(tabellrader(f))
+    w.writerows([{**r, **fasitceller(r, fasit)} if nettsted else r for r in tabellrader(f)])
     return ut.getvalue()
 
 

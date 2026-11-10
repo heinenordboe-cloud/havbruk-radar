@@ -8936,11 +8936,14 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
 # Tallene er `havbruksfond.fordeling()`, som er holdt mot det forseglede
 # anslaget kommune for kommune (tests/test_havbruksfond.py).
 #
-# HVA SIDENE IKKE HAR. Ingen kronebeløp: fordelingen 2026 er ikke
-# publisert, og et beløp før den kommer, er et anslag (BRIEF: «ingen
-# anslag»). Ingen selskapsnavn: kommunen er området, og lokalitetene står
-# med navn og nummer, som på områdesidene. Ingen tekst fra instruksen
-# eller pressemeldingene: de brukes som fakta og metode, med lenke
+# HVA SIDENE IKKE HAR. Ingen kronebeløp før fasiten er kvittert, og da
+# bare Fiskeridirektoratets (`_fasit_vist()`): et beløp før fordelingen
+# kommer, er et anslag (BRIEF: «ingen anslag»). Anslagene står bare som
+# lenker til de forseglede filene, og for Tromsø som det pakke 2 forventer
+# (`_pakke2_merknad()`), fordi Heine ba om begge (økt L). Ingen
+# selskapsnavn: kommunen er området, og lokalitetene står med navn og
+# nummer, som på områdesidene. Ingen tekst fra instruksen eller
+# pressemeldingene: de brukes som fakta og metode, med lenke
 # (docs/LISENSKJEDE.md, bruk-kolonnen).
 
 KOMMUNE_STI = "kommune"
@@ -9067,6 +9070,8 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
     rangert = sorted(f["kommuner"].values(), key=lambda k: (-k["mtb"], k["nr"]))
     navn = {k["nr"]: _kommunenavn_kort(k["navn"], k["fylke"]) for k in rangert}
     fylke = {k["nr"]: visningsord.tittelform(k["fylke"]) for k in rangert}
+    forseglinger = _forseglingene()
+    pakke2 = _pakke2_merknad(lok, forseglinger)
 
     kommuner = {}
     for rang, k in enumerate(rangert, 1):
@@ -9101,6 +9106,7 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
             "mtb": _tonn(k["mtb"]), "mtb_2025": _tonn(k["mtb_2025"]),
             "lokaliteter": lokaliteter, "flytt": flytt, "ute": ute,
             "delt": any(l["del"] for l in lokaliteter),
+            "pakke2": pakke2.get(nr),
             "paastand": paastand.herkomst(paastand.Paastand(
                 tema="andel", kilde="akvakultur", gjelder=h.FOR,
                 verdi=f"{k['andel']:.10f}", nivaa=paastand.REGNET,
@@ -9135,10 +9141,56 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
         "sjekksum": akva.sha256,
         "skaring": _skaring_vist(h.lest_skaring(h.AAR), navn),
         "fasit": _fasit_vist(fasit, {nr: k["andel"] for nr, k in f["kommuner"].items()}),
+        "forseglinger": forseglinger,
         "torrkjoring": torrkjoring,
         "csv": f"andeler-{h.AAR}.csv",
-        "csv_tekst": h.tabelltekst(f, h.tabellhode(f, nettsted=True)),
+        # TOMME FASITKOLONNER til fasiten er kvittert, så lesere og skript
+        # kan bygges mot formen før fordelingen kommer (økt L).
+        "csv_tekst": h.tabelltekst(f, h.tabellhode(f, nettsted=True), fasit=fasit,
+                                   nettsted=True),
     }
+
+
+def _forseglingene() -> list[dict]:
+    """De to forseglede anslagene, med dato og lenke til fila og .ots-fila.
+
+    Lenkene går til commiten der fila kom inn i kodrepoet (pakke 1 i
+    66016dd, .ots i 04d91dd; pakke 2 i e1efe15), ikke til main: en
+    forsegling skal vise fila som ble forseglet, også om mappa flyttes.
+    Datoen er forseglingen, ikke commiten (pakke 2 ble stemplet i det
+    private havbruk-analyse 09.11.2026).
+    """
+    import havbruksfond as h
+    ut = []
+    for f in h.FORSEGLINGER:
+        her = {hva: c for repo, c, hva in f["commits"] if repo == "havbruk-radar"}
+        ut.append({"pakke": f["pakke"], "dato": f["forseglet"],
+                   "fil": f"{REPO}/blob/{her['fil']}/{f['fil']}",
+                   "ots": f"{REPO}/blob/{her['ots']}/{f['fil']}.ots"})
+    return ut
+
+
+def _pakke2_merknad(lok, forseglinger: list[dict]) -> dict[str, dict]:
+    """Kommunene der pakke 2 forventer en annen andel enn den siden viser.
+
+    HAVBRUKSSTASJONEN (P2-3). Pakke 1 og sidene holder de to lokalitetene
+    ute (ledd 2: ingen laksetillatelse i eierskapskroppen). Pakke 2
+    forventer dem med, fordi Fiskeridirektoratet tok dem med i 2024 og
+    2025. Uten en linje om det viser Tromsø-siden et fall fra nøkkelen
+    01.09.2025 som vi selv har forseglet at vi ikke tror på (Heine, økt
+    L). Tallene er pakke 2s og pakke 1s tabeller, ordrett.
+    """
+    import havbruksfond as h
+    p2, a2 = h.pakke2(), h.anslaget()
+    per: dict[str, list[dict]] = {}
+    for x in p2["lokaliteter"]:
+        if x["paastand"] == "P2-3":
+            per.setdefault(x["kommuner"][0], []).append(lok(x["nr"], x["navn"]))
+    url = next(s["fil"] for s in forseglinger if s["pakke"] == "pakke 2")
+    return {nr: {"lokaliteter": ls, "url": url,
+                 "andel": _andel_vist(p2["kommuner"][nr]["andel"]),
+                 "andel_p1": _andel_vist(a2["kommuner"][nr])}
+            for nr, ls in per.items()}
 
 
 def _skaring_vist(s: dict | None, navn: dict[str, str]) -> dict | None:

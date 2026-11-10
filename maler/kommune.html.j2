@@ -58,6 +58,15 @@
   <span class="herkomst">{{ k.paastand.kort }} · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time>
   og <time datetime="{{ d.etter }}">{{ d.etter|kortdato }}</time> · regnet</span></p>
 
+{# PAKKE 2 FORVENTER EN ANNEN ANDEL her: lokaliteter pakke 1 og andelen
+   over holder ute, men som Fiskeridirektoratet har tatt med før. Bare
+   Tromsø (Havbruksstasjonen, P2-3). Se `nettsted._pakke2_merknad()`. #}
+{% if k.pakke2 %}
+<p class="historikk-forklaring"><a href="{{ k.pakke2.url }}">Pakke 2</a> forventer Havbruksstasjonens to lokaliteter
+  ({% for l in k.pakke2.lokaliteter %}{% if l.url %}<a href="{{ l.url }}">{{ l.nr }}</a>{% else %}{{ l.nr }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %})
+  med: {{ k.pakke2.andel }}, mot {{ k.pakke2.andel_p1 }} i pakke 1.</p>
+{% endif %}
+
 {# FISKERIDIREKTORATETS FORDELING, ved siden av andelen over. Bare med en
    kvittert fasit; se `nettsted._fasit_vist()`. #}
 {% if d.fasit and k.nr in d.fasit.per_kommune %}{% set fk = d.fasit.per_kommune[k.nr] %}
@@ -82,6 +91,7 @@
   {%- if d.fasit %}Fiskeridirektoratet har publisert fordelingen for {{ d.fasit.aar }}.
   {%- elif d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
   {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå. Ingen beløp står her.{% endif %}</p>
+{% include "kommune-segl.html.j2" %}
 
 {% if d.skaring and k.nr in d.skaring.per_kommune %}{% set s = d.skaring.per_kommune[k.nr] %}
 <p class="historikk-forklaring">Fiskeridirektoratets fordeling {{ d.skaring.aar }}: {{ s.fasit }},
