@@ -113,12 +113,19 @@ ANSLAG2 = ROT / "predictions" / "havbruksfond-2026-pakke2.md"
 # summeres på nytt (`fasit_havbruksfond.forseglinger()`). Pakke 2 ble
 # skrevet og stemplet i det private havbruk-analyse og gjort offentlig
 # her i e1efe15. Forseglingstidspunktet er stempelet, ikke den commiten.
+#
+# Commitene står eldst først. Kommunesidene lenker til den SISTE i
+# kodrepoet for fila og for .ots-fila (`nettsted._forseglingene()`):
+# pakke 1s .ots ble oppgradert med Bitcoin-beviset i 3154667, og lenken
+# går dit (Heine, 10.11.2026). 04d91dd står fortsatt, og fasiten prøver
+# begge.
 FORSEGLINGER = (
     {"pakke": "pakke 1", "fil": "predictions/havbruksfond-2026.md",
      "sha256": "de9ba03432837c0cfc2fd0b2b145bfdad2e7ebcf47dea4a6addb626e38387002",
      "forseglet": "2026-10-12",
      "commits": (("havbruk-radar", "66016dd3e636a03ab4f13563c110125e1cfcc27d", "fil"),
-                 ("havbruk-radar", "04d91ddc890279935d00639179d4192fc97890fd", "ots"))},
+                 ("havbruk-radar", "04d91ddc890279935d00639179d4192fc97890fd", "ots"),
+                 ("havbruk-radar", "31546677baa01a34bf7c086b6d4a805bd60e4a0e", "ots"))},
     {"pakke": "pakke 2", "fil": "predictions/havbruksfond-2026-pakke2.md",
      "sha256": "ccb451bdde451430d48c7a3f62ec037d98a0c91b2ae4b631cd2165bbc69701a0",
      "forseglet": "2026-11-09",

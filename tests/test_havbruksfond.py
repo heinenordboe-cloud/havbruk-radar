@@ -434,15 +434,29 @@ def _avsnitt(side: str) -> str:
     return " ".join(html.unescape(re.sub(r"<[^>]+>", "", side)).split())
 
 
+def test_lenkene_gaar_til_siste_commit_for_hver_fil():
+    """Pakke 1s .ots ble oppgradert med Bitcoin-beviset i 3154667, og
+    lenken på sidene går dit, ikke til 04d91dd der den først kom inn
+    (Heine, 10.11.2026). Fila selv har ikke endret seg siden 66016dd."""
+    s = {x["pakke"]: x for x in nettsted._forseglingene()}
+    blob = f"{nettsted.REPO}/blob/"
+    assert s["pakke 1"]["fil"] == (blob + "66016dd3e636a03ab4f13563c110125e1cfcc27d/"
+                                   "predictions/havbruksfond-2026.md")
+    assert s["pakke 1"]["ots"] == (blob + "31546677baa01a34bf7c086b6d4a805bd60e4a0e/"
+                                   "predictions/havbruksfond-2026.md.ots")
+    assert s["pakke 2"]["ots"] == (blob + "e1efe15f0b8bd6874411120fdd571f2b8c2807f4/"
+                                   "predictions/havbruksfond-2026-pakke2.md.ots")
+
+
 @trenger_bygg
 def test_forseglingen_staar_paa_oversikten_og_hver_kommuneside():
     """Én linje med datoen hvert anslag ble forseglet og lenke til fila og
-    .ots ved commiten der de kom inn i kodrepoet. Uten «pakke 1» og
+    .ots ved den siste commiten for hver i kodrepoet. Uten «pakke 1» og
     «pakke 2»: det er interne ord (Heine, økt L)."""
     import nettsted as n
     lenker = [f"{n.REPO}/blob/66016dd3e636a03ab4f13563c110125e1cfcc27d/"
               "predictions/havbruksfond-2026.md",
-              f"{n.REPO}/blob/04d91ddc890279935d00639179d4192fc97890fd/"
+              f"{n.REPO}/blob/31546677baa01a34bf7c086b6d4a805bd60e4a0e/"
               "predictions/havbruksfond-2026.md.ots",
               f"{n.REPO}/blob/e1efe15f0b8bd6874411120fdd571f2b8c2807f4/"
               "predictions/havbruksfond-2026-pakke2.md",

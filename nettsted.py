@@ -9156,16 +9156,18 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
 def _forseglingene() -> list[dict]:
     """De to forseglede anslagene, med dato og lenke til fila og .ots-fila.
 
-    Lenkene går til commiten der fila kom inn i kodrepoet (pakke 1 i
-    66016dd, .ots i 04d91dd; pakke 2 i e1efe15), ikke til main: en
-    forsegling skal vise fila som ble forseglet, også om mappa flyttes.
-    Datoen er forseglingen, ikke commiten (pakke 2 ble stemplet i det
-    private havbruk-analyse 09.11.2026).
+    Lenkene går til den siste commiten for hver fil i kodrepoet, ikke til
+    main: en forsegling skal vise fila som ble forseglet, også om mappa
+    flyttes. For pakke 1 er det 66016dd for fila og 3154667 for .ots-fila,
+    der stempelet ble oppgradert med Bitcoin-beviset; for pakke 2 e1efe15
+    for begge. Datoen er forseglingen, ikke commiten (pakke 2 ble stemplet
+    i det private havbruk-analyse 09.11.2026).
     """
     import havbruksfond as h
     ut = []
     for f in h.FORSEGLINGER:
-        her = {hva: c for repo, c, hva in f["commits"] if repo == "havbruk-radar"}
+        her = {hva: [c for repo, c, x in f["commits"] if repo == "havbruk-radar" and x == hva][-1]
+               for hva in ("fil", "ots")}
         ut.append({"pakke": f["pakke"], "dato": f["forseglet"],
                    "fil": f"{REPO}/blob/{her['fil']}/{f['fil']}",
                    "ots": f"{REPO}/blob/{her['ots']}/{f['fil']}.ots"})
