@@ -596,3 +596,21 @@ kroppene, sortert på filnavn.
 **Heine avgjør:** om registerets `prodomraade_status` («GUL» for PO 2
 og 6–11, F6.3) skal stå i tidsaksen for seg, og om luseinnkomsten skal
 bli et eget lag (F11.3). Ingen av dem er med nå.
+
+## Etterskrift 11.11.2026: kontrolløren
+
+Teksten over er ikke endret. Kontrolløren (`.claude/agents/kontrollor.md`)
+er kjørt én gang, som subagent, med bare stien til dokumentet. Frø
+2338879432; den trakk tre påstander med merket og et tall: F6.2
+(ordlyden én gang i § 4), F8.1 (772 lusetallkropper) og F9.1 (214
+tilfeller i Mattilsynet-kroppen). **Tre treff, ingen avvik.**
+
+Det den regnet selv: setningen står én gang i § 4 og ingen gang i de 26
+andre paragrafene; 772 kropper og 772 ulike ISO-uker 2012-W01–2026-W42
+uten hull, med `year`/`week` i hver kropp lik uka i filnavnet, og lista
+med samme sha256 når stien skrives `lusetall/<filnavn>` som presiseringen
+over sier; 214 tilfeller med ulik `id`, tidligste `opprettet` i uke
+48/2024, og 52 ILA og 131 PD uten ugyldiggjøring.
+
+Datarepoet sto under kontrollen på `f151c3c`, som bare skiller seg fra
+`823b8f53` i `.gitignore`; fillista er den samme i begge.
