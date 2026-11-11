@@ -472,3 +472,127 @@ null og ikke forrige ukes verdi.
   kroppene.
 - **Hvorfor de fire PD-lokalitetene forsvant**, sier ingen kropp
   (UBELAGT, som i R5).
+
+---
+
+## Etterskrift 11.11.2026: dekningen i den bygde tidsaksen
+
+Teksten over er ikke endret. Tidsaksen er bygget av `tidsakse.py`
+(commit `c92b1b4`) mot samme datarepo (`823b8f53…`), og dekningen per
+lag og uke er telt i den med `analyse/tidsakse/m2_dekning.py`.
+Utskriften står uendret i `m2_dekning.txt` (sha256
+`828c8c9f4980beb35aeba429b08e84b0d3c9f4cf3b46fa03a3a08fb2284d8b8d`), og
+hele tabellen, én rad per uke og én kolonne per lag, i `m2_dekning.tsv`
+(`dbc5339eead08ed4bf675e9e1500ce082f01fad474386124f266f8bdca1dd1dc`).
+Begge er kjørt to ganger med samme sha256. Alt i etterskriften er
+MÅLBAR: regnet av snapshotene gjennom døra og de to kroppene, ikke selv
+holdt mot en kropp. En celle telles når `<lag>__kilde` er satt.
+
+**Filene:**
+
+```
+   tidsakse.parquet sha256 29e2131c524c5d2d88d342ac465dde0f6f04f88ee58b9ca9c9122d93b845e7bf byte 2257512
+   hendelser.parquet sha256 7b30406553d493a3d5403984bb2ec89d685cca8c7d9f24a743647f80f6f44115 byte 118622
+   konflikter.parquet sha256 7550793b7886d6867235bcf77f24d616542936e03d16f86149959e2d617f1a51 byte 6008
+   tidsakse.parquet: 2107616 rader = 2716 lokaliteter × 776 uker (2012-W01..2026-W46), 104 kolonner
+   hendelser.parquet: 46596 rader; konflikter.parquet: 231 rader
+```
+
+**Per lag:**
+
+```
+lag | første uke | siste uke | uker med celle | uker uten celle mellom første og siste | celler | median per uke med celle | høyest
+register | 2026-W34 | 2026-W46 | 13 | 0 | 23158 | 1782 | 1785
+sted | 2026-W34 | 2026-W46 | 13 | 0 | 23158 | 1782 | 1785
+regomr | 2026-W34 | 2026-W46 | 13 | 0 | 23158 | 1782 | 1785
+trafikklys | 2026-W34 | 2026-W46 | 13 | 0 | 12597 | 969 | 970
+eierskap | 2026-W36 | 2026-W46 | 10 | 1: 2026-W37 | 17172 | 1717 | 1720
+selskap | 2026-W36 | 2026-W46 | 10 | 1: 2026-W37 | 15504 | 1550 | 1552
+biomasselag | 2012-W13 | 2026-W44 | 96 | 666 | 2210 | 2 | 694
+lus | 2012-W01 | 2026-W42 | 772 | 0 | 1336229 | 1715 | 1999
+sjo | 2012-W01 | 2026-W42 | 772 | 0 | 827876 | 1071 | 1114
+stripe | 2012-W01 | 2026-W42 | 772 | 0 | 1342612 | 1720 | 2004
+sykdom | 2024-W48 | 2026-W45 | 102 | 0 | 180799 | 1774 | 1788
+unntaksvekst | 2026-W42 | 2026-W46 | 5 | 0 | 300 | 60 | 60
+havbruksfond | 2026-W36 | 2026-W36 | 1 | 0 | 1065 | 1065 | 1065
+```
+
+Hvert lag står i ukene tabellen «Hva dette betyr for tidsaksen» over
+sa. Uke 37 er tom for eier og selskap, og biomasselaget står i 96 uker
+med en månedsslutt og er tomt i de 666 mellom. Selskapsleddet har færre
+celler enn eierleddet fordi 121 innehavere er utenfor vårt utvalg av
+Enhetsregisteret (F4.1). Sykdom teller også «ingen aktiv sak», og
+står derfor for hver lokalitet et register har i uka.
+
+**Uke for uke fra uke 33/2026**, der de fleste lagene begynner:
+
+```
+uke | register | sted | regomr | trafikklys | eierskap | selskap | biomasselag | lus | sjo | stripe | sykdom | unntaksvekst | havbruksfond | konflikt
+2026-W33 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1777 | 1066 | 1778 | 1781 | 0 | 0 | 4
+2026-W34 | 1779 | 1779 | 1779 | 970 | 0 | 0 | 0 | 1777 | 1066 | 1778 | 1783 | 0 | 0 | 4
+2026-W35 | 1779 | 1779 | 1779 | 970 | 0 | 0 | 0 | 1777 | 1066 | 1779 | 1783 | 0 | 0 | 4
+2026-W36 | 1779 | 1779 | 1779 | 969 | 1715 | 1550 | 684 | 1777 | 1066 | 1779 | 1784 | 0 | 1065 | 31
+2026-W37 | 1779 | 1779 | 1779 | 969 | 0 | 0 | 0 | 1776 | 1063 | 1780 | 1783 | 0 | 0 | 4
+2026-W38 | 1782 | 1782 | 1782 | 969 | 1717 | 1551 | 0 | 1778 | 1062 | 1781 | 1786 | 0 | 0 | 4
+2026-W39 | 1782 | 1782 | 1782 | 969 | 1717 | 1551 | 0 | 1779 | 1062 | 1782 | 1786 | 0 | 0 | 4
+2026-W40 | 1783 | 1783 | 1783 | 969 | 1717 | 1552 | 694 | 1780 | 1062 | 1782 | 1787 | 0 | 0 | 20
+2026-W41 | 1782 | 1782 | 1782 | 969 | 1717 | 1550 | 0 | 1779 | 1060 | 1782 | 1786 | 0 | 0 | 4
+2026-W42 | 1780 | 1780 | 1780 | 968 | 1716 | 1550 | 0 | 1779 | 1060 | 1781 | 1785 | 60 | 0 | 5
+2026-W43 | 1781 | 1781 | 1781 | 968 | 1717 | 1550 | 0 | 0 | 0 | 0 | 1785 | 60 | 0 | 24
+2026-W44 | 1783 | 1783 | 1783 | 969 | 1719 | 1551 | 17 | 0 | 0 | 0 | 1787 | 60 | 0 | 5
+2026-W45 | 1784 | 1784 | 1784 | 969 | 1717 | 1549 | 0 | 0 | 0 | 0 | 1788 | 60 | 0 | 4
+2026-W46 | 1785 | 1785 | 1785 | 969 | 1720 | 1550 | 0 | 0 | 0 | 0 | 0 | 60 | 0 | 0
+```
+
+Lokalitetsuker per lag og år står i utskriften, punkt 3.
+
+**Konflikter og hendelser:**
+
+```
+   P1: 19 celler, 19 lokaliteter, 2026-W43..2026-W43
+   P2: 8 celler, 6 lokaliteter, 2026-W36..2026-W44
+   P3: 64 celler, 63 lokaliteter, 2012-W26..2026-W40
+   sykdom: 140 celler, 4 lokaliteter, 2026-W11..2026-W45
+   H1 sykdom: 210, 2024-W48..2026-W43, uten uke (bare intervall) 0
+   H2 over_lusegrensa: 10214, 2012-W01..2026-W42, uten uke (bare intervall) 0
+   H3 brakklagt: 7379, 2012-W02..2026-W42, uten uke (bare intervall) 0
+   H4 brakklegging_slutt: 7610, 2012-W02..2026-W42, uten uke (bare intervall) 0
+   H5 mekanisk_lusefjerning: 21149, 2012-W03..2026-W42, uten uke (bare intervall) 0
+   H6 ny_lokalitet: 11, 2026-W35..2026-W45, uten uke (bare intervall) 0
+   H7 lokalitet_ut_eller_status: 5, 2026-W35..2026-W41, uten uke (bare intervall) 0
+   H8 kapasitet_endret: 8, 2026-W36..2026-W41, uten uke (bare intervall) 0
+   H9 eierskifte: 10, 2026-W42..2026-W43, uten uke (bare intervall) 1
+   stempel på første fil: komplett 46596
+   eierleddet: lokalitetsuker med en tillatelse der eieren er en personform (eier ikke ført): 3, tillatelser til sammen 3
+```
+
+P1 er én innehaver i uke 43 (navnet hos Fiskeridirektoratet ulikt
+Brregs), ført på de 19 lokalitetene den eier tillatelser på; R2 F2.1
+fant den samme. Eierskiftet uten uke er det over hullet i uke 37: bare
+intervallet 02.09–14.09 står, ingen uke er gjettet.
+
+**Holdt mot R8 og R2**, regnet av tidsaksen: grunnen 2012-01-02–2026-10-05
+gir fisk 434 032, brakk 358 103 og utenfor 542 315 (R8 F1.1), lus i
+fiskeukene over 17 969, under 393 485 og ikke talt 22 578 (R8 F3.1), og
+5 039 aktive sykdomsceller med samme fordeling som R8 F4.1. P3 er 22 og
+16, P2 5, 1, 1 og 1, og P1 én innehaver, som R2. Bygget slik vi kjente
+aksen 04.11.2026 06:00 UTC, deler 71/26 seg i 42, 13, 13 og 3 som R2
+F1.2. Behandling «ja» er 35 131: R8s 35 206 minus de 75 i uka
+2024-11-11, som `dodt_fra` tar (F8.2). Prøvene står i
+`tests/test_tidsakse.py`.
+
+**Persondata, STOPP-regelen punkt 3.** Byggingen fant F15-tilfellet: et
+partrederi (PRE, en personform) som eier av én tillatelse på én
+lokalitet i eierskapssnapshotene 02.09, 14.09 og 21.09.2026, med
+personformen bare i `eier_type`, der døra ikke ser den (CLAUDE.md § 7,
+R2 F6.1). Det er ikke et navn, men et orgnr som peker på en personform,
+og det er behandlet slik regelen sier: eieren er holdt ute og telt
+(`eierskap__personform_utelatt`, 3 lokalitetsuker). Tillatelsen står.
+
+**Presisering til F8.1:** lista er linjene
+`lusetall/<filnavn>\t<sha256 over den utpakkede kroppen>\n` for de 772
+kroppene, sortert på filnavn.
+
+**Heine avgjør:** om registerets `prodomraade_status` («GUL» for PO 2
+og 6–11, F6.3) skal stå i tidsaksen for seg, og om luseinnkomsten skal
+bli et eget lag (F11.3). Ingen av dem er med nå.
