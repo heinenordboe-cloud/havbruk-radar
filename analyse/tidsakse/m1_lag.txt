@@ -1,0 +1,171 @@
+# Måling: tidsaksens lag (analyse/tidsakse/m1_lag.py)
+
+== 1. Snapshotene, gjennom lesedøra
+kilde | filer datoer | første siste | median dager mellom datoer | ufullstendige | entity_type | entiteter i siste | sha256 over fillista
+akvakultur | 19 13 | 2026-08-17 2026-11-09 | 7 | 0 | lokalitet | 1785 | 5fcbb3b7c9f1ff20869689c6c292ca347704c274e2b98d97bccfdb9287bc2b30
+eierskap | 10 10 | 2026-09-02 2026-11-09 | 7 | 0 | tillatelse | 2953 | c928de7926efb10ad0c40e77a371a82afed37a1f8e4ba2f7cd837255b977299c
+eierskap_historikk | 63 21 | 2006-12-31 2026-12-31 | 365 | 0 | overforing | 91 | 3adb3a4522a27da3691d9f610e600748173280e067189a55cbf71db1f748d498
+enhetsregisteret | 20 14 | 2026-08-16 2026-11-09 | 7 | 0 | selskap | 1757 | 3e3e1ce2efe632d0706fbc5007e696676f6c2a92fb5944a491676c1579af5715
+enhetsregisteret_oppslag | 3 3 | 2026-11-04 2026-11-11 | 6 | 0 | selskap | 411 | cda394e3b379c7d78bd5b81b9ae1cecbee1b825f94e59b9154c08370e0524dfc
+biomasselag | 10 10 | 2026-09-10 2026-11-09 | 7 | 0 | lokalitet | 1118 | b2cf637995a354319a1bfb9145205e46a6efafb490c2ba3213b3507598c5feca
+biomasse | 190 106 | 2017-10-31 2026-07-31 | 31 | 0 | produksjonsomraade | 14 | 97ee14d32778fca5b3894d47940412321dabd86199c37526261686e985fcff11
+lusetall | 772 772 | 2012-01-02 2026-10-12 | 7 | 0 | lokalitet | 1779 | 095a1741b4680cb492b9a0cd5065f35f8cfeeb70c14e2bd9955e193a6c3e9c56
+sjotemperatur | 1539 772 | 2012-01-02 2026-10-12 | 7 | 0 | lokalitet | 1060 | 698a05cf47b745348b5331971c85643f1f869e90eb6618ace2fda492db982190
+trafikklysvedtak | 7 5 | 2018-12-31 2026-12-31 | 731 | 0 | produksjonsomraade | 6 | 0aac79cf09cf7cd0c2a87c2df4740b6212619992ddcc27625b14c50bd189f8d9
+ekspertgruppen | 24 9 | 2016-12-31 2025-12-31 | 365 | 0 | produksjonsomraade | 13 | 4abf68f1cdf9dab9a87cc90a03cb8de22b172015b05191f81721416250465168
+reguleringsomraader | 1 1 | 2026-06-29 2026-06-29 | 0 | 0 | reguleringsomraade | 28 | fb1fa1c105b2ec365202f15fa80c91694134f1c13d01afbf6ec61945bea6f71f
+unntaksvekst | 5 5 | 2026-10-12 2026-11-09 | 7 | 0 | soknad_lokalitet | 84 | 1608e0f1cb6e7e8ec01b4c0957f1289ee5092dfdf70a376c7e8f54f87f354e58
+romming | 21 21 | 2016-12-31 2026-12-31 | 250 | 0 | romming | 57 | 22693e66d681622377ce61dd9dffdd8d13b03999582660b17cf8e1ce88684b0d
+
+-- ISO-uker uten snapshot mellom første og siste (ukentlige kilder)
+akvakultur: uker 13 (2026-W34..2026-W46), med snapshot 13, uten 0: -; uker med flere datoer: -
+eierskap: uker 11 (2026-W36..2026-W46), med snapshot 10, uten 1: 2026-W37; uker med flere datoer: -
+enhetsregisteret: uker 14 (2026-W33..2026-W46), med snapshot 14, uten 0: -; uker med flere datoer: -
+biomasselag: uker 10 (2026-W37..2026-W46), med snapshot 10, uten 0: -; uker med flere datoer: -
+lusetall: uker 772 (2012-W01..2026-W42), med snapshot 772, uten 0: -; uker med flere datoer: -
+sjotemperatur: uker 772 (2012-W01..2026-W42), med snapshot 772, uten 0: -; uker med flere datoer: -
+unntaksvekst: uker 5 (2026-W42..2026-W46), med snapshot 5, uten 0: -; uker med flere datoer: -
+
+== 2. Registerets tilstand, PO, kommune (akvakultur)
+dato uke | lokaliteter | med kapasitet | med koordinater | med PO | med kommunenummer | med tillatelser | versjon_status (topp)
+2026-08-17 2026-W34 | 1779 | 1779 | 1779 | 970 | 1779 | 1777 | [('APPROVED', 1779)]
+2026-08-24 2026-W35 | 1779 | 1779 | 1779 | 970 | 1779 | 1777 | [('APPROVED', 1779)]
+2026-08-31 2026-W36 | 1779 | 1779 | 1779 | 969 | 1779 | 1776 | [('APPROVED', 1779)]
+2026-09-07 2026-W37 | 1779 | 1779 | 1779 | 969 | 1779 | 1776 | [('APPROVED', 1779)]
+2026-09-14 2026-W38 | 1782 | 1782 | 1782 | 969 | 1782 | 1779 | [('APPROVED', 1782)]
+2026-09-21 2026-W39 | 1782 | 1782 | 1782 | 969 | 1782 | 1779 | [('APPROVED', 1782)]
+2026-09-28 2026-W40 | 1783 | 1783 | 1783 | 969 | 1783 | 1780 | [('APPROVED', 1783)]
+2026-10-05 2026-W41 | 1782 | 1782 | 1782 | 969 | 1782 | 1780 | [('APPROVED', 1782)]
+2026-10-12 2026-W42 | 1780 | 1780 | 1780 | 968 | 1780 | 1778 | [('APPROVED', 1780)]
+2026-10-19 2026-W43 | 1781 | 1781 | 1781 | 968 | 1781 | 1779 | [('APPROVED', 1781)]
+2026-10-26 2026-W44 | 1783 | 1783 | 1783 | 969 | 1783 | 1781 | [('APPROVED', 1783)]
+2026-11-02 2026-W45 | 1784 | 1784 | 1784 | 969 | 1784 | 1782 | [('APPROVED', 1784)]
+2026-11-09 2026-W46 | 1785 | 1785 | 1785 | 969 | 1785 | 1783 | [('APPROVED', 1785)]
+-- prodomraade_status per PO i siste akvakultursnapshot (registerets ord, ikke vedtaket)
+   PO 1: {'GRØNN': 10}
+   PO 2: {'GUL': 47}
+   PO 3: {'RØD': 133}
+   PO 4: {'GUL': 137}
+   PO 5: {'GUL': 42}
+   PO 6: {'GUL': 124}
+   PO 7: {'GUL': 69}
+   PO 8: {'GUL': 99}
+   PO 9: {'GUL': 109}
+   PO 10: {'GUL': 72}
+   PO 11: {'GUL': 44}
+   PO 12: {'GRØNN': 74}
+   PO 13: {'GRØNN': 9}
+-- første snapshotdato per kilde med en kobling lokalitet–tillatelse eller tillatelse–innehaver
+   akvakultur.tillatelser: 2026-08-17 (2026-W34); eierskap.eier_orgnr: 2026-09-02 (2026-W36); før 2026-08-17: 0 snapshots
+
+== 3. Tillatelser, MTB og eier (eierskap)
+dato uke | tillatelser | med lokaliteter | lokaliteter koblet | eier_orgnr ulike | kapasitet_enhet | kapasitet_type
+2026-09-02 2026-W36 | 2944 | 2903 | 1715 | 480 | {'DA': 536, 'KG': 49, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 255, 'TN': 2070} | {'MTK': 2857, 'SUM/YEAR': 87}
+2026-09-14 2026-W38 | 2945 | 2905 | 1717 | 482 | {'DA': 537, 'KG': 49, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 252, 'TN': 2073} | {'MTK': 2857, 'SUM/YEAR': 88}
+2026-09-21 2026-W39 | 2943 | 2903 | 1717 | 482 | {'DA': 537, 'KG': 49, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 252, 'TN': 2071} | {'MTK': 2855, 'SUM/YEAR': 88}
+2026-09-28 2026-W40 | 2947 | 2907 | 1717 | 481 | {'DA': 537, 'KG': 49, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 252, 'TN': 2075} | {'MTK': 2859, 'SUM/YEAR': 88}
+2026-10-05 2026-W41 | 2951 | 2911 | 1717 | 480 | {'DA': 537, 'KG': 49, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 252, 'TN': 2079} | {'MTK': 2863, 'SUM/YEAR': 88}
+2026-10-12 2026-W42 | 2948 | 2908 | 1716 | 479 | {'DA': 537, 'KG': 49, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 250, 'TN': 2078} | {'MTK': 2860, 'SUM/YEAR': 88}
+2026-10-19 2026-W43 | 2949 | 2909 | 1717 | 480 | {'DA': 538, 'KG': 49, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 250, 'TN': 2078} | {'MTK': 2861, 'SUM/YEAR': 88}
+2026-10-26 2026-W44 | 2950 | 2910 | 1719 | 480 | {'DA': 538, 'KG': 50, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 250, 'TN': 2078} | {'MTK': 2862, 'SUM/YEAR': 88}
+2026-11-02 2026-W45 | 2947 | 2907 | 1717 | 478 | {'DA': 538, 'KG': 51, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 247, 'TN': 2077} | {'MTK': 2860, 'SUM/YEAR': 87}
+2026-11-09 2026-W46 | 2953 | 2913 | 1720 | 480 | {'DA': 538, 'KG': 53, 'L': 1, 'M2': 25, 'M3': 8, 'STK': 249, 'TN': 2079} | {'MTK': 2865, 'SUM/YEAR': 88}
+-- eierskap_historikk: overføringer per år (journal_dato), og spennet
+   2607 overføringer, journal_dato 2006-02-27..2026-08-17; per år: {'2006': 83, '2007': 245, '2008': 110, '2009': 46, '2010': 30, '2011': 31, '2012': 40, '2013': 86, '2014': 77, '2015': 70, '2016': 44, '2017': 20, '2018': 71, '2019': 328, '2020': 67, '2021': 39, '2022': 728, '2023': 121, '2024': 134, '2025': 146, '2026': 91}
+
+== 4. Selskapsleddet (enhetsregisteret)
+   datoer 14, 2026-08-16..2026-11-09; ulike felt i alle versjoner: 32
+   felt som nevner overordnet/forelder/konsern: ['er_i_konsern']
+   siste eierskap: 480 innehavere, 359 av dem i siste enhetsregister-snapshot (121 utenfor vårt utvalg)
+
+== 5. Reguleringsområde (punkt i polygon, sources.reguleringsomraader.inneholder)
+   snapshot 2026-06-29 (2026-W27), published_at 2026-06-29, versjon ['regomr_v3'], status ['forslag'], områder 28
+   siste akvakultur: lokaliteter med koordinater 1785; i antall områder: {0: 28, 1: 1757}
+
+== 6. Trafikklys (trafikklysvedtak), per PO og tildelingsrunde
+   runde 2018 | published_at 2017-12-20T12:00:00+00:00 | PO med farge 8: 1=gronn, 7=gronn, 8=gronn, 9=gronn, 10=gronn, 11=gronn, 12=gronn, 13=gronn
+   runde 2020 | published_at 2020-02-04T12:00:00+00:00 | PO med farge 11: 1=gronn, 2=gronn, 4=rod, 5=rod, 6=gronn, 7=gronn, 8=gronn, 9=gronn, 11=gronn, 12=gronn, 13=gronn
+   runde 2020 | published_at 2022-06-07T12:00:00+00:00 | PO med farge 3: 3=gul, 4=rod, 5=rod
+   runde 2022 | published_at 2022-06-07T12:00:00+00:00 | PO med farge 11: 1=gronn, 3=rod, 4=rod, 5=gul, 6=gronn, 8=gronn, 9=gronn, 10=gronn, 11=gronn, 12=gronn, 13=gronn
+   runde 2022 | published_at 2024-03-22T12:00:00+00:00 | PO med farge 3: 3=rod, 4=rod, 5=gul
+   runde 2024 | published_at 2024-03-22T12:00:00+00:00 | PO med farge 9: 1=gronn, 3=rod, 4=rod, 5=gul, 9=gronn, 10=gronn, 11=gronn, 12=gronn, 13=gronn
+   runde 2026 | published_at 2026-08-20T12:00:00+00:00 | PO med farge 6: 1=gronn, 3=rod, 4=gul, 5=gul, 12=gronn, 13=gronn
+   2026-kroppen trafikklysvedtak/2026-12-31.bin.gz sha256 08b6090d993b96444ba54043079382de2a25750f571b7b98414158bc7abc4cd8
+   § 4 har setningen ordrett 1 gang(er): Tillatelser hjemmehørende i øvrige produksjonsområder kan utnyttes 100 prosent.
+   2026: PO uten farge i snapshotet: 2, 6, 7, 8, 9, 10, 11 (7 celler)
+
+== 7. Biomasselaget: én påstand per lokalitet og månedsslutt (siste_rapport)
+   2026-09-10 2026-W37: lokaliteter 1117, siste_rapport topp [('2026-07-31', 403), ('2026-08-31', 284), ('2026-06-30', 43)]
+   2026-09-15 2026-W38: lokaliteter 1118, siste_rapport topp [('2026-08-31', 666), ('2026-07-31', 61), ('2026-06-30', 40)]
+   2026-09-22 2026-W39: lokaliteter 1118, siste_rapport topp [('2026-08-31', 666), ('2026-07-31', 61), ('2026-06-30', 40)]
+   2026-10-04 2026-W40: lokaliteter 1118, siste_rapport topp [('2026-08-31', 677), ('2026-07-31', 52), ('2026-06-30', 40)]
+   2026-10-05 2026-W41: lokaliteter 1118, siste_rapport topp [('2026-08-31', 648), ('2026-07-31', 44), ('2026-09-30', 40)]
+   2026-10-12 2026-W42: lokaliteter 1118, siste_rapport topp [('2026-09-30', 402), ('2026-08-31', 310), ('2026-07-31', 44)]
+   2026-10-19 2026-W43: lokaliteter 1118, siste_rapport topp [('2026-09-30', 679), ('2026-08-31', 59), ('2026-07-31', 41)]
+   2026-10-26 2026-W44: lokaliteter 1118, siste_rapport topp [('2026-09-30', 686), ('2026-08-31', 53), ('2026-07-31', 40)]
+   2026-11-02 2026-W45: lokaliteter 1118, siste_rapport topp [('2026-09-30', 693), ('2026-08-31', 45), ('2026-07-31', 41)]
+   2026-11-09 2026-W46: lokaliteter 1118, siste_rapport topp [('2026-09-30', 679), ('2026-08-31', 44), ('2026-07-31', 41)]
+   påstander (lokalitet, månedsslutt): 2233; månedsslutter 114; siste_rapport 2005-04-30..2026-10-31; fra 2012-01-02: 2210, før: 23
+   per år: {'2005': 2, '2007': 3, '2008': 4, '2010': 8, '2011': 6, '2012': 4, '2013': 3, '2014': 3, '2015': 1, '2016': 6, '2017': 7, '2018': 5, '2019': 10, '2020': 11, '2021': 16, '2022': 23, '2023': 14, '2024': 33, '2025': 105, '2026': 1969}
+   månedsslutter med minst 100 lokaliteter: [('2026-07-31', 408), ('2026-08-31', 684), ('2026-09-30', 694)]
+
+== 8. Lus, brakklegging, behandling (lusetall) og sjøtemperatur
+   lusetall: 772 uker 2012-01-02..2026-10-12; maks_nullstrekk 13; dodt_fra {'har_medikamentell_behandling': '2024-01-01', 'har_rensefisk': '2023-04-24'}
+   har_mekanisk_fjerning: første True 2012-01-02, siste True 2026-10-12; døde strekk > 13: -; lever etter regelen 772 uker (2012-01-02..2026-10-12); med dodt_fra 772 uker (2012-01-02..2026-10-12)
+   har_medikamentell_behandling: første True 2012-01-02, siste True 2024-11-11; døde strekk > 13: [('2024-01-01', '2024-11-04', 45), ('2024-11-18', '2026-10-12', 100)]; lever etter regelen 627 uker (2012-01-02..2024-11-11); med dodt_fra 626 uker (2012-01-02..2023-12-25)
+   har_rensefisk: første True 2012-01-02, siste True 2023-04-17; døde strekk > 13: [('2023-04-24', '2026-10-12', 182)]; lever etter regelen 590 uker (2012-01-02..2023-04-17); med dodt_fra 590 uker (2012-01-02..2023-04-17)
+   sjotemperatur: 772 uker 2012-01-02..2026-10-12; samme uker som lusetall: True
+   lokaliteter i noen lusetalluke: 2711
+
+== 9. Sykdom (Mattilsynet, arkivkroppen; R5)
+   maling-ilapd/2026-11-04.json.gz sha256 890117f9a349175a61885ecd5505350b99fc57ef52b2907ecd5cee9f63a3407a; hentet 2026-11-04T01:51:23+00:00; tilfeller 214; gyldige ILA 52, gyldige PD 131
+   tidligste opprettet 2024-11-26T12:44:42.031588Z (2024-W48); lokaliteter med gyldig ILA/PD 157; av dem i noen lusetalluke 157
+   åpne PD-saker på lokaliteter som ikke står i siste akvakultursnapshot: 24456 (siste lusetalluke 2026-03-02), 24696 (siste lusetalluke 2026-03-02), 30437 (siste lusetalluke 2026-03-02), 31959 (siste lusetalluke 2026-03-02)
+
+== 10. Unntaksvekst (unntaksvekst)
+   2026-10-12 2026-W42: søknadslokaliteter 84, med lokalitet_nr 81, ulike lokaliteter 60; resultat {'Avslag': 15, 'Godkjent': 69}; kobling {'entydig': 70, 'flertydig': 3, 'usikker': 11}
+   2026-10-19 2026-W43: søknadslokaliteter 84, med lokalitet_nr 81, ulike lokaliteter 60; resultat {'Avslag': 15, 'Godkjent': 69}; kobling {'entydig': 70, 'flertydig': 3, 'usikker': 11}
+   2026-10-26 2026-W44: søknadslokaliteter 84, med lokalitet_nr 81, ulike lokaliteter 60; resultat {'Avslag': 15, 'Godkjent': 69}; kobling {'entydig': 70, 'flertydig': 3, 'usikker': 11}
+   2026-11-02 2026-W45: søknadslokaliteter 84, med lokalitet_nr 81, ulike lokaliteter 60; resultat {'Avslag': 15, 'Godkjent': 69}; kobling {'entydig': 70, 'flertydig': 3, 'usikker': 11}
+   2026-11-09 2026-W46: søknadslokaliteter 84, med lokalitet_nr 81, ulike lokaliteter 60; resultat {'Avslag': 15, 'Godkjent': 69}; kobling {'entydig': 70, 'flertydig': 3, 'usikker': 11}
+
+== 11. Lagene som bare finnes som arkivkropper (ingen kilde i sources/)
+   auksjon: kropper 110, logger 55, datoer i filnavn 2026-09-14..2026-11-09 (13)
+   havbruksfondet: kropper 21, logger 34, datoer i filnavn 2026-10-12..2026-11-09 (7)
+   lusetall-innkomst: kropper 45, logger 15, datoer i filnavn 2016-10-10..2026-11-09 (13)
+   lusetall-innkomst-v2: kropper 33, logger 11, datoer i filnavn 2026-10-05..2026-11-09 (6)
+   akvakultur-flater: kropper 7, logger 11, datoer i filnavn 2026-11-03..2026-11-11 (7)
+   akvakultur-soknader: kropper 6, logger 10, datoer i filnavn 2026-11-03..2026-11-11 (6)
+   maling-nye-kilder: kropper 47, logger 4, datoer i filnavn 2026-11-03..2026-11-03 (1)
+-- lusetall-innkomst (v1) og -v2: uker og hentinger, fra fangstloggene
+   lusetall-innkomst: uker i fangstloggene 6 (2026-10-05..2026-11-09); hentinger 70; første henting 2026-11-02T19:14:46+00:00, siste 2026-11-11T12:12:10+00:00
+   lusetall-innkomst-v2: uker i fangstloggene 6 (2026-10-05..2026-11-09); hentinger 55; første henting 2026-11-03T19:44:22+00:00, siste 2026-11-11T12:11:58+00:00
+
+== 12. Kroppene bak påstandene som holdes mot arkivet
+   arkiv/lusetall: 772 kropper, 2012-01-02.json.gz..2026-10-12.json.gz; sha256 over lista «sti<TAB>sha256\n» b7c32ebd92b8c10ebf184cc39933e8a1e51ff3fca6af517a672fa179ebcd144d
+   lusetall/2026-03-02.json.gz sha256 cfb15ca9c0837c023d0a99cfc02567fdfba4cb94ed2af9306efeb9aea0540d92: lokaliteter 1775; av de fire med åpen PD: ['24456', '24696', '30437', '31959']
+   lusetall/2026-03-09.json.gz sha256 af701b24e0ef3b82183aa9b9db781cbd70b0cabac0a17f610d64fce120739ea3: lokaliteter 1771; av de fire med åpen PD: -
+   akvakultur/2026-11-09.json.gz sha256 4d3c2335ec3a4030f25b8a275b8cdea9ee4208bf1553a3c95d3cf6de7707de61: lokaliteter 1785; av de fire: -
+   arkiv/akvakultur: første kropp 2026-08-17.2.json.gz
+   arkiv/eierskap: første kropp 2026-09-02.json.gz
+
+== 13. Parene i R2 (REGLER.md) mot feltene i snapshotene
+   lusetall: brakklagt, er_landbasert, er_slaktemerd, har_ila, har_laksefisk, har_medikamentell_behandling, har_mekanisk_fjerning, har_pd, har_rensefisk, lus_er_rapportert, voksne_hunnlus
+   sjotemperatur: lusegrense, sjotemperatur, temperatur_er_rapportert
+   P1 eier          A eierskap: eier_navn, organisasjonsform                   B enhetsregisteret: navn, organisasjonsform
+   P2 tillatelser   A akvakultur: tillatelser                                  B eierskap: lokaliteter
+   P3 fisk/brakk    A biomasselag: har_fisk, arter_tilstede, siste_rapport     B lusetall: brakklagt
+   P4 koordinater   A akvakultur: breddegrad, lengdegrad                       B lusetall: (lat, lon finnes ikke)
+   P5 kommune       A akvakultur: kommunenummer                                B lusetall: (municipalityNo finnes ikke)
+   P6 PO            A akvakultur: prodomraade_kode                             B sjotemperatur: (ProduksjonsområdeId finnes ikke)
+
+== 14. Dekningen per lag, oppsummert (MÅLBAR av tabellene over)
+   registerets tilstand         akvakultur           uke                          2026-08-17..2026-11-09 (13 datoer)
+   tillatelser, MTB, eier       eierskap             uke                          2026-09-02..2026-11-09 (10 datoer)
+   selskap                      enhetsregisteret     uke                          2026-08-16..2026-11-09 (14 datoer)
+   lus, brakk, behandling       lusetall             uke                          2012-01-02..2026-10-12 (772 datoer)
+   sjøtemperatur, lusegrense    sjotemperatur        uke                          2012-01-02..2026-10-12 (772 datoer)
+   biomasselaget                biomasselag          henting uke / påstand måned  2026-09-10..2026-11-09 (10 datoer)
+   trafikklys                   trafikklysvedtak     runde (2 år)                 2018-12-31..2026-12-31 (5 datoer)
+   reguleringsområde            reguleringsomraader  én versjon                   2026-06-29..2026-06-29 (1 datoer)
+   unntaksvekst                 unntaksvekst         uke                          2026-10-12..2026-11-09 (5 datoer)
