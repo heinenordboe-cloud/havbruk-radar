@@ -302,6 +302,18 @@ class Kjoringslogg:
             n_rader=ramme.height,
         ))
 
+    @property
+    def lesinger(self) -> tuple[Lesing, ...]:
+        """Filene som er lest så langt, i den rekkefølgen `les()` ga dem.
+
+        Én `Lesing` per ramme `les()` returnerte, og i samme rekkefølge, så
+        en kaller som trenger løpenummeret til en ramme — for å finne fila
+        den kom fra — kan lese det HER i stedet for å slå opp fila på nytt
+        ved siden av døra. Kopi: loggen skrives av lesingen, ikke av den
+        som spør.
+        """
+        return tuple(self._lesinger)
+
     def les_dato(self, kilde: str, dato: str,
                  versjonsvalg: str | int = GJELDENDE) -> pl.DataFrame | None:
         """Én dato. Samme valg, samme føring — bare ett intervall på én dag."""

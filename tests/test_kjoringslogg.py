@@ -359,3 +359,24 @@ def test_alle_er_ett_valg_og_kan_ikke_blandes(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="versjonsvalg"):
         logg.les("ekspertgruppen", "2000-01-01", "2099-12-31",
                  versjonsvalg=kjoringslogg.GJELDENDE)
+
+
+def test_lesinger_folger_rammene_ramme_for_ramme(isolert, tmp_path):
+    """`lesinger` har én post per ramme `les()` ga, i samme rekkefølge.
+
+    Det er det tidsakse.py leser løpenummeret av når en hendelse skal
+    peke på fila den først sto i. Med ALLE og Wayback-oppsettet står
+    Wayback-kopien (`.2`, utgitt 2024) FØRST og basefila etter: en
+    kaller som slo opp fila på nytt etter løpenummeret, ville fått dem
+    i motsatt rekkefølge.
+    """
+    _wayback_oppsettet(tmp_path)
+    logg = kjoringslogg.Kjoringslogg("proeve", tmp_path / "p.log")
+    foer = len(logg.lesinger)
+    lest = logg.les("biomasse", "2017-01-01", "2018-01-01",
+                    versjonsvalg=kjoringslogg.ALLE)
+    nye = logg.lesinger[foer:]
+
+    assert [r["value"][0] for _, r in lest] == ["90", "100"]
+    assert [x.versjon for x in nye] == [2, 1]
+    assert all(x.observed_at == d for x, (d, _) in zip(nye, lest))
