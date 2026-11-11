@@ -169,7 +169,7 @@ for _f in ("runde", "farge", "lesemaate", "kapasitetsjustering", "forskrift"):
     FELTER[("trafikklys", _f)] = (O, DAG)
 for _f in ("tillatelser", "eier_orgnr", "antall_eiere"):
     FELTER[("eierskap", _f)] = (O, DAG)
-for _f in ("selskap_orgnr", "mtb_tn"):
+for _f in ("selskap_orgnr", "mtb_tn", "personform_utelatt"):
     FELTER[("eierskap", _f)] = (R, DAG)
 for _f in SELSKAPSFELT:
     FELTER[("selskap", _f)] = (O, DAG)
@@ -416,8 +416,11 @@ class Tilfelle:
 
 
 def les_sykdom(kjent_til: str | None) -> tuple[list[Tilfelle], dict] | None:
-    """Mattilsynets tilfeller, eller None hvis kroppen ikke var hentet ennå."""
+    """Mattilsynets tilfeller, eller None hvis kroppen ikke finnes i arkivet
+    eller ikke var hentet ennå (`kjent_til`). Da er sykdomslaget tomt."""
     fil = paths.ARKIV_DIR / SYKDOM_KROPP
+    if not fil.exists():
+        return None
     rå = gzip.open(fil, "rb").read()
     sha = hashlib.sha256(rå).hexdigest()
     if sha != SYKDOM_SHA256:
@@ -568,7 +571,7 @@ def bygg(kjent_til: str | None = None,
         syk = sykdom_per_uke(tilfeller, smeta)
     else:
         tilfeller, smeta = [], {}
-        logg.valg("sykdom.kropp", "ikke hentet før kjent_til")
+        logg.valg("sykdom.kropp", "ikke i arkivet, eller ikke hentet før kjent_til")
         syk = sykdom_per_uke([], {"hentedag": SYKDOM_FRA})
 
     # ------------------------------------------------------- biomasselag
@@ -593,7 +596,10 @@ def bygg(kjent_til: str | None = None,
     ider |= set(bio["entity_id"].to_list())
     ider |= {t.lokalitet for t in tilfeller}
     ider |= set(unv["lokalitet_nr"].drop_nulls().to_list())
-    for v in eier_t["lokaliteter"].drop_nulls().to_list():
+    # Eierskapets lokaliteter bare fra eierkoblingen: et eldre snapshot gir
+    # ingen celle, og da er lokaliteten heller ikke en rad.
+    for v in (eier_t.filter(pl.col("mandag") >= mandag_av(EIERKOBLING_FRA))
+              ["lokaliteter"].drop_nulls().to_list()):
         ider |= {x.strip() for x in v.split(";") if x.strip()}
     lokaliteter = sorted(ider, key=_lokkey)
 
@@ -735,7 +741,7 @@ def bygg(kjent_til: str | None = None,
               .sort("_n", "lokalitet", "mandag").select(kolonner))
 
     # ----------------------------------------------------------- hendelser
-    hendelser = _hendelser(tabell, snaps, akva, eier_t, tilfeller, smeta, b_periode)
+    hendelser = _hendelser(tabell, snaps, akva, eier_t, tilfeller, smeta, logg)
 
     logg.valg("tabell.rader", tabell.height)
     logg.valg("hendelser", hendelser.height)
@@ -837,7 +843,21 @@ def _eierskap(akva: pl.DataFrame, eier_t: pl.DataFrame, er: pl.DataFrame,
     Innehaveren står som orgnr. `selskap_orgnr` er den som eier flest av
     tillatelsene på lokaliteten, likhet til høyeste orgnr — regelen i
     `nettsted._lokalitetens_selskap`.
+
+    ## Personformen spørres om her også
+
+    Døra tar rader med personform i `organisasjonsform`. Den kan ikke se en
+    tillatelse som bare bærer personformen i `eier_type`, fordi parseren
+    som skrev raden ikke kjente typen (CLAUDE.md § 7, F15; R2 F6.1). MÅLT
+    11.11.2026 av prøven i tests/test_tidsakse.py: ett partrederi på én
+    lokalitet i snapshotene 02.09, 14.09 og 21.09.2026. Det er samme
+    spørsmål `nettsted._lokalitetens_selskap` stiller, med samme funksjon
+    (`sources.eierskap.er_person`), og av samme grunn: en ny vei til
+    eieren uten spørsmålet er en ny lekkasje. Tillatelsen står, eieren står
+    ikke, og `personform_utelatt` teller hvor mange tillatelser på
+    lokaliteten som har en eier vi ikke fører.
     """
+    from sources.eierskap import er_person
     eier_t = eier_t.filter(pl.col("mandag") >= mandag_av(EIERKOBLING_FRA))
     rad, p2, p1 = [], [], []
     akva_per = defaultdict(dict)
@@ -851,25 +871,31 @@ def _eierskap(akva: pl.DataFrame, eier_t: pl.DataFrame, er: pl.DataFrame,
     for m in sorted(eier_t["mandag"].unique().to_list()):
         uka = eier_t.filter(pl.col("mandag") == m)
         dato = uka["dato"].max()
-        per_lok: dict[str, list[tuple[str, str, float | None]]] = defaultdict(list)
+        per_lok: dict[str, list[tuple[str, str, float | None, bool]]] = defaultdict(list)
         eier_av: dict[str, str] = {}
-        for t, orgnr, lok, kap, enh, typ in uka.select(
+        personlige: set[str] = set()
+        for t, orgnr, lok, kap, enh, typ, etype, form in uka.select(
                 "entity_id", "eier_orgnr", "lokaliteter", "kapasitet",
-                "kapasitet_enhet", "kapasitet_type").iter_rows():
-            eier_av[t] = orgnr or ""
+                "kapasitet_enhet", "kapasitet_type", "eier_type",
+                "organisasjonsform").iter_rows():
+            person = er_person(etype) or er_person(form)
+            if person:
+                personlige.add(orgnr or "")
+            eier_av[t] = "" if person else (orgnr or "")
             tonn = (float(kap) if kap and enh == "TN" and typ == "MTK" else None)
             for l_ in {x.strip() for x in (lok or "").split(";") if x.strip()}:
-                per_lok[l_].append((t, orgnr or "", tonn))
+                per_lok[l_].append((t, eier_av[t], tonn, person))
         for l_, tl in per_lok.items():
-            teller = Counter(o for _, o, _ in tl if o)
+            teller = Counter(o for _, o, _, _ in tl if o)
             selskap = max(teller, key=lambda o: (teller[o], o)) if teller else None
-            tonn = [x for _, _, x in tl if x is not None]
+            tonn = [x for _, _, x, _ in tl if x is not None]
             rad.append({"lokalitet": l_, "mandag": m, "dato": dato,
-                        "tillatelser": ";".join(sorted(t for t, _, _ in tl)),
+                        "tillatelser": ";".join(sorted(t for t, _, _, _ in tl)),
                         "eier_orgnr": ";".join(sorted(teller)) or None,
                         "antall_eiere": str(len(teller)),
                         "selskap_orgnr": selskap,
-                        "mtb_tn": _tall(sum(tonn)) if tonn else None})
+                        "mtb_tn": _tall(sum(tonn)) if tonn else None,
+                        "personform_utelatt": str(sum(1 for *_, p in tl if p))})
 
         # P2: (lokalitet, tillatelse) på bare den ene siden. Tillatelser som
         # ikke står i eierskap, er tatt av vårt eget persondatafilter og
@@ -878,7 +904,7 @@ def _eierskap(akva: pl.DataFrame, eier_t: pl.DataFrame, er: pl.DataFrame,
         if a is not None:
             kjente = set(eier_av)
             ka = {(l_, t) for l_, ts in a.items() for t in ts if t in kjente}
-            kb = {(l_, t) for l_, tl in per_lok.items() for t, _, _ in tl}
+            kb = {(l_, t) for l_, tl in per_lok.items() for t, _, _, _ in tl}
             for l_ in sorted({x for x, _ in (ka - kb) | (kb - ka)}, key=_lokkey):
                 bare_a = sorted(t for x, t in ka - kb if x == l_)
                 bare_b = sorted(t for x, t in kb - ka if x == l_)
@@ -894,7 +920,7 @@ def _eierskap(akva: pl.DataFrame, eier_t: pl.DataFrame, er: pl.DataFrame,
             uenige: dict[str, str] = {}
             for orgnr, navn, typ in uka.select("eier_orgnr", "eier_navn",
                                                "eier_type").unique().iter_rows():
-                if not orgnr or orgnr not in e:
+                if not orgnr or orgnr not in e or orgnr in personlige:
                     continue
                 er_navn, er_form = e[orgnr]
                 hva = []
@@ -906,15 +932,17 @@ def _eierskap(akva: pl.DataFrame, eier_t: pl.DataFrame, er: pl.DataFrame,
                 if hva:
                     uenige[orgnr] = "; ".join(hva)
             for l_, tl in per_lok.items():
-                for orgnr in sorted({o for _, o, _ in tl if o in uenige}):
+                for orgnr in sorted({o for _, o, _, _ in tl if o in uenige}):
                     p1.append(_konflikt("P1", l_, m, "eierskap", f"{orgnr}: {uenige[orgnr]}",
                                         a_gjelder=dato, b_kilde="enhetsregisteret",
                                         b_verdi=f"{orgnr}: {uenige[orgnr]}", b_gjelder=m))
 
     skjema = {k: pl.Utf8 for k in ("lokalitet", "mandag", "dato", "tillatelser",
-                                   "eier_orgnr", "antall_eiere", "selskap_orgnr", "mtb_tn")}
+                                   "eier_orgnr", "antall_eiere", "selskap_orgnr", "mtb_tn",
+                                   "personform_utelatt")}
     ramme = pl.DataFrame(rad, schema=skjema)
-    felter = ("tillatelser", "eier_orgnr", "antall_eiere", "selskap_orgnr", "mtb_tn")
+    felter = ("tillatelser", "eier_orgnr", "antall_eiere", "selskap_orgnr", "mtb_tn",
+              "personform_utelatt")
     return (lag_ramme("eierskap", ramme, "eierskap", pl.col("dato"), felter,
                       nokkel="lokalitet"),
             _konfliktramme(p2), _konfliktramme(p1))
@@ -1163,7 +1191,7 @@ HENDELSESKJEMA = {k: pl.Utf8 for k in (
 
 def _hendelser(tabell: pl.DataFrame, snaps: dict[str, list[Snap]], akva: pl.DataFrame,
                eier_t: pl.DataFrame, tilfeller: list[Tilfelle], smeta: dict,
-               b_periode: list[str]) -> pl.DataFrame:
+               logg: kjoringslogg.Kjoringslogg) -> pl.DataFrame:
     """H1–H9 fra R9, hver med første fil, hentetid og stempel."""
     stemple = Stempler()
     rader: list[dict] = []
@@ -1251,6 +1279,8 @@ def _hendelser(tabell: pl.DataFrame, snaps: dict[str, list[Snap]], akva: pl.Data
         for t, o, d in r.select("tillatelse_nr", "mottaker_orgnr", "journal_dato").iter_rows():
             if t and o and d:
                 overf[(t, o)].append(d)
+    from sources.eierskap import er_person
+    utelatt_h9 = 0
     esn = [s for s in snaps["eierskap"] if s.dato >= EIERKOBLING_FRA]
     for forrige, neste in zip(esn, esn[1:]):
         a = eier_t.filter(pl.col("dato") == forrige.dato)
@@ -1263,6 +1293,10 @@ def _hendelser(tabell: pl.DataFrame, snaps: dict[str, list[Snap]], akva: pl.Data
             fra, til = av[t]["eier_orgnr"], nv[t]["eier_orgnr"]
             if fra == til:
                 continue
+            if any(er_person(r[f]) for r in (av[t], nv[t])
+                   for f in ("eier_type", "organisasjonsform")):
+                utelatt_h9 += 1
+                continue
             datoer = sorted(d for d in overf.get((t, til or ""), []) if d <= neste.dato)
             lok = sorted({x.strip() for x in (nv[t]["lokaliteter"] or "").split(";")
                           if x.strip()}, key=_lokkey) or [""]
@@ -1270,6 +1304,7 @@ def _hendelser(tabell: pl.DataFrame, snaps: dict[str, list[Snap]], akva: pl.Data
                 legg("H9", "eierskifte", l_, m, datoer[-1] if datoer else "", "eierskap",
                      "eier_orgnr", fra, til, rel, neste.hentet, tillatelse=t, mellom=mellom)
 
+    logg.valg("hendelser.H9.utelatt_regel3", utelatt_h9)
     ramme = pl.DataFrame(rader, schema=HENDELSESKJEMA)
     return (ramme.with_columns(pl.col("lokalitet").map_elements(
                 lambda x: _lokkey(x)[1] if x else -1, return_dtype=pl.Int64).alias("_n"))
