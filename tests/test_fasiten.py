@@ -57,6 +57,9 @@ def test_kopiene_heter_etter_forseglingsdatoen():
     assert [k["ots"] for k in kopier] == [False, True, False, True]
     assert not [k["sti"] for k in kopier if "pakke" in k["sti"]]
     assert h.FASITMAPPE == MAPPE
+    # Mappa heter det samme hos den som skriver sidene og den som røyktester.
+    import royktest
+    assert h.FASITMAPPE.split("/")[0] == nettsted.FASIT_STI == royktest.FASIT_STI
 
 
 def test_filene_i_repoet_er_de_som_ble_forseglet():
