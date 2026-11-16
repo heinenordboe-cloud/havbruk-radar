@@ -8997,6 +8997,38 @@ def _pp(x: float, desimaler: int = 3) -> str:
             .replace("-", "−"))
 
 
+def _pp_deler(deler: tuple[float, ...], total: float,
+              desimaler: int = 3) -> list[str]:
+    """Delene av en endring i prosentpoeng, avrundet så de summerer til
+    totalen SLIK DEN VISES.
+
+    Avrundet hver for seg bommer delene på totalen: Tromsø sto med −0,030
+    og −0,009 under en endring på −0,038 (Heine, gjennomgangen 12.11.2026).
+    MÅLT 16.11.2026: 7 av 143 kommuner med tre desimaler, og 12 med fire.
+    Flere desimaler flytter altså feilen, de fjerner den ikke.
+
+    STØRSTE REST. Totalen står fast: den er forskjellen mellom de to
+    andelene på samme side, og tallet i tabellen på /kommune/. Hver del
+    rundes ned til en hel tusendel, og tusendelene som da mangler på
+    totalen, går til delene som var nærmest neste tusendel. Ingen del
+    havner mer enn én tusendel fra sin sanne verdi, og summen er totalen.
+
+    KASTER `ValueError` når delene ikke er totalen. Da er det ikke
+    avrundingen som skiller, og en justering ville skjult det.
+    """
+    enhet = 10 ** desimaler
+    # Totalen i hele enheter, lest av den samme formateringen som `_pp()`.
+    maal = round(float(f"{total * 100:.{desimaler}f}") * enhet)
+    raa = [d * 100 * enhet for d in deler]
+    ned = [math.floor(x) for x in raa]
+    mangler = maal - sum(ned)
+    if abs(sum(raa) - total * 100 * enhet) > 1e-6 or not 0 <= mangler <= len(raa):
+        raise ValueError(f"delene {deler} summerer ikke til {total}")
+    for i in sorted(range(len(raa)), key=lambda i: (ned[i] - raa[i], i))[:mangler]:
+        ned[i] += 1
+    return [_pp(n / enhet / 100, desimaler) for n in ned]
+
+
 def _andel_vist(x: float) -> str:
     return visningsord.prosent(x * 100, 4)
 
@@ -9126,7 +9158,9 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
             "endring": _pp(k["endring"]),
             "retning": ("opp" if k["endring"] > 0 else
                         "ned" if k["endring"] < 0 else "lik"),
-            "fra_egne": _pp(k["fra_egne"]), "fra_landet": _pp(k["fra_landet"]),
+            # De to leddene summerer til `endring` slik den står over.
+            **dict(zip(("fra_egne", "fra_landet"),
+                       _pp_deler((k["fra_egne"], k["fra_landet"]), k["endring"]))),
             "mtb": _tonn(k["mtb"]), "mtb_2025": _tonn(k["mtb_2025"]),
             "lokaliteter": lokaliteter, "flytt": flytt, "ute": ute,
             "delt": any(l["del"] for l in lokaliteter),

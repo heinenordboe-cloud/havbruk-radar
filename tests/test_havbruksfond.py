@@ -690,3 +690,77 @@ def test_delingen_sier_hvor_den_kommer_fra_med_kilde():
         "beregning for 2025.")
     # Det gamle ankeret står, så en lenke til /kommune/#maalbar lander her.
     assert '<span id="maalbar"></span>' in punkt.group(1)
+
+
+# ----------------------- delene summerer til totalen (gjennomgangen 12.11)
+
+
+def _tusendeler(vist: str) -> int:
+    """«+0,079» -> 79 og «−0,150» -> −150: prosentpoeng i hele tusendeler."""
+    return round(float(vist.replace("−", "-").replace(",", ".")) * 1000)
+
+
+def test_delene_avrundes_etter_storste_rest():
+    """Tromsø, med tallene fra registeret: −0,029515 og −0,008897 er
+    −0,038412. Hver for seg blir de −0,030 og −0,009, som er −0,039. Den
+    som er nærmest neste tusendel, får den."""
+    assert nettsted._pp_deler((-0.00029515038, -0.00008896873), -0.00038411911) \
+        == ["−0,029", "−0,009"]
+    assert [nettsted._pp(-0.00029515038), nettsted._pp(-0.00008896873)] \
+        == ["−0,030", "−0,009"]
+    # Uten egne endringer er hele endringen landets, og null har ikke fortegn.
+    assert nettsted._pp_deler((0.0, 0.00079), 0.00079) == ["0,000", "+0,079"]
+    # Deler som allerede summerer, røres ikke.
+    assert nettsted._pp_deler((0.00143, -0.00003), 0.0014) == ["+0,143", "−0,003"]
+    # Tre deler, to tusendeler å dele ut: de to med størst rest får hver sin.
+    assert nettsted._pp_deler((0.0000166, 0.0000167, 0.0000167), 0.00005) \
+        == ["+0,001", "+0,002", "+0,002"]
+    # Fire desimaler virker likt.
+    assert nettsted._pp_deler((-0.00029515038, -0.00008896873), -0.00038411911, 4) \
+        == ["−0,0295", "−0,0089"]
+
+
+def test_deler_som_ikke_er_totalen_kaster():
+    """Da er det ikke avrundingen som skiller, og en justering ville
+    skjult det."""
+    with pytest.raises(ValueError, match="summerer ikke"):
+        nettsted._pp_deler((0.001, 0.002), 0.0031)
+
+
+@trenger_data
+def test_delene_summerer_til_endringen_som_vises_i_alle_kommuner(fordeling):
+    """Alle 143: de to leddene i «Hva som flyttet andelen» summerer til
+    endringen øverst på siden, og ingen av dem er mer enn én tusendel fra
+    sin sanne verdi. MÅLT 16.11.2026: 7 kommuner justeres, Tromsø er én."""
+    justert = []
+    assert len(fordeling["kommuner"]) == 143
+    for nr, k in fordeling["kommuner"].items():
+        sanne = (k["fra_egne"], k["fra_landet"])
+        vist = nettsted._pp_deler(sanne, k["endring"])
+        assert sum(map(_tusendeler, vist)) == _tusendeler(nettsted._pp(k["endring"])), nr
+        for v, s in zip(vist, sanne):
+            assert abs(_tusendeler(v) - s * 100 * 1000) < 1, (nr, v, s)
+        if vist != [nettsted._pp(s) for s in sanne]:
+            justert.append(nr)
+    assert len(justert) == 7 and "5501" in justert, justert
+
+
+@trenger_bygg
+def test_delene_summerer_paa_hver_kommuneside():
+    """Lest av sidene slik de er bygget: «Lokalitetene her» og «Resten av
+    landet» er endringen i nøkkeltallene øverst, på alle 143."""
+    sider = sorted((NETTSTED / "kommune").glob("*/index.html"))
+    assert len(sider) == 143
+    tall = r"([+−]?\d+,\d{3})"
+    for fil in sider:
+        side = fil.read_text("utf-8")
+        total = re.search(rf'data-felt="endring"[^>]*>{tall}</dd>', side)
+        egne = re.search(rf"<dt>Lokalitetene her</dt>\s*<dd>{tall}", side)
+        landet = re.search(rf"<dt>Resten av landet</dt>\s*<dd>{tall}", side)
+        assert total and egne and landet, fil
+        assert _tusendeler(egne.group(1)) + _tusendeler(landet.group(1)) \
+            == _tusendeler(total.group(1)), (fil.parent.name, egne.group(1),
+                                            landet.group(1), total.group(1))
+    tromso = (NETTSTED / "kommune" / "5501" / "index.html").read_text("utf-8")
+    assert re.search(rf"<dt>Lokalitetene her</dt>\s*<dd>{tall}", tromso).group(1) == "−0,029"
+    assert re.search(rf"<dt>Resten av landet</dt>\s*<dd>{tall}", tromso).group(1) == "−0,009"
