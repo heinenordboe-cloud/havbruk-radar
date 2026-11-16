@@ -180,7 +180,10 @@
 
 {# ---------------------------------------------------------------- 2
    LOKALITETENE SOM TELLER, størst først. En delt lokalitet teller med
-   sin del, merket målbar (/kommune/#maalbar). #}
+   sin del. Hvor delingen kommer fra, står én gang under tabellen, med
+   kilde, og forbeholdet (ikke målt i år) er lenken til /kommune/#deling.
+   Til 16.11.2026 sto «målbar» i hver delte rad; det er et ord fra
+   målingene våre, ikke et leseren kjenner (Heine, gjennomgangen 11.11). #}
 <section class="ark seksjon" id="lokaliteter" aria-labelledby="lok-tittel">
   <h2 id="lok-tittel">Lokalitetene i nøkkelen</h2>
   <p class="tabelltittel" id="lok-liste-tittel">{{ antall(k.lokaliteter|length, "lokalitet", "lokaliteter") }},
@@ -203,8 +206,7 @@
         <th scope="row">{% if l.url %}<a href="{{ l.url }}">{{ l.navn }}</a>{% else %}{{ l.navn }}{% endif %}</th>
         <td class="tall" data-felt="mtb">{{ l.mtb }}</td>
         {% if k.delt %}<td data-felt="delingsandel">{% if l.del %}{{ l.del }}, delt med
-          {% for m in l.delt_med %}<a href="/kommune/{{ m.nr }}/">{{ m.navn }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
-          · <a href="/kommune/#maalbar">målbar</a>{% endif %}</td>{% endif %}
+          {% for m in l.delt_med %}<a href="/kommune/{{ m.nr }}/">{{ m.navn }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</td>{% endif %}
         <td class="tall" data-felt="mtb_i_kommunen">{{ l.her }}</td>
       </tr>
       {% endfor %}
@@ -213,6 +215,11 @@
   </div>
   <p class="historikk-forklaring"><span class="herkomst">Fiskeridir. ·
     <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time></span></p>
+  {% if k.delt %}
+  <p class="historikk-forklaring" id="deling">Delingen er Fiskeridirektoratets, fra beregningen for {{ d.forrige }}, og er
+    <a href="/kommune/#deling">ikke målt i år</a>.
+    <span class="herkomst">Fiskeridir. · <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time></span></p>
+  {% endif %}
   {% if k.ute %}
   <p class="historikk-forklaring">Holdt utenfor, uten tillatelse for laks, ørret eller regnbueørret:</p>
   <ul class="historikk-forklaring">

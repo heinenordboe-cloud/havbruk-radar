@@ -636,3 +636,57 @@ def test_jsonld_paa_kommunesidene_bestaar_porten(tmp_path):
                                       nettsted.kildevilkaar(), d)
     (tmp_path / "index.html").write_text(f"<html><body>{jsonld}</body></html>")
     assert v.jsonldfunn(tmp_path) == []
+
+
+# ------------------------------ delte lokaliteter (gjennomgangen 11.11)
+
+
+def test_nettstedets_tabell_har_ikke_ordet_maalbar(monkeypatch):
+    """«Målbar» er et ord fra målingene våre. Tabellen leserne laster ned,
+    sier at delingen ikke er målt i år; datarepoets egen fil er som før."""
+    f = {"kropper": []}
+    ute = "\n".join(h.tabellhode(f, nettsted=True))
+    assert "MÅLBAR" not in ute.upper() and "(ikke målt i år)" in ute
+    assert "(MÅLBAR, ikke målt i år)" in "\n".join(h.tabellhode(f, kode="x"))
+
+
+@trenger_bygg
+def test_delingen_sier_hvor_den_kommer_fra_med_kilde():
+    """En delt lokalitet (Oksebåsen V i Haram og Giske) sto med lenken
+    «målbar». Nå står hvor delingen kommer fra én gang under tabellen, med
+    kilde og dato, og forbeholdet er ett klikk unna. Ordet står ingen
+    steder under /kommune/, heller ikke i tabellen som lastes ned."""
+    sider = sorted((NETTSTED / "kommune").glob("*/index.html"))
+    delte = []
+    for fil in sider:
+        side = fil.read_text("utf-8")
+        celler = [_avsnitt(c) for c in re.findall(
+            r'<td[^>]*data-felt="delingsandel"[^>]*>(.*?)</td>', side, re.S)]
+        linje = re.search(r'<p class="historikk-forklaring" id="deling">(.*?)</p>', side, re.S)
+        if any(celler):
+            delte.append(fil.parent.name)
+            assert linje, fil
+            tekst = _avsnitt(linje.group(0))
+            assert tekst == ("Delingen er Fiskeridirektoratets, fra beregningen for 2025, "
+                             "og er ikke målt i år. Fiskeridir. · 01.09.2025"), tekst
+            assert len(tekst) <= 110
+            assert '<a href="/kommune/#deling">ikke målt i år</a>' in linje.group(1)
+            assert 'datetime="2025-09-01"' in linje.group(1)
+        else:
+            assert not linje, fil
+    # Ti lokaliteter deles mellom to kommuner hver.
+    assert len(delte) == 20 and {"1580", "1532"} <= set(delte)
+    haram = (NETTSTED / "kommune" / "1580" / "index.html").read_text("utf-8")
+    assert [_avsnitt(c) for c in re.findall(
+        r'<td[^>]*data-felt="delingsandel"[^>]*>(.*?)</td>', haram, re.S) if _avsnitt(c)] \
+        == ["64,76 %, delt med Giske"]      # `_avsnitt` gjør det harde mellomrommet vanlig
+    for fil in sorted((NETTSTED / "kommune").rglob("index.html")):
+        assert not re.search(r"(?i)målbar", _avsnitt(_main(fil.read_text("utf-8")))), fil
+    assert "MÅLBAR" not in (NETTSTED / "kommune" / "andeler-2026.csv").read_text("utf-8").upper()
+    oversikt = (NETTSTED / "kommune" / "index.html").read_text("utf-8")
+    punkt = re.search(r'<li id="deling">(.*?)</li>', oversikt, re.S)
+    assert punkt and _avsnitt(punkt.group(0)) == (
+        "En lokalitet over en kommunegrense er delt som i Fiskeridirektoratets "
+        "beregning for 2025.")
+    # Det gamle ankeret står, så en lenke til /kommune/#maalbar lander her.
+    assert '<span id="maalbar"></span>' in punkt.group(1)

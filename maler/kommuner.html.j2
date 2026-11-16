@@ -176,8 +176,11 @@
     <li>Andelen er kommunens MTB delt på summen for alle kommuner.</li>
     <li>Nøkkelen <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time> er Fiskeridirektoratets egen,
       fra beregningen for {{ d.forrige }}.</li>
-    <li id="maalbar"><strong>Målbar:</strong> en lokalitet over en kommunegrense er delt som
-      Fiskeridirektoratet delte den i {{ d.forrige }}.</li>
+    {#- `maalbar` var ankeret til 16.11.2026, da punktet begynte med
+        «Målbar:». Ordet er vårt og er borte; ankeret står, så en gammel
+        lenke fortsatt lander her. #}
+    <li id="deling"><span id="maalbar"></span>En lokalitet over en kommunegrense er delt som i Fiskeridirektoratets
+      beregning for {{ d.forrige }}.</li>
     <li>Delingen er ikke målt i år. En grense eller en lokalitet kan ha flyttet seg siden.</li>
     <li>Fiskeridirektoratet regner selv. Tallene deres kan avvike fra disse.</li>
   </ul>

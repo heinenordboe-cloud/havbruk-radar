@@ -894,8 +894,11 @@ def tabellhode(f: dict, kode: str = "", skrevet: str = "",
         f"{FORRIGE_AAR}.",
         f"andel_{FORRIGE_AAR}: Fiskeridirektoratets egen nøkkel per "
         f"01.09.{FORRIGE_AAR}.",
+        # «MÅLBAR» er et ord fra målingene våre. Nettstedets kopi lastes
+        # ned av lesere og har det ikke.
         "delt=ja: minst én lokalitet er delt med Fiskeridirektoratets "
-        f"andel fra {FORRIGE_AAR} (MÅLBAR, ikke målt i år).",
+        f"andel fra {FORRIGE_AAR} "
+        + ("(ikke målt i år)." if nettsted else "(MÅLBAR, ikke målt i år)."),
         (f"fasit_*: Fiskeridirektoratets fordeling {AAR}. Tomme til den er "
          "publisert og fasiten er lest; fasit_avvik_pp er fra andel."
          if nettsted else
