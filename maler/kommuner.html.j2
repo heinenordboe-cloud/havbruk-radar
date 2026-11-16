@@ -62,21 +62,11 @@
   <a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den
   <time datetime="{{ d.fordelt.dato }}">{{ d.fordelt.dato|kortdato }}</time>.</p>
 {% include "kommune-segl.html.j2" %}
-
-{# SLIK SJEKKER DU OSS, i tre linjer, uten terminal først. MÅLT 10.11.2026
-   med Playwright: opentimestamps.org verifiserer begge filene med sin .ots
-   («Bitcoin block 971138 attests existence as of 2026-10-12» og «… 975211
-   … 2026-11-09»), også pakke 1s .ots fra 04d91dd, som da ikke var
-   oppgradert. Terminalen er samme kjede som fasiten
-   (`fasit_havbruksfond.bitcoin()`) og RUNBOOK, «Tidsstempler». #}
-<section class="seksjon" id="sjekk" aria-labelledby="sjekk-tittel">
-  <h2 id="sjekk-tittel">Slik sjekker du oss</h2>
-  <ol class="historikk-forklaring">
-    <li>Last ned anslaget og .ots-fila (lenkene over).</li>
-    <li>Slipp begge på <a href="https://opentimestamps.org/">opentimestamps.org</a>. Den viser datoen fila ble forseglet, bekreftet i Bitcoin.</li>
-    <li>I terminalen: <code>ots verify</code>, eller <code>ots --no-bitcoin verify</code> med en blokkutforsker.</li>
-  </ol>
-</section>
+{# «SLIK SJEKKER DU OSS» STO HER til 16.11.2026, i tre linjer. Den står nå
+   på siden linja over lenker til, ved filene og stemplene den handler om
+   (/fasiten/havbruksfondet-<år>/#sjekk). Ankeret er beholdt, så en lenke
+   til /kommune/#sjekk fortsatt lander på linja med veien videre. #}
+<span id="sjekk"></span>
 
 {# FISKERIDIREKTORATETS FORDELING, bare med en kvittert fasit. Beløpet
    per kommune står på kommunesiden. Se `nettsted._fasit_vist()`. #}

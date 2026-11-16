@@ -1,8 +1,15 @@
 {# DE FORSEGLEDE ANSLAGENE, likt på oversikten og hver kommuneside: datoen
-   hvert ble forseglet, og lenke til fila og .ots-fila i kodrepoet, ved
-   commiten der de kom inn. Se `nettsted._forseglingene()`. «Pakke 1» og
-   «pakke 2» står ikke: det er interne ord (Heine, økt L). Linja holder seg
-   under 110 tegn (AVSNITTSGRENSE). #}
-<p class="historikk-forklaring" id="segl">Anslagene ble forseglet før fordelingen:
-  {% for s in d.forseglinger %}<time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
-  (<a href="{{ s.fil }}">fil</a>, <a href="{{ s.ots }}">.ots</a>){% if not loop.last %} og {% endif %}{% endfor %}.</p>
+   hvert ble forseglet, og én lenke til siden som forklarer dem og har
+   filene og stemplene (/fasiten/havbruksfondet-<år>/). Se
+   `nettsted._forseglingene()`.
+
+   INGEN LENKE TIL KODREPOET (økt 16a, 16.11.2026). Til da sto fire: fila
+   og .ots-fila for hver forsegling, ved commiten der de kom inn. Filene
+   er skrevet for verktøyene våre, og repoet er arbeidsrommet vårt; en
+   leser skal ikke måtte dit. Anslag vises bare under /fasiten/.
+
+   Teksten er Heines, ordrett. «Pakke 1» og «pakke 2» står ikke: det er
+   interne ord (økt L). Linja holder seg under 110 tegn (AVSNITTSGRENSE). #}
+<p class="historikk-forklaring" id="segl">Anslagene ble forseglet før fordelingen,
+  {% for s in d.forseglinger %}<time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>{% if not loop.last %} og {% endif %}{% endfor %}.
+  <a href="{{ d.fasitside }}">Se anslagene og hvordan du sjekker dem</a>.</p>

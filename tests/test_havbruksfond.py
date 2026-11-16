@@ -434,45 +434,102 @@ def _avsnitt(side: str) -> str:
     return " ".join(html.unescape(re.sub(r"<[^>]+>", "", side)).split())
 
 
-def test_lenkene_gaar_til_siste_commit_for_hver_fil():
-    """Pakke 1s .ots ble oppgradert med Bitcoin-beviset i 3154667, og
-    lenken på sidene går dit, ikke til 04d91dd der den først kom inn
-    (Heine, 10.11.2026). Fila selv har ikke endret seg siden 66016dd."""
+# FILENE NETTSTEDET HAR EN KOPI AV, og commiten hver kom inn i (Heine,
+# økt 16a): fila fra 12.10 er 66016dd, stempelet er det oppgraderte fra
+# 3154667, og fila og stempelet fra 09.11 er e1efe15. Summene er av
+# bytene i de commitene, MÅLT 16.11.2026 med `git show <commit>:<fil>`.
+# Byttes en fil i predictions/, er det en annen fil nettstedet legger ut,
+# og det skal ikke skje uten at denne tabellen endres.
+KOPIER = {
+    "predictions/havbruksfond-2026.md": (
+        "66016dd3e636a03ab4f13563c110125e1cfcc27d",
+        "de9ba03432837c0cfc2fd0b2b145bfdad2e7ebcf47dea4a6addb626e38387002"),
+    "predictions/havbruksfond-2026.md.ots": (
+        "31546677baa01a34bf7c086b6d4a805bd60e4a0e",
+        "dd6664a4f504afd3858bc53499acbda510b5c4151e65812fa9fc960c8be3c697"),
+    "predictions/havbruksfond-2026-pakke2.md": (
+        "e1efe15f0b8bd6874411120fdd571f2b8c2807f4",
+        "ccb451bdde451430d48c7a3f62ec037d98a0c91b2ae4b631cd2165bbc69701a0"),
+    "predictions/havbruksfond-2026-pakke2.md.ots": (
+        "e1efe15f0b8bd6874411120fdd571f2b8c2807f4",
+        "d948dafee1fdc1648e57cda347da3a75e42e159bef0515e37557272583b5f011"),
+}
+
+
+def test_kopiene_er_filene_fra_commitene_de_kom_inn_i():
+    """Det nettstedet kopierer, er bytene fra commitene over. Der
+    historikken finnes (ikke i en grunn klone), hentes fila ut av commiten
+    og summeres på nytt."""
+    import hashlib
+    import subprocess
+    assert {k["kilde"].relative_to(h.ROT).as_posix() for k in h.forseglede_kopier()} \
+        == set(KOPIER)
+    hentet = 0
+    for rel, (commit, sum_) in KOPIER.items():
+        assert hashlib.sha256((h.ROT / rel).read_bytes()).hexdigest() == sum_, rel
+        blob = subprocess.run(["git", "-C", str(h.ROT), "cat-file", "blob",
+                               f"{commit}:{rel}"], capture_output=True)
+        if blob.returncode == 0:
+            hentet += 1
+            assert hashlib.sha256(blob.stdout).hexdigest() == sum_, (rel, commit)
+    # Og commitene er de siste som står for hver fil i FORSEGLINGER.
+    siste = {f["fil"] + (".ots" if hva == "ots" else ""): c
+             for f in h.FORSEGLINGER for repo, c, hva in f["commits"]
+             if repo == "havbruk-radar"}
+    assert siste == {rel: commit for rel, (commit, _) in KOPIER.items()}
+    if not hentet:
+        pytest.skip("commitene finnes ikke i denne klonen; bare filene er prøvd")
+
+
+def test_forseglingene_lenker_til_fasitsiden_ikke_til_kodrepoet():
     s = {x["pakke"]: x for x in nettsted._forseglingene()}
-    blob = f"{nettsted.REPO}/blob/"
-    assert s["pakke 1"]["fil"] == (blob + "66016dd3e636a03ab4f13563c110125e1cfcc27d/"
-                                   "predictions/havbruksfond-2026.md")
-    assert s["pakke 1"]["ots"] == (blob + "31546677baa01a34bf7c086b6d4a805bd60e4a0e/"
-                                   "predictions/havbruksfond-2026.md.ots")
-    assert s["pakke 2"]["ots"] == (blob + "e1efe15f0b8bd6874411120fdd571f2b8c2807f4/"
-                                   "predictions/havbruksfond-2026-pakke2.md.ots")
+    assert s["pakke 1"] == {"pakke": "pakke 1", "dato": "2026-10-12",
+                            "side": "/fasiten/havbruksfondet-2026/#forseglet-2026-10-12"}
+    assert s["pakke 2"]["side"] == "/fasiten/havbruksfondet-2026/#forseglet-2026-11-09"
+    assert "github.com" not in repr(s)
+
+
+def _main(side: str) -> str:
+    """Innholdet på siden. Bunnteksten er felles for hele nettstedet og har
+    lenken «Kildekoden»; den er ikke en del av kommunesiden."""
+    return re.search(r"<main\b.*?</main>", side, re.S).group(0)
+
+
+LINJA = ("Anslagene ble forseglet før fordelingen, 12.10.2026 og 09.11.2026. "
+         "Se anslagene og hvordan du sjekker dem.")
 
 
 @trenger_bygg
 def test_forseglingen_staar_paa_oversikten_og_hver_kommuneside():
-    """Én linje med datoen hvert anslag ble forseglet og lenke til fila og
-    .ots ved den siste commiten for hver i kodrepoet. Uten «pakke 1» og
-    «pakke 2»: det er interne ord (Heine, økt L)."""
-    import nettsted as n
-    lenker = [f"{n.REPO}/blob/66016dd3e636a03ab4f13563c110125e1cfcc27d/"
-              "predictions/havbruksfond-2026.md",
-              f"{n.REPO}/blob/31546677baa01a34bf7c086b6d4a805bd60e4a0e/"
-              "predictions/havbruksfond-2026.md.ots",
-              f"{n.REPO}/blob/e1efe15f0b8bd6874411120fdd571f2b8c2807f4/"
-              "predictions/havbruksfond-2026-pakke2.md",
-              f"{n.REPO}/blob/e1efe15f0b8bd6874411120fdd571f2b8c2807f4/"
-              "predictions/havbruksfond-2026-pakke2.md.ots"]
+    """Én linje, Heines ord: datoen hvert anslag ble forseglet, og én lenke
+    til siden som forklarer dem og har filene og stemplene. Uten «pakke 1»
+    og «pakke 2»: det er interne ord (økt L)."""
     sider = sorted((NETTSTED / "kommune").rglob("index.html"))
     assert len(sider) == 144
     for fil in sider:
         side = fil.read_text("utf-8")
         segl = re.search(r'<p class="historikk-forklaring" id="segl">(.*?)</p>', side, re.S)
         assert segl, fil
-        assert all(f'href="{l}"' in segl.group(1) for l in lenker), fil
+        assert re.findall(r'href="([^"]+)"', segl.group(1)) == [
+            "/fasiten/havbruksfondet-2026/"], fil
         tekst = _avsnitt(segl.group(0))
-        assert len(tekst) <= 110 and tekst == (
-            "Anslagene ble forseglet før fordelingen: 12.10.2026 (fil, .ots) "
-            "og 09.11.2026 (fil, .ots)."), tekst
+        assert len(tekst) <= 110 and tekst == LINJA, tekst
+    assert (NETTSTED / "fasiten" / "havbruksfondet-2026" / "index.html").is_file()
+
+
+@trenger_bygg
+def test_ingen_lenke_til_kodrepoet_paa_kommunesidene():
+    """En journalist eller kunde skal aldri måtte til kodrepoet for å lese
+    eller sjekke et anslag (Heine, økt 16a). Til 16.11.2026 hadde hver av
+    de 144 sidene fire lenker dit. Prøven leser innholdet (`<main>`), ikke
+    bunnteksten, som er lik på hver side av nettstedet."""
+    sider = sorted((NETTSTED / "kommune").rglob("index.html"))
+    assert len(sider) == 144
+    funn = [fil.parent.name for fil in sider
+            if "github.com" in _main(fil.read_text("utf-8"))]
+    assert funn == []
+    # Og prøven ser det den leter etter: bunnteksten har lenken.
+    assert "github.com" in sider[0].read_text("utf-8")
 
 
 @trenger_bygg
@@ -487,17 +544,22 @@ def test_ingen_pakke_paa_kommunesidene():
 
 
 @trenger_bygg
-def test_slik_sjekker_du_oss_i_tre_linjer():
-    """Uten terminal først: opentimestamps.org verifiserte begge filene med
-    sin .ots 10.11.2026 (prøvd med Playwright). Terminalen sist."""
+def test_slik_sjekker_du_oss_staar_paa_fasitsiden_ikke_paa_oversikten():
+    """De tre linjene flyttet 16.11.2026 til siden med filene og stemplene
+    de handler om (tests/test_fasiten.py holder teksten). På oversikten
+    står linja med lenken, og ankeret #sjekk er beholdt."""
     side = (NETTSTED / "kommune" / "index.html").read_text("utf-8")
-    seksjon = re.search(r'<section[^>]*id="sjekk".*?</section>', side, re.S).group(0)
+    assert "Slik sjekker du oss" not in _avsnitt(_main(side))
+    assert "opentimestamps.org" not in _main(side)
+    assert 'id="sjekk"' in side
+    fasit = (NETTSTED / "fasiten" / "havbruksfondet-2026" / "index.html").read_text("utf-8")
+    seksjon = re.search(r'<section[^>]*id="sjekk".*?</section>', fasit, re.S).group(0)
     linjer = [_avsnitt(li) for li in re.findall(r"<li>.*?</li>", seksjon, re.S)]
     assert linjer == [
-        "Last ned anslaget og .ots-fila (lenkene over).",
+        "Last ned anslaget og stempelet (lenkene over).",
         "Slipp begge på opentimestamps.org. Den viser datoen fila ble forseglet, "
         "bekreftet i Bitcoin.",
-        "I terminalen: ots verify, eller ots --no-bitcoin verify med en blokkutforsker."]
+        "I terminalen: ots verify."]
     assert 'href="https://opentimestamps.org/"' in seksjon
     assert all(len(l) <= 110 for l in linjer)
 
@@ -506,7 +568,7 @@ def test_slik_sjekker_du_oss_i_tre_linjer():
 def test_tromso_viser_de_to_lokalitetene_med_kilde_og_ingen_andre():
     """Målte fakta, ingen forventning: holdt utenfor (eierskapet 02.09),
     med hos Fiskeridirektoratet (listene 01.09.2024 og 01.09.2025), og
-    andelen med dem (regnet), med lenke til den forseglede fila under
+    andelen med dem (regnet), med lenke til det forseglede anslaget under
     andelen. Bare Tromsø har lokaliteter som dette."""
     side = (NETTSTED / "kommune" / "5501" / "index.html").read_text("utf-8")
     blokk = re.search(r'<dl class="fakta fakta--tett" id="holdt-ute">.*?</dl>', side, re.S)
@@ -522,7 +584,7 @@ def test_tromso_viser_de_to_lokalitetene_med_kilde_og_ingen_andre():
         "Med dem blir andelen 1,5475 %. Fiskeridir. · 31.08.2026 · regnet"]
     assert all(len(x) <= 110 for x in dd)
     andel = re.search(r'<a href="([^"]+)">1,5475', blokk.group(0))
-    assert andel and andel.group(1).endswith("/predictions/havbruksfond-2026-pakke2.md")
+    assert andel and andel.group(1) == "/fasiten/havbruksfondet-2026/#forseglet-2026-11-09"
     andre = [f.parent.name for f in (NETTSTED / "kommune").glob("*/index.html")
              if f.parent.name != "5501" and 'id="holdt-ute"' in f.read_text("utf-8")]
     assert andre == []
@@ -548,7 +610,8 @@ def test_hver_del_av_tromso_linja_er_maalt(datarepo, fordeling):
     t = m["5501"]
     assert [l["nr"] for l in t["lokaliteter"]] == ["10768", "15236"]
     assert t["innehaver"] == "Havbruksstasjonen i Tromsø"
-    assert t["andel"] == "1,5475 %" and t["url"].endswith("havbruksfond-2026-pakke2.md")
+    assert t["andel"] == "1,5475 %"
+    assert t["url"] == "/fasiten/havbruksfondet-2026/#forseglet-2026-11-09"
 
 
 @trenger_bygg

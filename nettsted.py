@@ -8960,10 +8960,11 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
 # HVA SIDENE IKKE HAR. Ingen kronebeløp før fasiten er kvittert, og da
 # bare Fiskeridirektoratets (`_fasit_vist()`): et beløp før fordelingen
 # kommer, er et anslag (BRIEF: «ingen anslag»). Anslagene står bare som
-# lenker til de forseglede filene, uten «pakke 1» og «pakke 2», som er
-# interne ord. Tromsø får målte fakta om de to lokalitetene filteret
-# holder ute, med kilde (`_med_hos_fiskeridir()`), ikke en forventning
-# (Heine, økt L). Ingen selskapsnavn, utenom innehaveren i den linja:
+# én lenke til siden under /fasiten/, uten «pakke 1» og «pakke 2», som er
+# interne ord, og uten lenker til kodrepoet (økt 16a). Tromsø får målte
+# fakta om de to lokalitetene filteret holder ute, med kilde
+# (`_med_hos_fiskeridir()`), ikke en forventning (Heine, økt L). Ingen
+# selskapsnavn, utenom innehaveren i den linja:
 # kommunen er området, og lokalitetene står med navn og
 # nummer, som på områdesidene. Ingen tekst fra instruksen eller
 # pressemeldingene: de brukes som fakta og metode, med lenke
@@ -9165,6 +9166,8 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
         "skaring": _skaring_vist(h.lest_skaring(h.AAR), navn),
         "fasit": _fasit_vist(fasit, {nr: k["andel"] for nr, k in f["kommuner"].items()}),
         "forseglinger": forseglinger,
+        # Siden som forklarer anslagene og har filene og stemplene.
+        "fasitside": f"/{h.FASITMAPPE}/",
         "torrkjoring": torrkjoring,
         "csv": f"andeler-{h.AAR}.csv",
         # TOMME FASITKOLONNER til fasiten er kvittert, så lesere og skript
@@ -9175,24 +9178,23 @@ def bygg_kommuner(felles: Felles, fasit: dict | None = None,
 
 
 def _forseglingene() -> list[dict]:
-    """De to forseglede anslagene, med dato og lenke til fila og .ots-fila.
+    """De to forseglede anslagene slik kommunesidene nevner dem: datoen
+    hvert ble forseglet, og ankeret det har på siden under /fasiten/.
 
-    Lenkene går til den siste commiten for hver fil i kodrepoet, ikke til
-    main: en forsegling skal vise fila som ble forseglet, også om mappa
-    flyttes. For pakke 1 er det 66016dd for fila og 3154667 for .ots-fila,
-    der stempelet ble oppgradert med Bitcoin-beviset; for pakke 2 e1efe15
-    for begge. Datoen er forseglingen, ikke commiten (pakke 2 ble stemplet
-    i det private havbruk-analyse 09.11.2026).
+    INGEN LENKE TIL KODREPOET. Til 16.11.2026 bar hver rad lenken til fila
+    og .ots-fila ved den siste commiten for hver (66016dd og 3154667 for
+    pakke 1, e1efe15 for pakke 2). Filene ligger nå på nettstedet, byte
+    for byte, og siden som forklarer dem, er den ene lenken
+    (`skriv_fasiten()`). Commitene står i `havbruksfond.FORSEGLINGER`, og
+    `fasit_havbruksfond.forseglinger()` prøver fila i hver av dem.
+
+    Datoen er forseglingen, ikke commiten (pakke 2 ble stemplet i det
+    private havbruk-analyse 09.11.2026).
     """
     import havbruksfond as h
-    ut = []
-    for f in h.FORSEGLINGER:
-        her = {hva: [c for repo, c, x in f["commits"] if repo == "havbruk-radar" and x == hva][-1]
-               for hva in ("fil", "ots")}
-        ut.append({"pakke": f["pakke"], "dato": f["forseglet"],
-                   "fil": f"{REPO}/blob/{her['fil']}/{f['fil']}",
-                   "ots": f"{REPO}/blob/{her['ots']}/{f['fil']}.ots"})
-    return ut
+    return [{"pakke": f["pakke"], "dato": f["forseglet"],
+             "side": f"/{h.FASITMAPPE}/#forseglet-{f['forseglet']}"}
+            for f in h.FORSEGLINGER]
 
 
 def _innehaver(nr: set[str]) -> str:
@@ -9237,8 +9239,8 @@ def _med_hos_fiskeridir(f: dict, lok, forseglinger: list[dict]) -> dict[str, dic
     er lokalitetslistene i regnearkene for 2024 og 2025; andelen er
     snapshotet 31.08.2026 med dem lagt til, i kommunen og i summen.
     Bare Tromsø har slike: Havbruksstasjonen, 10768 og 15236. Lenken
-    under andelen går til det forseglede anslaget med samme tall; er
-    tallet et annet, står ingen lenke.
+    under andelen går til det forseglede anslaget med samme tall, på
+    siden under /fasiten/; er tallet et annet, står ingen lenke.
     """
     import havbruksfond as h
     a = f["for"]
@@ -9248,7 +9250,7 @@ def _med_hos_fiskeridir(f: dict, lok, forseglinger: list[dict]) -> dict[str, dic
         return {}
     total = f["total"] + sum(h.mtb(a.lok[nr]) for nr in med)
     forseglet = h.pakke2()["kommuner"]
-    url = next(s["fil"] for s in forseglinger if s["pakke"] == "pakke 2")
+    url = next(s["side"] for s in forseglinger if s["pakke"] == "pakke 2")
     ut: dict[str, dict] = {}
     for komnr in sorted({a.lok[nr].get("kommunenummer", "") for nr in med}):
         her = [nr for nr in med if a.lok[nr].get("kommunenummer") == komnr]
