@@ -331,7 +331,7 @@ def _tekst(markup: str) -> str:
     """Teksten slik avsnittsvakten leser den, med vanlig mellomrom der
     siden har et hardt (mellom tall og enhet)."""
     uten = html.unescape(re.sub(r"<[^>]+>", "", markup))
-    return " ".join(uten.replace(" ", " ").split())
+    return " ".join(uten.split())            # split() tar også det harde mellomrommet
 
 
 def _main(side: str) -> str:
