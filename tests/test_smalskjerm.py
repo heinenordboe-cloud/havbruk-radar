@@ -754,6 +754,75 @@ def test_filteret_begrenser_til_en_sidetype(side, tjener):
         assert t["meta"]["sidetype"] == "Selskap", t["url"]
 
 
+# ---- søketeksten: for søket, ikke for skjermleseren --------------------
+#
+# Hver side med en sidetype har en skjult blokk først i `main`, med
+# søkemetadataene og ordene som skal veie tungt (`soketekst`).
+# `.visuelt-skjult` skjuler den for øyet, ikke for en skjermleser: til
+# 16.11.2026 sto «havbruksfondet kommune kommuner fordelingsnøkkel» først
+# i tilgjengelighetstreet på /kommune/, foran overskriften. Blokka har nå
+# `aria-hidden`. Prøvene holder begge sider av det: en skjermleser får den
+# ikke, og Pagefind får den som før.
+
+SOKETEKSTSIDER = ("/kommune/", "/kommune/5501/", "/lokalitet/31397/",
+                  "/produksjonsomrade/4/", "/fasiten/")
+_SOKETEKST = re.compile(r'<span data-pagefind-weight="10">(.*?)</span>', re.S)
+
+
+@pytest.mark.parametrize("sti", SOKETEKSTSIDER)
+def test_soketeksten_staar_ikke_i_tilgjengelighetstreet(side, tjener, sti):
+    import html as html_
+    fil = Path(ROT) / sti.strip("/") / "index.html"
+    if not fil.exists():
+        pytest.skip(f"{sti} finnes ikke i dette bygget")
+    m = _SOKETEKST.search(fil.read_text("utf-8"))
+    assert m, f"{sti} har ingen søketekst, så prøven ser ingenting"
+    kilde = fil.read_text("utf-8")
+    soketekst = html_.unescape(m.group(1))
+    side.goto(tjener + sti, wait_until="load")
+    tre = side.locator("main").aria_snapshot()
+    assert tre.count("\n") > 3, f"{sti}: tilgjengelighetstreet er tomt"
+    # FØR sto blokka som løs tekst først i `main`, foran overskriften.
+    forste = tre.splitlines()[1].strip()
+    assert not forste.startswith("- text:"), f"{sti}: main begynner med «{forste}»"
+    # Står ordene ingen andre steder på siden, står de ikke i treet. På
+    # en områdeside er søketeksten navnet, som også er overskriften.
+    resten = html_.unescape(re.sub(r"<[^>]+>", " ", _SOKETEKST.sub("", kilde.split("<body", 1)[1])))
+    if soketekst not in " ".join(resten.split()):
+        assert soketekst not in tre, f"{sti}: «{soketekst}» leses opp"
+    # Og blokka er der fortsatt, for søket.
+    assert side.evaluate(
+        "() => document.querySelector('main > [aria-hidden=true] "
+        "[data-pagefind-weight]').textContent") == soketekst
+
+
+def test_et_ord_som_bare_staar_i_soketeksten_finner_siden(side, tjener):
+    """«fordelingsnøkkel» står på /kommune/ bare i søketeksten. Finner
+    søket siden på det ordet, leser Pagefind blokka også når den er skjult
+    for skjermlesere."""
+    fil = Path(ROT) / "kommune" / "index.html"
+    if not fil.exists():
+        pytest.skip("bygget har ingen kommunesider")
+    kilde = fil.read_text("utf-8")
+    assert "fordelingsnøkkel" in _SOKETEKST.search(kilde).group(1)
+    assert "fordelingsnøkkel" not in _SOKETEKST.sub("", kilde.split("<body", 1)[1])
+    treff = _sok(side, tjener, "fordelingsnøkkel")
+    assert treff and treff[0]["url"] == "/kommune/", [t["url"] for t in treff]
+
+
+def test_havbruksfondet_gir_kommunesidene_forst(side, tjener):
+    """De ti første treffene på «havbruksfondet» er kommunesider, som før
+    søketeksten ble skjult og før /fasiten/ kom (MÅLT 16.11.2026 i bygget
+    fra 3d4222f: 144 treff, de tolv første kommunesider). Siden med de
+    forseglede anslagene har ordet i tittelen, og skal ikke gå foran dem."""
+    if not (Path(ROT) / "kommune" / "index.html").exists():
+        pytest.skip("bygget har ingen kommunesider")
+    treff = _sok(side, tjener, "havbruksfondet")
+    assert len(treff) == 10
+    assert [t["url"] for t in treff if t["meta"]["sidetype"] != "Kommune"] == []
+    assert all(re.fullmatch(r"/kommune/\d{4}/", t["url"]) for t in treff)
+
+
 # ---- lokalitetssidens to spalter --------------------------------------
 
 

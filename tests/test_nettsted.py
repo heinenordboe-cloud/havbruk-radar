@@ -2924,6 +2924,29 @@ def test_omraader_er_menytekst_og_ikke_et_navnebytte():
     assert 'meny_aktiv="produksjonsomrade"' in kode
 
 
+def test_sokeblokka_er_skjult_for_skjermlesere_og_staar_for_soket(tmp_path):
+    """Blokka først i `main` er for Pagefind: metadataene og ordene som
+    skal veie tungt. Den er skjult for øyet (`.visuelt-skjult`) og, fra
+    16.11.2026, for skjermlesere (`aria-hidden`). Ingenting i den kan få
+    fokus, ellers ville `aria-hidden` skjult noe en tastaturbruker står på.
+    At Pagefind fortsatt leser den, prøves mot den ekte indeksen i
+    tests/test_smalskjerm.py."""
+    nettsted.skriv_fasiten(tmp_path)
+    side = (tmp_path / "fasiten" / "index.html").read_text("utf-8")
+    blokk = re.search(r'<main\b[^>]*>\s*<div class="visuelt-skjult" aria-hidden="true">'
+                      r'(.*?)</div>', side, re.S)
+    assert blokk, "søkeblokka står ikke først i main med aria-hidden"
+    assert '<span data-pagefind-weight="10">fasiten fasit anslag</span>' in blokk.group(1)
+    assert 'data-pagefind-meta="sidetype[data-verdi]" data-verdi="Liste"' in blokk.group(1)
+    assert not re.search(r"<(?:a|button|input|select|textarea)\b|tabindex", blokk.group(1))
+    # Vekten står bare der: en ny vektet tekst et annet sted i grunnmalen
+    # ville vært synlig for en skjermleser igjen.
+    mal = (Path(nettsted.MALER) / "base.html.j2").read_text("utf-8")
+    mal = re.sub(r"\{#.*?#\}", "", mal, flags=re.S)
+    assert mal.count("data-pagefind-weight") == 1
+    assert mal.index('aria-hidden="true"') < mal.index("data-pagefind-weight")
+
+
 def test_sok_er_naabar_fra_menyen_og_markerer_seg_selv():
     """`/sok/` var bare nåbar fra søkefeltet i heroen, altså fra
     forsiden. Fra en lokalitetsside fantes det ingen vei dit.

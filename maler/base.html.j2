@@ -151,9 +151,22 @@
    `soketekst` er det ene unntaket: tittelen og kommunen står som TEKST
    med vekt, fordi vekt gjelder ord som faktisk indekseres. Pagefind
    summerer vekten for det samme ordet, så de veier tyngre her enn i
-   brødteksten uten å stå to steder i sidens synlige tekst. #}
+   brødteksten uten å stå to steder i sidens synlige tekst.
+
+   `aria-hidden` FRA 16.11.2026. `.visuelt-skjult` skjuler for øyet, ikke
+   for en skjermleser: MÅLT i Chromium sto «havbruksfondet kommune
+   kommuner fordelingsnøkkel» først i tilgjengelighetstreet på /kommune/,
+   foran overskriften, og tilsvarende på hver side med en sidetype.
+   Blokka er for søket, ikke for en leser, og har ingenting som kan få
+   fokus.
+
+   Pagefind leser den som før. MÅLT samme dag med Pagefind 1.4.0 på en
+   prøveside per variant: `aria-hidden`, `hidden` og `display: none`
+   indekseres alle med full vekt (samme poengsum som uten). Teksten som
+   et ATTRIBUTT (`data-pagefind-index-attrs`) indekseres også, men mister
+   vekten (0,099 mot 0,156), så den veien er stengt. #}
 {% if sidetype %}
-<div class="visuelt-skjult">
+<div class="visuelt-skjult" aria-hidden="true">
   <span data-pagefind-meta="sidetype[data-verdi]" data-verdi="{{ sidetype }}"></span>
   <span data-pagefind-meta="undertittel[data-verdi]" data-verdi="{{ undertittel }}"></span>
   <span data-pagefind-meta="beskrivelse[data-verdi]" data-verdi="{{ beskrivelse }}"></span>
