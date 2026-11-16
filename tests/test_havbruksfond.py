@@ -566,7 +566,7 @@ def test_slik_sjekker_du_oss_staar_paa_fasitsiden_ikke_paa_oversikten():
 
 @trenger_bygg
 def test_tromso_viser_de_to_lokalitetene_med_kilde_og_ingen_andre():
-    """Målte fakta, ingen forventning: holdt utenfor (eierskapet 02.09),
+    """Målte fakta, ingen forventning: ikke med i andelen (eierskapet 02.09),
     med hos Fiskeridirektoratet (listene 01.09.2024 og 01.09.2025), og
     andelen med dem (regnet), med lenke til det forseglede anslaget under
     andelen. Bare Tromsø har lokaliteter som dette."""
@@ -578,7 +578,8 @@ def test_tromso_viser_de_to_lokalitetene_med_kilde_og_ingen_andre():
           for x in re.findall(r"<dd>.*?</dd>", blokk.group(0), re.S)]
     assert dt == "Indre Kårvik I og Skulgambukt (Havbruksstasjonen i Tromsø)"
     assert dd == [
-        "er holdt utenfor fordi de ikke har tillatelse for laksefisk. Fiskeridir. · 02.09.2026",
+        "er ikke med i andelen over, fordi de ikke har tillatelse for laksefisk. "
+        "Fiskeridir. · 02.09.2026",
         "Fiskeridirektoratet tok dem med i 2024 og 2025. "
         "Fiskeridir. · 01.09.2024 og 01.09.2025",
         "Med dem blir andelen 1,5475 %. Fiskeridir. · 31.08.2026 · regnet"]
