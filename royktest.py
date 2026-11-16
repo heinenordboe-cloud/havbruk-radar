@@ -114,6 +114,30 @@ At Cloudflare sier at utrullingen er ute (`canonical_deployment`), spør
 `publiser_ci.py i-produksjon --krev` om i samme steg; dette svarer på om
 det er DEN som svarer.
 
+## De forseglede filene lastes ned urørt
+
+Fra 16.11.2026. Under /fasiten/ ligger anslagene som kopier av filene som
+ble forseglet, med OpenTimestamps-stempelet ved siden av, og siden lover
+at summen av fila leseren laster ned, er den som ble forseglet. Porten
+(`publiseringsvakt.forseglingsfunn()`) holder BYGGET mot seglet. Dette
+holder NETTSTEDET mot bygget: hver fil og hvert stempel hentes som byte,
+og sha256 av svaret skal være sha256 av fila i byggemappa.
+
+Her sammenlignes bytene, til forskjell fra sidene over. En HTML-side
+skriver Cloudflare om på veien ut; en fil som ikke lenger er byte-lik, er
+et stempel som ikke lenger verifiserer.
+
+`Content-Type` skal være den `_headers` oppgir for stien, der bygget har
+en regel. Stemplene har én: `.ots` er også OpenDocuments regnearkmal, og
+hva verten ville gjettet, er ikke målt. Fila har ingen, og typen
+Cloudflare velger selv, skrives i loggen uten å prøves (MÅLT 16.11.2026:
+`text/markdown; charset=utf-8`).
+
+Etter en tilbakerulling finnes ingen byggemappe. Da leses filene av
+utrullingens egen adresse, som resten: sidene under /fasiten/ står i
+utrullingens sitemap.xml, og filene er de sidene lenker til. En
+utrulling fra før 16.11.2026 har ingen, og da prøves ingenting.
+
 ## Nye forsøk
 
 En utrulling hos Cloudflare Pages er atomisk, men det tar noen sekunder
@@ -124,6 +148,7 @@ teller.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html.parser
 import json
 import os
@@ -436,6 +461,124 @@ def sjekk_nedtatt(base: str, sti: str, henter=hent) -> list[str]:
     return []
 
 
+# ---------------------------------------------- de forseglede filene
+
+# Mappa anslagene ligger under. Samme verdi som `nettsted.FASIT_STI`,
+# prøvd i tests/test_royktest.py — her som kopi av samme grunn som
+# KARTVERKET.
+FASIT_STI = "fasiten"
+
+# En forseglet fil og stempelet dens: `<navn>.md` og `<navn>.md.ots`.
+_FORSEGLET_FIL = re.compile(r"\.md(?:\.ots)?$")
+_FORSEGLET_LENKE = re.compile(r'href="([^"/:?#]+\.md(?:\.ots)?)"')
+
+
+@dataclass(frozen=True)
+class Forseglet:
+    sti: str              # f.eks. "/fasiten/havbruksfondet-2026/x.md.ots"
+    sha256: str           # summen av fila slik bygget skrev den
+    innholdstype: str     # Content-Type bygget oppgir; tom = ingen regel
+
+
+def innholdstype(mappe: Path, sti: str) -> str:
+    """Content-Type-en `_headers` gir `sti`. Tom streng når ingen regel
+    med Content-Type treffer; da velger verten selv."""
+    monster, typer = "", []
+    for linje in (mappe / "_headers").read_text(encoding="utf-8").splitlines():
+        if not linje.strip() or linje.lstrip().startswith("#"):
+            continue
+        if not linje[0].isspace():
+            monster = linje.strip()
+        elif linje.strip().lower().startswith("content-type:") and re.fullmatch(
+                re.escape(monster).replace(r"\*", ".*"), sti):
+            typer.append(linje.split(":", 1)[1].strip())
+    return typer[0] if len(typer) == 1 else ""
+
+
+def forseglede(mappe: Path) -> list[Forseglet]:
+    """Hver forseglet fil og hvert stempel under /fasiten/ i bygget."""
+    rot = mappe / FASIT_STI
+    if not rot.is_dir():
+        return []
+    ut = []
+    for fil in sorted(p for p in rot.rglob("*") if p.is_file()):
+        if _FORSEGLET_FIL.search(fil.name):
+            sti = "/" + fil.relative_to(mappe).as_posix()
+            ut.append(Forseglet(sti, hashlib.sha256(fil.read_bytes()).hexdigest(),
+                                innholdstype(mappe, sti)))
+    return ut
+
+
+def hent_byte(url: str) -> tuple[int, dict[str, str], bytes]:
+    """(status, hoder, kroppen som byte). Kaster ikke på 4xx/5xx.
+
+    Uten `Accept-Encoding`: svaret skal være fila, ikke en pakket utgave
+    av den, så summen kan regnes av det som kom."""
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=_tls()) as r:
+            return (r.status, {k.lower(): v for k, v in r.headers.items()},
+                    r.read())
+    except urllib.error.HTTPError as e:
+        return (e.code, {k.lower(): v for k, v in e.headers.items()}, b"")
+
+
+def forseglede_fra_utrulling(url: str, henter=None, bytehenter=None
+                             ) -> list[Forseglet]:
+    """De forseglede filene slik utrullingen selv svarer med dem: summen
+    og typen på utrullingens egen adresse. Tom liste når utrullingen ikke
+    har sider under /fasiten/ (den er fra før 16.11.2026).
+
+    `ValueError` når en fil en side lenker til, ikke kan hentes fra
+    utrullingen: da kan forventningen ikke settes opp."""
+    henter, bytehenter = henter or hent, bytehenter or hent_byte
+    rot = url.rstrip("/")
+    status, _, kart, _ = henter(rot + "/sitemap.xml")
+    if status != 200:
+        raise ValueError(f"utrullingen svarer {status} på /sitemap.xml")
+    ut: dict[str, Forseglet] = {}
+    for side in sorted(set(re.findall(
+            rf"<loc>[^<]*?(/{FASIT_STI}/[^<]+/)</loc>", kart))):
+        status, _, kropp, _ = henter(rot + side)
+        if status != 200:
+            raise ValueError(f"utrullingen svarer {status} på {side}")
+        for navn in _FORSEGLET_LENKE.findall(kropp):
+            sti = side + navn
+            st, hoder, data = bytehenter(rot + sti)
+            if st != 200:
+                raise ValueError(f"utrullingen svarer {st} på {sti}")
+            ut[sti] = Forseglet(sti, hashlib.sha256(data).hexdigest(),
+                                hoder.get("content-type", ""))
+    return [ut[sti] for sti in sorted(ut)]
+
+
+def sjekk_forseglet(base: str, fil: Forseglet, henter=hent_byte,
+                    maalt: dict[str, str] | None = None) -> list[str]:
+    """Feilene for én forseglet fil. Tom liste når den lastes ned urørt.
+
+    `maalt` får typen nettstedet svarte med, så loggen kan vise den også
+    der den ikke prøves."""
+    try:
+        status, hoder, kropp = henter(base.rstrip("/") + fil.sti)
+    except (urllib.error.URLError, OSError) as e:
+        return [f"{fil.sti}: kunne ikke hentes ({e})"]
+    if status != 200:
+        return [f"{fil.sti}: status {status}"]
+    naa = hoder.get("content-type", "")
+    if maalt is not None:
+        maalt[fil.sti] = naa
+    feil = []
+    sum_ = hashlib.sha256(kropp).hexdigest()
+    if sum_ != fil.sha256:
+        feil.append(f"{fil.sti}: sha256 {sum_[:16]}… er ikke byggets "
+                    f"{fil.sha256[:16]}… — fila er endret på veien ut, og "
+                    f"stempelet verifiserer ikke det leseren laster ned")
+    if fil.innholdstype and naa != fil.innholdstype:
+        feil.append(f"{fil.sti}: Content-Type er «{naa}», bygget oppgir "
+                    f"«{fil.innholdstype}»")
+    return feil
+
+
 def www_stier(sider: list[Side]) -> list[str]:
     """Forsiden og den første lokaliteten: roten og en dyp sti."""
     return [sider[0].sti, next(s.sti for s in sider
@@ -446,17 +589,22 @@ def kjor(base: str, sider: list[Side], forventet_csp: str,
          forsok: int, pause: float, henter=hent,
          adresse: str = "", www: str = "",
          www_henter=hent_uten_videresending,
-         nedtatt: tuple[str, ...] = NEDTATT) -> list[str]:
+         nedtatt: tuple[str, ...] = NEDTATT,
+         forseglet: tuple[Forseglet, ...] = (), bytehenter=hent_byte,
+         maalt: dict[str, str] | None = None) -> list[str]:
     """Feilene fra siste forsøk. Tom liste når alt svarer.
 
     `www` tom: videresendingen sjekkes ikke (en annen `--base` enn
-    produksjon har ingen www-vert å sjekke)."""
+    produksjon har ingen www-vert å sjekke). `maalt` får Content-Type-en
+    hver forseglet fil svarte med i siste forsøk."""
     feil: list[str] = []
     for n in range(1, forsok + 1):
         feil = [f for s in sider
                 for f in sjekk(base, s, forventet_csp, henter, adresse)]
         feil += [f for sti in nedtatt
                  for f in sjekk_nedtatt(base, sti, henter)]
+        feil += [f for fil in forseglet
+                 for f in sjekk_forseglet(base, fil, bytehenter, maalt)]
         if www:
             feil += [f for sti in www_stier(sider)
                      for f in sjekk_www(www, base, sti, www_henter)]
@@ -498,11 +646,13 @@ def main(argv: list[str] | None = None) -> int:
         if a.utrulling:
             forventet_csp, adresse, uke, sider = forventning_fra_utrulling(
                 a.utrulling, uke)
+            forseglet = forseglede_fra_utrulling(a.utrulling)
             hvor = f"utrullingen {a.utrulling}"
         else:
             forventet_csp = csp(a.mappe)
             adresse = kontakt(a.mappe)
             sider = utvalg(a.mappe, uke)
+            forseglet = forseglede(a.mappe)
             hvor = "bygget"
         if not forventet_csp:
             raise ValueError(f"{hvor} oppgir ingen Content-Security-Policy "
@@ -523,14 +673,27 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {www}{sti} → 301")
     for sti in NEDTATT:
         print(f"  /{sti}/ → 404")
+    for fil in forseglet:
+        print(f"  {fil.sti} → sha256 {fil.sha256[:16]}…")
+    maalt: dict[str, str] = {}
     feil = kjor(a.base, sider, forventet_csp, a.forsok, a.pause,
-                adresse=adresse, www=www)
+                adresse=adresse, www=www, forseglet=tuple(forseglet),
+                maalt=maalt)
+    # TYPEN NETTSTEDET SVARTE MED, også der den ikke prøves: det er den
+    # eneste målingen av hva verten gir en fil uten regel.
+    for fil in forseglet:
+        if fil.sti in maalt:
+            print(f"  {fil.sti}: Content-Type {maalt[fil.sti] or '(ingen)'}")
 
     rader = ["## Røyktest", "", f"{a.base}, uke {uke}", "",
              "| side | |", "|---|---|"]
     for s in sider:
         egne = [f for f in feil if f.startswith(f"{s.sti}:")]
         rader.append(f"| `{s.sti}` | {'; '.join(egne) or 'ok'} |")
+    for fil in forseglet:
+        egne = [f for f in feil if f.startswith(f"{fil.sti}:")]
+        rader.append(f"| `{fil.sti}` | {'; '.join(egne) or 'urørt'}"
+                     f"{', ' + maalt[fil.sti] if maalt.get(fil.sti) else ''} |")
     if www:
         vert = www.split("://", 1)[-1].rstrip("/")
         egne = [f for f in feil if f.startswith(f"{vert}/")]

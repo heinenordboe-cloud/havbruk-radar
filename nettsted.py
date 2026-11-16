@@ -8033,6 +8033,18 @@ VERTSFILHODER = (
     ("/*.csv", (("Content-Type", "text/csv; charset=utf-8"),)),
     ("/*.json", (("Content-Type", "application/json; charset=utf-8"),)),
     ("/*.txt", (("Content-Type", "text/plain; charset=utf-8"),)),
+    # STEMPLENE UNDER /fasiten/, fra 16.11.2026. `.ots` er OpenTimestamps
+    # her, men endelsen er også OpenDocuments regnearkmal: MÅLT samme dag
+    # at både Apaches mime.types og Pythons `mimetypes` svarer
+    # `application/vnd.oasis.opendocument.spreadsheet-template`. Hva
+    # Cloudflare Pages svarer, er IKKE målt, for ingen .ots har ligget på
+    # nettstedet. Regelen gjør svaret til vårt, og røyktesten leser det
+    # etter hver publisering (`royktest.sjekk_forseglet()`).
+    #
+    # Fila ved siden av (`.md`) trenger ingen regel: Cloudflare svarer
+    # `text/markdown; charset=utf-8` (MÅLT 16.11.2026 på
+    # /naturalearth-LICENSE.md).
+    ("/fasiten/*.ots", (("Content-Type", "application/octet-stream"),)),
     # `immutable` BARE DER NAVNET BÆRER INNHOLDET. Ett år, og nettleseren
     # spør ikke engang. Til 12.10.2026 sto det her at «filnavnet bærer
     # innholdet» for fonter og bilder, men ingen av dem hadde en hash i
@@ -9371,6 +9383,48 @@ def skriv_kommuner(rot: Path, felles: Felles, fasit: dict | None = None,
             soketekst=f"{k['navn']} {k['raa_navn']} kommune havbruksfondet"))
         skriv_side(sti, html)
     return list(d["kommuner"])
+
+
+# ------------------------------------------------------------ fasiten
+#
+# /fasiten/: anslagene vi har forseglet, og hvordan de gikk. Anslag vises
+# bare her (Heine, 10.11.2026); resten av nettstedet er målte tall.
+#
+# DE FORSEGLEDE FILENE LIGGER VED SIDEN AV SIDEN, byte for byte. Til
+# 16.11.2026 lenket kommunesidene til de fire filene i kodrepoet. Repoet
+# er arbeidsrommet vårt, og filene er skrevet for verktøyene våre; en
+# leser skal ikke måtte dit for å lese eller sjekke et anslag. Filene kan
+# ikke endres, så siden forklarer dem, og kopien er den som ble forseglet.
+# Summen og stempelet beviser fila uansett hvor den ligger.
+
+FASIT_STI = "fasiten"
+
+
+def skriv_forseglede(rot: Path) -> list[Path]:
+    """Kopiene av de forseglede filene og stemplene, der
+    `havbruksfond.forseglede_kopier()` sier de skal ligge.
+
+    KASTER `ValueError` før noe skrives når en fil i repoet ikke lenger
+    er den som ble forseglet: en annen sum, eller et stempel for en annen
+    fil. Da feiler fasen og bygget, og ingen kopi går ut. Porten
+    (`publiseringsvakt.forseglingsfunn()`) prøver det samme på det som
+    faktisk ble skrevet.
+    """
+    import havbruksfond as h
+    kopier = []
+    for k in h.forseglede_kopier():
+        data = k["kilde"].read_bytes()
+        sum_ = (h.ots_sum(data, k["kilde"].name) if k["ots"]
+                else hashlib.sha256(data).hexdigest())
+        if sum_ != k["sha256"]:
+            raise ValueError(
+                f"{k['kilde'].name} er ikke fila som ble forseglet "
+                f"{k['forseglet']}: summen er {sum_}, forseglet {k['sha256']}")
+        kopier.append((rot / k["sti"], data))
+    for sti, data in kopier:
+        sti.parent.mkdir(parents=True, exist_ok=True)
+        sti.write_bytes(data)
+    return [sti for sti, _ in kopier]
 
 
 
@@ -11030,6 +11084,8 @@ class Byggelogg:
     analyser: int = 0
     # /kommune/<nr>/, og 0 når grunnlaget for nøkkelen mangler.
     kommunesider: int = 0
+    # Kopiene av de forseglede filene under /fasiten/ (fil og stempel).
+    forseglede: int = 0
     sok: dict = None
     # Kvalitetsrapporten for bygget, slik `skriv_kvalitet()` skrev den.
     kvalitet: dict = None
@@ -11175,6 +11231,15 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     except Exception as feil:                        # noqa: BLE001
         logg.feilet.append(("kommuner", f"{type(feil).__name__}: {feil}"))
     tider["kommuner"] = time.perf_counter() - t0
+
+    # FASITEN: de forseglede anslagene, som kopier av filene. En fil som
+    # ikke lenger er den forseglede, feller fasen og bygget.
+    t0 = time.perf_counter()
+    try:
+        logg.forseglede = len(skriv_forseglede(rot))
+    except Exception as feil:                        # noqa: BLE001
+        logg.feilet.append(("fasiten", f"{type(feil).__name__}: {feil}"))
+    tider["fasiten"] = time.perf_counter() - t0
 
     # ENDRINGSSIDENE OG FEEDENE bygges av de SAMME ukene. Ett kall til
     # `les_endringsuker()`, og begge leser resultatet: to veier til det
@@ -11336,6 +11401,7 @@ def _meld_bygg(logg: Byggelogg, tider: dict[str, float], rot: Path) -> None:
     print(f"  {logg.feeder} Atom-feeder")
     print(f"  {logg.analyser} analyseside(r)")
     print(f"  {logg.kommunesider} kommuneside(r) og oversikten /{KOMMUNE_STI}/")
+    print(f"  {logg.forseglede} forseglede filer og stempler under /{FASIT_STI}/")
     # SØKEINDEKSEN RAPPORTERES ALLTID, også når den ikke ble bygget: et
     # søk som stille slutter å virke er formen på feilene i CLAUDE.md 1b.
     print(f"  søkeindeks    {'bygget' if logg.sok['bygget'] else 'IKKE BYGGET'}"

@@ -942,8 +942,12 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     assert set(tider) == {"felleslesing", "malkompilering",
                           "rendring_og_skriving", "produksjonsomraader",
                           "selskaper", "forside", "indekser", "kommuner",
-                          "endringssider", "feeder", "maskinfiler",
+                          "fasiten", "endringssider", "feeder", "maskinfiler",
                           "kvalitet", "sokeindeks"}
+    # De forseglede anslagene trenger ingen data: fila og stempelet for
+    # hver av de to forseglingene ligger i bygget uansett.
+    assert logg.forseglede == 4
+    assert len(list((ut / "fasiten").rglob("*.md.ots"))) == 2
     for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html",
                 "kvalitet.json", "kvalitet/index.html"):
         assert (ut / fil).is_file(), fil

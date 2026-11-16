@@ -507,7 +507,7 @@ class Funn:
                      # | uten_kontakt | nedtatt | immutable_uten_hash
                      # | innholdstype | jsonld | avsnitt | paastand
                      # | sykdomsflagg | kilde_uten_attribusjon
-                     # | llms_mot_bygget | sitemap_mot_bygget
+                     # | llms_mot_bygget | sitemap_mot_bygget | forsegling
     utdrag: str
     antall: int = 1
 
@@ -2875,6 +2875,86 @@ def nedtattfunn(mappe: Path) -> list[Funn]:
             for sti in NEDTATT if (mappe / sti).exists()]
 
 
+# DE FORSEGLEDE ANSLAGENE, som kopier på nettstedet. Fra 16.11.2026.
+#
+# Anslagene for havbruksfondet ligger under /fasiten/ som de filene som
+# ble forseglet, byte for byte, med stempelet ved siden av
+# (`havbruksfond.forseglede_kopier()`). Siden lover leseren at summen av
+# fila hun laster ned, er den som ble forseglet. Det er en påstand om
+# BYGGET, og den holdes her.
+#
+# En REGEL, som `pagefind_wasm()`, ikke en pinning og ikke en tekstprøve:
+#
+#   fila       summen av kopien er summen som ble forseglet
+#              (`havbruksfond.FORSEGLINGER`)
+#   stempelet  kopien er byte for byte .ots-fila i kodrepoet, og den er
+#              stemplet for den forseglede summen
+#   begge      finnes når siden som lenker til dem, er bygget
+#
+# ## Hvorfor kopien av fila ikke leses som tekst
+#
+# `.md` står i `TEKSTTYPER`, og de to filene gir funn: MÅLT 16.11.2026 seks
+# repo-stier (`reposti`) og ett rått tidsstempel (`raatt_tidsstempel`),
+# ingen ni-sifrede tall, ingen personform og ingen navn. Funnene handler
+# om arbeidsformatet vårt, og det er nettopp derfor siden forklarer
+# filene i stedet for å vise dem. De kan ikke rettes: en rettet fil er
+# ikke den forseglede.
+#
+# Det som gjør rede for fila, er summen. Den som har den forseglede
+# summen, er fila som ble lest 16.11.2026, hver linje, og ingen annen.
+# Samme form som `BINAERFILER`: kvitteringen gjelder innholdet, ikke
+# plassen det ligger på. En `.md` under /fasiten/ med en annen sum leses
+# som tekst som før, og en `.ots` som ikke er kopien, faller til
+# `ugranska`.
+#
+# Funnet kan ikke kvitteres. En forseglet fil med en annen sum er en
+# annen fil.
+
+
+def forseglingsfunn(mappe: Path, rot: Path = ROOT
+                    ) -> tuple[list[Funn], set[str]]:
+    """(funn, stiene som er gjort rede for) for kopiene av de forseglede
+    filene i bygget. Stiene er relative til `mappe`, med skråstrek."""
+    import havbruksfond as h
+
+    funn: list[Funn] = []
+    ok: set[str] = set()
+    siden = (mappe / h.FASITMAPPE / "index.html").exists()
+    for k in h.forseglede_kopier(rot):
+        fil = mappe / k["sti"]
+        hva = "stempelet" if k["ots"] else "fila"
+        if not fil.is_file():
+            if siden:
+                funn.append(Funn(k["sti"], "forsegling",
+                                 f"{hva} forseglet {k['forseglet']} mangler, "
+                                 f"og siden lenker til den"))
+            continue
+        data = fil.read_bytes()
+        if not k["ots"]:
+            sum_ = hashlib.sha256(data).hexdigest()
+            if sum_ != k["sha256"]:
+                funn.append(Funn(k["sti"], "forsegling",
+                                 f"sha256 {sum_[:16]}… er ikke summen som ble "
+                                 f"forseglet {k['forseglet']} ({k['sha256'][:16]}…)"))
+                continue
+        else:
+            if not k["kilde"].is_file() or data != k["kilde"].read_bytes():
+                funn.append(Funn(k["sti"], "forsegling",
+                                 f"avviker fra {k['kilde'].name} i kodrepoet"))
+                continue
+            try:
+                stemplet = h.ots_sum(data, k["kilde"].name)
+            except (ValueError, IndexError):
+                stemplet = ""
+            if stemplet != k["sha256"]:
+                funn.append(Funn(k["sti"], "forsegling",
+                                 f"stempelet gjelder ikke fila som ble forseglet "
+                                 f"{k['forseglet']} ({k['sha256'][:16]}…)"))
+                continue
+        ok.add(k["sti"])
+    return funn, ok
+
+
 # IMMUTABLE KREVER INNHOLDSHASH I NAVNET. Fra 12.10.2026.
 #
 # En fil med `Cache-Control: immutable` og ett års levetid hentes ikke
@@ -2945,8 +3025,15 @@ def immutablefunn(mappe: Path) -> list[Funn]:
 
 
 
+# FILTYPENE DER VERTEN IKKE SKAL GJETTE. `.ots` kom 16.11.2026: endelsen
+# er også OpenDocuments regnearkmal, og et stempel servert som regneark
+# er en fil leseren ikke får åpnet. Se `VERTSFILHODER` i nettsted.py.
+INNHOLDSTYPE_KREVES = (".xml", ".ots")
+
+
 def innholdstypefunn(mappe: Path) -> list[Funn]:
-    """.xml-filer som ikke treffes av NØYAKTIG ÉN Content-Type-regel.
+    """.xml- og .ots-filer som ikke treffes av NØYAKTIG ÉN
+    Content-Type-regel.
 
     Cloudflare slår sammen hodene fra alle regler som treffer en sti.
     To Content-Type blir da to verdier i samme svar, og null betyr at
@@ -2960,7 +3047,8 @@ def innholdstypefunn(mappe: Path) -> list[Funn]:
               for m, h in _hoderegler(hoder.read_text(encoding="utf-8"))
               if "content-type" in h]
     funn = []
-    for sti in sorted(mappe.rglob("*.xml")):
+    for sti in sorted(p for p in mappe.rglob("*")
+                      if p.is_file() and p.suffix.lower() in INNHOLDSTYPE_KREVES):
         rel = sti.relative_to(mappe).as_posix()
         treff = [m for m, r in regler if r.fullmatch("/" + rel)]
         if len(treff) != 1:
@@ -3134,6 +3222,12 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
                         + jsonldfunn(mappe) + llms_mot_bygget(mappe)
                         + sitemap_mot_bygget(mappe))
 
+    # KOPIENE AV DE FORSEGLEDE FILENE, holdt mot seglet. De som holder, er
+    # gjort rede for og leses ikke en gang til under. Se
+    # `forseglingsfunn()`.
+    segl, forseglet = forseglingsfunn(mappe)
+    funn += segl
+
     # SØKEINDEKSENS DERIVASJON, sjekket før filene leses. Se
     # `utdrag_dekker_indeksen()`.
     sider, utdrag = utdrag_dekker_indeksen(mappe / "pagefind")
@@ -3162,6 +3256,8 @@ def gransk(mappe: Path, produksjon: bool = False) -> list[Funn]:
     kvittert = kvitteringer()
     for sti in sorted(p for p in mappe.rglob("*") if p.is_file()):
         rel = str(sti.relative_to(mappe))
+        if sti.relative_to(mappe).as_posix() in forseglet:
+            continue
         # ARKIVENE pakkes ut og granskes per medlem. Se `PAKKEDE_ARKIV`.
         if sti.suffix.lower() in PAKKEDE_ARKIV:
             funn.extend(gransk_innhold(rel, sti.read_bytes(), orgnr_ok,

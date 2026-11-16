@@ -697,14 +697,128 @@ def segl(sti: Path = ANSLAG) -> dict:
             "stemplet": stemplet, "uendret": naa == stemplet}
 
 
+_OTS_HODE = b"\x00OpenTimestamps\x00\x00Proof\x00\xbf\x89\xe2\xe8\x84\xe8\x92\x94"
+
+
 def ots_sum(ots: bytes, navn: str = "OTS-fila") -> str:
     """Summen en OTS-fil er stemplet for: det faste hodet, versjonen,
     operasjonen (0x08 = sha256) og de 32 bytene etter."""
-    hode = b"\x00OpenTimestamps\x00\x00Proof\x00\xbf\x89\xe2\xe8\x84\xe8\x92\x94"
+    hode = _OTS_HODE
     if not ots.startswith(hode) or ots[len(hode) + 1] != 0x08:
         raise ValueError(f"{navn} er ikke en sha256-stemplet OTS-fil")
     i = len(hode) + 2
     return ots[i:i + 32].hex()
+
+
+# BITCOIN-BLOKKENE ET STEMPEL PEKER PÅ, lest av .ots-fila selv.
+#
+# Et oppgradert stempel bærer veien fra summen av fila til merkleroten i
+# en eller flere Bitcoin-blokker, og høyden på hver. Sidene viser den
+# laveste: den første blokka som bekrefter at fila fantes. Høyden leses
+# her, uten nett, så bygget ikke spør noen. At merkleroten i blokka ER
+# den stempelet regner seg fram til, er en annen prøve, og den trenger
+# en node eller en blokkutforsker (`fasit_havbruksfond.bitcoin()`).
+#
+# Formatet er OpenTimestamps' eget: etter hodet og summen følger et tre
+# av operasjoner. 0xff sier at en gren til følger, 0x00 at grenen ender i
+# en attestasjon (åtte byte merke, så lengde og innhold); f0 og f1 har et
+# argument med lengde foran, resten av operasjonene har ingen.
+_OTS_BITCOIN = bytes.fromhex("0588960d73d71901")
+_OTS_MED_ARGUMENT = {0xf0, 0xf1}
+_OTS_UTEN_ARGUMENT = {0x02, 0x03, 0x08, 0x67, 0xf2, 0xf3}
+
+
+def ots_blokker(ots: bytes, navn: str = "OTS-fila") -> list[int]:
+    """Høydene på Bitcoin-blokkene stempelet er forankret i, lavest først.
+    Tom liste for et stempel som ennå venter på kalenderne. `ValueError`
+    når fila ikke lar seg lese som et stempel."""
+    ots_sum(ots, navn)
+    pos = len(_OTS_HODE) + 2 + 32
+    hoyder: list[int] = []
+
+    def varuint() -> int:
+        nonlocal pos
+        verdi = skift = 0
+        while True:
+            if pos >= len(ots):
+                raise ValueError(f"{navn} slutter midt i et tall")
+            b = ots[pos]
+            pos += 1
+            verdi |= (b & 0x7f) << skift
+            if not b & 0x80:
+                return verdi
+            skift += 7
+
+    def gren(dybde: int) -> None:
+        """Én operasjon med alt som følger den, eller én attestasjon."""
+        nonlocal pos
+        if dybde > 512 or pos >= len(ots):
+            raise ValueError(f"{navn} er ikke et lesbart stempel")
+        merke = ots[pos]
+        pos += 1
+        if merke == 0x00:
+            slag = ots[pos:pos + 8]
+            pos += 8
+            lengde = varuint()
+            slutt = pos + lengde
+            if slag == _OTS_BITCOIN:
+                hoyder.append(varuint())
+            pos = slutt
+            return
+        if merke in _OTS_MED_ARGUMENT:
+            # To linjer med vilje: `pos += varuint()` leser `pos` FØR
+            # varuint() har flyttet den, og hopper da én byte for kort.
+            lengde = varuint()
+            pos += lengde
+        elif merke not in _OTS_UTEN_ARGUMENT:
+            raise ValueError(f"{navn} har en ukjent operasjon 0x{merke:02x}")
+        tre(dybde + 1)
+
+    def tre(dybde: int) -> None:
+        nonlocal pos
+        while pos < len(ots) and ots[pos] == 0xff:
+            pos += 1
+            gren(dybde)
+        gren(dybde)
+
+    tre(0)
+    if pos != len(ots):
+        raise ValueError(f"{navn} har {len(ots) - pos} byte etter stempelet")
+    return sorted(hoyder)
+
+
+# ------------------------------------------- kopiene på nettstedet
+#
+# DE FORSEGLEDE FILENE LIGGER OGSÅ PÅ NETTSTEDET, byte for byte, ved siden
+# av siden som forklarer dem (økt 16a, 16.11.2026). Før lenket
+# kommunesidene til kodrepoet, som er arbeidsrommet vårt; filene er
+# skrevet for verktøyene våre og kan ikke endres. Summen og stempelet
+# beviser fila uansett hvor den ligger.
+#
+# NAVNET BÆRER FORSEGLINGSDATOEN, ikke «pakke 1» og «pakke 2», som er våre
+# ord. Stempelet heter det samme som fila med `.ots` bak: det er slik
+# `ots verify` finner fila stempelet gjelder.
+#
+# `publiseringsvakt.forseglingsfunn()` holder hver kopi i bygget mot
+# summen som ble forseglet og mot .ots-fila her i repoet.
+FASITMAPPE = f"fasiten/havbruksfondet-{AAR}"
+
+
+def forseglet_navn(f: dict, ots: bool = False) -> str:
+    """Navnet kopien av en forseglet fil har på nettstedet."""
+    return (f"havbruksfondet-{AAR}-forseglet-{f['forseglet']}.md"
+            + (".ots" if ots else ""))
+
+
+def forseglede_kopier(rot: Path = ROT) -> list[dict]:
+    """Filene nettstedet skal ha en kopi av: for hver forsegling fila og
+    stempelet, med stien i bygget, fila i repoet og summen som ble
+    forseglet."""
+    return [{"pakke": f["pakke"], "forseglet": f["forseglet"], "ots": ots,
+             "sha256": f["sha256"],
+             "sti": f"{FASITMAPPE}/{forseglet_navn(f, ots)}",
+             "kilde": rot / (f["fil"] + (".ots" if ots else ""))}
+            for f in FORSEGLINGER for ots in (False, True)]
 
 
 # ------------------------------------------------------ andelstabellen

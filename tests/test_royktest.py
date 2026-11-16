@@ -360,3 +360,195 @@ def test_utrulling_uten_uke_kan_ikke_settes_opp():
     henter = _utrulling({"/": (200, "<title>x</title>")})
     with pytest.raises(ValueError, match="lenker ikke til noen uke"):
         royktest.forventning_fra_utrulling("https://x.pages.dev", henter=henter)
+
+
+# ---- de forseglede filene lastes ned urørt ------------------------------
+#
+# Fra 16.11.2026: anslagene under /fasiten/ er kopier av filene som ble
+# forseglet. Røyktesten henter dem som byte og holder summen mot bygget.
+
+REGNEARKMAL = "application/vnd.oasis.opendocument.spreadsheet-template"
+
+
+def _bygg_med_fasit(rot: Path) -> Path:
+    m = _bygg(rot)
+    nettsted.skriv_forseglede(m)
+    nettsted.skriv_vertsfiler(m)
+    return m
+
+
+def _filtjener(mappe: Path, overstyr: dict | None = None):
+    """En bytehenter som svarer med byggets filer og typen `_headers`
+    oppgir, og ellers det Cloudflare ga en .md 16.11.2026."""
+    overstyr = overstyr or {}
+
+    def henter(url):
+        sti = "/" + url.split("://", 1)[1].split("/", 1)[1]
+        if sti in overstyr:
+            return overstyr[sti]
+        fil = mappe / sti.lstrip("/")
+        if not fil.is_file():
+            return (404, {}, b"")
+        type_ = royktest.innholdstype(mappe, sti) or "text/markdown; charset=utf-8"
+        return (200, {"content-type": type_}, fil.read_bytes())
+    return henter
+
+
+def test_fasitmappa_er_den_samme_som_bygget_bruker():
+    assert royktest.FASIT_STI == nettsted.FASIT_STI
+
+
+def test_et_bygg_uten_fasiten_har_ingen_forseglede_filer(tmp_path):
+    assert royktest.forseglede(_bygg(tmp_path)) == []
+
+
+def test_de_forseglede_filene_leses_av_bygget(tmp_path):
+    """Fila og stempelet per forsegling, med summen av fila i bygget.
+    Stemplene har en Content-Type i `_headers`; fila har ingen."""
+    import hashlib
+    import havbruksfond
+    m = _bygg_med_fasit(tmp_path)
+    filer = royktest.forseglede(m)
+    assert [f.sti for f in filer] == sorted(
+        "/" + k["sti"] for k in havbruksfond.forseglede_kopier())
+    for f in filer:
+        assert f.sha256 == hashlib.sha256((m / f.sti.lstrip("/")).read_bytes()).hexdigest()
+        assert f.innholdstype == ("application/octet-stream"
+                                  if f.sti.endswith(".ots") else "")
+
+
+def test_forseglede_filer_som_svarer_som_bygget_er_rene(tmp_path):
+    m = _bygg_med_fasit(tmp_path)
+    filer = tuple(royktest.forseglede(m))
+    maalt = {}
+    assert royktest.kjor("https://x.test", royktest.utvalg(m, UKE), CSP,
+                         forsok=1, pause=0, henter=_levende(m), adresse=ADRESSE,
+                         forseglet=filer, bytehenter=_filtjener(m),
+                         maalt=maalt) == []
+    # Typen for hver fil står igjen, også der den ikke prøves.
+    assert sorted(set(maalt.values())) == ["application/octet-stream",
+                                           "text/markdown; charset=utf-8"]
+    assert len(maalt) == 4
+
+
+def test_en_fil_som_er_endret_paa_veien_ut_er_rod(tmp_path):
+    """Én byte, og stempelet verifiserer ikke det leseren laster ned."""
+    m = _bygg_med_fasit(tmp_path)
+    filer = tuple(royktest.forseglede(m))
+    offer = filer[0]
+    kropp = (m / offer.sti.lstrip("/")).read_bytes() + b"\n"
+    feil = royktest.kjor(
+        "https://x.test", royktest.utvalg(m, UKE), CSP, forsok=1, pause=0,
+        henter=_levende(m), adresse=ADRESSE, forseglet=filer,
+        bytehenter=_filtjener(m, {offer.sti: (
+            200, {"content-type": "text/markdown; charset=utf-8"}, kropp)}))
+    assert len(feil) == 1, feil
+    assert feil[0].startswith(f"{offer.sti}: sha256 ")
+    assert "endret på veien ut" in feil[0]
+
+
+def test_et_stempel_servert_som_regneark_er_rodt(tmp_path):
+    """Uten regelen i `_headers` gjetter verten på endelsen."""
+    m = _bygg_med_fasit(tmp_path)
+    filer = tuple(royktest.forseglede(m))
+    stempel = next(f for f in filer if f.sti.endswith(".ots"))
+    data = (m / stempel.sti.lstrip("/")).read_bytes()
+    feil = royktest.kjor(
+        "https://x.test", royktest.utvalg(m, UKE), CSP, forsok=1, pause=0,
+        henter=_levende(m), adresse=ADRESSE, forseglet=filer,
+        bytehenter=_filtjener(m, {stempel.sti: (
+            200, {"content-type": REGNEARKMAL}, data)}))
+    assert feil == [f"{stempel.sti}: Content-Type er «{REGNEARKMAL}», bygget "
+                    f"oppgir «application/octet-stream»"]
+
+
+def test_typen_paa_fila_proves_ikke_for_den_har_ingen_regel(tmp_path):
+    """Fila har ingen regel i `_headers`, så typen er vertens valg. Den
+    måles, men feller ikke."""
+    m = _bygg_med_fasit(tmp_path)
+    fil = next(f for f in royktest.forseglede(m) if f.sti.endswith(".md"))
+    data = (m / fil.sti.lstrip("/")).read_bytes()
+    maalt = {}
+    henter = _filtjener(m, {fil.sti: (200, {"content-type": "text/plain"}, data)})
+    assert royktest.sjekk_forseglet("https://x.test", fil, henter, maalt) == []
+    assert maalt == {fil.sti: "text/plain"}
+
+
+@pytest.mark.parametrize("status", [404, 503])
+def test_en_forseglet_fil_som_ikke_svarer_er_rod(tmp_path, status):
+    m = _bygg_med_fasit(tmp_path)
+    fil = royktest.forseglede(m)[1]
+    henter = _filtjener(m, {fil.sti: (status, {}, b"")})
+    assert royktest.sjekk_forseglet("https://x.test", fil, henter) == [
+        f"{fil.sti}: status {status}"]
+
+
+def test_typen_leses_bare_naar_noeyaktig_en_regel_treffer(tmp_path):
+    (tmp_path / "_headers").write_text(
+        "/*\n  X-Content-Type-Options: nosniff\n\n"
+        "/fasiten/*.ots\n  Content-Type: application/octet-stream\n\n"
+        "/*.txt\n  Content-Type: text/plain; charset=utf-8\n", encoding="utf-8")
+    assert royktest.innholdstype(tmp_path, "/fasiten/a/b.md.ots") == \
+        "application/octet-stream"
+    assert royktest.innholdstype(tmp_path, "/fasiten/a/b.md") == ""
+    assert royktest.innholdstype(tmp_path, "/robots.txt") == \
+        "text/plain; charset=utf-8"
+    with open(tmp_path / "_headers", "a", encoding="utf-8") as f:
+        f.write("\n/*.ots\n  Content-Type: text/plain\n")
+    assert royktest.innholdstype(tmp_path, "/fasiten/a/b.md.ots") == ""
+
+
+def test_etter_en_tilbakerulling_leses_filene_av_utrullingen():
+    """Sidene under /fasiten/ står i utrullingens sitemap.xml, og filene
+    er de sidene lenker til. Summen og typen er utrullingens egne."""
+    import hashlib
+    side = "/fasiten/havbruksfondet-2026/"
+    henter = _utrulling({
+        "/sitemap.xml": (200, "<urlset><url><loc>https://kystloggen.no/fasiten/</loc></url>"
+                              f"<url><loc>https://kystloggen.no{side}</loc></url>"
+                              "<url><loc>https://kystloggen.no/lokalitet/7/</loc></url></urlset>"),
+        "/fasiten/": (200, f'<a href="{side}">Havbruksfondet 2026</a>'),
+        side: (200, '<a href="a.md" download>Anslaget</a> <a href="a.md.ots" '
+                    'download>Stempelet</a> <a href="/kommune/">Kommunene</a>'
+                    '<a href="https://opentimestamps.org/">ots</a>'),
+    })
+    filer = {side + "a.md": (200, {"content-type": "text/markdown; charset=utf-8"}, b"fil"),
+             side + "a.md.ots": (200, {"content-type": "application/octet-stream"}, b"\x00ots")}
+
+    def bytehenter(url):
+        return filer.get("/" + url.split("://", 1)[1].split("/", 1)[1], (404, {}, b""))
+    ut = royktest.forseglede_fra_utrulling("https://abc.kystloggen.pages.dev",
+                                           henter=henter, bytehenter=bytehenter)
+    assert ut == [
+        royktest.Forseglet(side + "a.md", hashlib.sha256(b"fil").hexdigest(),
+                           "text/markdown; charset=utf-8"),
+        royktest.Forseglet(side + "a.md.ots", hashlib.sha256(b"\x00ots").hexdigest(),
+                           "application/octet-stream")]
+
+    # En fil siden lenker til, men som utrullingen ikke har.
+    del filer[side + "a.md.ots"]
+    with pytest.raises(ValueError, match="svarer 404 på /fasiten/havbruksfondet-2026/a.md.ots"):
+        royktest.forseglede_fra_utrulling("https://abc.kystloggen.pages.dev",
+                                          henter=henter, bytehenter=bytehenter)
+
+
+def test_en_utrulling_fra_foer_fasiten_har_ingen_forseglede_filer():
+    henter = _utrulling({"/sitemap.xml": (
+        200, "<urlset><url><loc>https://kystloggen.no/lokalitet/7/</loc></url></urlset>")})
+    assert royktest.forseglede_fra_utrulling(
+        "https://gammel.kystloggen.pages.dev", henter=henter,
+        bytehenter=lambda url: (404, {}, b"")) == []
+
+
+def test_main_sender_de_forseglede_filene_til_runden(monkeypatch, tmp_path):
+    m = _bygg_med_fasit(tmp_path / "m")
+    sett = {}
+
+    def kjor(*a, **kw):
+        sett.update(kw)
+        kw["maalt"]["/fasiten/x"] = "ubrukt"
+        return []
+    monkeypatch.setattr(royktest, "kjor", kjor)
+    assert royktest.main(["--mappe", str(m), "--uke", UKE]) == 0
+    assert [f.sti for f in sett["forseglet"]] == [f.sti for f in royktest.forseglede(m)]
+    assert len(sett["forseglet"]) == 4
