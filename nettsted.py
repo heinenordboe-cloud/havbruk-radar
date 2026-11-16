@@ -8041,8 +8041,9 @@ VERTSFILHODER = (
     # at både Apaches mime.types og Pythons `mimetypes` svarer
     # `application/vnd.oasis.opendocument.spreadsheet-template`. Hva
     # Cloudflare Pages svarer, er IKKE målt, for ingen .ots har ligget på
-    # nettstedet. Regelen gjør svaret til vårt, og røyktesten leser det
-    # etter hver publisering (`royktest.sjekk_forseglet()`).
+    # nettstedet. Regelen gjør svaret til vårt, og røyktesten måler det
+    # etter hver publisering (`royktest.innholdstypeavvik()`: en advarsel
+    # når nettstedet svarer med noe annet, ikke rødt).
     #
     # Fila ved siden av (`.md`) trenger ingen regel: Cloudflare svarer
     # `text/markdown; charset=utf-8` (MÅLT 16.11.2026 på

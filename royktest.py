@@ -127,11 +127,14 @@ Her sammenlignes bytene, til forskjell fra sidene over. En HTML-side
 skriver Cloudflare om på veien ut; en fil som ikke lenger er byte-lik, er
 et stempel som ikke lenger verifiserer.
 
-`Content-Type` skal være den `_headers` oppgir for stien, der bygget har
-en regel. Stemplene har én: `.ots` er også OpenDocuments regnearkmal, og
-hva verten ville gjettet, er ikke målt. Fila har ingen, og typen
-Cloudflare velger selv, skrives i loggen uten å prøves (MÅLT 16.11.2026:
-`text/markdown; charset=utf-8`).
+`Content-Type` MÅLES, og feller ikke. Typen hver fil svarte med, står i
+loggen og i tabellen. Stemplene har en regel i `_headers`: `.ots` er også
+OpenDocuments regnearkmal, og hva verten ville gjettet, er ikke målt.
+Svarer nettstedet med noe annet enn regelen, er det en advarsel
+(`::warning::`), ikke rødt. En rød røyktest ruller en automatisk
+publisering tilbake, og en fil som er urørt og lar seg laste ned, er ikke
+grunn til det. Fila har ingen regel; Cloudflare velger selv (MÅLT
+16.11.2026: `text/markdown; charset=utf-8`).
 
 Etter en tilbakerulling finnes ingen byggemappe. Da leses filene av
 utrullingens egen adresse, som resten: sidene under /fasiten/ står i
@@ -556,8 +559,8 @@ def sjekk_forseglet(base: str, fil: Forseglet, henter=hent_byte,
                     maalt: dict[str, str] | None = None) -> list[str]:
     """Feilene for én forseglet fil. Tom liste når den lastes ned urørt.
 
-    `maalt` får typen nettstedet svarte med, så loggen kan vise den også
-    der den ikke prøves."""
+    Summen er det som prøves. `maalt` får typen nettstedet svarte med; den
+    holdes mot bygget i `innholdstypeavvik()`, som en advarsel."""
     try:
         status, hoder, kropp = henter(base.rstrip("/") + fil.sti)
     except (urllib.error.URLError, OSError) as e:
@@ -573,10 +576,20 @@ def sjekk_forseglet(base: str, fil: Forseglet, henter=hent_byte,
         feil.append(f"{fil.sti}: sha256 {sum_[:16]}… er ikke byggets "
                     f"{fil.sha256[:16]}… — fila er endret på veien ut, og "
                     f"stempelet verifiserer ikke det leseren laster ned")
-    if fil.innholdstype and naa != fil.innholdstype:
-        feil.append(f"{fil.sti}: Content-Type er «{naa}», bygget oppgir "
-                    f"«{fil.innholdstype}»")
     return feil
+
+
+def innholdstypeavvik(forseglet, maalt: dict[str, str]) -> list[str]:
+    """Filene som svarte med en annen Content-Type enn bygget oppgir.
+
+    IKKE EN FEIL. Fila er urørt og lar seg laste ned; det som ikke virker,
+    er regelen i `_headers`. Det skal noen få vite, men det skal ikke rulle
+    en publisering tilbake. En fil uten regel har ingenting å avvike fra.
+    """
+    return [f"{f.sti}: Content-Type er «{maalt[f.sti]}», bygget oppgir "
+            f"«{f.innholdstype}»"
+            for f in forseglet
+            if f.innholdstype and f.sti in maalt and maalt[f.sti] != f.innholdstype]
 
 
 def www_stier(sider: list[Side]) -> list[str]:
@@ -679,11 +692,15 @@ def main(argv: list[str] | None = None) -> int:
     feil = kjor(a.base, sider, forventet_csp, a.forsok, a.pause,
                 adresse=adresse, www=www, forseglet=tuple(forseglet),
                 maalt=maalt)
-    # TYPEN NETTSTEDET SVARTE MED, også der den ikke prøves: det er den
-    # eneste målingen av hva verten gir en fil uten regel.
+    # TYPEN NETTSTEDET SVARTE MED, for hver fil: det er den eneste
+    # målingen av hva verten gir en fil uten regel. Et avvik fra regelen
+    # er en advarsel, se `innholdstypeavvik()`.
     for fil in forseglet:
         if fil.sti in maalt:
             print(f"  {fil.sti}: Content-Type {maalt[fil.sti] or '(ingen)'}")
+    avvik = innholdstypeavvik(forseglet, maalt)
+    for linje in avvik:
+        print(f"::warning::Røyktest: {linje}")
 
     rader = ["## Røyktest", "", f"{a.base}, uke {uke}", "",
              "| side | |", "|---|---|"]
@@ -692,8 +709,11 @@ def main(argv: list[str] | None = None) -> int:
         rader.append(f"| `{s.sti}` | {'; '.join(egne) or 'ok'} |")
     for fil in forseglet:
         egne = [f for f in feil if f.startswith(f"{fil.sti}:")]
+        type_ = maalt.get(fil.sti, "")
+        if any(linje.startswith(f"{fil.sti}:") for linje in avvik):
+            type_ += f" (bygget oppgir {fil.innholdstype})"
         rader.append(f"| `{fil.sti}` | {'; '.join(egne) or 'urørt'}"
-                     f"{', ' + maalt[fil.sti] if maalt.get(fil.sti) else ''} |")
+                     f"{', ' + type_ if type_ else ''} |")
     if www:
         vert = www.split("://", 1)[-1].rstrip("/")
         egne = [f for f in feil if f.startswith(f"{vert}/")]

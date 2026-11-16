@@ -447,24 +447,35 @@ def test_en_fil_som_er_endret_paa_veien_ut_er_rod(tmp_path):
     assert "endret på veien ut" in feil[0]
 
 
-def test_et_stempel_servert_som_regneark_er_rodt(tmp_path):
-    """Uten regelen i `_headers` gjetter verten på endelsen."""
+def test_et_stempel_servert_som_regneark_er_en_advarsel_ikke_rodt(tmp_path):
+    """Virker ikke regelen i `_headers`, gjetter verten på endelsen. Fila
+    er likevel urørt og lar seg laste ned, så runden er grønn: en rød
+    røyktest ruller en automatisk publisering tilbake. Avviket står for
+    seg, som en advarsel."""
     m = _bygg_med_fasit(tmp_path)
     filer = tuple(royktest.forseglede(m))
     stempel = next(f for f in filer if f.sti.endswith(".ots"))
     data = (m / stempel.sti.lstrip("/")).read_bytes()
+    maalt = {}
     feil = royktest.kjor(
         "https://x.test", royktest.utvalg(m, UKE), CSP, forsok=1, pause=0,
         henter=_levende(m), adresse=ADRESSE, forseglet=filer,
         bytehenter=_filtjener(m, {stempel.sti: (
-            200, {"content-type": REGNEARKMAL}, data)}))
-    assert feil == [f"{stempel.sti}: Content-Type er «{REGNEARKMAL}», bygget "
-                    f"oppgir «application/octet-stream»"]
+            200, {"content-type": REGNEARKMAL}, data)}), maalt=maalt)
+    assert feil == []
+    assert royktest.innholdstypeavvik(filer, maalt) == [
+        f"{stempel.sti}: Content-Type er «{REGNEARKMAL}», bygget oppgir "
+        f"«application/octet-stream»"]
+    # Svarer nettstedet som bygget sier, er det ingen avvik.
+    maalt = {}
+    for f in filer:
+        royktest.sjekk_forseglet("https://x.test", f, _filtjener(m), maalt)
+    assert royktest.innholdstypeavvik(filer, maalt) == []
 
 
-def test_typen_paa_fila_proves_ikke_for_den_har_ingen_regel(tmp_path):
+def test_typen_paa_fila_har_ingenting_aa_avvike_fra(tmp_path):
     """Fila har ingen regel i `_headers`, så typen er vertens valg. Den
-    måles, men feller ikke."""
+    måles, og er verken en feil eller et avvik."""
     m = _bygg_med_fasit(tmp_path)
     fil = next(f for f in royktest.forseglede(m) if f.sti.endswith(".md"))
     data = (m / fil.sti.lstrip("/")).read_bytes()
@@ -472,6 +483,7 @@ def test_typen_paa_fila_proves_ikke_for_den_har_ingen_regel(tmp_path):
     henter = _filtjener(m, {fil.sti: (200, {"content-type": "text/plain"}, data)})
     assert royktest.sjekk_forseglet("https://x.test", fil, henter, maalt) == []
     assert maalt == {fil.sti: "text/plain"}
+    assert royktest.innholdstypeavvik([fil], maalt) == []
 
 
 @pytest.mark.parametrize("status", [404, 503])
@@ -540,15 +552,34 @@ def test_en_utrulling_fra_foer_fasiten_har_ingen_forseglede_filer():
         bytehenter=lambda url: (404, {}, b"")) == []
 
 
-def test_main_sender_de_forseglede_filene_til_runden(monkeypatch, tmp_path):
+def test_main_sender_de_forseglede_filene_til_runden(monkeypatch, tmp_path, capsys):
+    """Og skriver typen hver fil svarte med. Et avvik fra regelen er en
+    advarsel i loggen, og røyktesten er fortsatt grønn."""
     m = _bygg_med_fasit(tmp_path / "m")
+    filer = royktest.forseglede(m)
+    stempel = next(f for f in filer if f.sti.endswith(".ots"))
     sett = {}
 
     def kjor(*a, **kw):
         sett.update(kw)
-        kw["maalt"]["/fasiten/x"] = "ubrukt"
+        for f in kw["forseglet"]:
+            kw["maalt"][f.sti] = f.innholdstype or "text/markdown; charset=utf-8"
+        kw["maalt"][stempel.sti] = REGNEARKMAL
         return []
     monkeypatch.setattr(royktest, "kjor", kjor)
     assert royktest.main(["--mappe", str(m), "--uke", UKE]) == 0
-    assert [f.sti for f in sett["forseglet"]] == [f.sti for f in royktest.forseglede(m)]
+    assert [f.sti for f in sett["forseglet"]] == [f.sti for f in filer]
     assert len(sett["forseglet"]) == 4
+    ut = capsys.readouterr().out
+    assert f"  {stempel.sti}: Content-Type {REGNEARKMAL}" in ut
+    assert ut.count("::warning::Røyktest:") == 1
+    assert f"::warning::Røyktest: {stempel.sti}: Content-Type er «{REGNEARKMAL}»" in ut
+    assert "::error::" not in ut
+    # Tabellen i kjøringens sammendrag sier det samme, på fila sin rad.
+    sammendrag = tmp_path / "sammendrag.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(sammendrag))
+    assert royktest.main(["--mappe", str(m), "--uke", UKE]) == 0
+    rader = sammendrag.read_text("utf-8").splitlines()
+    assert (f"| `{stempel.sti}` | urørt, {REGNEARKMAL} (bygget oppgir "
+            f"application/octet-stream) |") in rader
+    assert sum("urørt, text/markdown; charset=utf-8 |" in r for r in rader) == 2
