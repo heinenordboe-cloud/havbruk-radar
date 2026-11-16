@@ -3502,6 +3502,47 @@ strong.uenige { display: inline; }
   color: var(--ink-dempet);
 }
 
+/* ---------------------------------------------------------------- *
+ * FASITEN: de forseglede anslagene under /fasiten/. Fra 16.11.2026.
+ * ---------------------------------------------------------------- */
+
+/* INGRESSEN, i samme skrift som `.uke-ingress`. Hver linje er sitt eget
+   avsnitt uten luft imellom: første setning er delt i to, se malen. */
+.fasit-ingress { margin: 0 0 var(--rom-24); }
+
+.fasit-ingress p {
+  margin: 0;
+  max-width: 38em;
+  font-family: var(--skrift-tittel);
+  font-size: var(--tekst-ingress);
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+/* STATUS: korte linjer som hører sammen. */
+.fasit-status { margin: 0 0 var(--rom-16); }
+.fasit-status p { margin: 0 0 var(--rom-4); }
+
+/* «Feil hvis:» hører til lista rett under. */
+.fasit-listehode { margin-block-end: var(--rom-4); }
+
+/* SUMMEN I SIN HELHET, så den kan holdes mot `shasum -a 256`. 64 tegn
+   uten mellomrom får ikke plass på 390 og brytes der det trengs. */
+.fasit-segl { margin-block: var(--rom-24) 0; font-size: var(--tekst-s); }
+.fasit-sum { overflow-wrap: anywhere; background: none; padding: 0; }
+.fasit-filer { margin-block-start: var(--rom-8); }
+
+/* PÅSTANDEN ER RADENS NØKKEL, men den er en setning: den brytes, og den
+   står i vanlig vekt. Uten grensa strekker en tabell med `fit-content`
+   den lengste setningen ut på én linje. */
+#fasit-paastander tbody th { white-space: normal; font-weight: 400; }
+
+@media (min-width: 40rem) {
+  #fasit-paastander tbody th { min-inline-size: 18rem; max-inline-size: 34rem; }
+}
+
 @media print {
   .hovedmeny ul, .handlinger, .hopp, .kopierknapp { display: none; }
   body { background: #fff; color: #000; font-size: 10pt; }

@@ -948,6 +948,11 @@ def test_skriv_alle_gir_en_mappe_med_side_og_csv_per_lokalitet(datamappe, tmp_pa
     # hver av de to forseglingene ligger i bygget uansett.
     assert logg.forseglede == 4
     assert len(list((ut / "fasiten").rglob("*.md.ots"))) == 2
+    # Siden som forklarer dem, og oversikten, står i sitemapen og llms.txt.
+    for sti in ("/fasiten/", "/fasiten/havbruksfondet-2026/"):
+        assert (ut / sti.strip("/") / "index.html").is_file(), sti
+        assert f"{sti}</loc>" in (ut / "sitemap.xml").read_text("utf-8"), sti
+    assert "/fasiten/)" in (ut / "llms.txt").read_text("utf-8")
     for fil in ("sitemap.xml", "robots.txt", "llms.txt", "om/index.html",
                 "kvalitet.json", "kvalitet/index.html"):
         assert (ut / fil).is_file(), fil

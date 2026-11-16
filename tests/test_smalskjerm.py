@@ -67,6 +67,11 @@ SIDER = (
     # både lokaliteter som flyttet andelen og en delt lokalitet.
     "/kommune/",
     "/kommune/1580/",
+    # Fasiten, fra 16.11.2026: oversikten og siden med de forseglede
+    # anslagene, som har en tabell med en hel setning i hver rad og en sum
+    # på 64 tegn uten mellomrom.
+    "/fasiten/",
+    "/fasiten/havbruksfondet-2026/",
 )
 
 ROT = os.environ.get("HAVBRUK_NETTSTED", "")

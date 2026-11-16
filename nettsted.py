@@ -7850,7 +7850,7 @@ def _endringsurler(uker) -> list[str]:
     return stier
 
 
-def _urler(felles: Felles, uker=(), kommuner=()) -> list[str]:
+def _urler(felles: Felles, uker=(), kommuner=(), fasiten=()) -> list[str]:
     """Hver publiserte side, som sti. Rekkefølgen er lesningens.
 
     Lusetall-CSV-ene står ikke her: en sitemap er sider, ikke
@@ -7871,10 +7871,13 @@ def _urler(felles: Felles, uker=(), kommuner=()) -> list[str]:
     if kommuner:
         stier += [f"/{KOMMUNE_STI}/"] + [f"/{KOMMUNE_STI}/{nr}/"
                                          for nr in sorted(kommuner, key=int)]
+    # /fasiten/ og hver side under, slik `skriv_fasiten()` skrev dem.
+    stier += list(fasiten)
     return stier
 
 
-def skriv_sitemap(rot: Path, felles: Felles, uker=(), kommuner=()) -> Path:
+def skriv_sitemap(rot: Path, felles: Felles, uker=(), kommuner=(),
+                  fasiten=()) -> Path:
     """sitemap.xml over alle sidene, endringssidene med (se `_urler`)."""
     from xml.sax.saxutils import escape
 
@@ -7889,7 +7892,7 @@ def skriv_sitemap(rot: Path, felles: Felles, uker=(), kommuner=()) -> Path:
             "nettstedets eget domene) eller satt til vertsnavnet denne "
             "kopien faktisk ligger på. -->")
     linjer.append(f'<urlset xmlns="{SITEMAP_NS}">')
-    for sti in _urler(felles, uker, kommuner):
+    for sti in _urler(felles, uker, kommuner, fasiten):
         linjer.append("  <url>")
         linjer.append(f"    <loc>{escape(basis + sti)}</loc>")
         linjer.append(f"    <lastmod>{dato}</lastmod>")
@@ -8164,7 +8167,8 @@ def skriv_404(rot: Path, felles: Felles) -> Path:
     return skriv_side(sti, html)
 
 
-def skriv_llms(rot: Path, felles: Felles, uker=(), kommuner=()) -> Path:
+def skriv_llms(rot: Path, felles: Felles, uker=(), kommuner=(),
+               fasiten=()) -> Path:
     """llms.txt — hva dette er, og hvor de fullstendige listene er.
 
     Peker på INDEKSENE og /om/, ikke på 1782 enkeltsider. En modell som
@@ -8194,6 +8198,11 @@ def skriv_llms(rot: Path, felles: Felles, uker=(), kommuner=()) -> Path:
             f"\n- [Kommunene og havbruksfondet]({u(f'/{KOMMUNE_STI}/')}): "
             f"{len(kommuner)} kommuner med andelen\n"
             f"  av klarert lokalitets-MTB som Havbruksfondet fordeles etter.")
+    if fasiten:
+        endringer += (
+            f"\n- [Fasiten]({u(f'/{FASIT_STI}/')}): anslag forseglet før svaret "
+            f"var kjent, med\n"
+            f"  fila, OpenTimestamps-stempelet og utfallet for hvert.")
     tekst = f"""# Kystloggen
 
 > Offentlige registerdata om norsk akvakultur, hentet ukentlig og lagret
@@ -9425,6 +9434,153 @@ def skriv_forseglede(rot: Path) -> list[Path]:
         sti.parent.mkdir(parents=True, exist_ok=True)
         sti.write_bytes(data)
     return [sti for sti, _ in kopier]
+
+
+# UTFALLET PER PÅSTAND, slik sidene skriver det. Nøkkelen er `utfall` i
+# fasitfila (`fasit_havbruksfond.pakke1()` og `pakke2()`). «venter» der
+# betyr at påstanden avgjøres mot regnearket, og bare pressemeldingen er
+# lest.
+FASIT_UTFALL = {"traff": "Traff", "bom": "Bom", "venter": "Venter på regnearket"}
+
+
+def bygg_fasit_havbruksfond(fasit: dict | None = None,
+                            torrkjoring: str = "") -> dict:
+    """Alt /fasiten/havbruksfondet-<år>/ viser.
+
+    DE FORSEGLEDE FILENE ER KILDEN. Datoen, summen og konfidensen per
+    påstand leses av `havbruksfond.FORSEGLINGER`, `paastand1()` og
+    `pakke2()`, og blokka av .ots-fila (`ots_blokker()`). Teksten rundt
+    står i malen, ordrett slik Heine godkjente den 16.11.2026, og
+    tests/test_fasiten.py holder hvert tall i den mot filene.
+
+    STATUS PER PÅSTAND kommer fra fasiten. Uten en kvittert fasit
+    (`havbruksfond.lest_fasit()`) venter hver påstand på fordelingen. Med
+    en står utfallet `fasit_havbruksfond.py` skrev, påstand for påstand,
+    også der vi bommet. `fasit` kan sendes inn (tørrkjøringen og prøvene),
+    med `torrkjoring` som merket øverst på siden; ellers leses den
+    kvitterte.
+
+    Trenger ikke datarepoet: uten arkivet er fordelingen «ikke publisert».
+    """
+    import havbruksfond as h
+    if fasit is None:
+        fasit = h.lest_fasit(h.AAR)
+    status = _fordeling_status()
+    utfall: dict[str, str] = {}
+    if fasit:
+        utfall[fasit["pakke1"]["id"]] = fasit["pakke1"]["utfall"]
+        utfall.update({x["id"]: x["utfall"] for x in fasit["pakke2"]})
+    # FØR FASITEN ER KVITTERT venter påstanden på fordelingen. Er
+    # regnearket arkivert, eller fasiten kvittert uten et utfall for
+    # påstanden, er det ikke fordelingen den venter på.
+    venter = ("Ikke avgjort ennå" if fasit or status["publisert"]
+              else "Venter på fordelingen")
+
+    def paastand(p: dict) -> dict:
+        u = utfall.get(p["id"], "")
+        return {"id": p["id"], "konfidens": visningsord.prosent(p["konfidens"], 0),
+                "utfall": u, "status": FASIT_UTFALL[u] if u else venter}
+
+    forseglinger = []
+    for f in h.FORSEGLINGER:
+        ots = h.ROT / (f["fil"] + ".ots")
+        blokker = h.ots_blokker(ots.read_bytes(), ots.name)
+        forseglinger.append({
+            "dato": f["forseglet"], "anker": f"forseglet-{f['forseglet']}",
+            "blokk": blokker[0] if blokker else None,
+            "sha256": f["sha256"],
+            "fil": h.forseglet_navn(f), "ots": h.forseglet_navn(f, ots=True)})
+    p2 = [paastand(p) for p in h.pakke2()["paastander"]]
+    alle = [paastand(h.paastand1())] + p2
+    treff = sum(p["utfall"] == "traff" for p in alle)
+    bom = sum(p["utfall"] == "bom" for p in alle)
+    if treff or bom:
+        # «6 treff og 1 bom av 10 påstander», og de som står igjen.
+        oppsummert = f"{treff} treff og {bom} bom av {len(alle)} påstander"
+        if rest := len(alle) - treff - bom:
+            oppsummert += f", {rest} ikke avgjort"
+    else:
+        oppsummert = alle[0]["status"]
+    return {
+        "aar": h.AAR, "sti": f"/{h.FASITMAPPE}/",
+        "forseglinger": forseglinger,
+        "p1": alle[0], "p2": p2,
+        "status": status,
+        "fasit": ({"aar": fasit["aar"], **_fasit_vist(fasit, {})["kilde"]}
+                  if fasit else None),
+        # ÉN LINJE TIL OVERSIKTEN OG SØKET: hva som er avgjort.
+        "oppsummert": oppsummert,
+        "for": h.FOR, "etter": h.ETTER, "maaledato": h.MAALEDATO,
+        "torrkjoring": torrkjoring,
+    }
+
+
+def _jsonld_fasit(tittel: str, beskrivelse: str, vilkaar: dict, d: dict) -> Markup:
+    """schema.org/Dataset for siden med de forseglede anslagene.
+
+    UTEN `distribution`. Filene ligger ved siden av siden og lenkes fra
+    den, men en `contentUrl` som slutter på `.md`, leser porten som en sti
+    inn i repoet (`publiseringsvakt.repostier()` ser også teksten i et
+    skript). MÅLT 16.11.2026: fire funn på siden. Prøven er bred med
+    vilje, og nedlastingene står i HTML-en, der de er lenker.
+    """
+    data = {
+        "@context": "https://schema.org", "@type": "Dataset",
+        "name": tittel, "description": beskrivelse, "inLanguage": "nb",
+        "dateCreated": d["forseglinger"][0]["dato"],
+        "temporalCoverage": d["maaledato"],
+        "isBasedOn": [kildenode(k, vilkaar) for k in KOMMUNE_KILDER],
+        "creator": kystloggen(),
+    }
+    return _script_trygg(med_url_og_lisens(data, d["sti"]))
+
+
+def skriv_fasiten(rot: Path, felles: Felles | None = None,
+                  fasit: dict | None = None, torrkjoring: str = "") -> list[str]:
+    """/fasiten/ og siden for havbruksfondet, med de forseglede filene ved
+    siden av. Stiene som ble skrevet, til sitemapen. `fasit` og
+    `torrkjoring`: se `bygg_fasit_havbruksfond()`.
+
+    Filene først: siden lenker til dem, og JSON-LD-en oppgir dem som
+    nedlastinger porten krever at finnes.
+    """
+    import havbruksfond as h
+    skriv_forseglede(rot)
+    d = bygg_fasit_havbruksfond(fasit, torrkjoring)
+    miljo = _miljo()
+    vilkaar = felles.vilkaar if felles else kildevilkaar()
+    proveniens_tekst = proveniens(
+        d["for"], "", f"Registeret er også lest {visningsord.kortdato(d['etter'])}.")
+    datoer = visningsord.liste(
+        [visningsord.kortdato(s["dato"]) for s in d["forseglinger"]], "og")
+
+    tittel = f"Havbruksfondet {d['aar']}: anslagene våre, forseglet før fordelingen"
+    beskrivelse = (f"Fordelingen fra Havbruksfondet {d['aar']} per kommune og "
+                   f"fylkeskommune, regnet ut fra Akvakulturregisteret og "
+                   f"forseglet {datoer}, med filene og stemplene.")
+    sti = rot / h.FASITMAPPE / "index.html"
+    html = miljo.get_template("fasit-havbruksfond.html.j2").render(
+        d=d, **_grunnkontekst(
+            felles, rot, sti, kilder=KOMMUNE_KILDER,
+            tittel=f"{tittel} — Kystloggen", beskrivelse=beskrivelse,
+            jsonld=_jsonld_fasit(tittel, beskrivelse, vilkaar, d),
+            proveniens_tekst=proveniens_tekst, sidetype="Fasit",
+            undertittel=f"Forseglet {datoer}{SKILLE}{d['oppsummert']}",
+            soketekst="fasit anslag forseglet"))
+    skriv_side(sti, html)
+
+    oversikt = rot / FASIT_STI / "index.html"
+    beskrivelse = ("Anslag Kystloggen har forseglet før svaret var kjent, "
+                   "med fila, stempelet og utfallet for hvert.")
+    html = miljo.get_template("fasiten.html.j2").render(
+        d=d, datoer=datoer, **_grunnkontekst(
+            felles, rot, oversikt, kilder=KOMMUNE_KILDER,
+            tittel="Fasiten — Kystloggen", beskrivelse=beskrivelse,
+            jsonld="", proveniens_tekst=proveniens_tekst, sidetype="Liste",
+            undertittel="Forseglede anslag og utfallet",
+            soketekst="fasiten fasit anslag"))
+    skriv_side(oversikt, html)
+    return [f"/{FASIT_STI}/", d["sti"]]
 
 
 
@@ -11232,11 +11388,14 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
         logg.feilet.append(("kommuner", f"{type(feil).__name__}: {feil}"))
     tider["kommuner"] = time.perf_counter() - t0
 
-    # FASITEN: de forseglede anslagene, som kopier av filene. En fil som
-    # ikke lenger er den forseglede, feller fasen og bygget.
+    # FASITEN: de forseglede anslagene, med kopier av filene ved siden av
+    # siden. En fil som ikke lenger er den forseglede, feller fasen og
+    # bygget. Stiene går til sitemapen og llms.txt, som kommunene.
     t0 = time.perf_counter()
+    fasiten: list[str] = []
     try:
-        logg.forseglede = len(skriv_forseglede(rot))
+        fasiten = skriv_fasiten(rot, felles)
+        logg.forseglede = len(list((rot / FASIT_STI).rglob("*.md*")))
     except Exception as feil:                        # noqa: BLE001
         logg.feilet.append(("fasiten", f"{type(feil).__name__}: {feil}"))
     tider["fasiten"] = time.perf_counter() - t0
@@ -11275,9 +11434,9 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
                   lambda: skriv_ikoner(rot),
                   lambda: skriv_bilder(rot),
                   lambda: skriv_skript(rot),
-                  lambda: skriv_sitemap(rot, felles, uker, kommuner),
+                  lambda: skriv_sitemap(rot, felles, uker, kommuner, fasiten),
                   lambda: skriv_robots(rot),
-                  lambda: skriv_llms(rot, felles, uker, kommuner),
+                  lambda: skriv_llms(rot, felles, uker, kommuner, fasiten),
                   lambda: skriv_vertsfiler(rot),
                   lambda: skriv_404(rot, felles)):
         try:

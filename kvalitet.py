@@ -64,6 +64,8 @@ SIDETYPENAVN = {
     "endringer-type": "Endringer, type",
     "metode": "Om",
     "sok": "Søk",
+    "kommune": "Kommune",
+    "fasiten": "Fasiten",
 }
 
 

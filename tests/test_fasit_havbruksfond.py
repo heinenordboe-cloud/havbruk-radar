@@ -294,3 +294,27 @@ def test_uten_kvittering_ingen_belop(tmp_path, monkeypatch):
     fa.kvitter(2026)
     assert nettsted.bygg_kommuner(_felles())["fasit"]["per_kommune"]["5501"]["belop"] == \
         "1 000 kr"
+
+
+@trenger_data
+def test_fasitsiden_viser_utfallet_per_paastand(torr2025, tmp_path):
+    """/fasiten/havbruksfondet-2026/ med en fasit: statusen per påstand er
+    utfallet fasitfila har, i filas rekkefølge, også der anslaget bommet.
+    Slik fylles siden på fasitdagen, uten at noe annet må gjøres. Her er
+    det tørrkjøringen for 2025, og siden sier det øverst."""
+    from tests.test_fasiten import _main, _statuser, _tekst
+    data = {k: v for k, v in torr2025.items() if not k.startswith("_")}
+    merke = fa.TORRKJORING.format(aar=2025)
+    nettsted.skriv_fasiten(tmp_path, _felles(), fasit=data, torrkjoring=merke)
+    side = (tmp_path / h.FASITMAPPE / "index.html").read_text("utf-8")
+    ventet = [data["pakke1"]["utfall"]] + [x["utfall"] for x in data["pakke2"]]
+    assert _statuser(side) == [nettsted.FASIT_UTFALL[u] for u in ventet]
+    # 2025 er et oddetallsår med en del for ny MTB: pakke 1 bommer, og
+    # siden sier det.
+    assert ventet[0] == "bom" and {"traff", "bom"} <= set(ventet)
+    tekst = _tekst(_main(side))
+    assert merke in tekst and "Venter på fordelingen" not in tekst
+    assert "Fiskeridirektoratet har publisert fordelingen for 2025." in tekst
+    oversikt = _tekst(_main((tmp_path / "fasiten" / "index.html").read_text("utf-8")))
+    assert (f"{ventet.count('traff')} treff og {ventet.count('bom')} bom av 10 "
+            f"påstander") in oversikt

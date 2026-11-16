@@ -623,6 +623,19 @@ def anslaget(sti: Path = ANSLAG) -> dict[str, dict[str, float]]:
     return ut
 
 
+def paastand1(sti: Path = ANSLAG) -> dict:
+    """Den ene påstanden i pakke 1, slik den ble forseglet: id, konfidens,
+    `verdi_min`, `verdi_max`, `feil_hvis` og resten av YAML-blokka."""
+    import yaml
+    tekst = sti.read_text(encoding="utf-8")
+    blokk = re.search(r"```yaml\n(.*?)```", tekst, re.S)
+    paastander = yaml.safe_load(blokk.group(1))["prediksjoner"] if blokk else []
+    if len(paastander) != 1:
+        raise ValueError(f"{sti.name} har {len(paastander)} påstander, "
+                         f"ikke den ene den ble forseglet med")
+    return paastander[0]
+
+
 def _tall(celle: str) -> float:
     """«72 548.2» -> 72548.2. Tusenskillet i tabellene er et mellomrom."""
     return float(re.sub(r"[\s ]", "", celle))

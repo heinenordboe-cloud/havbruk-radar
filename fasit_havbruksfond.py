@@ -33,6 +33,11 @@ døgnet (MALING-HAVBRUKSFOND A6). Når fordelingen er blant kroppene, gjør
    siden av registerets andel når fila er kvittert. `--kvitter` skriver
    `lest-fasit-<år>.json` med summen av nøyaktig den fila
    (`havbruksfond.lest_fasit()`), og neste bygg viser den.
+7. /FASITEN/HAVBRUKSFONDET-<ÅR>/ viser utfallet per påstand i det samme
+   bygget, av den samme kvitterte fila: `pakke1.utfall` og
+   `pakke2[n].utfall` blir «Traff», «Bom» eller «Venter på regnearket»
+   der det sto «Venter på fordelingen»
+   (`nettsted.bygg_fasit_havbruksfond()`). Ingenting annet må gjøres.
 
 Exit 0 når fasiten er skrevet eller ingenting er kommet, 2 når et segl
 ikke holder, 3 når noe er kommet som ikke kan leses: et nytt vedlegg uten
@@ -532,9 +537,7 @@ def pakke1(t: Tabell, regneark_lest: bool) -> dict:
     Ett ledd som slår til, er nok (anslagets egne ord). Ledd 1 handler om
     en kolonne i regnearket og venter når bare pressemeldingen er lest.
     """
-    import yaml
-    tekst = h.ANSLAG.read_text(encoding="utf-8")
-    p = yaml.safe_load(re.search(r"```yaml\n(.*?)```", tekst, re.S).group(1))["prediksjoner"][0]
+    p = h.paastand1()
     ordrett = _ledd(p["feil_hvis"])
     a2 = h.anslaget()
     andel_k, andel_f = _andeler(t)
@@ -1099,13 +1102,16 @@ def kvitter(aar: int = h.AAR) -> Path:
 
 
 def sider(f: dict, ut: Path) -> int:
-    """Kommunesidene med fasiten i `f`, uten kvittering, til `ut`. Bare for
-    tørrkjøringen: hver side sier TØRRKJØRING øverst."""
+    """Kommunesidene med fasiten i `f`, uten kvittering, til `ut`, og siden
+    med de forseglede anslagene (/fasiten/) med utfallet per påstand. Bare
+    for tørrkjøringen: hver side sier TØRRKJØRING øverst."""
     import nettsted
     felles = nettsted.les_felles()
     data = {k: v for k, v in f.items() if not k.startswith("_")}
     nr = nettsted.skriv_kommuner(ut, felles, fasit=data,
                                  torrkjoring=TORRKJORING.format(aar=f["aar"]))
+    nettsted.skriv_fasiten(ut, felles, fasit=data,
+                           torrkjoring=TORRKJORING.format(aar=f["aar"]))
     nettsted.skriv_stil(ut)
     nettsted.skriv_fonter(ut)
     nettsted.skriv_ikoner(ut)
@@ -1128,7 +1134,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if a.kvitter:
         sti = kvitter()
-        print(f"Kvittert: {sti}\nNeste bygg viser Fiskeridirektoratets beløp på kommunesidene.")
+        print(f"Kvittert: {sti}\nNeste bygg viser Fiskeridirektoratets beløp på "
+              f"kommunesidene, og utfallet per påstand på /{h.FASITMAPPE}/.")
         return 0
     if a.torrkjor:
         if not a.ut:

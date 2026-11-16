@@ -1,0 +1,52 @@
+{# /fasiten/: anslagene vi har forseglet, og hvordan det gikk. Se
+   `nettsted.skriv_fasiten()`.
+
+   ANSLAG STÅR BARE HER (Heine, 10.11.2026). Resten av nettstedet er målte
+   tall. Siden er en liste: ett anslag per rad, med datoene det ble
+   forseglet og utfallet. I dag er det ett, havbruksfondet. Maskinanslagene
+   kommer hit i økt 16.
+
+   Tabellen blir kort på smal skjerm, som de andre: en rad er en lenke,
+   to datoer og en status. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div data-pagefind-body class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Forside</a></li>
+      <li aria-current="page">Fasiten</li>
+    </ol>
+  </nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<div class="ark">
+<h1>Fasiten</h1>
+<div class="fasit-ingress">
+  <p>Anslag vi har forseglet før svaret var kjent, og hvordan det gikk.</p>
+</div>
+
+<p class="tabelltittel" id="fasit-anslag-tittel">Forseglede anslag</p>
+<div class="tabellramme" role="region" aria-labelledby="fasit-anslag-tittel" tabindex="0">
+<table id="fasit-anslag" aria-labelledby="fasit-anslag-tittel">
+  <thead>
+    <tr>
+      <th scope="col">Anslag</th>
+      <th scope="col">Forseglet</th>
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row"><a href="{{ d.sti }}">Havbruksfondet {{ d.aar }}</a></th>
+      <td data-felt="forseglet">{% for s in d.forseglinger %}<time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>{% if not loop.last %} og {% endif %}{% endfor %}</td>
+      <td data-felt="utfall">{{ d.oppsummert }}</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<p class="historikk-forklaring">Ellers viser Kystloggen bare målte tall. Anslag står bare her.</p>
+</div>
+{% endblock %}

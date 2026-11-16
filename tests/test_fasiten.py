@@ -313,3 +313,300 @@ def test_portens_bygg_har_de_forseglede_filene():
     assert v.forseglingsfunn(NETTSTED) == ([], {k["sti"] for k in h.forseglede_kopier()})
     andre = sorted(p.relative_to(NETTSTED).as_posix() for p in NETTSTED.rglob("*.ots"))
     assert andre == sorted(k["sti"] for k in h.forseglede_kopier() if k["ots"])
+
+
+# ------------------------------------------------------------ siden
+#
+# /fasiten/havbruksfondet-2026/ og /fasiten/. Siden trenger ikke
+# datarepoet: alt den viser, står i de forseglede filene, og uten arkivet
+# er fordelingen «ikke publisert».
+
+import html
+import re
+
+SIDE = f"{MAPPE}/index.html"
+
+
+def _tekst(markup: str) -> str:
+    """Teksten slik avsnittsvakten leser den, med vanlig mellomrom der
+    siden har et hardt (mellom tall og enhet)."""
+    uten = html.unescape(re.sub(r"<[^>]+>", "", markup))
+    return " ".join(uten.replace(" ", " ").split())
+
+
+def _main(side: str) -> str:
+    return re.search(r"<main\b.*?</main>", side, re.S).group(0)
+
+
+@pytest.fixture(scope="module")
+def fasitsider(tmp_path_factory):
+    ut = tmp_path_factory.mktemp("fasiten")
+    assert nettsted.skriv_fasiten(ut) == ["/fasiten/", f"/{MAPPE}/"]
+    return ut
+
+
+# TEKSTEN HEINE GODKJENTE 16.11.2026, i den rekkefølgen den står på siden.
+# Hver linje skal stå ordrett. Ingressens første setning og «Feil hvis»
+# står i flere avsnitt på siden (110-grensa); her er de én linje, for det
+# er ordene som er godkjent.
+TEKSTEN = [
+    "Havbruksfondet 2026: anslagene våre, forseglet før fordelingen",
+    "Vi regnet ut fordelingen fra Akvakulturregisteret og forseglet anslagene "
+    "før Fiskeridirektoratet publiserte den. Når fordelingen kommer, står "
+    "fasiten her, også der vi bommer.",
+    "Fordelingen for 2026 er ikke publisert ennå. Andelen sier hvor stor del av "
+    "utbetalingen hver kommune får, ikke hvor mye. Beløpet avhenger av hva "
+    "staten har fått inn, og det anslår vi ikke.",
+    "Forseglet 12.10.2026 · Bitcoin-blokk 971138",
+    "Andelen for hver av de 143 kommunene og 8 fylkeskommunene, regnet ut fra "
+    "registeret 31.08 og 07.09.2026.",
+    "Påstanden: Alle ligger innenfor 0,05 prosentpoeng av Fiskeridirektoratets andel.",
+    "Feil hvis: én kommune eller fylkeskommune bommer med mer, kommunene ikke er "
+    "de samme 143, eller noen kommune får en ekstra del for ny kapasitet.",
+    "Konfidens 75 % · Venter på fordelingen",
+    f"Fingeravtrykk (sha256): {SEGL['2026-10-12']} Anslaget Stempelet",
+    "Forseglet 09.11.2026 · Bitcoin-blokk 975211",
+    "Ni skarpere påstander, som hver kan avgjøres for seg.",
+    "Nr. Påstanden Konfidens Status",
+    "1 De 89 kommunene der ingenting er endret siden 2025, har samme MTB som i "
+    "2025, ±1 tonn 90 % Venter på fordelingen",
+    "2 De 26 kommunene med nye, borte eller endrede lokaliteter har den MTB-en "
+    "vi har regnet ut, ±1 tonn 80 % Venter på fordelingen",
+    "3 Havbruksstasjonen i Tromsøs to lokaliteter (650 t og 975 t) er med, som i "
+    "2024 og 2025 75 % Venter på fordelingen",
+    "4 HØGÅS i Strand (780 t) er med igjen 85 % Venter på fordelingen",
+    "5 De ni lokalitetene som bare har tillatelse for andre arter enn laks, "
+    "ørret og regnbueørret, er ikke med 90 % Venter på fordelingen",
+    "6 De ti lokalitetene som deles mellom to kommuner, deles som i 2025 "
+    "(innenfor 0,001), og Persflua deles ikke 70 % Venter på fordelingen",
+    "7 Alle 8 fylkeskommuner ligger innenfor 0,005 prosentpoeng av vår andel "
+    "55 % Venter på fordelingen",
+    "8 Alle 143 kommuner ligger innenfor 0,005 prosentpoeng, ti ganger smalere "
+    "enn 12.10 35 % Venter på fordelingen",
+    "9 Fylkeskommunene får 20 % av utbetalingen, ±0,001 prosentpoeng 95 % "
+    "Venter på fordelingen",
+    "Konfidensen er hvor sikre vi var da vi forseglet. En påstand på 35 % skal "
+    "bomme oftere enn den treffer.",
+    "Ved uenighet gjelder den forseglede fila.",
+    f"Fingeravtrykk (sha256): {SEGL['2026-11-09']} Påstandene Stempelet",
+    "Slik sjekker du oss",
+    "Last ned anslaget og stempelet (lenkene over).",
+    "Slipp begge på opentimestamps.org. Den viser datoen fila ble forseglet, "
+    "bekreftet i Bitcoin.",
+    "I terminalen: ots verify.",
+]
+
+
+def _mangler(tekst: str, linjer: list[str]) -> list[str]:
+    """Linjene som ikke står i `tekst`, i rekkefølge etter den forrige."""
+    pos, ute = 0, []
+    for linje in linjer:
+        her = tekst.find(linje, pos)
+        if her < 0:
+            ute.append(linje)
+        else:
+            pos = her + len(linje)
+    return ute
+
+
+def test_siden_har_teksten_ordrett(fasitsider):
+    tekst = _tekst(_main((fasitsider / SIDE).read_text("utf-8")))
+    assert _mangler(tekst, TEKSTEN) == []
+    # Og prøven ser en endring: ett ord byttet, og linja mangler.
+    assert _mangler(tekst.replace("også der vi bommer", "også der vi treffer"),
+                    TEKSTEN) == [TEKSTEN[1]]
+
+
+def test_tallene_i_paastandene_er_de_forseglede_filenes():
+    """Hvert tall i teksten, hentet ut av filene og satt inn i setningen
+    det står i. Er et tall i TEKSTEN et annet enn filas, feiler linja."""
+    a, p1, p2 = h.anslaget(), h.paastand1(), h.pakke2()
+    ps = p2["paastander"]
+    ord_ = {9: "ni", 10: "ti"}
+
+    def tall(monster: str, tekst: str) -> str:
+        m = re.search(monster, tekst)
+        assert m, (monster, tekst)
+        return m.group(1)
+
+    lok = {pid: [x for x in p2["lokaliteter"] if x["paastand"] == pid]
+           for pid in ("P2-3", "P2-4", "P2-5", "P2-6")}
+    delte = [x for x in lok["P2-6"] if x["deling"]]
+    udelt = [x for x in lok["P2-6"] if not x["deling"]]
+    assert [x["forventet"] for x in udelt] == ["ikke delt"]
+    assert {x["forventet"] for x in lok["P2-3"] + lok["P2-4"]} == {"med"}
+    assert {x["forventet"] for x in lok["P2-5"]} == {"ute"}
+    assert all(len(x["kommuner"]) == 2 for x in delte)
+    hogas = lok["P2-4"][0]
+    strand = p2["kommuner"][hogas["kommuner"][0]]["navn"].capitalize()
+    margin1 = tall(r"A2-andel − (0,\d+) prosentpoeng", p1["verdi_min"])
+    margin8 = tall(r"− (0,\d+) prosentpoeng", ps[7]["verdi_min"])
+    assert float(margin1.replace(",", ".")) / float(margin8.replace(",", ".")) == 10
+    aar = h.FORRIGE_AAR
+    ventet = [
+        f"Andelen for hver av de {len(a['kommuner'])} kommunene og {len(a['fylker'])} "
+        f"fylkeskommunene, regnet ut fra registeret {h.FOR[8:]}.{h.FOR[5:7]} og "
+        f"{h.ETTER[8:]}.{h.ETTER[5:7]}.{h.ETTER[:4]}.",
+        f"Påstanden: Alle ligger innenfor {margin1} prosentpoeng av "
+        f"Fiskeridirektoratets andel.",
+        f"kommunene ikke er de samme {len(a['kommuner'])},",
+        f"Konfidens {p1['konfidens']} % ·",
+        f"De {len(p2['grupper']['U'])} kommunene der ingenting er endret siden {aar}, "
+        f"har samme MTB som i {aar}, ±{tall(r'− (\d+) t,', ps[0]['verdi_min'])} tonn "
+        f"{ps[0]['konfidens']} %",
+        f"De {len(p2['grupper']['E'])} kommunene med nye, borte eller endrede "
+        f"lokaliteter har den MTB-en vi har regnet ut, "
+        f"±{tall(r'− (\d+) t,', ps[1]['verdi_min'])} tonn {ps[1]['konfidens']} %",
+        f"Havbruksstasjonen i Tromsøs to lokaliteter ({lok['P2-3'][0]['mtb']:.0f} t og "
+        f"{lok['P2-3'][1]['mtb']:.0f} t) er med, som i {aar - 1} og {aar} "
+        f"{ps[2]['konfidens']} %",
+        f"{hogas['navn']} i {strand} ({hogas['mtb']:.0f} t) er med igjen "
+        f"{ps[3]['konfidens']} %",
+        f"De {ord_[len(lok['P2-5'])]} lokalitetene som bare har tillatelse for andre "
+        f"arter enn laks, ørret og regnbueørret, er ikke med {ps[4]['konfidens']} %",
+        f"De {ord_[len(delte)]} lokalitetene som deles mellom to kommuner, deles som i "
+        f"{aar} (innenfor {tall(r'± (0,\d+);', ps[5]['verdi_min'])}), og "
+        f"{udelt[0]['navn'].capitalize()} deles ikke {ps[5]['konfidens']} %",
+        f"Alle {len(p2['fylker'])} fylkeskommuner ligger innenfor "
+        f"{tall(r'− (0,\d+) prosentpoeng', ps[6]['verdi_min'])} prosentpoeng av vår "
+        f"andel {ps[6]['konfidens']} %",
+        f"Alle {len(p2['kommuner'])} kommuner ligger innenfor {margin8} prosentpoeng, "
+        f"ti ganger smalere enn 12.10 {ps[7]['konfidens']} %",
+        f"Fylkeskommunene får {tall(r'^(\d+ %) −', ps[8]['verdi_min'])} av "
+        f"utbetalingen, ±{tall(r'− (0,\d+) prosentpoeng', ps[8]['verdi_min'])} "
+        f"prosentpoeng {ps[8]['konfidens']} %",
+        f"En påstand på {min(p['konfidens'] for p in ps)} % skal bomme oftere enn "
+        f"den treffer.",
+    ]
+    godkjent = " ".join(TEKSTEN)
+    assert [linje for linje in ventet if linje not in godkjent] == []
+    assert len(ps) == 9 and "Ni skarpere påstander" in godkjent
+    # Tromsø-lokalitetene sto på listene begge årene påstanden nevner, og
+    # den første forseglingen er den påstand 8 måler seg mot.
+    assert "både per 01.09.2024 og per 01.09.2025" in " ".join(ps[2]["grunnlag"].split())
+    assert h.FORSEGLINGER[0]["forseglet"][5:] == "10-12"
+
+
+def test_porten_har_ingenting_aa_innvende_mot_sidene(fasitsider):
+    """Avsnitt over 110 tegn, repo-stier, rå tidsstempler og JSON-LD."""
+    for rel in ("fasiten/index.html", SIDE):
+        side = (fasitsider / rel).read_text("utf-8")
+        assert v.tekstfunn(rel, ".html", side, set(), set()) == [], rel
+    assert v.jsonldfunn(fasitsider) == []
+    assert v.forseglingsfunn(fasitsider)[0] == []
+
+
+def test_ingen_lenke_til_kodrepoet_og_ingen_interne_ord(fasitsider):
+    """En leser skal ikke måtte til kodrepoet. Hver lenke i innholdet går
+    til nettstedet selv, til en fil ved siden av, eller til
+    opentimestamps.org. «Pakke 1» og «pakke 2» er våre ord."""
+    for rel in ("fasiten/index.html", SIDE):
+        main = _main((fasitsider / rel).read_text("utf-8"))
+        assert "github.com" not in main, rel
+        lenker = re.findall(r'href="([^"]+)"', main)
+        fremmede = [l for l in lenker if "://" in l and l != "https://opentimestamps.org/"]
+        assert lenker and fremmede == [], (rel, fremmede)
+        assert not re.findall(r"(?i)\bpakke\s*\d|sources/|FINNES IKKE", _tekst(main)), rel
+
+
+def test_lenkene_gaar_til_fila_og_stempelet_ved_siden_av(fasitsider):
+    """«Anslaget», «Påstandene» og «Stempelet» er nedlastinger av kopiene i
+    samme mappe, og kopiene er de forseglede."""
+    main = _main((fasitsider / SIDE).read_text("utf-8"))
+    lenker = re.findall(r'<a class="handling" href="([^"]+)" download>([^<]+)</a>', main)
+    assert lenker == [
+        (NAVN["2026-10-12"], "Anslaget"), (NAVN["2026-10-12"] + ".ots", "Stempelet"),
+        (NAVN["2026-11-09"], "Påstandene"), (NAVN["2026-11-09"] + ".ots", "Stempelet")]
+    for (navn, _), dato in zip(lenker, ("2026-10-12", "2026-10-12", "2026-11-09", "2026-11-09")):
+        data = (fasitsider / MAPPE / navn).read_bytes()
+        sum_ = h.ots_sum(data) if navn.endswith(".ots") else hashlib.sha256(data).hexdigest()
+        assert sum_ == SEGL[dato], navn
+    # Hver forsegling har et anker andre sider kan lenke til.
+    for dato in SEGL:
+        assert f'id="forseglet-{dato}"' in main
+
+
+def test_oversikten_lister_siden(fasitsider):
+    main = _main((fasitsider / "fasiten" / "index.html").read_text("utf-8"))
+    assert f'<a href="/{MAPPE}/">Havbruksfondet 2026</a>' in main
+    assert _mangler(_tekst(main), [
+        "Fasiten", "Anslag vi har forseglet før svaret var kjent, og hvordan det gikk.",
+        "Havbruksfondet 2026 12.10.2026 og 09.11.2026 Venter på fordelingen"]) == []
+
+
+def _fasit(utfall1: str, utfall2: list[str]) -> dict:
+    """Det siden leser av en fasit: utfallet per påstand og hvor tabellen
+    kom fra. Resten av fasitfila står i tests/test_fasit_havbruksfond.py."""
+    return {"aar": 2026,
+            "tabell": {"form": "regneark", "sha256": "ab" * 32,
+                       "url": "https://www.fiskeridir.no/akvakultur/havbruksfondet",
+                       "hentet": "2026-11-20T08:00:00+00:00"},
+            "sider": {"kommuner": {}, "fylker": {}},
+            "pakke1": {"id": "2026-10-12-1", "utfall": utfall1},
+            "pakke2": [{"id": f"2026-11-09-{n}", "utfall": u}
+                       for n, u in enumerate(utfall2, 1)]}
+
+
+def _statuser(side: str) -> list[str]:
+    """Statusen per påstand: den første forseglingens ene, så de ni.
+    Cellene får `data-label` ved bygging, så attributtene leses fritt."""
+    return [_tekst(m.group(2)) for m in re.finditer(
+        r'<(td|span)\b[^>]*\bdata-felt="utfall"[^>]*>(.*?)</\1>', _main(side), re.S)]
+
+
+def test_utfallet_staar_per_paastand_naar_fasiten_er_kvittert(tmp_path):
+    """På fasitdagen: «Traff», «Bom» eller «Venter på regnearket» der det
+    sto «Venter på fordelingen», påstand for påstand, også der vi bommet.
+    Første setning sier at fordelingen er publisert, med kilden."""
+    uten = tmp_path / "uten"
+    nettsted.skriv_fasiten(uten)
+    assert _statuser((uten / SIDE).read_text("utf-8")) == ["Venter på fordelingen"] * 10
+
+    f = _fasit("bom", ["traff", "traff", "bom", "traff", "traff", "venter",
+                       "bom", "bom", "traff"])
+    med = tmp_path / "med"
+    nettsted.skriv_fasiten(med, fasit=f)
+    side = (med / SIDE).read_text("utf-8")
+    assert _statuser(side) == ["Bom", "Traff", "Traff", "Bom", "Traff", "Traff",
+                               "Venter på regnearket", "Bom", "Bom", "Traff"]
+    tekst = _tekst(_main(side))
+    assert "Fiskeridirektoratet har publisert fordelingen for 2026." in tekst
+    assert "ikke publisert ennå" not in tekst and "Venter på fordelingen" not in tekst
+    assert "Fiskeridir. · regnearket · hentet 20.11.2026" in tekst
+    # Det som ikke er fasiten, står som før.
+    assert _mangler(tekst, [l for l in TEKSTEN if "Venter på" not in l
+                            and "ikke publisert" not in l]) == []
+    oversikt = _tekst(_main((med / "fasiten" / "index.html").read_text("utf-8")))
+    assert "5 treff og 4 bom av 10 påstander, 1 ikke avgjort" in oversikt
+    assert v.tekstfunn(SIDE, ".html", side, set(), set()) == []
+
+
+def test_arkivert_men_ikke_kvittert_er_ikke_avgjort(tmp_path, monkeypatch):
+    """Regnearket er arkivert, fasiten er ikke lest ennå. Da venter ikke
+    påstandene på fordelingen, og siden sier ikke at de gjør det."""
+    monkeypatch.setattr(nettsted, "_fordeling_status",
+                        lambda: {"publisert": True, "lest": "2026-11-20"})
+    nettsted.skriv_fasiten(tmp_path)
+    side = (tmp_path / SIDE).read_text("utf-8")
+    assert _statuser(side) == ["Ikke avgjort ennå"] * 10
+    assert "Fiskeridirektoratet har publisert fordelingen for 2026." in _tekst(_main(side))
+
+
+def test_en_paastand_fasiten_ikke_har_er_ikke_avgjort(tmp_path):
+    """En fasit uten utfall for en påstand gir ikke «Venter på
+    fordelingen» om en fordeling som er kommet."""
+    nettsted.skriv_fasiten(tmp_path, fasit=_fasit("traff", ["traff"] * 3))
+    assert _statuser((tmp_path / SIDE).read_text("utf-8")) == (
+        ["Traff"] * 4 + ["Ikke avgjort ennå"] * 6)
+
+
+@trenger_bygg
+def test_portens_bygg_har_sidene_i_sitemapen_og_llms():
+    assert _mangler(_tekst(_main((NETTSTED / SIDE).read_text("utf-8"))),
+                    [l for l in TEKSTEN if "Venter på" not in l
+                     and "ikke publisert" not in l]) == []
+    sitemap = (NETTSTED / "sitemap.xml").read_text("utf-8")
+    assert "/fasiten/</loc>" in sitemap and f"/{MAPPE}/</loc>" in sitemap
+    assert "/fasiten/)" in (NETTSTED / "llms.txt").read_text("utf-8")
+    for rel in ("fasiten/index.html", SIDE):
+        assert "github.com" not in _main((NETTSTED / rel).read_text("utf-8")), rel

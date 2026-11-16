@@ -1208,9 +1208,13 @@ cd ~/havbruk-radar-data && git add data/havbruksfond && git commit -m "Havbruksf
 
 Kvitteringen (`lest-fasit-2026.json`) gjelder den ene fila, med summen
 av den. Neste bygg viser Fiskeridirektoratets beløp på kommunesidene,
-med kilde og datoen vi hentet tabellen. Skrives fasiten på nytt med et
-annet innhold (`fasit-2026.2.json`), vises ingenting før den nye er
-kvittert.
+med kilde og datoen vi hentet tabellen. Det samme bygget viser utfallet
+per påstand på `/fasiten/havbruksfondet-2026/`: «Traff», «Bom» eller
+«Venter på regnearket» der det sto «Venter på fordelingen», lest av
+`pakke1.utfall` og `pakke2[n].utfall` i den kvitterte fila. Er
+regnearket arkivert, men fasiten ikke kvittert, står det «Ikke avgjort
+ennå». Skrives fasiten på nytt med et annet innhold
+(`fasit-2026.2.json`), vises ingenting før den nye er kvittert.
 
 | exit | betyr |
 |---|---|

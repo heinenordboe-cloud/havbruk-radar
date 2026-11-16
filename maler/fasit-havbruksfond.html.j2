@@ -1,0 +1,225 @@
+{# /fasiten/havbruksfondet-<år>/: anslagene for fordelingen fra
+   Havbruksfondet, slik de ble forseglet, og hvordan det gikk. Se
+   `nettsted.bygg_fasit_havbruksfond()`.
+
+   HVORFOR SIDEN FINNES (økt 16a, 16.11.2026). Anslagene er to filer i
+   kodrepoet, skrevet for verktøyene våre, og de kan ikke endres: en
+   rettet fil er ikke den forseglede. Til i dag lenket kommunesidene rett
+   til dem. Denne siden sier det filene sier, i vanlig norsk, og har en
+   kopi av hver fil og hvert stempel ved siden av seg, byte for byte.
+   Ingen skal måtte til kodrepoet for å lese eller sjekke et anslag.
+
+   TEKSTEN ER GODKJENT AV HEINE 16.11.2026 OG STÅR ORDRETT. Det som ikke
+   står som tekst her, leses av de forseglede filene: datoen, summen og
+   konfidensen per påstand, og Bitcoin-blokka av stempelet. Tallene I
+   teksten (89 kommuner, 650 t, 0,005 prosentpoeng) er skrevet av fra
+   filene, og tests/test_fasiten.py holder hvert av dem mot fila.
+
+   TO STEDER TEKSTEN ER DELT, begge fordi et avsnitt ikke skal være over
+   110 tegn (BRIEF, tekstreglene). Ordene er de samme:
+     - ingressens første setning er 112 tegn og står på to linjer, delt
+       foran «og»
+     - «Feil hvis» er 132 tegn og står som tre punkter
+
+   STATUS PER PÅSTAND er «Venter på fordelingen» til fasiten er kvittert
+   (`fasit_havbruksfond.py --kvitter`). Da står utfallet her, påstand for
+   påstand, også der vi bommet.
+
+   INGEN LENKE TIL KODREPOET i innholdet, og ingen «pakke 1» og «pakke 2»:
+   det er våre ord. Hardt mellomrom mellom tall og enhet, som ellers. #}
+{% extends "base.html.j2" %}
+
+{% block toppinnhold %}
+<div data-pagefind-body class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Forside</a></li>
+      <li><a href="/fasiten/">Fasiten</a></li>
+      <li aria-current="page">Havbruksfondet {{ d.aar }}</li>
+    </ol>
+  </nav>
+</div>
+{% endblock %}
+
+{# FILA OG STEMPELET for én forsegling: summen i sin helhet, så den kan
+   holdes mot `shasum -a 256`, og de to nedlastingene. `hva` er lenketeksten
+   til fila. #}
+{% macro segl(s, hva) %}
+  <p class="fasit-segl">Fingeravtrykk (sha256):
+    <code class="tall-mono fasit-sum" data-felt="sha256">{{ s.sha256 }}</code></p>
+  <ul class="handlinger fasit-filer" aria-label="Fila og stempelet forseglet {{ s.dato|kortdato }}">
+    <li><a class="handling" href="{{ s.fil }}" download>{{ hva }}</a></li>
+    <li><a class="handling" href="{{ s.ots }}" download>Stempelet</a></li>
+  </ul>
+{% endmacro %}
+
+{% macro overskrift(s) -%}
+Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
+{%- if s.blokk %} · Bitcoin-blokk {{ s.blokk }}{% endif %}
+{%- endmacro %}
+
+{% block innhold %}
+<div class="ark">
+{% if d.torrkjoring %}<p class="historikk-forklaring"><strong>{{ d.torrkjoring }}</strong></p>{% endif %}
+<h1>Havbruksfondet {{ d.aar }}: anslagene våre, forseglet før fordelingen</h1>
+
+{# INGRESSEN. Første setning står på to linjer; se toppen av fila. #}
+<div class="fasit-ingress">
+  <p>Vi regnet ut fordelingen fra Akvakulturregisteret</p>
+  <p>og forseglet anslagene før Fiskeridirektoratet publiserte den.</p>
+  <p>Når fordelingen kommer, står fasiten her, også der vi bommer.</p>
+</div>
+
+{# STATUS. Første setning følger arkivet, som på kommunesidene. De to
+   neste står uansett: påstandene gjelder andeler, ikke beløp. #}
+<div class="fasit-status" id="status">
+  <p>
+    {%- if d.fasit %}Fiskeridirektoratet har publisert fordelingen for {{ d.fasit.aar }}.
+    {%- elif d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
+    {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå.{% endif %}</p>
+  <p>Andelen sier hvor stor del av utbetalingen hver kommune får, ikke hvor mye.</p>
+  <p>Beløpet avhenger av hva staten har fått inn, og det anslår vi ikke.</p>
+  {% if d.fasit %}
+  <p><span class="herkomst">Fiskeridir. ·
+    {% if d.fasit.url %}<a href="{{ d.fasit.url }}">{{ d.fasit.navn }}</a>{% else %}{{ d.fasit.navn }}{% endif %}
+    · hentet <time datetime="{{ d.fasit.hentet }}">{{ d.fasit.hentet|kortdato }}</time></span></p>
+  {% endif %}
+</div>
+
+<ul class="handlinger" aria-label="Andelene, sjekk og sitering">
+  <li><a class="handling" href="/kommune/">Andelen for hver kommune</a></li>
+  <li><a class="handling" href="#sjekk">Slik sjekker du oss</a></li>
+  <li><a class="handling" href="#siter">Siter</a></li>
+</ul>
+</div>
+
+{# ---------------------------------------------------------------- 1
+   DEN FØRSTE FORSEGLINGEN: én påstand om alle andelene. #}
+{% set s = d.forseglinger[0] %}
+<section class="ark seksjon fasit-blokk" id="{{ s.anker }}" aria-labelledby="{{ s.anker }}-tittel">
+  <h2 id="{{ s.anker }}-tittel">{{ overskrift(s) }}</h2>
+  <p>Andelen for hver av de 143 kommunene og 8 fylkeskommunene, regnet ut
+    fra registeret 31.08 og 07.09.2026.</p>
+  <p><strong>Påstanden:</strong> Alle ligger innenfor 0,05&nbsp;prosentpoeng av
+    Fiskeridirektoratets andel.</p>
+  <p class="fasit-listehode"><strong>Feil hvis:</strong></p>
+  <ul>
+    <li>én kommune eller fylkeskommune bommer med mer,</li>
+    <li>kommunene ikke er de samme 143,</li>
+    <li>eller noen kommune får en ekstra del for ny kapasitet.</li>
+  </ul>
+  <p class="fasit-utfall">Konfidens <span data-felt="konfidens">{{ d.p1.konfidens }}</span> ·
+    <span data-felt="utfall">{{ d.p1.status }}</span></p>
+  {{ segl(s, "Anslaget") }}
+</section>
+
+{# ---------------------------------------------------------------- 2
+   DEN ANDRE FORSEGLINGEN: ni påstander, i rekkefølgen fila har dem.
+   `d.p2[n]` er påstand n + 1 i fila; konfidensen og statusen er dens. #}
+{% set s = d.forseglinger[1] %}
+<section class="ark seksjon fasit-blokk" id="{{ s.anker }}" aria-labelledby="{{ s.anker }}-tittel">
+  <h2 id="{{ s.anker }}-tittel">{{ overskrift(s) }}</h2>
+  <p class="tabelltittel" id="fasit-paastander-tittel">Ni skarpere påstander, som hver kan avgjøres for seg.</p>
+  <div class="tabellramme" role="region" aria-labelledby="fasit-paastander-tittel" tabindex="0">
+  <table id="fasit-paastander" aria-labelledby="fasit-paastander-tittel">
+    <thead>
+      <tr>
+        <th scope="col" class="tall">Nr.</th>
+        <th scope="col">Påstanden</th>
+        <th scope="col" class="tall">Konfidens</th>
+        <th scope="col">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">1</td>
+        <th scope="row">De 89 kommunene der ingenting er endret siden 2025, har samme MTB som i 2025, ±1&nbsp;tonn</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[0].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[0].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">2</td>
+        <th scope="row">De 26 kommunene med nye, borte eller endrede lokaliteter har den MTB-en vi har regnet ut, ±1&nbsp;tonn</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[1].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[1].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">3</td>
+        <th scope="row">Havbruksstasjonen i Tromsøs to lokaliteter (650&nbsp;t og 975&nbsp;t) er med, som i 2024 og 2025</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[2].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[2].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">4</td>
+        <th scope="row">HØGÅS i Strand (780&nbsp;t) er med igjen</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[3].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[3].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">5</td>
+        <th scope="row">De ni lokalitetene som bare har tillatelse for andre arter enn laks, ørret og regnbueørret, er ikke med</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[4].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[4].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">6</td>
+        <th scope="row">De ti lokalitetene som deles mellom to kommuner, deles som i 2025 (innenfor 0,001), og Persflua deles ikke</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[5].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[5].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">7</td>
+        <th scope="row">Alle 8 fylkeskommuner ligger innenfor 0,005&nbsp;prosentpoeng av vår andel</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[6].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[6].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">8</td>
+        <th scope="row">Alle 143 kommuner ligger innenfor 0,005&nbsp;prosentpoeng, ti ganger smalere enn 12.10</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[7].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[7].status }}</td>
+      </tr>
+      <tr>
+        <td class="tall" data-felt="paastand_nr">9</td>
+        <th scope="row">Fylkeskommunene får 20&nbsp;% av utbetalingen, ±0,001&nbsp;prosentpoeng</th>
+        <td class="tall" data-felt="konfidens">{{ d.p2[8].konfidens }}</td>
+        <td data-felt="utfall">{{ d.p2[8].status }}</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="tabellnote">Konfidensen er hvor sikre vi var da vi forseglet.
+    En påstand på 35&nbsp;% skal bomme oftere enn den treffer.</p>
+  <p>Ved uenighet gjelder den forseglede fila.</p>
+  {{ segl(s, "Påstandene") }}
+</section>
+
+{# ---------------------------------------------------------------- 3
+   SLIK SJEKKER DU OSS, uten terminal først. MÅLT 10.11.2026 med
+   Playwright: opentimestamps.org verifiserer begge filene med sin .ots,
+   og viser blokkene i overskriftene over. Terminalen er samme kjede som
+   `fasit_havbruksfond.bitcoin()`. #}
+<section class="ark seksjon" id="sjekk" aria-labelledby="sjekk-tittel">
+  <h2 id="sjekk-tittel">Slik sjekker du oss</h2>
+  <ol>
+    <li>Last ned anslaget og stempelet (lenkene over).</li>
+    <li>Slipp begge på <a href="https://opentimestamps.org/">opentimestamps.org</a>. Den viser datoen fila ble forseglet, bekreftet i Bitcoin.</li>
+    <li>I terminalen: <code>ots verify</code>.</li>
+  </ol>
+</section>
+
+<section class="ark seksjon" id="siter" aria-labelledby="siter-tittel">
+  <div class="siterboks">
+    <div class="siterboks-hode">
+      <h2 id="siter-tittel">Siter denne siden</h2>
+      <button class="knapp kopierknapp" type="button"
+              data-kopier="siterbar" hidden>Kopier</button>
+    </div>
+    <p class="siterbar" id="siterbar">Kystloggen ({{ d.aar }}).
+      <i>Havbruksfondet {{ d.aar }}: anslagene våre, forseglet før fordelingen.</i>
+      Forseglet {% for f in d.forseglinger %}{{ f.dato|kortdato }}{% if not loop.last %} og {% endif %}{% endfor %},
+      sha256 {% for f in d.forseglinger %}{{ f.sha256[:8] }}…{{ f.sha256[-4:] }}{% if not loop.last %} og {% endif %}{% endfor %}.
+      {{ kanonisk }}</p>
+  </div>
+</section>
+{% endblock %}
