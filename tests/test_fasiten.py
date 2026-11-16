@@ -610,3 +610,11 @@ def test_portens_bygg_har_sidene_i_sitemapen_og_llms():
     assert "/fasiten/)" in (NETTSTED / "llms.txt").read_text("utf-8")
     for rel in ("fasiten/index.html", SIDE):
         assert "github.com" not in _main((NETTSTED / rel).read_text("utf-8")), rel
+
+
+def test_tall_og_enhet_holder_sammen_paa_siden(fasitsider):
+    """Hardt mellomrom mellom tall og enhet i hver celle, som på
+    kommunesidene: «650 t» skal ikke brytes over to linjer i et kort."""
+    from tests.test_havbruksfond import _brutte_enheter
+    for rel in ("fasiten/index.html", SIDE):
+        assert _brutte_enheter((fasitsider / rel).read_text("utf-8")) == [], rel

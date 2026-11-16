@@ -57,6 +57,9 @@
   {%- if d.fasit %}Fiskeridirektoratet har publisert fordelingen for {{ d.fasit.aar }}.
   {%- elif d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
   {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå. Ingen beløp står her.{% endif %}</p>
+{# ANDEL ER IKKE BELØP, her andelen vises første gang (Heine, 16.11.2026).
+   Samme to setninger som under statusen på /fasiten/havbruksfondet-<år>/. #}
+{% with klasse = "historikk-forklaring" %}{% include "andel-og-belop.html.j2" %}{% endwith %}
 <p class="historikk-forklaring">{% if d.status.lest %}<a href="{{ d.fiskeridir }}">Fiskeridirektoratets side</a> sist lest
   <time datetime="{{ d.status.lest }}">{{ d.status.lest|kortdato }}</time>.{% endif %}
   <a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den

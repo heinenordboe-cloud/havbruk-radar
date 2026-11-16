@@ -291,7 +291,12 @@ def test_ingen_kronebelop_paa_kommunesidene():
 # viser at de kan feile.
 
 MALENE = ("kommune.html.j2", "kommuner.html.j2", "kommune-bevis.html.j2",
-          "kommune-segl.html.j2")
+          "kommune-segl.html.j2",
+          # Fasiten, fra 16.11.2026: siden med de forseglede anslagene,
+          # oversikten, og setningene om andel og beløp som også står på
+          # /kommune/.
+          "fasit-havbruksfond.html.j2", "fasiten.html.j2",
+          "andel-og-belop.html.j2")
 
 
 @pytest.fixture
@@ -764,3 +769,45 @@ def test_delene_summerer_paa_hver_kommuneside():
     tromso = (NETTSTED / "kommune" / "5501" / "index.html").read_text("utf-8")
     assert re.search(rf"<dt>Lokalitetene her</dt>\s*<dd>{tall}", tromso).group(1) == "−0,029"
     assert re.search(rf"<dt>Resten av landet</dt>\s*<dd>{tall}", tromso).group(1) == "−0,009"
+
+
+# ------------------------------- andel er ikke beløp (gjennomgangen 12.11)
+
+ANDEL_OG_BELOP = [
+    "Andelen sier hvor stor del av utbetalingen hver kommune får, ikke hvor mye.",
+    "Beløpet avhenger av hva staten har fått inn, og det anslår vi ikke."]
+
+
+def test_setningene_om_andel_og_belop_staar_ett_sted():
+    """De to sidene som viser dem, inkluderer samme mal, og ingen annen
+    mal har sin egen kopi av teksten."""
+    maler = Path(nettsted.MALER)
+    egen = (maler / "andel-og-belop.html.j2").read_text("utf-8")
+    assert all(s in egen for s in ANDEL_OG_BELOP)
+    for navn in ("kommuner.html.j2", "fasit-havbruksfond.html.j2"):
+        assert '{% include "andel-og-belop.html.j2" %}' in (maler / navn).read_text("utf-8"), navn
+    andre = [m.name for m in maler.glob("*.j2") if m.name != "andel-og-belop.html.j2"
+             and "Andelen sier hvor stor del" in m.read_text("utf-8")]
+    assert andre == []
+
+
+@trenger_bygg
+def test_oversikten_sier_at_andelen_ikke_er_et_belop():
+    """/kommune/ er der andelen vises første gang. De to setningene står
+    over tabellen, etter linja om fordelingen, og er de samme som under
+    statusen på siden med de forseglede anslagene. De 143 kommunesidene
+    har dem ikke: de viser andelen for én kommune, med oversikten ett
+    klikk unna."""
+    oversikt = (NETTSTED / "kommune" / "index.html").read_text("utf-8")
+    avsnitt = [_avsnitt(p) for p in re.findall(r"<p\b[^>]*>.*?</p>", _main(oversikt), re.S)]
+    her = [avsnitt.index(s) for s in ANDEL_OG_BELOP]
+    assert her[1] == her[0] + 1
+    assert "ikke publisert ennå" in avsnitt[her[0] - 1] or \
+        "har publisert fordelingen" in avsnitt[her[0] - 1]
+    assert _main(oversikt).index(ANDEL_OG_BELOP[1]) < _main(oversikt).index('<table id="kommuner-andel"')
+    assert all(len(s) <= 110 for s in ANDEL_OG_BELOP)
+    fasit = (NETTSTED / "fasiten" / "havbruksfondet-2026" / "index.html").read_text("utf-8")
+    assert all(s in _avsnitt(_main(fasit)) for s in ANDEL_OG_BELOP)
+    med = [f.parent.name for f in (NETTSTED / "kommune").glob("*/index.html")
+           if ANDEL_OG_BELOP[0] in f.read_text("utf-8")]
+    assert med == []

@@ -1,0 +1,12 @@
+{# ANDEL ER IKKE BELØP. To setninger, ett sted, for de to sidene som viser
+   en andel uten et beløp ved siden av: /kommune/, der andelen vises første
+   gang, og /fasiten/havbruksfondet-<år>/, under statusen (Heine,
+   16.11.2026). En kommune som ser «1,5056 %», skal ikke måtte gjette hva
+   det er prosent av, eller tro at vi har regnet ut kronene.
+
+   De står også når Fiskeridirektoratets fordeling er kommet: andelen er
+   fortsatt en andel, og beløpene som da vises, er deres, ikke våre.
+
+   `klasse` settes av malen som inkluderer, når avsnittene skal ha en. #}
+<p{% if klasse is defined and klasse %} class="{{ klasse }}"{% endif %}>Andelen sier hvor stor del av utbetalingen hver kommune får, ikke hvor mye.</p>
+<p{% if klasse is defined and klasse %} class="{{ klasse }}"{% endif %}>Beløpet avhenger av hva staten har fått inn, og det anslår vi ikke.</p>

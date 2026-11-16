@@ -71,14 +71,14 @@ Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
 </div>
 
 {# STATUS. Første setning følger arkivet, som på kommunesidene. De to
-   neste står uansett: påstandene gjelder andeler, ikke beløp. #}
+   neste står uansett: påstandene gjelder andeler, ikke beløp. De er de
+   samme som på /kommune/, og står ett sted (andel-og-belop.html.j2). #}
 <div class="fasit-status" id="status">
   <p>
     {%- if d.fasit %}Fiskeridirektoratet har publisert fordelingen for {{ d.fasit.aar }}.
     {%- elif d.status.publisert %}Fiskeridirektoratet har publisert fordelingen for {{ d.aar }}.
     {%- else %}Fordelingen for {{ d.aar }} er ikke publisert ennå.{% endif %}</p>
-  <p>Andelen sier hvor stor del av utbetalingen hver kommune får, ikke hvor mye.</p>
-  <p>Beløpet avhenger av hva staten har fått inn, og det anslår vi ikke.</p>
+  {% include "andel-og-belop.html.j2" %}
   {% if d.fasit %}
   <p><span class="herkomst">Fiskeridir. ·
     {% if d.fasit.url %}<a href="{{ d.fasit.url }}">{{ d.fasit.navn }}</a>{% else %}{{ d.fasit.navn }}{% endif %}
