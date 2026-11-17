@@ -1240,40 +1240,112 @@ fire uker, PRØVETYPE). Hva som er registrert, og hvorfor bare de to,
 står i `predictions/maskin/FORHANDSREGISTRERING.md`. Modellen er R6s
 skript, uendret: `analyse/anslag/anslag_backtest.py`.
 
-Etter mandagens innsamling, fra et rent kodrepo som er pushet:
+**To steder, og en uke ligger på ett** (fra økt 14a, 17.11.2026). Stien
+er `predictions/maskin/` i begge repoene, og tillegget
+`FORHANDSREGISTRERING-TILLEGG-1.md` sier det samme:
+
+    havbruk-radar        uke 46 og 47, forseglet for hånd, med
+                         forseglinger.tsv for dem, og registreringen
+                         med tillegget. Røres ikke.
+    havbruk-radar-data   fra uke 48: ukefila, .ots, .komplett.ots og
+                         forseglinger.tsv. Og fasiten.json og
+                         treffliste.md, som dekker ukene begge steder.
+
+Fasiten og trefflista skrives ett sted, i datarepoet. Hver rad oppgir
+`repo` og `fil`. Den som skal lese dem, nettstedet også, leser dem der
+(`skaar_anslag.FASIT` og `skaar_anslag.TREFFLISTE`).
+
+**Jobben er `anslag.yml` i datarepoet** («Maskinanslag»). Den starter
+etter hver innsamling, altså mandag rundt kl. 13:30 UTC og etter
+tirsdagens gjenkjøring rundt midnatt, og tirsdag-cron kl. 04:23 UTC er
+reserve. Den kjører de to kommandoene under og committer
+`predictions/maskin/` i datarepoet med repoets eget token. Den har ingen
+nøkkel til kodrepoet og skriver ikke dit: main der er koden alle jobbene
+kjører.
 
 ```bash
-cd ~/havbruk-radar && git pull && git -C ../havbruk-radar-data pull
-.venv/bin/python anslag.py --forsegl
-.venv/bin/python skaar_anslag.py --oppgrader
+python anslag.py --forsegl
+python skaar_anslag.py --oppgrader
 ```
 
-`anslag.py` skriver `predictions/maskin/<år>-<uke>.yml`, stempler den med
-`ots stamp` og fører tidspunktet i `forseglinger.tsv`. Commit hele
-`predictions/maskin/`, med sha256 for ukefila i meldingen.
-`skaar_anslag.py` skriver `fasiten.json` og `treffliste.md`, og
-oppgraderer ventende stempler til `.komplett.ots` (kopi; originalen
-endres ikke). Begge filene er en ren funksjon av ukefilene og
-snapshotene, så en kjøring uten noe nytt endrer dem ikke.
+`anslag.py` skriver `predictions/maskin/<år>-<uke>.yml` i datarepoet,
+stempler den med `ots stamp` og fører tidspunktet i `forseglinger.tsv`
+ved siden av. Den krever at kodrepoet den kjører fra, er rent og ligger
+på origin/main. `skaar_anslag.py` skriver `fasiten.json` og
+`treffliste.md`, og oppgraderer ventende stempler i datarepoet til
+`.komplett.ots` (en kopi; originalen endres ikke). Begge filene er en
+ren funksjon av ukefilene og snapshotene, så en kjøring uten noe nytt
+endrer dem ikke.
+
+En tørrkjøring regner ut alt og skriver det i loggen, uten å stemple og
+uten å committe. Loggen sier også hvor en ekte kjøring ville skrevet
+ukefila, og om kravet om pushet kode holder der jobben kjører:
+
+```bash
+gh workflow run anslag.yml -R heinenordboe-cloud/havbruk-radar-data -f torrkjor=true
+```
 
 | exit fra `anslag.py` | betyr |
 |---|---|
 | 0 | ukefila er skrevet og stemplet, eller den fantes og er stemplet nå eller før |
-| 1 | `ots stamp` feilet. Ukefila står uten `.ots`; kjør igjen før søndag |
-| 2 | nekter: uka er ikke denne uka, fristen søndag er ute, uke T−4 mangler i lusetall eller sjøtemperatur, koden er ikke ren og pushet, eller summen i en `.ots` er ikke fila |
+| 1 | `ots stamp` feilet. Ukefila står uten `.ots`, og jobben er rød; neste kjøring samme uke stempler den |
+| 2 | nekter: uka er ikke denne uka, fristen søndag er ute, uke T−4 mangler i lusetall eller sjøtemperatur, koden er ikke ren og pushet, ukefila ligger i feil repo, `HAVBRUK_DATA_DIR` peker ikke på datarepoet, eller summen i en `.ots` er ikke fila |
+
+`skaar_anslag.py` gir exit 2 uten å skrive når en uke finnes begge
+steder eller i feil repo, når en av kodrepoets to uker mangler, og når
+en uke som står i fasiten fra før, ikke lenger har en ukefil.
 
 En ukefil lages aldri på nytt. Mangler den stempel, stemples den. En uke
-som ikke er stemplet før søndag 24:00 UTC, er tapt og står i
+som ikke er stemplet før søndag kl. 24:00 UTC, er tapt og står i
 `fasiten.json` under `ikke_tellende`.
 
-`tests/test_anslag.py` holder hver linje i `forseglinger.tsv` mot fila og
-`.ots`-fila: en stemplet ukefil som er endret, gjør prøvene røde.
-`skaar_anslag.py --prov-backtest` regner R6s tall for K2 og K6 på nytt
-med modulen og sier om de fortsatt stemmer.
+**Fristen.** Tilsynet er rødt fra onsdag når ukas fil mangler stempel
+(`maales: ukefil` i datarepoets `jobber.yml`: 1 døgn etter mandag). Da
+har kjøringen etter mandagens innsamling, tirsdagens reserve og
+kjøringen etter gjenkjøringen vært innom. Målt 17.11.2026 har tilsynet
+startet onsdager kl. 10:43–13:23 UTC (`docs/MALING-UKEJOBB.md`, F0c.3).
 
-Den ukentlige jobben er `anslag.yml` i datarepoet, når den er lagt inn.
-Den kjører de samme to kommandoene etter innsamlingen og committer til
-kodrepoets `predictions/maskin/`.
+**Reserven, når tilsynet er rødt onsdag.** Se først hvorfor jobben er
+rød (`gh run list --workflow anslag.yml -R heinenordboe-cloud/havbruk-radar-data -L 3`).
+Så tre linjer fra Mac-en, før søndag kl. 24:00 UTC:
+
+```bash
+cd ~/havbruk-radar && git pull && git -C ../havbruk-radar-data pull
+.venv/bin/python anslag.py --forsegl && .venv/bin/python skaar_anslag.py --oppgrader
+cd ../havbruk-radar-data && git add predictions/maskin && git commit -m "Maskinanslag forseglet for hånd" && git push
+```
+
+Nekter linje to fordi kodrepoet ikke er rent, kjør den fra en fersk
+klone i stedet (`git clone https://github.com/heinenordboe-cloud/havbruk-radar`
+til en tom mappe, og `~/havbruk-radar/.venv/bin/python` derfra). Nekter
+den fordi uke T−4 mangler, er det innsamlingen som må kjøres først;
+jobben starter av seg selv etter den.
+
+**Oppgrader aldri et stempel med `ots upgrade` rett på fila.** Klienten
+flytter originalen til `.bak` og skriver over navnet, og prøven som
+holder stempelet mot `forseglinger.tsv`, blir rød (11.11.2026). Jobben
+oppgraderer datarepoets stempler selv. Et stempel i kodrepoet
+oppgraderes som en kopi:
+
+```bash
+.venv/bin/python stempel.py --oppgrader predictions/maskin/2026-47.yml.ots
+```
+
+`tests/test_anslag.py` holder hver linje i `forseglinger.tsv`, begge
+steder, mot fila og `.ots`-fila: en stemplet ukefil som er endret, gjør
+prøvene røde. Den holder også at kodrepoet har uke 46 og 47 og ingen
+andre, og at hver `.komplett.ots` er stemplet for fila og bærer en
+blokk. `tests/test_skaar_anslag.py` holder fasiten i datarepoet mot
+ukefilene begge steder. `skaar_anslag.py --prov-backtest` regner R6s
+tall for K2 og K6 på nytt med modulen og sier om de fortsatt stemmer.
+
+**Feilprøve av en frist** (CLAUDE.md §8, krav 3). Tilsynet kan startes
+for hånd som om dagen var en annen, og måle bare én jobb. Kjøringen blir
+rød når den jobbens frist ikke holder den dagen, og av ingenting annet:
+
+```bash
+gh workflow run tilsyn.yml -R heinenordboe-cloud/havbruk-radar-data -f i_dag=2026-11-25 -f bare=anslag.yml
+```
 
 ## Daglig: arkivet og tidsstemplene
 

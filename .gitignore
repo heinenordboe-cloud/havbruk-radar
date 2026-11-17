@@ -49,3 +49,13 @@ analyse/tekst-norm/
 # tre, og en hurtigbuffer som dukker opp av seg selv ville stoppet hver
 # eneste publisering.
 .wrangler/
+
+# `ots upgrade <fil>.ots` flytter originalen til `<fil>.ots.bak` og skriver
+# over navnet. Stempler oppgraderes som kopier (`stempel.py --oppgrader`,
+# `skaar_anslag.py --oppgrader`), men kjøres klienten likevel rett på en
+# fil, skal ikke .bak-fila gjøre treet urent i tillegg: en usporet fil er
+# nok til at `anslag.py` nekter å lage neste uke (`kodeproveniens.rent()`).
+# Stempelet som ble byttet ut, står fortsatt som endret i `git status`, og
+# prøven som holder det mot forseglinger.tsv, blir rød: det er de to som
+# skal si fra, ikke .bak-fila.
+*.ots.bak

@@ -27,8 +27,8 @@ repoets eget token. Main i kodrepoet er koden alle jobbene kjører, også
 publiseringen, og den har ingen regelsett: et token som kan skrive
 ukefila dit, kan skrive alt (besluttet 10.11.2026). Det løser også det
 andre: et verktøy som skriver i kodetreet, gjør treet urent for neste
-kjøring av seg selv. En `.komplett.ots` eller en `.ots.bak` som ikke var
-committet, var nok til at `krev_sporbar()` nektet neste uke
+kjøring av seg selv. En `.komplett.ots` eller en `.ots.bak` som ikke er
+committet, er nok til at `krev_sporbar()` nekter neste uke
 (docs/MALING-UKEJOBB.md, F0b.3). Kravet er uendret; det er skrivingen
 som er flyttet ut av treet kravet gjelder.
 
