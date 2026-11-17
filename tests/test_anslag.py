@@ -459,3 +459,35 @@ def test_torrkjoring_skriver_ingenting(isolert, capsys):
                        naa=dt.datetime(2027, 1, 1, tzinfo=dt.timezone.utc)) == 0
     assert "MASKINANSLAG FOR UKE 2026-W46" in capsys.readouterr().out
     assert not list(anslag.MASKIN_DIR.iterdir())
+
+
+def test_torrkjoringen_sier_hva_en_ekte_kjoring_ville_gjort(isolert, monkeypatch, capsys):
+    """Første kjøring av jobben er en tørrkjøring. Loggen skal si hvor
+    ukefila ville havnet, og om kravet om pushet kode holder der jobben
+    kjører: tørrkjøringen går ellers ikke gjennom det."""
+    _grunnlag()
+    torr = ["--torrkjor", "--uke", "2026-W46"]
+    assert anslag.main(torr, naa=NAA) == 0
+    ut = capsys.readouterr().out
+    assert "en ekte kjøring ville skrevet predictions/maskin/2026-46.yml i havbruk-radar-data" in ut
+    assert ("neste uke, 2026-W47: en ekte kjøring ville skrevet "
+            "predictions/maskin/2026-47.yml i havbruk-radar-data") in ut
+    assert "koden er sporbar: c0dec0dec0de" not in ut      # head() er den ekte, ikke prøvens
+    assert "koden er sporbar: " in ut
+
+    def nekt():
+        raise kodeproveniens.IkkeSporbar("arbeidstreet er ikke rent (HEAD abc)\n\n M x.py")
+    monkeypatch.setattr(kodeproveniens, "krev_sporbar", nekt)
+    assert anslag.main(torr, naa=NAA) == 0
+    ut = capsys.readouterr().out
+    assert "koden er IKKE sporbar, og en ekte kjøring ville nektet: arbeidstreet er ikke rent" in ut
+    assert " M x.py" not in ut
+
+    monkeypatch.setattr(kodeproveniens, "krev_sporbar", lambda: ("c0de" * 10, "ja"))
+    assert _lag(isolert) == 0
+    assert anslag.main(torr, naa=NAA) == 0
+    assert "ville ikke laget noe: predictions/maskin/2026-46.yml finnes i havbruk-radar-data" in (
+        capsys.readouterr().out)
+    (anslag.KODE_MASKIN / "2026-46.yml").write_text("x", encoding="utf-8")
+    assert anslag.main(torr, naa=NAA) == 0
+    assert "en ekte kjøring ville nektet: 2026-46.yml ligger i havbruk-radar" in capsys.readouterr().out

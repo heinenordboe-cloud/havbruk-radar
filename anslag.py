@@ -247,6 +247,26 @@ def i_kodetreet(mappe_: Path) -> bool:
     return mappe_ == KODE_MASKIN or paths.ROT in mappe_.resolve().parents
 
 
+def ville_gjort(T: dt.date) -> str:
+    """Hva en ekte kjøring ville gjort med ukefila for uke T, i én linje.
+    Tørrkjøringen skriver den i loggen: første kjøring av jobben er en
+    tørrkjøring, og den skal svare på det mandagens kjøring avhenger av."""
+    sti = mappe(T) / filnavn(T)
+    if grunn := feil_sted(T):
+        return f"ville nektet: {grunn}"
+    if sti.exists():
+        stemplet = Path(f"{sti}.ots").exists()
+        return (f"ville ikke laget noe: {vis(sti)} finnes i {repo(sti)}"
+                + ("" if stemplet else ", uten stempel, og ville blitt stemplet"))
+    if T < FORSTE_I_DATAREPOET:
+        return (f"ville nektet: {isouke(T)} er før {isouke(FORSTE_I_DATAREPOET)}, og det "
+                f"lages ingen ny ukefil i kodrepoet")
+    if i_kodetreet(sti.parent):
+        return (f"ville nektet: {sti.parent} ligger i kodrepoet. HAVBRUK_DATA_DIR "
+                f"peker ikke på data/ i datarepoet")
+    return f"ville skrevet {vis(sti)} i {repo(sti)} ({sti})"
+
+
 def feil_sted(T: dt.date) -> str:
     """Grunnen når ukefila for uke T ligger i mappa den ikke hører
     hjemme i. Tom streng når den ikke gjør det."""
@@ -507,7 +527,20 @@ def main(argv: list[str] | None = None, naa: dt.datetime | None = None) -> int:
     print(f"Maskinanslag {isouke(T)} (utstedt {T}, informasjon til og med {K})"
           + ("  (TØRRKJØRING)" if a.torrkjor else ""))
 
-    if not a.torrkjor:
+    if a.torrkjor:
+        # Tørrkjøringen nekter ikke, men sier om en ekte kjøring ville gjort
+        # det, før noe leses: også når uke T−4 ikke er kommet ennå.
+        print(f"  en ekte kjøring {ville_gjort(T)}")
+        neste = T + dt.timedelta(weeks=1)
+        print(f"  neste uke, {isouke(neste)}: en ekte kjøring {ville_gjort(neste)}")
+        try:
+            kodeproveniens.krev_sporbar()
+            print(f"  koden er sporbar: {stempel.head(paths.ROT)[:12]} er ren og ligger "
+                  f"på origin/main")
+        except kodeproveniens.IkkeSporbar as e:
+            print(f"  koden er IKKE sporbar, og en ekte kjøring ville nektet: "
+                  f"{str(e).splitlines()[0]}")
+    else:
         start = dt.datetime.combine(T, dt.time(), dt.timezone.utc)
         if not (start <= naa < frist(T)):
             print(f"::error::{isouke(T)} er ikke denne uka ({isouke(naa.date())}). "
