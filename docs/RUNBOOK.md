@@ -1545,12 +1545,30 @@ du vet da hvilke felter som faktisk endrer seg, og slipper å gjette.
 Koden er offentlig: ubegrensede Actions-minutter, og commit-historikken
 er CV-en.
 
-Dataene er private: 2000 gratis Actions-minutter i måneden. Hvor mye
-som brukes, er ikke kjent etter at `bygg.yml` kom til 07.10.2026 — den
-bygger hele nettstedet etter hver innsamling, og byggetiden på en
-GitHub-maskin er ikke målt (lokalt 2 min 32 s). **Forbruket måles etter
-første uke med bygg**, under Settings → Billing → Usage, og skrives inn
-her. Registerdataene i seg selv er åpne og kan
+Dataene er private: 2000 gratis Actions-minutter i måneden. **Målt
+17.11.2026: 1 321 minutter på de 30 døgnene 18.10–16.11**, 66 % av
+kvoten, regnet per jobb og rundet opp til hele minutter
+(`docs/MALING-UKEJOBB.md`, F0a.1). Første halvdel av november gikk i en
+takt på 1 641 per 30 døgn, og Heine leste ca. 1 600 under Settings →
+Billing → Usage 16.11. Ukene er ujevne, fra 214 til 485 minutter: det
+som svinger, er kjøringene vi starter selv.
+
+| workflow | minutter på 30 døgn | kjøringer | medianjobb |
+|---|---|---|---|
+| `bygg.yml` | 271 | 18 | 15 min 26 s |
+| `havbruksfond.yml` | 253 | 80 | 2 min 25 s |
+| `speil.yml` | 217 | 210 | 16 s |
+| `stempel.yml` | 210 | 201 | 29 s |
+| de tolv andre | 370 | 196 | |
+
+`speil.yml` og `stempel.yml` betaler nesten alltid ett helt minutt for
+en jobb på under et halvt. Ukejobben for maskinanslagene (`anslag.yml`)
+er anslått til ca. 27 minutter per 30 døgn. API-et oppgir ikke
+fakturerte minutter for repoet, så tallene er regnet av når hver jobb
+startet og ble ferdig, ikke lest av regningen. Kommer noe stort til,
+måles det på nytt med `analyse/ukejobb/u1_hent.py` og holdes mot Billing.
+
+Registerdataene i seg selv er åpne og kan
 hentes av hvem som helst — det som ligger privat er tidsserien, fordi
 den ikke kan rekonstrueres i etterkant.
 

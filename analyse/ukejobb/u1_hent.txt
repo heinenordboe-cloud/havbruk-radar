@@ -1,0 +1,6 @@
+Actions-kjøringer i heinenordboe-cloud/havbruk-radar-data, opprettet 2026-10-12 … 2026-11-17 (UTC)
+  API-kall: 877 (ingen svar arkivert; sha256 per svar i loggen)
+  sha256 over svarene (linjer «url sha256», i hentet rekkefølge): f3518a0817c9456c9da0d66d9c07856786e736448a85bc16225ab704b74d2b58
+  kjøringer: 840   jobber (alle forsøk): 922
+  redusert kropp: maling-ukejobb/2026-11-17.json.gz, 2296950 B utpakket, sha256 e676a2ec3be2a7b3c48f83bd3204525939ebba1f85e351e2e8274a8e82db063d
+  logg: maling-ukejobb/2026-11-17.u1.logg.json
