@@ -4,17 +4,18 @@ Bare forseglede uker teller. Backtesten står nederst, adskilt og merket
 BACKTEST, og telles ikke. Hva som er registrert, står i
 `FORHANDSREGISTRERING.md`; hver rad står i `fasiten.json`.
 
-Lusetall til og med uke 2026-W42 (2026-10-12).
+Lusetall til og med uke 2026-W43 (2026-10-19).
 
 ## K2, brakklegginger de neste fire ukene — hovedtype
 
 | forseglede uker | avgjorte uker | avgjorte rader | MAE modell | MAE a (siste verdi) | MAE b (i fjor) | SS a | SS b | dom |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 0 | 0 | – | – | – | – | – | for tidlig: 0 av 12 uker avgjort |
+| 2 | 0 | 0 | – | – | – | – | – | for tidlig: 0 av 12 uker avgjort |
 
 | uke | forseglet (UTC) | åpningsdato | status | MAE modell | MAE a | MAE b |
 |---|---|---|---|---|---|---|
 | 2026-W46 | 2026-11-10T20:49:02Z | 2026-12-28 | åpen | – | – | – |
+| 2026-W47 | 2026-11-17T20:47:09Z | 2027-01-04 | åpen | – | – | – |
 
 ## K6, snitt voksne hunnlus om fire uker — PRØVETYPE
 
@@ -22,11 +23,12 @@ Prøvetype: forseglet og skåret som K2, men ikke et hovedresultat.
 
 | forseglede uker | avgjorte uker | avgjorte rader | MAE modell | MAE a (siste verdi) | MAE b (i fjor) | SS a | SS b | dom |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 0 | 0 | – | – | – | – | – | for tidlig: 0 av 12 uker avgjort |
+| 2 | 0 | 0 | – | – | – | – | – | for tidlig: 0 av 12 uker avgjort |
 
 | uke | forseglet (UTC) | åpningsdato | status | MAE modell | MAE a | MAE b |
 |---|---|---|---|---|---|---|
 | 2026-W46 | 2026-11-10T20:49:02Z | 2027-01-04 | åpen | – | – | – |
+| 2026-W47 | 2026-11-17T20:47:09Z | 2027-01-11 | åpen | – | – | – |
 
 ## BACKTEST — teller ikke i trefflista
 
