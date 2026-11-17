@@ -1,11 +1,15 @@
 """Maskinanslagene: anslag.py og R6-modulen (økt 8). Skåreren: test_skaar_anslag.py.
 
-Prøvene rører ikke ekte data. `isolert` flytter snapshotene og
-predictions/maskin til tmp, og `ots` byttes ut med en som skriver en
-OTS-fil med riktig hode og sum, uten nett.
+Prøvene rører ikke ekte data. `isolert` flytter snapshotene og begge
+mappene med ukefiler (kodrepoets og datarepoets predictions/maskin) til
+tmp, og `ots` byttes ut med en som skriver en OTS-fil med riktig hode og
+sum, uten nett.
 
-Det som prøves mot repoet selv (ikke tmp), er det som ikke skal kunne
-endre seg: R6s modul, forhåndsregistreringen og de forseglede ukefilene.
+Det som prøves mot repoene selv (ikke tmp), er det som ikke skal kunne
+endre seg: R6s modul, forhåndsregistreringen med tillegget, og de
+forseglede ukefilene begge steder. Datarepoets mappe prøves når repoet
+står ved siden av (lokalt og i porten); i kodrepoets Actions finnes den
+ikke, og `anslag.mapper()` gir da bare kodrepoets.
 """
 import datetime as dt
 import hashlib
@@ -44,14 +48,51 @@ def _falsk_ots(*args: str) -> subprocess.CompletedProcess:
 
 @pytest.fixture
 def isolert(tmp_path, monkeypatch):
-    maskin = tmp_path / "maskin"
-    maskin.mkdir()
+    """Snapshotene og begge mappene i tmp. Grensa flyttes til prøvenes
+    uke, så uke 46 går veien jobben går fra uke 48: ukefila havner i
+    datarepoets mappe, og kodrepoets står tom."""
+    kode = tmp_path / "kode" / "predictions" / "maskin"
+    data = tmp_path / "data" / "predictions" / "maskin"
+    kode.mkdir(parents=True)
+    data.mkdir(parents=True)
     monkeypatch.setattr(snapshot, "RAW_DIR", tmp_path / "raw")
-    monkeypatch.setattr(anslag, "MASKIN_DIR", maskin)
-    monkeypatch.setattr(anslag, "FORSEGLINGER", maskin / "forseglinger.tsv")
+    monkeypatch.setattr(anslag, "KODE_MASKIN", kode)
+    monkeypatch.setattr(anslag, "MASKIN_DIR", data)
+    monkeypatch.setattr(anslag, "FORSTE_I_DATAREPOET", T)
+    monkeypatch.setattr(anslag, "KODE_UKER", ())
     monkeypatch.setattr(stempel, "ots", _falsk_ots)
     monkeypatch.setattr(kodeproveniens, "krev_sporbar", lambda: ("c0de" * 10, "ja"))
     return tmp_path
+
+
+EKTE_DATAREPO = paths.ROT.parent / "havbruk-radar-data"
+
+
+@pytest.fixture
+def ekte(monkeypatch):
+    """De ekte mappene, for prøvene som holder de forseglede filene.
+
+    tests/conftest.py peker HAVBRUK_DATA_DIR på en engangsmappe, så
+    datarepoets mappe må pekes ut her. Den står ved siden av kodrepoet
+    lokalt og i porten. I kodrepoets Actions finnes den ikke, og da er
+    kodrepoets mappe den eneste, som uten HAVBRUK_DATA_DIR. Gir True når
+    datarepoet er med."""
+    monkeypatch.setattr(anslag, "MASKIN_DIR",
+                        EKTE_DATAREPO / "predictions" / "maskin"
+                        if EKTE_DATAREPO.exists() else anslag.KODE_MASKIN)
+    return EKTE_DATAREPO.exists()
+
+
+def _logg() -> Path:
+    return anslag.forseglingslogg(anslag.MASKIN_DIR)
+
+
+def _flytt_til_kodrepoet(navn: str) -> None:
+    """Ukefila, stempelet og loggen fra datarepoets mappe til kodrepoets,
+    slik uke 46 og 47 ligger: forseglet, og utenfor det jobben skriver."""
+    for n in (navn, f"{navn}.ots"):
+        (anslag.MASKIN_DIR / n).rename(anslag.KODE_MASKIN / n)
+    _logg().rename(anslag.forseglingslogg(anslag.KODE_MASKIN))
 
 
 def _skriv(kilde: str, dato: dt.date, rader: dict[str, dict[str, str]]):
@@ -112,30 +153,87 @@ def test_forhandsregistreringen_er_den_som_ble_stemplet():
     assert _forseglet(paths.ROT / "predictions" / "maskin" / "FORHANDSREGISTRERING.md")
 
 
-def test_forseglede_ukefiler_er_uendret():
-    """En stemplet ukefil røres aldri. Hver linje i forseglinger.tsv skal
-    fortsatt stemme: fila har summen som ble ført, `.ots` er stemplet for
-    den summen, og `.ots`-fila er den samme. En ukefil UTEN `.ots` er lov:
-    stempelet kan ha feilet i jobben, og neste kjøring samme uke stempler
-    den. Den teller ikke før det, og skaar_anslag.py fører den under
-    ikke_tellende."""
-    maskin = paths.ROT / "predictions" / "maskin"
-    tsv = maskin / "forseglinger.tsv"
-    linjer = tsv.read_text(encoding="utf-8").splitlines()[1:] if tsv.exists() else []
-    fort = set()
-    for linje in linjer:
-        uke, fil, sha, stemplet, ots_sha = linje.split("\t")
-        sti = maskin / fil
-        assert anslag.isouke(anslag.uke_fra_filnavn(fil)) == uke, linje
-        assert anslag.sha256(sti) == sha, f"{fil} er endret etter at den ble stemplet"
-        ots = Path(f"{sti}.ots")
-        assert havbruksfond.ots_sum(ots.read_bytes()) == sha, f"{ots.name} gjelder ikke fila"
-        assert anslag.sha256(ots) == ots_sha, f"{ots.name} er byttet ut"
-        fort.add(fil)
-    for sti in sorted(maskin.glob("*.yml")):
-        assert anslag.uke_fra_filnavn(sti.name), f"{sti.name} er ikke en ukefil"
-        if Path(f"{sti}.ots").exists():
-            assert sti.name in fort, f"{sti.name} er stemplet, men ikke ført i forseglinger.tsv"
+def test_tillegget_er_det_som_ble_stemplet():
+    """Tillegget sier hvor ukefilene ligger fra uke 48. Det er stemplet før
+    første uke i datarepoet, og røres ikke etterpå."""
+    assert anslag.TILLEGG
+    for navn in anslag.TILLEGG:
+        assert _forseglet(paths.ROT / "predictions" / "maskin" / navn), navn
+
+
+def _forte(maskin: Path) -> list[list[str]]:
+    tsv = anslag.forseglingslogg(maskin)
+    return [linje.split("\t") for linje in
+            (tsv.read_text(encoding="utf-8").splitlines()[1:] if tsv.exists() else [])]
+
+
+def test_forseglede_ukefiler_er_uendret(ekte):
+    """En stemplet ukefil røres aldri, i noen av de to mappene. Hver linje
+    i forseglinger.tsv skal fortsatt stemme: fila har summen som ble ført,
+    `.ots` er stemplet for den summen, og `.ots`-fila er den samme. En
+    ukefil UTEN `.ots` er lov: stempelet kan ha feilet i jobben, og neste
+    kjøring samme uke stempler den. Den teller ikke før det, og
+    skaar_anslag.py fører den under ikke_tellende."""
+    for maskin in anslag.mapper():
+        hvor = anslag.repo(maskin / "x")
+        fort = set()
+        for uke, fil, sha, stemplet, ots_sha in _forte(maskin):
+            sti = maskin / fil
+            assert anslag.isouke(anslag.uke_fra_filnavn(fil)) == uke, (hvor, fil)
+            assert anslag.sha256(sti) == sha, f"{hvor}: {fil} er endret etter at den ble stemplet"
+            ots = Path(f"{sti}.ots")
+            assert havbruksfond.ots_sum(ots.read_bytes()) == sha, f"{hvor}: {ots.name} gjelder ikke fila"
+            assert anslag.sha256(ots) == ots_sha, f"{hvor}: {ots.name} er byttet ut"
+            fort.add(fil)
+        for sti in sorted(maskin.glob("*.yml")):
+            assert anslag.uke_fra_filnavn(sti.name), f"{hvor}: {sti.name} er ikke en ukefil"
+            if Path(f"{sti}.ots").exists():
+                assert sti.name in fort, (f"{hvor}: {sti.name} er stemplet, men ikke ført "
+                                          f"i forseglinger.tsv")
+
+
+def test_kodrepoet_har_uke_46_og_47_og_ingen_andre(ekte):
+    """De to ukene som ble forseglet for hånd, ligger i kodrepoet og blir
+    der. Ingen uke fra og med 48 gjør det: jobben skriver bare i
+    datarepoet, og en ukefil her ville vært en uke som ligger to steder
+    eller på feil sted."""
+    assert anslag.KODE_UKER == ("2026-46.yml", "2026-47.yml")
+    assert sorted(p.name for p in anslag.KODE_MASKIN.glob("*.yml")) == list(anslag.KODE_UKER)
+    assert [linje[1] for linje in _forte(anslag.KODE_MASKIN)] == list(anslag.KODE_UKER)
+    for navn in anslag.KODE_UKER:
+        assert anslag.mappe(anslag.uke_fra_filnavn(navn)) == anslag.KODE_MASKIN
+    assert anslag.mappe(dt.date(2026, 11, 23)) == anslag.MASKIN_DIR
+    assert anslag.isouke(anslag.FORSTE_I_DATAREPOET) == "2026-W48"
+    if ekte:
+        assert anslag.repo(anslag.MASKIN_DIR / "2026-48.yml") == "havbruk-radar-data"
+        assert not anslag.i_kodetreet(anslag.MASKIN_DIR)
+
+
+def test_ingen_ukefil_ligger_i_feil_repo(ekte):
+    """Mot de ekte mappene: hver ukefil ligger der `mappe()` sier, og ingen
+    uke finnes begge steder."""
+    sett: dict[str, str] = {}
+    for maskin in anslag.mapper():
+        for sti in sorted(maskin.glob("*.yml")):
+            T = anslag.uke_fra_filnavn(sti.name)
+            assert T is not None and anslag.mappe(T) == maskin, (
+                f"{sti.name} ligger i {anslag.repo(sti)}")
+            assert sti.name not in sett, f"{sti.name} finnes i {sett[sti.name]} og {anslag.repo(sti)}"
+            sett[sti.name] = anslag.repo(sti)
+            assert not anslag.feil_sted(T)
+
+
+def test_hver_komplett_ots_er_et_oppgradert_stempel_for_fila(ekte):
+    """`ots upgrade` rett på et stempel byttet det ut 11.11.2026, og prøven
+    over ble rød. Oppgraderingen ligger derfor ved siden av, som
+    `.komplett.ots`. Den skal være stemplet for samme fil og bære en
+    blokk; ellers er navnet alt den har (docs/MALING-UKEJOBB.md, F0b.3)."""
+    for maskin in anslag.mapper():
+        for k in sorted(maskin.glob("*.komplett.ots")):
+            fil = maskin / k.name.removesuffix(".komplett.ots")
+            data = k.read_bytes()
+            assert havbruksfond.ots_sum(data, k.name) == anslag.sha256(fil), k.name
+            assert havbruksfond.ots_blokker(data, k.name), f"{k.name} bærer ingen blokk"
 
 
 def test_maskinfilene_er_utenfor_de_manuelle_prediksjonene():
@@ -259,18 +357,66 @@ def test_ukefila_skrives_forsegles_og_fores(isolert, capsys):
     assert {r["klasse"] for r in rader if r["type"] == "K6"} == {"PRØVETYPE"}
     assert "PRØVETYPE" in sti.read_text(encoding="utf-8").splitlines()[0]
     assert _forseglet(sti)
-    linje = anslag.FORSEGLINGER.read_text(encoding="utf-8").splitlines()[1].split("\t")
+    linje = _logg().read_text(encoding="utf-8").splitlines()[1].split("\t")
     assert linje[:4] == ["2026-W46", "2026-46.yml", anslag.sha256(sti), "2026-11-10T20:00:00Z"]
+
+
+def test_ukefila_havner_i_datarepoet_og_kodetreet_rores_ikke(isolert):
+    _grunnlag()
+    assert _lag(isolert) == 0
+    assert sorted(p.name for p in anslag.MASKIN_DIR.iterdir()) == [
+        "2026-46.yml", "2026-46.yml.ots", "forseglinger.tsv"]
+    assert not list(anslag.KODE_MASKIN.iterdir())
+
+
+def test_en_uke_som_ligger_i_kodrepoet_lages_ikke_i_datarepoet(isolert, capsys):
+    """Samme uke to steder er to påstander om hva som ble forseglet."""
+    _grunnlag()
+    (anslag.KODE_MASKIN / "2026-46.yml").write_text("uke: 2026-W46\n", encoding="utf-8")
+    assert _lag(isolert) == 2
+    assert "ligger i havbruk-radar, men 2026-W46 hører hjemme i havbruk-radar-data" in (
+        capsys.readouterr().out)
+    assert not list(anslag.MASKIN_DIR.iterdir())
+
+
+def test_en_forseglet_uke_i_kodrepoet_blir_staaende(isolert, monkeypatch):
+    """Uke 47 i den ekte uka: fila ligger i kodrepoet og er stemplet. En
+    kjøring samme uke lager ingenting, verken der eller i datarepoet."""
+    _grunnlag()
+    assert _lag(isolert) == 0
+    _flytt_til_kodrepoet("2026-46.yml")
+    monkeypatch.setattr(anslag, "FORSTE_I_DATAREPOET", T + dt.timedelta(weeks=1))
+    for_ = {p.name: p.read_bytes() for p in anslag.KODE_MASKIN.iterdir()}
+    assert _lag(isolert, naa=NAA + dt.timedelta(hours=1)) == 0
+    assert {p.name: p.read_bytes() for p in anslag.KODE_MASKIN.iterdir()} == for_
+    assert not list(anslag.MASKIN_DIR.iterdir())
+
+
+def test_ingen_ukefil_skrives_i_kodetreet(isolert, monkeypatch, capsys):
+    """En uke før grensa som ikke finnes, lages ikke: kodrepoet skrives
+    aldri. Og uten et datarepo ved siden av (HAVBRUK_DATA_DIR mangler)
+    er datamappa `data/` i kodetreet, og da skrives heller ingenting."""
+    _grunnlag()
+    monkeypatch.setattr(anslag, "FORSTE_I_DATAREPOET", T + dt.timedelta(weeks=1))
+    assert _lag(isolert) == 2
+    assert "det lages ingen ny ukefil i kodrepoet" in capsys.readouterr().out
+    monkeypatch.setattr(anslag, "FORSTE_I_DATAREPOET", T)
+    i_treet = paths.ROT / "finnes-ikke" / "predictions" / "maskin"
+    monkeypatch.setattr(anslag, "MASKIN_DIR", i_treet)
+    assert _lag(isolert) == 2
+    assert "Sett HAVBRUK_DATA_DIR" in capsys.readouterr().out
+    assert not i_treet.parent.parent.exists()
+    assert not list(anslag.KODE_MASKIN.iterdir())
 
 
 def test_ukefila_lages_aldri_paa_nytt(isolert):
     _grunnlag()
     assert _lag(isolert) == 0
     sti = anslag.MASKIN_DIR / "2026-46.yml"
-    for_ = sti.read_bytes(), anslag.FORSEGLINGER.read_bytes()
+    for_ = sti.read_bytes(), _logg().read_bytes()
     _uke(K, lus="5.0")                                # en ny versjon av uke T−4
     assert _lag(isolert, naa=NAA + dt.timedelta(hours=1)) == 0
-    assert (sti.read_bytes(), anslag.FORSEGLINGER.read_bytes()) == for_
+    assert (sti.read_bytes(), _logg().read_bytes()) == for_
 
 
 def test_en_uke_lages_bare_i_uka_den_gjelder(isolert):

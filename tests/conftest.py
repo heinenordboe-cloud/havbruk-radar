@@ -18,9 +18,16 @@ import os
 import shutil
 import tempfile
 
-_TEST_DATA_DIR = tempfile.mkdtemp(prefix="havbruk-radar-tester-")
+# `data/` I engangsmappa, ikke mappa selv. Flere moduler regner datarepoets
+# rot som DATA_DIR.parent (stempel.py, publiser.py, og fra 18.11.2026
+# anslag.py, som skriver ukefilene i <rot>/predictions/maskin). Med
+# engangsmappa som DATA_DIR var den rota maskinens felles tmp, og en prøve
+# som glemte å flytte mappene sine, ville skrevet der.
+_TEST_ROT = tempfile.mkdtemp(prefix="havbruk-radar-tester-")
+_TEST_DATA_DIR = os.path.join(_TEST_ROT, "data")
+os.makedirs(_TEST_DATA_DIR)
 os.environ["HAVBRUK_DATA_DIR"] = _TEST_DATA_DIR
-atexit.register(shutil.rmtree, _TEST_DATA_DIR, ignore_errors=True)
+atexit.register(shutil.rmtree, _TEST_ROT, ignore_errors=True)
 
 
 # ---------------------------------------------------------- kodeproveniens

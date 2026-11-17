@@ -5,15 +5,33 @@
     python skaar_anslag.py --oppgrader      # oppgrader ventende stempler først (nett)
     python skaar_anslag.py --prov-backtest  # regn R6s tall for K2 og K6 på nytt
 
-Leser de forseglede ukefilene i `predictions/maskin/`, holder hver mot
-stempelet, regner ut utfallet der dataene er kommet, og skriver
+Leser de forseglede ukefilene i `predictions/maskin/`, begge steder
+(kodrepoet har uke 46 og 47, datarepoet resten; se `anslag.py`), holder
+hver mot stempelet, regner ut utfallet der dataene er kommet, og skriver
 
     predictions/maskin/fasiten.json    én rad per forseglet anslag
     predictions/maskin/treffliste.md   MAE per type mot begge referansene
 
+Begge skrives ETT sted, i datarepoet (`FASIT` og `TREFFLISTE`), og dekker
+ukene begge steder. Hver rad oppgir `repo` og `fil`. Den som skal lese
+fasiten, nettstedet også, leser den derfra.
+
 Begge er en ren funksjon av ukefilene, `forseglinger.tsv`, stemplene og
 snapshotene. Det står ikke noe tidspunkt fra kjøringen i dem, så en
 kjøring uten noe nytt gir ingenting å committe.
+
+## En uke ligger ett sted, og forsvinner ikke
+
+Skåreren stopper uten å skrive (exit 2, `Ukefeil`) når
+
+  * en ukefil finnes begge steder, eller ligger i repoet den ikke hører
+    hjemme i (`anslag.mappe()`);
+  * en av kodrepoets to ukefiler mangler (`anslag.KODE_UKER`);
+  * en uke som står i fasiten.json fra før, ikke lenger har en ukefil.
+
+To steder er to måter å miste en uke på uten at noe sier fra: mappa som
+ikke ble lest, og fila som ble lest to ganger. En fasit som stille ble
+kortere, ville sett ut som en fasit.
 
 ## Hva som teller
 
@@ -22,6 +40,15 @@ Bare forseglede uker (FORHANDSREGISTRERING.md, «Hva som teller»): en
 stempelet ført i `forseglinger.tsv` før uka var omme. En ukefil som ikke
 oppfyller det, står under `ikke_tellende` i fasiten.json med grunnen, og
 ingen av radene dens teller.
+
+`stempel_komplett` er sant når `<ukefil>.komplett.ots` finnes, er
+stemplet for samme sum som fila og bærer minst én Bitcoin-blokk
+(`havbruksfond.ots_blokker()`, lest av fila, uten nett). En fil med det
+navnet som ikke holder det, gir en `::warning::` og teller som ikke
+komplett: fram til 18.11.2026 var det nok at fila fantes.
+
+`--oppgrader` oppgraderer stemplene i datarepoets mappe. Kodrepoets er
+oppgradert for hånd; jobben skriver ikke dit.
 
 ## Utfallet
 
@@ -91,26 +118,77 @@ BACKTEST_KOBLING = "2026-11-02"
 
 # ------------------------------------------------------------- ukefilene
 
-def forseglinger() -> dict[str, dict]:
-    """{filnavn: rad} fra forseglinger.tsv. Første linje per fil gjelder."""
-    ut: dict[str, dict] = {}
-    if not anslag.FORSEGLINGER.exists():
-        return ut
-    linjer = anslag.FORSEGLINGER.read_text(encoding="utf-8").splitlines()
-    hode = linjer[0].split("\t")
-    for linje in linjer[1:]:
-        if linje.strip():
-            rad = dict(zip(hode, linje.split("\t")))
-            ut.setdefault(rad["fil"], rad)
+class Ukefeil(RuntimeError):
+    """Ukefilene ligger ikke slik de skal: en uke to steder, en uke i
+    feil repo, eller en uke som er borte. Skåreren skriver da ingenting."""
+
+
+def forseglinger() -> dict[Path, dict]:
+    """{ukefila: rad} fra forseglinger.tsv i hver av de to mappene. Første
+    linje per fil gjelder."""
+    ut: dict[Path, dict] = {}
+    for mappe in anslag.mapper():
+        logg = anslag.forseglingslogg(mappe)
+        if not logg.exists():
+            continue
+        linjer = logg.read_text(encoding="utf-8").splitlines()
+        hode = linjer[0].split("\t")
+        for linje in linjer[1:]:
+            if linje.strip():
+                rad = dict(zip(hode, linje.split("\t")))
+                ut.setdefault(mappe / rad["fil"], rad)
     return ut
 
 
 def ukefiler() -> list[tuple[dt.date, Path]]:
-    return sorted((T, p) for p in anslag.MASKIN_DIR.glob("*.yml")
-                  if (T := anslag.uke_fra_filnavn(p.name)) is not None)
+    """Ukefilene begge steder, eldst først. `Ukefeil` når en uke finnes
+    begge steder, ligger i feil repo, eller mangler i kodrepoet."""
+    ut: list[tuple[dt.date, Path]] = []
+    feil: list[str] = []
+    sett: dict[str, Path] = {}
+    for mappe in anslag.mapper():
+        for p in sorted(mappe.glob("*.yml")):
+            T = anslag.uke_fra_filnavn(p.name)
+            if T is None:
+                continue
+            if p.name in sett:
+                feil.append(f"{anslag.vis(p)} finnes begge steder, i "
+                            f"{anslag.repo(sett[p.name])} og i {anslag.repo(p)}")
+                continue
+            sett[p.name] = p
+            if grunn := anslag.feil_sted(T):
+                feil.append(grunn)
+            ut.append((T, p))
+    for navn in anslag.KODE_UKER:
+        if not (anslag.KODE_MASKIN / navn).exists():
+            feil.append(f"{anslag.STI}/{navn} mangler i {anslag.KODEREPO}")
+    if feil:
+        raise Ukefeil("; ".join(dict.fromkeys(feil)))
+    return sorted(ut)
 
 
-def segl(T: dt.date, sti: Path, ført: dict[str, dict]) -> tuple[dict | None, str]:
+def komplett(T: dt.date, sti: Path, sha: str) -> bool:
+    """Er `<ukefil>.komplett.ots` et oppgradert stempel for DENNE fila?
+    At en fil med det navnet finnes, er ikke svaret: den skal være
+    stemplet for samme sum og bære minst én Bitcoin-blokk."""
+    fil = Path(f"{sti}.komplett.ots")
+    if not fil.exists():
+        return False
+    try:
+        data = fil.read_bytes()
+        grunn = ("" if havbruksfond.ots_sum(data, fil.name) == sha
+                 else "er stemplet for en annen sum enn ukefila")
+        grunn = grunn or ("" if havbruksfond.ots_blokker(data, fil.name)
+                          else "bærer ingen Bitcoin-blokk")
+    except ValueError as e:
+        grunn = f"kan ikke leses: {e}"
+    if grunn:
+        print(f"::warning::{fil.name} i {anslag.repo(sti)} {grunn}. Den teller ikke "
+              f"som komplett; stempelet for {anslag.isouke(T)} er fortsatt {sti.name}.ots.")
+    return not grunn
+
+
+def segl(T: dt.date, sti: Path, ført: dict[Path, dict]) -> tuple[dict | None, str]:
     """(forseglingen, "") hvis uka teller, ellers (None, grunnen)."""
     ots = Path(f"{sti}.ots")
     if not ots.exists():
@@ -122,16 +200,32 @@ def segl(T: dt.date, sti: Path, ført: dict[str, dict]) -> tuple[dict | None, st
         return None, f"stempelet kan ikke leses: {e}"
     if stemplet != sha:
         return None, f"summen i {ots.name} er {stemplet}, ikke fila ({sha})"
-    rad = ført.get(sti.name)
+    rad = ført.get(sti)
     if rad is None:
         return None, "stempelet er ikke ført i forseglinger.tsv"
     tid = dt.datetime.fromisoformat(rad["stemplet"].replace("Z", "+00:00"))
     if tid >= anslag.frist(T):
         return None, f"stemplet {rad['stemplet']}, etter fristen {anslag.frist(T).isoformat()}"
-    komplett = ots.with_name(ots.name.removesuffix(".ots") + ".komplett.ots")
     return {"forseglet": rad["stemplet"], "sha256": sha,
             "stempel": anslag.vis(ots),
-            "stempel_komplett": komplett.exists()}, ""
+            "stempel_komplett": komplett(T, sti, sha)}, ""
+
+
+def steder() -> str:
+    """Hvor ukefilene ligger, i én setning. Står i fasiten og i trefflista."""
+    return (f"Registreringen, tilleggene og ukene før "
+            f"{anslag.isouke(anslag.FORSTE_I_DATAREPOET)} ligger i {anslag.KODEREPO}, "
+            f"senere uker i {anslag.DATAREPO}, alle under `{anslag.STI}/`.")
+
+
+def uker_i(f: dict) -> set[str]:
+    """ISO-ukene en fasit fører, tellende eller ikke."""
+    uker = {r["uke"] for r in f.get("anslag", [])}
+    for x in f.get("ikke_tellende", []):
+        T = anslag.uke_fra_filnavn(Path(x["fil"]).name)
+        if T is not None:
+            uker.add(anslag.isouke(T))
+    return uker
 
 
 # --------------------------------------------------------------- utfallet
@@ -222,7 +316,8 @@ def fasiten(data_til: str, tellende: list[tuple[dt.date, Path, dict, dict]],
             y = _r(y)
             m, a, b = p["anslag"], p["referanse_a"], p["referanse_b"]
             rad = {"id": p["id"], "type": type_, "klasse": p["klasse"], "po": po,
-                   "uke": innhold["uke"], "fil": anslag.vis(sti),
+                   "uke": innhold["uke"], "repo": anslag.repo(sti),
+                   "fil": anslag.vis(sti),
                    **s, "aapningsdato": innhold["typer"][type_]["aapningsdato"],
                    "anslag": m, "referanse_a": a, "referanse_b": b}
             if None in (m, a, b):
@@ -262,6 +357,8 @@ def fasiten(data_til: str, tellende: list[tuple[dt.date, Path, dict, dict]],
         "merke": ("Forseglede maskinanslag per produksjonsområde. Bare forseglede "
                   "uker teller. K6 er en PRØVETYPE."),
         "registrering": "predictions/maskin/FORHANDSREGISTRERING.md",
+        "tillegg": [f"{anslag.STI}/{navn}" for navn in anslag.TILLEGG],
+        "steder": steder() + " `repo` og `fil` på hver rad sier hvor.",
         "data_til": data_til,
         "anslag": rader,
         "treffliste": treff,
@@ -286,6 +383,7 @@ def treffliste(f: dict) -> str:
          "Bare forseglede uker teller. Backtesten står nederst, adskilt og merket",
          "BACKTEST, og telles ikke. Hva som er registrert, står i",
          "`FORHANDSREGISTRERING.md`; hver rad står i `fasiten.json`.", "",
+         steder(), "`repo` og `fil` på hver rad i `fasiten.json` sier hvor.", "",
          (f"Lusetall til og med uke {anslag.isouke(dt.date.fromisoformat(f['data_til']))} "
           f"({f['data_til']})." if f["data_til"] else "Ingen lusetall i datarepoet."), ""]
     navn = {"K2": "K2, brakklegginger de neste fire ukene — hovedtype",
@@ -317,7 +415,8 @@ def treffliste(f: dict) -> str:
                       "MAE a", "MAE b"], rader) + [""]
     if f["ikke_tellende"]:
         L += ["## Ukefiler som ikke teller", ""]
-        L += _tabell(["fil", "grunn"], [[x["fil"], x["grunn"]] for x in f["ikke_tellende"]])
+        L += _tabell(["repo", "fil", "grunn"],
+                     [[x["repo"], x["fil"], x["grunn"]] for x in f["ikke_tellende"]])
         L += [""]
     b = f["backtest"]
     L += [f"## {b['merke']}", "", b["kilde"], ""]
@@ -372,8 +471,10 @@ def main(argv: list[str] | None = None) -> int:
         return prov_backtest(logg)
 
     if a.oppgrader:
+        # Bare datarepoets mappe. Kodrepoets stempler er oppgradert for
+        # hånd, og jobben skriver ikke dit.
         for ots in sorted(anslag.MASKIN_DIR.glob("*.ots")):
-            if ots.name.endswith(".komplett.ots"):
+            if ots.name.endswith(".komplett.ots") or anslag.i_kodetreet(ots.parent):
                 continue
             if ots.with_name(ots.name.removesuffix(".ots") + ".komplett.ots").exists():
                 continue
@@ -381,13 +482,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {'komplett' if utfall else 'venter  ' if utfall is False else 'ukjent  '}"
                   f"  {ots.name}")
 
+    try:
+        filer = ukefiler()
+    except Ukefeil as e:
+        print(f"::error::Ukefilene ligger ikke slik de skal: {e}. Fasiten og "
+              f"trefflista er ikke skrevet.")
+        return 2
     ført = forseglinger()
     tellende, ikke_tellende = [], []
-    for T, sti in ukefiler():
+    for T, sti in filer:
         s, grunn = segl(T, sti, ført)
         if s is None:
-            ikke_tellende.append({"fil": anslag.vis(sti), "grunn": grunn})
-            print(f"::warning::{sti.name} teller ikke: {grunn}")
+            ikke_tellende.append({"uke": anslag.isouke(T), "repo": anslag.repo(sti),
+                                  "fil": anslag.vis(sti), "grunn": grunn})
+            print(f"::warning::{sti.name} i {anslag.repo(sti)} teller ikke: {grunn}")
             continue
         innhold = yaml.safe_load(sti.read_text(encoding="utf-8"))
         tellende.append((T, sti, innhold, s))
@@ -395,6 +503,15 @@ def main(argv: list[str] | None = None) -> int:
     utfall = utfallene([(T, sti, innhold) for T, sti, innhold, _ in tellende], logg)
     lus = snapshot.datoer("lusetall")
     f = fasiten(lus[-1] if lus else "", tellende, ikke_tellende, utfall)
+    # En uke som sto i fasiten, skal stå der neste gang også. Ukefiler
+    # slettes aldri; mangler en, er det mappa som ikke ble lest.
+    if FASIT.exists():
+        borte = sorted(uker_i(json.loads(FASIT.read_text(encoding="utf-8"))) - uker_i(f))
+        if borte:
+            print(f"::error::{', '.join(borte)} står i {FASIT.name} fra før, men har ingen "
+                  f"ukefil nå. En uke forsvinner ikke: se etter fila i {anslag.KODEREPO} og "
+                  f"{anslag.DATAREPO}. Fasiten og trefflista er ikke skrevet.")
+            return 2
     tekst_json = json.dumps(f, ensure_ascii=False, indent=1) + "\n"
     tekst_md = treffliste(f)
     for type_, t in f["treffliste"].items():
@@ -405,12 +522,18 @@ def main(argv: list[str] | None = None) -> int:
         print(tekst_json, end="")
         print(tekst_md, end="")
         return 0
+    if anslag.i_kodetreet(FASIT.parent):
+        print(f"::error::{FASIT.name} og {TREFFLISTE.name} skrives i {anslag.DATAREPO}, men "
+              f"{FASIT.parent} ligger i kodrepoet. Sett HAVBRUK_DATA_DIR til data/ i "
+              f"datarepoet.")
+        return 2
+    FASIT.parent.mkdir(parents=True, exist_ok=True)
     for sti, tekst in ((FASIT, tekst_json), (TREFFLISTE, tekst_md)):
         if sti.exists() and sti.read_text(encoding="utf-8") == tekst:
             print(f"  {sti.name} uendret")
             continue
         sti.write_text(tekst, encoding="utf-8")
-        print(f"  skrevet {anslag.vis(sti)}")
+        print(f"  skrevet {anslag.vis(sti)} i {anslag.DATAREPO}")
     return 0
 
 

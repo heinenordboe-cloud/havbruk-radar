@@ -11,6 +11,27 @@ Hva som anslås, og hvorfor bare K2 og K6, står i
 første anslag (d469d8c). K6 er en PRØVETYPE, og fila sier det ved hvert
 anslag. Utfallet og trefflista skriver `skaar_anslag.py`.
 
+## To steder, og en uke ligger på ett
+
+    kodrepoet    uke 46 og 47, forseglet for hånd før jobben fantes, og
+                 registreringen med tillegget. Røres ikke.
+    datarepoet   fra uke 48 (`FORSTE_I_DATAREPOET`): ukefila, stempelet
+                 og forseglinger.tsv, under samme relative sti.
+
+`mappe(T)` svarer for en uke. Tillegget til forhåndsregistreringen
+(`FORHANDSREGISTRERING-TILLEGG-1.md`) sier det samme, stemplet før første
+uke i datarepoet.
+
+Ukejobben (`anslag.yml` i datarepoet) skriver bare i datarepoet, med
+repoets eget token. Main i kodrepoet er koden alle jobbene kjører, også
+publiseringen, og den har ingen regelsett: et token som kan skrive
+ukefila dit, kan skrive alt (besluttet 10.11.2026). Det løser også det
+andre: et verktøy som skriver i kodetreet, gjør treet urent for neste
+kjøring av seg selv. En `.komplett.ots` eller en `.ots.bak` som ikke var
+committet, var nok til at `krev_sporbar()` nektet neste uke
+(docs/MALING-UKEJOBB.md, F0b.3). Kravet er uendret; det er skrivingen
+som er flyttet ut av treet kravet gjelder.
+
 ## R6s modell, importert og ikke kopiert
 
 Modellen er skriptet fra backtesten R6, lagt inn uendret som
@@ -37,17 +58,19 @@ Versjonsvalget, feltene og sammenslåingen er R6s, med R6s egne hjelpere
 ## Fila røres aldri etter stempelet
 
 `--forsegl` kjører `ots stamp` på ukefila og fører tidspunktet i
-`forseglinger.tsv`. Finnes ukefila fra før, lages den ikke på nytt: den
-stemples hvis den ikke er stemplet, ellers skjer ingenting. Fristen er
-søndag i uke T (FORHANDSREGISTRERING.md, «Frist»), og etter den nekter
-kommandoen både å lage og å stemple.
+`forseglinger.tsv` i samme mappe. Finnes ukefila fra før, lages den ikke
+på nytt: den stemples hvis den ikke er stemplet, ellers skjer ingenting.
+Fristen er søndag i uke T (FORHANDSREGISTRERING.md, «Frist»), og etter
+den nekter kommandoen både å lage og å stemple.
 
 ## Bare pushet kode lager et anslag
 
 Før ukefila skrives, kreves det samme som før innsamlingen
-(`kodeproveniens.krev_sporbar()`): rent arbeidstre og HEAD på
-origin/main. `kode` i ukefila er da en commit alle kan hente, og som
-gir det samme anslaget av de samme dataene.
+(`kodeproveniens.krev_sporbar()`): rent arbeidstre i kodrepoet og HEAD
+på origin/main. `kode` i ukefila er da en commit alle kan hente, og som
+gir det samme anslaget av de samme dataene. Ukefila skrives aldri i
+kodrepoet: peker `HAVBRUK_DATA_DIR` ikke på et datarepo utenfor
+kodetreet, nekter kommandoen.
 
 ## Klokka
 
@@ -75,8 +98,20 @@ from analyse.anslag import anslag_backtest as r6
 from core import kodeproveniens, paths, snapshot
 from core.config import get
 
-MASKIN_DIR = paths.ROT / "predictions" / "maskin"
-FORSEGLINGER = MASKIN_DIR / "forseglinger.tsv"
+# De to stedene. Samme relative sti i begge repoene, så en rad i
+# fasiten.json oppgir `repo` og `fil` og ikke mer.
+STI = "predictions/maskin"
+KODEREPO, DATAREPO = "havbruk-radar", "havbruk-radar-data"
+KODE_MASKIN = paths.ROT / "predictions" / "maskin"
+MASKIN_DIR = paths.DATA_DIR.parent / "predictions" / "maskin"
+# Mandag i uke 48. Uker før ligger i kodrepoet, fra og med i datarepoet.
+# Datoen står også i tillegget til forhåndsregistreringen, og i
+# datarepoets jobber.yml (`fra` under anslag.yml).
+FORSTE_I_DATAREPOET = dt.date(2026, 11, 23)
+# Ukefilene i kodrepoet. De er forseglet og blir aldri flere eller færre.
+KODE_UKER = ("2026-46.yml", "2026-47.yml")
+TILLEGG = ("FORHANDSREGISTRERING-TILLEGG-1.md",)
+
 FORSEGLINGER_HODE = "uke\tfil\tsha256\tstemplet\tots_sha256\n"
 UKEFIL = re.compile(r"^(\d{4})-(\d{2})\.yml$")
 
@@ -180,7 +215,48 @@ def sha256(sti: Path) -> str:
 
 def vis(sti: Path) -> str:
     """Stien slik repoet og fasiten.json oppgir den."""
-    return f"predictions/maskin/{sti.name}"
+    return f"{STI}/{sti.name}"
+
+
+# ----------------------------------------------------------------- stedene
+
+def mappe(T: dt.date) -> Path:
+    """Mappa ukefila for uke T ligger i."""
+    return KODE_MASKIN if T < FORSTE_I_DATAREPOET else MASKIN_DIR
+
+
+def mapper() -> list[Path]:
+    """De to mappene, kodrepoets først. Én når datarepoet ikke står ved
+    siden av (kodrepoets Actions, eller uten HAVBRUK_DATA_DIR)."""
+    return list(dict.fromkeys((KODE_MASKIN, MASKIN_DIR)))
+
+
+def repo(sti: Path) -> str:
+    """Repoet en fil under predictions/maskin ligger i."""
+    return KODEREPO if sti.parent == KODE_MASKIN else DATAREPO
+
+
+def forseglingslogg(mappe_: Path) -> Path:
+    """forseglinger.tsv for ukefilene i mappa. Én per sted: jobben fører
+    sine i datarepoet, og kodrepoets har de to linjene den alltid vil ha."""
+    return mappe_ / "forseglinger.tsv"
+
+
+def i_kodetreet(mappe_: Path) -> bool:
+    """Ligger mappa i kodrepoet? Da er den ikke datarepoet."""
+    return mappe_ == KODE_MASKIN or paths.ROT in mappe_.resolve().parents
+
+
+def feil_sted(T: dt.date) -> str:
+    """Grunnen når ukefila for uke T ligger i mappa den ikke hører
+    hjemme i. Tom streng når den ikke gjør det."""
+    for m in mapper():
+        if m != mappe(T) and (m / filnavn(T)).exists():
+            return (f"{filnavn(T)} ligger i {repo(m / filnavn(T))}, men {isouke(T)} "
+                    f"hører hjemme i {repo(mappe(T) / filnavn(T))}. En uke ligger ett "
+                    f"sted: før {isouke(FORSTE_I_DATAREPOET)} i {KODEREPO}, fra og med "
+                    f"i {DATAREPO}")
+    return ""
 
 
 # ------------------------------------------------------------------ R6
@@ -377,7 +453,7 @@ def ukefil(T: dt.date, res: dict, *, akv_dato: str, kode: str, data: str,
 # ------------------------------------------------------------- forsegling
 
 def forsegl(sti: Path, T: dt.date, naa: dt.datetime) -> int:
-    """`ots stamp` på ukefila, og en linje i forseglinger.tsv."""
+    """`ots stamp` på ukefila, og en linje i forseglinger.tsv ved siden av."""
     ots = Path(f"{sti}.ots")
     sha = sha256(sti)
     if ots.exists():
@@ -400,8 +476,9 @@ def forsegl(sti: Path, T: dt.date, naa: dt.datetime) -> int:
     if stemplet != sha:
         print(f"::error::{ots.name} er stemplet for {stemplet}, ikke for fila ({sha}).")
         return 2
-    ny = not FORSEGLINGER.exists()
-    with FORSEGLINGER.open("a", encoding="utf-8") as fh:
+    logg = forseglingslogg(sti.parent)
+    ny = not logg.exists()
+    with logg.open("a", encoding="utf-8") as fh:
         if ny:
             fh.write(FORSEGLINGER_HODE)
         fh.write(f"{isouke(T)}\t{sti.name}\t{sha}\t"
@@ -426,7 +503,7 @@ def main(argv: list[str] | None = None, naa: dt.datetime | None = None) -> int:
     modulen()
     T = fra_isouke(a.uke) if a.uke else mandag(naa.date())
     K = T - dt.timedelta(weeks=INFO_UKER)
-    sti = MASKIN_DIR / filnavn(T)
+    sti = mappe(T) / filnavn(T)
     print(f"Maskinanslag {isouke(T)} (utstedt {T}, informasjon til og med {K})"
           + ("  (TØRRKJØRING)" if a.torrkjor else ""))
 
@@ -436,9 +513,24 @@ def main(argv: list[str] | None = None, naa: dt.datetime | None = None) -> int:
             print(f"::error::{isouke(T)} er ikke denne uka ({isouke(naa.date())}). "
                   f"Et anslag lages og stemples bare i uka det gjelder.")
             return 2
+        if grunn := feil_sted(T):
+            print(f"::error::{grunn}. Ingenting er skrevet.")
+            return 2
         if sti.exists():
-            print(f"  {sti.name} finnes; den lages aldri på nytt")
+            print(f"  {vis(sti)} finnes i {repo(sti)}; den lages aldri på nytt")
             return forsegl(sti, T, naa) if a.forsegl else 0
+        # Ingen ny ukefil skrives i kodrepoet. Ukene som hører hjemme der,
+        # finnes; og uten HAVBRUK_DATA_DIR er datamappa `data/` i kodetreet.
+        if T < FORSTE_I_DATAREPOET:
+            print(f"::error::{isouke(T)} er før {isouke(FORSTE_I_DATAREPOET)}, og de ukene "
+                  f"ligger forseglet i {KODEREPO}. {vis(sti)} finnes ikke der, og det "
+                  f"lages ingen ny ukefil i kodrepoet.")
+            return 2
+        if i_kodetreet(sti.parent):
+            print(f"::error::Ukefila for {isouke(T)} skal skrives i {DATAREPO}, men "
+                  f"{sti.parent} ligger i kodrepoet. Sett HAVBRUK_DATA_DIR til "
+                  f"data/ i datarepoet.")
+            return 2
 
     for kilde in ("lusetall", "sjotemperatur"):
         if K.isoformat() not in snapshot.datoer(kilde):
@@ -472,9 +564,9 @@ def main(argv: list[str] | None = None, naa: dt.datetime | None = None) -> int:
     if a.torrkjor:
         print(tekst, end="")
         return 0
-    MASKIN_DIR.mkdir(parents=True, exist_ok=True)
+    sti.parent.mkdir(parents=True, exist_ok=True)
     sti.write_text(tekst, encoding="utf-8")
-    print(f"  skrevet {vis(sti)}  sha256 {sha256(sti)}")
+    print(f"  skrevet {vis(sti)} i {repo(sti)}  sha256 {sha256(sti)}")
     return forsegl(sti, T, naa) if a.forsegl else 0
 
 
