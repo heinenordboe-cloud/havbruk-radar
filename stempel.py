@@ -2,6 +2,8 @@
 
     python stempel.py                 # manifest for nye filer, stemple, oppgradere
     python stempel.py --torrkjor      # si hva som ville blitt stemplet
+    python stempel.py --oppgrader predictions/maskin/2026-47.yml.ots
+                                      # bare dette stempelet, som en kopi
 
 Kjøres av `stempel.yml` i datarepoet etter hver fangstjobb.
 
@@ -21,8 +23,13 @@ flytte.
 
   * sha256 for hver fil i `data/arkiv/` og `data/raw/` der (sti, sha256)
     ikke står i et tidligere manifest,
-  * det samme for filene i kodrepoets `predictions/` — de endres med
-    vilje når et utfall skrives inn, og hver versjon får sin linje,
+  * det samme for filene i `predictions/`, i kodrepoet og fra 18.11.2026
+    i datarepoet — de endres med vilje når et utfall skrives inn, og
+    hver versjon får sin linje. Maskinanslagenes ukefiler ligger i
+    datarepoets `predictions/maskin/` fra uke 48, med fasiten.json og
+    forseglinger.tsv (se `anslag.py`). Ukefila har sitt eget stempel;
+    linja her er det som tidfester loggen over forseglingene og hver
+    versjon av fasiten,
   * HEAD i begge repoene.
 
 En fil i arkivet som har fått nytt innhold etter at den sto i et
@@ -50,6 +57,13 @@ kalendrene har en blokk (971138 og 971140), exit 1 når de fortsatt venter.
 
 Et manifest uten `.ots` (kalendrene svarte ikke sist) stemples ved neste
 kjøring.
+
+`--oppgrader <fil>.ots` gjør det samme for ett stempel utenfor
+`data/stempler/`: kopien oppgraderes og skrives som `<fil>.komplett.ots`,
+og originalen står. Det er veien for et stempel som skal oppgraderes for
+hånd. `ots upgrade` rett på fila byttet 11.11.2026 ut stempelet for uke
+46, og prøven som holder det mot forseglinger.tsv, ble rød
+(docs/MALING-UKEJOBB.md, F0b.1).
 
 Verifisering står i docs/RUNBOOK.md, «Tidsstempler».
 """
@@ -114,7 +128,7 @@ def filer() -> list[tuple[str, Path]]:
     """(sti i manifestet, fila på disk), sortert."""
     data = [d.relative_to(DATAREPO).as_posix() for d in (DATA / u for u in DATAMAPPER)]
     ut = [(f"{_navn(DATAREPO)}/{p.relative_to(DATAREPO).as_posix()}", p)
-          for p in _sporet(DATAREPO, *data)]
+          for p in _sporet(DATAREPO, *data, PREDIKSJONER)]
     ut += [(f"{_navn(KODEREPO)}/{p.relative_to(KODEREPO).as_posix()}", p)
            for p in _sporet(KODEREPO, PREDIKSJONER)]
     return sorted(ut)
@@ -194,6 +208,28 @@ def oppgrader(ventende: Path) -> bool | None:
         return None
 
 
+def oppgrader_filer(filer: list[Path]) -> int:
+    """`--oppgrader`: hvert stempel for seg, som en kopi. 0 når alle har
+    en `.komplett.ots` etterpå, 1 når minst ett fortsatt venter eller
+    ikke er et ventende stempel."""
+    mangler = 0
+    for ventende in filer:
+        navn = ventende.name
+        if not navn.endswith(".ots") or navn.endswith(".komplett.ots") or not ventende.exists():
+            print(f"::error::{ventende} er ikke et ventende stempel (<fil>.ots).")
+            mangler += 1
+            continue
+        komplett = ventende.with_name(navn.removesuffix(".ots") + ".komplett.ots")
+        if komplett.exists():
+            print(f"  finnes    {komplett.name}")
+            continue
+        utfall = oppgrader(ventende)
+        print(f"  {'komplett ' if utfall else 'venter   ' if utfall is False else 'ukjent   '}"
+              f"{navn}")
+        mangler += not utfall
+    return 1 if mangler else 0
+
+
 # Døgn et stempel kan vente på kalendrene før det sies fra om.
 VENTER_MAKS = 2
 
@@ -212,7 +248,12 @@ def main(argv=None) -> int:
     p.add_argument("--dato", default="",
                    help="Datoen i manifestnavnet. Standard: i dag (UTC), slått "
                         "opp her og sendt inn (CLAUDE.md 1b).")
+    p.add_argument("--oppgrader", nargs="+", metavar="FIL.ots", default=None,
+                   help="Oppgrader bare disse stemplene: en kopi skrives som "
+                        "<fil>.komplett.ots, og originalen røres ikke.")
     a = p.parse_args(argv)
+    if a.oppgrader:
+        return oppgrader_filer([Path(s) for s in a.oppgrader])
     dato = a.dato or dt.datetime.now(dt.timezone.utc).date().isoformat()
     print(f"Stempel {dato}" + ("  (TØRRKJØRING)" if a.torrkjor else ""))
 

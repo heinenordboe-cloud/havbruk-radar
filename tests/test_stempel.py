@@ -188,3 +188,42 @@ def test_torrkjoring_skriver_ingenting(repoer):
     assert stempel.main(["--torrkjor", "--dato", "2026-10-13"]) == 0
     assert not (data_repo / "data" / "stempler").exists()
     assert not ots.kall
+
+
+def test_datarepoets_predictions_er_med(repoer):
+    """Fra uke 48 ligger maskinanslagenes ukefiler, forseglinger.tsv og
+    fasiten.json i datarepoet. De stemples som kodrepoets predictions/, og
+    en ny versjon av fasiten får en ny linje."""
+    data_repo, _, _ = repoer
+    _skriv(data_repo, "predictions/maskin/2026-48.yml", b"ukefil")
+    _skriv(data_repo, "predictions/maskin/fasiten.json", b"{}")
+    stempel.main(["--dato", "2026-11-23"])
+    stier = [s for _, s in _linjer(data_repo / "data/stempler/2026-11-23.manifest.txt")]
+    assert "havbruk-radar-data/predictions/maskin/2026-48.yml" in stier
+    assert "havbruk-radar-data/predictions/maskin/fasiten.json" in stier
+    _skriv(data_repo, "predictions/maskin/fasiten.json", b'{"utfall": 1}')
+    stempel.main(["--dato", "2026-11-30"])
+    assert [s for _, s in _linjer(data_repo / "data/stempler/2026-11-30.manifest.txt")] == [
+        "havbruk-radar-data/predictions/maskin/fasiten.json"]
+
+
+def test_oppgrader_ett_stempel_skriver_kopien_og_lar_originalen_staa(tmp_path, monkeypatch):
+    """`ots upgrade` rett på fila flytter originalen til .bak og skriver over
+    navnet. Det byttet ut stempelet for uke 46 11.11.2026."""
+    ots = FalskOts()
+    monkeypatch.setattr(stempel, "ots", ots)
+    ventende = tmp_path / "2026-47.yml.ots"
+    ventende.write_bytes(b"VENTER")
+    assert stempel.main(["--oppgrader", str(ventende)]) == 1      # kalendrene venter
+    assert not (tmp_path / "2026-47.yml.komplett.ots").exists()
+    ots.komplett = True
+    assert stempel.main(["--oppgrader", str(ventende)]) == 0
+    assert ventende.read_bytes() == b"VENTER"
+    assert (tmp_path / "2026-47.yml.komplett.ots").read_bytes() == b"KOMPLETT"
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "2026-47.yml.komplett.ots", "2026-47.yml.ots"]
+    # En gang til: ingenting gjøres, og en .komplett.ots oppgraderes ikke.
+    kall = len(ots.kall)
+    assert stempel.main(["--oppgrader", str(ventende)]) == 0
+    assert stempel.main(["--oppgrader", str(tmp_path / "2026-47.yml.komplett.ots")]) == 1
+    assert len(ots.kall) == kall
