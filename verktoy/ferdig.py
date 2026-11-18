@@ -6,6 +6,9 @@ En jobb, tjeneste eller test er ikke ferdig før
 
   1  den har kjørt i sitt ekte miljø, ikke bare lokalt
        workflow   minst én vellykket kjøring i Actions (gh api)
+       ukejobb    (`maales: ukefil` i jobber.yml) minst én ukefil jobben
+                  selv har stemplet, committet og pushet. En grønn kjøring
+                  er ikke nok, se `krav1_ukefil()`
        tjeneste   `active` og `success` i data/ais/status.json, slik
                   kystvakt-1 meldte sist
        prøver     `miljo` i verktoy/ferdig.yml, og for «Tester» en grønn
@@ -43,21 +46,68 @@ def vellykkede(repo: str, fil: str) -> int | None:
     return int(r.stdout) if r.returncode == 0 and r.stdout.strip().isdigit() else None
 
 
-def rad(navn: str, ekte: str | None, frist: str | None, feilprove: str | None) -> str:
+def rad(navn: str, ekte: str | None, frist: str | None, feilprove: str | None,
+        merknad: str = "") -> str:
     mangler = [str(i) for i, v in ((1, ekte), (2, frist), (3, feilprove)) if not v]
     hva = "ferdig" if not mangler else f"mangler {', '.join(mangler)}"
-    detalj = "; ".join(f"{i} {v}" for i, v in ((1, ekte), (2, frist), (3, feilprove)) if v)
+    detalj = "; ".join([f"{i} {v}" for i, v in ((1, ekte), (2, frist), (3, feilprove)) if v]
+                       + ([merknad] if merknad else []))
     return f"  {navn:<34} {hva:<16} {detalj}"
 
 
-def workflows(jobber: dict, hc: dict, kall=vellykkede) -> list[str]:
+# `user.name` i hver workflow som committer i datarepoet, som FORFATTER i
+# datarepoets .github/tilsyn.py. En commit fra et menneske på jobbens
+# stier er ikke bevis på at JOBBEN kjørte.
+FORFATTER = "havbruk-radar"
+
+
+def forseglet_av_jobben(datarepo: Path, mappe: str) -> list[str] | None:
+    """Ukefilene JOBBEN har stemplet og committet i datarepoet, eldst først:
+    hver `<mappe>/<år>-<uke>.yml.ots` som er lagt til i en commit fra
+    FORFATTER. None når historikken ikke lar seg lese.
+
+    En uke forseglet for hånd fra Mac-en (reserven i RUNBOOK) teller ikke:
+    den viser at verktøyet virker lokalt, ikke at jobben gjør det."""
+    r = subprocess.run(["git", "-C", str(datarepo), "log", f"--author={FORFATTER}",
+                        "--diff-filter=A", "--name-only", "--format=", "--",
+                        f"{mappe}/*.yml.ots"], capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    return sorted({Path(linje).name.removesuffix(".ots")
+                   for linje in r.stdout.splitlines() if linje.strip()})
+
+
+def krav1_ukefil(jobb: dict, kjoringer: int | None, uker) -> tuple[str | None, str]:
+    """(krav 1, merknad) for en jobb som måles på ukas fil (`maales: ukefil`).
+
+    En grønn kjøring er et forsøk, ikke et resultat (CLAUDE.md 1b-2).
+    18.11.2026 hadde anslag.yml to grønne kjøringer, begge tørrkjøringer
+    som verken stemplet, committet eller pushet, og kontrollen sa «mangler
+    3». Jobben har kjørt i sitt ekte miljø når den selv har lagt en
+    stemplet ukefil i repoet, og ikke før. Mangler den, sier raden det."""
+    s = jobb["stillhet"]
+    funnet = uker((s.get("stier") or jobb["skriver"])[0]) if uker else None
+    if funnet:
+        return f"{len(funnet)} uke(r) forseglet av jobben i Actions, sist {funnet[-1]}", ""
+    hvorfor = ("stemplingen, commiten og pushen er ikke prøvd i Actions"
+               if funnet is not None else "datarepoets historikk kunne ikke leses")
+    antall = "ukjent antall" if kjoringer is None else str(kjoringer)
+    return None, (f"1 mangler: {hvorfor} ({antall} grønne kjøringer, ingen ukefil fra "
+                  f"jobben; første uke er {s.get('fra', 'ikke oppgitt')})")
+
+
+def workflows(jobber: dict, hc: dict, kall=vellykkede, uker=None) -> list[str]:
+    """`uker(mappe)` gir ukefilene jobben har forseglet, se `forseglet_av_jobben()`."""
     ut = []
     for fil, j in jobber.items():
         n = kall(DATAREPO, fil)
         ekte = f"{n} vellykkede i Actions" if n else None
         s = j.get("stillhet")
+        merknad = ""
+        if s and s.get("maales") == "ukefil":
+            ekte, merknad = krav1_ukefil(j, n, uker)
         frist = (f"jobber.yml {s['maks_dogn']} døgn ({s['maales']})" if s else hc.get(fil))
-        ut.append(rad(fil, ekte, frist, j.get("feilprove")))
+        ut.append(rad(fil, ekte, frist, j.get("feilprove"), merknad))
     return ut
 
 
@@ -93,7 +143,8 @@ def main() -> int:
 
     print("Ferdig? Krav 1 ekte miljø, 2 frist eller sjekk, 3 feil med vilje (CLAUDE.md §8)")
     print(f"\nWorkflows i datarepoet ({jobber_yml})")
-    linjer = workflows(jobber, ferdig.get("healthchecks") or {})
+    linjer = workflows(jobber, ferdig.get("healthchecks") or {},
+                       uker=lambda mappe: forseglet_av_jobben(data.parent, mappe))
     print(*linjer, sep="\n")
     print(f"\nTjenester på kystvakt-1 ({status_json})")
     linjer += tjenester(ferdig, status)
