@@ -6457,6 +6457,8 @@ def _miljo() -> Environment:
     # Selskapets lokaliteter: tallet, delingen og ordene, ett sted for
     # selskapssiden og indeksen. Se `selskapets_lokaliteter()`.
     miljo.globals["deling_vist"] = deling_vist
+    miljo.globals["deling_deler"] = deling_deler
+    miljo.globals["SKILLE"] = SKILLE
     miljo.globals["LOKALITETER_ORD"] = LOKALITETER_ORD
     miljo.globals["DELING_ORD"] = DELING_ORD
     return miljo
@@ -10999,11 +11001,16 @@ def deling_vist(d: dict, lange: bool = False, skille: str = SKILLE) -> str:
     De to første står alltid, også med null: «0 delt med andre» er en
     måling. Den tredje står bare når den ikke er tom.
     """
+    return skille.join(deling_deler(d, lange))
+
+
+def deling_deler(d: dict, lange: bool = False) -> list[str]:
+    """Leddene i `deling_vist()`, hver for seg: nøkkeltallet på
+    selskapssiden setter dem på hver sin linje."""
     ordene = DELING_ORD_LANGE if lange else DELING_ORD
-    return skille.join(
-        f"{visningsord.tall(d[slag])} {ordene[slag]}"
-        for slag in ("egne", "delt", "uavklart")
-        if slag != "uavklart" or d[slag])
+    return [f"{visningsord.tall(d[slag])} {ordene[slag]}"
+            for slag in ("egne", "delt", "uavklart")
+            if slag != "uavklart" or d[slag]]
 
 
 def bygg_selskap(orgnr: str, felles: Felles) -> dict:

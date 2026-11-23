@@ -1187,6 +1187,63 @@ def test_forste_skjermbilde_paa_selskapssiden_svarer_paa_hva_som_har_skjedd(side
     assert not for_lave, f"{len(for_lave)} sider svarer ikke øverst: {for_lave[:5]}"
 
 
+@pytest.mark.parametrize("bredde", (1440, 390))
+def test_delingen_staar_paa_hver_sin_linje_og_bryter_ikke_raden(side, tjener, bredde):
+    """«2 bare egne» og «18 delt med andre» står på hver sin linje i samme
+    nøkkeltall, og delingen gjør aldri at raden brytes.
+
+    MÅLT 23.11.2026 på 1440, alle 480 selskapssider: med delingen på én
+    linje (e842259) var første rute 186 px, og nøkkeltallene sto i to
+    rader på alle 480. Uten delingen ville 154 av dem stått i én.
+    Prøven skjuler delingen og teller radene på nytt: er det færre uten,
+    er det delingen som bryter raden.
+
+    Den krever ikke ÉN rad. En rute med kapasitet i flere enheter eller
+    en lang dato bryter raden uten delingens hjelp (121 sider før punkt 2
+    i 15a), og det er en annen sak.
+
+    «Bare egne» og «delt med andre» står på én linje hver. Den tredje,
+    «med tillatelse uten oppgitt innehaver», får brytes.
+    """
+    sider = sorted(p.parent.name for p in (Path(ROT) / "selskap").glob("*/index.html"))
+    assert sider, "fant ingen selskapssider"
+    side.set_viewport_size({"width": bredde, "height": 900})
+    feil = []
+    try:
+        for orgnr in sider:
+            side.goto(f"{tjener}/selskap/{orgnr}/", wait_until="load")
+            m = side.evaluate("""() => {
+              const dl = document.querySelector('dl.nokkeltall');
+              const del = dl && dl.querySelector('.nokkeltall-del');
+              if (!del) return null;
+              const rader = () => new Set([...dl.children].map(
+                  e => Math.round(e.getBoundingClientRect().top))).size;
+              const ledd = [...del.querySelectorAll('.nokkeltall-linje')].map(s => {
+                const r = s.getBoundingClientRect();
+                return {tekst: s.textContent, topp: Math.round(r.top),
+                        linjer: Math.round(r.height / parseFloat(getComputedStyle(s).lineHeight))};
+              });
+              const med = rader();
+              del.style.display = 'none';
+              const uten = rader();
+              del.style.display = '';
+              return {med, uten, ledd};
+            }""")
+            if m is None:
+                continue
+            if m["med"] > m["uten"]:
+                feil.append((orgnr, "delingen bryter raden", m["med"], m["uten"]))
+            topper = [x["topp"] for x in m["ledd"]]
+            if len(m["ledd"]) < 2 or topper != sorted(set(topper)):
+                feil.append((orgnr, "ikke hver sin linje", m["ledd"]))
+            for x in m["ledd"][:2]:
+                if x["linjer"] != 1:
+                    feil.append((orgnr, "leddet er brutt", x))
+    finally:
+        side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert not feil, f"{len(feil)} funn @ {bredde}: {feil[:5]}"
+
+
 # ---- avsnittsgrensa ---------------------------------------------------
 #
 # PORTEN TELLER TEGN, NETTLESEREN TELLER LINJER. `publiseringsvakt`

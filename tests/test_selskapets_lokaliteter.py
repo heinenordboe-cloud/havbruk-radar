@@ -155,7 +155,7 @@ def test_noten_om_summen_staar_bare_der_den_trengs():
 
 
 def _nokkeltall(side: str) -> dict:
-    rute = re.search(r'<div class="nokkeltall-bred">(.*?)</div>', side, re.S).group(1)
+    rute = re.search(r'<div class="nokkeltall-lokaliteter">(.*?)</div>', side, re.S).group(1)
     return {"tall": re.search(r'data-felt="lokaliteter_antall">([^<]*)<', rute).group(1),
             "etikett": _avsnitt(re.search(r"<dt>(.*?)</dt>", rute, re.S).group(1)),
             "deling": _avsnitt(re.search(

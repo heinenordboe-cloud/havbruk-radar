@@ -62,10 +62,18 @@
         lokalitet med en av selskapets tillatelser, også der andre har
         resten. Tallene og ordene er `nettsted.selskapets_lokaliteter()`s,
         de samme indeksen, JSON-LD-en og margen bruker. #}
-    <div class="nokkeltall-bred">
+    {#- ETT LEDD PER LINJE, i samme rute som tallet. Til 23.11.2026 sto
+        delingen på én linje, og ruta ble så bred at det femte nøkkeltallet
+        brakk til en ny rad på 1440 på alle 480 sidene (Heine: to linjer,
+        så raden holder). Skilletegnet står i teksten for den som leser
+        den uten stilark, og er skjult når linjene står under hverandre. #}
+    <div class="nokkeltall-lokaliteter">
       <dd data-felt="lokaliteter_antall">{{ tall(sel.lokaliteter_antall) }}</dd>
       <dt>{{ LOKALITETER_ORD[0] if sel.lokaliteter_antall == 1 else LOKALITETER_ORD[1] }} nå</dt>
-      {% if sel.lokaliteter_antall %}<dd class="nokkeltall-del" data-felt="lokaliteter_deling">{{ deling_vist(sel.lokaliteter_deling) }}</dd>{% endif %}
+      {% if sel.lokaliteter_antall %}<dd class="nokkeltall-del" data-felt="lokaliteter_deling">
+        {%- for ledd in deling_deler(sel.lokaliteter_deling) %}
+        {%- if not loop.first %}<span class="nokkeltall-skille">{{ SKILLE }}</span>{% endif %}<span class="nokkeltall-linje">{{ ledd }}</span>
+        {%- endfor %}</dd>{% endif %}
     </div>
     <div>
       <dd>{{ tall(sel.tillatelser_antall) }}</dd>
