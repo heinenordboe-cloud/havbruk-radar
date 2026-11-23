@@ -471,9 +471,13 @@ def sjekk_nedtatt(base: str, sti: str, henter=hent) -> list[str]:
 # KARTVERKET.
 FASIT_STI = "fasiten"
 
-# En forseglet fil og stempelet dens: `<navn>.md` og `<navn>.md.ots`.
-_FORSEGLET_FIL = re.compile(r"\.md(?:\.ots)?$")
-_FORSEGLET_LENKE = re.compile(r'href="([^"/:?#]+\.md(?:\.ots)?)"')
+# En forseglet fil og stempelet dens: `<navn>.md` og `<navn>.md.ots`, og
+# fra 23.11.2026 (16b) ukefilene for maskinanslagene: `<år>-<uke>.yml`,
+# `.yml.ots` og `.yml.komplett.ots`. Ukefilene ligger i /fasiten/ selv, og
+# typesidene lenker dit med hele stien.
+_FORSEGLET_FIL = re.compile(r"\.(?:md|yml)(?:(?:\.komplett)?\.ots)?$")
+_FORSEGLET_LENKE = re.compile(
+    rf'href="((?:/{FASIT_STI}/)?[^"/:?#]+\.(?:md|yml)(?:(?:\.komplett)?\.ots)?)"')
 
 
 @dataclass(frozen=True)
@@ -546,7 +550,7 @@ def forseglede_fra_utrulling(url: str, henter=None, bytehenter=None
         if status != 200:
             raise ValueError(f"utrullingen svarer {status} på {side}")
         for navn in _FORSEGLET_LENKE.findall(kropp):
-            sti = side + navn
+            sti = navn if navn.startswith("/") else side + navn
             st, hoder, data = bytehenter(rot + sti)
             if st != 200:
                 raise ValueError(f"utrullingen svarer {st} på {sti}")

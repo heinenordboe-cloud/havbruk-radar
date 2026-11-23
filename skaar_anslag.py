@@ -228,6 +228,106 @@ def uker_i(f: dict) -> set[str]:
     return uker
 
 
+# ------------------------------------------------- kopiene på nettstedet
+#
+# /fasiten/ har en kopi av hver ukefil, stempelet og det oppgraderte
+# stempelet der det finnes, byte for byte (økt 16b, 23.11.2026). Samme
+# form som `havbruksfond.forseglede_kopier()`, og av samme grunn: en
+# leser skal ikke måtte til et repo for å sjekke et anslag, og
+# datarepoet er privat.
+#
+# UKENE ER FASITENS, SUMMENE ER FORSEGLINGENS. Hvilke uker som får en
+# kopi, leses av fasiten.json: bare uker som teller, og ingen andre
+# (`ikke_tellende` står ikke på nettstedet). Summen kopien holdes mot,
+# er den forseglinger.tsv førte da uka ble stemplet, for fila og for
+# stempelet hver for seg. En fil som er endret etter stempelet, får da
+# ingen kopi, selv om fasiten.json skulle vært skrevet etter endringen.
+
+KOPIMAPPE = "fasiten"
+
+
+def les_fasit() -> dict | None:
+    """fasiten.json slik skåreren skrev den, eller None når den ikke
+    finnes (kodrepoets Actions, eller et datarepo uten anslag)."""
+    return json.loads(FASIT.read_text(encoding="utf-8")) if FASIT.exists() else None
+
+
+def forseglede_kopier(f: dict | None = None) -> list[dict]:
+    """Filene nettstedet skal ha en kopi av for hver forseglet uke i
+    fasiten: ukefila, stempelet, og det oppgraderte stempelet der det
+    finnes. Eldste uke først.
+
+        uke       ISO-uka ("2026-W46")
+        slag      "fil", "ots" eller "komplett"
+        sti       stien i bygget ("fasiten/2026-46.yml.ots")
+        kilde     fila i repoet uka ligger i
+        sha256    summen forseglinger.tsv førte for nettopp denne fila
+                  (fila eller .ots-fila), None for det oppgraderte
+                  stempelet, som er laget etterpå
+        forseglet summen av ukefila, som hvert stempel skal gjelde
+        stemplet  tidspunktet i forseglinger.tsv
+
+    `ValueError` når en uke i fasiten ikke står i forseglinger.tsv: da
+    er uka ikke forseglet slik registreringen krever, og ingen kopi
+    skal gå ut."""
+    f = les_fasit() if f is None else f
+    if not f:
+        return []
+    ført = forseglinger()
+    sted = {anslag.KODEREPO: anslag.KODE_MASKIN, anslag.DATAREPO: anslag.MASKIN_DIR}
+    uker: dict[str, Path] = {}
+    for r in f.get("anslag", []):
+        uker.setdefault(r["uke"], sted[r["repo"]] / Path(r["fil"]).name)
+    ut = []
+    for uke, sti in sorted(uker.items()):
+        rad = ført.get(sti)
+        if rad is None:
+            raise ValueError(f"{uke} står i {FASIT.name}, men {sti.name} er ikke ført i "
+                             f"forseglinger.tsv i {anslag.repo(sti)}")
+        felles = {"uke": uke, "forseglet": rad["sha256"], "stemplet": rad["stemplet"]}
+        ut.append({**felles, "slag": "fil", "sti": f"{KOPIMAPPE}/{sti.name}",
+                   "kilde": sti, "sha256": rad["sha256"]})
+        ut.append({**felles, "slag": "ots", "sti": f"{KOPIMAPPE}/{sti.name}.ots",
+                   "kilde": Path(f"{sti}.ots"), "sha256": rad["ots_sha256"]})
+        komplett = Path(f"{sti}.komplett.ots")
+        if komplett.exists():
+            ut.append({**felles, "slag": "komplett",
+                       "sti": f"{KOPIMAPPE}/{komplett.name}",
+                       "kilde": komplett, "sha256": None})
+    return ut
+
+
+def kopifeil(k: dict, data: bytes) -> str:
+    """Hvorfor `data` ikke er kopien `k` skal være, eller "" når den er det.
+
+        fil       sha256 er summen forseglinger.tsv førte
+        ots       sha256 er summen forseglinger.tsv førte for .ots-fila,
+                  og stempelet gjelder ukefila
+        komplett  stempelet gjelder ukefila og bærer minst én
+                  Bitcoin-blokk, som `komplett()` krever
+
+    Brukes av bygget før noe skrives, og av porten på det som ble
+    skrevet. Samme regel to steder er én regel."""
+    import hashlib
+    if k["slag"] != "komplett":
+        sum_ = hashlib.sha256(data).hexdigest()
+        if sum_ != k["sha256"]:
+            return (f"sha256 {sum_[:16]}… er ikke summen forseglinger.tsv førte for "
+                    f"{k['uke']} ({k['sha256'][:16]}…)")
+    if k["slag"] == "fil":
+        return ""
+    try:
+        stemplet = havbruksfond.ots_sum(data, Path(k["sti"]).name)
+        blokker = havbruksfond.ots_blokker(data, Path(k["sti"]).name)
+    except (ValueError, IndexError) as e:
+        return f"stempelet kan ikke leses: {e}"
+    if stemplet != k["forseglet"]:
+        return f"stempelet gjelder ikke ukefila for {k['uke']}"
+    if k["slag"] == "komplett" and not blokker:
+        return "det oppgraderte stempelet bærer ingen Bitcoin-blokk"
+    return ""
+
+
 # --------------------------------------------------------------- utfallet
 
 def utfallene(filer: list[tuple[dt.date, Path, dict]], logg: kl.Kjoringslogg) -> dict:

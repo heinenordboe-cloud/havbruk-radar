@@ -3568,6 +3568,43 @@ strong.uenige { display: inline; }
   #fasit-paastander tbody th { min-inline-size: 18rem; max-inline-size: 34rem; }
 }
 
+/* MASKINANSLAGENE, fra 23.11.2026 (16b): oversikten, én side per type,
+   og «Slik sjekker du oss». Samme skrift og luft som havbruksfondets side.
+
+   NESTE FASIT er en linje under en etikett, ikke en overskrift i full
+   størrelse: den er et svar, og tabellen under er det leseren blar i. */
+.fasit-neste { margin: 0 0 var(--rom-32); }
+.fasit-neste h2 { margin: 0 0 var(--rom-4); }
+.fasit-neste p { margin: 0; }
+
+/* TIDSPUNKTET OG ÅPNINGSDATOEN under ukas overskrift: to korte linjer
+   som hører sammen, ikke to avsnitt. */
+.fasit-meta { margin: 0 0 var(--rom-4); color: var(--ink-dempet); }
+.fasit-blokk .tabelltittel { margin-block-start: var(--rom-16); }
+
+/* UKENE PÅ TYPESIDEN: seksjonsluften står over seksjonen, og
+   overskriften legger ikke på sin egen i tillegg. Første uke følger
+   statusen øverst: luft over luft leses som et hull. */
+.fasit-hoved > .fasit-blokk > h2:first-child { margin-block-start: 0; }
+.fasit-hoved > .fasit-blokk:first-child { padding-block-start: var(--rom-16); }
+
+/* PRØVETYPEN: etiketten hører til overskriften rett under. */
+.fasit-provetype { margin-block-start: var(--rom-48); }
+.fasit-provetype .etikett { margin: 0 0 var(--rom-4); }
+.fasit-provetype h2 { margin-block-start: 0; }
+
+/* REGELEN OM NYE TYPER: én setning, delt i to avsnitt (110-grensa). */
+.fasit-regel { margin-block-start: var(--rom-32); }
+.fasit-regel p { margin: 0; }
+
+/* SLIK SJEKKER DU OSS: tre linjer, og kommandoene brytes heller enn å
+   dra siden ut på 390. */
+.fasit-sjekk { padding-block-start: var(--rom-32); }
+.fasit-sjekk h2 { margin-block-start: 0; }
+.fasit-sjekk ol { padding-inline-start: 1.2em; margin: 0; }
+.fasit-sjekk li { margin-block-end: var(--rom-8); }
+.fasit-sjekk code { overflow-wrap: anywhere; }
+
 @media print {
   .hovedmeny ul, .handlinger, .hopp, .kopierknapp { display: none; }
   body { background: #fff; color: #000; font-size: 10pt; }

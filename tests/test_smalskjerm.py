@@ -72,6 +72,9 @@ SIDER = (
     # på 64 tegn uten mellomrom.
     "/fasiten/",
     "/fasiten/havbruksfondet-2026/",
+    # Maskinanslagene, fra 23.11.2026 (16b): siden for K2, med en tabell
+    # per uke og kommandoene i «Slik sjekker du oss».
+    "/fasiten/brakklegging/",
 )
 
 ROT = os.environ.get("HAVBRUK_NETTSTED", "")

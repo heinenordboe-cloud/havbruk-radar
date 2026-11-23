@@ -2952,6 +2952,37 @@ def forseglingsfunn(mappe: Path, rot: Path = ROOT
                                  f"{k['forseglet']} ({k['sha256'][:16]}…)"))
                 continue
         ok.add(k["sti"])
+
+    # MASKINANSLAGENE, fra 23.11.2026 (16b): ukefila, stempelet og det
+    # oppgraderte stempelet for hver uke i fasiten.json, under /fasiten/.
+    # Summene er de forseglinger.tsv førte, og regelen er
+    # `skaar_anslag.kopifeil()`, den samme bygget bruker. Et stempel skal
+    # i tillegg være byte for byte fila i repoet uka ligger i.
+    import skaar_anslag
+    try:
+        maskin = skaar_anslag.forseglede_kopier()
+    except ValueError as e:
+        funn.append(Funn(skaar_anslag.KOPIMAPPE, "forsegling", str(e)))
+        maskin = []
+    oversikt = (mappe / skaar_anslag.KOPIMAPPE / "index.html").exists()
+    for k in maskin:
+        fil = mappe / k["sti"]
+        if not fil.is_file():
+            if oversikt:
+                funn.append(Funn(k["sti"], "forsegling",
+                                 f"kopien for {k['uke']} mangler, og /fasiten/ "
+                                 f"lenker til den"))
+            continue
+        data = fil.read_bytes()
+        if k["slag"] != "fil" and (not k["kilde"].is_file()
+                                   or data != k["kilde"].read_bytes()):
+            funn.append(Funn(k["sti"], "forsegling",
+                             f"avviker fra {k['kilde'].name} i repoet uka ligger i"))
+            continue
+        if feil := skaar_anslag.kopifeil(k, data):
+            funn.append(Funn(k["sti"], "forsegling", feil))
+            continue
+        ok.add(k["sti"])
     return funn, ok
 
 
@@ -3028,7 +3059,9 @@ def immutablefunn(mappe: Path) -> list[Funn]:
 # FILTYPENE DER VERTEN IKKE SKAL GJETTE. `.ots` kom 16.11.2026: endelsen
 # er også OpenDocuments regnearkmal, og et stempel servert som regneark
 # er en fil leseren ikke får åpnet. Se `VERTSFILHODER` i nettsted.py.
-INNHOLDSTYPE_KREVES = (".xml", ".ots")
+# `.yml` kom 23.11.2026 med ukefilene under /fasiten/: hva Cloudflare
+# svarer for den, er ikke målt, og fila har æøå.
+INNHOLDSTYPE_KREVES = (".xml", ".ots", ".yml")
 
 
 def innholdstypefunn(mappe: Path) -> list[Funn]:

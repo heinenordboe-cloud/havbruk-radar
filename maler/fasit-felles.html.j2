@@ -1,0 +1,37 @@
+{# Det sidene under /fasiten/ skriver likt. Ingen typenavn her.
+
+   EN AVGJORT PÅSTAND SKRIVES LIKT ENTEN DEN TRAFF ELLER BOMMET (16b, 1f):
+   samme celle, samme skrift, ordet først og så det som finnes av utfall,
+   avvik og konfidens. Ingen farge, ingen uthevning og ingen forklaring i
+   raden: en bom står der datoen setter den, som et treff.
+
+   «vi sa» er konfidensen da påstanden ble forseglet. Bare havbruksfondets
+   påstander har en; et punktanslag har ingen sannsynlighet å bomme på. #}
+
+{% macro utfall(p) -%}
+{%- if p.ord %}{{ p.ord }}
+  {%- if p.utfall is not none %} · utfall {{ p.utfall }}{% endif %}
+  {%- if p.avvik is not none %} · avvik {{ p.avvik }}{% endif %}
+  {%- if p.konfidens %} · vi sa {{ p.konfidens }}{% endif %}
+{%- else %}{{ p.status }}{% endif -%}
+{%- endmacro %}
+
+{# SLIK SJEKKER DU OSS, på én ukefil: tre linjer med kommandoene (16b, 1g).
+   MÅLT 23.11.2026 med ots 0.7.2 på uke 48: `ots verify` henter
+   attestasjonene fra kalenderne og krever så en Bitcoin-node; uten den
+   stopper den med «Could not connect to Bitcoin node». Med
+   `--no-bitcoin` skriver den blokka og merkleroten, som kan holdes mot en
+   blokkutforsker. `g` er en uke fra `nettsted._maskintyper()`. #}
+{% macro sjekk(g, mappe) %}
+<section class="fasit-sjekk" id="sjekk" aria-labelledby="sjekk-tittel">
+  <h2 id="sjekk-tittel">Slik sjekker du oss</h2>
+  <ol>
+    <li>Last ned <a href="{{ mappe }}{{ g.fil }}" download><code>{{ g.fil }}</code></a> og
+      <a href="{{ mappe }}{{ g.ots }}" download><code>{{ g.ots }}</code></a>.</li>
+    <li><code>shasum -a 256 {{ g.fil }}</code> gir
+      <code class="tall-mono">{{ g.sha256[:8] }}…{{ g.sha256[-4:] }}</code>, summen i stempelet.</li>
+    <li><code>ots verify {{ g.ots }}</code> sjekker mot Bitcoin. Uten egen node:
+      <code>ots --no-bitcoin verify</code>.</li>
+  </ol>
+</section>
+{% endmacro %}

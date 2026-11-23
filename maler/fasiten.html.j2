@@ -1,14 +1,24 @@
 {# /fasiten/: anslagene vi har forseglet, og hvordan det gikk. Se
-   `nettsted.skriv_fasiten()`.
+   `nettsted.bygg_fasiten()` og `skriv_fasiten()`.
 
-   ANSLAG STÅR BARE HER (Heine, 10.11.2026). Resten av nettstedet er målte
-   tall. Siden er en liste: ett anslag per rad, med datoene det ble
-   forseglet og utfallet. I dag er det ett, havbruksfondet. Maskinanslagene
-   kommer hit i økt 16.
+   ANSLAG STÅR BARE HER (Heine, 10.11.2026), alltid forseglet og skåret,
+   bare på PO- og kommunenivå. Resten av nettstedet er målte tall.
 
-   Tabellen blir kort på smal skjerm, som de andre: en rad er en lenke,
-   to datoer og en status. #}
+   INGEN TYPENAVN I MALEN (16b, 1a). Typene leses av fasiten.json og de
+   forseglede havbruksfondfilene; en ny type står her uten at malen
+   endres. Tallene leses av dataene, også 12-en i «N av 12 uker».
+
+   REKKEFØLGEN er 16b, 1b: neste fasit, så åpne påstander, så avgjorte,
+   hver etter åpningsdato. En uke som bommet, står der datoen setter den.
+   Prøvetypene står nederst, merket. En rad er én forsegling: én uke av
+   en type, eller havbruksfondets to forseglinger, med antall påstander
+   og status. Påstandene står på typesiden.
+
+   TEKSTEN UNDER H1 OG FØR PRØVETYPENE er godkjent av Heine 16.11.2026.
+   Den siste setningen er Heines ordrett fra 16b (1h): 117 tegn, delt i
+   to avsnitt foran «og» med ordene uendret (110-grensa). #}
 {% extends "base.html.j2" %}
+{% from "fasit-felles.html.j2" import sjekk %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -21,32 +31,95 @@
 </div>
 {% endblock %}
 
+{# ÉN TABELL FOR ÉN LISTE FORSEGLINGER. `id` er et stabilt anker. #}
+{% macro tabell(id, tittel, grupper, uten_type=false) %}
+<p class="tabelltittel" id="{{ id }}-tittel">{{ tittel }}</p>
+<div class="tabellramme" role="region" aria-labelledby="{{ id }}-tittel" tabindex="0">
+<table id="{{ id }}" class="fasit-liste" aria-labelledby="{{ id }}-tittel">
+  <thead>
+    <tr>
+      <th scope="col">Åpner</th>
+      <th scope="col">Anslag</th>
+      <th scope="col">Forseglet</th>
+      <th scope="col" class="tall">Påstander</th>
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in grupper %}
+    <tr>
+      <td data-felt="aapningsdato">{% if g.aapner %}<time datetime="{{ g.aapner }}">{{ g.aapner|kortdato }}</time>{% else %}–{% endif %}</td>
+      <th scope="row"><a href="{{ g.sti }}">
+        {%- if uten_type %}{{ g.navn[:1]|upper }}{{ g.navn[1:] }}
+        {%- else %}{{ g.type_navn }}{% if g.navn %}, {{ g.navn }}{% endif %}{% endif %}</a></th>
+      <td data-felt="forseglet">
+        {%- for s in g.forseglet_datoer %}<time datetime="{{ s }}">{{ s|kortdato }}</time>{% if not loop.last %} og {% endif %}{% endfor %}</td>
+      <td class="tall" data-felt="paastander">{{ tall(g.antall) }}</td>
+      <td data-felt="utfall">{{ g.status_vist }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
 {% block innhold %}
-<div class="ark">
+<div class="ark fasit-oversikt">
 <h1>Fasiten</h1>
 <div class="fasit-ingress">
   <p>Anslag vi har forseglet før svaret var kjent, og hvordan det gikk.</p>
 </div>
 
-<p class="tabelltittel" id="fasit-anslag-tittel">Forseglede anslag</p>
-<div class="tabellramme" role="region" aria-labelledby="fasit-anslag-tittel" tabindex="0">
-<table id="fasit-anslag" aria-labelledby="fasit-anslag-tittel">
-  <thead>
-    <tr>
-      <th scope="col">Anslag</th>
-      <th scope="col">Forseglet</th>
-      <th scope="col">Status</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th scope="row"><a href="{{ d.sti }}">Havbruksfondet {{ d.aar }}</a></th>
-      <td data-felt="forseglet">{% for s in d.forseglinger %}<time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>{% if not loop.last %} og {% endif %}{% endfor %}</td>
-      <td data-felt="utfall">{{ d.oppsummert }}</td>
-    </tr>
-  </tbody>
-</table>
-</div>
+<div class="fasit-to">
+<div class="fasit-hoved">
+
+{% if o.neste %}
+<section class="fasit-neste" aria-labelledby="neste-tittel">
+  <h2 class="etikett" id="neste-tittel">Neste fasit</h2>
+  {% for g in o.neste.grupper %}
+  <p><time datetime="{{ o.neste.dato }}">{{ o.neste.dato|kortdato }}</time> ·
+    <a href="{{ g.sti }}">{{ g.type_navn }}, {{ g.navn }}</a> ·
+    {{ antall(g.antall, "påstand", "påstander") }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
+{{ tabell("fasit-aapne", "Åpne påstander, etter åpningsdato.", o.aapne) }}
+{% for t in o.hovedtyper %}
+<p class="tabellnote">{{ t.navn }}: {{ t.uker_vist }}.</p>
+{% endfor %}
+
+{% if o.avgjorte %}
+{{ tabell("fasit-avgjorte", "Avgjorte påstander, etter åpningsdato.", o.avgjorte) }}
+{% else %}
+<p class="tomt">Ingen påstander er avgjort ennå.</p>
+{% endif %}
+
 <p class="historikk-forklaring">Ellers viser Kystloggen bare målte tall. Anslag står bare her.</p>
+
+{# PRØVETYPENE NEDERST (16b, 1c): forseglet og skåret som de andre, men
+   ikke et hovedresultat. Merket med ordet, ikke bare med plassen. #}
+{% for t in o.provetyper %}
+<section class="fasit-provetype" aria-labelledby="{{ t.slug }}-tittel">
+  <p class="etikett">Prøvetype</p>
+  <h2 id="{{ t.slug }}-tittel"><a href="{{ t.sti }}">{{ t.navn }}</a></h2>
+  {{ tabell("fasit-" ~ t.slug, "Ukene, åpne først, så etter åpningsdato.", t.grupper, true) }}
+  <p class="tabellnote">{{ t.uker_vist[:1]|upper }}{{ t.uker_vist[1:] }}.</p>
+</section>
+{% endfor %}
+
+<div class="fasit-regel">
+  <p>Nye typer anslag legges bare til etter at de er målt mot enkle referanser,</p>
+  <p>og registreres og stemples før første forsegling.</p>
+</div>
+</div>
+
+{# HØYRE KOLONNE fra 1100 px (16b, 4): sjekken står ved siden av tabellen. #}
+{% if o.sjekk %}
+<aside class="fasit-marg" aria-label="Slik sjekker du oss">
+{{ sjekk(o.sjekk, "/fasiten/") }}
+</aside>
+{% endif %}
+</div>
 </div>
 {% endblock %}

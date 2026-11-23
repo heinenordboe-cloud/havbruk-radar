@@ -8256,6 +8256,11 @@ VERTSFILHODER = (
     # `text/markdown; charset=utf-8` (MÅLT 16.11.2026 på
     # /naturalearth-LICENSE.md).
     ("/fasiten/*.ots", (("Content-Type", "application/octet-stream"),)),
+    # UKEFILENE FOR MASKINANSLAGENE, fra 23.11.2026 (16b). Hva Cloudflare
+    # Pages svarer for `.yml`, er IKKE målt. Fila har æøå, og uten
+    # tegnsett kan en nettleser vise dem feil; som tekst kan den leses der
+    # den åpnes. Lenkene på siden laster den ned (`download`).
+    ("/fasiten/*.yml", (("Content-Type", "text/plain; charset=utf-8"),)),
     # `immutable` BARE DER NAVNET BÆRER INNHOLDET. Ett år, og nettleseren
     # spør ikke engang. Til 12.10.2026 sto det her at «filnavnet bærer
     # innholdet» for fonter og bilder, men ingen av dem hadde en hash i
@@ -9670,9 +9675,10 @@ def skriv_kommuner(rot: Path, felles: Felles, fasit: dict | None = None,
 FASIT_STI = "fasiten"
 
 
-def skriv_forseglede(rot: Path) -> list[Path]:
+def skriv_forseglede(rot: Path, maskin: dict | None = None) -> list[Path]:
     """Kopiene av de forseglede filene og stemplene, der
-    `havbruksfond.forseglede_kopier()` sier de skal ligge.
+    `havbruksfond.forseglede_kopier()` og `skaar_anslag.forseglede_kopier()`
+    sier de skal ligge. `maskin` er fasiten.json (se `bygg_fasiten()`).
 
     KASTER `ValueError` før noe skrives når en fil i repoet ikke lenger
     er den som ble forseglet: en annen sum, eller et stempel for en annen
@@ -9681,6 +9687,7 @@ def skriv_forseglede(rot: Path) -> list[Path]:
     faktisk ble skrevet.
     """
     import havbruksfond as h
+    import skaar_anslag
     kopier = []
     for k in h.forseglede_kopier():
         data = k["kilde"].read_bytes()
@@ -9690,6 +9697,13 @@ def skriv_forseglede(rot: Path) -> list[Path]:
             raise ValueError(
                 f"{k['kilde'].name} er ikke fila som ble forseglet "
                 f"{k['forseglet']}: summen er {sum_}, forseglet {k['sha256']}")
+        kopier.append((rot / k["sti"], data))
+    # MASKINANSLAGENE: ukefila, stempelet og det oppgraderte stempelet,
+    # fra repoet uka ligger i. Samme regel som porten (`kopifeil()`).
+    for k in (skaar_anslag.forseglede_kopier(maskin) if maskin else []):
+        data = k["kilde"].read_bytes()
+        if feil := skaar_anslag.kopifeil(k, data):
+            raise ValueError(f"{k['kilde'].name} i {k['kilde'].parent}: {feil}")
         kopier.append((rot / k["sti"], data))
     for sti, data in kopier:
         sti.parent.mkdir(parents=True, exist_ok=True)
@@ -9739,8 +9753,15 @@ def bygg_fasit_havbruksfond(fasit: dict | None = None,
 
     def paastand(p: dict) -> dict:
         u = utfall.get(p["id"], "")
-        return {"id": p["id"], "konfidens": visningsord.prosent(p["konfidens"], 0),
-                "utfall": u, "status": FASIT_UTFALL[u] if u else venter}
+        # SAMME FORM SOM MASKINANSLAGENE (`_maskinrad()`), så én makro
+        # skriver en avgjort påstand likt på alle sidene under /fasiten/:
+        # ordet, og det som finnes av utfall, avvik og konfidens. En
+        # påstand her har konfidens, men ikke ett tall for utfall og avvik.
+        return {"id": p["id"], "kode": u,
+                "konfidens": visningsord.prosent(p["konfidens"], 0),
+                "status": FASIT_UTFALL[u] if u else venter,
+                "ord": FASIT_UTFALL[u] if u in ("traff", "bom") else "",
+                "utfall": None, "avvik": None, "intervall": None}
 
     forseglinger = []
     for f in h.FORSEGLINGER:
@@ -9751,21 +9772,29 @@ def bygg_fasit_havbruksfond(fasit: dict | None = None,
             "blokk": blokker[0] if blokker else None,
             "sha256": f["sha256"],
             "fil": h.forseglet_navn(f), "ots": h.forseglet_navn(f, ots=True)})
-    p2 = [paastand(p) for p in h.pakke2()["paastander"]]
+    pakke2 = h.pakke2()
+    p2 = [paastand(p) for p in pakke2["paastander"]]
     alle = [paastand(h.paastand1())] + p2
-    treff = sum(p["utfall"] == "traff" for p in alle)
-    bom = sum(p["utfall"] == "bom" for p in alle)
+    treff = sum(p["kode"] == "traff" for p in alle)
+    bom = sum(p["kode"] == "bom" for p in alle)
     if treff or bom:
-        # «6 treff og 1 bom av 10 påstander», og de som står igjen.
-        oppsummert = f"{treff} treff og {bom} bom av {len(alle)} påstander"
-        if rest := len(alle) - treff - bom:
-            oppsummert += f", {rest} ikke avgjort"
+        # «7 avgjort: 6 traff, 1 bom», og de som står igjen. Samme form
+        # som maskinanslagene (`_oppsummert()`), fra økt 16b; til da «6
+        # treff og 1 bom av 10 påstander».
+        oppsummert = _oppsummert(treff, bom, len(alle) - treff - bom)
     else:
         oppsummert = alle[0]["status"]
     return {
         "aar": h.AAR, "sti": f"/{h.FASITMAPPE}/",
+        # NAVNET PÅ TYPEN, slik oversikten og forsiden skriver det. Står
+        # her og ikke i en mal: malene under /fasiten/ har ingen typenavn.
+        "navn": f"Havbruksfondet {h.AAR}",
         "forseglinger": forseglinger,
         "p1": alle[0], "p2": p2,
+        "antall": len(alle), "treff": treff, "bom": bom,
+        # KOMMUNENE ANSLAGET GJELDER, til forsiden: tallet leses av den
+        # forseglede fila, ikke skrevet i en mal.
+        "kommuner": len(pakke2["kommuner"]),
         "status": status,
         "fasit": ({"aar": fasit["aar"], **_fasit_vist(fasit, {})["kilde"]}
                   if fasit else None),
@@ -9773,6 +9802,311 @@ def bygg_fasit_havbruksfond(fasit: dict | None = None,
         "oppsummert": oppsummert,
         "for": h.FOR, "etter": h.ETTER, "maaledato": h.MAALEDATO,
         "torrkjoring": torrkjoring,
+    }
+
+
+def _oppsummert(treff: int, bom: int, rest: int = 0) -> str:
+    """«13 avgjort: 9 traff, 4 bom», og hvor mange som står igjen.
+
+    Samme linje for alle typene under /fasiten/ og på forsiden (16b, 1b).
+    En bom telles med i samme setning som et treff, aldri for seg."""
+    ut = f"{treff + bom} avgjort: {treff} traff, {bom} bom"
+    return ut + (f", {rest} ikke avgjort" if rest else "")
+
+
+# ------------------------------------------------- maskinanslagene
+#
+# K2 og K6 forsegles hver uke fra uke 46 (predictions/maskin/
+# FORHANDSREGISTRERING.md og TILLEGG-1). Uke 46 og 47 ligger i
+# kodrepoet, senere uker i datarepoet; fasiten.json ligger bare i
+# datarepoet og fører alle (`skaar_anslag.FASIT`). Nettstedet leser
+# fasiten.json og ukefilene og skriver ingenting av anslaget selv.
+#
+# REGELEN (Heine, 10.11.2026): anslag står bare under /fasiten/, alltid
+# forseglet og skåret, bare på PO- og kommunenivå. Ingen anslagstall på
+# forsiden eller datasidene, og ingen tekst nevner et anslag som ikke er
+# forseglet. En uke som ikke teller (`ikke_tellende` i fasiten.json),
+# står derfor ikke noe sted på nettstedet.
+#
+# DET SOM STÅR HER, er det nettstedet skriver om en type og ikke kan
+# lese noe sted: navnet, adressen, kildene og ingressen. Typen og klassen
+# leses av fasiten.json, og hver rad av fasiten.json og ukefila. Navnet
+# på K2 er Heines (TEKSTEN i 16b, 23.11.2026); navnet på K6 og ingressene
+# er skrevet i 16b og ikke godkjent ennå.
+#
+# ADRESSEN ER EN URL og endres ikke (2026-09-16-url-struktur.md).
+#
+# EN TYPE I FASITEN SOM IKKE STÅR HER, stopper fasen (`_maskintyper()`).
+# En ny type registreres og stemples før første forsegling, og skal da
+# også få et navn her; tests/test_fasiten_maskin.py holder at hver type i
+# `anslag.TYPER` gjør det.
+ANSLAGSTYPER = {
+    "K2": {
+        "navn": "Brakklegging per produksjonsområde",
+        "slug": "brakklegging",
+        "kilder": ("lusetall", "akvakultur"),
+        "ingress": (
+            "Hvor mange lokaliteter som blir brakklagt i hvert produksjonsområde "
+            "de neste fire ukene.",
+            "Forseglet hver mandag og målt mot to enkle referanser: siste verdi "
+            "og de samme ukene i fjor.",
+        ),
+    },
+    "K6": {
+        "navn": "Voksne hunnlus per produksjonsområde",
+        "slug": "voksne-hunnlus",
+        "kilder": ("lusetall", "sjotemperatur", "akvakultur"),
+        "ingress": (
+            "Snittet av voksne hunnlus per fisk i hvert produksjonsområde om "
+            "fire uker.",
+            "Forseglet hver mandag og målt mot to enkle referanser: siste verdi "
+            "og samme uke i fjor.",
+        ),
+    },
+}
+
+_ISOUKE = re.compile(r"(\d{4})-W(\d{2})")
+
+
+def _ukene_vist(tekst: str) -> str:
+    """«antall i uke 2026-W41 … 2026-W44» -> «uke 41–44, 2026».
+
+    UKENE LESES AV DEN FORSEGLEDE FILA, ordene rundt er sidens. Fila
+    skriver ISO-uker, som er et filformat og ikke norsk."""
+    uker = [(int(a), int(u)) for a, u in _ISOUKE.findall(str(tekst or ""))]
+    if not uker:
+        return ""
+    (a1, u1), (a2, u2) = uker[0], uker[-1]
+    if (a1, u1) == (a2, u2):
+        return f"uke {u1}, {a1}"
+    if a1 == a2:
+        return f"uke {u1}–{u2}, {a1}"
+    return f"uke {u1}, {a1}–uke {u2}, {a2}"
+
+
+def _maaltall(x) -> str | None:
+    """Et tall fra fasiten slik det står i fila, med norsk desimaltegn.
+    Ingen avrunding: tallet på siden skal kunne holdes mot fila."""
+    return None if x is None else visningsord.tall(x)
+
+
+def _forseglet_vist(stempel: str) -> str:
+    """«2026-11-10T20:49:02Z» -> «10.11.2026 kl. 20.49 UTC». Tidspunktet
+    forseglinger.tsv førte, i UTC som der."""
+    t = dt.datetime.fromisoformat(stempel.replace("Z", "+00:00"))
+    return f"{t:%d.%m.%Y} kl. {t:%H.%M} UTC"
+
+
+# Raden slik fasiten.json skriver statusen, og slik siden gjør det.
+MASKINSTATUS = {"åpen": "Åpen", "skåres ikke": "Skåres ikke"}
+
+
+def _skaares_ikke_grunn(rader: list[dict]) -> str:
+    """Hvorfor radene i en uke ikke skåres, i én linje under tabellen.
+
+    Grunnen per rad står i fasiten.json og er for lang til en celle. I
+    dag er hver av dem at for få lokaliteter rapporterte i en av ukene
+    raden bygger på; tallet leses av grunnen. Er grunnene noe annet,
+    står den generelle setningen."""
+    grunner = [str(r.get("grunn") or "") for r in rader if r["status"] == "skåres ikke"]
+    if not grunner:
+        return ""
+    tall = {m.group(1) for g in grunner
+            for m in [re.search(r"færre enn (\d+) lokaliteter", g)] if m}
+    if len(tall) == 1 and all("færre enn" in g for g in grunner):
+        return (f"Skåres ikke: færre enn {tall.pop()} lokaliteter rapporterte lus "
+                f"i en av ukene raden bygger på.")
+    return "Skåres ikke: anslaget, en referanse eller utfallet kan ikke regnes ut."
+
+
+def _maskinrad(r: dict, po_navn: dict[str, str]) -> dict:
+    """Én rad i fasiten.json, slik sidene viser den. Samme nøkler som en
+    påstand om havbruksfondet (`bygg_fasit_havbruksfond()`), så én makro
+    skriver begge.
+
+    TRAFF ER Å SLÅ BEGGE REFERANSENE. Registreringen skårer absolutt feil
+    for modellen og hver referanse (FORHANDSREGISTRERING.md, «Utfall og
+    skår»); `slo_begge` i fasiten er at modellens feil var mindre enn
+    begge referansenes. Et punktanslag har ingen konfidens å bomme på."""
+    avgjort = r["status"] == "avgjort"
+    s = r.get("skaar") or {}
+    return {
+        "id": r["id"], "po": str(r["po"]), "po_navn": po_navn.get(str(r["po"]), ""),
+        "anslag": _maaltall(r["anslag"]),
+        "referanser": [_maaltall(r["referanse_a"]), _maaltall(r["referanse_b"])],
+        "status": MASKINSTATUS.get(r["status"], ""),
+        "ord": ("Traff" if s.get("slo_begge") else "Bom") if avgjort else "",
+        "utfall": _maaltall(r["utfall"]) if avgjort else None,
+        "avvik": _maaltall(s.get("feil_modell")) if avgjort else None,
+        "konfidens": None, "intervall": None,
+    }
+
+
+def _maskintyper(f: dict, felles: Felles | None) -> list[dict]:
+    """Én post per type i fasiten.json, i den rekkefølgen fila har dem.
+
+    Ukene står med åpne først, så avgjorte, hver gruppe etter
+    åpningsdato (16b, 1b). En uke som bommet, står der datoen setter den,
+    som en uke som traff."""
+    import anslag
+    import havbruksfond as h
+    import skaar_anslag
+    import yaml
+
+    po_navn = dict(felles.po_navn) if felles else {}
+    kopier: dict[str, dict[str, dict]] = defaultdict(dict)
+    for k in skaar_anslag.forseglede_kopier(f):
+        kopier[k["uke"]][k["slag"]] = k
+    sted = {anslag.KODEREPO: anslag.KODE_MASKIN, anslag.DATAREPO: anslag.MASKIN_DIR}
+    ukefiler: dict[str, dict] = {}
+    typer = []
+    for kode in dict.fromkeys(r["type"] for r in f.get("anslag", [])):
+        meta = ANSLAGSTYPER.get(kode)
+        if meta is None:
+            raise ValueError(
+                f"typen {kode} står i {skaar_anslag.FASIT.name}, men har ikke navn og "
+                f"adresse på nettstedet. Legg den i nettsted.ANSLAGSTYPER.")
+        mine = [r for r in f["anslag"] if r["type"] == kode]
+        provetype = mine[0]["klasse"].lower() == "prøvetype"
+        sti = f"/{FASIT_STI}/{meta['slug']}/"
+        per_uke: dict[str, list[dict]] = defaultdict(list)
+        for r in mine:
+            per_uke[r["uke"]].append(r)
+        grupper = []
+        for uke, rr in per_uke.items():
+            if uke not in ukefiler:
+                fil = sted[rr[0]["repo"]] / Path(rr[0]["fil"]).name
+                ukefiler[uke] = yaml.safe_load(fil.read_text(encoding="utf-8"))
+            beskrevet = ukefiler[uke]["typer"][kode]
+            k = kopier[uke]
+            T = anslag.fra_isouke(uke)
+            aar, ukenr, _ = T.isocalendar()
+            blokk = None
+            if "komplett" in k:
+                blokker = h.ots_blokker(k["komplett"]["kilde"].read_bytes(),
+                                        k["komplett"]["kilde"].name)
+                blokk = blokker[0] if blokker else None
+            rader = [_maskinrad(r, po_navn) for r in sorted(rr, key=lambda r: int(r["po"]))]
+            apne = sum(r["status"] == "åpen" for r in rr)
+            skaares_ikke = sum(r["status"] == "skåres ikke" for r in rr)
+            traff = sum(x["ord"] == "Traff" for x in rader)
+            bom = sum(x["ord"] == "Bom" for x in rader)
+            if apne:
+                status = "aapen"
+                vist = "Åpen" + (f"{SKILLE}{skaares_ikke} skåres ikke" if skaares_ikke else "")
+            elif traff or bom:
+                status, vist = "avgjort", _oppsummert(traff, bom)
+            else:
+                status, vist = "skaares_ikke", MASKINSTATUS["skåres ikke"]
+            grupper.append({
+                "type_navn": meta["navn"], "type_sti": sti, "provetype": provetype,
+                "uke": uke, "navn": f"uke {ukenr}, {aar}",
+                "anker": f"uke-{aar}-{ukenr:02d}",
+                "sti": f"{sti}#uke-{aar}-{ukenr:02d}",
+                "forseglet": k["fil"]["stemplet"],
+                "forseglet_dato": k["fil"]["stemplet"][:10],
+                "forseglet_datoer": [k["fil"]["stemplet"][:10]],
+                "forseglet_vist": _forseglet_vist(k["fil"]["stemplet"]),
+                "blokk": blokk, "sha256": k["fil"]["sha256"],
+                "aapner": rr[0]["aapningsdato"],
+                "fil": Path(k["fil"]["sti"]).name,
+                "ots": Path(k["ots"]["sti"]).name,
+                "komplett": Path(k["komplett"]["sti"]).name if "komplett" in k else "",
+                "maal": _ukene_vist(beskrevet["anslag"]),
+                "referanser": [_ukene_vist(beskrevet["referanse_a"]),
+                               _ukene_vist(beskrevet["referanse_b"])],
+                "rader": rader,
+                "antall": len(rr) - skaares_ikke, "skaares_ikke": skaares_ikke,
+                "traff": traff, "bom": bom, "status": status, "status_vist": vist,
+                "avgjort": traff + bom > 0,
+                "skaares_ikke_grunn": _skaares_ikke_grunn(rr),
+                # VALGFRIE KOLONNER, bare når en rad i uka har feltet (1e).
+                "har_konfidens": any(x["konfidens"] for x in rader),
+                "har_intervall": any(x["intervall"] for x in rader),
+                # STATUSKOLONNEN bare når radene sier noe ulikt: tretten
+                # «Åpen» under en linje som sier at uka er åpen, er én
+                # forklaring gjentatt per rad (BRIEF, tekstreglene).
+                "har_status": traff + bom > 0 or skaares_ikke > 0,
+            })
+        grupper.sort(key=lambda g: (g["status"] != "aapen", g["aapner"]))
+        liste = f.get("treffliste", {}).get(kode, {})
+        avgjorte_uker = int(liste.get("avgjorte_uker") or 0)
+        min_uker = skaar_anslag.MIN_UKER_DOM
+        traff = sum(g["traff"] for g in grupper)
+        bom = sum(g["bom"] for g in grupper)
+        typer.append({
+            "kode": kode, "navn": meta["navn"], "sti": sti, "slug": meta["slug"],
+            "provetype": provetype, "kilder": meta["kilder"],
+            "ingress": meta["ingress"],
+            "grupper": grupper,
+            # «N av 12 uker avgjort» til det er 12, så dommen (1b).
+            "uker_vist": (f"{avgjorte_uker} av {min_uker} uker avgjort"
+                          if avgjorte_uker < min_uker else
+                          f"{avgjorte_uker} uker avgjort, {liste.get('dom', '')}"),
+            "avgjorte_uker": avgjorte_uker, "min_uker": min_uker,
+            "oppsummert": _oppsummert(traff, bom) if traff or bom else "",
+            # SISTE FORSEGLEDE UKE: «Slik sjekker du oss» og forsiden.
+            "siste": max(grupper, key=lambda g: g["uke"]),
+            "neste": min((g for g in grupper if g["status"] == "aapen"),
+                         key=lambda g: g["aapner"], default=None),
+        })
+    return typer
+
+
+def _havbruksfondgruppe(d: dict) -> dict:
+    """Havbruksfondet som én rad i oversikten: begge forseglingene, alle
+    påstandene og én status. Fasiten kommer når fordelingen kommer, og
+    den har ingen dato å stå på før det."""
+    avgjort = d["treff"] + d["bom"] > 0
+    return {
+        "type_navn": d["navn"], "type_sti": d["sti"], "provetype": False,
+        "navn": "", "sti": d["sti"],
+        "forseglet_datoer": [s["dato"] for s in d["forseglinger"]],
+        "aapner": "", "antall": d["antall"], "skaares_ikke": 0,
+        "traff": d["treff"], "bom": d["bom"], "avgjort": avgjort,
+        "status": "avgjort" if avgjort else "aapen",
+        "status_vist": d["oppsummert"],
+    }
+
+
+def bygg_fasiten(felles: Felles | None = None, fasit: dict | None = None,
+                 torrkjoring: str = "", maskin: dict | None = None) -> dict:
+    """Alt /fasiten/ og sidene under viser, og det forsiden viser av det.
+
+    TYPENE LESES AV DATA (16b, 1a): havbruksfondet av de forseglede
+    filene (`bygg_fasit_havbruksfond()`), maskinanslagene av fasiten.json.
+    Ingen mal under /fasiten/ har et typenavn. `maskin` er fasiten.json;
+    uten den leses `skaar_anslag.FASIT`, og finnes den ikke (kodrepoets
+    Actions), står bare havbruksfondet. `fasit` og `torrkjoring`: se
+    `bygg_fasit_havbruksfond()`.
+    """
+    import skaar_anslag
+    d = bygg_fasit_havbruksfond(fasit, torrkjoring)
+    maskin = skaar_anslag.les_fasit() if maskin is None else maskin
+    typer = _maskintyper(maskin, felles) if maskin else []
+    hovedtyper = [t for t in typer if not t["provetype"]]
+    grupper = [_havbruksfondgruppe(d)] + [g for t in hovedtyper for g in t["grupper"]]
+    # UTEN DATO FØRST: havbruksfondets fasit kan komme når som helst.
+    aapne = sorted((g for g in grupper if g["status"] == "aapen"),
+                   key=lambda g: g["aapner"])
+    avgjorte = sorted((g for g in grupper if g["status"] != "aapen"),
+                      key=lambda g: g["aapner"])
+    datert = [g for g in aapne if g["aapner"]]
+    neste_dato = min((g["aapner"] for g in datert), default="")
+    siste = max((t["siste"] for t in hovedtyper), key=lambda g: g["uke"], default=None)
+    return {
+        "havbruksfond": d,
+        "maskin": maskin or {},
+        "typer": typer, "hovedtyper": hovedtyper,
+        "provetyper": [t for t in typer if t["provetype"]],
+        "aapne": aapne, "avgjorte": avgjorte,
+        # NESTE FASIT: datoen, og hver uke som åpner den dagen (1b).
+        "neste": ({"dato": neste_dato,
+                   "grupper": [g for g in datert if g["aapner"] == neste_dato]}
+                  if neste_dato else None),
+        # UKA «SLIK SJEKKER DU OSS» BRUKER: den siste forseglede.
+        "sjekk": siste,
+        "data_til": (maskin or {}).get("data_til", ""),
     }
 
 
@@ -9796,18 +10130,34 @@ def _jsonld_fasit(tittel: str, beskrivelse: str, vilkaar: dict, d: dict) -> Mark
     return _script_trygg(med_url_og_lisens(data, d["sti"]))
 
 
-def skriv_fasiten(rot: Path, felles: Felles | None = None,
-                  fasit: dict | None = None, torrkjoring: str = "") -> list[str]:
-    """/fasiten/ og siden for havbruksfondet, med de forseglede filene ved
-    siden av. Stiene som ble skrevet, til sitemapen. `fasit` og
-    `torrkjoring`: se `bygg_fasit_havbruksfond()`.
+def _jsonld_anslag(tittel: str, beskrivelse: str, vilkaar: dict, sti: str,
+                   kilder: tuple[str, ...], opprettet: str) -> Markup:
+    """schema.org/Dataset for siden med én type maskinanslag. Uten
+    `distribution`, av samme grunn som `_jsonld_fasit()`."""
+    data = {
+        "@context": "https://schema.org", "@type": "Dataset",
+        "name": tittel, "description": beskrivelse, "inLanguage": "nb",
+        "dateCreated": opprettet,
+        "isBasedOn": [kildenode(k, vilkaar) for k in kilder],
+        "creator": kystloggen(),
+    }
+    return _script_trygg(med_url_og_lisens(data, sti))
 
-    Filene først: siden lenker til dem, og JSON-LD-en oppgir dem som
-    nedlastinger porten krever at finnes.
+
+def skriv_fasiten(rot: Path, felles: Felles | None = None,
+                  fasit: dict | None = None, torrkjoring: str = "",
+                  maskin: dict | None = None) -> list[str]:
+    """/fasiten/, siden for havbruksfondet og én side per type
+    maskinanslag, med de forseglede filene ved siden av. Stiene som ble
+    skrevet, til sitemapen. `fasit`, `torrkjoring` og `maskin`: se
+    `bygg_fasiten()`.
+
+    Filene først: sidene lenker til dem, og porten krever at de finnes.
     """
     import havbruksfond as h
-    skriv_forseglede(rot)
-    d = bygg_fasit_havbruksfond(fasit, torrkjoring)
+    o = bygg_fasiten(felles, fasit, torrkjoring, maskin)
+    skriv_forseglede(rot, o["maskin"])
+    d = o["havbruksfond"]
     miljo = _miljo()
     vilkaar = felles.vilkaar if felles else kildevilkaar()
     proveniens_tekst = proveniens(
@@ -9832,18 +10182,42 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
             soketekst="fasit anslag forseglet"))
     skriv_side(sti, html)
 
+    # ÉN SIDE PER TYPE MASKINANSLAG, i samme form som havbruksfondets.
+    lus = o["data_til"]
+    lus_proveniens = proveniens(lus, _hentet("lusetall", lus) if lus else "",
+                                kilde="lusetall")
+    for t in o["typer"]:
+        tittel = f"{t['navn']}: anslagene våre, forseglet hver uke"
+        beskrivelse = (f"{t['navn']}: anslag per produksjonsområde, forseglet hver "
+                       f"mandag før utfallet er kjent, med fila, stempelet og "
+                       f"utfallet for hver uke.")
+        side = rot / FASIT_STI / t["slug"] / "index.html"
+        html = miljo.get_template("fasit-type.html.j2").render(
+            t=t, o=o, **_grunnkontekst(
+                felles, rot, side, kilder=t["kilder"],
+                tittel=f"{tittel} — Kystloggen", beskrivelse=beskrivelse,
+                jsonld=_jsonld_anslag(tittel, beskrivelse, vilkaar, t["sti"],
+                                      t["kilder"], min(g["forseglet_dato"]
+                                                       for g in t["grupper"])),
+                proveniens_tekst=lus_proveniens, sidetype="Fasit",
+                undertittel=f"{t['uker_vist'][:1].upper()}{t['uker_vist'][1:]}",
+                soketekst="fasit anslag forseglet"))
+        skriv_side(side, html)
+
     oversikt = rot / FASIT_STI / "index.html"
     beskrivelse = ("Anslag Kystloggen har forseglet før svaret var kjent, "
                    "med fila, stempelet og utfallet for hvert.")
+    kilder = tuple(dict.fromkeys(KOMMUNE_KILDER + tuple(
+        k for t in o["typer"] for k in t["kilder"])))
     html = miljo.get_template("fasiten.html.j2").render(
-        d=d, datoer=datoer, **_grunnkontekst(
-            felles, rot, oversikt, kilder=KOMMUNE_KILDER,
+        o=o, datoer=datoer, **_grunnkontekst(
+            felles, rot, oversikt, kilder=kilder,
             tittel="Fasiten — Kystloggen", beskrivelse=beskrivelse,
             jsonld="", proveniens_tekst=proveniens_tekst, sidetype="Liste",
             undertittel="Forseglede anslag og utfallet",
             soketekst="fasiten fasit anslag"))
     skriv_side(oversikt, html)
-    return [f"/{FASIT_STI}/", d["sti"]]
+    return [f"/{FASIT_STI}/", d["sti"]] + [t["sti"] for t in o["typer"]]
 
 
 

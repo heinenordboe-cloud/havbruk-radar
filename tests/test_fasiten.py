@@ -303,8 +303,12 @@ trenger_bygg = pytest.mark.skipif(
 
 
 @trenger_bygg
-def test_portens_bygg_har_de_forseglede_filene():
-    """sha256 målt fra bygget, mot forseglingen; stempelet mot repoet."""
+def test_portens_bygg_har_de_forseglede_filene(ekte_maskin):
+    """sha256 målt fra bygget, mot forseglingen; stempelet mot repoet.
+    Fra 16b gjør porten også rede for ukefilene og stemplene deres
+    (tests/test_fasiten_maskin.py holder dem mot forseglinger.tsv)."""
+    import skaar_anslag
+    maskin = skaar_anslag.forseglede_kopier()
     for k in h.forseglede_kopier():
         kopi = (NETTSTED / k["sti"]).read_bytes()
         if k["ots"]:
@@ -313,9 +317,11 @@ def test_portens_bygg_har_de_forseglede_filene():
             assert h.ots_blokker(kopi)[0] == BLOKK[k["forseglet"]], k["sti"]
         else:
             assert hashlib.sha256(kopi).hexdigest() == SEGL[k["forseglet"]], k["sti"]
-    assert v.forseglingsfunn(NETTSTED) == ([], {k["sti"] for k in h.forseglede_kopier()})
+    assert v.forseglingsfunn(NETTSTED) == ([], {k["sti"] for k in h.forseglede_kopier()}
+                                            | {k["sti"] for k in maskin})
     andre = sorted(p.relative_to(NETTSTED).as_posix() for p in NETTSTED.rglob("*.ots"))
-    assert andre == sorted(k["sti"] for k in h.forseglede_kopier() if k["ots"])
+    assert andre == sorted([k["sti"] for k in h.forseglede_kopier() if k["ots"]]
+                           + [k["sti"] for k in maskin if k["slag"] != "fil"])
 
 
 # ------------------------------------------------------------ siden
@@ -534,7 +540,7 @@ def test_oversikten_lister_siden(fasitsider):
     assert f'<a href="/{MAPPE}/">Havbruksfondet 2026</a>' in main
     assert _mangler(_tekst(main), [
         "Fasiten", "Anslag vi har forseglet før svaret var kjent, og hvordan det gikk.",
-        "Havbruksfondet 2026 12.10.2026 og 09.11.2026 Venter på fordelingen"]) == []
+        "– Havbruksfondet 2026 12.10.2026 og 09.11.2026 10 Venter på fordelingen"]) == []
 
 
 def _fasit(utfall1: str, utfall2: list[str]) -> dict:
@@ -570,17 +576,20 @@ def test_utfallet_staar_per_paastand_naar_fasiten_er_kvittert(tmp_path):
     med = tmp_path / "med"
     nettsted.skriv_fasiten(med, fasit=f)
     side = (med / SIDE).read_text("utf-8")
-    assert _statuser(side) == ["Bom", "Traff", "Traff", "Bom", "Traff", "Traff",
-                               "Venter på regnearket", "Bom", "Bom", "Traff"]
+    assert _statuser(side) == [
+        "Bom · vi sa 75 %", "Traff · vi sa 90 %", "Traff · vi sa 80 %", "Bom · vi sa 75 %",
+        "Traff · vi sa 85 %", "Traff · vi sa 90 %", "Venter på regnearket",
+        "Bom · vi sa 55 %", "Bom · vi sa 35 %", "Traff · vi sa 95 %"]
     tekst = _tekst(_main(side))
     assert "Fiskeridirektoratet har publisert fordelingen for 2026." in tekst
     assert "ikke publisert ennå" not in tekst and "Venter på fordelingen" not in tekst
     assert "Fiskeridir. · regnearket · hentet 20.11.2026" in tekst
-    # Det som ikke er fasiten, står som før.
+    # Det som ikke er fasiten, står som før. Den første påstandens linje
+    # er ordet og «vi sa» når den er avgjort, som i tabellen.
     assert _mangler(tekst, [l for l in TEKSTEN if "Venter på" not in l
                             and "ikke publisert" not in l]) == []
     oversikt = _tekst(_main((med / "fasiten" / "index.html").read_text("utf-8")))
-    assert "5 treff og 4 bom av 10 påstander, 1 ikke avgjort" in oversikt
+    assert "9 avgjort: 5 traff, 4 bom, 1 ikke avgjort" in oversikt
     assert v.tekstfunn(SIDE, ".html", side, set(), set()) == []
 
 
@@ -600,7 +609,8 @@ def test_en_paastand_fasiten_ikke_har_er_ikke_avgjort(tmp_path):
     fordelingen» om en fordeling som er kommet."""
     nettsted.skriv_fasiten(tmp_path, fasit=_fasit("traff", ["traff"] * 3))
     assert _statuser((tmp_path / SIDE).read_text("utf-8")) == (
-        ["Traff"] * 4 + ["Ikke avgjort ennå"] * 6)
+        ["Traff · vi sa 75 %", "Traff · vi sa 90 %", "Traff · vi sa 80 %",
+         "Traff · vi sa 75 %"] + ["Ikke avgjort ennå"] * 6)
 
 
 @trenger_bygg

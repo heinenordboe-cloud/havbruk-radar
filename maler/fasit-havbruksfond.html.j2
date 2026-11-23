@@ -28,6 +28,7 @@
    INGEN LENKE TIL KODREPOET i innholdet, og ingen «pakke 1» og «pakke 2»:
    det er våre ord. Hardt mellomrom mellom tall og enhet, som ellers. #}
 {% extends "base.html.j2" %}
+{% from "fasit-felles.html.j2" import utfall %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -108,8 +109,11 @@ Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
     <li>kommunene ikke er de samme 143,</li>
     <li>eller noen kommune får en ekstra del for ny kapasitet.</li>
   </ul>
-  <p class="fasit-utfall">Konfidens <span data-felt="konfidens">{{ d.p1.konfidens }}</span> ·
-    <span data-felt="utfall">{{ d.p1.status }}</span></p>
+  {# AVGJORT: ordet og «vi sa», som i tabellen under (16b, 1f). Konfidensen
+     står da i utfallet og ikke foran det. #}
+  <p class="fasit-utfall">{% if d.p1.ord %}<span data-felt="utfall">{{ utfall(d.p1) }}</span>
+    {%- else %}Konfidens <span data-felt="konfidens">{{ d.p1.konfidens }}</span> ·
+    <span data-felt="utfall">{{ d.p1.status }}</span>{% endif %}</p>
   {{ segl(s, "Anslaget") }}
 </section>
 
@@ -135,55 +139,55 @@ Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
         <td class="tall" data-felt="paastand_nr">1</td>
         <th scope="row">De 89 kommunene der ingenting er endret siden 2025, har samme MTB som i 2025, ±1&nbsp;tonn</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[0].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[0].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[0]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">2</td>
         <th scope="row">De 26 kommunene med nye, borte eller endrede lokaliteter har den MTB-en vi har regnet ut, ±1&nbsp;tonn</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[1].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[1].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[1]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">3</td>
         <th scope="row">Havbruksstasjonen i Tromsøs to lokaliteter (650&nbsp;t og 975&nbsp;t) er med, som i 2024 og 2025</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[2].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[2].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[2]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">4</td>
         <th scope="row">HØGÅS i Strand (780&nbsp;t) er med igjen</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[3].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[3].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[3]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">5</td>
         <th scope="row">De ni lokalitetene som bare har tillatelse for andre arter enn laks, ørret og regnbueørret, er ikke med</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[4].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[4].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[4]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">6</td>
         <th scope="row">De ti lokalitetene som deles mellom to kommuner, deles som i 2025 (innenfor 0,001), og Persflua deles ikke</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[5].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[5].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[5]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">7</td>
         <th scope="row">Alle 8 fylkeskommuner ligger innenfor 0,005&nbsp;prosentpoeng av vår andel</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[6].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[6].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[6]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">8</td>
         <th scope="row">Alle 143 kommuner ligger innenfor 0,005&nbsp;prosentpoeng, ti ganger smalere enn 12.10</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[7].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[7].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[7]) }}</td>
       </tr>
       <tr>
         <td class="tall" data-felt="paastand_nr">9</td>
         <th scope="row">Fylkeskommunene får 20&nbsp;% av utbetalingen, ±0,001&nbsp;prosentpoeng</th>
         <td class="tall" data-felt="konfidens">{{ d.p2[8].konfidens }}</td>
-        <td data-felt="utfall">{{ d.p2[8].status }}</td>
+        <td data-felt="utfall">{{ utfall(d.p2[8]) }}</td>
       </tr>
     </tbody>
   </table>

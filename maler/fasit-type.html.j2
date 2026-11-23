@@ -1,0 +1,106 @@
+{# /fasiten/<type>/: én type maskinanslag, uke for uke. Se
+   `nettsted._maskintyper()`.
+
+   SAMME FORM SOM /fasiten/havbruksfondet-2026/ (16a): per forsegling
+   tidspunktet, summen, åpningsdatoen, anslaget og filene. Her er en
+   forsegling én uke, og anslaget er én rad per produksjonsområde med
+   begge referansene ved siden av. Utfall og skår står når de finnes.
+
+   INGEN TYPENAVN I MALEN (16b, 1a). Navnet, ingressen og adressen står i
+   `nettsted.ANSLAGSTYPER`; ukene, tallene og summene leses av
+   fasiten.json, ukefilene og stemplene.
+
+   EN AVGJORT RAD SKRIVES LIKT enten den traff eller bommet: se
+   `utfall()` i fasit-felles.html.j2. Ukene står åpne først, så avgjorte,
+   etter åpningsdato.
+
+   DE VALGFRIE KOLONNENE (16b, 1e) står bare når en rad i uka har feltet:
+   konfidens og intervall har ingen maskinrad i dag, referansene har
+   alle. #}
+{% extends "base.html.j2" %}
+{% from "fasit-felles.html.j2" import utfall, sjekk %}
+
+{% block toppinnhold %}
+<div data-pagefind-body class="ark sidehode">
+  <nav class="sti" aria-label="Du er her">
+    <ol>
+      <li><a href="/">Forside</a></li>
+      <li><a href="/fasiten/">Fasiten</a></li>
+      <li aria-current="page">{{ t.navn }}</li>
+    </ol>
+  </nav>
+</div>
+{% endblock %}
+
+{% block innhold %}
+<div class="ark">
+{% if t.provetype %}<p class="etikett">Prøvetype</p>{% endif %}
+<h1>{{ t.navn }}</h1>
+<div class="fasit-ingress">
+  {% for linje in t.ingress %}<p>{{ linje }}</p>
+  {% endfor %}
+</div>
+<div class="fasit-status" id="status">
+  <p>{{ t.uker_vist[:1]|upper }}{{ t.uker_vist[1:] }}.{% if t.oppsummert %} {{ t.oppsummert[:1]|upper }}{{ t.oppsummert[1:] }}.{% endif %}</p>
+  <p>Traff: anslaget var nærmere utfallet enn begge referansene.</p>
+</div>
+</div>
+
+<div class="ark fasit-to">
+<div class="fasit-hoved">
+{% for g in t.grupper %}
+<section class="seksjon fasit-blokk" id="{{ g.anker }}" aria-labelledby="{{ g.anker }}-tittel">
+  <h2 id="{{ g.anker }}-tittel">{{ g.navn[:1]|upper }}{{ g.navn[1:] }}</h2>
+  <p class="fasit-meta">Forseglet <time datetime="{{ g.forseglet }}">{{ g.forseglet_vist }}</time>
+    {%- if g.blokk %} · Bitcoin-blokk {{ g.blokk }}{% endif %}</p>
+  <p class="fasit-meta">Fasiten åpner <time datetime="{{ g.aapner }}">{{ g.aapner|kortdato }}</time> · {{ g.status_vist }}</p>
+
+  <p class="tabelltittel" id="{{ g.anker }}-tabell-tittel">Anslaget for {{ g.maal }}. Siste verdi: {{ g.referanser[0] }}. I fjor: {{ g.referanser[1] }}.</p>
+  <div class="tabellramme" role="region" aria-labelledby="{{ g.anker }}-tabell-tittel" tabindex="0">
+  <table id="{{ g.anker }}-tabell" class="fasit-anslag" aria-labelledby="{{ g.anker }}-tabell-tittel">
+    <thead>
+      <tr>
+        <th scope="col">Område</th>
+        <th scope="col" class="tall">Anslag</th>
+        {% if g.har_konfidens %}<th scope="col" class="tall">Konfidens</th>{% endif %}
+        {% if g.har_intervall %}<th scope="col">Intervall</th>{% endif %}
+        <th scope="col" class="tall">Siste verdi</th>
+        <th scope="col" class="tall">I fjor</th>
+        {% if g.har_status %}<th scope="col">Status</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in g.rader %}
+      <tr>
+        <th scope="row"><a href="/produksjonsomrade/{{ r.po }}/">{{ r.po }}{% if r.po_navn %} {{ r.po_navn }}{% endif %}</a></th>
+        <td class="tall" data-felt="anslag">{{ r.anslag if r.anslag is not none else "–" }}</td>
+        {% if g.har_konfidens %}<td class="tall" data-felt="konfidens">{{ r.konfidens or "–" }}</td>{% endif %}
+        {% if g.har_intervall %}<td data-felt="intervall">{{ r.intervall or "–" }}</td>{% endif %}
+        <td class="tall" data-felt="referanse_a">{{ r.referanser[0] if r.referanser[0] is not none else "–" }}</td>
+        <td class="tall" data-felt="referanse_b">{{ r.referanser[1] if r.referanser[1] is not none else "–" }}</td>
+        {% if g.har_status %}<td data-felt="utfall">{{ utfall(r) }}</td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if g.skaares_ikke_grunn %}
+  <p class="tabellnote">{{ g.skaares_ikke_grunn }}</p>
+  {% endif %}
+
+  <p class="fasit-segl">Fingeravtrykk (sha256):
+    <code class="tall-mono fasit-sum" data-felt="sha256">{{ g.sha256 }}</code></p>
+  <ul class="handlinger fasit-filer" aria-label="Fila og stemplene for {{ g.navn }}">
+    <li><a class="handling" href="/fasiten/{{ g.fil }}" download>Ukefila</a></li>
+    <li><a class="handling" href="/fasiten/{{ g.ots }}" download>Stempelet</a></li>
+    {% if g.komplett %}<li><a class="handling" href="/fasiten/{{ g.komplett }}" download>Stempelet med blokka</a></li>{% endif %}
+  </ul>
+</section>
+{% endfor %}
+</div>
+
+<aside class="fasit-marg" aria-label="Slik sjekker du oss">
+{{ sjekk(t.siste, "/fasiten/") }}
+</aside>
+</div>
+{% endblock %}

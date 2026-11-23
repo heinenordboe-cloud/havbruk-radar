@@ -68,3 +68,27 @@ def _nytt_bygg_per_prove():
     if nettsted is not None and hasattr(nettsted, "nytt_bygg"):
         nettsted.nytt_bygg()
     yield
+
+
+# ------------------------------------------- de ekte maskinanslagene
+#
+# fasiten.json og ukefilene fra uke 48 ligger bare i datarepoet, og
+# HAVBRUK_DATA_DIR peker på engangsmappa over. Prøvene som holder bygget
+# og nettstedet mot de forseglede ukene, ber om denne. Den står ved siden
+# av kodrepoet lokalt og i porten; i kodrepoets Actions finnes den ikke,
+# og da gir fiksturen False og ingenting er pekt om.
+
+@pytest.fixture
+def ekte_maskin(monkeypatch):
+    from pathlib import Path
+
+    import anslag
+    import skaar_anslag
+    datarepo = Path(anslag.paths.ROT).parent / "havbruk-radar-data"
+    if not (datarepo / "predictions" / "maskin" / "fasiten.json").exists():
+        return False
+    mappe = datarepo / "predictions" / "maskin"
+    monkeypatch.setattr(anslag, "MASKIN_DIR", mappe)
+    monkeypatch.setattr(skaar_anslag, "FASIT", mappe / "fasiten.json")
+    monkeypatch.setattr(skaar_anslag, "TREFFLISTE", mappe / "treffliste.md")
+    return True
