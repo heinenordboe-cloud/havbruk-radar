@@ -147,6 +147,15 @@
     land, har ingen lusetall.</p>
   <p><strong>Tomrom betyr ikke null.</strong> En uke uten søyle er en uke
     kilden ikke oppgir noe tall for.</p>
+  {#- DØDE FELT. Lokalitetssidenes tabellnote lenker hit. Kolonnene og
+      datoene er `nettsted.dode_kolonner()`, av `kilder.lusetall.dodt_fra`. #}
+  {% if om.lus_dode %}
+  <p id="lesing-lus-dode">BarentsWatch fyller ikke lenger
+    {% for d in om.lus_dode %}{{ d.navn }} fra <time datetime="{{ d.fra }}">{{ d.fra }}</time>{% if not loop.last %} og {% endif %}{% endfor %}.</p>
+  <p>Fra datoen betyr «nei» hos kilden ikke at det ikke ble gjort. Tabellen
+    viser «–».</p>
+  <p>Nedlastingene har verdien kilden sendte, uendret.</p>
+  {% endif %}
   <p>En hårstrek på nullinja er en uke som er målt til null.</p>
   <p>Den lave stripa under aksen er uker lokaliteten var brakklagt.</p>
   <p>Den stiplede linja er tiltaksgrensa BarentsWatch oppgir uke for uke.</p>

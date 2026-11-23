@@ -155,6 +155,46 @@ def etterslep(kilde: str) -> int:
     return int(uker) * 7 if uker else 0
 
 
+# -------------------------------------------------------------- døde felt
+#
+# ET FELT KILDEN SENDER, MEN IKKE LENGER FYLLER. `har_rensefisk` er
+# `False` for hver lokalitet hver uke fra 2023-04-24, og
+# `har_medikamentell_behandling` fra 2024-01-01 (docs/KILDE-LUSETALL.md,
+# «Datatap»). Fra datoen er `False` ikke kilden som sier nei: det er
+# kilden som ikke sier noe. Verdien er da ingen påstand, og den vises
+# ikke som en.
+#
+# ÉN REGEL, to lesere. Til 23.11.2026 lot tidsaksen ukene stå tomme,
+# mens lusetabellen på hver lokalitetsside viste «nei». MÅLT på bygget
+# av 2139c38: 91 702 celler for rensefisk og 91 692 for medikamentell
+# behandling, på 1 781 sider. To veier til samme felt med hver sin regel
+# er formen F6 og F7 hadde. Datoene står ett sted, i kildens egen
+# konfigurasjon (`kilder.<kilde>.dodt_fra`), der feltvakten også leser
+# dem (`run.py --bygg-feltnormal`).
+
+
+def dodt_fra(kilde: str) -> dict[str, str]:
+    """{felt: ISO-dato}: feltene kilden ikke fyller fra og med datoen."""
+    from core import config
+
+    return {str(felt): str(dato)[:10] for felt, dato in
+            (config.get(f"kilder.{kilde}.dodt_fra", {}) or {}).items()}
+
+
+def dodt(kilde: str, felt: str, dato: str,
+         fra: dict[str, str] | None = None) -> bool:
+    """Er `felt` dødt hos kilden på `dato`? Da er verdien ingen påstand.
+
+    `fra` er `dodt_fra(kilde)`, sendt inn av den som spør om mange rader.
+    Gjelder HVER verdi fra datoen, også en enkelt `True`: den ene i
+    `har_medikamentell_behandling` (2024-11-11) er et unntak, ikke liv
+    (config.yml). Får feltet innhold igjen, er det feltvakten som sier
+    fra (`health._vurder_innhold`), og datoen i config.yml som flyttes.
+    """
+    grense = (dodt_fra(kilde) if fra is None else fra).get(felt, "")
+    return bool(grense) and str(dato)[:10] >= grense
+
+
 def alder(p: Paastand, referanse: str) -> int:
     """Dager fra påstandens gjelder-dato til referansen, minus etterslepet."""
     return (_dato(referanse) - _dato(p.gjelder)).days - etterslep(p.kilde)

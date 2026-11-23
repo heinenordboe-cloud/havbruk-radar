@@ -342,6 +342,27 @@ def kredittekst(setninger) -> str:
                     else d + "." for i, d in enumerate(deler))
 
 
+def _dode_felt_i_kilden(kilde: str) -> str:
+    """Setningen kildebeskrivelsen får når kilden har felt den ikke
+    fyller lenger. Tom for alle andre.
+
+    `KILDEBESKRIVELSE` sier at lusetallene bærer om lokaliteten har brukt
+    rensefisk og medikamentell behandling. Det gjør de til datoene i
+    `kilder.lusetall.dodt_fra`, og beskrivelsen sier det med kildens
+    feltnavn hos oss, de samme som kolonnene i nedlastingene. Datoene
+    leses der lusetabellen og tidsaksen leser dem (`paastand.dodt_fra()`).
+    """
+    import paastand
+
+    dode = paastand.dodt_fra(kilde)
+    if not dode:
+        return ""
+    return (" Kilden fyller ikke lenger "
+            + " og ".join(f"{felt} (fra {fra})"
+                          for felt, fra in sorted(dode.items()))
+            + ".")
+
+
 def kildenode(kilde: str, vilkaar: dict) -> dict:
     """schema.org/Dataset for én kilde i `isBasedOn`.
 
@@ -369,7 +390,7 @@ def kildenode(kilde: str, vilkaar: dict) -> dict:
     node = {
         "@type": "Dataset",
         "name": kilde,
-        "description": KILDEBESKRIVELSE[kilde],
+        "description": KILDEBESKRIVELSE[kilde] + _dode_felt_i_kilden(kilde),
         "url": f"{_basisurl()}/om/#kilde-{kilde}",
         "license": LISENS_URL.get(kilde) or LISENSSIDE[kilde],
         "creditText": kredittekst(vilkaar.get(kilde)),
@@ -1640,16 +1661,64 @@ def til_visning(rader: list[dict]) -> list[dict]:
     207 er `lus_er_rapportert` False — lokaliteten var brakklagt. Feltet
     er FRAVÆRENDE, ikke null, og det er nøyaktig skillet
     `lus_er_rapportert` finnes for.
+
+    ET DØDT FELT ER OGSÅ «–», fra datoen i `kilder.lusetall.dodt_fra`.
+    Kilden sender `False` i `har_rensefisk` og
+    `har_medikamentell_behandling` hver uke, men fyller dem ikke: «nei»
+    ville vært en påstand kilden ikke har gjort. Regelen er
+    `paastand.dodt()`, den samme tidsaksen bruker, og tabellnoten sier
+    hvilke kolonner det gjelder og fra når (`dode_kolonner()`). Radene
+    her er urørt: CSV-en og nedlastingene bærer kildens verdi.
     """
+    import paastand
+
+    dode = paastand.dodt_fra("lusetall")
     ut = []
     for rad in rader:
         vist = dict(rad)
         for felt in LUSEFELT:
             verdi = rad.get(felt, "")
-            vist[felt] = INGEN_VERDI if verdi == "" else JANEI.get(verdi, verdi)
+            if verdi == "" or paastand.dodt("lusetall", felt, rad["dato"], dode):
+                vist[felt] = INGEN_VERDI
+            else:
+                vist[felt] = JANEI.get(verdi, verdi)
         vist["uke"] = f"{rad['iso_aar']} uke {rad['iso_uke']}"
         ut.append(vist)
     return ut
+
+
+# KOLONNEOVERSKRIFTENE I LUSETABELLEN, ett sted. Malen skriver dem i
+# tabellhodet, og tabellnoten navngir de døde kolonnene med de samme
+# ordene: en note som sa «Rensefisk» om en kolonne som het noe annet,
+# ville pekt på ingenting.
+LUSEKOLONNENAVN = {
+    "voksne_hunnlus": "Voksne hunnlus",
+    "lus_er_rapportert": "Rapportert",
+    "har_laksefisk": "Laksefisk",
+    "brakklagt": "Brakklagt",
+    "har_medikamentell_behandling": "Medikamentell",
+    "har_mekanisk_fjerning": "Mekanisk",
+    "har_rensefisk": "Rensefisk",
+}
+
+
+def dode_kolonner(rader: list[dict] | None = None) -> list[dict]:
+    """Kolonnene som står som «–» fordi feltet er dødt hos kilden, i
+    tabellens rekkefølge: `[{"felt", "navn", "fra"}]`.
+
+    Med `rader`: bare felt der minst én av radene tabellen VISER er fra
+    datoen eller senere. En lokalitet som sluttet å rapportere i 2019,
+    har ingen slik rad, og noten ville forklart en strek som ikke står
+    der. Uten: alle, for /om/#lesing-lus, som gjelder hver side.
+    """
+    import paastand
+
+    dode = paastand.dodt_fra("lusetall")
+    return [{"felt": felt, "navn": LUSEKOLONNENAVN[felt], "fra": dode[felt]}
+            for felt in LUSEFELT
+            if felt in dode and (rader is None or any(
+                paastand.dodt("lusetall", felt, r["dato"], dode)
+                for r in rader))]
 
 
 # ------------------------------------------------- hva er en endring
@@ -5624,6 +5693,9 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         "eier_ukjent": EIER_UKJENT,
         "overforinger": overforingsrader,
         "lus": til_visning(list(reversed(serie[-LUSEUKER:]))),
+        # KOLONNENE SOM ER DØDE HOS KILDEN i radene tabellen viser, til
+        # tabellnoten. Se `dode_kolonner()`.
+        "lus_dode": dode_kolonner(serie[-LUSEUKER:]),
         "lus_fra": serie[0]["dato"] if serie else "",
         "lus_til": serie[-1]["dato"] if serie else "",
         "lus_uker": len(serie),
@@ -5894,6 +5966,19 @@ def csv_kommentar(lok: dict, setninger: list[str], bygget: str) -> list[str]:
             f"{lok['lus_uten_tall']} av {lok['lus_uker']} uker er slik.",
             "",
         ]
+        # DØDE FELT HOS KILDEN. Verdiene i fila er kildens, urørt; linja
+        # sier hva de ikke betyr fra datoen. Samme regel og samme datoer
+        # som lusetabellen på siden (`dode_kolonner()`), med kolonnenavn
+        # i stedet for overskrifter.
+        dode = dode_kolonner(lok["lus_serie"])
+        if dode:
+            linjer += [
+                " og ".join(f"{d['felt']} fra {d['fra']}" for d in dode)
+                + ": kilden fyller ikke feltet.",
+                "Verdien sier ikke lenger om det ble gjort. Den står her "
+                "som kilden sendte den.",
+                "",
+            ]
     linjer += [
         f"Bygget {bygget} av Kystloggen fra øyeblikksbilder. Tallene er "
         f"gjengitt uendret fra kilden.",
@@ -6005,6 +6090,24 @@ def kildelisens(kilder) -> list[tuple[str, str, str]]:
     return ut
 
 
+def _dodt_i_fila(felt: str) -> str:
+    """Tillegget kolonnebeskrivelsen får når feltet er dødt hos kilden.
+
+    FILENE BÆRER KILDENS VERDI, og beskrivelsen sier hva den ikke betyr.
+    Datoen er `kilder.lusetall.dodt_fra`, den samme lusetabellen og
+    tidsaksen leser (`paastand.dodt()`). Til 23.11.2026 sto en egen dato
+    her, «siste uke kilden oppga sann» målt 01.09.2026: 2024-11-11 for
+    medikamentell behandling, mens regelen ellers er 2024-01-01. Tre
+    steder med hver sin dato for det samme dødsfallet.
+    """
+    import paastand
+
+    fra = paastand.dodt_fra("lusetall").get(felt)
+    return (f" Fra og med {fra} fyller ikke kilden feltet: verdien sier "
+            f"ikke lenger om det ble gjort. Den står her som kilden sendte "
+            f"den." if fra else "")
+
+
 # KOLONNENE I LUSETALLFILENE, med forklaring og hva en tom celle betyr.
 # Navnene er `CSV_KOLONNER`, i samme rekkefølge — se
 # `test_lusekolonnene_er_csv_kolonnene`. Kildenøkkelen i parentes er
@@ -6045,20 +6148,18 @@ LUSEKOLONNER = (
     nedlasting.Kolonne(
         "har_medikamentell_behandling", "boolean",
         "Om det er gjort medikamentell behandling mot lus "
-        "(hasSubstanceTreatments). Målt 01.09.2026: siste uke kilden "
-        "oppga sann for noen lokalitet, var 2024-11-11. Usann etter den "
-        "uka kan derfor ikke leses som at det ikke ble gjort.",
+        "(hasSubstanceTreatments)."
+        + _dodt_i_fila("har_medikamentell_behandling"),
         "Kilden oppgir ikke feltet for uka."),
     nedlasting.Kolonne(
         "har_mekanisk_fjerning", "boolean",
-        "Om lus er fjernet mekanisk (hasMechanicalRemoval).",
+        "Om lus er fjernet mekanisk (hasMechanicalRemoval)."
+        + _dodt_i_fila("har_mekanisk_fjerning"),
         "Kilden oppgir ikke feltet for uka."),
     nedlasting.Kolonne(
         "har_rensefisk", "boolean",
-        "Om det er satt ut rensefisk (hasCleanerfishDeployed). Målt "
-        "01.09.2026: siste uke kilden oppga sann for noen lokalitet, var "
-        "2023-04-17. Usann etter den uka kan derfor ikke leses som at det "
-        "ikke ble gjort.",
+        "Om det er satt ut rensefisk (hasCleanerfishDeployed)."
+        + _dodt_i_fila("har_rensefisk"),
         "Kilden oppgir ikke feltet for uka."),
 )
 
@@ -6325,6 +6426,8 @@ def _miljo() -> Environment:
     miljo.globals["SKJULT_NAVN_FELT"] = publiseringsvakt.SKJULT_NAVN_FELT
     miljo.globals["VERDI_MANGLER"] = VERDI_MANGLER
     miljo.globals["VERDI_MANGLER_FELT"] = VERDI_MANGLER_FELT
+    # Kolonneoverskriftene i lusetabellen, de samme tabellnoten bruker.
+    miljo.globals["lusekolonne"] = LUSEKOLONNENAVN
     return miljo
 
 
@@ -8375,6 +8478,9 @@ def bygg_om(felles: Felles) -> dict:
                     if felles.lusetall_snapshots else ""),
         "lus_til": (felles.lusetall_snapshots[-1]
                     if felles.lusetall_snapshots else ""),
+        # FELTENE KILDEN IKKE FYLLER LENGER, til /om/#lesing-lus. Samme
+        # liste og samme ord som tabellnoten på lokalitetssidene.
+        "lus_dode": dode_kolonner(),
         "kontakt": kontakt,
         "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
         "forfatter": "Heine Valø Nordbøe",

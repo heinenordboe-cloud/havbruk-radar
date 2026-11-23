@@ -452,3 +452,24 @@ def test_behandling_er_tom_etter_2023_ikke_nei(ekte):
     foer = t.filter(pl.col("mandag") <= "2023-12-25")
     assert set(foer["stripe__behandling"].drop_nulls().unique().to_list()) == {"ja", "nei", "ukjent"}
     assert t.filter(pl.col("stripe__behandling").is_not_null())["mandag"].max() == "2023-12-25"
+
+
+@trenger_data
+def test_r8_gir_ingen_dode_uker_utenom_dodt_fra(ekte):
+    """De døde ukene i tidsaksen er NØYAKTIG ukene fra `dodt_fra`, for hvert
+    av de tre flaggene. Lusetabellen på nettstedet viser strek etter
+    `paastand.dodt()` alene; fant R8s strekkregel en død uke til, ville
+    tidsaksen latt den stå tom mens siden viste «nei». Da skal datoen inn
+    i config.yml (`kilder.lusetall.dodt_fra`), ikke en regel til her."""
+    import paastand
+
+    t = ekte[0].tabell
+    dode = paastand.dodt_fra("lusetall")
+    med_lus = t.filter(pl.col("lus__brakklagt").is_not_null())
+    uker = set(med_lus["mandag"].unique().to_list())
+    assert len(uker) > 700
+    for felt in (*tidsakse.BEHANDLINGSFLAGG, "har_rensefisk"):
+        lever = set(med_lus.filter(pl.col(f"lus__{felt}").is_not_null())
+                    ["mandag"].unique().to_list())
+        ventet = {u for u in uker if not paastand.dodt("lusetall", felt, u, dode)}
+        assert lever == ventet, (felt, sorted(lever ^ ventet)[:5])

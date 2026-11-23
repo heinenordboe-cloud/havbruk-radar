@@ -291,6 +291,9 @@ def _side(_maaler=None, **overstyr) -> str:
         # poenget — CSV-en og tabellen kan ikke bli uenige.
         "lus_serie": [_uke_raa()],
         "lus": nettsted.til_visning([_uke_raa()]),
+        # Kolonnene som er døde hos kilden i radene tabellen viser. Uka
+        # i fiksturen er etter begge datoene i `dodt_fra`.
+        "lus_dode": nettsted.dode_kolonner([_uke_raa()]),
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
         "lus_uker": 764, "lus_uten_tall": 207, "lus_med_tall": 557,
         "lusetall_snapshots": 765, "lus_siste_uke": "2026-08-17",
@@ -2758,6 +2761,7 @@ def _om(**overstyr) -> str:
         "akva_dato": "2026-09-14", "eierskap_dato": "2026-09-14",
         "enhet_dato": "2026-09-14", "lusetall_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
+        "lus_dode": nettsted.dode_kolonner(),
         "kontakt": "", "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
         "forfatter": "Heine Valø Nordbøe", "bygget": "2026-09-20",
     }

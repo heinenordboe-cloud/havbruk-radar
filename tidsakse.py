@@ -357,7 +357,7 @@ def lag_ramme(lag: str, ramme: pl.DataFrame, kilde: str | pl.Expr,
 
 
 def levende_uker(lus: pl.DataFrame, felt: str, maks: int,
-                 dodt_fra: str | None) -> set[str]:
+                 dodt_fra: dict[str, str]) -> set[str]:
     """Ukene flagget lever i, etter R8 (havbruk-analyse
     revisjon/2026-11-09-syklusstripe/, B) og config.yml `dodt_fra`.
 
@@ -366,6 +366,12 @@ def levende_uker(lus: pl.DataFrame, felt: str, maks: int,
     dødsfall målt utenfra; uker fra og med den datoen er døde uansett.
     Uten den ville R8s regel alene gitt 2024-11-11 som levende for
     medikamentflagget (R8 F2.2, MALING-TIDSAKSE F8.2).
+
+    `dodt_fra` er `paastand.dodt_fra("lusetall")`, og spørsmålet stilles
+    til `paastand.dodt()`: den samme regelen lusetabellen på nettstedet
+    bruker (`nettsted.til_visning()`). R8s strekk står i tillegg, og
+    `test_r8_gir_ingen_dode_uker_utenom_dodt_fra` holder at det ikke
+    regner noen uke som død som nettstedet viser som «nei».
     """
     univ = lus.filter((pl.col("har_laksefisk") == "True")
                       & (pl.col("er_landbasert") == "False")
@@ -384,7 +390,8 @@ def levende_uker(lus: pl.DataFrame, felt: str, maks: int,
         if j - i > maks:
             dode.update(uker[i:j])
         i = j
-    return {u for u in uker if u not in dode and (not dodt_fra or u < dodt_fra)}
+    return {u for u in uker if u not in dode
+            and not paastand.dodt("lusetall", felt, u, dodt_fra)}
 
 
 # ------------------------------------------------------------- R5: sykdom
@@ -538,7 +545,7 @@ def bygg(kjent_til: str | None = None,
     logg.valg("kjent_til", kjent_til or "(ingen grense)")
     maks = int(config.get("kilder.lusetall.maks_nullstrekk",
                           feltnormal.STANDARD_MAKS_NULLSTREKK))
-    dodt_fra = config.get("kilder.lusetall.dodt_fra", {}) or {}
+    dodt_fra = paastand.dodt_fra("lusetall")
     logg.valg("behandling.maks_nullstrekk", maks)
     logg.valg("behandling.dodt_fra", [f"{k} {v}" for k, v in sorted(dodt_fra.items())])
 
@@ -672,7 +679,7 @@ def bygg(kjent_til: str | None = None,
                            BIOFELT))
 
     # ---------------------------------------------------------- lus og sjø
-    lev = {f: levende_uker(lus, f, maks, dodt_fra.get(f)) for f in LUSFELT
+    lev = {f: levende_uker(lus, f, maks, dodt_fra) for f in LUSFELT
            if f in BEHANDLINGSFLAGG or f == "har_rensefisk"}
     lus_lev = lus.with_columns(*[
         pl.when(pl.col("mandag").is_in(sorted(lev[f]))).then(pl.col(f)).otherwise(None).alias(f)

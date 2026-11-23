@@ -842,15 +842,17 @@
       <table id="lusetall-uke" aria-labelledby="lusetall-uke-tittel">
         <thead>
           <tr>
+            {#- OVERSKRIFTENE KOMMER FRA `nettsted.LUSEKOLONNENAVN`, de
+                samme ordene noten under bruker om de døde kolonnene. #}
             <th scope="col">Uke</th>
             <th scope="col">Dato</th>
-            <th scope="col" class="tall">Voksne hunnlus</th>
-            <th scope="col">Rapportert</th>
-            <th scope="col">Laksefisk</th>
-            <th scope="col">Brakklagt</th>
-            <th scope="col">Medikamentell</th>
-            <th scope="col">Mekanisk</th>
-            <th scope="col">Rensefisk</th>
+            <th scope="col" class="tall">{{ lusekolonne.voksne_hunnlus }}</th>
+            <th scope="col">{{ lusekolonne.lus_er_rapportert }}</th>
+            <th scope="col">{{ lusekolonne.har_laksefisk }}</th>
+            <th scope="col">{{ lusekolonne.brakklagt }}</th>
+            <th scope="col">{{ lusekolonne.har_medikamentell_behandling }}</th>
+            <th scope="col">{{ lusekolonne.har_mekanisk_fjerning }}</th>
+            <th scope="col">{{ lusekolonne.har_rensefisk }}</th>
           </tr>
         </thead>
         <tbody>
@@ -876,6 +878,16 @@
         {{ antall(lok.lus_uker, "uke", "uker") }}.
         {%- if lok.lus_mangler_kort %} Mangler hos kilden: {{ lok.lus_mangler_kort }}.{% endif %}</p>
       <p class="tabellnote"><strong>«–»</strong> betyr at kilden ikke oppgir noe tall, ikke null.</p>
+      {#- DØDE FELT HOS KILDEN. Kolonnene og datoene kommer fra
+          `nettsted.dode_kolonner()`, som leser `kilder.lusetall.dodt_fra`
+          gjennom `paastand.dodt()`. Bare kolonner med en slik rad i
+          tabellen nevnes. Hva kilden sender i stedet, og at
+          nedlastingene har det, står én gang på /om/#lesing-lus. #}
+      {% if lok.lus_dode %}
+      <p class="tabellnote" data-dode-felt>
+        {%- for d in lok.lus_dode %}{{ d.navn }} fra <time datetime="{{ d.fra }}">{{ d.fra }}</time>{% if not loop.last %} og {% endif %}{% endfor %}:
+        ikke fylt av kilden, vist som «–». <a href="/om/#lesing-lus">(om tallene)</a></p>
+      {% endif %}
       {% endif %}
     </details>
   </section>
