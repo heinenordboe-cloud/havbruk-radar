@@ -151,13 +151,20 @@ def uten_po_i_omr(rader: list[dict]) -> list[dict]:
 def _laksefisk_i_vinduet(ider: list[str], aar: int,
                          fra: tuple[int, int],
                          til: tuple[int, int]) -> set[str]:
-    """Hvilke av lokalitetene som rapporterte laksefisk i vinduet.
+    """Hvilke av lokalitetene som sto med fisk i vinduet.
 
-    `har_laksefisk` og ikke `lus_er_rapportert`: spørsmålet er om det sto
-    fisk i anlegget, ikke om noen rapporterte lus på den. Regel 1b-2 —
-    still spørsmålet du faktisk vil ha svar på.
+    `har_laksefisk` OG `brakklagt` False, og ikke `lus_er_rapportert`:
+    spørsmålet er om det sto fisk i anlegget, ikke om noen rapporterte
+    lus på den. Regel 1b-2 — still spørsmålet du faktisk vil ha svar på.
 
-    ÉN uke med laksefisk er nok til å telle. Det er den mest romslige
+    `har_laksefisk` alene svarer ikke på det. Feltet sier at lokaliteten
+    er en lakselokalitet (M25, 10.11.2026), og står True også i uker
+    BarentsWatch regner som brakklagt. MÅLT 23.11.2026 over 774
+    lusetall-snapshots: 602 921 av 1 038 854 uker med `har_laksefisk`
+    True (58,0 %) har `brakklagt` True, og ingen mangler `brakklagt`. Til
+    23.11.2026 talte funksjonen dem som anlegg i drift.
+
+    ÉN uke med fisk er nok til å telle. Det er den mest romslige
     lesningen av «anlegg med produksjon i utvandringsperioden», og den er
     valgt med vilje: den kan bare gjøre HIs tall MER sannsynlig, aldri
     mindre. Finner den likevel anlegg der HI oppgir null, er det ikke
@@ -172,11 +179,14 @@ def _laksefisk_i_vinduet(ider: list[str], aar: int,
         if not start <= dato <= slutt:
             continue
         for _, ramme in snapshot.versjoner(LUSETALL, dato):
-            traff = ramme.filter(
-                pl.col("entity_id").is_in(ider)
-                & (pl.col("field") == "har_laksefisk")
-                & (pl.col("value") == "True"))
-            ut |= set(traff["entity_id"].to_list())
+            felt = ramme.filter(pl.col("entity_id").is_in(ider))
+            laks = set(felt.filter((pl.col("field") == "har_laksefisk")
+                                   & (pl.col("value") == "True"))
+                       ["entity_id"].to_list())
+            ikke_brakk = set(felt.filter((pl.col("field") == "brakklagt")
+                                         & (pl.col("value") == "False"))
+                             ["entity_id"].to_list())
+            ut |= laks & ikke_brakk
     return ut
 
 
@@ -277,7 +287,8 @@ def main() -> int:
               f"{til[1]:02d}.{til[0]:02d}, HI oppgir {hi} anlegg:")
         for aar in (2022, 2023, 2024, 2025):
             i_drift = _laksefisk_i_vinduet(ider, aar, fra, til)
-            print(f"          {aar}: {len(i_drift)} med laksefisk rapportert "
+            print(f"          {aar}: {len(i_drift)} med fisk (laksefisk, "
+                  f"ikke brakklagt) "
                   f"{sorted(i_drift)}")
     print()
     return 0

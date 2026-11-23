@@ -115,30 +115,37 @@ Registrert er ikke det samme som i drift, så tallene over avgjør
 ingenting alene. Men vi har lusetall per lokalitet per uke, og kan spørre
 direkte om anleggene sto med fisk i nøyaktig det vinduet HI brukte.
 Terskelen er den mest romslige som finnes — **én uke med
-`har_laksefisk = True` er nok** — nettopp fordi den bare kan gjøre HIs
-null mer sannsynlig:
+`har_laksefisk` True og `brakklagt` False er nok** — nettopp fordi den
+bare kan gjøre HIs null mer sannsynlig:
+
+**Rettet 23.11.2026.** Til den datoen talte tabellen uker med
+`har_laksefisk` True alene. Feltet sier at lokaliteten er en
+lakselokalitet, ikke at det står fisk der: over alle 774
+lusetall-snapshots har 602 921 av 1 038 854 slike uker (58,0 %) også
+`brakklagt` True. Kjørt på nytt 23.11.2026 med samme lokaliteter som
+09.09.2026. 1A gikk fra 2 til 1 anlegg i 2022 og 2024; 12D er uendret.
 
 | omr | HIs utvandringsvindu | 2022 | 2023 | 2024 | 2025 | HI oppgir |
 |---|---|---:|---:|---:|---:|---:|
-| 1A | 24.04–23.06 | 2 | 2 | 2 | 2 | 0 |
+| 1A | 24.04–23.06 | 1 | 2 | 1 | 2 | 0 |
 | 12D | 09.06–01.08 | 4 | 4 | 4 | 4 | 0 |
 | 13A | 08.06–29.07 | — | — | — | — | 0 |
 
-De samme anleggene, hvert eneste år:
+Anleggene, og årene de sto med fisk i vinduet:
 
-    1A    12832 RISHOLMEN      Lillesand,  585 t MTB, permanent
-          14016 AUENES         Lillesand,  910 t MTB, permanent
+    1A    12832 RISHOLMEN      Lillesand,  585 t MTB, permanent   2022, 2023, 2025
+          14016 AUENES         Lillesand,  910 t MTB, permanent   2023, 2024, 2025
           (35778 FREDRIKSTAD INNOVASJONSPARK er landbasert og
            midlertidig klarert — holdt utenfor med vilje)
 
-    12D   13143 BONDEJORDA     Lebesby,   4 000 t MTB, permanent
-          13337 HOVDENAKKEN    Lebesby,   6 000 t MTB, permanent
-          13813 KVITELV        Lebesby,   4 725 t MTB, permanent
-          34697 ØYRA           Lebesby,   8 300 t MTB, permanent
+    12D   13143 BONDEJORDA     Lebesby,   4 000 t MTB, permanent   hvert år
+          13337 HOVDENAKKEN    Lebesby,   6 000 t MTB, permanent   hvert år
+          13813 KVITELV        Lebesby,   4 725 t MTB, permanent   hvert år
+          34697 ØYRA           Lebesby,   8 300 t MTB, permanent   hvert år
 
 12D er ikke et grensetilfelle: fire sjøanlegg med til sammen 23 025 tonn
-MTB i Laksefjord, alle med laksefisk rapportert i hver eneste
-utvandringsperiode 2022–2025.
+MTB i Laksefjord, alle med fisk (laksefisk, ikke brakklagt) i hver
+eneste utvandringsperiode 2022–2025.
 
 **Hva som IKKE er avklart.** Hvorfor HI oppgir null, er ikke fastslått,
 og det skal ikke gjettes. Minst tre forklaringer er forenlige med det vi

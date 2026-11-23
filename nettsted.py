@@ -1694,7 +1694,12 @@ def til_visning(rader: list[dict]) -> list[dict]:
 LUSEKOLONNENAVN = {
     "voksne_hunnlus": "Voksne hunnlus",
     "lus_er_rapportert": "Rapportert",
-    "har_laksefisk": "Laksefisk",
+    # «LAKSELOKALITET», ikke «Laksefisk». Feltet er BarentsWatchs
+    # hasSalmonoids, og det sier at stedet er en lakselokalitet, ikke at
+    # det står fisk der (M25). MÅLT 23.11.2026 i bygget: 40 431 av 91 740
+    # rader i lusetabellene (44,1 %) sto med «Laksefisk: ja» og
+    # «Brakklagt: ja» side om side.
+    "har_laksefisk": "Lakselokalitet",
     "brakklagt": "Brakklagt",
     "har_medikamentell_behandling": "Medikamentell",
     "har_mekanisk_fjerning": "Mekanisk",
@@ -6165,7 +6170,9 @@ LUSEKOLONNER = (
         "Kilden oppgir ikke feltet for uka."),
     nedlasting.Kolonne(
         "har_laksefisk", "boolean",
-        "Om det står laksefisk på lokaliteten (hasSalmonoids).",
+        "Om BarentsWatch regner stedet som en lakselokalitet "
+        "(hasSalmonoids). Ikke om det står fisk der: feltet er sant også "
+        "i uker lokaliteten er brakklagt.",
         "Kilden oppgir ikke feltet for uka."),
     nedlasting.Kolonne(
         "brakklagt", "boolean",

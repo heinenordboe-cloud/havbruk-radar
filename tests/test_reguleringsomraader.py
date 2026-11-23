@@ -306,3 +306,33 @@ def test_grensetall_med_annen_dato_sier_fra():
         _raw(**{"grensetall_2026-36": _rapport("01.11.2026", avsnitt=[])}),
         "2026-06-29"))
     assert any("2026-11-01" in a for a in kilde.advarsler)
+
+
+# ---- analysen: fisk i utvandringsvinduet --------------------------------
+
+def test_analysen_teller_ikke_brakklagte_lakselokaliteter(monkeypatch):
+    """`har_laksefisk` sier at lokaliteten er en lakselokalitet, ikke at
+    det står fisk (M25). Målt 23.11.2026: 58,0 % av ukene med feltet True
+    er også brakklagt. Analysen i `analyse/reguleringsomraader.py` talte
+    dem som anlegg i drift til samme dato.
+
+    Tre lokaliteter i én uke i vinduet: laks og ikke brakklagt (telles),
+    laks og brakklagt (telles ikke), ikke laks (telles ikke).
+    """
+    import polars as pl
+
+    from analyse import reguleringsomraader as analyse
+
+    rader = [
+        ("1", "har_laksefisk", "True"), ("1", "brakklagt", "False"),
+        ("2", "har_laksefisk", "True"), ("2", "brakklagt", "True"),
+        ("3", "har_laksefisk", "False"), ("3", "brakklagt", "False"),
+    ]
+    ramme = pl.DataFrame(rader, schema=["entity_id", "field", "value"],
+                         orient="row")
+    monkeypatch.setattr(analyse.snapshot, "datoer",
+                        lambda kilde: ["2024-05-06", "2024-09-02"])
+    monkeypatch.setattr(analyse.snapshot, "versjoner",
+                        lambda kilde, dato: [(1, ramme)])
+    assert analyse._laksefisk_i_vinduet(
+        ["1", "2", "3"], 2024, (4, 24), (6, 23)) == {"1"}
