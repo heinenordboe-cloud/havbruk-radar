@@ -52,3 +52,19 @@ def _fast_kodeproveniens(monkeypatch):
     monkeypatch.setattr(kodeproveniens, "rent", lambda: kodeproveniens.RENT)
     monkeypatch.setattr(kodeproveniens, "paa_origin_main",
                         lambda sha: (bool(sha), "testfast"))
+
+
+# ---------------------------------------------------- ett oppslag per bygg
+#
+# `nettsted.byggedato()` og «sist lest» (`_fordeling_status()`) slås opp
+# én gang per bygg og huskes til `skriv_alle()` starter et nytt. En prøve
+# som skriver egne arkivlogger og bygger én side, skal ikke få svaret fra
+# prøven før. Nettsted importeres ikke her bare for å glemme.
+
+@pytest.fixture(autouse=True)
+def _nytt_bygg_per_prove():
+    import sys
+    nettsted = sys.modules.get("nettsted")
+    if nettsted is not None and hasattr(nettsted, "nytt_bygg"):
+        nettsted.nytt_bygg()
+    yield

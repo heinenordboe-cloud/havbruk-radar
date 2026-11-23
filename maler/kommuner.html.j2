@@ -60,9 +60,18 @@
 {# ANDEL ER IKKE BELØP, her andelen vises første gang (Heine, 16.11.2026).
    Samme to setninger som under statusen på /fasiten/havbruksfondet-<år>/. #}
 {% with klasse = "historikk-forklaring" %}{% include "andel-og-belop.html.j2" %}{% endwith %}
-<p class="historikk-forklaring">{% if d.status.lest %}<a href="{{ d.fiskeridir }}">Fiskeridirektoratets side</a> sist lest
-  <time datetime="{{ d.status.lest }}">{{ d.status.lest|kortdato }}</time>.{% endif %}
-  <a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den
+{#- «SIST LEST» ER FØR BYGGET. Arkivjobben er satt opp til å lese siden
+    tre ganger i døgnet (havbruksfond.yml i datarepoets jobber.yml), men
+    sidene bygges en gang i uka: datoen er den siste lesingen før siden
+    ble oppdatert, og setningen sier det, med samme dato som bunnteksten.
+    Begge slås opp ett sted (`nettsted._fordeling_status()`,
+    `nettsted.byggedato()`). Til 23.11.2026 sto bare «sist lest» og
+    datoen (publisert 18.11: «17.11.2026»), og en uke senere så det ut som
+    arkivet hadde stoppet. #}
+{% if d.status.lest %}<p class="historikk-forklaring"><a href="{{ d.fiskeridir }}">Fiskeridirektoratets side</a> sist lest
+  <time datetime="{{ d.status.lest }}" data-lest="havbruksfondet">{{ d.status.lest|kortdato }}</time>,
+  før siden ble oppdatert <time datetime="{{ bygget }}">{{ bygget|kortdato }}</time>.</p>{% endif %}
+<p class="historikk-forklaring"><a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den
   <time datetime="{{ d.fordelt.dato }}">{{ d.fordelt.dato|kortdato }}</time>.</p>
 {% include "kommune-segl.html.j2" %}
 {# «SLIK SJEKKER DU OSS» STO HER til 16.11.2026, i tre linjer. Den står nå

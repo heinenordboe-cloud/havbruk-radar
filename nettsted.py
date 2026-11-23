@@ -606,7 +606,46 @@ def _kontakt() -> str:
     return str(config.get("nettsted.kontakt", "") or "").strip()
 
 
-def proveniens(observed_at: str, fetched_at: str, tillegg: str = "") -> str:
+# ----------------------------------------------------- ett oppslag per bygg
+#
+# BYGGEDATOEN OG «SIST LEST» slås opp ett sted, første gang en side spør,
+# og gjelder hele bygget (CLAUDE.md 1b). Til 23.11.2026 slo sju steder
+# opp `date.today()` hver for seg, i maskinens lokale tid: et bygg som
+# krysset midnatt kunne datere sidene, CSV-ene og sitemapen til to dager,
+# og på Heines maskin (UTC−5) var datoen om kvelden gårsdagens i UTC.
+# `skriv_alle()` tømmer oppslagene først, så hvert bygg slår opp på nytt.
+_BYGG: dict[str, object] = {}
+
+
+def nytt_bygg() -> None:
+    """Glem byggets oppslag. Neste side som spør, slår opp på nytt."""
+    _BYGG.clear()
+
+
+def byggedato() -> str:
+    """Datoen bygget kjører, i UTC, slått opp én gang per bygg.
+
+    UTC fordi prosjektet daterer etter UTC (`fetched_at`, snapshotene).
+    Den handler om OSS — når sidene ble laget — og står i bunnteksten
+    som «Oppdatert».
+    """
+    if "dato" not in _BYGG:
+        _BYGG["dato"] = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    return _BYGG["dato"]
+
+
+class Proveniens(str):
+    """Bunnlinja som tekst, og hvilken kilde og hvilket snapshot den
+    gjelder. Malen setter de tre på bunnteksten, og
+    tests/test_datoer.py holder at to sider i samme bygg ikke oppgir ulikt
+    hentetidspunkt for samme snapshot."""
+    kilde: str = ""
+    gjelder: str = ""
+    hentet: str = ""
+
+
+def proveniens(observed_at: str, fetched_at: str, tillegg: str = "",
+               kilde: str = "") -> str:
     """Setningen nederst på siden: hvilket øyeblikksbilde, og når hentet.
 
     TO TIDSPUNKTER, og skillet er CLAUDE.md 1b-7. `observed_at` er
@@ -629,7 +668,9 @@ def proveniens(observed_at: str, fetched_at: str, tillegg: str = "") -> str:
     linjer = [f"Data hentet {hentet}, {uka}." if hentet else f"Data fra {uka}."]
     if tillegg:
         linjer.append(tillegg)
-    return "\n".join(linjer)
+    ut = Proveniens("\n".join(linjer))
+    ut.kilde, ut.gjelder, ut.hentet = kilde, (observed_at or "")[:10], fetched_at or ""
+    return ut
 
 
 def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
@@ -661,7 +702,7 @@ def _grunnkontekst(felles: Felles | None, rot: Path, sti: Path, *,
     # forhåndsvisning på pages.dev ville dermed fortalt leseren at den
     # var originalen, og bedt henne sitere en adresse som ikke serverte
     # innholdet.
-    i_dag = dt.date.today().isoformat()
+    i_dag = byggedato()
     return {
         "tittel": tittel,
         "beskrivelse": beskrivelse,
@@ -922,8 +963,9 @@ def bevis(kilder=BEVISKILDER) -> list[dict]:
     return ut
 
 
-def _hentet(kilde: str) -> str:
-    """`fetched_at` i nyeste snapshot av kilden, eller tom streng.
+def _hentet(kilde: str, dato: str | None = None) -> str:
+    """`fetched_at` i nyeste snapshot av kilden, eller i snapshotet for
+    `dato` (nyeste versjon av det), eller tom streng.
 
     DETTE ER ET TIDSPUNKT OM OSS, ikke om verden. `observed_at` er
     datoen raden gjelder for, og den står i filnavnet; dette er da VI
@@ -935,10 +977,12 @@ def _hentet(kilde: str) -> str:
     snapshot kan være skrevet før feltet fantes, og
     `visningsord.tidspunkt("")` gir tom streng videre.
     """
-    dato = snapshot.siste_dato(kilde)
+    dato = dato or snapshot.siste_dato(kilde)
     if dato is None:
         return ""
     versjonene = snapshot.versjoner(kilde, dato)
+    if not versjonene:
+        return ""
     return snapshot.fetched_at_i(versjonene[-1][1]) or ""
 
 
@@ -6706,7 +6750,7 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
             jsonld=jsonld(lok),
             proveniens_tekst=proveniens(
                 lok["akva_dato"], lok["akva_hentet"],
-                "Lusetallene gjelder uka de er datert til."),
+                "Lusetallene gjelder uka de er datert til.", kilde="akvakultur"),
             meny_aktiv="lokalitet",
             # KARTET ER PÅ SIDEN, og da må Kartverkets navn være det
             # også — i bunnteksten og under kartet. Se `KARTVERKET`.
@@ -6747,8 +6791,8 @@ def skriv_lokalitet(loknr: str, rot: Path = UT,
     #
     # ÉN BYGGEDATO for alle tre filene. To oppslag på klokka kan svare
     # ulikt rundt midnatt, og da daterer CSV-en og regnearket seg til
-    # hver sin dag (CLAUDE.md 1b, F7).
-    bygget = dt.date.today().isoformat()
+    # hver sin dag (CLAUDE.md 1b, F7). Og samme dato som resten av bygget.
+    bygget = byggedato()
     setninger = attribusjon(["lusetall"], vilkaar)
     csv_sti = mappe / CSV_FILNAVN
     csv_sti.write_text(csv_tekst(lok, setninger, bygget), encoding="utf-8")
@@ -7242,7 +7286,7 @@ def endringer_datasett(uke: dict, vilkaar=None,
     for en eldre uke ville det vært et tidspunkt som handler om en annen
     henting enn den raden kom fra.
     """
-    bygget = bygget or dt.date.today().isoformat()
+    bygget = bygget or byggedato()
     par = sorted({(h["kilde"], h["dato"]) for h in uke["hendelser"]})
     hentet = []
     for kilde in ENDRINGSKILDER:
@@ -7506,7 +7550,7 @@ def skriv_endringssider(rot: Path, felles: Felles,
                 "inLanguage": "nb",
             }),
             proveniens_tekst=proveniens(felles.akva_dato,
-                                        felles.akva_hentet),
+                                        felles.akva_hentet, kilde="akvakultur"),
             meny_aktiv="endringer",
             sidetype="Liste",
             undertittel=f"{len(uker)} uker med observerte endringer",
@@ -7673,7 +7717,7 @@ def skriv_feeder(rot: Path, felles: Felles, uker: list[dict]) -> list[Path]:
     alle = [h for u in uker for h in u["hendelser"]]
     alle.sort(key=lambda h: h["dato"], reverse=True)
     skrevet: list[Path] = []
-    i_dag = dt.date.today().isoformat()
+    i_dag = byggedato()
 
     def skriv(sti: str, tittel: str, undertittel: str,
               hendelser: list[dict]) -> None:
@@ -7887,7 +7931,8 @@ def skriv_sok(rot: Path, felles: Felles, uker: list[dict]) -> Path:
                 "name": "Søk i Kystloggen",
                 "inLanguage": "nb",
             }),
-            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet,
+                                        kilde="akvakultur"),
             meny_aktiv="sok", side_skript="/sok.js",
             sidetype="Søk", undertittel=f"{d['sider']} sider"))
     return skriv_side(sti, html)
@@ -8033,7 +8078,7 @@ def skriv_sitemap(rot: Path, felles: Felles, uker=(), kommuner=(),
     from xml.sax.saxutils import escape
 
     basis = _basisurl()
-    dato = dt.date.today().isoformat()
+    dato = byggedato()
     linjer = ['<?xml version="1.0" encoding="UTF-8"?>']
     if not basis:
         linjer.append(
@@ -8276,7 +8321,7 @@ def skriv_kvalitet(rot: Path, felles: Felles, maaler: "kvalitet.Kvalitet"
     når vi regnet den.
     """
     data = {k: snapshot.siste_dato(k) or "" for k in BEVISKILDER}
-    bygget = dt.date.today().isoformat()
+    bygget = byggedato()
     rapport = maaler.som_json(bygget=bygget, data=data)
     (rot / "kvalitet.json").write_text(
         json.dumps(rapport, ensure_ascii=False, indent=1) + "\n",
@@ -8290,7 +8335,8 @@ def skriv_kvalitet(rot: Path, felles: Felles, maaler: "kvalitet.Kvalitet"
             beskrivelse=("Påstandene på lokalitetssidene, hvor mange som er "
                          "ukjent eller uenige, og hvor lang teksten er."),
             jsonld="", meny_aktiv="",
-            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet)))
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet,
+                                        kilde="akvakultur")))
     skriv_side(sti, html)
     return rapport
 
@@ -8532,7 +8578,7 @@ def bygg_om(felles: Felles) -> dict:
         "kontakt": kontakt,
         "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
         "forfatter": "Heine Valø Nordbøe",
-        "bygget": dt.date.today().isoformat(),
+        "bygget": byggedato(),
     }
 
 
@@ -8630,7 +8676,8 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
                 "author": {"@type": "Person", "name": om["forfatter"]},
                 "codeRepository": om["repo"],
             }),
-            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet,
+                                        kilde="akvakultur"),
             meny_aktiv="om", sidetype="Om",
             undertittel="Kilder, metode, dekning og sitering"),
     )
@@ -9090,7 +9137,8 @@ def skriv_unntaksvekst(rot: Path, felles: Felles) -> list[Path]:
                           for k in ANALYSE_KILDER],
             "creator": kystloggen(),
         }, "/" + "/".join(UNNTAK_STI) + "/")),
-        proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+        proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet,
+                                        kilde="akvakultur"),
         sidetype="Analyse",
         undertittel="Mattilsynets søknader om unntaksvekst holdt mot "
                     "kapasitet og drift",
@@ -9206,7 +9254,18 @@ def _fordeling_status() -> dict:
     `lest` er datoen i nyeste logg fra `arkiver_havbruksfond.py` der
     siden faktisk ble hentet (en sha256 på sidens post). Et forsøk som
     feilet er ikke en lesing (CLAUDE.md 1b-2).
+
+    ÉN GANG PER BYGG (`_BYGG`). /kommune/ og /fasiten/ spør begge, og
+    arkivjobben leser siden tre ganger i døgnet: to oppslag kunne gitt to
+    svar i samme bygg. Datoen er den siste lesingen FØR bygget, og siden
+    sier det.
     """
+    if "fordeling" not in _BYGG:
+        _BYGG["fordeling"] = _les_fordeling_status()
+    return _BYGG["fordeling"]
+
+
+def _les_fordeling_status() -> dict:
     import havbruksfond as h
     try:
         h.regneark(h.AAR)
@@ -9540,8 +9599,9 @@ def skriv_kommuner(rot: Path, felles: Felles, fasit: dict | None = None,
         return []
     miljo = _miljo()
     proveniens_tekst = proveniens(
-        d["for"], d["hentet"].get(d["for"], ""),
-        f"Registeret er også lest {visningsord.kortdato(d['etter'])}.")
+        d["for"], _hentet("akvakultur", d["for"]),
+        f"Registeret er også lest {visningsord.kortdato(d['etter'])}.",
+        kilde="akvakultur")
     mappe = rot / KOMMUNE_STI
 
     beskrivelse = (f"Hver kommunes andel av klarert lokalitets-MTB "
@@ -9741,7 +9801,9 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
     miljo = _miljo()
     vilkaar = felles.vilkaar if felles else kildevilkaar()
     proveniens_tekst = proveniens(
-        d["for"], "", f"Registeret er også lest {visningsord.kortdato(d['etter'])}.")
+        d["for"], _hentet("akvakultur", d["for"]),
+        f"Registeret er også lest {visningsord.kortdato(d['etter'])}.",
+        kilde="akvakultur")
     datoer = visningsord.liste(
         [visningsord.kortdato(s["dato"]) for s in d["forseglinger"]], "og")
 
@@ -10105,7 +10167,8 @@ def _skriv_indeks(rot: Path, sti: str, mal_navn: str, data: dict,
                     "description": beskrivelse,
                     "inLanguage": "nb",
                 }),
-                proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+                proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet,
+                                        kilde="akvakultur"),
                 meny_aktiv=sti, sidetype="Liste",
                 undertittel=f"{data['antall']} oppføringer"),
         )
@@ -10810,7 +10873,8 @@ def skriv_forside(rot: Path, felles: Felles, mal=None) -> Path:
                 f"akvakulturlokaliteter, sammenstilt og datert: eierskap, "
                 f"trafikklysfarge, lusetall og hva som har endret seg."),
             jsonld=jsonld_forside(f, felles.vilkaar),
-            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet),
+            proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet,
+                                        kilde="akvakultur"),
             feed="/endringer/feed.xml",
             feed_tittel="Kystloggen: alle endringer",
             kart=True,
@@ -11417,7 +11481,7 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
             proveniens_tekst=proveniens(
                 felles.eierskap_dato, _hentet("eierskap"),
                 "Registerdataene om selskapet er fra "
-                "Enhetsregisteret."),
+                "Enhetsregisteret.", kilde="eierskap"),
             meny_aktiv="selskap",
             # ORGANISASJONSNUMMER · ANTALL LOKALITETER. Nummeret er
             # identiteten — to selskaper kan hete nesten det samme — og
@@ -11520,7 +11584,7 @@ def skriv_produksjonsomrade(po: str, rot: Path, felles: Felles,
             jsonld=jsonld_po(d, felles.vilkaar),
             proveniens_tekst=proveniens(
                 felles.akva_dato, felles.akva_hentet,
-                "Forskriftsrundene er lest fra Lovdata."),
+                "Forskriftsrundene er lest fra Lovdata.", kilde="akvakultur"),
             meny_aktiv="produksjonsomrade",
             kart=d["kart"] is not None,
             sidetype="Produksjonsområde",
@@ -11599,6 +11663,9 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     byggingen ender rødt.
     """
     tider: dict[str, float] = {}
+    # ET NYTT BYGG slår opp datoen og «sist lest» på nytt, én gang.
+    nytt_bygg()
+    byggedato()
     t0 = time.perf_counter()
     felles = les_felles()
     tider["felleslesing"] = time.perf_counter() - t0

@@ -265,7 +265,10 @@
      `observed_at` handler om VERDEN, `fetched_at` om OSS. Begge står,
      fordi en side som bare oppgir det ene lar leseren tro at de er det
      samme. #}
-  <div class="ark bunn-proveniens">
+  {#- HVILKEN KILDE OG HVILKET SNAPSHOT linja gjelder, for prøven som holder
+      at to sider i samme bygg ikke oppgir ulikt hentetidspunkt for samme
+      snapshot (tests/test_datoer.py). Se `nettsted.Proveniens`. #}
+  <div class="ark bunn-proveniens"{% if proveniens.kilde is defined and proveniens.kilde %} data-proveniens-kilde="{{ proveniens.kilde }}" data-proveniens-gjelder="{{ proveniens.gjelder }}" data-proveniens-hentet="{{ proveniens.hentet }}"{% endif %}>
     {#- ÉN LINJE PER OPPLYSNING. Se `nettsted.proveniens()`. #}
     {% for linje in proveniens.split("\n") %}<p>{{ linje }}</p>
     {% endfor %}
