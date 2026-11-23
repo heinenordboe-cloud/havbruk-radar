@@ -111,7 +111,7 @@ def _grunn(undermappe: str = "", **over) -> dict:
         "stilark": _stilark(undermappe),
         "bygget": "2026-09-20",
         "bygget_vist": "20. september 2026",
-        "proveniens": "Data hentet 14. september 2026 kl. 04.00 UTC, uke 38, 2026.",
+        "proveniens": "Data hentet 14. september 2026 kl. 04.00 UTC (uke 38).",
         "repo": "https://github.com/heinenordboe-cloud/havbruk-radar",
         "kontakt": "",
         "meny_aktiv": "",

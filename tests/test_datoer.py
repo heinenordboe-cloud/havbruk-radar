@@ -70,7 +70,33 @@ def test_proveniens_baerer_kilde_snapshot_og_hentet():
                             kilde="akvakultur")
     assert (p.kilde, p.gjelder, p.hentet) == (
         "akvakultur", "2026-08-31", "2026-08-31T04:09:31+00:00")
-    assert str(p).startswith("Data hentet 31. august 2026 kl. 04.09 UTC")
+    assert str(p) == "Data hentet 31. august 2026 kl. 04.09 UTC (uke 36)."
+
+
+# ------------------------------------------------------- bunnlinja
+
+@pytest.mark.parametrize("observert,hentet,ventet", [
+    # Heines eksempel, 23.11.2026.
+    ("2026-11-16", "2026-11-16T13:26:41+00:00",
+     "Data hentet 16. november 2026 kl. 13.26 UTC (uke 47)."),
+    # Uka i et annet ISO-år enn hentedatoen: året står.
+    ("2026-12-28", "2027-01-02T10:00:00+00:00",
+     "Data hentet 2. januar 2027 kl. 10.00 UTC (uke 53, 2026)."),
+    ("2025-12-29", "2025-12-30T01:00:00+00:00",
+     "Data hentet 30. desember 2025 kl. 01.00 UTC (uke 1, 2026)."),
+    # Uten hentetidspunkt sier linja ingenting om det, som før.
+    ("2026-11-16", "", "Data fra uke 47, 2026."),
+])
+def test_bunnlinja_har_uka_i_parentes(observert, hentet, ventet):
+    assert str(nettsted.proveniens(observert, hentet)) == ventet
+
+
+def test_bunnlinja_har_ingen_annen_form_i_malene():
+    """«, uke N, ÅÅÅÅ.» etter et tidspunkt skal ikke stå skrevet for hånd
+    noe sted: linja kommer bare fra `proveniens()`."""
+    maler = Path(nettsted.__file__).parent / "maler"
+    for mal in maler.glob("*.j2"):
+        assert not re.search(r"UTC, uke", mal.read_text(encoding="utf-8")), mal.name
 
 
 # --------------------------------------------------- mot portens bygg

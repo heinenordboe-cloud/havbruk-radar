@@ -665,7 +665,15 @@ def proveniens(observed_at: str, fetched_at: str, tillegg: str = "",
     """
     uka = visningsord.uke(observed_at)
     hentet = visningsord.tidspunkt(fetched_at)
-    linjer = [f"Data hentet {hentet}, {uka}." if hentet else f"Data fra {uka}."]
+    # UKA I PARENTES, uten året når året står i datoen foran: «Data hentet
+    # 16. november 2026 kl. 13.26 UTC (uke 47).» (Heine, 23.11.2026; til da
+    # «…, uke 47, 2026.»). Er uka i et annet ISO-år enn hentedatoen —
+    # uke 53 av 2026 hentet 2. januar 2027 — står året, ellers leses uka
+    # som en uke i 2027.
+    ukenr, _, iso_aar = uka.partition(", ")
+    i_parentes = ukenr if iso_aar and iso_aar == (fetched_at or "")[:4] else uka
+    linjer = [(f"Data hentet {hentet} ({i_parentes})." if uka else
+               f"Data hentet {hentet}.") if hentet else f"Data fra {uka}."]
     if tillegg:
         linjer.append(tillegg)
     ut = Proveniens("\n".join(linjer))
