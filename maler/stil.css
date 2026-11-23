@@ -1106,6 +1106,35 @@ main > .visuelt-skjult + .seksjon { padding-block-start: var(--rom-32); }
 /* Søkefeltet på fotografiet: papirflate med mørk tekst. */
 .hero .sok input { box-shadow: none; background: var(--papir); }
 
+/* ---- de tre flatene, rett under heroen (16b) ----
+   Tre like kort på rad fra 56rem, under hverandre på telefon. En strek
+   i blekk over hvert, som seksjonshodene; ingen farge skiller dem, og
+   ingen er større enn de andre. Over bretten på 1440 x 900 sammen med
+   heroen (`test_forsidens_flater_staar_over_bretten`). */
+.flater { padding-block: var(--rom-24) 0; }
+.flateliste {
+  display: grid;
+  gap: var(--rom-16);
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.flateliste > li { margin: 0; }
+@media (min-width: 56rem) {
+  .flateliste { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--rom-32); }
+}
+.flate { border-block-start: 2px solid var(--ink); padding-block-start: var(--rom-12); }
+.flate-tittel {
+  margin: 0 0 var(--rom-8);
+  font-family: var(--skrift-tekst);
+  font-size: var(--tekst-m);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.flate p { margin: 0; max-width: 36em; }
+.ubrutt { white-space: nowrap; }
+
 /* ---- denne uka ---- */
 
 .uke-datoer { margin: 0; font-size: var(--tekst-s); color: var(--ink-dempet); }
@@ -1332,6 +1361,15 @@ main > .visuelt-skjult + .seksjon { padding-block-start: var(--rom-32); }
 }
 
 ul.arkivtall { list-style: none; padding: 0; }
+
+/* ET HULL STÅR SOM ET HULL (16b, 2c): et eget ledd med en stiplet ramme,
+   der et tall ville stått. Det har ingen tallverdi og ingen <strong>. */
+.arkivtall .arkivhull {
+  align-self: start;
+  padding: var(--rom-8) var(--rom-12);
+  border: 1px dashed var(--ink-dempet);
+  color: var(--ink);
+}
 
 .arkivtall strong {
   display: block;

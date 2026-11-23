@@ -1296,3 +1296,17 @@ def test_avsnittsgrensen_holder_mot_nettleseren(side, tjener, sti):
     side.evaluate("document.fonts.ready")
     for_lange = side.evaluate(AVSNITT_JS, publiseringsvakt.AVSNITTSGRENSE)
     assert not for_lange, f"{sti}: " + "; ".join(for_lange[:5])
+
+
+def test_forsidens_flater_staar_over_bretten(side, tjener):
+    """16b, 2b: de tre flatene står rett under heroen, over bretten på
+    1440x900, sammen med søket. Bunnen av den lengste flata er målt."""
+    side.set_viewport_size({"width": 1440, "height": 900})
+    side.goto(tjener + "/", wait_until="load")
+    side.evaluate("document.fonts.ready")
+    flater = side.evaluate("""() => [...document.querySelectorAll('.flate')]
+        .map(e => e.getBoundingClientRect().bottom + scrollY)""")
+    sok = side.locator("form.sok").first.bounding_box()
+    assert len(flater) >= 2, "fant ikke flatene"
+    assert max(flater) <= 900, flater
+    assert sok["y"] + sok["height"] <= min(flater), (sok, flater)

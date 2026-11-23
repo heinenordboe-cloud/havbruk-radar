@@ -11159,11 +11159,188 @@ def _herofoto(felles: Felles) -> dict:
     return ut
 
 
-def bygg_forside(felles: Felles) -> dict:
-    """Alt forsiden viser: heroen, uka, arkivtallene, kysten og feedene.
+# --------------------------------------------- forsidens tre flater
+#
+# RETT UNDER HEROEN, over bretten på 1440x900 (16b, 2b): havbruksfondet,
+# brakkleggingen og én endring denne uka, med navn. Teksten er Heines
+# (TEKSTEN i 16b, 23.11.2026); tallene, datoene og navnene leses av data.
+#
+# INGEN ANSLAGSTALL PÅ FORSIDEN (regelen fra 10.11.2026): flatene sier
+# hva som er forseglet, når fasiten åpner og hvor mange uker som er
+# avgjort, aldri hva anslaget var.
 
-    Rekkefølgen i dicten er sidens: hero, denne uka, arkivtall, kysten,
-    følg med.
+# DAGENE HAVBRUKSFONDET STÅR FØRST ETTER FASITEN, også ved bom. Telt fra
+# dagen fasiten ble hentet; dag 7 er med.
+FONDET_FORST_DAGER = 7
+
+
+def _tall_av(verdi: str) -> float | None:
+    """«1 076» -> 1076.0, slik `_hendelse()` viser et tall. None når det
+    ikke er et tall."""
+    tekst = re.sub(r"[^\d,.\-]", "", str(verdi or "")).replace(",", ".")
+    try:
+        return float(tekst)
+    except ValueError:
+        return None
+
+
+def _ledd(tekst: str, url: str = "", felt: str = "", kode: bool = False) -> dict:
+    """Ett ledd i en setning på forsiden: tekst, et navn med lenke og
+    feltmerke, eller en kode («T-L-0002») som ikke skal brytes ved
+    bindestreken."""
+    return {"tekst": tekst, "url": url, "felt": felt, "kode": kode}
+
+
+def ukas_endring(uke: dict | None, felles: Felles) -> list[dict] | None:
+    """ÉN endring med navn fra ukas vesentlige rader, valgt etter en regel:
+    størst kapasitetsendring i tonn, ellers et eierskifte, ellers en ny
+    lokalitet (16b, 2b). None når uka ikke har noen av dem; da står
+    flata ikke, og ingen «ingen …»-linje står i stedet.
+
+    Et navn som kan være en person, står aldri her: en tillatelse med en
+    eier kilden klassifiserer som person, hoppes over (`personeier()`,
+    samme regel som selskapssidene).
+
+    Setningen er en liste ledd (`_ledd()`): tekst, et navn med lenke og
+    feltmerke, eller en kode som ikke skal brytes. NAVNET ER FELTMERKET
+    (`data-felt`), så porten holder det mot registrene som andre navn.
+    """
+    if not uke:
+        return None
+    rader = uke.get("ledet", [])
+
+    def tonn(slag: str, eid: str) -> bool:
+        kilde = felles.eierskap if slag == "tillatelse" else felles.akva
+        return (kilde.get(eid) or {}).get("kapasitet_enhet") == "TN"
+
+    def eier(nr: str) -> tuple[str, str] | None:
+        t = felles.eierskap.get(nr) or {}
+        orgnr = str(t.get("eier_orgnr") or "")
+        if not orgnr or personeier(orgnr, felles):
+            return None
+        return visningsord.selskapsnavn(t.get("eier_navn")), f"/selskap/{orgnr}/"
+
+    def kapasitet(nr: str, kilde: dict) -> float:
+        t = kilde.get(nr) or {}
+        return (_tall_av(t.get("kapasitet")) or 0.0) if t.get("kapasitet_enhet") == "TN" else 0.0
+
+    # 1. STØRST KAPASITETSENDRING I TONN, på en tillatelse eller en lokalitet.
+    kandidater = []
+    for h in rader:
+        if h["kildefelt"] != "kapasitet" or h["type"] not in ("tillatelse", "lokalitet"):
+            continue
+        fra, til = _tall_av(h["fra"]), _tall_av(h["til"])
+        if fra is None or til is None or fra == til or not tonn(h["type"], h["entity_id"]):
+            continue
+        kandidater.append((-abs(til - fra), h["entity_id"], h, fra, til))
+    for _, eid, h, fra, til in sorted(kandidater, key=lambda k: k[:2]):
+        retning = "økte" if til > fra else "gikk ned"
+        endring = f"kapasiteten {retning} fra {h['fra']} til {h['til']} tonn."
+        if h["type"] == "tillatelse":
+            hvem = eier(eid)
+            if hvem:
+                return [_ledd(hvem[0], hvem[1], "eier_navn"),
+                        _ledd(": kapasiteten på tillatelse "), _ledd(eid, kode=True),
+                        _ledd(f" {retning} fra {h['fra']} til {h['til']} tonn.")]
+        else:
+            lok = felles.akva.get(eid) or {}
+            kommune = visningsord.kommunenavn(lok.get("kommune"))
+            return [_ledd(h["gjelder"], h["gjelder_url"], "lokalitet_navn"),
+                    _ledd((f" i {kommune}: " if kommune else ": ") + endring)]
+
+    # 2. ET EIERSKIFTE, på tillatelsen med størst kapasitet i tonn.
+    skifter = sorted({h["entity_id"] for h in rader
+                      if h["type"] == "eierskap" and h["kildefelt"] == "eier_orgnr"},
+                     key=lambda nr: (-kapasitet(nr, felles.eierskap), nr))
+    for nr in skifter:
+        hvem = eier(nr)
+        if hvem:
+            return [_ledd("Tillatelse "), _ledd(nr, kode=True), _ledd(" fikk ny eier: "),
+                    _ledd(hvem[0], hvem[1], "eier_navn"), _ledd(".")]
+
+    # 3. EN NY LOKALITET, den med størst kapasitet i tonn.
+    nye = sorted({h["entity_id"]: h for h in rader
+                  if h["type"] == "ny" and h.get("kilde") == "akvakultur"
+                  and h["entity_id"] in felles.akva}.values(),
+                 key=lambda h: (-kapasitet(h["entity_id"], felles.akva), h["gjelder"]))
+    for h in nye:
+        kommune = visningsord.kommunenavn(
+            (felles.akva.get(h["entity_id"]) or {}).get("kommune"))
+        return [_ledd("Ny lokalitet: "),
+                _ledd(h["gjelder"], h["gjelder_url"], "lokalitet_navn"),
+                _ledd(f" i {kommune}." if kommune else ".")]
+    return None
+
+
+def forsideflater(felles: Felles, uke: dict | None) -> list[dict]:
+    """De tre flatene, i den rekkefølgen de står.
+
+    HAVBRUKSFONDET STÅR FØRST så lenge fordelingen ikke er kommet, og i
+    `FONDET_FORST_DAGER` dager etter fasiten, også ved bom. Så står det
+    sist. Brakkleggingen er den første hovedtypen i fasiten.json; prøvetypen
+    står ikke på forsiden. Uten en endring med navn står ingen tredje
+    flate."""
+    o = bygg_fasiten(felles)
+    d = o["havbruksfond"]
+    datoer = visningsord.liste([visningsord.kortdato(s["dato"]) for s in d["forseglinger"]], "og")
+    status = d["oppsummert"]
+    fondet = {"etikett": d["navn"], "url": d["sti"], "endring": None,
+              "tekst": (f"Andelen for {d['kommuner']} kommuner, forseglet {datoer}. "
+                        f"{status[:1].upper()}{status[1:]}.")}
+    flater = []
+    if o["hovedtyper"]:
+        t = o["hovedtyper"][0]
+        siste, neste = t["siste"], t["neste"]
+        tekst = f"Uke {int(siste['uke'][-2:])} er forseglet."
+        if neste:
+            tekst += f" Fasiten åpner {visningsord.kortdato(neste['aapner'])}."
+        tekst += f" {t['uker_vist'][:1].upper()}{t['uker_vist'][1:]}."
+        flater.append({"etikett": t["navn"], "url": t["sti"], "tekst": tekst,
+                       "endring": None})
+    if endring := ukas_endring(uke, felles):
+        flater.append({"etikett": "Denne uka i registrene", "tekst": "",
+                       "url": f"/endringer/{uke['slug']}/", "endring": endring})
+    fasitdag = (d["fasit"] or {}).get("hentet", "")[:10]
+    forst = not fasitdag or (dt.date.fromisoformat(byggedato())
+                             - dt.date.fromisoformat(fasitdag)).days <= FONDET_FORST_DAGER
+    return [fondet] + flater if forst else flater + [fondet]
+
+
+def arkivrekke(datoer: list[str]) -> dict:
+    """Tallbåndets første tall: startdatoen og ukene på rad uten hull,
+    målt fra snapshotene (16b, 2c). Til 23.11.2026 sto «N uker arkivert
+    siden …», som teller hentinger og ikke sier om en uke mangler.
+
+    En uke er en ISO-uke med minst én henting. Et HULL er en uke mellom
+    den første og den siste uten. «På rad» er ukene fram til den siste,
+    etter det siste hullet; hullene vises, de regnes ikke bort."""
+    if not datoer:
+        return {"fra": "", "fra_rad": "", "paa_rad": 0, "hull": []}
+    mandager = sorted({dt.date.fromisoformat(d) - dt.timedelta(days=dt.date.fromisoformat(d).weekday())
+                       for d in datoer})
+    alle = [mandager[0] + dt.timedelta(weeks=k)
+            for k in range((mandager[-1] - mandager[0]).days // 7 + 1)]
+    har = set(mandager)
+    hull = [m for m in alle if m not in har]
+    rad = 0
+    for m in reversed(alle):
+        if m not in har:
+            break
+        rad += 1
+    fra_rad = alle[-rad]
+    return {"fra": datoer[0],
+            # DAGEN REKKA BEGYNNER: første henting i første uke på rad.
+            "fra_rad": min(d for d in datoer if dt.date.fromisoformat(d) >= fra_rad),
+            "paa_rad": rad,
+            "hull": [visningsord.uke(m.isoformat()) for m in hull]}
+
+
+def bygg_forside(felles: Felles) -> dict:
+    """Alt forsiden viser: heroen, de tre flatene, uka, arkivtallene,
+    kysten og feedene.
+
+    Rekkefølgen i dicten er sidens: hero, flatene, denne uka, arkivtall,
+    kysten, følg med.
     """
     _punkter, uten, _hoyde, _gitter = kartpunkter(felles.akva)
     uker = les_endringsuker(felles)
@@ -11172,6 +11349,15 @@ def bygg_forside(felles: Felles) -> dict:
     akva_datoer = snapshot.datoer("akvakultur")
 
     return {
+        # ---- tre flater rett under heroen (16b) ----
+        "flater": forsideflater(felles, uke),
+        # UKAS FAKTA UTEN «INGEN …» (16b, 2b): en slik linje står aldri
+        # først og vises bare på ukessiden. Til 23.11.2026 var «Ingen
+        # tillatelser fikk ny eier.» forsidens første linje om uka.
+        "uke_fakta": [s for s in (uke or {}).get("fakta", [])
+                      if not s.startswith("Ingen")],
+        # ---- tallbåndet: uker på rad og hullene (16b) ----
+        "arkiv": arkivrekke(akva_datoer),
         # HEROENS BILDETEKST. Stedet, fotografen, og produksjonsområdet
         # slått opp i registeret — se `_herofoto()`.
         "herofoto": _herofoto(felles),

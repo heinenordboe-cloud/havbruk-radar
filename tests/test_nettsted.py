@@ -2132,6 +2132,25 @@ def _forside(**overstyr) -> str:
                      "po": "3", "po_navn": "Karmøy til Sotra",
                      "koder": []},
         "herobilder": nettsted.bildeadresser(),
+        # DE TRE FLATENE, som `forsideflater()` skriver dem (16b).
+        "flater": [
+            {"etikett": "Havbruksfondet 2026", "url": "/fasiten/havbruksfondet-2026/",
+             "tekst": "Andelen for 143 kommuner, forseglet 12.10.2026 og "
+                      "09.11.2026. Venter på fordelingen.", "endring": None},
+            {"etikett": "Brakklegging per produksjonsområde",
+             "url": "/fasiten/brakklegging/", "endring": None,
+             "tekst": "Uke 48 er forseglet. Fasiten åpner 28.12.2026. "
+                      "0 av 12 uker avgjort."},
+            {"etikett": "Denne uka i registrene", "url": "/endringer/2026-39/",
+             "tekst": "", "endring": [
+                 nettsted._ledd("Ny lokalitet: "),
+                 nettsted._ledd("Oterneset", "/lokalitet/31397/", "lokalitet_navn"),
+                 nettsted._ledd(" i Harstad.")]}],
+        # UKAS FAKTA UTEN «INGEN …», som `bygg_forside()` skriver dem.
+        "uke_fakta": [],
+        # TALLBÅNDET: ukene på rad og hullene, som `arkivrekke()`.
+        "arkiv": {"fra": "2026-08-17", "fra_rad": "2026-08-17", "paa_rad": 6,
+                  "hull": []},
         "lokaliteter": 1782, "produksjonsomraader": 13, "selskaper": 481,
         "tillatelser": 2945, "luke_uker": 764,
         "lus_fra": "2012-01-02", "lus_til": "2026-08-17",
@@ -2196,9 +2215,16 @@ def _forside(**overstyr) -> str:
 
 def test_forsiden_viser_ukas_fakta_og_typene_med_lenke():
     """Briefen: ukas viktigste endringer øverst. Faktasetningene er
-    ukesidens, og typene lenker til typesidene med brikkenes tall."""
+    ukesidens, og typene lenker til typesidene med brikkenes tall.
+
+    FRA 16b UTEN «INGEN …»: en slik linje står aldri først og vises bare
+    på ukessiden. Til 23.11.2026 var «Ingen tillatelser fikk ny eier.»
+    forsidens første linje om uka."""
     flat = " ".join(_forside().split())
-    assert "Ingen tillatelser fikk ny eier." in flat
+    assert "Ingen tillatelser fikk ny eier." not in flat
+    assert '<ul class="uke-fakta">' not in flat, "ingen fakta igjen, ingen liste"
+    med = " ".join(_forside(uke_fakta=["Kapasiteten endret seg på 7 tillatelser."]).split())
+    assert "<li>Kapasiteten endret seg på 7 tillatelser.</li>" in med
     assert 'href="/endringer/2026-39/trafikklys/"' in flat
     assert '<span class="typestolpe-tall">4</span>' in flat
 
@@ -2230,7 +2256,14 @@ def test_ukas_typer_er_de_som_teller_storst_forst():
 def test_forsiden_svarer_paa_de_tre_tingene():
     """Hva er dette, hva har skjedd, kan jeg stole på det."""
     html = " ".join(_forside().split())
-    assert "Registrene viser nå. Vi tar vare på før." in html
+    # H1 OG INGRESS FRA TEKSTEN i 16b (23.11.2026). Til da mottoet
+    # «Registrene viser nå. Vi tar vare på før.»
+    assert '<h1 class="hero-losen">Norsk havbruk, uke for uke</h1>' in html
+    assert ("Vi tar vare på det de offentlige registrene skriver over, med "
+            "sjekksum og tidsstempel.") in html
+    assert ("Vi forsegler anslag før utfallet er kjent, og viser fasiten, også "
+            "der vi bommer.") in html
+    assert "Registrene viser nå. Vi tar vare på før." not in html
     # «ÅPENT» ER FJERNET 24.09.2026. Ordet påsto noe om tilgangen som
     # ikke er avgjort: grensen mellom fri gjenbruk og avtalt uttrekk står
     # som utkast (2026-09-22-gratis-mot-betalt-grense.md), og
@@ -2500,8 +2533,17 @@ def test_arkivtallet_skjuler_ikke_at_det_er_lite():
     flat = " ".join(_forside().split())
     # «Henting», ikke «øyeblikksbilde» (tekstreglene 20.10.2026: ordet står
     # bare i siteringsformatet).
-    assert "6</strong> uker arkivert siden" in flat
+    # Fra 16b: ukene PÅ RAD UTEN HULL og startdatoen, ikke «uker arkivert».
+    assert "6</strong> uker på rad uten hull, fra" in flat
     assert "17. august 2026" in flat
+    assert "uker arkivert" not in flat
+    # Et hull står som et hull, i eget ledd.
+    med_hull = " ".join(_forside(arkiv={
+        "fra": "2026-08-17", "fra_rad": "2026-09-14", "paa_rad": 4,
+        "hull": ["uke 37, 2026"]}).split())
+    assert ('<li class="arkivhull">Hull i uke 37, 2026, i arkivet fra '
+            '<time datetime="2026-08-17">17. august 2026</time></li>') in med_hull
+    assert "4</strong> uker på rad uten hull, fra" in med_hull
     assert "sjekksum" in flat
 
 

@@ -1,5 +1,6 @@
-{# Forsiden. Rekkefølgen er briefens tabell «Sider og jobb»:
-   hero → denne uka → arkivtall → kysten → følg med → bunntekst.
+{# Forsiden. Rekkefølgen er briefens tabell «Sider og jobb», med de tre
+   flatene fra 16b (23.11.2026) rett under heroen:
+   hero → flatene → denne uka → arkivtall → kysten → følg med → bunntekst.
 
    Den skal svare en fremmed på tre ting: hva er dette, hva har skjedd,
    kan jeg stole på det. «Denne uka» ligger derfor rett under heroen og
@@ -70,13 +71,21 @@
   </div>
 
   <div class="ark hero-bunn">
-    {# MOTTOET ER H1. Navnet står i menyen over — ordmerket er en lenke
-       til forsiden og står på hver eneste side — og en H1 som bare
-       gjentok det ville brukt sidens viktigste overskrift på noe
-       leseren allerede ser. Mottoet sier hva stedet GJØR. #}
-    <h1 class="hero-losen">Registrene viser nå. Vi tar vare på før.</h1>
-    <p class="hero-tagline">Et uavhengig arkiv over offentlige
-      data om norsk havbruk</p>
+    {# H1 OG INGRESS ER HEINES (TEKSTEN i 16b, 23.11.2026), ordrett. Navnet
+       står i menyen over — ordmerket er en lenke til forsiden og står på
+       hver eneste side — og H1 sier hva stedet handler om. Til
+       23.11.2026 sto mottoet «Registrene viser nå. Vi tar vare på før.»
+       her, og «Et uavhengig arkiv over offentlige data om norsk havbruk»
+       under.
+
+       TO AVSNITT, én setning i hvert: det første er arkivet, det andre
+       fasiten. Klassen er den gamle beskrivelsens, så kontrastprøven
+       måler begge (`test_heroteksten_har_nok_kontrast`). #}
+    <h1 class="hero-losen">Norsk havbruk, uke for uke</h1>
+    <p class="hero-tagline">Vi tar vare på det de offentlige registrene skriver over,
+      med sjekksum og tidsstempel.</p>
+    <p class="hero-tagline">Vi forsegler anslag før utfallet er kjent, og viser
+      fasiten, også der vi bommer.</p>
 
     {# SØKET. Uten JavaScript peker skjemaet på den flate
        lokalitetsindeksen, som er hele lista på én side. Med Pagefind
@@ -111,6 +120,39 @@
 {% endblock %}
 
 {% block innhold %}
+
+{# ---------------------------------------------------------------- 1b
+   TRE FLATER, rett under heroen og over bretten på 1440x900 (16b, 2b):
+   havbruksfondet, brakkleggingen og én endring denne uka, med navn.
+   Rekkefølgen og tekstene settes i `nettsted.forsideflater()`;
+   teksten er Heines (TEKSTEN i 16b).
+
+   INGEN TALL HER, og ingen anslagstall noe sted på forsiden: flatene
+   sier hva som er forseglet og når fasiten åpner, aldri hva anslaget
+   var. Uten en endring med navn står to flater, og ingen «ingen …». #}
+{% if f.flater %}
+<section class="ark flater" aria-labelledby="flater-tittel">
+  <h2 class="visuelt-skjult" id="flater-tittel">Fasiten og denne uka</h2>
+  <ul class="flateliste">
+    {% for x in f.flater %}
+    <li class="flate">
+      <h3 class="flate-tittel"><a href="{{ x.url }}">{{ x.etikett }}</a></h3>
+      {% if x.endring %}
+      {#- NAVNET ER FELTMERKET, så porten holder det mot registrene, og en
+          kode som «T-L-0002» brytes ikke ved bindestreken. #}
+      <p>{% for s in x.endring %}
+        {%- if s.url %}<a href="{{ s.url }}" data-felt="{{ s.felt }}">{{ s.tekst }}</a>
+        {%- elif s.kode %}<span class="ubrutt">{{ s.tekst }}</span>
+        {%- else %}{{ s.tekst }}{% endif %}
+      {%- endfor %}</p>
+      {% else %}
+      <p>{{ x.tekst }}</p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 {# ---------------------------------------------------------------- 2
    DENNE UKA. Sidens hovedsak, og fra 27.09.2026 bare det:
@@ -172,9 +214,11 @@
       {% if loop.first %}
       {% for s in setning.tekst.split("\n") %}<p{% if not loop.first %} class="sammendrag-bi"{% endif %}>{{ s }}</p>
       {% endfor %}
-      {% if f.uke and f.uke.fakta %}
+      {#- UTEN «INGEN …» (16b): en slik linje står aldri først og vises
+          bare på ukessiden. Se `uke_fakta` i `bygg_forside()`. #}
+      {% if f.uke and f.uke_fakta %}
       <ul class="uke-fakta">
-        {% for s in f.uke.fakta %}<li>{{ s }}</li>
+        {% for s in f.uke_fakta %}<li>{{ s }}</li>
         {% endfor %}
       </ul>
       {% endif %}
@@ -242,15 +286,20 @@
   <ul class="arkivtall">
     {# TALLET STÅR I <strong>, SUBSTANTIVET UTENFOR — derfor ikke
        `antall()`, som gir begge som én streng. Formen velges på samme
-       måte, og `|tall` gir samme tusenskille som resten av siden. #}
-    <li><strong>{{ f.lokaliteter|tall }}</strong>
-      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</li>
-    <li><strong>{{ f.selskaper|tall }}</strong>
-      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</li>
-    <li><strong>{{ f.snapshots|tall }}</strong>
-      {{ "uke arkivert" if f.snapshots == 1
-         else "uker arkivert" }}
-      siden <time datetime="{{ f.forste_snapshot }}">{{ f.forste_snapshot|dato }}</time></li>
+       måte, og `|tall` gir samme tusenskille som resten av siden.
+
+       UKENE PÅ RAD FØRST (16b, 2c), målt fra snapshotene: startdatoen og
+       ukene uten hull fram til den siste. Til 23.11.2026 sto «N uker
+       arkivert siden …», som teller hentinger og ikke sier om en uke
+       mangler. Et hull står som et hull, i eget ledd; det regnes ikke
+       bort. Lokalitetene og selskapene står sist. #}
+    <li><strong>{{ f.arkiv.paa_rad|tall }}</strong>
+      {{ "uke" if f.arkiv.paa_rad == 1 else "uker" }} på rad uten hull, fra
+      <time datetime="{{ f.arkiv.fra_rad }}">{{ f.arkiv.fra_rad|dato }}</time></li>
+    {% if f.arkiv.hull %}
+    <li class="arkivhull">Hull i {{ f.arkiv.hull|join(" og ") }}, i arkivet fra
+      <time datetime="{{ f.arkiv.fra }}">{{ f.arkiv.fra|dato }}</time></li>
+    {% endif %}
     {#- BEGGE ENDENE, ikke bare den ene. «765 uker siden 2. januar 2012»
         lar leseren regne seg til at serien går til i dag, og det gjør den
         ikke: lusetall hentes fire uker på etterskudd, og den siste uka vi
@@ -261,6 +310,10 @@
       <time datetime="{{ f.lus_fra }}">{{ f.lus_fra|dato }}</time>
       til og med
       <time datetime="{{ f.lus_til }}">{{ f.lus_til|uke }}</time></li>
+    <li><strong>{{ f.lokaliteter|tall }}</strong>
+      {{ "lokalitet" if f.lokaliteter == 1 else "lokaliteter" }}</li>
+    <li><strong>{{ f.selskaper|tall }}</strong>
+      {{ "selskap" if f.selskaper == 1 else "selskaper" }}</li>
   </ul>
 </div>
 </section>

@@ -175,5 +175,8 @@ def test_forsiden_merker_stolpene_som_endringer_og_summerer_likt():
     if "Fisk til stede" in par and setning:
         n = int("".join(html.unescape(par["Fisk til stede"]).split()))
         assert sum(_tall_i_setningen(setning[0])) == n, (n, setning[0])
-    # Samme setninger som øverst på den nyeste ukessiden.
-    assert _fakta(side) == _fakta(_ukesider()[-1].read_text(encoding="utf-8"))
+    # Samme setninger som øverst på den nyeste ukessiden, uten «Ingen …»
+    # (16b): en slik linje står aldri først og vises bare på ukessiden.
+    uka = _fakta(_ukesider()[-1].read_text(encoding="utf-8"))
+    assert _fakta(side) == [s for s in uka if not s.startswith("Ingen")]
+    assert not [s for s in _fakta(side) if s.startswith("Ingen")]

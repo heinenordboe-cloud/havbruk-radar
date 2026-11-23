@@ -6,8 +6,12 @@ med en eldre designfil (`STILGUIDE.md`, overleveringen, kommentarer i
 
 ## Én setning
 
-> Registrene viser hvordan ting er nå. Kystloggen viser hva som har
-> endret seg, uke for uke, med kilde og sjekksum på hvert tall.
+> Kystloggen husker det registrene skriver over, og viser hvor ofte
+> anslagene treffer.
+
+Fra 23.11.2026 (økt 16b). Den forrige: «Registrene viser hvordan ting er nå.
+Kystloggen viser hva som har endret seg, uke for uke, med kilde og
+sjekksum på hvert tall.»
 
 ## Formål
 
@@ -40,6 +44,13 @@ er merkevaren — en side som overdriver én gang, er en side ingen siterer.
 - **Bare målte tall.** Ingen tolkning, ingen vurdering, ingen anslag.
   En oppsummeringssetning settes sammen av fakta som står lenger ned på
   siden; mangler et ledd, utelates leddet — det gjettes ikke.
+
+  **Unntak: anslag under /fasiten/** (besluttet 10.11.2026). Anslag står
+  bare under /fasiten/, alltid forseglet og skåret, bare på PO- og
+  kommunenivå. Ingen anslagstall på forsiden eller datasidene, og ingen
+  tekst nevner anslag som ikke er forseglet. Forsiden kan si at en uke er
+  forseglet, når fasiten åpner og hvor mange uker som er avgjort, men
+  ikke hva anslaget var.
 - **Ingen personnavn.** Se CLAUDE.md regel 3. Et enkeltpersonforetak er
   en person.
 - **Forbehold slettes aldri, de legges ett klikk unna.** Et forbehold kan
