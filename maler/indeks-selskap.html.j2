@@ -65,7 +65,13 @@
       <th scope="col">Organisasjonsnummer</th>
       <th scope="col">Navn</th>
       <th scope="col">Tillatelser</th>
-      <th scope="col">Lokaliteter</th>
+      {#- TALLET OG DELINGEN, med selskapssidens ord
+          (`nettsted.LOKALITETER_ORD` og `DELING_ORD`). Til 23.11.2026 het
+          kolonnen «Lokaliteter» og talte også lokaliteter der andre
+          innehavere har resten av tillatelsene. #}
+      <th scope="col">{{ LOKALITETER_ORD[1]|capitalize }}</th>
+      <th scope="col">{{ DELING_ORD.egne|capitalize }}</th>
+      <th scope="col">{{ DELING_ORD.delt|capitalize }}</th>
       <th scope="col">Registerdata</th>
     </tr>
   </thead>
@@ -76,12 +82,24 @@
       <td class="eier" data-felt="eier_navn">{{ r.navn|selskapsnavn }}</td>
       <td class="tall" data-felt="tillatelser_antall">{{ r.tillatelser }}</td>
       <td class="tall" data-felt="lokaliteter_antall">{{ tall(r.lokaliteter) }}</td>
+      <td class="tall" data-felt="lokaliteter_egne">{{ tall(r.egne) }}</td>
+      <td class="tall" data-felt="lokaliteter_delt">{{ tall(r.delt) }}</td>
       <td data-felt="har_registerdata">{{ "ja" if r.har_registerdata else "nei" }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
+<p class="tabellnote">{{ DELING_ORD.delt|capitalize }}: et annet organisasjonsnummer har også tillatelse på
+  lokaliteten.</p>
+{#- BARE DER SUMMEN IKKE GÅR OPP. En lokalitet med en tillatelse uten
+    oppgitt innehaver er verken «bare egne» eller «delt med andre», og
+    står på selskapssiden med sitt eget tall. MÅLT 23.11.2026: 3
+    lokaliteter, ett selskap. #}
+{% if d.rader|selectattr("uavklart")|list %}
+<p class="tabellnote">Der de to ikke summerer til tallet foran, har en lokalitet en
+  tillatelse uten oppgitt innehaver.</p>
+{% endif %}
 {% include "sidenav.html.j2" %}
 </div>
 
@@ -116,8 +134,9 @@
 
   {% if m.lokaliteter %}
   <section class="marg-blokk" aria-labelledby="marg-lok">
-    <h2 class="etikett" id="marg-lok">Flest lokaliteter</h2>
+    <h2 class="etikett" id="marg-lok">Flest {{ LOKALITETER_ORD[1] }}</h2>
     {{ marg.fordeling(m.lokaliteter, "marg-lok") }}
+    <p class="marg-note">Også lokaliteter {{ DELING_ORD.delt }} innehavere.</p>
   </section>
   {% endif %}
 </div>

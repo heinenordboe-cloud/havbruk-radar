@@ -691,6 +691,21 @@ ul.lok-sammendrag > li + li { margin-block-start: var(--rom-4); }
 .nokkeltall dd a { color: var(--ink); text-decoration-color: var(--rust); }
 .nokkeltall dd a:visited { color: var(--ink); }
 
+/* TALLET DELT I TO, under etiketten: «2 bare egne · 18 delt med andre».
+   Liten som etiketten, men i blekk — det er tall, ikke forklaring.
+   Ruta er bredere enn de andre, så linja ikke brytes midt i et ledd. */
+.nokkeltall .nokkeltall-bred dt { max-inline-size: none; }
+
+.nokkeltall .nokkeltall-del {
+  order: 3;
+  margin: var(--rom-4) 0 0;
+  font-family: var(--skrift-tekst);
+  font-size: var(--tekst-xs);
+  line-height: var(--lh-tett);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
 /* EN NOTE I SIDEHODET: forbeholdet som hører til tallene rett over. */
 .sidehode-note {
   margin: var(--rom-16) 0 0;

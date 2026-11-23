@@ -6428,6 +6428,11 @@ def _miljo() -> Environment:
     miljo.globals["VERDI_MANGLER_FELT"] = VERDI_MANGLER_FELT
     # Kolonneoverskriftene i lusetabellen, de samme tabellnoten bruker.
     miljo.globals["lusekolonne"] = LUSEKOLONNENAVN
+    # Selskapets lokaliteter: tallet, delingen og ordene, ett sted for
+    # selskapssiden og indeksen. Se `selskapets_lokaliteter()`.
+    miljo.globals["deling_vist"] = deling_vist
+    miljo.globals["LOKALITETER_ORD"] = LOKALITETER_ORD
+    miljo.globals["DELING_ORD"] = DELING_ORD
     return miljo
 
 
@@ -9908,9 +9913,9 @@ def _selskapsmarg(felles: Felles, rader: list[dict]) -> dict:
                 tonn[orgnr] += verdi
             else:
                 andre += 1
-        lok = sorted({l for nr in tillatelser
-                      for l in _liste(felles.eierskap[nr].get("lokaliteter"))
-                      if l in felles.akva})
+        # De samme lokalitetene som selskapssiden og raden i indeksen
+        # teller: `selskapets_lokaliteter()`.
+        lok = sorted(selskapets_lokaliteter(orgnr, felles)["per"])
         poster, vindu = _selskapsendringer(orgnr, lok, tillatelser, felles,
                                            uker=SELSKAP_INDEKS_UKER)
         endret += bool(poster)
@@ -9954,13 +9959,18 @@ def bygg_selskapsindeks(felles: Felles) -> dict:
             navn = (felles.eierskap[nr].get("eier_navn") or "").strip() or navn
             if navn:
                 break
-        lok = {l for nr in tillatelser
-               for l in _liste(felles.eierskap[nr].get("lokaliteter"))}
+        # LOKALITETENE, og hvor mange av dem selskapet deler med andre
+        # innehavere. Samme funksjon og samme nøkler som selskapssiden,
+        # så tallet i raden er tallet øverst på siden den lenker til.
+        deling = selskapets_lokaliteter(orgnr, felles)
         rader.append({
             "orgnr": orgnr,
             "navn": navn,
             "tillatelser": len(tillatelser),
-            "lokaliteter": len(lok),
+            "lokaliteter": deling["antall"],
+            "egne": deling["egne"],
+            "delt": deling["delt"],
+            "uavklart": deling["uavklart"],
             "har_registerdata": orgnr in felles.enhet,
         })
     rader.sort(key=lambda r: (r["navn"] or "ÅÅÅ", r["orgnr"]))
@@ -10867,6 +10877,109 @@ def personeier(orgnr: str, felles: Felles) -> bool:
     return False
 
 
+# ------------------------------------------- selskapets lokaliteter, delt
+#
+# «LOKALITETER NÅ» TALTE HVER LOKALITET MED EN AV SELSKAPETS TILLATELSER,
+# også der andre innehavere har resten. Et selskap med 3 tillatelser sto
+# med 20 lokaliteter, og på en av dem hadde det én tillatelse av fem.
+# Tallet var riktig talt og feil lest: det ser ut som 20 anlegg selskapet
+# driver.
+#
+# MÅLT 23.11.2026 (eierskap og akvakultur 16.11.2026): 173 av 480
+# selskaper har minst én lokalitet der et annet organisasjonsnummer også
+# har tillatelse. Hos dem gjelder det 1 307 av 2 000 lokaliteter (65,3 %),
+# og for 79 av dem alle. Over alle 480: 1 307 av 2 560 (51,1 %).
+#
+# Tallet deles derfor, og ordene står ETT sted: selskapssiden,
+# selskapsindeksen, JSON-LD-beskrivelsen, søket og margen med kartet leser
+# dem herfra. Innehaverne står i `eierskap`. Ingen ny kilde.
+#
+#   egne      hver tillatelse på lokaliteten er selskapets
+#   delt      minst én tillatelse har et annet organisasjonsnummer
+#   uavklart  ingen annen innehaver, men Akvakulturregisteret oppgir en
+#             tillatelse på lokaliteten som tillatelsesregisteret ikke gjør
+#             rede for (`_uten_eier()`). MÅLT: 3 lokaliteter, samme
+#             tillatelse. Vi vet ikke hvem som har den, og da er «bare
+#             egne» en påstand vi ikke har. Gruppa står bare der den ikke
+#             er tom.
+LOKALITETER_ORD = ("lokalitet med tillatelse", "lokaliteter med tillatelse")
+DELING_ORD = {"egne": "bare egne", "delt": "delt med andre",
+              "uavklart": "med tillatelse uten oppgitt innehaver"}
+# De samme ordene, hele: for en setning, og for den som leser dem alene.
+DELING_ORD_LANGE = {"egne": "med bare egne tillatelser",
+                    "delt": "delt med andre innehavere",
+                    "uavklart": DELING_ORD["uavklart"]}
+
+# (felles, {lokalitet: {tillatelse: organisasjonsnummer}}). Bygget én gang
+# per batch av `eierskap`, som `_AVGITT`.
+_INNEHAVERE: list = [None, {}]
+
+
+def _innehavere_per_lokalitet(felles: Felles) -> dict[str, dict[str, str]]:
+    if _INNEHAVERE[0] is not felles:
+        per: dict[str, dict[str, str]] = defaultdict(dict)
+        for nr, d in felles.eierskap.items():
+            for loknr in _liste(d.get("lokaliteter")):
+                per[loknr][nr] = (d.get("eier_orgnr") or "").strip()
+        _INNEHAVERE[:] = [felles, dict(per)]
+    return _INNEHAVERE[1]
+
+
+def selskapets_lokaliteter(orgnr: str, felles: Felles) -> dict:
+    """Lokalitetene selskapet har tillatelse på, og hvem det deler dem med.
+
+        {"per": {lokalitet: {"egne", "andre", "uten", "alle", "slag"}},
+         "antall", "egne", "delt", "uavklart"}
+
+    `per` er sortert som tall og har bare lokaliteter som står i
+    Akvakulturregisteret, de samme lokalitetslista viser. For hver:
+    `egne` er selskapets tillatelser der, `andre` er tillatelser med et
+    annet organisasjonsnummer, `uten` er tillatelser registeret oppgir
+    uten at tillatelsesregisteret har en innehaver, og `alle` er summen.
+    `slag` er gruppa: `delt` når `andre` > 0, ellers `uavklart` når
+    `uten` > 0, ellers `egne`. De tre tallene summerer til `antall`.
+
+    ÉN FUNKSJON for siden, indeksen og margen. Til 23.11.2026 regnet tre
+    steder lokalitetene hver for seg, to med og ett uten kravet om at
+    lokaliteten står i registeret.
+    """
+    innehavere = _innehavere_per_lokalitet(felles)
+    mine = {loknr for nr in felles.tillatelser_per_eier.get(orgnr, ())
+            for loknr in _liste(felles.eierskap[nr].get("lokaliteter"))
+            if loknr in felles.akva}
+    per: dict[str, dict] = {}
+    for loknr in sorted(mine, key=lambda e: int(e) if e.isdigit() else 0):
+        paa = innehavere.get(loknr, {})
+        egne = sum(1 for o in paa.values() if o == orgnr)
+        andre = sum(1 for o in paa.values() if o and o != orgnr)
+        # En tillatelse uten organisasjonsnummer i tillatelsesregisteret,
+        # eller en registeret oppgir som tillatelsesregisteret ikke har.
+        uten = (sum(1 for o in paa.values() if not o)
+                + len(_uten_eier(_liste(felles.akva[loknr].get("tillatelser")),
+                                 felles.eierskap)))
+        per[loknr] = {"egne": egne, "andre": andre, "uten": uten,
+                      "alle": egne + andre + uten,
+                      "slag": ("delt" if andre else
+                               "uavklart" if uten else "egne")}
+    slag = Counter(p["slag"] for p in per.values())
+    return {"per": per, "antall": len(per), "egne": slag["egne"],
+            "delt": slag["delt"], "uavklart": slag["uavklart"]}
+
+
+def deling_vist(d: dict, lange: bool = False, skille: str = SKILLE) -> str:
+    """«2 bare egne · 18 delt med andre». `d` har `egne`, `delt` og
+    `uavklart`, som `selskapets_lokaliteter()` og indeksens rader.
+
+    De to første står alltid, også med null: «0 delt med andre» er en
+    måling. Den tredje står bare når den ikke er tom.
+    """
+    ordene = DELING_ORD_LANGE if lange else DELING_ORD
+    return skille.join(
+        f"{visningsord.tall(d[slag])} {ordene[slag]}"
+        for slag in ("egne", "delt", "uavklart")
+        if slag != "uavklart" or d[slag])
+
+
 def bygg_selskap(orgnr: str, felles: Felles) -> dict:
     """Alt én selskapsside trenger.
 
@@ -10916,6 +11029,10 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
         if datoer:
             siden_per_till[nr] = max(datoer)
 
+    # HVEM SELSKAPET DELER LOKALITETENE MED. Samme funksjon som indeksen
+    # og margen leser; hver rad i lista får tallene sine herfra.
+    deling = selskapets_lokaliteter(orgnr, felles)
+
     lokaliteter: dict[str, dict] = {}
     for nr in tillatelser:
         for loknr in _liste(mine[nr].get("lokaliteter")):
@@ -10924,6 +11041,11 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
                 continue
             post = lokaliteter.setdefault(loknr, {
                 "loknr": loknr,
+                # «1 av 5»: selskapets tillatelser på lokaliteten, av
+                # alle som står der. `delt_slag` er gruppa i tellingen.
+                "egne_tillatelser": deling["per"][loknr]["egne"],
+                "alle_tillatelser": deling["per"][loknr]["alle"],
+                "delt_slag": deling["per"][loknr]["slag"],
                 "navn": visningsord.tittelform(a.get("navn", "")),
                 "original": a.get("navn", ""),
                 "kommune": a.get("kommune", ""),
@@ -11048,6 +11170,11 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
         "tillatelser_antall": len(tillatelser),
         "lokaliteter": lokalitetsrader,
         "lokaliteter_antall": len(lokaliteter),
+        # TALLET DELT, med de samme nøklene som indeksens rader. Summen er
+        # `lokaliteter_antall`. Se `selskapets_lokaliteter()` og
+        # `deling_vist()`.
+        "lokaliteter_deling": {slag: deling[slag]
+                               for slag in ("egne", "delt", "uavklart")},
         "marg": marg,
         "overforinger": overforinger,
 
@@ -11200,11 +11327,14 @@ def jsonld_selskap(sel: dict, vilkaar: dict) -> Markup:
         "@type": "Dataset",
         "name": f"{sel['navn'] or sel['orgnr']} — akvakulturtillatelser "
                 f"og lokaliteter",
+        # SAMME TALL OG ORD SOM NØKKELTALLENE PÅ SIDEN. Til 23.11.2026 sto
+        # «hvilke 20 lokaliteter de ligger på», uten at 18 av dem er delt
+        # med andre innehavere. Se `selskapets_lokaliteter()`.
         "description": (
-            f"Hvilke akvakulturtillatelser organisasjonsnummer "
-            f"{sel['orgnr']} eier, hvilke {sel['lokaliteter_antall']} "
-            f"lokaliteter de ligger på, og når tillatelsene ble overført "
-            f"til selskapet."),
+            f"Akvakulturtillatelsene organisasjonsnummer {sel['orgnr']} "
+            f"eier, og når de ble overført til selskapet. "
+            f"{visningsord.antall(sel['lokaliteter_antall'], *LOKALITETER_ORD)}"
+            f": {deling_vist(sel['lokaliteter_deling'], skille=', ')}."),
         "identifier": {
             "@type": "PropertyValue",
             "propertyID": "Organisasjonsnummer (Brønnøysundregistrene)",
@@ -11244,10 +11374,11 @@ def skriv_selskap(orgnr: str, rot: Path, felles: Felles, mal=None) -> Path:
             # ORGANISASJONSNUMMER · ANTALL LOKALITETER. Nummeret er
             # identiteten — to selskaper kan hete nesten det samme — og
             # antall lokaliteter er størrelsen. Nummeret grupperes
-            # ALDRI, se visningsord regel 3.
+            # ALDRI, se visningsord regel 3. Tallet står med de samme
+            # ordene som på siden: det teller også delte lokaliteter.
             sidetype="Selskap",
             undertittel=(f"{orgnr}{SKILLE}"
-                         f"{visningsord.antall(sel['lokaliteter_antall'], 'lokalitet', 'lokaliteter')}"),
+                         f"{visningsord.antall(sel['lokaliteter_antall'], *LOKALITETER_ORD)}"),
             soketekst=vist_navn or orgnr,
             main_klasse="fullbredde",
             feed=f"/selskap/{orgnr}/feed.xml",

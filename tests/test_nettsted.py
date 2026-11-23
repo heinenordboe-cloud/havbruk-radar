@@ -1830,8 +1830,11 @@ def _selskap(**overstyr) -> str:
                          "status": "gul",
                          "status_klasse": nettsted.FARGE_KLASSE["gul"],
                          "kapasitet": "780 tonn", "siden": "2018-03-13",
+                         "egne_tillatelser": 1, "alle_tillatelser": 1,
+                         "delt_slag": "egne",
                          "tillatelser": ["N-T-0001"]}],
         "lokaliteter_antall": 1,
+        "lokaliteter_deling": {"egne": 1, "delt": 0, "uavklart": 0},
         "marg": {"kart": nettsted.kart.minikart([("67.2", "14.4")]),
                  "per_po": nettsted.fordeling(
                      [("8 Helgeland til Bodø", "/produksjonsomrade/8/", 1, "1")]),
@@ -5942,7 +5945,7 @@ def test_selskapssiden_har_kart_og_omraader_i_hoyrespalta():
     html = _selskap()
     flat = " ".join(html.split())
     assert 'class="ark med-marg"' in html
-    assert "1 av 1 lokalitet er tegnet" in flat
+    assert "1 av 1 lokalitet med tillatelse er tegnet" in flat
     assert '<a href="/produksjonsomrade/8/">8 Helgeland til Bodø</a>' in html
     assert (html.index('id="endringer-selskap"') < html.index('class="marg"')
             < html.index('id="lok-tittel"'))
@@ -6017,6 +6020,8 @@ def test_selskapssiden_lukker_lange_lister_og_viser_tallet_oeverst():
                     "original": f"LOK {i}", "kommune": "BODØ", "po_kode": "8",
                     "po_navn": "Helgeland til Bodø", "status": "gul",
                     "status_klasse": "lys-gul", "kapasitet": "780 tonn",
+                    "egne_tillatelser": 1, "alle_tillatelser": 1,
+                    "delt_slag": "egne",
                     "siden": "", "tillatelser": []}
                    for i in range(nettsted.SELSKAP_AAPEN_LISTE + 1)]
     html = _selskap(lokaliteter=lokaliteter,

@@ -57,9 +57,15 @@
      det er den rekkefølgen en skjermleser skal lese dem i; at
      etiketten står ØVERST visuelt er CSS-ens `order`. #}
   <dl class="nokkeltall">
-    <div>
-      <dd>{{ tall(sel.lokaliteter_antall) }}</dd>
-      <dt>lokaliteter nå</dt>
+    {#- LOKALITETER MED TILLATELSE, og hvor mange av dem selskapet deler
+        med andre innehavere. Til 23.11.2026 sto «lokaliteter nå» om hver
+        lokalitet med en av selskapets tillatelser, også der andre har
+        resten. Tallene og ordene er `nettsted.selskapets_lokaliteter()`s,
+        de samme indeksen, JSON-LD-en og margen bruker. #}
+    <div class="nokkeltall-bred">
+      <dd data-felt="lokaliteter_antall">{{ tall(sel.lokaliteter_antall) }}</dd>
+      <dt>{{ LOKALITETER_ORD[0] if sel.lokaliteter_antall == 1 else LOKALITETER_ORD[1] }} nå</dt>
+      {% if sel.lokaliteter_antall %}<dd class="nokkeltall-del" data-felt="lokaliteter_deling">{{ deling_vist(sel.lokaliteter_deling) }}</dd>{% endif %}
     </div>
     <div>
       <dd>{{ tall(sel.tillatelser_antall) }}</dd>
@@ -199,9 +205,12 @@
          "Kart over lokalitetene til " ~ (sel.navn|selskapsnavn or sel.orgnr),
          "Hver lokalitet selskapet har tillatelse på, er en prikk på kysten.
           Alle står i lokalitetslista under.") -%}
-      {{ tall(m.kart.tegnet) }} av {{ antall(sel.lokaliteter_antall, "lokalitet", "lokaliteter") }}
+      {{ tall(m.kart.tegnet) }} av {{ antall(sel.lokaliteter_antall, LOKALITETER_ORD[0], LOKALITETER_ORD[1]) }}
       er tegnet{% if m.kart.uten_koordinater %}; {{ tall(m.kart.uten_koordinater) }} mangler koordinater{% endif %}.
     {%- endcall %}
+    {#- SAMME DELING SOM NØKKELTALLENE: en prikk er en lokalitet med en av
+        selskapets tillatelser, også der andre innehavere har resten. #}
+    {% if sel.lokaliteter_antall %}<p class="marg-note" data-felt="lokaliteter_deling">{{ deling_vist(sel.lokaliteter_deling) }}</p>{% endif %}
   </section>
   {% if m.per_po %}
   <section class="marg-blokk" aria-labelledby="marg-po">
@@ -232,6 +241,10 @@
     <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">De {{ antall(sel.lokaliteter_antall, "lokaliteten", "lokalitetene") }} selskapets
         tillatelser ligger på, hentet
         <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.</p>
+    {#- DELINGEN, ved lista den teller. Kolonnen «Egne tillatelser» sier
+        for hver lokalitet hvor mange av tillatelsene der som er
+        selskapets: «1 av 5» er en lokalitet delt med andre innehavere. #}
+    {% if sel.lokaliteter_antall %}<p class="tabellnote" data-felt="lokaliteter_deling">{{ deling_vist(sel.lokaliteter_deling) }}</p>{% endif %}
     <div class="tabellramme" role="region"
          aria-labelledby="akvakultur-lokaliteter-tittel" tabindex="0">
     <table id="akvakultur-lokaliteter" aria-labelledby="akvakultur-lokaliteter-tittel" data-pagefind-ignore>
@@ -239,6 +252,7 @@
         <tr>
           <th scope="col">Nr.</th>
           <th scope="col">Lokalitet</th>
+          <th scope="col">Egne tillatelser</th>
           <th scope="col">Kommune</th>
           <th scope="col">Område</th>
           <th scope="col">Overføring journalført</th>
@@ -246,11 +260,12 @@
       </thead>
       <tbody>
         {% for l in sel.lokaliteter %}
-        <tr>
+        <tr data-deling="{{ l.delt_slag }}">
           <th scope="row"><a href="/lokalitet/{{ l.loknr }}/">{{ l.loknr }}</a></th>
           <td data-felt="navn">
             <a href="/lokalitet/{{ l.loknr }}/" data-felt="navn">{{ l.navn|tittelform }}</a>
           </td>
+          <td data-felt="egne_tillatelser">{{ l.egne_tillatelser }} av {{ l.alle_tillatelser }}</td>
           <td data-felt="{{ feltmerke(l.kommune, 'kommune') }}">{{ l.kommune|tittelform or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(l.po_kode, 'prodomraade_kode') }}">
             {%- if l.po_kode %}<a href="/produksjonsomrade/{{ l.po_kode }}/">{{ l.po_kode }} {{ l.po_navn }}</a>
@@ -263,7 +278,7 @@
         </tr>
         {% endfor %}
         {% if not sel.lokaliteter %}
-        <tr><td colspan="5" data-felt="tomtekst">Ingen av selskapets
+        <tr><td colspan="6" data-felt="tomtekst">Ingen av selskapets
           tillatelser er knyttet til en lokalitet i
           Akvakulturregisteret.</td></tr>
         {% endif %}

@@ -260,6 +260,12 @@
     som eier i registeret.</p>
   <p>En tillatelse der kilden ikke oppgir eier, står på lokalitetssiden,
     merket «ikke oppgitt av kilden».</p>
+  {#- TALLET PÅ SELSKAPSSIDEN OG I INDEKSEN, med ordene derfra
+      (`nettsted.LOKALITETER_ORD` og `DELING_ORD`). #}
+  <p id="lesing-selskap-lokaliteter">«{{ LOKALITETER_ORD[1]|capitalize }}» teller hver lokalitet der
+    selskapet har minst én tillatelse.</p>
+  <p>«{{ DELING_ORD.delt|capitalize }}»: et annet organisasjonsnummer har også tillatelse der.
+    «{{ DELING_ORD.egne|capitalize }}»: ingen andre har det.</p>
   <p>Vesentlig og teknisk skilles etter samme regel som på
     lokalitetssidene.</p>
 </details>
