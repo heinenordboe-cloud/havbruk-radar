@@ -70,13 +70,15 @@
    i tre avsnitt» øverst, metode, kilder og sitering under. Sto som
    sjette del til 08.10.2026. #}
 <h2 id="hvem">Hvem som står bak</h2>
-<p>{{ om.forfatter }}. Koden, beslutningsloggen og målingene ligger åpent:</p>
-<p><a href="{{ om.repo }}">{{ om.repo }}</a></p>
+{#- INGEN LENKE TIL KODREPOET HER. Den eneste veien dit fra nettstedet er
+    «Kildekoden» i bunnteksten (Heine, 23.11.2026). Til da sto adressen
+    som lenke her, i JSON-LD-en, i llms.txt og i hver feed. #}
+<p>{{ om.forfatter }}. Koden, beslutningsloggen og målingene ligger åpent: se «Kildekoden» nederst på siden.</p>
 <p>
   {% if om.kontakt %}
   Kontakt: <a href="mailto:{{ om.kontakt }}">{{ om.kontakt }}</a>.
   {% else %}
-  Kontakt går via GitHub — opprett en sak i repoet over.
+  Kontakt går via GitHub — opprett en sak i repoet bak «Kildekoden».
   {% endif %}
 </p>
 

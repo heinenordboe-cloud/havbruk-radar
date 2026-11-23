@@ -7669,7 +7669,10 @@ def atomfeed(*, tittel: str, sti: str, undertittel: str,
         f'href="{_xml(basis + sti.rsplit("/", 1)[0] + "/")}"/>',
         f"  <updated>{_xml(oppdatert)}</updated>",
         "  <author><name>Kystloggen</name></author>",
-        f"  <generator uri=\"{_xml(REPO)}\">Kystloggen</generator>",
+        # UTEN `uri`. Til 23.11.2026 pekte den på kodrepoet, i alle 2 280
+        # feedene; den eneste veien dit fra nettstedet er «Kildekoden» i
+        # bunnteksten (Heine, 23.11.2026).
+        "  <generator>Kystloggen</generator>",
     ]
     for post in poster:
         linjer += [
@@ -8447,13 +8450,11 @@ personvernhensyn, og de som forsvinner er små, personeide anlegg.
 - [Om Kystloggen]({u('/om/')}): kildene med lisens og ordrett
   attribusjon, hvor ofte det samles inn, hva dekningen er, hva som
   bevisst ikke hentes, og en ferdig formatert referanse.
-- [Kildekode og beslutningslogg]({om['repo']}): hver beslutning er
-  skrevet ned med hva som ville snudd den, og hver terskel er målt.
 
 ## Sitering
 
 {om['forfatter']} ({om['bygget'][:4]}). Kystloggen: sammenstilte
-registerdata om norsk akvakultur. Bygget {om['bygget']}. {om['repo']}
+registerdata om norsk akvakultur. Bygget {om['bygget']}. {_basisurl()}
 
 Kildenes egen attribusjon må følge med og står i bunnteksten på hver
 side. Den erstattes ikke av en referanse til dette nettstedet.
@@ -8682,7 +8683,8 @@ def skriv_om(rot: Path, felles: Felles) -> Path:
                 "name": "Om Kystloggen",
                 "inLanguage": "nb",
                 "author": {"@type": "Person", "name": om["forfatter"]},
-                "codeRepository": om["repo"],
+                # Ingen `codeRepository`: kodrepoet nås fra bunnteksten
+                # («Kildekoden»), ikke fra sidens innhold (23.11.2026).
             }),
             proveniens_tekst=proveniens(felles.akva_dato, felles.akva_hentet,
                                         kilde="akvakultur"),
