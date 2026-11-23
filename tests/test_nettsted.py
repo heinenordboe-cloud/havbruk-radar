@@ -6036,6 +6036,69 @@ def test_selskapssiden_lukker_lange_lister_og_viser_tallet_oeverst():
     assert "vesentlige endringer siden" in flat
 
 
+ENDRINGSTITTEL = re.compile(
+    r'id="endringer-selskap-liste-tittel">(.*?)</p>', re.S)
+
+
+def _tittelen(html: str) -> str:
+    """Tabelltittelen slik leseren ser den: taggene borte og mellomrom
+    slått sammen, som `publiseringsvakt.avsnittsfunn()` leser et avsnitt.
+    Et ord som limes til neste i HTML-en, står limt her også."""
+    m = ENDRINGSTITTEL.search(html)
+    return " ".join(re.sub(r"<[^>]+>", "", m.group(1)).split()) if m else ""
+
+
+def _endring(i: int) -> dict:
+    return {"dato": "2026-09-14", "lokalitet": "", "lokalitetsnavn": "",
+            "gjelder": f"N-T-{i:04d}", "etikett": "Kapasitet",
+            "fra_felt": "kapasitet", "fra": "780 tonn",
+            "til_felt": "kapasitet", "til": "900 tonn"}
+
+
+@pytest.mark.parametrize("antall,hele,ventet", [
+    (1, False, "1 vesentlig endring siden 2. september 2026, nyest først."),
+    (4, False, "4 vesentlige endringer siden 2. september 2026, nyest først."),
+    (4, True, "4 vesentlige endringer siste 13 uker, nyest først."),
+    (nettsted.SELSKAP_AAPEN_LISTE + 1, False,
+     f"De nyeste av {nettsted.SELSKAP_AAPEN_LISTE + 1} vesentlige endringer "
+     "siden 2. september 2026, nyest først."),
+    (nettsted.SELSKAP_AAPEN_LISTE + 1, True,
+     f"De nyeste av {nettsted.SELSKAP_AAPEN_LISTE + 1} vesentlige endringer "
+     "siste 13 uker, nyest først."),
+])
+def test_tabelltittelen_over_selskapets_endringer_har_ordskille(antall, hele, ventet):
+    """«4 vesentlige endringersiden» sto på 147 selskapssider til
+    23.11.2026, og «1 vesentlig endringsiden» på 15 til. `{% endif %}`
+    sist på linja tok linjeskiftet (trim_blocks), og neste linje begynte
+    med en blokktagg (lstrip_blocks). Alle fire grenene prøves: kort og
+    lang liste, vindu fra dato og hele vinduet."""
+    html = _selskap(endringer=[_endring(i) for i in range(antall)],
+                    endringsvindu={"fra": "2026-09-02", "til": "2026-09-14",
+                                   "hele": hele, "uker": 13})
+    assert _tittelen(html) == ventet
+
+
+@pytest.mark.skipif(
+    not NETTSTED,
+    reason="HAVBRUK_NETTSTED peker ikke på et bygget nettsted — "
+           "bygg med `python nettsted.py --alle --ut <mappe>` først")
+def test_ingen_selskapsside_limer_antallet_til_tidsrommet():
+    """Samme prøve mot hver selskapsside i bygget: tittelen er antallet,
+    et ordskille og tidsrommet, ikke «endringersiden»."""
+    form = re.compile(r"(De nyeste av )?\d+ vesentlige? endring(er)? "
+                      r"(siden \d{1,2}\. \w+ \d{4}|siste \d+ uker?), nyest først\.")
+    sett, feil = 0, []
+    for side in sorted((Path(NETTSTED) / "selskap").glob("*/index.html")):
+        tittel = _tittelen(side.read_text(encoding="utf-8"))
+        if not tittel:
+            continue
+        sett += 1
+        if not form.fullmatch(tittel):
+            feil.append(f"{side.parent.name}: {tittel}")
+    assert sett, "fant ingen tabelltittel over selskapets endringer i bygget"
+    assert not feil, f"{len(feil)} sider:\n  " + "\n  ".join(feil[:10])
+
+
 # ==================================== ukas tre faktasetninger
 
 def _h(slag, felt, eid, til=""):

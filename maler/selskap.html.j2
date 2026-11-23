@@ -177,9 +177,13 @@
       {#- INGEN NYE TALL. «De 5 nyeste» og «de 78 eldre» ville vært tall
           siden ikke hadde fra før — regnet av oss, ikke lest av kilden.
           Tabellen viser hvor mange som står åpent; summaryen viser til
-          det samlede tallet som alt står i nøkkeltallene. #}
-      {%- if lang %}De nyeste av {{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
-      {%- else %}{{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}{% endif %}
+          det samlede tallet som alt står i nøkkeltallene.
+
+          ORDSKILLET ER LINJESKIFTET ETTER }}. Til 23.11.2026 sluttet
+          linja på {% endif %}, og trim_blocks tok linjeskiftet: «4
+          vesentlige endringersiden» på 162 selskapssider. Står en
+          blokktagg sist på linja her, forsvinner mellomrommet igjen. #}
+      {%- if lang %}De nyeste av {% endif %}{{ antall(sel.endringer|length, "vesentlig endring", "vesentlige endringer") }}
       {% if sel.endringsvindu.hele %}siste {{ antall(sel.endringsvindu.uker, "uke", "uker") }}{% else %}siden
       <time datetime="{{ sel.endringsvindu.fra }}">{{ sel.endringsvindu.fra|dato }}</time>{% endif %},
       nyest først.</p>
