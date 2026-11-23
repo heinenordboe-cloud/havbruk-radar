@@ -5476,6 +5476,7 @@ def fisk_mot_lus(lok: dict) -> list[dict]:
     `biolag.maaneder`.
 
         {"dato": månedsslutt, "uke": mandagen eller "",
+         "fisk_herkomst": {"kort", "gjelder", "vist", ...},
          "bw": {"vist", "verdi", "nivaa", "herkomst"} eller None,
          "konflikt": bool}
 
@@ -5500,15 +5501,21 @@ def fisk_mot_lus(lok: dict) -> list[dict]:
         d = dt.date.fromisoformat(m["dato"])
         mandag = (d - dt.timedelta(days=d.weekday())).isoformat()
         u = per_uke.get(mandag)
-        if not u:
-            ut.append({"dato": m["dato"], "uke": "", "bw": None,
-                       "konflikt": False})
-            continue
         arter = frozenset(a.strip() for a in (m.get("arter") or "").split(";")
                           if a.strip())
         fisk = Paastand("fisk", "biomasselag", m["dato"], m["har_fisk"],
                         felt="har_fisk",
                         arter=(arter or None) if m["har_fisk"] == "Ja" else None)
+        # KILDE OG DATO VED VERDIEN, i raden, som i tilstanden: «Ja» og
+        # «brakklagt» i samme rad er to kilders påstander, hver med sin
+        # dato. MÅLT 23.11.2026: 213 rader på 125 sider står med «Ja» mot
+        # «brakklagt» eller «Nei» mot «ikke brakklagt», og 131 av dem er
+        # ikke en konflikt (`paastand.konflikt()`).
+        fisk_herkomst = herkomst(fisk)
+        if not u:
+            ut.append({"dato": m["dato"], "uke": "", "bw": None,
+                       "fisk_herkomst": fisk_herkomst, "konflikt": False})
+            continue
         univers = (u.get("har_laksefisk") == "True"
                    and u.get("er_landbasert") == "False"
                    and u.get("er_slaktemerd") == "False")
@@ -5517,6 +5524,7 @@ def fisk_mot_lus(lok: dict) -> list[dict]:
                          felt="brakklagt", periode=UKE,
                          arter=LAKSEFISK if univers else frozenset())
         ut.append({"dato": m["dato"], "uke": mandag,
+                   "fisk_herkomst": fisk_herkomst,
                    "bw": {"verdi": brakk.verdi,
                           "vist": BRAKK_VIST.get(brakk.verdi, brakk.verdi),
                           "nivaa": brakk.nivaa,

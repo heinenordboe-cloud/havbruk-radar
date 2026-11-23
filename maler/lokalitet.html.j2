@@ -88,6 +88,14 @@
       {% if lok.klareringstype %} · {{ lok.klareringstype }} klarering{% endif %}
       {% if lok.plassering %} · {{ lok.plassering }}{% endif %}
       {% if lok.arter %} · {{ lok.arter }}{% endif %}
+      {#- HVEM SOM SIER DET, og når. Arten her er registerets, og
+          månedsrapportene lenger ned kan si en annen: Lilleelv (11411) står
+          med «laks» her og «Røye» der. MÅLT 23.11.2026: 81 lokaliteter der
+          de to ikke har én art felles. Ingen av dem velges bort; begge står
+          med sin kilde og sin dato. #}
+      {% if lok.paastander and lok.paastander.sted %}{% set h = lok.paastander.sted.herkomst %}
+      <span class="herkomst lok-undertittel-kilde">Akvakulturregisteret · <time datetime="{{ h.gjelder }}">{{ h.vist }}</time></span>
+      {%- endif %}
     </p>
 
     {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
@@ -563,7 +571,9 @@
           <th scope="col">Fisk</th>
           <th scope="col">Arter</th>
           <th scope="col">Status</th>
-          {% if med_bw %}<th scope="col">BarentsWatch</th>{% endif %}
+          {#- «SAMME UKE», ikke «BarentsWatch»: kilden står i cella, ved
+              verdien, og et kort på 390 hadde ellers sagt navnet to ganger. #}
+          {% if med_bw %}<th scope="col">Samme uke</th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -571,8 +581,13 @@
         {% set x = mot[(b.maaneder|length) - loop.index] %}
         <tr data-kilde="biomasselag" data-gjelder="{{ m.dato }}" data-nivaa="oppgitt">
           <th scope="row"><time datetime="{{ m.dato }}">{{ m.dato|kortdato }}</time></th>
+          {#- TO KILDER I SAMME RAD, hver med navn og dato ved verdien, som i
+              tilstanden. Til 23.11.2026 sto «Ja» uten kilde i raden ved
+              «brakklagt uke 40» (Lilleelv, 11411), og det så ut som én
+              kilde som motsa seg selv. Se `fisk_mot_lus()`. #}
           <td data-felt="{{ feltmerke(m.har_fisk, 'har_fisk') }}">{{ m.har_fisk or VERDI_MANGLER }}
-            {%- if m.for %} <span class="dempet">(før: {% for v in m.for %}<span data-felt="har_fisk">{{ v }}</span>{% if not loop.last %}, {% endif %}{% endfor %})</span>{% endif %}</td>
+            {%- if m.for %} <span class="dempet">(før: {% for v in m.for %}<span data-felt="har_fisk">{{ v }}</span>{% if not loop.last %}, {% endif %}{% endfor %})</span>{% endif %}
+            {%- if m.har_fisk and x.fisk_herkomst %} {{ herkomst(x.fisk_herkomst) }}{% endif %}</td>
           <td data-felt="{{ feltmerke(m.arter, 'arter_tilstede') }}">{{ m.arter or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(m.status, 'lokalitet_status') }}">{{ m.status or VERDI_MANGLER }}</td>
           {% if med_bw %}
@@ -581,7 +596,7 @@
               samme uke, samme arter, motsatt svar. #}
           {% if x.bw %}
           <td data-felt="brakklagt"{{ merke(x.bw.herkomst, "vurdert") }}>{{ x.bw.vist }}
-            <time datetime="{{ x.bw.herkomst.gjelder }}">{{ x.bw.herkomst.vist }}</time>
+            {{ herkomst(x.bw.herkomst) }}
             {%- if x.konflikt %} <strong class="uenige">uenige</strong>{% endif %}</td>
           {% else %}
           <td data-felt="{{ VERDI_MANGLER_FELT }}">{{ VERDI_MANGLER }}</td>
