@@ -2253,8 +2253,12 @@ ENDRINGSTYPER = (
      "hva": "kilden sluttet å oppgi et felt om denne oppføringen"},
     {"id": "lokalitet", "navn": "Lokalitetsopplysning", "kort": "lokalitetsopplysninger",
      "hva": "navn, kommune, arter, kapasitet eller posisjon"},
+    # OGSÅ ARTENE. Typen er hele biomasselaget, og en lokalitet som får en
+    # art til uten at fisken kom eller gikk, er en endring her. Til
+    # 23.11.2026 sa `hva` bare «om det står fisk på lokaliteten», og
+    # tallet på brikka var da større enn det ordene dekket.
     {"id": "biomasse", "navn": "Fisk til stede", "kort": "fisk til stede",
-     "hva": "om det står fisk på lokaliteten"},
+     "hva": "om det står fisk på lokaliteten, og hvilke arter"},
     # SELSKAPSDATA STÅR FOR SEG, og telles ikke i ukas overskriftstall.
     #
     # MÅLT uke 39: 402 av 440 telte endringer var dette ene slaget, og
@@ -3002,6 +3006,10 @@ def _artsbegrensninger(tekniske: list[dict]) -> list[dict]:
             for dato, d in sorted(per_dato.items())]
 
 
+# Biomasselagets felt om ARTENE. En endring i dem alene er typen «Fisk
+# til stede» uten at fisken kom eller gikk; se `_ukefakta()`.
+FISK_ARTSFELT = frozenset({"arter_tilstede", "antall_arter"})
+
 # Kildene hver faktasetning bygger på. En setning står bare når HVER av
 # dem ble sammenlignet med et tidligere øyeblikksbilde i uka.
 UKEFAKTA_KILDER = {
@@ -3056,12 +3064,30 @@ def _ukefakta(ledet: list[dict], sammenlignet: frozenset[str]) -> list[str]:
                      else "Ingen tillatelser fikk ny eier.")
 
     inn, ut = ulike("biomasse", "har_fisk", "ja"), ulike("biomasse", "har_fisk", "nei")
+    # RESTEN AV TYPEN. Typebrikken «Fisk til stede» teller ENDRINGER, og
+    # typen er hele biomasselaget: også artene. Setningen teller
+    # LOKALITETER som gikk fra nei til ja eller omvendt. MÅLT 23.11.2026:
+    # i 4 av 13 uker er de to tallene ulike (uke 47: 77 endringer, 36 + 39
+    # lokaliteter), og hver gang er resten `arter_tilstede` og
+    # `antall_arter` på lokaliteter der fisken sto hele tida. Uten et ord
+    # om dem ser 77 ved siden av 36 og 39 ut som en regnefeil. Resten er
+    # typens rader minus de to tallene, så de tre summerer til brikka.
+    rader = [h for h in ledet if h["type"] == "biomasse"]
+    rest = len(rader) - inn - ut
+    andre = {h["kildefelt"] for h in rader
+             if not (h["kildefelt"] == "har_fisk"
+                     and str(h["til"]).lower() in ("ja", "nei"))}
+    hva = "arter" if andre and andre <= FISK_ARTSFELT else "annet"
+    resten = (f" {visningsord.antall(rest, 'endring', 'endringer')}"
+              f"{' til' if inn or ut else ''} gjaldt {hva}."
+              if rest > 0 else "")
     if dekket("fisk"):
         fakta.append(
             f"Fisk til stede: {visningsord.antall(inn, 'lokalitet', 'lokaliteter')} "
             f"gikk fra nei til ja, {visningsord.tall(ut)} fra ja til nei."
+            f"{resten}"
             if inn or ut else
-            "Ingen lokaliteter endret status for fisk til stede.")
+            "Ingen lokaliteter endret status for fisk til stede." + resten)
     # KAPASITET BYGGER PÅ TO KILDER, og hver del står for seg: en
     # endring på en lokalitet er observert selv om eierskapet ikke ble
     # sammenlignet den uka. «Ingen» krever at begge ble det.

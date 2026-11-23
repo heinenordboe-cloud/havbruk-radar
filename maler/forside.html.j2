@@ -190,7 +190,11 @@
 
     {% if f.ukas_typer %}
     <figure class="typestolper">
-      <figcaption class="etikett">Etter type</figcaption>
+      {#- «ENDRINGER», IKKE BARE «ETTER TYPE». Tallene ved stolpene teller
+          endringer; faktasetningene til venstre teller lokaliteter og
+          tillatelser. Uten ordet sto «Fisk til stede 77» ved siden av
+          «36 … og 39» som to tall for det samme. #}
+      <figcaption class="etikett">Endringer etter type</figcaption>
       <ol>
         {% for k in f.ukas_typer %}
         <li>
