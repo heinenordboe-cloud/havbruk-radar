@@ -69,9 +69,8 @@ def test_raden_har_kilde_og_dato_ved_begge_verdiene():
 
 def test_undertittelen_sier_hvem_som_oppgir_arten():
     side = _side()
-    under = re.search(r'<p class="lok-undertittel">(.*?)</p>', side, re.S).group(1)
-    assert re.search(r'class="herkomst lok-undertittel-kilde">Akvakulturregisteret · '
-                     r'<time datetime="[\d-]+">', under)
+    assert re.search(r'</p>\s*<p class="herkomst lok-undertittel-kilde">'
+                     r'Akvakulturregisteret · <time datetime="[\d-]+">', side)
 
 
 # --------------------------------------------------- mot portens bygg
@@ -94,9 +93,9 @@ def test_hver_verdi_som_kan_motsi_en_annen_har_kilde_og_dato():
     for fil in sider:
         side = fil.read_text(encoding="utf-8")
         loknr = fil.parent.name
-        under = re.search(r'<p class="lok-undertittel">(.*?)</p>', side, re.S)
-        if not under or 'class="herkomst lok-undertittel-kilde">Akvakulturregisteret · <time' \
-                not in under.group(1):
+        if not re.search(r'<p class="lok-undertittel">.*?</p>\s*'
+                         r'<p class="herkomst lok-undertittel-kilde">'
+                         r'Akvakulturregisteret · <time datetime="[\d-]+">', side, re.S):
             feil.append((loknr, "undertittelen har ikke kilde og dato"))
         for rad in _maanedsrader(side):
             rader_sett += 1

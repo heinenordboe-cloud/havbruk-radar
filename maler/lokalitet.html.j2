@@ -93,10 +93,13 @@
           med «laks» her og «Røye» der. MÅLT 23.11.2026: 81 lokaliteter der
           de to ikke har én art felles. Ingen av dem velges bort; begge står
           med sin kilde og sin dato. #}
-      {% if lok.paastander and lok.paastander.sted %}{% set h = lok.paastander.sted.herkomst %}
-      <span class="herkomst lok-undertittel-kilde">Akvakulturregisteret · <time datetime="{{ h.gjelder }}">{{ h.vist }}</time></span>
-      {%- endif %}
     </p>
+    {#- EGET AVSNITT, ikke en del av undertittelen: med en lang artsliste
+        ble undertittelen over 110 tegn (`publiseringsvakt.AVSNITTSGRENSE`)
+        på 13 sider da linja sto inne i den. #}
+    {% if lok.paastander and lok.paastander.sted %}{% set h = lok.paastander.sted.herkomst %}
+    <p class="herkomst lok-undertittel-kilde">Akvakulturregisteret · <time datetime="{{ h.gjelder }}">{{ h.vist }}</time></p>
+    {%- endif %}
 
     {# OPPSUMMERINGEN. Bare målte fakta, hvert av dem står også lenger
        ned. Et ledd uten data er utelatt, ikke gjettet — se
