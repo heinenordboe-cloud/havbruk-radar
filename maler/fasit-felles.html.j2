@@ -36,9 +36,13 @@
    Lenken til opentimestamps.org er den eneste lenka ut av nettstedet i
    <main> på disse sidene, og er merket som ekstern: `rel="external"` og
    en pil med navnet «ekstern side». Navnet står i SVG-en og ikke som
-   skjult tekst, så det ikke teller i avsnittets 110 tegn. #}
-{% macro ekstern(url, tekst) -%}
-<a href="{{ url }}" rel="external">{{ tekst }}<svg class="ekstern-pil" role="img" aria-label="ekstern side" viewBox="0 0 12 12" width="12" height="12" focusable="false"><path d="M4 2h6v6M10 2 3 9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a>
+   skjult tekst, så det ikke teller i avsnittets 110 tegn.
+
+   `etter` er tegnsettingen etter lenka. Den står i samme `nowrap` som
+   pila: i skjermbildet på 1440 sto punktumet alene først på neste linje,
+   fordi pila er en egen boks linja kan brytes etter. #}
+{% macro ekstern(url, tekst, etter="") -%}
+<span class="uten-brudd"><a href="{{ url }}" rel="external">{{ tekst }}<svg class="ekstern-pil" role="img" aria-label="ekstern side" viewBox="0 0 12 12" width="12" height="12" focusable="false"><path d="M4 2h6v6M10 2 3 9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a>{{ etter }}</span>
 {%- endmacro %}
 
 {% macro sjekk(fil, stempel, sha256, mappe, klasse="") %}
@@ -55,7 +59,7 @@
     {% endif %}
     <li><code>shasum -a 256 {{ fil }}</code> skal gi
       <code class="tall-mono">{{ sha256[:8] }}…{{ sha256[-4:] }}</code>.</li>
-    <li><p>Dra begge filene inn på {{ ekstern("https://opentimestamps.org/", "opentimestamps.org") }}. Den viser hvilken Bitcoin-blokk stempelet ligger i.</p>
+    <li><p>Dra begge filene inn på {{ ekstern("https://opentimestamps.org/", "opentimestamps.org", ".") }} Den viser hvilken Bitcoin-blokk stempelet ligger i.</p>
       <p>Med egen Bitcoin-node: <code>ots verify</code>.</p></li>
   </ol>
 </section>

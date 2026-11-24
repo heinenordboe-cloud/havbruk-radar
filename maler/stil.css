@@ -3717,6 +3717,7 @@ strong.uenige { display: inline; }
    lista, uten luft mellom avsnittene. */
 .fasit-sjekk li p { margin: 0; }
 /* EKSTERN LENKE: en liten pil etter ordet, i lenkas farge. */
+.uten-brudd { white-space: nowrap; }
 .ekstern-pil { display: inline-block; inline-size: 0.7em; block-size: 0.7em;
   margin-inline-start: 0.15em; vertical-align: 0.05em; }
 
