@@ -124,7 +124,7 @@ def _flater(monkeypatch, i_dag: str, hentet: str | None):
          else "9 avgjort: 2 traff, 7 bom",
          "fasit": None if hentet is None else {"hentet": hentet}}
     k2 = {"navn": "Brakklegging per produksjonsområde", "sti": "/fasiten/brakklegging/",
-          "siste": {"uke": "2026-W48"}, "neste": {"aapner": "2026-12-28"},
+          "siste": {"uke": "2026-W48"}, "neste": {"uke": "2026-W46", "aapner": "2026-12-28"},
           "uker_vist": "0 av 12 uker avgjort"}
     monkeypatch.setattr(nettsted, "bygg_fasiten",
                         lambda felles: {"havbruksfond": d, "hovedtyper": [k2]})
@@ -139,8 +139,10 @@ def test_havbruksfondet_staar_foerst_til_sju_dager_etter_fasiten(monkeypatch):
                                            "Brakklegging per produksjonsområde"]
     assert uten[0]["tekst"] == ("Andelen for 143 kommuner, forseglet 12.10.2026 og "
                                 "09.11.2026. Venter på fordelingen.")
-    assert uten[1]["tekst"] == ("Uke 48 er forseglet. Fasiten åpner 28.12.2026. "
-                                "0 av 12 uker avgjort.")
+    # Hver dato med sin uke: neste fasit gjelder uke 46, ikke den sist
+    # forseglede (16b, rettinger 1).
+    assert uten[1]["tekst"] == ("Sist forseglet: uke 48. Neste fasit: 28.12.2026 "
+                                "(uke 46). 0 av 12 uker avgjort.")
     # Også ved bom: sju dager etter fasiten står det først, så sist.
     assert _flater(monkeypatch, "2026-12-08", "2026-12-01T09:00:00+00:00")[0][
         "etikett"] == "Havbruksfondet 2026"
@@ -198,4 +200,4 @@ def test_ingen_anslagstall_paa_forsiden(ekte_maskin):
                if isinstance(r[k], float) and r[k] != int(r[k])}
     assert verdier, "fasiten har ingen tall med desimaler; prøven ser ingenting"
     assert sorted(v for v in verdier if v in tekst) == []
-    assert "Fasiten åpner" in tekst and "er forseglet" in tekst
+    assert "Neste fasit:" in tekst and "Sist forseglet: uke" in tekst

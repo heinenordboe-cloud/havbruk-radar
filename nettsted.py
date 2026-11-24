@@ -11292,9 +11292,13 @@ def forsideflater(felles: Felles, uke: dict | None) -> list[dict]:
     if o["hovedtyper"]:
         t = o["hovedtyper"][0]
         siste, neste = t["siste"], t["neste"]
-        tekst = f"Uke {int(siste['uke'][-2:])} er forseglet."
+        # «SIST FORSEGLET» OG «NESTE FASIT» hver med sin uke: «Uke 48 er
+        # forseglet. Fasiten åpner 28.12.2026.» ble lest som at uke 48
+        # åpner 28.12, mens det er uke 46 som gjør det (16b, rettinger 1).
+        tekst = f"Sist forseglet: uke {int(siste['uke'][-2:])}."
         if neste:
-            tekst += f" Fasiten åpner {visningsord.kortdato(neste['aapner'])}."
+            tekst += (f" Neste fasit: {visningsord.kortdato(neste['aapner'])}"
+                      f" (uke {int(neste['uke'][-2:])}).")
         tekst += f" {t['uker_vist'][:1].upper()}{t['uker_vist'][1:]}."
         flater.append({"etikett": t["navn"], "url": t["sti"], "tekst": tekst,
                        "endring": None})

@@ -2139,8 +2139,8 @@ def _forside(**overstyr) -> str:
                       "09.11.2026. Venter på fordelingen.", "endring": None},
             {"etikett": "Brakklegging per produksjonsområde",
              "url": "/fasiten/brakklegging/", "endring": None,
-             "tekst": "Uke 48 er forseglet. Fasiten åpner 28.12.2026. "
-                      "0 av 12 uker avgjort."},
+             "tekst": "Sist forseglet: uke 48. Neste fasit: 28.12.2026 "
+                      "(uke 46). 0 av 12 uker avgjort."},
             {"etikett": "Denne uka i registrene", "url": "/endringer/2026-39/",
              "tekst": "", "endring": [
                  nettsted._ledd("Ny lokalitet: "),
