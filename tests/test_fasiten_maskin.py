@@ -158,7 +158,7 @@ def test_oversikten_har_aapne_foerst_og_bommen_der_datoen_setter_den(konstruert)
             "13 påstander") in tekst
     assert "Brakklegging per produksjonsområde: 2 av 12 uker avgjort." in tekst
     # Prøvetypen står nederst, merket, og etter regelen om nye typer.
-    assert tekst.index("Prøvetype Voksne hunnlus per produksjonsområde") > tekst.index(
+    assert tekst.index("Prøvetype Voksne hunnlus per fisk, per produksjonsområde") > tekst.index(
         "Avgjorte påstander")
 
 
@@ -202,6 +202,28 @@ def test_anslagene_har_en_desimal_og_fila_har_den_forseglede(konstruert, ekte_ma
     for k in skaar_anslag.forseglede_kopier(_ekte(ekte_maskin)):
         if k["slag"] == "fil":
             assert (konstruert / k["sti"]).read_bytes() == k["kilde"].read_bytes()
+
+
+def test_grunnen_til_skaares_ikke_staar_i_klartekst():
+    """Hvilke områder, hvilken verdi og hvilken uke (16b, rettinger 5),
+    lest av grunnen i fasiten.json. En grunn i en annen form gir den
+    generelle setningen, ikke en halv oversettelse."""
+    g = "færre enn 5 lokaliteter med lusetall og lusegrense i uke"
+    rader = [
+        {"po": 13, "status": "skåres ikke", "grunn": f"skåres ikke: referanse b mangler ({g} 2025-W52)"},
+        {"po": 2, "status": "åpen", "grunn": ""},
+        {"po": 1, "status": "skåres ikke", "grunn": f"skåres ikke: referanse a mangler ({g} 2026-W44); "
+                                                    "anslaget mangler (det bygger på referanse a)"}]
+    assert nettsted._skaares_ikke_grunn(rader) == {
+        "innledning": ["Områdene 1 og 13 skåres ikke.",
+                       "Der hadde færre enn 5 lokaliteter lusetall og lusegrense i uka "
+                       "verdien gjelder:"],
+        "punkter": ["Område 1: siste verdi (uke 44, 2026). Anslaget bygger på den og "
+                    "mangler også.",
+                    "Område 13: verdien i fjor (uke 52, 2025)."]}
+    assert nettsted._skaares_ikke_grunn(rader[1:2]) is None
+    rart = [{"po": 4, "status": "skåres ikke", "grunn": "skåres ikke: utfallet mangler"}]
+    assert nettsted._skaares_ikke_grunn(rart)["punkter"] == []
 
 
 def test_typesiden_har_aapne_uker_foerst_og_saa_etter_aapningsdato(konstruert):

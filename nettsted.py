@@ -9862,7 +9862,9 @@ ANSLAGSTYPER = {
         ),
     },
     "K6": {
-        "navn": "Voksne hunnlus per produksjonsområde",
+        # «PER FISK»: anslaget er et snitt per fisk, ikke et antall lus
+        # (16b, rettinger 5).
+        "navn": "Voksne hunnlus per fisk, per produksjonsområde",
         "slug": "voksne-hunnlus",
         "kilder": ("lusetall", "sjotemperatur", "akvakultur"),
         "desimaler": 1,
@@ -9922,22 +9924,52 @@ def _forseglet_vist(stempel: str) -> str:
 MASKINSTATUS = {"åpen": "Åpen", "skåres ikke": "Skåres ikke"}
 
 
-def _skaares_ikke_grunn(rader: list[dict]) -> str:
-    """Hvorfor radene i en uke ikke skåres, i én linje under tabellen.
+def _skaares_ikke_grunn(rader: list[dict]) -> dict | None:
+    """Hvorfor rader i en uke ikke skåres, i klartekst under tabellen
+    (16b, rettinger 5): hvilke områder, hvilken verdi som mangler, og
+    hvilken uke den gjelder. None når alle rader skåres.
 
-    Grunnen per rad står i fasiten.json og er for lang til en celle. I
-    dag er hver av dem at for få lokaliteter rapporterte i en av ukene
-    raden bygger på; tallet leses av grunnen. Er grunnene noe annet,
-    står den generelle setningen."""
-    grunner = [str(r.get("grunn") or "") for r in rader if r["status"] == "skåres ikke"]
-    if not grunner:
-        return ""
-    tall = {m.group(1) for g in grunner
-            for m in [re.search(r"færre enn (\d+) lokaliteter", g)] if m}
-    if len(tall) == 1 and all("færre enn" in g for g in grunner):
-        return (f"Skåres ikke: færre enn {tall.pop()} lokaliteter rapporterte lus "
-                f"i en av ukene raden bygger på.")
-    return "Skåres ikke: anslaget, en referanse eller utfallet kan ikke regnes ut."
+    Grunnen per rad står i fasiten.json, i registreringens ord:
+    «referanse a mangler (færre enn 5 lokaliteter med lusetall og
+    lusegrense i uke 2026-W44); anslaget mangler (det bygger på referanse
+    a)». Siden sier det samme med kolonnenes navn: referanse a er «siste
+    verdi», b er «i fjor». En grunn i en annen form står ikke halvveis
+    oversatt; da står den generelle setningen.
+
+        innledning   [«Områdene 1 og 13 skåres ikke.», «Der hadde færre enn
+                     5 lokaliteter lusetall og lusegrense i uka verdien
+                     gjelder:»], ett avsnitt hver
+        punkter      «Område 1: siste verdi (uke 44, 2026). Anslaget
+                     bygger på den og mangler også.»
+    """
+    ute = [r for r in rader if r["status"] == "skåres ikke"]
+    if not ute:
+        return None
+    form = re.compile(r"referanse (a|b) mangler \(færre enn (\d+) lokaliteter med "
+                      r"lusetall og lusegrense i uke (\d{4})-W(\d{2})\)")
+    funn = [(r, form.search(str(r.get("grunn") or ""))) for r in ute]
+    grenser = {m.group(2) for _, m in funn if m}
+    if not all(m for _, m in funn) or len(grenser) != 1:
+        return {"innledning": ["Skåres ikke: anslaget, en referanse eller utfallet "
+                               "kan ikke regnes ut."], "punkter": []}
+    omraader = [str(r["po"]) for r, _ in sorted(funn, key=lambda x: int(x[0]["po"]))]
+    hvem = (f"Område {omraader[0]} skåres" if len(omraader) == 1 else
+            f"Områdene {visningsord.liste(omraader, 'og')} skåres")
+    punkter = []
+    for r, m in sorted(funn, key=lambda x: int(x[0]["po"])):
+        uke = f"uke {int(m.group(4))}, {m.group(3)}"
+        if m.group(1) == "a":
+            linje = f"Område {r['po']}: siste verdi ({uke})."
+            if "anslaget mangler" in str(r.get("grunn")):
+                linje += " Anslaget bygger på den og mangler også."
+        else:
+            linje = f"Område {r['po']}: verdien i fjor ({uke})."
+        punkter.append(linje)
+    # TO AVSNITT, så et tredje område ikke tar linja over 110 tegn.
+    return {"innledning": [f"{hvem} ikke.",
+                           f"Der hadde færre enn {grenser.pop()} lokaliteter lusetall "
+                           f"og lusegrense i uka verdien gjelder:"],
+            "punkter": punkter}
 
 
 def _maskinrad(r: dict, po_navn: dict[str, str], desimaler: int | None = None) -> dict:

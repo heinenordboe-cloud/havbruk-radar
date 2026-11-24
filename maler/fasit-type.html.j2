@@ -93,8 +93,16 @@
   </div>
   {# AVRUNDET PÅ SIDEN (16b, rettinger 4); fila har den forseglede verdien. #}
   <p class="tabellnote">Avrundet. Den forseglede verdien står i ukefila.</p>
+  {# HVORFOR RADER IKKE SKÅRES, i klartekst (16b, rettinger 5). #}
   {% if g.skaares_ikke_grunn %}
-  <p class="tabellnote">{{ g.skaares_ikke_grunn }}</p>
+  <div class="tabellnote fasit-ute">
+    {% for linje in g.skaares_ikke_grunn.innledning %}<p>{{ linje }}</p>
+    {% endfor %}
+    {% if g.skaares_ikke_grunn.punkter %}<ul>
+      {% for linje in g.skaares_ikke_grunn.punkter %}<li>{{ linje }}</li>
+      {% endfor %}
+    </ul>{% endif %}
+  </div>
   {% endif %}
 </div>
 

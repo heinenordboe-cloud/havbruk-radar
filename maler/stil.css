@@ -1547,6 +1547,11 @@ table {
 
 .tabellnote:last-child { margin-block-end: 0; }
 
+/* HVORFOR RADER IKKE SKÅRES (16b, rettinger 5): to linjer og ett punkt
+   per område, i notens skrift. */
+.fasit-ute p { margin: 0; }
+.fasit-ute ul { margin: var(--rom-4) 0 0; padding-inline-start: 1.2em; }
+
 thead th {
   /* Klebrig og UGJENNOMSIKTIG — radene skal rulle under hodet, ikke
      gjennom det. */
