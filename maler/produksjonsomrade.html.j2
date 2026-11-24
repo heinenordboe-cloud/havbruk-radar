@@ -287,10 +287,13 @@
     </div>
   </div>
   <figure class="omraadekart-ramme">
+    {# `role="group"` OG IKKE `img` (16b, rettinger 7): prikkene er lenker
+       til lokalitetssidene, og `img` skjuler dem for en skjermleser
+       («nested-interactive» hos axe-core). Samme retting som forsiden. #}
     <svg class="omraadekart" data-kart
          viewBox="0 0 {{ po.kart.bredde }} {{ po.kart.hoyde }}"
          width="{{ po.kart.bredde }}" height="{{ po.kart.hoyde }}"
-         role="img"
+         role="group"
          aria-label="Kart over produksjonsområde {{ po.nr }} {{ po.navn }},
          med områdegrensa og
          {{ antall(po.kart.lokaliteter|length, "lokalitet", "lokaliteter") }}

@@ -2511,6 +2511,24 @@ def test_hvert_kart_har_rolle_og_etikett():
             assert "aria-label=" in tagg, f"{navn}: kart uten aria-label"
 
 
+def test_et_kart_med_lenker_er_en_gruppe_og_ikke_et_bilde():
+    """16b, rettinger 7: en SVG med `<a>` inni har `role="group"`, ellers
+    skjuler `img` lenkene for en skjermleser (axe: nested-interactive).
+    Gjelder hvert kart, også minikartet i margen, med og uten `data-kart`.
+    Minikartet på områdesiden har lenker til de andre områdene; et kart
+    uten lenker er fortsatt et bilde."""
+    import re
+    sett = 0
+    for navn, html in (("forside", _forside()), ("lokalitet", _side()),
+                       ("omraade", _po())):
+        for m in re.finditer(r"(<svg\b[^>]*>)(.*?)</svg>", html, re.S):
+            if "<a " not in m.group(2) and "<a\n" not in m.group(2):
+                continue
+            sett += 1
+            assert 'role="group"' in m.group(1), f"{navn}: {m.group(1)[:120]}"
+    assert sett >= 3, sett
+
+
 def test_omradene_er_lenker_i_kartet_ogsaa_uten_js():
     """Uten JavaScript er kartet et bilde. `<a>` inne i SVG-en gjør det
     til navigasjon uansett."""

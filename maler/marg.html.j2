@@ -38,12 +38,17 @@
    polygoner (NLOD), og begge står i bildeteksten.
 
    BILDETEKSTEN er `caller()`: det kartet viser, sagt med sidens egne
-   tall. #}
+   tall.
+
+   `role="group"` NÅR OMRÅDENE ER LENKER (16b, rettinger 7), som kartet
+   på forsiden: en rolle med presentasjonelle barn (`img`) skjuler
+   lenkene for en skjermleser, og axe-core måler det som
+   «nested-interactive» (alvorlig). Uten lenker er kartet et bilde. #}
 {% macro minikart(mk, id, tittel, beskrivelse, klasser={}, lenker=False, gjeldende="", navn={}) %}
 <figure class="minikart">
   <svg viewBox="0 0 {{ mk.bredde }} {{ mk.hoyde }}"
        width="{{ mk.bredde }}" height="{{ mk.hoyde }}"
-       role="img" aria-labelledby="{{ id }}-tittel {{ id }}-tekst">
+       role="{{ 'group' if lenker else 'img' }}" aria-labelledby="{{ id }}-tittel {{ id }}-tekst">
     <title id="{{ id }}-tittel">{{ tittel }}</title>
     <desc id="{{ id }}-tekst">{{ beskrivelse }}</desc>
     <g class="mini-omraader"{% if not lenker %} aria-hidden="true"{% else %} data-pagefind-ignore{% endif %}>

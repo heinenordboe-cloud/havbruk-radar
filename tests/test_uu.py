@@ -44,7 +44,10 @@ TAGGER = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
 # test_smalskjerm.py også bruker: Oterneset har den bredeste tabellen, og
 # selskapet har lenkerader og lange lister.
 SIDER = ("/", "/fasiten/", "/fasiten/brakklegging/", "/lokalitet/31397/",
-         "/selskap/921668236/", "/kommune/")
+         "/selskap/921668236/", "/kommune/",
+         # OMRÅDESIDENE (16b, rettinger 7): oversikten med minikartet, der
+         # områdene er lenker, og område 3, der prikkene på kartet er det.
+         "/produksjonsomrade/", "/produksjonsomrade/3/")
 
 ROT = os.environ.get("HAVBRUK_NETTSTED", "")
 trenger_bygg = pytest.mark.skipif(
