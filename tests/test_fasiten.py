@@ -399,10 +399,14 @@ TEKSTEN = [
     "Ved uenighet gjelder den forseglede fila.",
     f"Fingeravtrykk (sha256): {SEGL['2026-11-09']} Påstandene Stempelet",
     "Slik sjekker du oss",
-    "Last ned anslaget og stempelet (lenkene over).",
-    "Slipp begge på opentimestamps.org. Den viser datoen fila ble forseglet, "
-    "bekreftet i Bitcoin.",
-    "I terminalen: ots verify.",
+    # Heines tekst fra 16b, rettinger 2, på den siste forseglingen: fila,
+    # stempelet med blokka (.ots, der blokka står) og den korte summen.
+    f"Last ned {NAVN['2026-11-09']} og stempelet med blokka ({NAVN['2026-11-09']}.ots).",
+    f"shasum -a 256 {NAVN['2026-11-09']} skal gi "
+    f"{SEGL['2026-11-09'][:8]}…{SEGL['2026-11-09'][-4:]}.",
+    "Dra begge filene inn på opentimestamps.org. Den viser hvilken Bitcoin-blokk "
+    "stempelet ligger i.",
+    "Med egen Bitcoin-node: ots verify.",
 ]
 
 

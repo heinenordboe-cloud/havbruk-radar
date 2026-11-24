@@ -3705,6 +3705,15 @@ strong.uenige { display: inline; }
    bindestreken leses som to ting. Kommandoene kan brytes mellom ordene. */
 .fasit-sjekk a code,
 .fasit-sjekk .tall-mono { white-space: nowrap; overflow-wrap: normal; }
+/* Et filnavn på 52 tegn (havbruksfondet) får ikke plass på 390 uten å
+   brytes; der får det brytes hvor som helst heller enn å dra siden ut. */
+.fasit-sjekk--lang a code { white-space: normal; overflow-wrap: anywhere; }
+/* En linje som er delt i to avsnitt (110-grensa), står som én linje i
+   lista, uten luft mellom avsnittene. */
+.fasit-sjekk li p { margin: 0; }
+/* EKSTERN LENKE: en liten pil etter ordet, i lenkas farge. */
+.ekstern-pil { display: inline-block; inline-size: 0.7em; block-size: 0.7em;
+  margin-inline-start: 0.15em; vertical-align: 0.05em; }
 
 @media print {
   .hovedmeny ul, .handlinger, .hopp, .kopierknapp { display: none; }

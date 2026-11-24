@@ -16,22 +16,47 @@
 {%- else %}{{ p.status }}{% endif -%}
 {%- endmacro %}
 
-{# SLIK SJEKKER DU OSS, på én ukefil: tre linjer med kommandoene (16b, 1g).
-   MÅLT 23.11.2026 med ots 0.7.2 på uke 48: `ots verify` henter
-   attestasjonene fra kalenderne og krever så en Bitcoin-node; uten den
-   stopper den med «Could not connect to Bitcoin node». Med
-   `--no-bitcoin` skriver den blokka og merkleroten, som kan holdes mot en
-   blokkutforsker. `g` er en uke fra `nettsted._maskintyper()`. #}
-{% macro sjekk(g, mappe) %}
-<section class="fasit-sjekk" id="sjekk" aria-labelledby="sjekk-tittel">
+{# SLIK SJEKKER DU OSS, på én forseglet fil (16b, rettinger 2): fila,
+   stempelet MED BLOKKA og summen. /fasiten/, typesidene og havbruksfondets
+   side bruker denne makroen.
+
+   Til 16b sto «ots verify sjekker mot Bitcoin. Uten egen node: ots
+   --no-bitcoin verify». MÅLT 23.11.2026 med ots 0.7.2: `--no-bitcoin`
+   skriver blokka og merkleroten og sjekker IKKE stempelet mot Bitcoin, og
+   `ots verify` stopper med «Could not connect to Bitcoin node» uten en
+   lokal node. Linja lovet mer enn den gjorde. opentimestamps.org viser
+   blokka stempelet ligger i (målt for havbruksfondet 10.11.2026).
+
+   `stempel` er stempelet med blokka: `.komplett.ots` for en ukefil, `.ots`
+   for havbruksfondet, der blokka står i selve `.ots`-fila. Teksten er
+   Heines ordrett. Tredje linje er 130 tegn, og står i to avsnitt foran
+   «Med egen» (110-grensa); ordene er uendret. Første linje deles på samme
+   måte foran «og» når filnavnene er lange (havbruksfondet: 127 tegn).
+
+   Lenken til opentimestamps.org er den eneste lenka ut av nettstedet i
+   <main> på disse sidene, og er merket som ekstern: `rel="external"` og
+   en pil med navnet «ekstern side». Navnet står i SVG-en og ikke som
+   skjult tekst, så det ikke teller i avsnittets 110 tegn. #}
+{% macro ekstern(url, tekst) -%}
+<a href="{{ url }}" rel="external">{{ tekst }}<svg class="ekstern-pil" role="img" aria-label="ekstern side" viewBox="0 0 12 12" width="12" height="12" focusable="false"><path d="M4 2h6v6M10 2 3 9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></a>
+{%- endmacro %}
+
+{% macro sjekk(fil, stempel, sha256, mappe, klasse="") %}
+{% set lang = (fil ~ stempel)|length > 60 %}
+<section class="fasit-sjekk{% if lang %} fasit-sjekk--lang{% endif %}{% if klasse %} {{ klasse }}{% endif %}" id="sjekk" aria-labelledby="sjekk-tittel">
   <h2 id="sjekk-tittel">Slik sjekker du oss</h2>
   <ol>
-    <li>Last ned <a href="{{ mappe }}{{ g.fil }}" download><code>{{ g.fil }}</code></a> og
-      <a href="{{ mappe }}{{ g.ots }}" download><code>{{ g.ots }}</code></a>.</li>
-    <li><code>shasum -a 256 {{ g.fil }}</code> gir
-      <code class="tall-mono">{{ g.sha256[:8] }}…{{ g.sha256[-4:] }}</code>, summen i stempelet.</li>
-    <li><code>ots verify {{ g.ots }}</code> sjekker mot Bitcoin. Uten egen node:
-      <code>ots --no-bitcoin verify</code>.</li>
+    {% if lang %}
+    <li><p>Last ned <a href="{{ mappe }}{{ fil }}" download><code>{{ fil }}</code></a></p>
+      <p>og stempelet med blokka (<a href="{{ mappe }}{{ stempel }}" download><code>{{ stempel }}</code></a>).</p></li>
+    {% else %}
+    <li>Last ned <a href="{{ mappe }}{{ fil }}" download><code>{{ fil }}</code></a> og stempelet med blokka
+      (<a href="{{ mappe }}{{ stempel }}" download><code>{{ stempel }}</code></a>).</li>
+    {% endif %}
+    <li><code>shasum -a 256 {{ fil }}</code> skal gi
+      <code class="tall-mono">{{ sha256[:8] }}…{{ sha256[-4:] }}</code>.</li>
+    <li><p>Dra begge filene inn på {{ ekstern("https://opentimestamps.org/", "opentimestamps.org") }}. Den viser hvilken Bitcoin-blokk stempelet ligger i.</p>
+      <p>Med egen Bitcoin-node: <code>ots verify</code>.</p></li>
   </ol>
 </section>
 {% endmacro %}

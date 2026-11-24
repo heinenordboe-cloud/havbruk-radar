@@ -51,9 +51,11 @@
   <p>Traff: anslaget var nærmere utfallet enn begge referansene.</p>
 </div>
 </div>
+{% if t.sjekk %}
 <aside class="fasit-seglkolonne" aria-label="Slik sjekker du oss">
-{{ sjekk(t.siste, "/fasiten/") }}
+{{ sjekk(t.sjekk.fil, t.sjekk.komplett, t.sjekk.sha256, "/fasiten/") }}
 </aside>
+{% endif %}
 </div>
 
 {% for g in t.grupper %}

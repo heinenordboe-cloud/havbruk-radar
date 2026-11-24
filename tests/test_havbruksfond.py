@@ -559,14 +559,21 @@ def test_slik_sjekker_du_oss_staar_paa_fasitsiden_ikke_paa_oversikten():
     assert 'id="sjekk"' in side
     fasit = (NETTSTED / "fasiten" / "havbruksfondet-2026" / "index.html").read_text("utf-8")
     seksjon = re.search(r'<section[^>]*id="sjekk".*?</section>', fasit, re.S).group(0)
-    linjer = [_avsnitt(li) for li in re.findall(r"<li>.*?</li>", seksjon, re.S)]
-    assert linjer == [
-        "Last ned anslaget og stempelet (lenkene over).",
-        "Slipp begge på opentimestamps.org. Den viser datoen fila ble forseglet, "
-        "bekreftet i Bitcoin.",
-        "I terminalen: ots verify."]
-    assert 'href="https://opentimestamps.org/"' in seksjon
-    assert all(len(l) <= 110 for l in linjer)
+    # Heines tekst (16b, rettinger 2). En linje over 110 tegn står i to
+    # avsnitt i samme punkt; hvert avsnitt holder grensa.
+    fil = "havbruksfondet-2026-forseglet-2026-11-09.md"
+    avsnitt = [_avsnitt(p) for p in re.findall(r"<p>.*?</p>", seksjon, re.S)]
+    assert avsnitt == [
+        f"Last ned {fil}", f"og stempelet med blokka ({fil}.ots).",
+        "Dra begge filene inn på opentimestamps.org. Den viser hvilken "
+        "Bitcoin-blokk stempelet ligger i.",
+        "Med egen Bitcoin-node: ots verify."]
+    assert _avsnitt(re.findall(r"<li>.*?</li>", seksjon, re.S)[1]).startswith(
+        f"shasum -a 256 {fil} skal gi ccb451bd…01a0")
+    assert "no-bitcoin" not in seksjon
+    assert re.search(r'<a href="https://opentimestamps.org/" rel="external">opentimestamps.org'
+                     r'<svg[^>]*aria-label="ekstern side"', seksjon)
+    assert all(len(l) <= 110 for l in avsnitt)
 
 
 @trenger_bygg

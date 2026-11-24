@@ -191,6 +191,39 @@ def test_typesiden_har_aapne_uker_foerst_og_saa_etter_aapningsdato(konstruert):
     assert "<th scope=\"col\">Status</th>" not in type_.split('id="uke-2026-46"')[0]
 
 
+def test_slik_sjekker_du_oss_ber_om_stempelet_med_blokka(konstruert):
+    """Heines tekst (16b, rettinger 2) på /fasiten/ og typesidene: ukefila,
+    .komplett.ots og den korte summen, opentimestamps.org merket som ekstern,
+    og ingen `--no-bitcoin`, som bare viser blokka."""
+    for rel in ("fasiten/index.html", "fasiten/brakklegging/index.html"):
+        side = (konstruert / rel).read_text("utf-8")
+        seksjon = re.search(r'<section[^>]*id="sjekk".*?</section>', side, re.S).group(0)
+        punkt = [_tekst(li) for li in re.findall(r"<li>.*?</li>", seksjon, re.S)]
+        assert punkt[0] == "Last ned 2026-48.yml og stempelet med blokka (2026-48.yml.komplett.ots).", rel
+        assert re.fullmatch(r"shasum -a 256 2026-48\.yml skal gi [0-9a-f]{8}…[0-9a-f]{4}\.",
+                            punkt[1]), punkt[1]
+        assert punkt[2] == ("Dra begge filene inn på opentimestamps.org. Den viser hvilken "
+                            "Bitcoin-blokk stempelet ligger i. Med egen Bitcoin-node: ots verify.")
+        assert 'href="/fasiten/2026-48.yml.komplett.ots" download' in seksjon
+        assert 'rel="external"' in seksjon and 'aria-label="ekstern side"' in seksjon
+        assert "no-bitcoin" not in side, rel
+
+
+def test_slik_sjekker_du_oss_bruker_siste_uke_med_blokka(ekte_maskin, monkeypatch):
+    """En uke er forseglet timer før stempelet med blokka finnes. Uten
+    .komplett.ots for uke 48 står uke 47 i «Slik sjekker du oss», og
+    forsiden sier fortsatt at uke 48 er sist forseglet."""
+    import skaar_anslag
+    f = copy.deepcopy(_ekte(ekte_maskin))
+    ekte = skaar_anslag.forseglede_kopier
+    monkeypatch.setattr(skaar_anslag, "forseglede_kopier", lambda m=None: [
+        k for k in ekte(m) if not (k["uke"] == "2026-W48" and k["slag"] == "komplett")])
+    o = nettsted.bygg_fasiten(maskin=f)
+    assert o["sjekk"]["uke"] == "2026-W47" and o["sjekk"]["komplett"] == "2026-47.yml.komplett.ots"
+    assert {t["sjekk"]["uke"] for t in o["typer"]} == {"2026-W47"}
+    assert {t["siste"]["uke"] for t in o["typer"]} == {"2026-W48"}
+
+
 def test_porten_har_ingenting_aa_innvende_mot_den_konstruerte(konstruert):
     for side in sorted(konstruert.glob("fasiten/**/index.html")):
         rel = side.relative_to(konstruert).as_posix()

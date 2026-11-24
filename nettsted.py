@@ -10045,8 +10045,13 @@ def _maskintyper(f: dict, felles: Felles | None) -> list[dict]:
                           f"{avgjorte_uker} uker avgjort, {liste.get('dom', '')}"),
             "avgjorte_uker": avgjorte_uker, "min_uker": min_uker,
             "oppsummert": _oppsummert(traff, bom) if traff or bom else "",
-            # SISTE FORSEGLEDE UKE: «Slik sjekker du oss» og forsiden.
+            # SISTE FORSEGLEDE UKE: forsiden.
             "siste": max(grupper, key=lambda g: g["uke"]),
+            # «SLIK SJEKKER DU OSS»: den siste uka med stempelet MED BLOKKA
+            # (.komplett.ots). En uke er forseglet timer før blokka finnes,
+            # og teksten ber om den fila (16b, rettinger 2).
+            "sjekk": max((g for g in grupper if g["komplett"]),
+                         key=lambda g: g["uke"], default=None),
             "neste": min((g for g in grupper if g["status"] == "aapen"),
                          key=lambda g: g["aapner"], default=None),
         })
@@ -10093,7 +10098,8 @@ def bygg_fasiten(felles: Felles | None = None, fasit: dict | None = None,
                       key=lambda g: g["aapner"])
     datert = [g for g in aapne if g["aapner"]]
     neste_dato = min((g["aapner"] for g in datert), default="")
-    siste = max((t["siste"] for t in hovedtyper), key=lambda g: g["uke"], default=None)
+    siste = max((t["sjekk"] for t in hovedtyper if t["sjekk"]),
+                key=lambda g: g["uke"], default=None)
     return {
         "havbruksfond": d,
         "maskin": maskin or {},
@@ -10104,7 +10110,7 @@ def bygg_fasiten(felles: Felles | None = None, fasit: dict | None = None,
         "neste": ({"dato": neste_dato,
                    "grupper": [g for g in datert if g["aapner"] == neste_dato]}
                   if neste_dato else None),
-        # UKA «SLIK SJEKKER DU OSS» BRUKER: den siste forseglede.
+        # UKA «SLIK SJEKKER DU OSS» BRUKER: den siste med blokka.
         "sjekk": siste,
         "data_til": (maskin or {}).get("data_til", ""),
     }

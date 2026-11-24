@@ -632,6 +632,18 @@ def test_en_ekte_adresse_er_ikke_en_reposti():
     assert vakt.repostier("<p>Les mer om dekningen.</p>", "x") == []
 
 
+def test_en_forseglet_kopi_nettstedet_serverer_er_ikke_en_reposti():
+    """«Slik sjekker du oss» på havbruksfondets side navngir fila som
+    ligger ved siden av siden (16b, rettinger 2). Bare navnene i registeret
+    over kopiene slipper; et annet .md-navn, også ett som ligner, feller."""
+    fil = "havbruksfondet-2026-forseglet-2026-11-09.md"
+    assert vakt.repostier(f"<li><code>shasum -a 256 {fil}</code></li>", "x.html") == []
+    assert vakt.repostier(f"<li>Stempelet: <code>{fil}.ots</code></li>", "x.html") == []
+    for annen in ("havbruksfondet-2026-forseglet-2026-11-10.md", "README.md",
+                  "docs/fasit/havbruksfondet-2026.md"):
+        assert [f.slag for f in vakt.repostier(f"<p>{annen}</p>", "x.html")] == ["reposti"], annen
+
+
 def test_produksjon_uten_kontaktadresse_feller_porten(tmp_path,
                                                       snapshotmappe):
     """En side som ber om rettelser uten å oppgi hvor, er verre enn en

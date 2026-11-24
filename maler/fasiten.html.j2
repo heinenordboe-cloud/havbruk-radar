@@ -88,7 +88,7 @@
 </div>
 {% if o.sjekk %}
 <aside class="fasit-seglkolonne" aria-label="Slik sjekker du oss">
-{{ sjekk(o.sjekk, "/fasiten/") }}
+{{ sjekk(o.sjekk.fil, o.sjekk.komplett, o.sjekk.sha256, "/fasiten/") }}
 </aside>
 {% endif %}
 </div>

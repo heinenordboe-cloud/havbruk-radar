@@ -1320,6 +1320,20 @@ def sykdomsflagg(tekst: str, fil: str = "") -> list[Funn]:
 REPOSTI = re.compile(r"\bdocs/[\w./-]+|\b[\w./-]+\.md\b")
 
 
+def _serverte_md() -> frozenset[str]:
+    """FILENE NETTSTEDET SELV SERVERER med `.md` i navnet: kopiene av de
+    forseglede havbruksfondfilene under /fasiten/ (16b, rettinger 2).
+
+    Prøven spør om leseren kan åpne fila. For disse kan leseren det: de
+    ligger ved siden av siden, og «Slik sjekker du oss» ber leseren laste
+    ned fila og regne summen av den ved navn. Navnene leses av registeret
+    `forseglingsfunn()` holder kopiene mot, ikke av et mønster, så et annet
+    `.md`-navn i teksten feller prøven som før."""
+    import havbruksfond as h
+    return frozenset(Path(k["sti"]).name for k in h.forseglede_kopier()
+                     if not k["ots"])
+
+
 # SKRIPT OG STILARK BÆRER SINE EGNE KOMMENTARER UT, og en kommentar er
 # ikke noe en leser ser. `kystloggen.js` forklarer en avgjørelse med
 # «se docs/VISNING.md», og det er riktig sted for den forklaringen.
@@ -1336,6 +1350,10 @@ def repostier(tekst: str, fil: str = "") -> list[Funn]:
         return []
     synlig = TAGG.sub(" ", MASKINELEMENTER.sub(" ", tekst))
     treff = REPOSTI.findall(synlig)
+    if not treff:
+        return []
+    serverte = _serverte_md()
+    treff = [t for t in treff if t not in serverte]
     if not treff:
         return []
     return [Funn(fil, "reposti",

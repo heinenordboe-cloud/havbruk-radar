@@ -28,7 +28,7 @@
    INGEN LENKE TIL KODREPOET i innholdet, og ingen «pakke 1» og «pakke 2»:
    det er våre ord. Hardt mellomrom mellom tall og enhet, som ellers. #}
 {% extends "base.html.j2" %}
-{% from "fasit-felles.html.j2" import utfall %}
+{% from "fasit-felles.html.j2" import utfall, sjekk %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -209,18 +209,13 @@ Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
 </section>
 
 {# ---------------------------------------------------------------- 3
-   SLIK SJEKKER DU OSS, uten terminal først. MÅLT 10.11.2026 med
-   Playwright: opentimestamps.org verifiserer begge filene med sin .ots,
-   og viser blokkene i overskriftene over. Terminalen er samme kjede som
-   `fasit_havbruksfond.bitcoin()`. #}
-<section class="ark seksjon" id="sjekk" aria-labelledby="sjekk-tittel">
-  <h2 id="sjekk-tittel">Slik sjekker du oss</h2>
-  <ol>
-    <li>Last ned anslaget og stempelet (lenkene over).</li>
-    <li>Slipp begge på <a href="https://opentimestamps.org/">opentimestamps.org</a>. Den viser datoen fila ble forseglet, bekreftet i Bitcoin.</li>
-    <li>I terminalen: <code>ots verify</code>.</li>
-  </ol>
-</section>
+   SLIK SJEKKER DU OSS, på den siste forseglingen, med samme makro og
+   tekst som /fasiten/ og typesidene (16b, rettinger 2). MÅLT 10.11.2026
+   med Playwright: opentimestamps.org verifiserer begge filene med sin
+   .ots, og viser blokkene i overskriftene over. Blokka står i selve
+   .ots-fila her; det er den som er «stempelet med blokka». #}
+{% set siste = d.forseglinger[-1] %}
+{{ sjekk(siste.fil, siste.ots, siste.sha256, "", "ark seksjon") }}
 
 <section class="ark seksjon" id="siter" aria-labelledby="siter-tittel">
   <div class="siterboks">
