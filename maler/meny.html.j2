@@ -21,7 +21,7 @@
    nettopp det attributtet framfor på en klasse — attributtet BETYR
    noe, klassen ville bare sett slik ut.
 
-   ## FEM PUNKTER FRA 27.09.2026, og hva som er borte
+   ## FEM PUNKTER FRA 27.09.2026, SJU FRA 23.11.2026, og hva som er borte
 
    «Om» og «Følg med» er flyttet til BUNNTEKSTEN. De to er ikke
    navigasjon i dataene: den ene forteller hvem som står bak, den andre
@@ -42,15 +42,22 @@
    ordet står i sin helhet på sida det fører til. #}
 <nav class="hovedmeny" aria-label="Hovedmeny">
   {% include "merke.html.j2" %}
-  {# ÉN LINJE, OG DEN RULLER HELLER ENN Å BRYTE. Se `.hovedmeny ul` i
-     stilarket: `flex-wrap: nowrap` og `overflow-x: auto`. Rekkefølgen
-     her er lesrekkefølgen og tab-rekkefølgen, og den er den samme i
-     begge oppsettene. #}
+  {# ÉN LINJE PÅ 1440, HØYST TO PÅ 390 (16b, 23.11.2026). Lista brytes
+     mellom punktene og ruller ikke lenger: se `.hovedmeny ul` i
+     stilarket. Rekkefølgen her er lesrekkefølgen og tab-rekkefølgen, og
+     den er den samme i begge oppsettene.
+
+     KOMMUNER OG FASITEN kom inn 23.11.2026. Kommunene etter selskapene:
+     de er det tredje stedet en leser slår opp et navn. Fasiten etter
+     endringene: den er det eneste stedet med anslag, og står ved siden
+     av det som er målt, ikke foran det. #}
   <ul>
     <li><a href="/lokalitet/"{% if meny_aktiv == "lokalitet" %} aria-current="page"{% endif %}>Lokaliteter</a></li>
     <li><a href="/produksjonsomrade/"{% if meny_aktiv == "produksjonsomrade" %} aria-current="page"{% endif %}>Områder</a></li>
     <li><a href="/selskap/"{% if meny_aktiv == "selskap" %} aria-current="page"{% endif %}>Selskaper</a></li>
+    <li><a href="/kommune/"{% if meny_aktiv == "kommune" %} aria-current="page"{% endif %}>Kommuner</a></li>
     <li><a href="/endringer/"{% if meny_aktiv == "endringer" %} aria-current="page"{% endif %}>Endringer</a></li>
+    <li><a href="/fasiten/"{% if meny_aktiv == "fasiten" %} aria-current="page"{% endif %}>Fasiten</a></li>
     <li><a href="/sok/"{% if meny_aktiv == "sok" %} aria-current="page"{% endif %}>Søk</a></li>
   </ul>
 </nav>

@@ -369,7 +369,7 @@ def _kontrast(a, b) -> float:
     (".hero-losen", AA_STOR, "mottoet, 32-62 px"),
     (".hero-tagline", AA_TEKST, "beskrivelsen"),
     (".hero-bildetekst", AA_TEKST, "bildeteksten"),
-    (".hovedmeny a", AA_TEKST, "menyen, alle fem lenkene"),
+    (".hovedmeny a", AA_TEKST, "menyen, alle sju lenkene"),
 ])
 @pytest.mark.parametrize("modus", ("light", "dark"))
 @pytest.mark.parametrize("bredde", (390, 1440))
@@ -494,17 +494,19 @@ MENYSIDER = ("/", "/lokalitet/31397/", "/sok/")
 
 @pytest.mark.parametrize("sti", MENYSIDER)
 @pytest.mark.parametrize("bredde", (360, 390, 639, 640, 1440))
-def test_menypunktene_star_paa_en_linje(side, tjener, sti, bredde):
-    """Fem punkter, én linje, i hver bredde — og ordmerket over eller
-    ved siden av.
+def test_menypunktene_staar_paa_hoeyst_to_linjer(side, tjener, sti, bredde):
+    """Sju punkter fra 23.11.2026 (16b): én linje på 1440, høyst to på 390
+    og smalere — og ordmerket over eller ved siden av.
 
-    Fram til 27.09.2026 brøt menyen til to linjer under 640 px. Den
-    andre linja havnet over en lysere del av herofotografiet, og det
-    var der `test_heroteksten_har_nok_kontrast` fant 1,60:1.
+    Fram til 27.09.2026 brøt menyen til to linjer under 640 px, og den
+    andre linja havnet over en lysere del av herofotografiet
+    (`test_heroteksten_har_nok_kontrast` fant 1,60:1). Fra 27.09 rullet
+    lista vannrett i stedet. Med sju punkter ville to stått utenfor
+    skjermen på 390, så lista brytes igjen, mellom punktene; menyflata
+    vokser med den, og kontrastprøven måler alle lenkene.
 
-    LØSNINGEN ER IKKE EN HAMBURGER. Får punktene ikke plass, ruller
-    lista vannrett inne i seg selv — se `test_menyen_ruller_framfor_aa_bryte`.
-    Alle fem er der, i samme rekkefølge, for øyet og for tabulatoren.
+    LØSNINGEN ER IKKE EN HAMBURGER. Alle punktene er der, i samme
+    rekkefølge, for øyet og for tabulatoren.
     """
     side.set_viewport_size({"width": bredde, "height": 844})
     side.goto(tjener + sti, wait_until="load")
@@ -518,49 +520,56 @@ def test_menypunktene_star_paa_en_linje(side, tjener, sti, bredde):
         topper: [...new Set(punkter.map(
             e => Math.round(e.getBoundingClientRect().top)))],
         merkeTopp: Math.round(merke.top),
+        merkeHoyre: Math.round(merke.right),
         punktTopp: Math.round(punkter[0].getBoundingClientRect().top),
+        punktVenstre: Math.round(Math.min(
+            ...punkter.map(e => e.getBoundingClientRect().left))),
       };
     }""")
     side.set_viewport_size({"width": BREDDE, "height": 844})
-    assert m["antall"] == 5, f"{sti}: {m['antall']} punkter"
-    assert len(m["topper"]) == 1, (
+    assert m["antall"] == 7, f"{sti}: {m['antall']} punkter"
+    hoyst = 1 if bredde == 1440 else 2
+    assert len(m["topper"]) <= hoyst, (
         f"{sti} @ {bredde}: punktene står på {len(m['topper'])} linjer "
         f"({m['topper']})")
     if bredde >= 640:
-        assert m["merkeTopp"] == m["punktTopp"], "ordmerket skal stå på linja"
+        # VED SIDEN AV. På én linje står de på samme topp; brytes
+        # punktene i to ved siden av ordmerket (640 px), står det midt
+        # på de to linjene.
+        assert m["merkeHoyre"] <= m["punktVenstre"], "ordmerket skal stå ved siden av"
+        if len(m["topper"]) == 1:
+            assert m["merkeTopp"] == m["punktTopp"], "ordmerket skal stå på linja"
     else:
         assert m["merkeTopp"] < m["punktTopp"], "ordmerket skal stå over"
 
 
 @pytest.mark.parametrize("bredde", (360, 390))
-def test_menyen_ruller_framfor_aa_bryte(side, tjener, bredde):
-    """Når fem punkter ikke får plass, skal lista RULLE — ikke bryte,
-    ikke krympe teksten, ikke gjemme noe bak en knapp.
-
-    Prøven krever ikke at den RULLER ved en gitt bredde; den krever at
-    lista er en rulleboks, og at ingenting er klippet bort: siste punkt
-    skal være nåbart. Om 341 piksler med lenker får plass i 318 eller
-    350 avhenger av fonten, og det er ikke det prøven handler om.
-    """
+def test_menyen_brytes_mellom_punktene_og_drar_ikke_sida_ut(side, tjener, bredde):
+    """Lista brytes MELLOM punktene, aldri inni dem, og ruller ikke: hvert
+    punkt er én linje høyt, hele punktet står innenfor skjermen, og sida
+    ruller ikke vannrett. Erstatter `test_menyen_ruller_framfor_aa_bryte`
+    (27.09–23.11.2026)."""
     side.set_viewport_size({"width": bredde, "height": 844})
     side.goto(tjener + "/", wait_until="load")
     side.wait_for_timeout(120)
     m = side.evaluate("""() => {
       const ul = document.querySelector('.hovedmeny ul');
       const cs = getComputedStyle(ul);
-      const siste = ul.querySelector('li:last-child a');
-      ul.scrollLeft = ul.scrollWidth;
-      const r = siste.getBoundingClientRect();
-      const u = ul.getBoundingClientRect();
-      return {wrap: cs.flexWrap, overflow: cs.overflowX,
-              sisteSynlig: r.right <= u.right + 1 && r.left >= u.left - 1,
-              sideRuller: document.documentElement.scrollWidth
-                          > window.innerWidth};
+      const punkter = [...ul.querySelectorAll('a')].map(a => {
+        const r = a.getBoundingClientRect();
+        return {h: r.height, l: r.left, r: r.right,
+                lh: parseFloat(getComputedStyle(a).lineHeight)};
+      });
+      return {wrap: cs.flexWrap, ruller: ul.scrollWidth > ul.clientWidth,
+              punkter, bredde: window.innerWidth,
+              sideRuller: document.documentElement.scrollWidth > window.innerWidth};
     }""")
     side.set_viewport_size({"width": BREDDE, "height": 844})
-    assert m["wrap"] == "nowrap", "lista bryter"
-    assert m["overflow"] == "auto", "lista er ingen rulleboks"
-    assert m["sisteSynlig"], "siste punkt er ikke nåbart ved å rulle"
+    assert m["wrap"] == "wrap", "lista brytes ikke mellom punktene"
+    assert not m["ruller"], "lista ruller fortsatt"
+    for p in m["punkter"]:
+        assert p["h"] <= p["lh"] + 1, f"et punkt er brutt inni seg: {p}"
+        assert p["l"] >= 0 and p["r"] <= m["bredde"], f"et punkt står utenfor: {p}"
     assert not m["sideRuller"], "menyen dro SIDA ut i bredden"
 
 
@@ -592,7 +601,7 @@ def test_forsidens_meny_har_samme_kanter_som_resten(side, tjener, bredde):
     assert forside["ul"] == underside["ul"], kanter
     assert forside["merke"] == underside["merke"], kanter
     if bredde == 390:
-        assert not forside["ruller"], "alle fem punktene skal synes på 390"
+        assert not forside["ruller"], "alle punktene skal synes på 390"
 
 
 LOKALITETER = ("/lokalitet/45140/", "/lokalitet/12325/", "/lokalitet/31397/")

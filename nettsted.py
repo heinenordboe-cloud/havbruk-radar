@@ -9631,7 +9631,7 @@ def skriv_kommuner(rot: Path, felles: Felles, fasit: dict | None = None,
             beskrivelse=beskrivelse,
             jsonld=_jsonld_kommune("Kommunene og havbruksfondet", beskrivelse,
                                    f"/{KOMMUNE_STI}/", felles.vilkaar, d),
-            proveniens_tekst=proveniens_tekst, sidetype="Liste",
+            proveniens_tekst=proveniens_tekst, sidetype="Liste", meny_aktiv="kommune",
             undertittel=f"{d['antall']} kommuner{SKILLE}{d['total']}",
             soketekst="havbruksfondet kommune kommuner fordelingsnøkkel"))
     skriv_side(sti, html)
@@ -9653,7 +9653,7 @@ def skriv_kommuner(rot: Path, felles: Felles, fasit: dict | None = None,
             tittel=f"{tittel} — Kystloggen", beskrivelse=beskrivelse,
             jsonld=_jsonld_kommune(tittel, beskrivelse,
                                    f"/{KOMMUNE_STI}/{nr}/", felles.vilkaar, d),
-            proveniens_tekst=proveniens_tekst, sidetype="Kommune",
+            proveniens_tekst=proveniens_tekst, sidetype="Kommune", meny_aktiv="kommune",
             undertittel=f"Kommune {nr}{SKILLE}{k['fylke']}{SKILLE}{k['andel']}",
             soketekst=f"{k['navn']} {k['raa_navn']} kommune havbruksfondet"))
         skriv_side(sti, html)
@@ -10177,7 +10177,7 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
             felles, rot, sti, kilder=KOMMUNE_KILDER,
             tittel=f"{tittel} — Kystloggen", beskrivelse=beskrivelse,
             jsonld=_jsonld_fasit(tittel, beskrivelse, vilkaar, d),
-            proveniens_tekst=proveniens_tekst, sidetype="Fasit",
+            proveniens_tekst=proveniens_tekst, sidetype="Fasit", meny_aktiv="fasiten",
             undertittel=f"Forseglet {datoer}{SKILLE}{d['oppsummert']}",
             soketekst="fasit anslag forseglet"))
     skriv_side(sti, html)
@@ -10199,7 +10199,7 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
                 jsonld=_jsonld_anslag(tittel, beskrivelse, vilkaar, t["sti"],
                                       t["kilder"], min(g["forseglet_dato"]
                                                        for g in t["grupper"])),
-                proveniens_tekst=lus_proveniens, sidetype="Fasit",
+                proveniens_tekst=lus_proveniens, sidetype="Fasit", meny_aktiv="fasiten",
                 undertittel=f"{t['uker_vist'][:1].upper()}{t['uker_vist'][1:]}",
                 soketekst="fasit anslag forseglet"))
         skriv_side(side, html)
@@ -10214,6 +10214,7 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
             felles, rot, oversikt, kilder=kilder,
             tittel="Fasiten — Kystloggen", beskrivelse=beskrivelse,
             jsonld="", proveniens_tekst=proveniens_tekst, sidetype="Liste",
+            meny_aktiv="fasiten",
             undertittel="Forseglede anslag og utfallet",
             soketekst="fasiten fasit anslag"))
     skriv_side(oversikt, html)

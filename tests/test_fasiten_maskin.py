@@ -331,3 +331,26 @@ def test_portens_bygg_har_en_side_per_type_og_neste_fasit(ekte_maskin):
     assert "Neste fasit" in tekst and "Slik sjekker du oss" in tekst
     assert ("Nye typer anslag legges bare til etter at de er målt mot enkle referanser, "
             "og registreres og stemples før første forsegling.") in tekst
+
+
+# ------------------------------------------------- menyen (16b, 3)
+
+
+def test_fasitsidene_merker_fasiten_i_menyen(tmp_path):
+    """Kommuner og Fasiten står i menyen fra 16b, og siden du står på er
+    merket med `aria-current`, som de andre punktene."""
+    nettsted.skriv_fasiten(tmp_path)
+    for side in sorted(tmp_path.glob("fasiten/**/index.html")):
+        meny = re.search(r'<nav class="hovedmeny".*?</nav>', side.read_text("utf-8"), re.S).group(0)
+        assert re.findall(r'aria-current="page">([^<]+)<', meny) == ["Fasiten"], side
+
+
+@trenger_bygg
+def test_portens_bygg_merker_kommunene_og_fasiten_i_menyen():
+    for rel, ventet in (("kommune/index.html", "Kommuner"), ("kommune/1580/index.html", "Kommuner"),
+                        ("fasiten/index.html", "Fasiten"),
+                        ("fasiten/brakklegging/index.html", "Fasiten")):
+        meny = re.search(r'<nav class="hovedmeny".*?</nav>',
+                         (NETTSTED / rel).read_text("utf-8"), re.S).group(0)
+        assert re.findall(r'aria-current="page">([^<]+)<', meny) == [ventet], rel
+        assert 'href="/kommune/"' in meny and 'href="/fasiten/"' in meny

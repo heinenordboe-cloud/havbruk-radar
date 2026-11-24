@@ -2930,9 +2930,10 @@ def test_brodsmulen_starter_med_forside_overalt():
             assert '<li><a href="/">Kystloggen</a></li>' not in t, sti.name
 
 
-def test_menyen_har_fem_punkter_og_om_og_folg_staar_i_bunnteksten():
+def test_menyen_har_sju_punkter_og_om_og_folg_staar_i_bunnteksten():
     """«Om» og «Følg med» flyttet fra menyen til bunnteksten
-    27.09.2026, og skal stå ETT sted — ikke to, og ikke null.
+    27.09.2026, og skal stå ETT sted — ikke to, og ikke null. Kommuner og
+    Fasiten kom inn i menyen 23.11.2026 (16b).
 
     En lenke som står begge steder er to veier til det samme i samme
     synsfelt; en som står ingen steder er en side ingen finner.
@@ -2946,9 +2947,10 @@ def test_menyen_har_fem_punkter_og_om_og_folg_staar_i_bunnteksten():
     base = (Path(__file__).resolve().parents[1] / "maler"
             / "base.html.j2").read_text(encoding="utf-8")
 
-    assert meny.count("<li>") == 5, "menyen skal ha fem punkter"
+    assert meny.count("<li>") == 7, "menyen skal ha sju punkter"
     for maal in ('href="/lokalitet/"', 'href="/produksjonsomrade/"',
-                 'href="/selskap/"', 'href="/endringer/"', 'href="/sok/"'):
+                 'href="/selskap/"', 'href="/kommune/"', 'href="/endringer/"',
+                 'href="/fasiten/"', 'href="/sok/"'):
         assert meny.count(maal) == 1, maal
     for borte in ('href="/om/"', 'href="/#folg"'):
         assert borte not in meny, f"{borte} står fortsatt i menyen"
