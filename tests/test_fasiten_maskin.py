@@ -181,7 +181,8 @@ def test_en_uke_som_bommet_og_en_som_traff_har_like_rader(konstruert):
 
 def test_typesiden_har_aapne_uker_foerst_og_saa_etter_aapningsdato(konstruert):
     type_ = (konstruert / "fasiten" / "brakklegging" / "index.html").read_text("utf-8")
-    assert re.findall(r'<section class="seksjon fasit-blokk" id="(uke-[\d-]+)"', type_) == [
+    assert re.findall(r'<section class="[^"]*\bfasit-blokk\b[^"]*" id="(uke-[\d-]+)"',
+                      type_) == [
         "uke-2026-48", "uke-2026-46", "uke-2026-47"]
     tekst = _tekst(_main(type_))
     assert "2 av 12 uker avgjort. 26 avgjort: 13 traff, 13 bom." in tekst

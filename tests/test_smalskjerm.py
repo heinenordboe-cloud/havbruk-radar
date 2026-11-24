@@ -1319,3 +1319,60 @@ def test_forsidens_flater_staar_over_bretten(side, tjener):
     assert len(flater) >= 2, "fant ikke flatene"
     assert max(flater) <= 900, flater
     assert sok["y"] + sok["height"] <= min(flater), (sok, flater)
+
+
+# ---- bred skjerm: /kommune/, kommunesidene og /fasiten/ (16b, 4) -------
+
+# DEN TOMME BREDDEN OVER BRETTEN. Høyre kant av det som faktisk står der
+# (tekst, tabeller, bilder og knapper, ikke streker og flater), målt mot
+# innholdsbredden i `main`. Til 23.11.2026 sto kommunesidene og /fasiten/ i
+# én spalte på venstre halvdel. MÅLT mot portens bygg fra 15a (48e19ed):
+# fire sider over grensa, /kommune/ 41 %, /kommune/5501/ 45 %,
+# /fasiten/havbruksfondet-2026/ 44 % og /fasiten/ 52 % tomt.
+TOM_BREDDE_JS = r"""() => {
+  const main = document.querySelector('main');
+  const cs = getComputedStyle(main);
+  const r = main.getBoundingClientRect();
+  const venstre = r.left + parseFloat(cs.paddingLeft);
+  const hoyre = r.right - parseFloat(cs.paddingRight);
+  let maks = venstre;
+  const synlig = q => q.width > 0 && q.top < innerHeight && q.bottom > 0;
+  const tre = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
+  while (tre.nextNode()) {
+    const n = tre.currentNode;
+    const el = n.parentElement;
+    if (!n.textContent.trim() || !el
+        || el.closest('[hidden], .visuelt-skjult, script, style')) continue;
+    const omr = document.createRange();
+    omr.selectNodeContents(n);
+    for (const q of omr.getClientRects()) if (synlig(q)) maks = Math.max(maks, q.right);
+  }
+  for (const el of main.querySelectorAll('img, svg, table, input, button')) {
+    const q = el.getBoundingClientRect();
+    if (synlig(q)) maks = Math.max(maks, q.right);
+  }
+  return {bredde: Math.round(hoyre - venstre), tom: Math.round(Math.max(0, hoyre - maks))};
+}"""
+
+
+def test_ingen_tredel_tom_bredde_over_bretten_paa_1440(side, tjener):
+    """16b, 4: /kommune/, hver kommuneside og hver side under /fasiten/
+    bruker hele arket. Ingen av dem har mer enn en tredel tom bredde over
+    bretten på 1440x900."""
+    rot = Path(ROT)
+    sider = (["/kommune/"]
+             + [f"/kommune/{p.parent.name}/" for p in sorted(rot.glob("kommune/*/index.html"))]
+             + ["/" + p.parent.relative_to(rot).as_posix() + "/"
+                for p in sorted(rot.glob("fasiten/**/index.html"))])
+    assert len(sider) > 10, "fant ikke kommunesidene og fasitsidene"
+    side.set_viewport_size({"width": 1440, "height": 900})
+    for_tomme = []
+    try:
+        for sti in sider:
+            side.goto(tjener + sti, wait_until="load")
+            m = side.evaluate(TOM_BREDDE_JS)
+            if m["tom"] * 3 > m["bredde"]:
+                for_tomme.append((sti, m["tom"], m["bredde"]))
+    finally:
+        side.set_viewport_size({"width": BREDDE, "height": 844})
+    assert not for_tomme, f"{len(for_tomme)} sider: {for_tomme[:8]}"

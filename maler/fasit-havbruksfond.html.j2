@@ -97,7 +97,10 @@ Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
 {# ---------------------------------------------------------------- 1
    DEN FØRSTE FORSEGLINGEN: én påstand om alle andelene. #}
 {% set s = d.forseglinger[0] %}
-<section class="ark seksjon fasit-blokk" id="{{ s.anker }}" aria-labelledby="{{ s.anker }}-tittel">
+{# BRED SKJERM (16b, 4): påstanden til venstre, fila og stempelet til
+   høyre fra 1100 px (`.fasit-rad`). Teksten er uendret. #}
+<section class="ark seksjon fasit-blokk fasit-rad" id="{{ s.anker }}" aria-labelledby="{{ s.anker }}-tittel">
+<div class="fasit-innhold">
   <h2 id="{{ s.anker }}-tittel">{{ overskrift(s) }}</h2>
   <p>Andelen for hver av de 143 kommunene og 8 fylkeskommunene, regnet ut
     fra registeret 31.08 og 07.09.2026.</p>
@@ -114,14 +117,18 @@ Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
   <p class="fasit-utfall">{% if d.p1.ord %}<span data-felt="utfall">{{ utfall(d.p1) }}</span>
     {%- else %}Konfidens <span data-felt="konfidens">{{ d.p1.konfidens }}</span> ·
     <span data-felt="utfall">{{ d.p1.status }}</span>{% endif %}</p>
+</div>
+<div class="fasit-seglkolonne">
   {{ segl(s, "Anslaget") }}
+</div>
 </section>
 
 {# ---------------------------------------------------------------- 2
    DEN ANDRE FORSEGLINGEN: ni påstander, i rekkefølgen fila har dem.
    `d.p2[n]` er påstand n + 1 i fila; konfidensen og statusen er dens. #}
 {% set s = d.forseglinger[1] %}
-<section class="ark seksjon fasit-blokk" id="{{ s.anker }}" aria-labelledby="{{ s.anker }}-tittel">
+<section class="ark seksjon fasit-blokk fasit-rad" id="{{ s.anker }}" aria-labelledby="{{ s.anker }}-tittel">
+<div class="fasit-innhold">
   <h2 id="{{ s.anker }}-tittel">{{ overskrift(s) }}</h2>
   <p class="tabelltittel" id="fasit-paastander-tittel">Ni skarpere påstander, som hver kan avgjøres for seg.</p>
   <div class="tabellramme" role="region" aria-labelledby="fasit-paastander-tittel" tabindex="0">
@@ -195,7 +202,10 @@ Forseglet <time datetime="{{ s.dato }}">{{ s.dato|kortdato }}</time>
   <p class="tabellnote">Konfidensen er hvor sikre vi var da vi forseglet.
     En påstand på 35&nbsp;% skal bomme oftere enn den treffer.</p>
   <p>Ved uenighet gjelder den forseglede fila.</p>
+</div>
+<div class="fasit-seglkolonne">
   {{ segl(s, "Påstandene") }}
+</div>
 </section>
 
 {# ---------------------------------------------------------------- 3

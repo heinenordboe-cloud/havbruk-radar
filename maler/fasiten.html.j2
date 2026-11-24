@@ -65,13 +65,15 @@
 
 {% block innhold %}
 <div class="ark fasit-oversikt">
+{# BRED SKJERM (16b, 4): «Slik sjekker du oss» står til høyre for
+   overskriften og neste fasit fra 1100 px, tabellene under over hele
+   arket. På smal skjerm står den etter neste fasit. #}
+<div class="fasit-rad fasit-rad--hode">
+<div class="fasit-innhold">
 <h1>Fasiten</h1>
 <div class="fasit-ingress">
   <p>Anslag vi har forseglet før svaret var kjent, og hvordan det gikk.</p>
 </div>
-
-<div class="fasit-to">
-<div class="fasit-hoved">
 
 {% if o.neste %}
 <section class="fasit-neste" aria-labelledby="neste-tittel">
@@ -83,6 +85,13 @@
   {% endfor %}
 </section>
 {% endif %}
+</div>
+{% if o.sjekk %}
+<aside class="fasit-seglkolonne" aria-label="Slik sjekker du oss">
+{{ sjekk(o.sjekk, "/fasiten/") }}
+</aside>
+{% endif %}
+</div>
 
 {{ tabell("fasit-aapne", "Åpne påstander, etter åpningsdato.", o.aapne) }}
 {% for t in o.hovedtyper %}
@@ -111,15 +120,6 @@
 <div class="fasit-regel">
   <p>Nye typer anslag legges bare til etter at de er målt mot enkle referanser,</p>
   <p>og registreres og stemples før første forsegling.</p>
-</div>
-</div>
-
-{# HØYRE KOLONNE fra 1100 px (16b, 4): sjekken står ved siden av tabellen. #}
-{% if o.sjekk %}
-<aside class="fasit-marg" aria-label="Slik sjekker du oss">
-{{ sjekk(o.sjekk, "/fasiten/") }}
-</aside>
-{% endif %}
 </div>
 </div>
 {% endblock %}

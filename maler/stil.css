@@ -3619,10 +3619,60 @@ strong.uenige { display: inline; }
 .fasit-blokk .tabelltittel { margin-block-start: var(--rom-16); }
 
 /* UKENE PÅ TYPESIDEN: seksjonsluften står over seksjonen, og
-   overskriften legger ikke på sin egen i tillegg. Første uke følger
-   statusen øverst: luft over luft leses som et hull. */
-.fasit-hoved > .fasit-blokk > h2:first-child { margin-block-start: 0; }
-.fasit-hoved > .fasit-blokk:first-child { padding-block-start: var(--rom-16); }
+   overskriften legger ikke på sin egen i tillegg. */
+.fasit-rad.fasit-blokk .fasit-innhold > h2:first-child { margin-block-start: 0; }
+.fasit-rad--hode + .fasit-blokk { padding-block-start: var(--rom-32); }
+
+/* ---------------------------------------------------------------- *
+ * BRED SKJERM: /kommune/, kommunesidene og /fasiten/ (16b, 4)
+ *
+ * Fra 1100 px står forseglingen og «Slik sjekker du oss» i en høyre
+ * kolonne ved siden av tabellen, og sidene bruker hele arket. Til
+ * 23.11.2026 sto alt i én spalte på venstre halvdel; MÅLT på 1440 var
+ * opptil 52 % av arket tomt over bretten (/fasiten/), og 41 % på /kommune/.
+ * `test_ingen_tredel_tom_bredde_over_bretten_paa_1440` holder en tredel.
+ *
+ *   .fasit-rad   én rad: innholdet til venstre, forseglingen eller
+ *                «Slik sjekker du oss» til høyre. Hver rad har samme
+ *                kolonner, så den høyre kolonnen står rett nedover.
+ *   .spalter     kommunesidene: svaret (`.spalte-hode`) og tabellene
+ *                (`.spalte-rest`) til venstre, forseglingen og beviset
+ *                (`.spalte-marg`) til høyre ved siden av begge.
+ *
+ * Under 1100 px står alt i markupens rekkefølge, som før.
+ * ---------------------------------------------------------------- */
+.fasit-seglkolonne > :first-child { margin-block-start: 0; }
+.fasit-seglkolonne > .fasit-sjekk { padding-block-start: var(--rom-32); }
+.spalte-marg { margin-block-end: var(--rom-24); }
+.spalte-marg .historikk-forklaring { max-width: none; }
+
+@media (min-width: 68.75rem) {
+  .fasit-rad,
+  .spalter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+    column-gap: var(--rom-48);
+    align-items: start;
+  }
+  .fasit-seglkolonne > .fasit-sjekk { padding-block-start: 0; }
+  .fasit-rad > .fasit-seglkolonne {
+    padding-block-start: var(--rom-4);
+    border-block-start: 1px solid var(--papir3);
+  }
+  .fasit-rad--hode > .fasit-seglkolonne { margin-block-start: var(--rom-8); }
+
+  .spalter { grid-template-rows: auto 1fr; }
+  .spalter > .spalte-hode { grid-column: 1; grid-row: 1; }
+  .spalter > .spalte-rest { grid-column: 1; grid-row: 2; }
+  .spalter > .spalte-marg {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-block: var(--rom-8) 0;
+    padding-block-start: var(--rom-4);
+    border-block-start: 1px solid var(--papir3);
+  }
+  .spalter > .spalte-rest > .seksjon:first-child { padding-block-start: var(--rom-32); }
+}
 
 /* PRØVETYPEN: etiketten hører til overskriften rett under. */
 .fasit-provetype { margin-block-start: var(--rom-48); }
@@ -3640,6 +3690,10 @@ strong.uenige { display: inline; }
 .fasit-sjekk ol { padding-inline-start: 1.2em; margin: 0; }
 .fasit-sjekk li { margin-block-end: var(--rom-8); }
 .fasit-sjekk code { overflow-wrap: anywhere; }
+/* Et filnavn og en forkortet sum står hele: «2026-48.yml.ots» delt ved
+   bindestreken leses som to ting. Kommandoene kan brytes mellom ordene. */
+.fasit-sjekk a code,
+.fasit-sjekk .tall-mono { white-space: nowrap; overflow-wrap: normal; }
 
 @media print {
   .hovedmeny ul, .handlinger, .hopp, .kopierknapp { display: none; }

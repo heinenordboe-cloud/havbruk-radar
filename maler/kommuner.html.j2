@@ -22,7 +22,11 @@
 {% endblock %}
 
 {% block innhold %}
-<div class="ark">
+{# BRED SKJERM (16b, 4): forseglingen og beviset står i en høyre kolonne
+   ved siden av svaret og tabellene fra 1100 px (`.spalter`). På smal
+   skjerm står de mellom svaret og tabellene, der forseglingen sto. #}
+<div class="ark spalter">
+<div class="spalte-hode">
 {% if d.torrkjoring %}<p class="historikk-forklaring"><strong>{{ d.torrkjoring }}</strong></p>{% endif %}
 <h1>Kommunene og havbruksfondet</h1>
 <p class="lok-undertittel">Andel av klarert lokalitets-MTB
@@ -73,12 +77,6 @@
   før siden ble oppdatert <time datetime="{{ bygget }}">{{ bygget|kortdato }}</time>.</p>{% endif %}
 <p class="historikk-forklaring"><a href="{{ d.fordelt.url }}">I {{ d.fordelt.aar }}</a> kom den
   <time datetime="{{ d.fordelt.dato }}">{{ d.fordelt.dato|kortdato }}</time>.</p>
-{% include "kommune-segl.html.j2" %}
-{# «SLIK SJEKKER DU OSS» STO HER til 16.11.2026, i tre linjer. Den står nå
-   på siden linja over lenker til, ved filene og stemplene den handler om
-   (/fasiten/havbruksfondet-<år>/#sjekk). Ankeret er beholdt, så en lenke
-   til /kommune/#sjekk fortsatt lander på linja med veien videre. #}
-<span id="sjekk"></span>
 
 {# FISKERIDIREKTORATETS FORDELING, bare med en kvittert fasit. Beløpet
    per kommune står på kommunesiden. Se `nettsted._fasit_vist()`. #}
@@ -117,6 +115,19 @@
 </section>
 {% endif %}
 
+</div>
+
+<aside class="spalte-marg" aria-label="Forseglingen og beviset">
+{% include "kommune-segl.html.j2" %}
+{# «SLIK SJEKKER DU OSS» STO HER til 16.11.2026, i tre linjer. Den står nå
+   på siden linja over lenker til, ved filene og stemplene den handler om
+   (/fasiten/havbruksfondet-<år>/#sjekk). Ankeret er beholdt, så en lenke
+   til /kommune/#sjekk fortsatt lander på linja med veien videre. #}
+<span id="sjekk"></span>
+{% include "kommune-bevis.html.j2" %}
+</aside>
+
+<div class="spalte-rest">
 <p class="tabelltittel" id="kommuner-andel-tittel">{{ d.antall }} kommuner, størst andel først.
   Endringen er i prosentpoeng fra nøkkelen <time datetime="{{ d.forrige_dato }}">{{ d.forrige_dato|kortdato }}</time>.</p>
 <div class="tabellramme" role="region" aria-labelledby="kommuner-andel-tittel" tabindex="0">
@@ -224,9 +235,10 @@
   <p><span class="herkomst">Fiskeridir. · <time datetime="{{ d.for }}">{{ d.for|kortdato }}</time></span></p>
   {% endif %}
 </details>
+</div>
+</div>
 
-{% include "kommune-bevis.html.j2" %}
-
+<div class="ark">
 <section class="seksjon" id="siter" aria-labelledby="siter-tittel">
   <div class="siterboks">
     <div class="siterboks-hode">

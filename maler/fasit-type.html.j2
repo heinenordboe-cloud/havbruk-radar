@@ -33,7 +33,13 @@
 {% endblock %}
 
 {% block innhold %}
-<div class="ark">
+{# BRED SKJERM (16b, 4): hver rad har innholdet til venstre og
+   forseglingen til høyre fra 1100 px (`.fasit-rad` i stilarket). Øverst
+   står «Slik sjekker du oss» i den høyre kolonnen; under hver uke står
+   tidspunktet, summen og filene der. På smal skjerm står de etter
+   innholdet, i markupens rekkefølge. #}
+<div class="ark fasit-rad fasit-rad--hode">
+<div class="fasit-innhold">
 {% if t.provetype %}<p class="etikett">Prøvetype</p>{% endif %}
 <h1>{{ t.navn }}</h1>
 <div class="fasit-ingress">
@@ -45,16 +51,15 @@
   <p>Traff: anslaget var nærmere utfallet enn begge referansene.</p>
 </div>
 </div>
+<aside class="fasit-seglkolonne" aria-label="Slik sjekker du oss">
+{{ sjekk(t.siste, "/fasiten/") }}
+</aside>
+</div>
 
-<div class="ark fasit-to">
-<div class="fasit-hoved">
 {% for g in t.grupper %}
-<section class="seksjon fasit-blokk" id="{{ g.anker }}" aria-labelledby="{{ g.anker }}-tittel">
+<section class="ark seksjon fasit-blokk fasit-rad" id="{{ g.anker }}" aria-labelledby="{{ g.anker }}-tittel">
+<div class="fasit-innhold">
   <h2 id="{{ g.anker }}-tittel">{{ g.navn[:1]|upper }}{{ g.navn[1:] }}</h2>
-  <p class="fasit-meta">Forseglet <time datetime="{{ g.forseglet }}">{{ g.forseglet_vist }}</time>
-    {%- if g.blokk %} · Bitcoin-blokk {{ g.blokk }}{% endif %}</p>
-  <p class="fasit-meta">Fasiten åpner <time datetime="{{ g.aapner }}">{{ g.aapner|kortdato }}</time> · {{ g.status_vist }}</p>
-
   <p class="tabelltittel" id="{{ g.anker }}-tabell-tittel">Anslaget for {{ g.maal }}. Siste verdi: {{ g.referanser[0] }}. I fjor: {{ g.referanser[1] }}.</p>
   <div class="tabellramme" role="region" aria-labelledby="{{ g.anker }}-tabell-tittel" tabindex="0">
   <table id="{{ g.anker }}-tabell" class="fasit-anslag" aria-labelledby="{{ g.anker }}-tabell-tittel">
@@ -87,7 +92,12 @@
   {% if g.skaares_ikke_grunn %}
   <p class="tabellnote">{{ g.skaares_ikke_grunn }}</p>
   {% endif %}
+</div>
 
+<div class="fasit-seglkolonne">
+  <p class="fasit-meta">Forseglet <time datetime="{{ g.forseglet }}">{{ g.forseglet_vist }}</time>
+    {%- if g.blokk %} · Bitcoin-blokk {{ g.blokk }}{% endif %}</p>
+  <p class="fasit-meta">Fasiten åpner <time datetime="{{ g.aapner }}">{{ g.aapner|kortdato }}</time> · {{ g.status_vist }}</p>
   <p class="fasit-segl">Fingeravtrykk (sha256):
     <code class="tall-mono fasit-sum" data-felt="sha256">{{ g.sha256 }}</code></p>
   <ul class="handlinger fasit-filer" aria-label="Fila og stemplene for {{ g.navn }}">
@@ -95,12 +105,7 @@
     <li><a class="handling" href="/fasiten/{{ g.ots }}" download>Stempelet</a></li>
     {% if g.komplett %}<li><a class="handling" href="/fasiten/{{ g.komplett }}" download>Stempelet med blokka</a></li>{% endif %}
   </ul>
+</div>
 </section>
 {% endfor %}
-</div>
-
-<aside class="fasit-marg" aria-label="Slik sjekker du oss">
-{{ sjekk(t.siste, "/fasiten/") }}
-</aside>
-</div>
 {% endblock %}
