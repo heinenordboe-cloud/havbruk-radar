@@ -175,8 +175,33 @@ def test_en_uke_som_bommet_og_en_som_traff_har_like_rader(konstruert):
     # Ordet, utfallet og avviket, i den cella og i den rekkefølgen. Uten
     # `felles` har området ikke navn, bare nummer.
     po3 = [_tekst(r) for r in (bom_rader[2], traff_rader[2])]
-    assert re.fullmatch(r"3 \S+ (\d+) \d+ Bom · utfall \1 · avvik \S+", po3[0]), po3[0]
-    assert re.fullmatch(r"3 (\S+) \d+ \d+ Traff · utfall \1 · avvik 0", po3[1]), po3[1]
+    # Én desimal i hver tallcelle, også utfallet og avviket (16b, rettinger 4).
+    en = r"\d+,\d"
+    assert re.fullmatch(rf"3 {en} ({en}) {en} Bom · utfall \1 · avvik {en}", po3[0]), po3[0]
+    assert re.fullmatch(rf"3 ({en}) {en} {en} Traff · utfall \1 · avvik 0,0", po3[1]), po3[1]
+
+
+def test_anslagene_har_en_desimal_og_fila_har_den_forseglede(konstruert, ekte_maskin):
+    """3,548 sto ved siden av 4,0829 (16b, rettinger 4). Hver tallcelle på
+    typesidene har én desimal, avrundet, og under hver tabell står at den
+    forseglede verdien står i ukefila. Ukefila og kopien er uendret."""
+    assert nettsted._maaltall(4.0829, 1) == "4,1"
+    assert nettsted._maaltall(3.548, 1) == "3,5"
+    assert nettsted._maaltall(7, 1) == "7,0"
+    assert nettsted._maaltall(None, 1) is None
+    assert nettsted._maaltall(4.0829) == "4,0829"          # uten: som i fila
+    for slug in ("brakklegging", "voksne-hunnlus"):
+        side = (konstruert / "fasiten" / slug / "index.html").read_text("utf-8")
+        celler = re.findall(r'<td class="tall"[^>]*data-felt="(?:anslag|referanse_[ab])"[^>]*>([^<]*)</td>',
+                            side)
+        assert celler and all(re.fullmatch(r"\d+,\d|–", c) for c in celler), slug
+        tabeller = len(re.findall(r'<table[^>]*class="[^"]*\bfasit-anslag\b', side))
+        assert side.count("Avrundet. Den forseglede verdien står i ukefila.") == tabeller, slug
+    # Kopien av ukefila er byte for byte den forseglede.
+    import skaar_anslag
+    for k in skaar_anslag.forseglede_kopier(_ekte(ekte_maskin)):
+        if k["slag"] == "fil":
+            assert (konstruert / k["sti"]).read_bytes() == k["kilde"].read_bytes()
 
 
 def test_typesiden_har_aapne_uker_foerst_og_saa_etter_aapningsdato(konstruert):

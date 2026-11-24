@@ -9851,6 +9851,9 @@ ANSLAGSTYPER = {
         "navn": "Brakklegging per produksjonsområde",
         "slug": "brakklegging",
         "kilder": ("lusetall", "akvakultur"),
+        # DESIMALENE PÅ SIDEN, avrundet (16b, rettinger 4). Ukefila har
+        # den forseglede verdien, og skåren regnes på den.
+        "desimaler": 1,
         "ingress": (
             "Hvor mange lokaliteter som blir brakklagt i hvert produksjonsområde "
             "de neste fire ukene.",
@@ -9862,6 +9865,7 @@ ANSLAGSTYPER = {
         "navn": "Voksne hunnlus per produksjonsområde",
         "slug": "voksne-hunnlus",
         "kilder": ("lusetall", "sjotemperatur", "akvakultur"),
+        "desimaler": 1,
         "ingress": (
             "Snittet av voksne hunnlus per fisk i hvert produksjonsområde om "
             "fire uker.",
@@ -9890,10 +9894,21 @@ def _ukene_vist(tekst: str) -> str:
     return f"uke {u1}, {a1}–uke {u2}, {a2}"
 
 
-def _maaltall(x) -> str | None:
-    """Et tall fra fasiten slik det står i fila, med norsk desimaltegn.
-    Ingen avrunding: tallet på siden skal kunne holdes mot fila."""
-    return None if x is None else visningsord.tall(x)
+def _maaltall(x, desimaler: int | None = None) -> str | None:
+    """Et tall fra fasiten med norsk desimaltegn.
+
+    Uten `desimaler` slik det står i fila. Med `desimaler` AVRUNDET til
+    nøyaktig så mange (16b, rettinger 4): typesidene viste 3,548 ved siden
+    av 4,0829, og et ulikt antall desimaler leses som ulik presisjon. Under
+    tabellen står at tallene er avrundet og at den forseglede verdien står
+    i ukefila; skåren er regnet på den forseglede, ikke på det som vises."""
+    if x is None:
+        return None
+    if desimaler is None:
+        return visningsord.tall(x)
+    heltall, _, desimal = f"{float(x):,.{desimaler}f}".partition(".")
+    heltall = heltall.replace(",", visningsord.TUSENSKILLE)
+    return f"{heltall},{desimal}" if desimal else heltall
 
 
 def _forseglet_vist(stempel: str) -> str:
@@ -9925,7 +9940,7 @@ def _skaares_ikke_grunn(rader: list[dict]) -> str:
     return "Skåres ikke: anslaget, en referanse eller utfallet kan ikke regnes ut."
 
 
-def _maskinrad(r: dict, po_navn: dict[str, str]) -> dict:
+def _maskinrad(r: dict, po_navn: dict[str, str], desimaler: int | None = None) -> dict:
     """Én rad i fasiten.json, slik sidene viser den. Samme nøkler som en
     påstand om havbruksfondet (`bygg_fasit_havbruksfond()`), så én makro
     skriver begge.
@@ -9938,12 +9953,13 @@ def _maskinrad(r: dict, po_navn: dict[str, str]) -> dict:
     s = r.get("skaar") or {}
     return {
         "id": r["id"], "po": str(r["po"]), "po_navn": po_navn.get(str(r["po"]), ""),
-        "anslag": _maaltall(r["anslag"]),
-        "referanser": [_maaltall(r["referanse_a"]), _maaltall(r["referanse_b"])],
+        "anslag": _maaltall(r["anslag"], desimaler),
+        "referanser": [_maaltall(r["referanse_a"], desimaler),
+                       _maaltall(r["referanse_b"], desimaler)],
         "status": MASKINSTATUS.get(r["status"], ""),
         "ord": ("Traff" if s.get("slo_begge") else "Bom") if avgjort else "",
-        "utfall": _maaltall(r["utfall"]) if avgjort else None,
-        "avvik": _maaltall(s.get("feil_modell")) if avgjort else None,
+        "utfall": _maaltall(r["utfall"], desimaler) if avgjort else None,
+        "avvik": _maaltall(s.get("feil_modell"), desimaler) if avgjort else None,
         "konfidens": None, "intervall": None,
     }
 
@@ -9992,7 +10008,8 @@ def _maskintyper(f: dict, felles: Felles | None) -> list[dict]:
                 blokker = h.ots_blokker(k["komplett"]["kilde"].read_bytes(),
                                         k["komplett"]["kilde"].name)
                 blokk = blokker[0] if blokker else None
-            rader = [_maskinrad(r, po_navn) for r in sorted(rr, key=lambda r: int(r["po"]))]
+            rader = [_maskinrad(r, po_navn, meta["desimaler"])
+                     for r in sorted(rr, key=lambda r: int(r["po"]))]
             apne = sum(r["status"] == "åpen" for r in rr)
             skaares_ikke = sum(r["status"] == "skåres ikke" for r in rr)
             traff = sum(x["ord"] == "Traff" for x in rader)
