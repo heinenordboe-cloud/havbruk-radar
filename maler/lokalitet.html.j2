@@ -293,9 +293,13 @@
          Havet fylles, kystlinja strekes; tegnes havflata med strek,
          vises delelinjene mellom nabo-havflater som rette streker
          tvers over sjøen. #}
+      {# `role="group"` OG IKKE `img` fra 24.11.2026 (16b, 6b): punktene
+         kan nås med tastaturet, og en rolle med presentasjonelle barn
+         skjuler dem for en skjermleser (axe-core: «nested-interactive»,
+         alvorlig). Etiketten er den samme. #}
       <svg class="posisjonskart" data-kart viewBox="0 0 {{ pk.bredde }} {{ pk.hoyde }}"
            width="{{ pk.bredde }}" height="{{ pk.hoyde }}"
-           role="img" aria-label="Kart over hvor lokaliteten ligger:
+           role="group" aria-label="Kart over hvor lokaliteten ligger:
            utsnitt på {{ pk.km|round|int }} kilometer med
            {{ lok.tittelnavn }} i midten,
            {{ antall(pk.naboer|length, "nabolokalitet", "nabolokaliteter") }}

@@ -2433,7 +2433,9 @@ def test_kartet_har_tittel_og_beskrivelse_for_skjermleser():
     `<desc>` blir stående — de er det en som åpner SVG-en alene får.
     """
     html = _forside()
-    assert 'role="img"' in html
+    # GRUPPE OG IKKE BILDE fra 24.11.2026 (16b, 6b): områdene er lenker,
+    # og `img` skjuler dem for en skjermleser (axe: nested-interactive).
+    assert re.search(r'<svg class="kystkart"[^>]*role="group"', html)
     assert 'aria-label="Kart over' in html
     assert '<title id="kysttittel">' in html
     assert '<desc id="kystbeskrivelse">' in html
@@ -2503,7 +2505,9 @@ def test_hvert_kart_har_rolle_og_etikett():
                        ("omraade", _po())):
         for m in re.finditer(r"<svg\b[^>]*\bdata-kart\b[^>]*>", html):
             tagg = m.group(0)
-            assert 'role="img"' in tagg, f"{navn}: kart uten role"
+            # `group` der kartet har lenker eller punkter som kan nås
+            # (forsiden og lokalitetssiden fra 16b), ellers `img`.
+            assert re.search(r'role="(img|group)"', tagg), f"{navn}: kart uten role"
             assert "aria-label=" in tagg, f"{navn}: kart uten aria-label"
 
 

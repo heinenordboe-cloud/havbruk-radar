@@ -348,9 +348,14 @@
       {# `data-kart` ER MERKET PORTEN LETER ETTER. Ett attributt på hver
          kart-SVG, og én regel: en side med et kart må bære «© Kartverket».
          Se `publiseringsvakt.kart_uten_attribusjon()`. #}
+      {# `role="group"` OG IKKE `img` fra 24.11.2026 (16b, 6b). Områdene er
+         lenker, og en rolle med presentasjonelle barn skjuler dem for en
+         skjermleser: axe-core måler det som «nested-interactive»
+         (alvorlig). Som gruppe har kartet samme etikett, og lenkene kan
+         nås. #}
       <svg class="kystkart" data-kart viewBox="0 0 {{ f.kart.bredde }} {{ f.kart.hoyde }}"
            width="{{ f.kart.bredde }}" height="{{ f.kart.hoyde }}"
-           role="img"
+           role="group"
            aria-label="Kart over
            {{ antall(f.produksjonsomraader, "produksjonsområde", "produksjonsområder") }},
            fylt med trafikklysfargen

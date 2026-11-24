@@ -73,6 +73,29 @@ bare at vi prøvde (CLAUDE.md 1b-2).
 Binæren er 15,6 MB og plattformspesifikk, og ligger derfor ikke i
 repoet. Se `docs/design/PAGEFIND.md`.
 
+## axe-core 4.10.3 — universell utforming (vendret)
+
+    tests/vendor/axe-core-4.10.3/axe.min.js   sha256 880970c0…68bb
+    tests/vendor/axe-core-4.10.3/LICENSE      MPL-2.0, sha256 af175b9d…df7e
+
+Brukes av `tests/test_uu.py` (økt 16b, 6b), som setter axe.min.js inn i
+sidene i portens bygg gjennom Playwright og krever null brudd på WCAG 2.1
+AA på seks sider. Vendret, ikke installert: ingen pakkebrønn, ingen nett
+når prøven kjører, og kodrepoets Actions installerer ingenting nytt.
+
+Pakket ut 24.11.2026 av npm-tarballen, **etter** at summen var
+sammenlignet med den npm oppgir:
+
+    https://registry.npmjs.org/axe-core/-/axe-core-4.10.3.tgz
+    563 802 byte
+    sha512-Xm7bpRXnDSX2YE2YFfBk2FnF0ep6tmG7xPh8iHee8MIcrgq762Nkce856dYtJYLkuIoYZvGfTs/PbZhideTcEg==
+    (dist.integrity i https://registry.npmjs.org/axe-core/4.10.3)
+
+Bare `package/axe.min.js` og `package/LICENSE` er tatt ut. Hele summene
+står i prøven, som feller en byttet fil i den vanlige runden. En ny
+versjon er en ny måling: bytt mappa, summene og versjonen i prøven
+sammen.
+
 ## playwright 1.63.0 + chromium — skjermbildene i serie
 
     pip install playwright
