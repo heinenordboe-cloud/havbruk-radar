@@ -12355,7 +12355,11 @@ def skriv_alle(rot: Path = UT, grense: int | None = None
     fasiten: list[str] = []
     try:
         fasiten = skriv_fasiten(rot, felles)
-        logg.forseglede = len(list((rot / FASIT_STI).rglob("*.md*")))
+        # FILENE, IKKE ENDELSENE TIL ÉN TYPE. Til 24.11.2026 talte linja
+        # `*.md*` og sa «4» mens bygget hadde skrevet 13: ukefilene for
+        # maskinanslagene (.yml, .ots, .komplett.ots) kom med i 16b.
+        logg.forseglede = sum(1 for p in (rot / FASIT_STI).rglob("*")
+                              if p.is_file() and p.suffix in (".md", ".ots", ".yml"))
     except Exception as feil:                        # noqa: BLE001
         logg.feilet.append(("fasiten", f"{type(feil).__name__}: {feil}"))
     tider["fasiten"] = time.perf_counter() - t0
