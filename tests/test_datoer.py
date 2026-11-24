@@ -86,6 +86,10 @@ def test_proveniens_baerer_kilde_snapshot_og_hentet():
      "Data hentet 30. desember 2025 kl. 01.00 UTC (uke 1, 2026)."),
     # Uten hentetidspunkt sier linja ingenting om det, som før.
     ("2026-11-16", "", "Data fra uke 47, 2026."),
+    # Lusetall for uke 44 hentet i uke 48: uka i parentes er uka for
+    # datoen foran, ikke uka tallene gjelder (16b, rettinger 3).
+    ("2026-10-26", "2026-11-23T15:46:02+00:00",
+     "Data hentet 23. november 2026 kl. 15.46 UTC (uke 48)."),
 ])
 def test_bunnlinja_har_uka_i_parentes(observert, hentet, ventet):
     assert str(nettsted.proveniens(observert, hentet)) == ventet
@@ -153,6 +157,34 @@ def test_to_sider_i_samme_bygg_oppgir_ikke_ulik_dato_for_samme_ting():
     ulike = {k: sorted(v) for k, v in hentet.items() if len(v) > 1}
     assert not ulike, f"samme snapshot, ulikt hentetidspunkt: {ulike}"
     assert merket > 1000, f"bare {merket} sider oppgir kilde for bunnlinja"
+
+
+_MAANED = {m: i for i, m in enumerate(
+    ("januar", "februar", "mars", "april", "mai", "juni", "juli", "august",
+     "september", "oktober", "november", "desember"), start=1)}
+
+
+@trenger_bygg
+def test_ingen_bunntekst_har_en_annen_uke_enn_hentedatoens():
+    """«Data hentet 23. november 2026 … (uke 44)» sto på typesidene under
+    /fasiten/: hentet i uke 48, lusetall fra uke 44 (16b, rettinger 3).
+    Uka i parentes er ISO-uka for datoen foran, på hver side i bygget."""
+    feil, sett = [], 0
+    for fil in _sider():
+        side = fil.read_text(encoding="utf-8")
+        blokk = re.search(r'<div class="ark bunn-proveniens".*?</div>', side, re.S)
+        if not blokk:
+            continue
+        tekst = " ".join(re.sub(r"<[^>]+>", " ", blokk.group(0)).split())
+        for d, m, a, uke, aar in re.findall(
+                r"Data hentet (\d{1,2})\. (\w+) (\d{4}) kl\. [\d.]+ UTC "
+                r"\(uke (\d+)(?:, (\d{4}))?\)", tekst):
+            sett += 1
+            iso = dt.date(int(a), _MAANED[m], int(d)).isocalendar()
+            if (int(uke), int(aar or a)) != (iso.week, iso.year):
+                feil.append((fil.relative_to(NETTSTED).as_posix(), tekst[:90]))
+    assert sett > 1000, f"bare {sett} bunntekster med uke"
+    assert not feil, f"{len(feil)} sider, f.eks. {feil[:3]}"
 
 
 @trenger_bygg

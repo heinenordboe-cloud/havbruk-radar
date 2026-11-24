@@ -367,6 +367,30 @@ def test_portens_bygg_har_en_side_per_type_og_neste_fasit(ekte_maskin):
             "og registreres og stemples før første forsegling.") in tekst
 
 
+@trenger_bygg
+def test_bunnteksten_paa_fasitsidene_oppgir_den_nyeste_hentingen(ekte_maskin):
+    """/fasiten/ sto med havbruksfondets nøkkel fra 31.08 og typesidene
+    med uka lusetallene gjelder (16b, rettinger 3). Nå: når de nyeste
+    dataene på siden ble hentet, og der lusetall vises, linja om uka.
+    Typesidene oppgir lusetallene fasiten er skåret mot (`data_til`), og
+    oversikten den nyeste av dem og havbruksfondets side."""
+    def bunn(rel):
+        side = (NETTSTED / rel).read_text("utf-8")
+        blokk = re.search(r'<div class="ark bunn-proveniens".*?</div>', side, re.S).group(0)
+        attr = dict(re.findall(r'data-proveniens-(\w+)="([^"]*)"', blokk))
+        return attr, _tekst(blokk)
+    oversikt, o_tekst = bunn("fasiten/index.html")
+    fondet, _ = bunn("fasiten/havbruksfondet-2026/index.html")
+    for slug in ("brakklegging", "voksne-hunnlus"):
+        attr, tekst = bunn(f"fasiten/{slug}/index.html")
+        assert (attr["kilde"], attr["gjelder"]) == ("lusetall", _ekte(ekte_maskin)["data_til"])
+        assert tekst.startswith("Data hentet " + nettsted.visningsord.tidspunkt(attr["hentet"]))
+        assert "Lusetallene gjelder uka de er datert til." in tekst, slug
+        assert oversikt["hentet"] >= attr["hentet"]
+    assert oversikt["hentet"] >= fondet["hentet"]
+    assert "Lusetallene gjelder" not in o_tekst
+
+
 # ------------------------------------------------- menyen (16b, 3)
 
 

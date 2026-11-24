@@ -663,7 +663,13 @@ def proveniens(observed_at: str, fetched_at: str, tillegg: str = "",
     155 tegn — fire linjer på 390 px — med «øyeblikksbildet» i, et internt
     ord (tekstreglene: det står bare i siteringsformatet).
     """
-    uka = visningsord.uke(observed_at)
+    # UKA I PARENTES ER UKA FOR DATOEN FORAN, ikke uka dataene gjelder
+    # (16b, rettinger 3). Typesidene under /fasiten/ sto med «Data hentet
+    # 23. november 2026 … (uke 44)»: hentet i uke 48, lusetall fra uke 44.
+    # Parentesen leses som uka for datoen, og der dataene gjelder en annen
+    # uke, sier en egen linje det («Lusetallene gjelder uka de er datert
+    # til.»). Uten hentetidspunkt står uka dataene gjelder, som før.
+    uka = visningsord.uke((fetched_at or "")[:10] or observed_at)
     hentet = visningsord.tidspunkt(fetched_at)
     # UKA I PARENTES, uten året når året står i datoen foran: «Data hentet
     # 16. november 2026 kl. 13.26 UTC (uke 47).» (Heine, 23.11.2026; til da
@@ -10150,6 +10156,28 @@ def _jsonld_anslag(tittel: str, beskrivelse: str, vilkaar: dict, sti: str,
     return _script_trygg(med_url_og_lisens(data, sti))
 
 
+def _nyeste_henting(lesinger: list[tuple[str, str]], annen: str = "") -> Proveniens:
+    """Den nyeste hentingen blant snapshotene en side bygger på, som
+    (kilde, snapshot, hentet) i en `Proveniens`: `lesinger` er (kilde,
+    dato), `annen` et hentetidspunkt som ikke er et snapshot
+    (havbruksfondets fordeling når den er lest).
+
+    NYESTE ETTER `fetched_at`, ikke etter snapshotdatoen: lusetallene for
+    uke 44 ble hentet i uke 48 (CLAUDE.md 1b, OSS og VERDEN). Et snapshot
+    uten hentetidspunkt kan ikke være det nyeste vi vet om."""
+    kandidater = [(_hentet(k, dato), k, dato) for k, dato in lesinger if dato]
+    if annen:
+        kandidater.append((annen, "", annen[:10]))
+    ut = Proveniens("")
+    if kjente := [x for x in kandidater if x[0]]:
+        ut.hentet, ut.kilde, ut.gjelder = max(kjente)
+    elif kandidater:
+        # INGEN HENTETIDSPUNKT KJENT: det nyeste snapshotet, uten tidspunkt.
+        # Linja blir «Data fra uke N.», som `proveniens()` skriver da.
+        _, ut.kilde, ut.gjelder = max(kandidater, key=lambda x: x[2])
+    return ut
+
+
 def skriv_fasiten(rot: Path, felles: Felles | None = None,
                   fasit: dict | None = None, torrkjoring: str = "",
                   maskin: dict | None = None) -> list[str]:
@@ -10166,10 +10194,18 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
     d = o["havbruksfond"]
     miljo = _miljo()
     vilkaar = felles.vilkaar if felles else kildevilkaar()
+    # BUNNTEKSTEN PÅ FASITSIDENE sier når de NYESTE dataene på siden ble
+    # hentet (16b, rettinger 3). Til da sto /fasiten/ med havbruksfondets
+    # nøkkel fra 31.08, mens anslagene på samme side er skåret mot lusetall
+    # hentet 23.11.
+    lus = o["data_til"]
+    lesinger = [("akvakultur", d["for"]), ("akvakultur", d["etter"])]
+    fondet = _nyeste_henting(lesinger, (d["fasit"] or {}).get("hentet", ""))
+    eldre = [dato for _, dato in lesinger if dato != fondet.gjelder]
     proveniens_tekst = proveniens(
-        d["for"], _hentet("akvakultur", d["for"]),
-        f"Registeret er også lest {visningsord.kortdato(d['etter'])}.",
-        kilde="akvakultur")
+        fondet.gjelder, fondet.hentet,
+        f"Registeret er også lest {visningsord.liste([visningsord.kortdato(x) for x in eldre], 'og')}."
+        if eldre else "", kilde=fondet.kilde)
     datoer = visningsord.liste(
         [visningsord.kortdato(s["dato"]) for s in d["forseglinger"]], "og")
 
@@ -10189,9 +10225,16 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
     skriv_side(sti, html)
 
     # ÉN SIDE PER TYPE MASKINANSLAG, i samme form som havbruksfondets.
-    lus = o["data_til"]
-    lus_proveniens = proveniens(lus, _hentet("lusetall", lus) if lus else "",
-                                kilde="lusetall")
+    # Fasiten er skåret mot lusetallene til og med `data_til`; tabellene
+    # viser ukene lusetallene er datert til, ikke uka de ble hentet.
+    maskin = _nyeste_henting([("lusetall", lus)] if lus else [])
+    lus_proveniens = proveniens(maskin.gjelder, maskin.hentet,
+                                "Lusetallene gjelder uka de er datert til.",
+                                kilde=maskin.kilde)
+    # OVERSIKTEN viser havbruksfondet og maskinanslagene: den nyeste av dem.
+    alt = _nyeste_henting(lesinger + ([("lusetall", lus)] if lus else []),
+                          (d["fasit"] or {}).get("hentet", ""))
+    oversikt_proveniens = proveniens(alt.gjelder, alt.hentet, kilde=alt.kilde)
     for t in o["typer"]:
         tittel = f"{t['navn']}: anslagene våre, forseglet hver uke"
         beskrivelse = (f"{t['navn']}: anslag per produksjonsområde, forseglet hver "
@@ -10219,7 +10262,7 @@ def skriv_fasiten(rot: Path, felles: Felles | None = None,
         o=o, datoer=datoer, **_grunnkontekst(
             felles, rot, oversikt, kilder=kilder,
             tittel="Fasiten — Kystloggen", beskrivelse=beskrivelse,
-            jsonld="", proveniens_tekst=proveniens_tekst, sidetype="Liste",
+            jsonld="", proveniens_tekst=oversikt_proveniens, sidetype="Liste",
             meny_aktiv="fasiten",
             undertittel="Forseglede anslag og utfallet",
             soketekst="fasiten fasit anslag"))
