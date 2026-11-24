@@ -9867,7 +9867,10 @@ ANSLAGSTYPER = {
         "navn": "Voksne hunnlus per fisk, per produksjonsområde",
         "slug": "voksne-hunnlus",
         "kilder": ("lusetall", "sjotemperatur", "akvakultur"),
-        "desimaler": 1,
+        # TO DESIMALER (Heine, 16b): verdiene ligger mellom 0,02 og 0,38
+        # voksne hunnlus per fisk, og med én sto 0,1 for sju av tretten
+        # områder, med anslag og siste verdi like i flere rader.
+        "desimaler": 2,
         "ingress": (
             "Snittet av voksne hunnlus per fisk i hvert produksjonsområde om "
             "fire uker.",

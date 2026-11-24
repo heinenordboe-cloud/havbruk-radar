@@ -183,18 +183,21 @@ def test_en_uke_som_bommet_og_en_som_traff_har_like_rader(konstruert):
 
 def test_anslagene_har_en_desimal_og_fila_har_den_forseglede(konstruert, ekte_maskin):
     """3,548 sto ved siden av 4,0829 (16b, rettinger 4). Hver tallcelle på
-    typesidene har én desimal, avrundet, og under hver tabell står at den
-    forseglede verdien står i ukefila. Ukefila og kopien er uendret."""
+    en typeside har like mange desimaler, avrundet: én for K2, to for K6
+    (Heine, 16b). Under hver tabell står at den forseglede verdien står i
+    ukefila. Ukefila og kopien er uendret."""
     assert nettsted._maaltall(4.0829, 1) == "4,1"
     assert nettsted._maaltall(3.548, 1) == "3,5"
     assert nettsted._maaltall(7, 1) == "7,0"
     assert nettsted._maaltall(None, 1) is None
+    assert nettsted._maaltall(0.1018, 2) == "0,10"
+    assert nettsted._maaltall(0.1427, 2) == "0,14"
     assert nettsted._maaltall(4.0829) == "4,0829"          # uten: som i fila
-    for slug in ("brakklegging", "voksne-hunnlus"):
+    for slug, form in (("brakklegging", r"\d+,\d"), ("voksne-hunnlus", r"\d+,\d\d")):
         side = (konstruert / "fasiten" / slug / "index.html").read_text("utf-8")
         celler = re.findall(r'<td class="tall"[^>]*data-felt="(?:anslag|referanse_[ab])"[^>]*>([^<]*)</td>',
                             side)
-        assert celler and all(re.fullmatch(r"\d+,\d|–", c) for c in celler), slug
+        assert celler and all(re.fullmatch(rf"{form}|–", c) for c in celler), slug
         tabeller = len(re.findall(r'<table[^>]*class="[^"]*\bfasit-anslag\b', side))
         assert side.count("Avrundet. Den forseglede verdien står i ukefila.") == tabeller, slug
     # Kopien av ukefila er byte for byte den forseglede.
