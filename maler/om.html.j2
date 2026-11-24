@@ -70,10 +70,23 @@
    i tre avsnitt» øverst, metode, kilder og sitering under. Sto som
    sjette del til 08.10.2026. #}
 <h2 id="hvem">Hvem som står bak</h2>
-{#- INGEN LENKE TIL KODREPOET HER. Den eneste veien dit fra nettstedet er
+{#- EN KORT BLOKK OM HVEM (16b, 23.11.2026). Teksten er Heines, ordrett;
+    navnet er `om.forfatter`, det samme som i JSON-LD-en. To avsnitt, én
+    setning i hvert (67 og 106 tegn, under 110-grensa).
+
+    INTET BILDE og ingen plassholder: oppdraget ba om bilde bare hvis
+    ~/kystloggen-utkast/16b/heine.jpg fantes, og den fantes ikke da
+    blokka ble skrevet. Kommer det et, legges det i maler/bilde/ og
+    skrives med innholdshash i navnet som herobildene (`skriv_bilder()`).
+
+    INGEN LENKE TIL KODREPOET HER. Den eneste veien dit fra nettstedet er
     «Kildekoden» i bunnteksten (Heine, 23.11.2026). Til da sto adressen
     som lenke her, i JSON-LD-en, i llms.txt og i hver feed. #}
-<p>{{ om.forfatter }}. Koden, beslutningsloggen og målingene ligger åpent: se «Kildekoden» nederst på siden.</p>
+<div class="om-hvem">
+  <p>Kystloggen er bygget og drives av {{ om.forfatter }} fra Trondheim.</p>
+  <p>Han studerer økonomi i USA og har jobbet på produksjonsgulvet i en fiskefabrikk, med slakting og skjæring.</p>
+</div>
+<p>Koden, beslutningsloggen og målingene ligger åpent: se «Kildekoden» nederst på siden.</p>
 <p>
   {% if om.kontakt %}
   Kontakt: <a href="mailto:{{ om.kontakt }}">{{ om.kontakt }}</a>.

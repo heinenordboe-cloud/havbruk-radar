@@ -3267,6 +3267,17 @@ strong.uenige { display: inline; }
 
 .om-tekst h2:first-child { margin-block-start: 0; }
 
+/* HVEM SOM STÅR BAK (16b): to setninger i ingressens skrift, så blokka
+   leses som et svar og ikke som en fotnote. Intet bilde. */
+.om-hvem { margin: 0 0 var(--rom-16); }
+.om-hvem p {
+  margin: 0 0 var(--rom-8);
+  font-family: var(--skrift-tittel);
+  font-size: var(--tekst-ingress);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
 /* TABELLENE I OM-TEKSTEN: radhodet får bryte, og ord deles etter
    ordboka. ATTRIBUSJONEN DELES IKKE — den står ordrett. */
 .om-tekst tbody th { white-space: normal; }

@@ -6904,3 +6904,20 @@ def test_2026_cellene_i_bygget_har_forskriften_som_grunnlag():
         if farge in ("grønn", "gul", "rød"):
             assert grunnlag == "i forskriften", (farge, grunnlag)
         assert grunnlag != "i kunngjøringen"
+
+
+def test_om_har_en_kort_blokk_om_hvem_som_staar_bak():
+    """16b, 5: Heines tekst, ordrett, med navnet fra `om.forfatter`.
+    Bilde bare hvis ~/kystloggen-utkast/16b/heine.jpg fantes; den gjorde
+    ikke det, og det står ingen plassholder."""
+    html = _om()
+    flat = " ".join(html.split())
+    assert "Kystloggen er bygget og drives av Heine Valø Nordbøe fra Trondheim." in flat
+    assert ("Han studerer økonomi i USA og har jobbet på produksjonsgulvet i en "
+            "fiskefabrikk, med slakting og skjæring.") in flat
+    blokk = re.search(r'<div class="om-hvem">.*?</div>', html, re.S).group(0)
+    assert "<img" not in blokk and "plassholder" not in blokk.lower()
+    # Navnet står én gang i blokka, ikke i tillegg foran «Koden …».
+    assert "Heine Valø Nordbøe. Koden" not in flat
+    assert flat.index('id="hvem"') < flat.index("Kystloggen er bygget") < flat.index(
+        'id="innsamling"')
