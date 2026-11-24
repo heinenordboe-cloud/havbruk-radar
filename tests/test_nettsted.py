@@ -6925,3 +6925,17 @@ def test_om_har_en_kort_blokk_om_hvem_som_staar_bak():
     assert "Heine Valø Nordbøe. Koden" not in flat
     assert flat.index('id="hvem"') < flat.index("Kystloggen er bygget") < flat.index(
         'id="innsamling"')
+
+
+def test_om_har_setningen_fra_brief_under_tittelen():
+    """16b, rettinger 6: setningen under tittelen er BRIEFs «Én setning»,
+    ordrett, og det gamle mottoet står ikke på siden."""
+    brief = (Path(nettsted.__file__).parent / "docs" / "design" / "BRIEF.md").read_text("utf-8")
+    setning = " ".join(re.search(r"## Én setning\s+((?:> .*\n)+)", brief).group(1)
+                       .replace(">", " ").split())
+    assert setning == ("Kystloggen husker det registrene skriver over, og viser hvor ofte "
+                       "anslagene treffer.")
+    html = _om()
+    losen = re.search(r'<p class="om-losen">(.*?)</p>', html, re.S).group(1)
+    assert " ".join(losen.split()) == setning
+    assert "Vi tar vare på før" not in html
