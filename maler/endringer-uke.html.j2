@@ -68,6 +68,17 @@
     fikk sine første.</p>
   {% endfor %}
   {% endif %}
+  {#- FELT UNDER AVKLARING MED KILDEN, av samme grunn som
+      artsbegrensningene over: radene står i de tekniske, som er lukket,
+      og linja sier hva de er. Bare på sidene som har radene. #}
+  {#- I «Observert …»-linjas størrelse, ikke ingressens (Heine, SD2). #}
+  {% for linje in avklaring|default([]) %}
+  <div class="avklaring">
+    {%- for avsnitt in linje %}
+    <p class="lok-undertittel">{{ avsnitt }}</p>
+    {%- endfor %}
+  </div>
+  {% endfor %}
   <p class="lok-undertittel">{{ u.merke }}.</p>
   <p class="lok-undertittel">Permalenke:
     {# VERTSNAVNET KOMMER FRA KONFIGURASJONEN, ikke fra malen: en

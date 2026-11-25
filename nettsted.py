@@ -1231,6 +1231,94 @@ def _les_beveg() -> pl.DataFrame:
         ~pl.col("source").is_in(sorted(IKKE_PUBLISERT)) & ~skjult)
 
 
+# ------------------------------------------- felt under avklaring
+#
+# Lista står i config.yml (`nettsted.under_avklaring`) og leses av
+# `vesentlighet`. Klassen — teknisk — settes der, og følger raden til
+# hver side. Her er de to tingene klassen ikke sier: hvor mange
+# lokaliteter skiftet gjaldt, og linja som sier det.
+
+def er_under_avklaring(h: dict) -> bool:
+    """Står denne hendelsen (eller tidslinjeposten) på lista?"""
+    return vesentlighet.under_avklaring(
+        str(h.get("kilde", "")), str(h.get("kildefelt", "")),
+        str(h.get("dato", ""))) is not None
+
+
+@lru_cache(maxsize=1)
+def _avklaringstall() -> dict[tuple[int, str], int]:
+    """{(oppføring, uke): antall entiteter} i changeloggen, gjennom døra.
+
+    TELT, IKKE SKREVET. Tallet i linja står ikke i config.yml: der ville
+    det vært en påstand som ikke flyttet seg når changeloggen gjorde det.
+    Per uke, fordi linja sier «i samme uke» om én uke — kommer flagget
+    tilbake en senere uke, er det et annet tall.
+    """
+    ut: dict[tuple[int, str], set[str]] = defaultdict(set)
+    beveg = _les_beveg()
+    for o in vesentlighet.avklaringer():
+        mine = beveg.filter((pl.col("source") == o["kilde"])
+                            & (pl.col("field") == o["felt"]))
+        for r in mine.select("entity_id", "observed_at").iter_rows():
+            if vesentlighet.under_avklaring(o["kilde"], o["felt"], r[1]) is o:
+                ut[(o["nr"], _ukeslug(str(r[1])))].add(str(r[0]))
+    return {k: len(v) for k, v in ut.items()}
+
+
+def avklaringslinjer(rader: list[dict], med_felt: bool = True
+                     ) -> list[list[str]]:
+    """Linja for hvert felt og hver uke under avklaring blant `rader`.
+
+    Hver linje er en liste avsnitt, i den rekkefølgen de står: ordene er
+    Heines (SD2, 25.11.2026), og de to setningene er til sammen over
+    avsnittsgrensa på 110 tegn, så de står hver for seg. Feltnavnet står foran, så «dette
+    feltet» har noe å vise til også på en side med mange felt.
+    `med_felt=False` er for en linje som står i raden selv, under feltet
+    den gjelder.
+    """
+    tall = _avklaringstall()
+    funnet: dict[tuple[int, str], dict] = {}
+    for h in rader:
+        o = vesentlighet.under_avklaring(
+            str(h.get("kilde", "")), str(h.get("kildefelt", "")),
+            str(h.get("dato", "")))
+        if o is None:
+            continue
+        funnet.setdefault((o["nr"], _ukeslug(str(h["dato"]))), o)
+    # I LISTAS REKKEFØLGE, så samdrift står over samlokalisering på
+    # hver side, uansett hvilken rad tidslinja tilfeldigvis har først.
+    ut: list[list[str]] = []
+    for nokkel, o in sorted(funnet.items(), key=lambda x: x[0]):
+        n = tall.get(nokkel, 0)
+        naar = "samtidig" if vesentlighet.samtidig(o) else "i samme uke"
+        foran = f"{visningsord.felt(str(o['felt']))}: " if med_felt else ""
+        ut.append([
+            f"{foran}Kilden endret dette feltet "
+            f"for {visningsord.antall(n, 'lokalitet', 'lokaliteter')} {naar}, "
+            f"uten ny versjon i registeret."])
+    # «VI HAR SPURT» ÉN GANG PER SIDE, etter den siste linja. Samdrift og
+    # samlokalisering er ett spørsmål til kilden, og på ukesiden sto
+    # setningen to ganger etter hverandre (skjermbildet 25.11.2026).
+    if ut:
+        ut[-1].append("Vi har spurt Fiskeridirektoratet.")
+    return ut
+
+
+def _med_avklaring(poster: list[dict]) -> list[dict]:
+    """Tidslinjepostene, med `avklaring` på hver: linja og «Vi har spurt»
+    for en post under avklaring, ellers tom.
+
+    I POSTEN OG IKKE OVER TIDSLINJA. Til 25.11.2026 sto linja under
+    «Endringer vi har sett», over en endring den ikke gjaldt (Heine, SD2).
+    Står både samdrift og samlokalisering på siden, har hver sin linje.
+    """
+    ut = []
+    for p in poster:
+        linjer = avklaringslinjer([p], med_felt=False)
+        ut.append(dict(p, avklaring=linjer[0] if linjer else []))
+    return ut
+
+
 def les_felles() -> Felles:
     """Leser snapshots og changelog én gang. Tar ~14 s.
 
@@ -4162,6 +4250,7 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
         # ---- endringene ----
         "endringer": om_omraadet,
         "i_omraadet": i_omraadet,
+        "avklaring": avklaringslinjer(i_omraadet),
         "endringsuker": len(uker),
         # FRA MÅLESERIEINDEKSEN, ikke fra `registerendringer` — den
         # inneholder per konstruksjon ingen måleserierader, så en telling
@@ -5886,7 +5975,10 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
             omraade=a.get("prodomraade_kode", "")),
 
         # ---- de to historikkene ----
-        "observert": _observert_historikk(endringer, dekning, felles),
+        # FELT UNDER AVKLARING MED KILDEN: linja står i POSTEN den
+        # gjelder, blant de tekniske. Se `_med_avklaring()`.
+        "observert": _med_avklaring(
+            _observert_historikk(endringer, dekning, felles)),
         "oppgitt": (oppgitt := _oppgitt_historikk(
             a, tillatelsesrader, overforingsrader, former, enhetsstatus)),
         # HERKOMSTEN FOR DET ENHETSREGISTERET SIER i tabellen: «i dag» og
@@ -7491,6 +7583,9 @@ def skriv_endringssider(rot: Path, felles: Felles,
             skriv_html(sti, uke_mal.render(
                 u=uke, rader=ledet, egen=egen, valgt=valgt, url=url,
                 tekniske=tekniske,
+                # FELT UNDER AVKLARING blant de tekniske radene på DENNE
+                # siden, også på en typeside. Se `avklaringslinjer()`.
+                avklaring=avklaringslinjer(tekniske),
                 overskriftstall=_ukens_overskriftstall(uke, valgt, ledet),
                 nyere=nyere, eldre=eldre, uker_totalt=len(uker),
                 # TIDSLINJA FLYTTET HIT 27.09.2026. Den sto på forsiden
@@ -7731,7 +7826,11 @@ def skriv_feeder(rot: Path, felles: Felles, uker: list[dict]) -> list[Path]:
     samme regnskapet er formen F6 og F7 hadde — og for en feed er
     prisen at en leser får en post som ikke finnes på siden.
     """
-    alle = [h for u in uker for h in u["hendelser"]]
+    # FELT UNDER AVKLARING MED KILDEN står ikke i noen feed. En side kan
+    # bære linja som sier hvorfor raden er der; en feedpost kan ikke, og
+    # en post som er lest, kan ikke kalles tilbake. Se config.yml
+    # (`nettsted.under_avklaring`).
+    alle = [h for u in uker for h in u["hendelser"] if not er_under_avklaring(h)]
     alle.sort(key=lambda h: h["dato"], reverse=True)
     skrevet: list[Path] = []
     i_dag = byggedato()

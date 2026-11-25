@@ -509,6 +509,12 @@
           <span data-felt="versjon_aarsak">{{ post.forklaring }}</span>)</span>
         {%- endif %}
       </div>
+      {#- FELT UNDER AVKLARING MED KILDEN: linja i raden den gjelder, og
+          «Vi har spurt» rett etter. Verdien over er kildens, uendret. Se
+          `_med_avklaring()`. #}
+      {%- for avsnitt in post.avklaring|default([]) %}
+      <p class="tidsakse-avklaring">{{ avsnitt }}</p>
+      {%- endfor %}
       {% endif %}
     </li>
   {% endmacro %}

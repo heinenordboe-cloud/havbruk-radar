@@ -2536,6 +2536,16 @@ strong.uenige { display: inline; }
   color: var(--ink-dempet);
 }
 
+/* FELT UNDER AVKLARING MED KILDEN, i raden det gjelder (SD2): to korte
+   avsnitt under verdien, i samme dempede størrelse som en forste-post.
+   Se `nettsted._med_avklaring()`. */
+.tidsakse-avklaring {
+  margin: var(--rom-4) 0 0;
+  max-width: var(--maal-note);
+  font-size: var(--tekst-s);
+  color: var(--ink-dempet);
+}
+
 .verdi-fra { color: var(--ink-dempet); }
 .verdi-til { font-weight: 500; }
 .pil { color: var(--ink-dempet); }

@@ -487,6 +487,15 @@
   <p class="historikk-forklaring">
     Siste {{ antall(po.endringsuker, "uke", "uker") }}. Datoen er når vi så endringen.
   </p>
+  {#- FELT UNDER AVKLARING MED KILDEN blant radene i tabellen under. Se
+      `avklaringslinjer()`. #}
+  {% for linje in po.avklaring|default([]) %}
+  <div class="avklaring">
+    {%- for avsnitt in linje %}
+    <p class="historikk-forklaring">{{ avsnitt }}</p>
+    {%- endfor %}
+  </div>
+  {% endfor %}
   <p class="tabelltittel" id="endringer-omraade-tittel">{{ antall(po.i_omraadet|length, "endring", "endringer") }} i lokalitetene i området, de
       siste {{ antall(po.endringsuker, "uka", "ukene") }}.</p>
   <div class="tabellramme" role="region"
