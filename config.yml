@@ -363,6 +363,52 @@ nettsted:
     eierskap: {periode: henting, dager: 14}
     eierskap_historikk: null
 
+  # FELT UNDER AVKLARING MED KILDEN, i et tidsrom. Lest av
+  # `vesentlighet.under_avklaring()`, og derfra av alle veiene: en
+  # endring i et felt og tidsrom her er TEKNISK (ukas tall, lokalitetens
+  # «vesentlige endringer»), står ikke i noen feed, og sidene der den
+  # står får én linje om hvorfor. Verdien kilden oppgir, vises som før,
+  # og changeloggen, CSV-en og JSON-en er uendret: det kilden sa, er
+  # riktig arkivert (regel 2).
+  #
+  #   fra, til        observed_at på changelog-raden, begge med. `til`
+  #                   null er åpen: også en endring TILBAKE er under
+  #                   avklaring til saken er lukket.
+  #   skiftet_mellom  de to hentingene skiftet ligger mellom, MÅLT. Er de
+  #                   høyst ett døgn fra hverandre, sier linja «samtidig»,
+  #                   ellers «i samme uke». Mangler den: «i samme uke».
+  #   grunn, sak      for den som leser denne fila; ikke på sidene.
+  #
+  # Antallet i linja telles av changeloggen per felt og uke, ikke her.
+  #
+  # Lukkes ved å sette `til`, ikke ved å slette oppføringen: da står
+  # endringene fra tidsrommet fortsatt som tekniske, med linja.
+  under_avklaring:
+    - kilde: akvakultur
+      felt: har_samdrift
+      fra: "2026-11-17"
+      til: null
+      skiftet_mellom: ["2026-11-16T13:50:01+00:00", "2026-11-17T14:41:49+00:00"]
+      grunn: >-
+        44 lokaliteter gikk fra samdrift til ikke samdrift mellom
+        døgnhentingene 16.11 og 17.11.2026, uten ny registerversjon. 34
+        av dem har fortsatt en samdriftsversjon som gjeldende versjon,
+        og ingen har JOINT_OPERATIONS_ENDED. Spurt
+        akva-hjelp@fiskeridir.no. Ukesvakta 24.11, klasse B.
+      sak: "https://github.com/heinenordboe-cloud/havbruk-analyse/pull/15"
+    # Samme skifte, andre halvdel: alle 29 lokaliteter som fikk
+    # samlokalisering denne uka, er blant de 44 over, og ingen andre fikk
+    # det (ukesvakta F2). Uten denne var ukas tall 40, ikke 11.
+    - kilde: akvakultur
+      felt: har_samlokalisering
+      fra: "2026-11-17"
+      til: null
+      skiftet_mellom: ["2026-11-16T13:50:01+00:00", "2026-11-17T14:41:49+00:00"]
+      grunn: >-
+        29 av de 44 over gikk samtidig fra ikke samlokalisering til
+        samlokalisering, i det samme skiftet og uten ny registerversjon.
+      sak: "https://github.com/heinenordboe-cloud/havbruk-analyse/pull/15"
+
 publisering:
   # NORMALBÅNDET for automatisk publisering (publiser_ci.py automatisk,
   # vilkår d). Et databygg går ut av seg selv bare når ukas tall ligger

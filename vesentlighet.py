@@ -19,6 +19,8 @@ om en annen rad samme uke.
     ILA/PD           vesentlig når «satt» står på en av sidene
                      teknisk når flagget bare går mellom tomt og ikke satt
     ny / borte       vesentlig: en tillatelse eller lokalitet kom eller gikk
+    under avklaring  teknisk: feltet og datoen står i
+                     `nettsted.under_avklaring` i config.yml
     koordinater      vesentlig fra KOORDINAT_TERSKEL_M og opp, ellers teknisk
     felt kom/gikk    teknisk når det gjentar en fisk-til-stede-endring samme uke
     avledet felt     teknisk når grunnfeltet endret seg i samme par
@@ -111,6 +113,55 @@ def avledede_felt() -> dict[tuple[str, str], str]:
     return ut
 
 
+# FELT UNDER AVKLARING MED KILDEN. Lista står i config.yml, ikke her:
+# den er en sak med en dato og en lenke, ikke en regel om hva et felt er,
+# og den lukkes når kilden svarer. Se kommentaren der.
+#
+# HER OG IKKE I NETTSTEDET, fordi «teller ikke som vesentlig» skal svare
+# det samme på lokalitetssiden, ukesiden og i feeden. Tre steder som
+# hver leste lista, er tre steder å glemme den (formen F6 og F7 hadde).
+@lru_cache(maxsize=1)
+def avklaringer() -> tuple[dict, ...]:
+    """Oppføringene i `nettsted.under_avklaring`, i fila sin rekkefølge."""
+    from core import config
+    ut = []
+    for i, o in enumerate(config.get("nettsted.under_avklaring") or []):
+        if not {"kilde", "felt", "fra"} <= set(o):
+            raise ValueError(f"nettsted.under_avklaring[{i}] mangler kilde, "
+                             f"felt eller fra: {o!r}")
+        ut.append(dict(o, nr=i))
+    return tuple(ut)
+
+
+def under_avklaring(kilde: str, felt: str, dato: str,
+                    liste: Iterable[Mapping] | None = None) -> Mapping | None:
+    """Oppføringen som gjelder (kilde, felt) på `dato`, eller None.
+
+    `dato` er raden `observed_at`. `fra` og `til` er begge med, og `til`
+    tom er åpen.
+    """
+    dag = str(dato or "")[:10]
+    for o in (avklaringer() if liste is None else liste):
+        if (str(o["kilde"]) == kilde and str(o["felt"]) == felt
+                and str(o["fra"]) <= dag
+                and (not o.get("til") or dag <= str(o["til"]))):
+            return o
+    return None
+
+
+def samtidig(o: Mapping) -> bool:
+    """Ligger skiftet mellom to hentinger høyst ett døgn fra hverandre?
+
+    Lest av `skiftet_mellom`, som er MÅLT. Mangler den, er svaret nei:
+    «samtidig» er en påstand, og den krever belegget.
+    """
+    par = o.get("skiftet_mellom") or ()
+    if len(par) != 2:
+        return False
+    fra, til = (_dt.datetime.fromisoformat(str(t)) for t in par)
+    return _dt.timedelta(0) <= til - fra <= _dt.timedelta(days=1)
+
+
 def avstand_m(fra: tuple[float, float], til: tuple[float, float]) -> float:
     """Storsirkelavstand i meter (haversine, middelradius 6 371 008,8 m)."""
     la1, lo1, la2, lo2 = map(math.radians, (*fra, *til))
@@ -171,15 +222,17 @@ def _flytting(rader: list[Mapping]) -> dict[tuple[str, str], float | None]:
 
 
 def klassifiser(rader: Iterable[Mapping],
-                avledede: Mapping[tuple[str, str], str] | None = None
+                avledede: Mapping[tuple[str, str], str] | None = None,
+                avklaring: Iterable[Mapping] | None = None
                 ) -> list[Klasse]:
     """Én `Klasse` per rad, i samme rekkefølge som radene.
 
-    `avledede` kan sendes inn (prøvene gjør det). Standard er kildenes
-    egen erklæring.
+    `avledede` og `avklaring` kan sendes inn (prøvene gjør det). Standard
+    er kildenes egen erklæring og lista i config.yml.
     """
     rader = list(rader)
     avledede = avledet_av = avledede if avledede is not None else avledede_felt()
+    avklaring = tuple(avklaring) if avklaring is not None else avklaringer()
     flytting = _flytting(rader)
 
     fisk_uker = {(str(r.get("entity_id")), _uke(r)) for r in rader
@@ -204,6 +257,12 @@ def klassifiser(rader: Iterable[Mapping],
 
         if endring in NY_ELLER_BORTE:
             ut.append(Klasse(VESENTLIG, "ny eller borte"))
+            continue
+
+        # ETTER ny/borte: en lokalitet som kom eller gikk, er en hendelse
+        # uansett hva et av feltene den kom med, er under avklaring om.
+        if under_avklaring(kilde, felt, _dato(r), avklaring):
+            ut.append(Klasse(TEKNISK, "under avklaring med kilden"))
             continue
 
         if kilde == KOORDINATKILDE and felt in KOORDINATER:

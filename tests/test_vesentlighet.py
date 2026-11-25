@@ -182,3 +182,73 @@ def test_grunnen_star_paa_hver_klasse():
     [k] = v.klassifiser(_flytting((66.0, 13.0), (66.0002, 13.0))[:1],
                         avledede=AVLEDEDE)
     assert k.klasse == TEKNISK and k.grunn.startswith("flyttet") and not k.vesentlig
+
+
+# ---- under avklaring med kilden ----------------------------------------
+#
+# SD2, 25.11.2026: 44 lokaliteter mistet `har_samdrift` mellom to
+# døgnhentinger uten ny registerversjon. Lista i config.yml merker feltet
+# og tidsrommet; regelen her gjør endringene tekniske.
+
+AVKLARING = ({"kilde": "akvakultur", "felt": "har_samdrift",
+              "fra": "2026-11-17", "til": None, "nr": 0},
+             {"kilde": "akvakultur", "felt": "har_samlokalisering",
+              "fra": "2026-11-17", "til": "2026-12-06", "nr": 1})
+
+
+def avklart(*rader):
+    return [k.klasse for k in v.klassifiser(rader, avledede=AVLEDEDE,
+                                            avklaring=AVKLARING)]
+
+
+def test_et_felt_under_avklaring_er_teknisk_i_tidsrommet():
+    r = rad("akvakultur", "har_samdrift", "True", "False", eid="10303",
+            dato="2026-11-23", forrige="2026-11-16")
+    [k] = v.klassifiser([r], avledede=AVLEDEDE, avklaring=AVKLARING)
+    assert (k.klasse, k.grunn) == (TEKNISK, "under avklaring med kilden")
+
+
+@pytest.mark.parametrize("felt, dato, klasse", [
+    ("har_samdrift", "2026-11-16", VESENTLIG),         # før `fra`
+    ("har_samdrift", "2026-11-17", TEKNISK),           # `fra` er med
+    ("har_samdrift", "2027-06-01", TEKNISK),           # `til` er åpen
+    ("har_samlokalisering", "2026-12-06", TEKNISK),    # `til` er med
+    ("har_samlokalisering", "2026-12-07", VESENTLIG),  # etter `til`
+    ("kapasitet", "2026-11-23", VESENTLIG),            # annet felt
+])
+def test_tidsrommet_har_begge_endene_med(felt, dato, klasse):
+    assert avklart(rad("akvakultur", felt, "True", "False",
+                       dato=dato)) == [klasse]
+
+
+def test_en_annen_kilde_med_samme_feltnavn_er_ikke_under_avklaring():
+    assert avklart(rad("eierskap", "har_samdrift", "True", "False",
+                       dato="2026-11-23")) == [VESENTLIG]
+
+
+def test_en_lokalitet_som_kom_er_vesentlig_ogsaa_i_tidsrommet():
+    assert avklart(rad("akvakultur", "har_samdrift", None, "True",
+                       endring="ny", dato="2026-11-23")) == [VESENTLIG]
+
+
+@pytest.mark.parametrize("par, svar", [
+    # MÅLT: døgnhentingene 16.11 og 17.11.2026, 24 t 52 min fra hverandre.
+    (["2026-11-16T13:50:01+00:00", "2026-11-17T14:41:49+00:00"], False),
+    (["2026-11-16T13:50:01+00:00", "2026-11-17T13:50:01+00:00"], True),
+    (["2026-11-17T14:41:49+00:00", "2026-11-16T13:50:01+00:00"], False),
+    (None, False),
+])
+def test_samtidig_krever_hentinger_hoyst_ett_dogn_fra_hverandre(par, svar):
+    assert v.samtidig({"skiftet_mellom": par}) is svar
+
+
+def test_lista_i_config_er_samdriftsskiftet_og_har_grunn_og_sak():
+    """Oppføringene som står i config.yml 25.11.2026. Endres lista, endres
+    denne prøven i samme commit — med vilje."""
+    liste = v.avklaringer()
+    assert [(o["kilde"], o["felt"], o["fra"], o["til"]) for o in liste] == [
+        ("akvakultur", "har_samdrift", "2026-11-17", None),
+        ("akvakultur", "har_samlokalisering", "2026-11-17", None)]
+    for o in liste:
+        assert o["grunn"] and o["sak"].startswith("https://")
+        assert not v.samtidig(o), "skiftet er MÅLT til 24 t 52 min"
