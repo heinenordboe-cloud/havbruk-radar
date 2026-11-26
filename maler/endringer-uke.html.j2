@@ -16,6 +16,7 @@
    øyeblikksbilder som begge er append-only. #}
 {% extends "base.html.j2" %}
 {% from "verdiendring.html.j2" import verdiendring %}
+{% from "bevis.html.j2" import bevisblokk %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -392,6 +393,15 @@
       {{ antall(u.antall_i_fila, "raden", "radene") }} i uka, ikke bare de som vises her.</p>
   </div>
 </section>
+
+{# BEVISET FOR UKA, fra samme makro og samme `nettsted.bevis()` som
+   lokalitetssiden: ukas egne snapshots av `ENDRINGSKILDER`, ikke de
+   nyeste. Siteringens sjekksum er akvakulturraden i det samme beviset. #}
+{% if bevis %}
+<div class="ark seksjon">
+{{ bevisblokk(bevis) }}
+</div>
+{% endif %}
 
 <section class="ark" id="siter" aria-labelledby="siter-tittel">
   <div class="siterboks">

@@ -1551,6 +1551,8 @@ def _po(**overstyr) -> str:
         "siter": {"url": "https://kystloggen.no/produksjonsomrade/4/",
                   "uke": "uke 38, 2026", "dato": "14. september 2026",
                   "aar": "2026", "sjekksum": "efe1c0884c4e39d20b7d775a363d"},
+        # `nettsted.bevis()` med sidens kilder; tom her, se tests/test_bevis.py.
+        "bevis": [],
     }
     po.update(overstyr)
     po["endringer"] = _endringsrader(po["endringer"])
@@ -1865,6 +1867,8 @@ def _selskap(**overstyr) -> str:
         "siter": {"url": "https://kystloggen.no/selskap/912345678/",
                   "uke": "uke 38, 2026", "dato": "14. september 2026",
                   "aar": "2026", "sjekksum": "efe1c0884c4e39d20b7d775a363d"},
+        # `Felles.bevis_selskap`; tom her, se tests/test_bevis.py.
+        "bevis": [],
     }
     sel.update(overstyr)
     jsonld_raa = dict(sel)          # JSON-LD leser KILDENS verdier
@@ -1929,6 +1933,7 @@ def test_en_tillatelse_uten_eier_kan_ikke_havne_paa_en_selskapsside():
     from types import SimpleNamespace
 
     felles = SimpleNamespace(
+        bevis_selskap=[],
         tillatelser_per_eier={"912345678": ["N-T-0001"]},
         eierskap={"N-T-0001": {"eier_navn": "TESTLAKS AS",
                                "eier_orgnr": "912345678",
@@ -1956,6 +1961,7 @@ def test_gikk_ut_overskriver_ikke_selskapets_navn():
     from types import SimpleNamespace
 
     felles = SimpleNamespace(
+        bevis_selskap=[],
         tillatelser_per_eier={"912345678": ["N-T-0001"]},
         eierskap={"N-T-0001": {"eier_navn": "TESTLAKS AS",
                                "eier_orgnr": "912345678",
@@ -2002,6 +2008,7 @@ def test_en_eier_kilden_kaller_person_faar_ingen_side():
     from types import SimpleNamespace
 
     felles = SimpleNamespace(
+        bevis_selskap=[],
         tillatelser_per_eier={"954744469": ["H-FJ-0018"],
                               "912345678": ["N-T-0001"]},
         eierskap={"H-FJ-0018": {"eier_type": "JointlyOwnedShippingCompany"},
@@ -6563,6 +6570,7 @@ def test_kom_til_regner_ogsaa_tillatelser_selskapet_har_gitt_fra_seg():
     from types import SimpleNamespace
 
     felles = SimpleNamespace(
+        bevis_selskap=[],
         tillatelser_per_eier={"912345678": ["N-T-0001"]},
         eierskap={"N-T-0001": {"eier_navn": "TESTLAKS AS",
                                "eier_orgnr": "912345678",

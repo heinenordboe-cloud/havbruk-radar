@@ -898,9 +898,32 @@ def _sjekksum(kilde: str) -> str:
 
 
 # KILDENE BEVISET PÅ LOKALITETSSIDEN GJELDER: de fire hver tilstand-
-# påstand kommer fra. Eierskapshistorikken er hendelser datert av kilden,
-# fordelt på årsfiler, og har ingen ÉN kropp å oppgi.
+# påstand kommer fra. Selskaps-, område- og ukesidene oppgir sine egne
+# (`SELSKAPSKILDER`, `po_kilder()`, `ENDRINGSKILDER`) til den samme
+# funksjonen.
 BEVISKILDER = ("akvakultur", "eierskap", "biomasselag", "lusetall")
+
+# KILDER UTEN ÉN KROPP. Eierskapshistorikken er hendelser datert av
+# kilden, fordelt på årsfiler, og har ingen ÉN kropp å oppgi. Den står
+# ikke i beviset, uansett hvilken side som spør.
+UTEN_EN_KROPP = frozenset({"eierskap_historikk"})
+
+
+def _bevisdato(kilde: str, uke: str | None) -> str | None:
+    """Snapshotet beviset gjelder: kildens nyeste, eller med `uke` det
+    nyeste i ISO-uka datoen ligger i. None når uka ikke har noe.
+
+    UKESIDENS BEVIS ER UKAS EGET. Innholdet for uke N endres aldri, og et
+    bevis for den kan ikke være et snapshot fra en senere uke. Samme
+    regel som `_ukens_hentet()`.
+    """
+    if not uke:
+        return snapshot.siste_dato(kilde)
+    d = dt.date.fromisoformat(str(uke)[:10])
+    mandag = (d - dt.timedelta(days=d.weekday())).isoformat()
+    sondag = (d + dt.timedelta(days=6 - d.weekday())).isoformat()
+    i_uka = [x for x in snapshot.datoer(kilde) if mandag <= str(x)[:10] <= sondag]
+    return max(i_uka) if i_uka else None
 
 
 def _stempelindeks() -> dict[tuple[str, str], tuple[str, str]]:
@@ -926,8 +949,12 @@ def _stempelindeks() -> dict[tuple[str, str], tuple[str, str]]:
     return ut
 
 
-def bevis(kilder=BEVISKILDER) -> list[dict]:
+def bevis(kilder=BEVISKILDER, uke: str | None = None) -> list[dict]:
     """Beviset for dataene en side er bygget av: én rad per kilde.
+
+    ÉN FUNKSJON FOR ALLE SIDENE som har bevis: lokalitets-, selskaps-,
+    område- og ukesidene, hver med sine kilder. `uke` er en dato i uka en
+    ukeside gjelder for; da er snapshotene ukas egne (`_bevisdato()`).
 
         dato      øyeblikksbildets dato (for lusetall: uka den gjelder)
         hentet    dagen vi hentet det
@@ -947,7 +974,9 @@ def bevis(kilder=BEVISKILDER) -> list[dict]:
     indeks = _stempelindeks()
     ut = []
     for kilde in kilder:
-        dato = snapshot.siste_dato(kilde)
+        if kilde in UTEN_EN_KROPP:
+            continue
+        dato = _bevisdato(kilde, uke)
         if dato is None:
             continue
         nr, ramme = snapshot.versjoner(kilde, dato)[-1]
@@ -1135,6 +1164,9 @@ class Felles:
     # stempel. Likt for alle sidene, og summen av en parquet-fil er for dyr
     # til å regnes 1 781 ganger. Se `bevis()`.
     bevis: list[dict] = field(default_factory=list)
+    # Det samme for selskapssidene, med deres kilder (`SELSKAPSKILDER`):
+    # likt for alle 485, regnet én gang.
+    bevis_selskap: list[dict] = field(default_factory=list)
     # {orgnr: hva Enhetsregisteret sier om nummeret} — se `_enhetsstatus()`.
     enhetsstatus: dict[str, dict] = field(default_factory=dict)
 
@@ -1439,6 +1471,7 @@ def les_felles() -> Felles:
         akva_hentet=_hentet("akvakultur"),
         sjekksum=_sjekksum("akvakultur"),
         bevis=bevis(),
+        bevis_selskap=bevis(SELSKAPSKILDER),
         kontakt=_kontakt(),
         bevegelse=beveg,
         po_naa=_po_naa(akva),
@@ -4225,7 +4258,7 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
          if h["entity_id"] in mine or h["po"] == po])
 
     serie = felles.biomasse.get(po, [])
-    return {
+    ut = {
         "nr": po,
         "navn": felles.po_navn.get(po, ""),
         "status": (felles.akva[lokaliteter[0]["loknr"]].get("prodomraade_status", "")
@@ -4291,6 +4324,10 @@ def bygg_produksjonsomrade(po: str, felles: Felles) -> dict:
             "sjekksum": felles.sjekksum,
         },
     }
+    # BEVISET for kildene DENNE siden viser — de samme `po_kilder()` gir
+    # JSON-LD-en. Tretten sider, så det regnes per side.
+    ut["bevis"] = bevis(po_kilder(ut))
+    return ut
 
 
 # --------------------------------------------- når kildene er uenige
@@ -4731,13 +4768,27 @@ def lusegraf(serie: list[dict]) -> dict | None:
             sti.append(f"H{x(her)} V{gy}")
         forrige_plass, forrige_y = her, gy
     med_grense = sum(1 for g_ in grenser if g_ is not None)
+    grenseverdier = " og ".join(visningsord.tall(g_) for g_ in
+                                sorted({g_ for g_ in grenser if g_ is not None},
+                                       reverse=True))
+    # KILDE OG GJELDER-DATO FOR GRENSA, lest her og bare her (CLAUDE.md
+    # 1b): siste uke serien har en grense for. Attributtet og den grå
+    # linja på siden er det samme oppslaget. Til 26.11.2026 sto
+    # «Tiltaksgrense 0,5 og 0,2» med kilde og uten dato på 992 sider
+    # (sluttkontrollen 15b, standardens punkt 1). Grensa er
+    # sjøtemperaturkildens «Lusegrense uke» (rødt lag F13), og tallene
+    # er en sammenstilling av ukene, derfor «regnet».
+    from paastand import REGNET, UKE, Paastand, herkomst
+    siste_grense = next((rad["dato"] for rad, g_ in zip(reversed(serie),
+                                                       reversed(grenser))
+                         if g_ is not None), "")
     grense = ({"d": " ".join(sti),
                "uker": med_grense,
                "uten": n - med_grense,
-               "verdier": " og ".join(visningsord.tall(g_) for g_ in
-                                      sorted({g_ for g_ in grenser
-                                              if g_ is not None},
-                                             reverse=True))}
+               "verdier": grenseverdier,
+               "herkomst": herkomst(Paastand(
+                   "tiltaksgrense", "sjotemperatur", siste_grense, grenseverdier,
+                   nivaa=REGNET, felt="lusegrense", periode=UKE))}
               if med_grense else None)
 
     linjer = []
@@ -7593,6 +7644,16 @@ def skriv_endringssider(rot: Path, felles: Felles,
         nyere = uker[i - 1] if i else None
         eldre = uker[i + 1] if i + 1 < len(uker) else None
         mappe = rot / ENDRINGER_STI / uke["slug"]
+        # BEVISET FOR UKA: ukas egne snapshots, ett oppslag per uke for
+        # siden og alle typesidene. Siteringens sjekksum leses av den samme
+        # akvakulturraden. Til 26.11.2026 siterte hver ukeside NYESTE
+        # akvakultursnapshot (`felles.sjekksum`): uke 35 og uke 48 oppga
+        # den samme summen, aa70fa2b…db82, og siteringen for en uke
+        # «som aldri endres» skiftet hver mandag. Samme feil som
+        # `_ukens_hentet()` rettet for hentetidspunktet 08.10.2026.
+        ukebevis = bevis(ENDRINGSKILDER, uke=uke["siste_dato"])
+        ukesum = next((b["sha256"] for b in ukebevis
+                       if b["kilde"] == "akvakultur"), "")
 
         for slag in [None] + [k["id"] for k in ENDRINGSTYPER]:
             hendelser = ([h for h in uke["hendelser"] if h["type"] == slag]
@@ -7646,7 +7707,8 @@ def skriv_endringssider(rot: Path, felles: Felles,
                 siter={"url": _basisurl() + url,
                        "uke": uke["vist"], "aar": uke["aar"],
                        "spenn": uke["merke"],
-                       "sjekksum": felles.sjekksum},
+                       "sjekksum": ukesum},
+                bevis=ukebevis,
                 **_grunnkontekst(
                     felles, rot, sti, kilder=ENDRINGSKILDER,
                     tittel=f"{tittel} — Kystloggen",
@@ -12128,6 +12190,8 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
             "aar": felles.eierskap_dato[:4],
             "sjekksum": _sjekksum("eierskap"),
         },
+        # BEVISET, likt for alle selskapssidene (`Felles.bevis_selskap`).
+        "bevis": felles.bevis_selskap,
     }
 
 

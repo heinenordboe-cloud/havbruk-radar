@@ -14,6 +14,7 @@
    Markupkontrakten gjelder. Ankernavnene er `<kilde>-<hva>`. #}
 {% extends "base.html.j2" %}
 {% import "marg.html.j2" as marg %}
+{% from "bevis.html.j2" import bevisblokk %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -480,6 +481,14 @@
   <p><a href="/om/#hva-vi-ikke-gjor">Hva vi ikke henter</a></p>
   </details>
 </section>
+
+{# BEVISET, fra samme makro og samme `nettsted.bevis()` som
+   lokalitetssiden, med sidens kilder (`SELSKAPSKILDER`). #}
+{% if sel.bevis %}
+<div class="ark seksjon">
+{{ bevisblokk(sel.bevis) }}
+</div>
+{% endif %}
 
 <section class="ark" id="siter" aria-labelledby="siter-tittel">
   <div class="siterboks">

@@ -57,7 +57,7 @@ def _felles(**overstyr):
         eierskap=eierskap, akva=akva,
         tillatelser_per_eier={A: ["A-1", "A-2"], B: ["B-1", "B-2", "B-3"]},
         enhet={A: {}}, eierskap_dato="2026-11-16", akva_dato="2026-11-16",
-        dekning_fra=[], registerendringer={})
+        dekning_fra=[], registerendringer={}, bevis_selskap=[])
     felt.update(overstyr)
     return SimpleNamespace(**felt)
 

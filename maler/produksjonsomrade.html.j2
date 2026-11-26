@@ -25,6 +25,7 @@
 {% extends "base.html.j2" %}
 {% from "verdiendring.html.j2" import verdiendring %}
 {% import "marg.html.j2" as marg %}
+{% from "bevis.html.j2" import bevisblokk %}
 
 {% block toppinnhold %}
 <div data-pagefind-body class="ark sidehode">
@@ -685,6 +686,14 @@
     {% endfor %}
 
 </section>
+
+{# BEVISET, fra samme makro og samme `nettsted.bevis()` som
+   lokalitetssiden, med kildene siden viser (`po_kilder()`). #}
+{% if po.bevis %}
+<div class="ark seksjon">
+{{ bevisblokk(po.bevis) }}
+</div>
+{% endif %}
 
 <section class="ark seksjon" id="siter" aria-labelledby="siter-tittel">
   <div class="siterboks">
