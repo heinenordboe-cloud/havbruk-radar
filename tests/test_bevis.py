@@ -27,6 +27,7 @@ from pathlib import Path
 import pytest
 
 import nettsted
+import visningsord
 from tests.test_nettsted import _side, _uker, datamappe  # noqa: F401
 
 
@@ -66,6 +67,16 @@ def test_malen_viser_beviset_fra_samme_makro(lag):
     assert "Tillatelsesregisteret Fiskeridir. hentet 14.09.2026" in tekst
     assert "sha256 abababab" in tekst and "stemplet med OpenTimestamps 15.09.2026" in tekst
     assert 'data-kilde="eierskap" data-gjelder="2026-09-14"' in blokk.group(1)
+
+
+def test_hver_kilde_et_bevis_kan_vise_har_et_navn():
+    """Til 4b sto «enhetsregisteret» og «trafikklysvedtak» som navn i
+    blokka på selskaps- og områdesidene: kilde-id-en, et internt ord."""
+    kilder = (set(nettsted.BEVISKILDER) | set(nettsted.SELSKAPSKILDER)
+              | set(nettsted.PO_KILDER) | set(nettsted.ENDRINGSKILDER)) \
+        - nettsted.UTEN_EN_KROPP
+    for k in sorted(kilder):
+        assert visningsord.datasett(k) != k, k
 
 
 def test_selskapenes_kilder_er_de_siden_oppgir():
@@ -153,6 +164,19 @@ def test_sidetypen_har_bevis_med_sum(mappe):
     uten = [f.parent.name for f in sider
             if not any("sha256" in r for _, _, r in _rader(f.read_text(encoding="utf-8")))]
     assert not uten, f"{len(uten)} av {len(sider)} uten bevis: {uten[:8]}"
+
+
+@trenger_bygg
+def test_bevisblokka_har_ingen_kilde_id():
+    from core import registry
+    idene = {k.name for k in registry.discover()}
+    funn = []
+    for fil in _sider("selskap") + _sider("produksjonsomrade") + _sider("lokalitet"):
+        m = BLOKK.search(fil.read_text(encoding="utf-8"))
+        for dt_ in re.findall(r"<dt>(.*?) <span", m.group(1) if m else "", re.S):
+            if dt_.strip() in idene:
+                funn.append((fil.relative_to(NETTSTED).as_posix(), dt_.strip()))
+    assert not funn, f"{len(funn)}: {funn[:6]}"
 
 
 @trenger_bygg

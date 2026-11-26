@@ -451,8 +451,12 @@ DATASETT = {
     "biomasselag": "Biomasselaget",
     "eierskap": "Tillatelsene",
     "eierskap_historikk": "Eierhistorikken",
+    "enhetsregisteret": "Enhetsregisteret",
     "lusetall": "Lusetall",
     "sjotemperatur": "Sjøtemperatur",
+    # Samme ord som i `KILDENAVN`. Begge kom med bevisblokka på selskaps-
+    # og områdesidene (R1a, 26.11.2026); uten dem sto kilde-id-en der.
+    "trafikklysvedtak": "Kapasitetsjusteringsforskriftene",
 }
 
 # ------------------------------------------------------------- oppslag
