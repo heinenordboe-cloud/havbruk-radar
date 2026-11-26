@@ -237,6 +237,10 @@ def _uke_raa(**overstyr) -> dict:
         "har_laksefisk": "True", "brakklagt": "False",
         "har_medikamentell_behandling": "False",
         "har_mekanisk_fjerning": "False", "har_rensefisk": "False",
+        # `LUSEUNIVERS`: `_lusserie()` bærer dem, og kilden sender dem for
+        # hver lokalitet hver uke (MÅLT 26.11.2026). Uten dem var uka
+        # utenfor tellingen, og tilstanden ville ikke vist lakselus.
+        "er_landbasert": "False", "er_slaktemerd": "False",
     }
     uke.update(overstyr)
     return uke

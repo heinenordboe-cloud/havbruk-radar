@@ -1613,6 +1613,28 @@ LUSEFELT = ("voksne_hunnlus", "lus_er_rapportert", "har_laksefisk",
 # (MALING-FUNN-OKTOBER F4.2, «UNIVERS»). `har_laksefisk` står i LUSEFELT.
 LUSEUNIVERS = ("er_landbasert", "er_slaktemerd")
 
+
+def i_luseunivers(uke: dict) -> bool:
+    """Teller BarentsWatch lakselus for anlegget denne uka?
+
+    Tellingen gjelder laksefisk i sjø: `har_laksefisk` er True, og verken
+    `er_landbasert` eller `er_slaktemerd` er det. Utenfor er «brakklagt»
+    BarentsWatchs slutning om et anlegg som ikke skal rapportere lus, ikke
+    en påstand om fisken der.
+
+    Kildens ord, eksakt: et flagg som ikke er «False», er ikke et nei.
+    MÅLT 26.11.2026: alle tre flaggene står for hver lokalitet i hver av
+    de 774 ukene (1 339 791 rader hvert), så strengheten avgjør ingenting
+    i dag.
+
+    ÉN REGEL. Til 25.11.2026 sto den i `fisk_mot_lus()` alene, og
+    tilstanden spurte bare om `har_laksefisk`: 295 lokaliteter på land
+    og 40 slaktemerder i sjø viste «Lakselus: brakklagt».
+    """
+    return (uke.get("har_laksefisk") == "True"
+            and uke.get("er_landbasert") == "False"
+            and uke.get("er_slaktemerd") == "False")
+
 # Det som står i cellen når kilden ikke har noen verdi. Ikke «0», og
 # ikke blankt.
 #
@@ -5516,11 +5538,15 @@ def lokalitetspaastander(lok: dict) -> dict:
                          ref, JANEI_FISK.get(r["har_fisk"], r["har_fisk"]))
 
     # LAKSELUS: siste uke lokaliteten står i hos BarentsWatch. BARE der
-    # BarentsWatch oppgir laksefisk: tellingen gjelder laks og ørret i
-    # sjø, og «brakklagt» om et kveiteanlegg på land er ingen påstand om
-    # fisken der (Hendneset, 10204).
+    # BarentsWatch teller lus (`i_luseunivers()`): tellingen gjelder laks
+    # og ørret i sjø, og «brakklagt» om et kveiteanlegg (Hendneset,
+    # 10204), et settefiskanlegg på land eller en slaktemerd er ingen
+    # påstand om fisken der. MÅLT 25.11.2026: alle 295 på land som viste
+    # «brakklagt», var landbasert og uten lusrapport hos BarentsWatch, og
+    # 287 av dem hadde aldri rapportert lus. Nedlastingene har kildens
+    # verdi.
     serie = lok.get("lus_serie") or []
-    if serie and serie[-1].get("har_laksefisk") == "True":
+    if serie and i_luseunivers(serie[-1]):
         u = serie[-1]
         if u.get("brakklagt") == "True":
             p, vist = Paastand("lus", "lusetall", u["dato"], "True",
@@ -5663,9 +5689,7 @@ def fisk_mot_lus(lok: dict) -> list[dict]:
             ut.append({"dato": m["dato"], "uke": "", "bw": None,
                        "fisk_herkomst": fisk_herkomst, "konflikt": False})
             continue
-        univers = (u.get("har_laksefisk") == "True"
-                   and u.get("er_landbasert") == "False"
-                   and u.get("er_slaktemerd") == "False")
+        univers = i_luseunivers(u)
         brakk = Paastand("brakklagt", "lusetall", mandag,
                          u.get("brakklagt") or "", nivaa=VURDERT,
                          felt="brakklagt", periode=UKE,
