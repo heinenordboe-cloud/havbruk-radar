@@ -419,7 +419,16 @@ class Biomasselag(Source):
     # skjemaet sitt.
     #
     # Radene blir liggende i changeloggen. Filteret er en lesedør.
-    bokforing = ("siste_rapport",)
+    #
+    # `dato_forbehold` OG `arts_forbehold` ER VÅRE EGNE MERKNADER, stemplet
+    # på hver rad (CLAUDE.md 1b-3), og sier hvordan raden skal leses. De
+    # sier ingenting om lokaliteten. Fram til 25.11.2026 sto de ikke her,
+    # og når en lokalitet kom inn i laget, ble de to setningene ført som
+    # «vesentlig endring»: MÅLT på bygget av 32cfa52 sto «observed_at er
+    # HENTETIDSPUNKTET vårt …» på 6 sider (lokalitet 45148, 45230 og
+    # 45252 og selskapene deres). Snapshotene og changeloggen har dem
+    # fortsatt; det er bare nettstedets lesing som holder dem ute.
+    bokforing = ("siste_rapport", "dato_forbehold", "arts_forbehold")
 
     # `antall_arter` ER `arter_tilstede` TALT. Den endrer seg fordi
     # `har_fisk` endret seg: en lokalitet som får fisk går samtidig fra 0
