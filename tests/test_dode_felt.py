@@ -30,6 +30,7 @@ import pytest
 import nettsted
 import paastand
 import tidsakse
+import visningsord
 from tests.test_nettsted import _side, _uke_raa
 
 DODE = paastand.dodt_fra("lusetall")
@@ -283,7 +284,9 @@ def test_om_siden_forklarer_de_dode_feltene_med_samme_datoer():
     assert bit, "/om/#lesing-lus sier ikke hvilke felt som er døde"
     tekst = _avsnitt(bit.group(1))
     for d in nettsted.dode_kolonner():
-        assert f"{d['navn']} fra {d['fra']}" in tekst
+        # Datoen etter datoregelen i visningsord (R1a): ISO bare i datetime.
+        # Lusetabellens note på lokalitetssiden står med ISO til 16c.
+        assert f"{d['navn']} fra {visningsord.kortdato(d['fra'])}" in tekst
     assert "Nedlastingene har verdien kilden sendte, uendret." in _avsnitt(om)
 
 

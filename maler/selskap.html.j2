@@ -43,8 +43,9 @@
 <div class="ark{% if sel.marg %} med-marg{% endif %}">
 <div class="med-marg-hoved">
 <div class="selskap-hode">
-  {# Navnet i menneskelig form. Den rå verdien står i registerfeltene
-     og i siteringen nederst — se `visningsord.selskapsnavn()`. #}
+  {# Navnet i menneskelig form, som overalt på sidene (også i
+     siteringen nederst). Kildens skrivemåte står i nedlastingene — se
+     `visningsord.navneregel()`. #}
   <h1><span data-navn>{{ sel.navn|selskapsnavn or sel.orgnr }}</span></h1>
   <p class="lok-undertittel">
     {# ORGANISASJONSNUMMERET GRUPPERES ALDRI. `NI_SIFFER` i
@@ -146,7 +147,7 @@
   {% set eldre = sel.endringer[sel.nyeste_endringer:] if lang else [] %}
   {% macro endringsrad(e) %}
       <tr>
-        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
+        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato|kortdato }}</time></th>
         <td data-felt="entity_id">
           {%- if e.lokalitet %}<a href="/lokalitet/{{ e.lokalitet }}/">{{ e.lokalitetsnavn or e.gjelder }}</a>
           {%- else %}{{ e.gjelder }}{% endif %}</td>
@@ -253,7 +254,7 @@
       <summary>Vis {{ alle(sel.lokaliteter_antall, "lokaliteten", "lokalitetene")|lower }}</summary>{% endif %}
     <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">De {{ antall(sel.lokaliteter_antall, "lokaliteten", "lokalitetene") }} selskapets
         tillatelser ligger på, hentet
-        <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato }}</time>.</p>
+        <time datetime="{{ sel.akva_dato }}">{{ sel.akva_dato|kortdato }}</time>.</p>
     {#- DELINGEN, ved lista den teller. Kolonnen «Egne tillatelser» sier
         for hver lokalitet hvor mange av tillatelsene der som er
         selskapets: «1 av 5» er en lokalitet delt med andre innehavere. #}
@@ -285,7 +286,7 @@
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
           </td>
           <td data-felt="{{ feltmerke(l.siden, 'journal_dato') }}">
-            {%- if l.siden %}<time datetime="{{ l.siden }}">{{ l.siden }}</time>
+            {%- if l.siden %}<time datetime="{{ l.siden }}">{{ l.siden|kortdato }}</time>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
           </td>
         </tr>
@@ -310,7 +311,7 @@
       <summary>Vis {{ alle(sel.tillatelser_antall, "tillatelsen", "tillatelsene")|lower }}</summary>{% endif %}
     <p class="tabelltittel" id="eierskap-tillatelser-tittel">De {{ antall(sel.tillatelser_antall, "tillatelsen", "tillatelsene") }} selskapet eier,
         hentet
-        <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato }}</time>.</p>
+        <time datetime="{{ sel.eierskap_dato }}">{{ sel.eierskap_dato|kortdato }}</time>.</p>
     <div class="tabellramme" role="region"
          aria-labelledby="eierskap-tillatelser-tittel" tabindex="0">
     <table id="eierskap-tillatelser" aria-labelledby="eierskap-tillatelser-tittel">
@@ -330,11 +331,11 @@
           <td data-felt="{{ feltmerke(t.type, 'tillatelse_type') }}">{{ t.type or VERDI_MANGLER }}</td>
           <td class="tall" data-felt="{{ feltmerke(t.kapasitet, 'kapasitet') }}">{{ t.kapasitet or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(t.tildelt_dato, 'tildelt_tid') }}">
-            {%- if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}" data-felt="tildelt_tid">{{ t.tildelt_dato }}</time>
+            {%- if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}" data-felt="tildelt_tid">{{ t.tildelt_dato|kortdato }}</time>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
           </td>
           <td data-felt="{{ feltmerke(t.siden, 'journal_dato') }}">
-            {%- if t.siden %}<time datetime="{{ t.siden }}">{{ t.siden }}</time>
+            {%- if t.siden %}<time datetime="{{ t.siden }}">{{ t.siden|kortdato }}</time>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
           </td>
         </tr>
@@ -386,7 +387,7 @@
       {% for o in sel.eierskapslinje %}
       <tr class="retning-{{ o.retning }}">
         <th scope="row">
-          {%- if o.dato %}<time datetime="{{ o.dato }}">{{ o.dato }}</time>
+          {%- if o.dato %}<time datetime="{{ o.dato }}">{{ o.dato|kortdato }}</time>
           {%- else %}{{ VERDI_MANGLER }}{% endif %}</th>
         <td data-felt="journal_dato">{{ o.slag }}: {{ o.hva }}</td>
         {% if o.navn %}
@@ -425,7 +426,7 @@
   {% if lang %}<details class="tallboks liste-lukket">
     <summary>Vis {{ alle(sel.register|length, "registerfeltet", "registerfeltene")|lower }}</summary>{% endif %}
   <p class="tabelltittel" id="enhetsregisteret-selskap-tittel">Registerfeltene om selskapet, hentet
-      <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato }}</time>.</p>
+      <time datetime="{{ sel.enhet_dato }}">{{ sel.enhet_dato|kortdato }}</time>.</p>
   <div class="tabellramme" role="region"
        aria-labelledby="enhetsregisteret-selskap-tittel" tabindex="0">
   <table id="enhetsregisteret-selskap" aria-labelledby="enhetsregisteret-selskap-tittel">
@@ -446,7 +447,7 @@
         <th scope="row">{{ etikett }}</th>
         <td data-felt="{{ felt }}"{% if fargeklasse %} class="{{ fargeklasse }}"{% endif %}>{{ vist }}</td>
         <td data-felt="{{ feltmerke(endret, 'observed_at') }}">
-          {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
+          {%- if endret %}<time datetime="{{ endret }}">{{ endret|kortdato }}</time>
           {%- else %}{{ VERDI_MANGLER }}{% endif %}
         </td>
       </tr>
@@ -498,7 +499,7 @@
               data-kopier="siterbar" hidden>Kopier</button>
     </div>
     <p class="siterbar" id="siterbar">Kystloggen ({{ sel.siter.aar }}).
-      <i>{{ sel.navn or sel.orgnr }}, organisasjonsnummer
+      <i>{{ sel.navn|selskapsnavn or sel.orgnr }}, organisasjonsnummer
       {{ sel.orgnr }}.</i>
       Øyeblikksbilde {{ sel.siter.uke }}, {{ sel.siter.dato }},
       sjekksum {{ sel.siter.sjekksum[:8] }}…{{ sel.siter.sjekksum[-4:] }}.

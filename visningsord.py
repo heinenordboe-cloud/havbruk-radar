@@ -509,8 +509,12 @@ def kilde_kort(navn: object) -> str:
     return tekst
 
 
-def verdi(navn: str, raa: object) -> str:
-    """Verdien på norsk. Ukjent kode kommer ordrett igjennom og telles."""
+def verdi(navn: str, raa: object, kilde: str = "") -> str:
+    """Verdien på norsk. Ukjent kode kommer ordrett igjennom og telles.
+
+    `kilde` trengs bare for `navn`, som er et selskap i
+    enhetsregisteret og et sted i de andre kildene (se `navneregel()`).
+    """
     tekst = "" if raa is None else str(raa).strip()
     if not tekst:
         return tekst
@@ -518,9 +522,16 @@ def verdi(navn: str, raa: object) -> str:
     # ET TIDSSTEMPEL ER EN DATO PÅ EN SIDE. Registeret lagrer
     # `2023-12-31T23:00:00Z`; det er midnatt 1. januar norsk tid, og et
     # rått tidsstempel i en tabellcelle er dessuten kildens format og
-    # ikke et lesbart svar. Se `oslodato()`.
+    # ikke et lesbart svar. Se `oslodato()`. Datoen står som en dato på
+    # siden, etter datoregelen ved `_ISODATO`: ISO bare i `datetime`.
     if _TIDSSTEMPEL.match(tekst):
-        return oslodato(tekst)
+        return kortdato(oslodato(tekst))
+    if _ISODATO.fullmatch(tekst):
+        return kortdato(tekst)
+
+    regel = navneregel(navn, kilde)
+    if regel is not None:
+        return regel(tekst)
 
     if navn in LISTEFELT:
         # «OTHER_FISH; SALMON» er to koder, ikke én. Slås hele strengen
@@ -703,6 +714,21 @@ MAANEDER = ("januar", "februar", "mars", "april", "mai", "juni", "juli",
 OSLO = _ZoneInfo("Europe/Oslo")
 
 _TIDSSTEMPEL = _re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+_ISODATO = _re.compile(r"\d{4}-\d{2}-\d{2}")
+
+# DATOREGEL, ÉN FOR HELE NETTSTEDET (R1a, 26.11.2026). En dato i synlig
+# tekst er aldri ISO; ISO står bare i `<time datetime>`, i filer og i
+# URL-er. Formen velges her og ikke i malene:
+#
+#     kortdato()  «30.09.2026»        tabeller, lister, tabelltitler,
+#                                     herkomstlinja og registerverdier
+#     dato()      «30. september 2026»  løpende tekst, i en setning
+#
+# MÅLT 25.11.2026 på bygget av 32cfa52: 156 587 ISO-datoer i synlig tekst,
+# fra `verdi()` (tidsstempler ble ISO) og fra 44 malsteder som skrev
+# `<time datetime="{{ x }}">{{ x }}</time>`. Lusedelen på lokalitetssiden
+# (tabellen, notene og grafen, om lag 100 000) venter på syklusstripa
+# (16c). Skal sidene ha ÉN form overalt, er det `dato()` som endres.
 
 
 def oslodato(iso: object) -> str:
@@ -1040,6 +1066,45 @@ def kommunenavn(kommune: object, fylke: object = "") -> str:
     if f and k.lower().endswith(" i " + f.lower()):
         k = k[: -len(" i " + f)]
     return f"{k}, {f}" if k and f else (k or f)
+
+
+# ------------------------------------------------------- NAVNEREGELEN
+#
+# ÉN FORM PÅ SIDENE, KILDENS SKRIVEMÅTE I NEDLASTINGENE (R1a, 26.11.2026).
+# Til da sto registerets versaler ved siden av tittelformen: tidslinja på
+# Kviksholmen sa «BOLAKS SJØ AS → BOLAKS FJORDBRUK AS» over en tabell med
+# «Bolaks Fjordbruk AS», og siteringen på selskapssiden «AUSTEVOLL MELAKS
+# AS» under h1 «Austevoll Melaks AS» (D1 A3). MÅLT 25.11.2026 på bygget av
+# 32cfa52: versaler fra registeret i siteringen (478 selskapssider), i
+# registerfeltene (navn, kommune, fylke, poststed), i tidslinja og
+# endringstabellene (eier_navn, tildelt_navn, navn) og i
+# overføringstabellen (mottaker_navn).
+#
+# Selskaper får `selskapsnavn()` (AS og ASA alltid i versaler), steder
+# `tittelform()`. CSV, regneark, JSON og JSON-LD går ikke gjennom denne
+# modulen og bærer kildens skrivemåte. Publiseringsvakten sammenligner
+# navn med `casefold()`, så formen gjør ingen forskjell der.
+SELSKAPSNAVNFELT = frozenset({"eier_navn", "tildelt_navn", "mottaker_navn"})
+STEDSNAVNFELT = frozenset({"kommune", "fylke", "poststed", "lokalitet_navn",
+                           "prodomraade_navn"})
+# `navn` er et selskap i enhetsregisteret og et sted i akvakultur,
+# biomasselaget og rømming. Er kilden ukjent, røres navnet ikke: et
+# selskapsnavn i `tittelform()` ville fått «Da» for DA, og
+# publiseringsvaktens personformprøve leser formen i VERSALER.
+SELSKAPSNAVNKILDER = frozenset({"enhetsregisteret"})
+STEDSNAVNKILDER = frozenset({"akvakultur", "biomasselag", "romming"})
+
+
+def navneregel(felt: str, kilde: str = ""):
+    """Funksjonen som gir navnet i `felt` sin form på siden, eller None.
+
+    Formen er bare store og små bokstaver: `casefold()` av svaret er
+    `casefold()` av kildens verdi, og det er det vakten sammenligner."""
+    if felt in SELSKAPSNAVNFELT or (felt == "navn" and kilde in SELSKAPSNAVNKILDER):
+        return selskapsnavn
+    if felt in STEDSNAVNFELT or (felt == "navn" and kilde in STEDSNAVNKILDER):
+        return tittelform
+    return None
 
 
 def liste(ord_: list[str], bindeord: str = "og") -> str:

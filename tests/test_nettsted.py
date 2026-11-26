@@ -33,7 +33,7 @@ import vesentlighet
 import visningsord
 
 
-def _visning(rader):
+def _visning(rader, kilde="akvakultur"):
     """Fiksturens (felt, verdi)-par til malens fire ledd.
 
     Prøvene skriver den RÅ forma — `("kapasitet", "8000.0")` — fordi det
@@ -50,7 +50,7 @@ def _visning(rader):
     en fikstur som stavet «lys-gul» for hånd ville sagt grønt om
     utledningen endret seg.
     """
-    return [(f, visningsord.felt(f), visningsord.verdi(f, v), "",
+    return [(f, visningsord.felt(f), visningsord.verdi(f, v, kilde), "",
              nettsted.FARGE_KLASSE.get(
                  nettsted._fargekode(str(v).strip().lower()), ""))
             for f, v in rader]
@@ -498,8 +498,10 @@ def test_datoer_er_time_elementer():
     dato en maskin kan lese — og en leser kan kopiere uten å gjette
     formatet."""
     html = _side()
+    # Lusetabellen står med ISO til syklusstripa (16c); se visningsord,
+    # datoregelen. Ellers er ISO bare i `datetime` (R1a, 26.11.2026).
     assert '<time datetime="2026-08-10">2026-08-10</time>' in html
-    assert '<time datetime="2018-03-13">2018-03-13</time>' in html
+    assert '<time datetime="2018-03-13">13.03.2018</time>' in html
 
 
 def test_javascript_er_en_forbedring_og_ikke_en_avhengighet():
@@ -698,8 +700,10 @@ def test_endringstabellen_merker_verdicellene_med_feltnavnet():
         "kilde": "eierskap", "felt": "eier_navn",
         "fra": "TESTVIK OG STRAUM DA", "til": "TESTLAKS AS",
     }])
-    assert ("eier_navn", "TESTVIK OG STRAUM DA") in vakt.felt_verdier(side)
-    assert ("eier_navn", "TESTLAKS AS") in vakt.felt_verdier(side)
+    # Navneregelen (R1a): selskapsnavn på sida, kildens versaler i
+    # nedlastingene. Vakten sammenligner med `casefold()`.
+    assert ("eier_navn", "Testvik og Straum DA") in vakt.felt_verdier(side)
+    assert ("eier_navn", "Testlaks AS") in vakt.felt_verdier(side)
 
 
 def test_registertabellen_merker_verdicellene_med_feltnavnet():
@@ -713,11 +717,12 @@ def test_registertabellen_merker_verdicellene_med_feltnavnet():
     # feltet det. En dict her ville skjult den ene bak den andre.
     merket = vakt.felt_verdier(side)
 
-    # NAVNET er UENDRET. Det er ikke en detalj: vakten sammenligner
-    # navneverdien mot hvitelista bygget av snapshotene, og en oversatt
-    # verdi ville ikke funnet seg selv der. `visningsord` rører ingen
-    # NAVNEFELT — håndhevet av `test_navnefelt_oversettes_aldri`.
-    assert ("navn", "OTERNESET") in merket
+    # NAVNET står i tittelform, som overalt på sida (R1a, 26.11.2026).
+    # Vakten sammenligner navneverdien mot hvitelista med `casefold()`,
+    # så formen finner seg selv der; `visningsord` endrer bare store og
+    # små bokstaver i NAVNEFELT — håndhevet av
+    # `test_navnefelt_oversettes_aldri`.
+    assert ("navn", "Oterneset") in merket
 
     # KAPASITETEN er formatert, og vakten ser det som STÅR PÅ SIDA. Fram
     # til 20.09.2026 sto «8000.0» der. At prøven leser «8 000» nå er
@@ -743,7 +748,9 @@ def test_et_navn_i_endringstabellen_felles_av_porten(tmp_path):
     }])
     # Hvitelista som om alt annet på sida var gjort rede for.
     navn_ok = {n for _f, n in vakt.felt_verdier(side)} | set(vakt.navn_i(side))
-    navn_ok.discard("TESTVIK OG STRAUM DA")
+    # Etter `casefold()`, slik vakten sammenligner: sida viser navnet i
+    # selskapsform (R1a), og den formen skal heller ikke være gjort rede for.
+    navn_ok = {n for n in navn_ok if n.casefold() != "testvik og straum da"}
     orgnr_ok = set(vakt.NI_SIFFER.findall(side))
 
     # TO funn fra 19.09.2026, og det er en SKJERPING: `DA` er målt
@@ -1872,7 +1879,7 @@ def _selskap(**overstyr) -> str:
     }
     sel.update(overstyr)
     jsonld_raa = dict(sel)          # JSON-LD leser KILDENS verdier
-    sel["register"] = _visning(sel["register"])
+    sel["register"] = _visning(sel["register"], "enhetsregisteret")
     for t_ in sel["tillatelser"]:
         if "kapasitet_enhet" in t_:
             t_["kapasitet"] = visningsord.maalt(t_.pop("kapasitet"),
@@ -3406,7 +3413,7 @@ def test_om_siden_har_ferdig_formatert_sitering():
     flat = " ".join(_om().split())
     assert "Heine Valø Nordbøe (2026)" in flat
     assert "Kystloggen: sammenstilte registerdata om norsk akvakultur" in flat
-    assert "Bygget 2026-09-20" in flat
+    assert "Bygget 20.09.2026" in flat, "ISO bare i datetime (R1a)"
     # ADRESSEN ER NETTSTEDET, ikke koderepoet: den som siterer et tall,
     # siterer siden tallet står på.
     assert "https://kystloggen.no" in flat

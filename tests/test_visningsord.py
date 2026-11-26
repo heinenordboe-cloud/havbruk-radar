@@ -135,9 +135,26 @@ def test_navnefelt_oversettes_aldri():
     for felt in vakt.NAVNEFELT:
         assert felt not in visningsord.KODET, felt
         assert felt not in visningsord.MENGDEFELT, felt
-        for verdi in ("OTERNESET", "SALMAR OPPDRETT AS", "Andøya til Senja",
-                      "TESTVIK OG STRAUM DA"):
-            assert visningsord.verdi(felt, verdi) == verdi
+        for kilde in ("", "akvakultur", "enhetsregisteret", "eierskap"):
+            for verdi in ("OTERNESET", "SALMAR OPPDRETT AS", "Andøya til Senja",
+                          "TESTVIK OG STRAUM DA"):
+                # Navneregelen (R1a) endrer bare store og små bokstaver,
+                # og vakten sammenligner med `casefold()`.
+                vist = visningsord.verdi(felt, verdi, kilde)
+                assert vist.casefold() == verdi.casefold(), (felt, kilde, vist)
+
+
+def test_et_selskapsnavn_beholder_formen_i_versaler():
+    """Personformprøven leser DA, ANS og ENK som hele ord i VERSALER."""
+    for felt, kilde in (("eier_navn", ""), ("tildelt_navn", ""),
+                        ("mottaker_navn", ""), ("navn", "enhetsregisteret")):
+        assert visningsord.verdi(felt, "TESTVIK OG STRAUM DA", kilde) == \
+            "Testvik og Straum DA"
+        assert visningsord.verdi(felt, "AUSTEVOLL MELAKS AS", kilde) == \
+            "Austevoll Melaks AS"
+    # Et navn fra en ukjent kilde røres ikke.
+    assert visningsord.verdi("navn", "TESTVIK OG STRAUM DA") == "TESTVIK OG STRAUM DA"
+    assert visningsord.verdi("navn", "TUHOLMANE Ø", "akvakultur") == "Tuholmane Ø"
 
 
 def test_orgnummer_grupperes_aldri():
@@ -433,7 +450,9 @@ def test_en_ren_dato_og_en_tom_verdi_roeres_ikke():
 def test_verdi_viser_et_tidsstempel_som_dato():
     """Et rått stempel i en tabellcelle er kildens format, ikke et svar."""
     assert visningsord.verdi("versjon_gyldig_fra",
-                             "2023-12-31T23:00:00Z") == "2024-01-01"
+                             "2023-12-31T23:00:00Z") == "01.01.2024"
+    # En ren dato også: ISO bare i `datetime` (R1a, 26.11.2026).
+    assert visningsord.verdi("stiftelsesdato", "2013-06-24") == "24.06.2013"
 
 
 def test_tidspunkt_regner_IKKE_om():

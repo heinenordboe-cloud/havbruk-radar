@@ -80,7 +80,7 @@
       {% for r in po.runder %}
       <li class="runde--{{ r.lesemaate or 'ingen' }} {{ r.farge_klasse }}">
         <span class="runde-flate" aria-hidden="true"></span>
-        <time datetime="{{ r.aar }}">{{ r.aar }}</time>
+        <time datetime="{{ r.aar }}">{{ r.aar|kortdato }}</time>
         <span class="rundestripe-farge">{{ r.farge }}</span>
       </li>
       {% endfor %}
@@ -171,10 +171,10 @@
       <title id="biograf-tittel">Beholdning i tonn,
         {{ antall(b.maaneder, "måned", "måneder") }}</title>
       <desc id="biograf-tekst">Én søyle per måned fra
-        <time datetime="{{ b.fra }}">{{ b.fra }}</time> til
-        <time datetime="{{ b.til }}">{{ b.til }}</time>. Høyeste
+        <time datetime="{{ b.fra }}">{{ b.fra|kortdato }}</time> til
+        <time datetime="{{ b.til }}">{{ b.til|kortdato }}</time>. Høyeste
         beholdning er {{ b.maks }} tonn i
-        <time datetime="{{ b.maks_maaned }}">{{ b.maks_maaned }}</time>.
+        <time datetime="{{ b.maks_maaned }}">{{ b.maks_maaned|kortdato }}</time>.
         Siste måned er {{ b.siste }} tonn. Y-aksen er tusen tonn. Alle
         tallene står i tabellen under.</desc>
       <g class="akse" aria-hidden="true">
@@ -192,7 +192,7 @@
       <g class="soyler">
         {% for s in b.soyler %}
         <rect x="{{ s.x }}" y="{{ s.y }}" width="{{ b.soylebredde }}"
-              height="{{ s.h }}"><title>{{ s.maaned }}: {{ s.verdi }} tonn</title></rect>
+              height="{{ s.h }}"><title>{{ s.maaned|kortdato }}: {{ s.verdi }} tonn</title></rect>
         {% endfor %}
       </g>
     </svg>
@@ -246,7 +246,7 @@
       <tbody>
         {% for m in po.biomasse_rader %}
         <tr>
-          <th scope="row"><time datetime="{{ m.maaned }}">{{ m.maaned }}</time></th>
+          <th scope="row"><time datetime="{{ m.maaned }}">{{ m.maaned|kortdato }}</time></th>
           <td class="tall" data-felt="{{ feltmerke(m.biomasse_kg, 'biomasse_kg') }}">{{ m.biomasse_kg or VERDI_MANGLER }}</td>
           <td class="tall" data-felt="{{ feltmerke(m.beholdning_antall, 'beholdning_antall') }}">{{ m.beholdning_antall or VERDI_MANGLER }}</td>
           <td class="tall" data-felt="{{ feltmerke(m.utsett_smolt_antall, 'utsett_smolt_antall') }}">{{ m.utsett_smolt_antall or VERDI_MANGLER }}</td>
@@ -379,7 +379,7 @@
   </div>
 
   <p class="tabelltittel" id="akvakultur-lokaliteter-tittel">Hentet
-      <time datetime="{{ po.akva_dato }}">{{ po.akva_dato }}</time>.
+      <time datetime="{{ po.akva_dato }}">{{ po.akva_dato|kortdato }}</time>.
       <span data-teller="Viser alle {{ tall(po.lokaliteter_antall) }}">Viser
         alle {{ tall(po.lokaliteter_antall) }}</span>.</p>
   <div class="tabellramme" role="region"
@@ -467,7 +467,7 @@
     <tbody>
       {% for e in po.endringer %}
       <tr>
-        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato }}</time></th>
+        <th scope="row"><time datetime="{{ e.dato }}">{{ e.dato|kortdato }}</time></th>
         <td data-felt="{{ e.felt }}">{{ e.etikett }}</td>
         {#- RUTA FØLGER VERDIEN, ikke feltet: «gul» får gul rute, og
             Felt-cella, som sier HVILKET felt, får ingen. #}
@@ -513,7 +513,7 @@
     <tbody>
       {% for h in po.i_omraadet %}
       <tr>
-        <td data-felt="observed_at"><time datetime="{{ h.dato }}">{{ h.dato }}</time></td>
+        <td data-felt="observed_at"><time datetime="{{ h.dato }}">{{ h.dato|kortdato }}</time></td>
         <td class="gjelder" data-felt="{{ h.gjelder_felt }}">
           {%- if h.gjelder_url %}<a href="{{ h.gjelder_url }}" data-felt="{{ h.gjelder_felt }}">{{ h.gjelder }}</a>
           {%- else %}{{ h.gjelder or VERDI_MANGLER }}{% endif %}
@@ -566,7 +566,7 @@
       {% for r in po.runder %}
       <li class="runde runde--{{ r.lesemaate or 'ingen' }} {{ r.farge_klasse }}">
         <span class="runde-flate" aria-hidden="true"></span>
-        <p class="runde-aar"><time datetime="{{ r.aar }}">{{ r.aar }}</time></p>
+        <p class="runde-aar"><time datetime="{{ r.aar }}">{{ r.aar|kortdato }}</time></p>
         {# MERKINGEN SKILLER «rød» fra «ikke oppgitt», og den står her
            selv om dette ikke er en tabellcelle: `FELTMERKE` leser
            `data-felt` på hvilket som helst element. Blandes de to i
@@ -627,7 +627,7 @@
         {% for r in po.rundeopplysninger %}
         {% if r.tegn %}
         <dt>
-          <time datetime="{{ r.aar }}">{{ r.aar }}</time>
+          <time datetime="{{ r.aar }}">{{ r.aar|kortdato }}</time>
           <span class="rundefakta-kilde">{{ r.type|lower }}
             <time datetime="{{ r.dato }}">{{ r.dato|dato }}</time>
             {% if r.url %}· <a href="{{ r.url }}">regjeringen.no ↗</a>{% endif %}
@@ -675,7 +675,7 @@
         ikke; det lukkes, som rundesitatene over (tekstreglene 20.10.2026). #}
     <details class="saerskilt">
       <summary class="etikett">Departementet vurderte området særskilt i
-        <time datetime="{{ m.aar }}">{{ m.aar }}</time></summary>
+        <time datetime="{{ m.aar }}">{{ m.aar|kortdato }}</time></summary>
       <blockquote data-felt="beslutningssitat">{{ m.sitat }}</blockquote>
       <p class="runde-kilde">
         Nærings- og fiskeridepartementet,

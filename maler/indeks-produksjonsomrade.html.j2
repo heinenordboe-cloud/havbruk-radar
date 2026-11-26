@@ -28,7 +28,7 @@
   <a href="/lokalitet/">lokalitetslista</a>.</p>
 
 <p class="tabelltittel" id="trafikklysvedtak-alle-tittel">Produksjonsområdene med nyeste trafikklysfarge, hentet
-    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.</p>
+    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato|kortdato }}</time>.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="trafikklysvedtak-alle-tittel" tabindex="0">
 <table id="trafikklysvedtak-alle" aria-labelledby="trafikklysvedtak-alle-tittel">
@@ -48,7 +48,7 @@
       <th scope="row"><a href="/produksjonsomrade/{{ r.nr }}/">{{ r.nr }}</a></th>
       <td class="eier" data-felt="prodomraade_navn">{{ r.navn }}</td>
       <td class="tall" data-felt="lokaliteter_antall">{{ tall(r.lokaliteter) }}</td>
-      <td data-felt="runde"><time datetime="{{ r.siste_runde }}">{{ r.siste_runde }}</time></td>
+      <td data-felt="runde"><time datetime="{{ r.siste_runde }}">{{ r.siste_runde|kortdato }}</time></td>
       <td{% if r.farge_klasse %} class="{{ r.farge_klasse }}"{% endif %} data-felt="{{ r.farge_felt }}">{{ r.farge }}</td>
       <td data-felt="farge__lesemaate">{{ r.lesemaate_tekst }}</td>
     </tr>

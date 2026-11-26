@@ -2247,9 +2247,11 @@ def _endringsrad(r: dict, loknr: str) -> dict:
         # som alt annet fra kilden.
         "etikett": visningsord.felt(str(r["field"])),
         "fra": visningsord.verdi(str(r["field"]),
-                                 r["old_value"] if r["old_value"] is not None else ""),
+                                 r["old_value"] if r["old_value"] is not None else "",
+                                 kilde),
         "til": visningsord.verdi(str(r["field"]),
-                                 r["new_value"] if r["new_value"] is not None else ""),
+                                 r["new_value"] if r["new_value"] is not None else "",
+                                 kilde),
         "differanse": _differanse(str(r["field"]), r["old_value"], r["new_value"]),
     }
 
@@ -3013,8 +3015,8 @@ def _hendelse(rad: dict, felles: Felles, antall_felt: int = 1) -> dict:
         fra, til = f"{antall_felt} felt", IKKE_I_REGISTERET
         fra_raa = til_raa = ""
     else:
-        fra = visningsord.verdi(felt, raa_fra)
-        til = visningsord.verdi(felt, raa_til)
+        fra = visningsord.verdi(felt, raa_fra, kilde)
+        til = visningsord.verdi(felt, raa_til, kilde)
         fra_raa, til_raa = str(raa_fra).strip().lower(), str(raa_til).strip().lower()
 
     return {
@@ -5948,7 +5950,7 @@ def bygg_lokalitet(loknr: str, felles: Felles | None = None) -> dict:
         # `lys-*`-klassen — og uten den sto ruta tom i BEGGE moduser,
         # ved siden av ordet «gul». En tom rute ved siden av et fargeord
         # leses som at fargen mangler.
-        "register": [(f, visningsord.felt(f), visningsord.verdi(f, v),
+        "register": [(f, visningsord.felt(f), visningsord.verdi(f, v, "akvakultur"),
                       sist_endret.get((loknr, f), ""),
                       FARGE_KLASSE.get(_fargekode(str(v).strip().lower()), ""))
                      for f, v in sorted(a.items())],
@@ -11999,7 +12001,7 @@ def bygg_selskap(orgnr: str, felles: Felles) -> dict:
     # er tom for hvert felt her — selskapsregisteret har ingen farge.
     # Samme form i begge tabellene er likevel riktig: to registertabeller
     # med hver sin radform er to maler som må huske hver sin.
-    register = [(f, visningsord.felt(f), visningsord.verdi(f, reg[f]),
+    register = [(f, visningsord.felt(f), visningsord.verdi(f, reg[f], "enhetsregisteret"),
                  felles.sist_endret.get((orgnr, f), ""),
                  FARGE_KLASSE.get(_fargekode(str(reg[f]).strip().lower()), ""))
                 for f in SELSKAPSFELT if reg.get(f)]

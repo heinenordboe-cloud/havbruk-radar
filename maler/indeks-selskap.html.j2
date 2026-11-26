@@ -27,7 +27,7 @@
 <h1>Alle innehavere av akvakulturtillatelse</h1>
 <p class="lok-undertittel">
   {{ antall(d.antall, "selskap", "selskaper") }} eier minst én tillatelse, hentet
-  <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato }}</time>.
+  <time datetime="{{ d.eierskap_dato }}">{{ d.eierskap_dato|kortdato }}</time>.
 </p>
 {# SØKET, øverst på hver side i lista. Samme skjema som /sok/: det
    søker i hele nettstedet, ikke bare på denne siden, og uten

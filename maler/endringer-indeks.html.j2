@@ -105,7 +105,7 @@
           <a href="/endringer/{{ u.slug }}/">{{ u.vist }}</a>
         </th>
         <td data-felt="observed_at">
-          {% for d in u.datoer %}<time datetime="{{ d }}">{{ d }}</time>{% if not loop.last %}, {% endif %}{% endfor %}
+          {% for d in u.datoer %}<time datetime="{{ d }}">{{ d|kortdato }}</time>{% if not loop.last %}, {% endif %}{% endfor %}
         </td>
         <td class="tall" data-felt="antall">
           <a href="/endringer/{{ u.slug }}/" data-felt="antall">{{ tall(u.antall) }}</a>

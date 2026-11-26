@@ -958,7 +958,7 @@
           <td data-felt="{{ feltmerke(t.type, 'tillatelse_type') }}">{{ t.type or VERDI_MANGLER }}</td>
           <td class="tall" data-felt="{{ feltmerke(t.kapasitet, 'kapasitet') }}">{{ t.kapasitet or VERDI_MANGLER }}</td>
           <td data-felt="{{ feltmerke(t.tildelt_dato, 'tildelt_tid') }}">
-            {%- if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}" data-felt="tildelt_tid">{{ t.tildelt_dato }}</time>
+            {%- if t.tildelt_dato %}<time datetime="{{ t.tildelt_dato }}" data-felt="tildelt_tid">{{ t.tildelt_dato|kortdato }}</time>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
           </td>
         </tr>
@@ -1032,7 +1032,7 @@
               ved siden av ordet «gul». #}
           <td data-felt="{{ felt }}"{% if fargeklasse %} class="{{ fargeklasse }}"{% endif %}>{{ vist }}</td>
           <td data-felt="{{ feltmerke(endret, 'observed_at') }}">
-            {%- if endret %}<time datetime="{{ endret }}">{{ endret }}</time>
+            {%- if endret %}<time datetime="{{ endret }}">{{ endret|kortdato }}</time>
             {%- else %}{{ VERDI_MANGLER }}{% endif %}
           </td>
         </tr>
@@ -1089,7 +1089,7 @@
     <tbody>
       {% for o in lok.oppgitt %}
       <tr data-kilde="{{ o.kilde }}" data-gjelder="{{ o.dato }}" data-nivaa="oppgitt">
-        <th scope="row"><time datetime="{{ o.dato }}">{{ o.dato }}</time></th>
+        <th scope="row"><time datetime="{{ o.dato }}">{{ o.dato|kortdato }}</time></th>
         <td data-felt="{{ o.felt }}">{{ o.slag }}: {{ o.hva }}</td>
         {% if o.navn %}
         {# `data-pagefind-ignore` NÅR NAVNET ENDER PÅ EN PERSONFORM.

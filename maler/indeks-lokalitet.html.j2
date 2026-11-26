@@ -42,7 +42,7 @@
 <h1>Alle akvakulturlokaliteter</h1>
 <p class="lok-undertittel">
   {{ antall(d.antall, "lokalitet", "lokaliteter") }} i Akvakulturregisteret, hentet
-  <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.
+  <time datetime="{{ d.akva_dato }}">{{ d.akva_dato|kortdato }}</time>.
 </p>
 {# SØKET. Samme skjema som /sok/: det søker i hele nettstedet, ikke bare
    på denne siden, og uten JavaScript viser /sok/ veien til lista. #}
@@ -114,7 +114,7 @@
   posisjon i registeret{% if d.uten_koordinater %}:{% else %}.{% endif %}</p>
 {% if d.uten_koordinater %}
 <p class="tabelltittel" id="akvakultur-uten-koordinater-tittel">Lokaliteter uten breddegrad eller lengdegrad, hentet
-    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato }}</time>.</p>
+    <time datetime="{{ d.akva_dato }}">{{ d.akva_dato|kortdato }}</time>.</p>
 <div class="tabellramme" role="region"
      aria-labelledby="akvakultur-uten-koordinater-tittel" tabindex="0">
 <table id="akvakultur-uten-koordinater" aria-labelledby="akvakultur-uten-koordinater-tittel">
