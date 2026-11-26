@@ -3743,7 +3743,11 @@ def _uker(*verdier, brakk=(), fra="2020-01-06", grense=()):
                    "brakklagt": "True" if i in brakk else "False",
                    "iso_aar": str(aar), "iso_uke": f"{uke:02d}",
                    "dato": d.isoformat(),
-                   "lusegrense": (grense[i] or "") if i < len(grense) else ""})
+                   "lusegrense": (grense[i] or "") if i < len(grense) else "",
+                   # Innenfor BarentsWatchs telling, som `_uke_raa`: kilden
+                   # sender flaggene hver uke (MÅLT 26.11.2026).
+                   "har_laksefisk": "True", "er_landbasert": "False",
+                   "er_slaktemerd": "False"})
     return ut
 
 
@@ -6337,7 +6341,8 @@ def test_siden_sier_at_periodegrensen_er_barentswatchs():
     assert "Inneværende produksjonsperiode" in tekst
     assert "Forrige produksjonsperiode" in tekst
     assert "der BarentsWatch melder «trolig uten fisk»" in tekst
-    assert "1 av 2 uker med lusetall" in tekst
+    assert "1 av 2 målte uker over grensa" in tekst
+    assert "uker med lusetall" not in tekst
 
 
 # ==================================== konflikt mellom fisk og lus

@@ -800,7 +800,11 @@
         <dt>{{ etikett }}</dt>
         <dd>
           {% if p %}
-          {{ tall(p.over) }} av {{ antall(p.med_tall, "uke", "uker") }} med lusetall
+          {#- HVA TALLET TELLER, i ordene: uker OVER grensa, av ukene med et
+              lusetall. Til 26.11.2026 sto «0 av 28 uker med lusetall», og
+              det ble lest som at tallene manglet (sluttkontrollen 15b,
+              600 sider). `målt` er grafens eget ord («Målt null»). #}
+          {{ tall(p.over) }} av {{ antall(p.med_tall, "målt uke", "målte uker") }} over grensa
           <span class="fakta-bi">{{ p.fra|uke }}{% if p.til != p.fra %}–{{ p.til|uke }}{% endif %}
             {%- if p.uten_grense %} · {{ antall(p.uten_grense, "uke", "uker") }} uten grense{% endif %}</span>
           {% else %}

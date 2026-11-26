@@ -1629,7 +1629,9 @@ def i_luseunivers(uke: dict) -> bool:
 
     ÉN REGEL. Til 25.11.2026 sto den i `fisk_mot_lus()` alene, og
     tilstanden spurte bare om `har_laksefisk`: 295 lokaliteter på land
-    og 40 slaktemerder i sjø viste «Lakselus: brakklagt».
+    og 40 slaktemerder i sjø viste «Lakselus: brakklagt». Tre lesere:
+    tilstanden (`lokalitetspaastander()`), «Samme uke» (`fisk_mot_lus()`)
+    og produksjonsperiodene (`produksjonsperioder()`).
     """
     return (uke.get("har_laksefisk") == "True"
             and uke.get("er_landbasert") == "False"
@@ -4867,8 +4869,23 @@ def produksjonsperioder(serie: list[dict], siste_dato: str) -> dict:
     Per periode: første og siste uke, antall uker, uker med lusetall,
     uker over grensa, og uker med tall men uten grense hos kilden. De
     siste telles for seg: en uke uten grense er ikke en uke under den.
+
+    ## Bare perioder BarentsWatch teller lus i
+
+    Skal anlegget ikke rapportere lus, står tellingen ikke. En periode
+    telles når minst én av ukene er innenfor tellingen
+    (`i_luseunivers()`). MÅLT 26.11.2026 over de to siste periodene per
+    lokalitet: 2 269 helt innenfor, 17 helt utenfor (én til fem uker for
+    et anlegg på land, en slaktemerd eller et anlegg uten laksefisk), og
+    én blandet (45018: 83 uker, én av dem uten laksefisk). «Minst én» og
+    ikke «alle»: den blandede er en ekte periode i sjø. På sidene mistet
+    12 lokaliteter tellingen, og ingen fikk en annen periode i stedet.
+
+    `del_i_perioder()` er urørt. `unntaksanalyse` deler i perioder
+    etter sin egen regel, og den er ikke en visning.
     """
-    perioder = del_i_perioder(serie)
+    perioder = [p for p in del_i_perioder(serie)
+                if any(i_luseunivers(u) for u in p)]
 
     def tall_for(p: list[dict]) -> dict:
         med_tall = [u for u in p if (u.get("voksne_hunnlus") or "").strip()]
